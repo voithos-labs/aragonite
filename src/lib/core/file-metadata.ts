@@ -1,3 +1,6 @@
+/**
+ * File text analysis and normalization helpers for the editor core.
+ */
 import type { FileEncodingMetadata, LineEnding, PreparedDocumentText } from "./types.js";
 
 export const BYTE_ORDER_MARK = "\uFEFF";

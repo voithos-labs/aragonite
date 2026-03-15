@@ -1,3 +1,6 @@
+/**
+ * Minimal Node test runner type shims for editor-only tests.
+ */
 declare module "node:assert/strict" {
     const assert: {
         equal(actual: unknown, expected: unknown, message?: string): void;

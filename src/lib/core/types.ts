@@ -1,3 +1,6 @@
+/**
+ * Shared source and document metadata types for the editor core.
+ */
 export interface SourceRange {
     start: number;
     end: number;

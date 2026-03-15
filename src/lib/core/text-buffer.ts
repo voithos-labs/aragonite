@@ -1,7 +1,11 @@
+/**
+ * Flat-string text buffer with line indexing for the editor core.
+ */
 import type { SourcePosition, SourceRange } from "./types.js";
 
 export class TextBuffer {
     private text: string;
+    // Line starts are kept eagerly in sync because source offsets are the editor's primary anchor.
     private lineStarts: number[];
 
     constructor(text = "") {
