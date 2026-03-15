@@ -1,3 +1,6 @@
+/**
+ * Smoke tests for the editor text buffer and file metadata helpers.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 
