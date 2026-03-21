@@ -1,10 +1,11 @@
-/****
+/**
  * Smoke tests for the Phase 0 input and selection harness proof of concept.
- ****/
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    applyInputHarnessBeforeInputIntent,
     buildInputHarnessProofOfConcept,
     createCollapsedInputHarnessTextSelection,
     createInputHarnessNodeSelection,
@@ -120,4 +121,87 @@ test("Phase 0 input harness PoC normalizes pasted line endings and keeps logical
     assert.equal(mutation.source, "Paragraph\r\nSecond line\r\nThird line\r\n");
     assert.equal(mutation.selection.anchor.kind, "text");
     assert.equal(mutation.selection.anchor.sourceOffset, mutation.selection.focus.sourceOffset);
+});
+
+test("Phase 0 input harness PoC translates insertText beforeinput into a text mutation", () => {
+    const document = buildInputHarnessProofOfConcept("Hello world\n");
+    const paragraphBlock = findFirstInputHarnessBlockByRole(document, "paragraph");
+
+    assert.equal(paragraphBlock !== undefined, true);
+
+    const selection = createCollapsedInputHarnessTextSelection(document, paragraphBlock!.key, 5);
+    const outcome = applyInputHarnessBeforeInputIntent(document, selection, {
+        inputType: "insertText",
+        data: ",",
+    });
+
+    assert.equal(outcome.kind, "mutation");
+    if (outcome.kind !== "mutation") {
+        return;
+    }
+
+    assert.equal(outcome.mutation.source, "Hello, world\n");
+    assert.equal(outcome.mutation.selection.anchor.kind, "text");
+    assert.equal(outcome.mutation.selection.anchor.sourceOffset, 6);
+});
+
+test("Phase 0 input harness PoC translates deleteContentBackward into a local text deletion", () => {
+    const document = buildInputHarnessProofOfConcept("Hello world\n");
+    const paragraphBlock = findFirstInputHarnessBlockByRole(document, "paragraph");
+
+    assert.equal(paragraphBlock !== undefined, true);
+
+    const selection = createCollapsedInputHarnessTextSelection(document, paragraphBlock!.key, 5);
+    const outcome = applyInputHarnessBeforeInputIntent(document, selection, {
+        inputType: "deleteContentBackward",
+    });
+
+    assert.equal(outcome.kind, "mutation");
+    if (outcome.kind !== "mutation") {
+        return;
+    }
+
+    assert.equal(outcome.mutation.source, "Hell world\n");
+    assert.equal(outcome.mutation.selection.anchor.kind, "text");
+    assert.equal(outcome.mutation.selection.anchor.sourceOffset, 4);
+});
+
+test("Phase 0 input harness PoC selects an image atom when backspace lands on its boundary", () => {
+    const document = buildInputHarnessProofOfConcept(MIXED_GFM_FIXTURE);
+    const imageBlock = document.blocks.find((block: InputHarnessBlockDescriptor) =>
+        block.parts.some((part: InputHarnessInlinePart) => part.kind === "atom")
+    );
+
+    assert.equal(imageBlock !== undefined, true);
+
+    const imageAtom = imageBlock!.parts.find((part: InputHarnessInlinePart) => part.kind === "atom");
+    assert.equal(imageAtom !== undefined, true);
+
+    const selection = reconcileInputHarnessDomSelection(document, {
+        anchor: {
+            blockKey: imageBlock!.key,
+            partKey: imageAtom!.key,
+            kind: "atom",
+            offset: 0,
+            side: "after",
+        },
+        focus: {
+            blockKey: imageBlock!.key,
+            partKey: imageAtom!.key,
+            kind: "atom",
+            offset: 0,
+            side: "after",
+        },
+    });
+    const outcome = applyInputHarnessBeforeInputIntent(document, selection, {
+        inputType: "deleteContentBackward",
+    });
+
+    assert.equal(outcome.kind, "selection");
+    if (outcome.kind !== "selection") {
+        return;
+    }
+
+    assert.equal(outcome.selection.kind, "node");
+    assert.equal(outcome.selection.selectedAtomKey, imageAtom!.key);
 });

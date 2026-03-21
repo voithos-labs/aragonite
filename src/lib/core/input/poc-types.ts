@@ -1,6 +1,6 @@
-/****
+/**
  * Headless types for the Phase 0 input and selection harness proof of concept.
- ****/
+ */
 import type { FileEncodingMetadata, SourceRange } from "../types.js";
 import type {
     ProofOfConceptBlock,
@@ -111,3 +111,30 @@ export interface InputHarnessMutationResult {
     document: InputHarnessDocument;
     selection: InputHarnessSelection;
 }
+
+export type InputHarnessBeforeInputType =
+    | "insertText"
+    | "insertFromPaste"
+    | "insertParagraph"
+    | "insertLineBreak"
+    | "deleteContentBackward"
+    | "deleteContentForward";
+
+export interface InputHarnessBeforeInputIntent {
+    inputType: InputHarnessBeforeInputType;
+    data?: string;
+}
+
+export type InputHarnessBeforeInputOutcome =
+    | {
+          kind: "mutation";
+          mutation: InputHarnessMutationResult;
+      }
+    | {
+          kind: "selection";
+          selection: InputHarnessSelection;
+      }
+    | {
+          kind: "unsupported";
+          reason: string;
+      };
