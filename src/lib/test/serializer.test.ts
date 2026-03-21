@@ -159,3 +159,172 @@ describe('round-trip: lists', () => {
 		expect(list.children[1].kind).toBe('listItem');
 	});
 });
+
+// ── Complex Document Round-Trip Tests ───────────────────────────────────────
+
+describe('round-trip: complex documents', () => {
+	it('round-trips a project README', () => {
+		const source = `# Limestone
+
+A local-first desktop notes app.
+
+## Features
+
+- **Source management** — create and browse note directories
+- **Search** — fuzzy title matching with recency weighting
+- **Markdown** — full GFM support
+
+## Getting Started
+
+\`\`\`bash
+npm install
+npm run tauri dev
+\`\`\`
+
+> **Note:** You need Rust and Tauri v2 prerequisites installed.
+
+## Roadmap
+
+1. File watcher integration
+2. Full-text search via Tantivy
+3. Custom markdown editor
+
+---
+
+Built with Tauri 2, SvelteKit, and Rust.
+`;
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it('round-trips a meeting notes document', () => {
+		const source = `# Sprint Planning — 2026-03-21
+
+## Action Items
+
+- [x] Review PR #42
+- [ ] Deploy staging build
+- [ ] Write migration script
+
+## Discussion
+
+> The auth middleware rewrite is driven by compliance, not tech debt.
+> We should prioritize correctness over ergonomics.
+
+Key decisions:
+
+1. Freeze merges after Thursday
+2. Cut release branch from main
+3. Run full regression suite
+
+## Code Snippet
+
+\`\`\`sql
+SELECT d.*, s.path
+FROM documents d
+JOIN sources s ON s.id = d.source_id
+WHERE d.deleted_at IS NULL;
+\`\`\`
+
+---
+
+Next meeting: Monday 10am.
+`;
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it('round-trips a document with dense block transitions', () => {
+		const source = `# Heading
+Paragraph right after heading.
+
+> Blockquote
+> with continuation
+
+\`\`\`
+code block
+\`\`\`
+- list item one
+- list item two
+
+***
+
+## Another heading
+
+> > Nested blockquote
+
+Final paragraph.
+`;
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it('round-trips a document with irregular whitespace', () => {
+		const source = `
+
+# Title after two blank lines
+
+
+
+Paragraph after three blank lines.
+
+
+> Quote after two blank lines.
+
+- Item
+
+
+`;
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it('round-trips a document with mixed deferred and supported syntax', () => {
+		const source = `# API Reference
+
+## Endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | /api/docs | List documents |
+| POST | /api/docs | Create document |
+
+### Authentication
+
+All endpoints require a bearer token:
+
+\`\`\`
+Authorization: Bearer <token>
+\`\`\`
+
+### Response Format
+
+\`\`\`json
+{
+  "data": [],
+  "meta": { "total": 0 }
+}
+\`\`\`
+
+> [!NOTE]
+> Rate limiting applies to all endpoints.
+
+---
+
+See [full docs](https://example.com) for details.
+`;
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+
+	it('round-trips a document with CRLF throughout', () => {
+		const source =
+			'# Title\r\n\r\nParagraph one.\r\nContinuation line.\r\n\r\n' +
+			'> Blockquote\r\n> line two\r\n\r\n' +
+			'- Item A\r\n- Item B\r\n\r\n' +
+			'```js\r\nconsole.log("hello");\r\n```\r\n\r\n' +
+			'---\r\n';
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
+	});
+});
