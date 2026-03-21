@@ -21,14 +21,6 @@ describe('deferred GFM syntax round-trips without loss', () => {
 			source: '[ref]: https://example.com "Title"\n'
 		},
 		{
-			name: 'setext heading H1',
-			source: 'Title\n===\n'
-		},
-		{
-			name: 'setext heading H2',
-			source: 'Title\n---\n'
-		},
-		{
 			name: 'mixed with supported blocks',
 			source: '# Heading\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nParagraph.\n'
 		},

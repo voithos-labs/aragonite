@@ -7,6 +7,7 @@
 
 export type LeafBlockKind =
 	| 'heading'
+	| 'setextHeading'
 	| 'paragraph'
 	| 'fencedCode'
 	| 'thematicBreak'
@@ -20,6 +21,10 @@ export type BlockKind = LeafBlockKind | ContainerBlockKind;
 
 export interface HeadingMetadata {
 	level: number;
+}
+
+export interface SetextHeadingMetadata {
+	level: 1 | 2;
 }
 
 export interface FencedCodeMetadata {
@@ -106,6 +111,16 @@ export class Heading extends LeafBlock {
 	readonly metadata: HeadingMetadata;
 
 	constructor(leadingTrivia: string, raw: string, metadata: HeadingMetadata) {
+		super(leadingTrivia, raw);
+		this.metadata = metadata;
+	}
+}
+
+export class SetextHeading extends LeafBlock {
+	readonly kind = 'setextHeading' as const;
+	readonly metadata: SetextHeadingMetadata;
+
+	constructor(leadingTrivia: string, raw: string, metadata: SetextHeadingMetadata) {
 		super(leadingTrivia, raw);
 		this.metadata = metadata;
 	}
