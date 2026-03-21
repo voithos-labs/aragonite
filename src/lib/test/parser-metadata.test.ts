@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
-import type { Heading, FencedCode, ThematicBreak, Blockquote, List, ListItem } from '../core/nodes';
+import type {
+	Heading,
+	FencedCode,
+	ThematicBreak,
+	Blockquote,
+	List,
+	ListItem
+} from '../core/nodes';
 
 describe('metadata: headings', () => {
 	it('extracts heading levels 1-6', () => {
@@ -125,5 +132,76 @@ describe('metadata: lists', () => {
 		const doc = parse('+ Item\n');
 		const list = doc.children[0] as List;
 		expect(list.children[0].metadata.marker).toBe('+');
+	});
+});
+
+// ── Edge Case Structural Tests ──────────────────────────────────────────────
+
+describe('structural: headings', () => {
+	it('7 hashes is a paragraph, not a heading', () => {
+		const doc = parse('####### Not a heading\n');
+		expect(doc.children[0].kind).toBe('paragraph');
+	});
+
+	it('empty heading is still a heading', () => {
+		const doc = parse('#\n');
+		expect(doc.children[0].kind).toBe('heading');
+		expect((doc.children[0] as Heading).metadata.level).toBe(1);
+	});
+});
+
+describe('structural: document prefix/suffix', () => {
+	it('captures leading blank lines as prefix', () => {
+		const doc = parse('\n\n# Title\n');
+		expect(doc.prefix).toBe('\n\n');
+		expect(doc.children.length).toBe(1);
+	});
+
+	it('captures trailing blank lines as suffix', () => {
+		const doc = parse('# Title\n\n\n');
+		expect(doc.suffix).toBe('\n\n');
+		expect(doc.children.length).toBe(1);
+	});
+
+	it('empty document has empty prefix/suffix', () => {
+		const doc = parse('');
+		expect(doc.prefix).toBe('');
+		expect(doc.suffix).toBe('');
+		expect(doc.children.length).toBe(0);
+	});
+
+	it('only blank lines go into prefix', () => {
+		const doc = parse('\n\n\n');
+		expect(doc.prefix).toBe('\n\n\n');
+		expect(doc.children.length).toBe(0);
+		expect(doc.suffix).toBe('');
+	});
+});
+
+describe('structural: blockquote children', () => {
+	it('blockquote containing a list has list children', () => {
+		const doc = parse('> - A\n> - B\n');
+		const bq = doc.children[0] as Blockquote;
+		expect(bq.kind).toBe('blockquote');
+		expect(bq.children.length).toBeGreaterThan(0);
+		expect(bq.children[0].kind).toBe('list');
+	});
+
+	it('blockquote innerPrefix/innerSuffix are strings', () => {
+		const doc = parse('> # Title\n');
+		const bq = doc.children[0] as Blockquote;
+		expect(typeof bq.innerPrefix).toBe('string');
+		expect(typeof bq.innerSuffix).toBe('string');
+	});
+});
+
+describe('structural: mixed list types', () => {
+	it('adjacent different list types produce separate blocks', () => {
+		const doc = parse('- A\n\n1. B\n');
+		expect(doc.children.length).toBe(2);
+		expect(doc.children[0].kind).toBe('list');
+		expect((doc.children[0] as List).metadata.ordered).toBe(false);
+		expect(doc.children[1].kind).toBe('list');
+		expect((doc.children[1] as List).metadata.ordered).toBe(true);
 	});
 });
