@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import type {
 	Heading,
+	SetextHeading,
 	FencedCode,
 	ThematicBreak,
 	Blockquote,
@@ -80,11 +81,26 @@ describe('metadata: thematic breaks', () => {
 		expect(node.metadata.marker).toBe('_');
 	});
 
-	it('does not parse --- after paragraph as thematic break', () => {
+	it('parses --- after paragraph as setext H2, not thematic break', () => {
 		const doc = parse('Title\n---\n');
-		// Should be a single paragraph, not paragraph + thematic break
 		expect(doc.children.length).toBe(1);
-		expect(doc.children[0].kind).not.toBe('thematicBreak');
+		expect(doc.children[0].kind).toBe('setextHeading');
+	});
+});
+
+describe('metadata: setext headings', () => {
+	it('identifies setext H1 with ===', () => {
+		const doc = parse('Title\n===\n');
+		const node = doc.children[0] as SetextHeading;
+		expect(node.kind).toBe('setextHeading');
+		expect(node.metadata.level).toBe(1);
+	});
+
+	it('identifies setext H2 with ---', () => {
+		const doc = parse('Title\n---\n');
+		const node = doc.children[0] as SetextHeading;
+		expect(node.kind).toBe('setextHeading');
+		expect(node.metadata.level).toBe(2);
 	});
 });
 

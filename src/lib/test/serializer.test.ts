@@ -373,3 +373,28 @@ describe('round-trip: edge cases', () => {
 		});
 	}
 });
+
+describe('round-trip: setext headings', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'setext H1', source: 'Title\n===\n' },
+		{ name: 'setext H2', source: 'Title\n---\n' },
+		{ name: 'setext H1 long underline', source: 'Title\n==========\n' },
+		{ name: 'setext H2 short underline', source: 'Title\n--\n' },
+		{ name: 'setext with multi-line content', source: 'Line one\nLine two\n---\n' },
+		{ name: 'setext then paragraph', source: 'Title\n===\n\nBody text.\n' },
+		{ name: 'setext H1 after blank lines', source: '\nTitle\n===\n' },
+		{ name: 'setext H2 trailing space on underline', source: 'Title\n--- \n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+
+	it('parses setext H1 as SetextHeading node', () => {
+		const doc = parse('Title\n===\n');
+		expect(doc.children[0].kind).toBe('setextHeading');
+	});
+});

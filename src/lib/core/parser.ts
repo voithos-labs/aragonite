@@ -9,6 +9,7 @@ import {
 	Paragraph,
 	FencedCode,
 	ThematicBreak,
+	SetextHeading,
 	Blockquote,
 	List,
 	ListItem,
@@ -50,13 +51,7 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 			continue;
 		}
 
-		const { node, nextIndex } = parseNextBlock(
-			lines,
-			index,
-			end,
-			pendingTrivia,
-			children.length === 0
-		);
+		const { node, nextIndex } = parseNextBlock(lines, index, end, pendingTrivia);
 		children.push(node);
 		pendingTrivia = '';
 		index = nextIndex;
@@ -69,8 +64,7 @@ function parseNextBlock(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string,
-	atDocumentStart: boolean
+	leadingTrivia: string
 ): { node: CstNode; nextIndex: number } {
 	const line = lines[startIndex];
 
@@ -89,9 +83,9 @@ function parseNextBlock(
 		};
 	}
 
-	// Thematic break — only when preceded by blank line or at document start
+	// Thematic break — setext detection in parseParagraph handles the ---/=== ambiguity
 	const thematic = matchThematicBreak(line.text);
-	if (thematic && (leadingTrivia.length > 0 || atDocumentStart)) {
+	if (thematic) {
 		return {
 			node: new ThematicBreak(leadingTrivia, line.raw, {
 				marker: thematic
@@ -151,10 +145,19 @@ function parseParagraph(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: Paragraph; nextIndex: number } {
+): { node: Paragraph | SetextHeading; nextIndex: number } {
 	let i = startIndex + 1;
 
 	while (i < endIndex && !isBlankLine(lines[i].text) && !startsNewBlock(lines[i].text)) {
+		// Check if this line is a setext underline for the paragraph above
+		const setext = matchSetextUnderline(lines[i].text);
+		if (setext) {
+			const raw = joinRaw(lines, startIndex, i + 1);
+			return {
+				node: new SetextHeading(leadingTrivia, raw, { level: setext.level }),
+				nextIndex: i + 1
+			};
+		}
 		i++;
 	}
 
@@ -282,6 +285,12 @@ function matchFenceClose(text: string, marker: '`' | '~', minLength: number): bo
 	const pattern = marker === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
 	const m = text.match(pattern);
 	return Boolean(m && m[1].length >= minLength);
+}
+
+function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
+	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
+	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
+	return null;
 }
 
 export function matchThematicBreak(text: string): string | null {
