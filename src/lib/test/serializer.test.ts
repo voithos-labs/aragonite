@@ -328,3 +328,48 @@ See [full docs](https://example.com) for details.
 		expect(serialize(doc)).toBe(source);
 	});
 });
+
+// ── Edge Case Round-Trip Tests ──────────────────────────────────────────────
+
+describe('round-trip: edge cases', () => {
+	const cases: { name: string; source: string }[] = [
+		// Heading edge cases
+		{ name: 'heading with closing hashes', source: '## Title ##\n' },
+		{ name: 'heading with trailing spaces', source: '# Title   \n' },
+		{ name: 'empty heading', source: '#\n' },
+		{ name: 'empty heading with space', source: '# \n' },
+		{ name: '7 hashes is not a heading', source: '####### Not a heading\n' },
+
+		// Fenced code edge cases
+		{ name: 'fence with trailing space on opener', source: '```  \ncode\n```\n' },
+		{ name: 'fence with empty content', source: '```\n```\n' },
+		{ name: 'tilde fence close must match character', source: '```\ncode\n~~~\nmore code\n```\n' },
+
+		// Blockquote edge cases
+		{ name: 'blockquote no space after >', source: '>text\n' },
+		{ name: 'blockquote containing a list', source: '> - A\n> - B\n' },
+		{ name: 'blockquote containing thematic break', source: '> ---\n' },
+
+		// List edge cases
+		{ name: 'list item with empty content', source: '- \n' },
+		{ name: 'mixed list types are separate lists', source: '- A\n\n1. B\n' },
+		{ name: 'list item with special chars', source: '- Item with `code` and *emphasis*\n' },
+
+		// Whitespace edge cases
+		{ name: 'single newline only', source: '\n' },
+		{ name: 'single character no newline', source: 'x' },
+		{ name: 'spaces only line', source: '   \n' },
+
+		// Block boundary edge cases
+		{ name: 'blockquote then list no gap', source: '> Quote\n- List\n' },
+		{ name: 'list then blockquote no gap', source: '- Item\n> Quote\n' },
+		{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' },
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
