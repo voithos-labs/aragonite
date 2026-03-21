@@ -11,6 +11,7 @@ export type LeafBlockKind =
 	| 'paragraph'
 	| 'fencedCode'
 	| 'thematicBreak'
+	| 'indentedCode'
 	| 'unrecognized';
 
 export type ContainerBlockKind = 'blockquote' | 'list' | 'listItem';
@@ -151,6 +152,14 @@ export class ThematicBreak extends LeafBlock {
 	constructor(leadingTrivia: string, raw: string, metadata: ThematicBreakMetadata) {
 		super(leadingTrivia, raw);
 		this.metadata = metadata;
+	}
+}
+
+export class IndentedCode extends LeafBlock {
+	readonly kind = 'indentedCode' as const;
+
+	constructor(leadingTrivia: string, raw: string) {
+		super(leadingTrivia, raw);
 	}
 }
 

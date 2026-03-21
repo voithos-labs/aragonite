@@ -363,7 +363,7 @@ describe('round-trip: edge cases', () => {
 		// Block boundary edge cases
 		{ name: 'blockquote then list no gap', source: '> Quote\n- List\n' },
 		{ name: 'list then blockquote no gap', source: '- Item\n> Quote\n' },
-		{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' },
+		{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -396,5 +396,35 @@ describe('round-trip: setext headings', () => {
 	it('parses setext H1 as SetextHeading node', () => {
 		const doc = parse('Title\n===\n');
 		expect(doc.children[0].kind).toBe('setextHeading');
+	});
+});
+
+describe('round-trip: indented code blocks', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'single line', source: '    code line\n' },
+		{ name: 'multiple lines', source: '    line 1\n    line 2\n' },
+		{ name: 'tab indented', source: '\tcode line\n' },
+		{ name: 'mixed indent', source: '    line 1\n\tline 2\n' },
+		{ name: 'with blank line inside', source: '    line 1\n\n    line 2\n' },
+		{ name: 'after paragraph', source: 'Paragraph.\n\n    code\n' },
+		{ name: 'before paragraph', source: '    code\n\nParagraph.\n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+
+	it('parses indented code as IndentedCode node', () => {
+		const doc = parse('    code\n');
+		expect(doc.children[0].kind).toBe('indentedCode');
+	});
+
+	it('indented continuation stays inside paragraph', () => {
+		const doc = parse('Paragraph\n    indented line\n');
+		expect(doc.children.length).toBe(1);
+		expect(doc.children[0].kind).toBe('paragraph');
 	});
 });

@@ -10,6 +10,7 @@ export {
 	Paragraph,
 	FencedCode,
 	ThematicBreak,
+	IndentedCode,
 	UnrecognizedBlock,
 	Blockquote,
 	List,
