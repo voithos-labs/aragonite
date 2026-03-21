@@ -9,8 +9,8 @@ import {
     type InputHarnessSelection,
     type ViewProjectionBlockDescriptor,
     type ViewProjectionDocument,
-    type ViewProjectionInlineRun,
 } from "$lib/editor";
+import { mapBrowserBoundaryToInputHarnessDomPoint } from "./dom-boundaries.js";
 
 interface BrowserDomBoundary {
     node: Node;
@@ -29,8 +29,8 @@ export function readInputHarnessDomSelectionFromBrowser(
         return null;
     }
 
-    const anchor = mapBrowserBoundaryToDomPoint(rootElement, projection, selection.anchorNode, selection.anchorOffset);
-    const focus = mapBrowserBoundaryToDomPoint(rootElement, projection, selection.focusNode, selection.focusOffset);
+    const anchor = mapBrowserBoundaryToInputHarnessDomPoint(rootElement, projection, selection.anchorNode, selection.anchorOffset);
+    const focus = mapBrowserBoundaryToInputHarnessDomPoint(rootElement, projection, selection.focusNode, selection.focusOffset);
 
     if (!anchor || !focus) {
         return null;
@@ -83,57 +83,6 @@ export function describeInputHarnessSelection(selection: InputHarnessSelection |
     }
 
     return `Text selection: ${selection.anchor.blockKey} @ ${selection.anchor.sourceOffset} -> ${selection.focus.sourceOffset}`;
-}
-
-function mapBrowserBoundaryToDomPoint(
-    rootElement: HTMLElement,
-    projection: ViewProjectionDocument,
-    node: Node | null,
-    offset: number
-): InputHarnessDomPoint | null {
-    if (!node) {
-        return null;
-    }
-
-    const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node instanceof HTMLElement ? node : null;
-    if (!element) {
-        return null;
-    }
-
-    const runElement = element.closest<HTMLElement>("[data-editor-run-key]");
-    const blockElement = element.closest<HTMLElement>("[data-editor-block-key]");
-    if (!runElement || !blockElement || !rootElement.contains(runElement)) {
-        return null;
-    }
-
-    const blockKey = blockElement.dataset.editorBlockKey;
-    const runKey = runElement.dataset.editorRunKey;
-    const partKey = runElement.dataset.editorPartKey;
-    const runKind = runElement.dataset.editorRunKind;
-    if (!blockKey || !runKey || !partKey || !runKind) {
-        return null;
-    }
-
-    if (runKind === "atom") {
-        const side = offset <= 0 ? "before" : "after";
-        return {
-            blockKey,
-            partKey,
-            kind: "atom",
-            offset: 0,
-            side,
-        };
-    }
-
-    const run = findRunByKey(projection, blockKey, runKey);
-    const localOffset = clamp(resolveTextOffsetWithinRun(node, runElement, offset, run.text.length), 0, run.text.length);
-
-    return {
-        blockKey,
-        partKey,
-        kind: "text",
-        offset: countPartOffsetBeforeRun(projection, blockKey, run) + localOffset,
-    };
 }
 
 function mapDomPointToBrowserBoundary(
@@ -219,55 +168,6 @@ function findBlockByKey(projection: ViewProjectionDocument, blockKey: string): V
     }
 
     return block;
-}
-
-function findRunByKey(
-    projection: ViewProjectionDocument,
-    blockKey: string,
-    runKey: string
-): ViewProjectionInlineRun {
-    const block = findBlockByKey(projection, blockKey);
-    const run = block.runs.find((candidate) => candidate.key === runKey);
-    if (!run) {
-        throw new Error(`Unknown projection run ${runKey}.`);
-    }
-
-    return run;
-}
-
-function countPartOffsetBeforeRun(
-    projection: ViewProjectionDocument,
-    blockKey: string,
-    run: ViewProjectionInlineRun
-): number {
-    const block = findBlockByKey(projection, blockKey);
-    let total = 0;
-
-    for (const candidate of block.runs) {
-        if (candidate.partKey !== run.partKey) {
-            continue;
-        }
-
-        if (candidate.key === run.key) {
-            return total;
-        }
-
-        total += candidate.text.length;
-    }
-
-    return total;
-}
-
-function resolveTextOffsetWithinRun(node: Node, runElement: HTMLElement, offset: number, maximum: number): number {
-    if (node.nodeType === Node.TEXT_NODE) {
-        return offset;
-    }
-
-    if (node === runElement) {
-        return offset <= 0 ? 0 : maximum;
-    }
-
-    return offset;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

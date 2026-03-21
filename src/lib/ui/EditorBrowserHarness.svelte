@@ -5,15 +5,21 @@
     import { onMount, tick } from "svelte";
 
     import {
+        applyInputHarnessBeforeInputIntent,
         buildInputHarnessProofOfConcept,
-        createCollapsedInputHarnessTextSelection,
-        createInputHarnessNodeSelection,
-        findFirstInputHarnessBlockByRole,
         projectInputHarnessDocument,
         reconcileInputHarnessDomSelection,
+        type InputHarnessBeforeInputIntent,
+        type InputHarnessBeforeInputOutcome,
         type InputHarnessSelection,
-        type ViewProjectionInlineRun,
     } from "$lib/editor";
+    import {
+        buildEditorBrowserHarnessRunClass,
+        buildEditorBrowserHarnessSelectionPreset,
+        describeEditorBrowserHarnessBlockChrome,
+        readEditorBrowserHarnessBeforeInputIntent,
+        type EditorBrowserHarnessPreset,
+    } from "./browser-harness-support.js";
     import {
         applyInputHarnessSelectionToBrowser,
         describeInputHarnessSelection,
@@ -27,13 +33,18 @@
         source?: string;
     } = $props();
 
+    let editableSource = $state(EDITOR_BROWSER_HARNESS_FIXTURE);
     let rootElement = $state<HTMLElement | null>(null);
     let logicalSelection = $state<InputHarnessSelection | null>(null);
     let browserSelectionStatus = $state("Use the preset buttons or drag-select inside the harness.");
     let activePreset = $state("none");
 
+    $effect(() => {
+        editableSource = source;
+    });
+
     const harnessState = $derived.by(() => {
-        const inputDocument = buildInputHarnessProofOfConcept(source);
+        const inputDocument = buildInputHarnessProofOfConcept(editableSource);
 
         return {
             inputDocument,
@@ -44,32 +55,15 @@
     /**
      * Applies one of the narrow harness presets to the live browser selection.
      */
-    async function applyPreset(preset: string): Promise<void> {
+    async function applyPreset(preset: EditorBrowserHarnessPreset): Promise<void> {
         activePreset = preset;
-        const nextSelection = buildSelectionPreset(preset);
+        const nextSelection = buildEditorBrowserHarnessSelectionPreset(harnessState.inputDocument, preset);
         if (!nextSelection) {
             browserSelectionStatus = `Preset ${preset} is unavailable for the current fixture.`;
             return;
         }
 
-        logicalSelection = nextSelection;
-        await tick();
-
-        if (!rootElement) {
-            browserSelectionStatus = "The browser harness surface is not mounted yet.";
-            return;
-        }
-
-        const applied = applyInputHarnessSelectionToBrowser(
-            rootElement,
-            harnessState.projection,
-            harnessState.inputDocument,
-            nextSelection
-        );
-
-        browserSelectionStatus = applied
-            ? `Applied preset ${preset}.`
-            : `Failed to apply preset ${preset} to the browser DOM.`;
+        await applyLogicalSelection(nextSelection, `Applied preset ${preset}.`, `Failed to apply preset ${preset} to the browser DOM.`);
     }
 
     /**
@@ -90,66 +84,96 @@
     }
 
     /**
-     * Creates focused test selections for the browser-backed harness cases.
+     * Routes supported browser `beforeinput` events through the headless input harness.
      */
-    function buildSelectionPreset(preset: string): InputHarnessSelection | null {
-        const document = harnessState.inputDocument;
-
-        switch (preset) {
-            case "paragraph": {
-                const block = findFirstInputHarnessBlockByRole(document, "paragraph");
-                return block ? createCollapsedInputHarnessTextSelection(document, block.key, 12) : null;
-            }
-            case "heading": {
-                const block = findFirstInputHarnessBlockByRole(document, "heading");
-                return block ? createCollapsedInputHarnessTextSelection(document, block.key, 7) : null;
-            }
-            case "listItem": {
-                const block = findFirstInputHarnessBlockByRole(document, "listItem");
-                return block ? createCollapsedInputHarnessTextSelection(document, block.key, 5) : null;
-            }
-            case "fencedCode": {
-                const block = findFirstInputHarnessBlockByRole(document, "fencedCode");
-                return block ? createCollapsedInputHarnessTextSelection(document, block.key, Math.max(0, block.textLength - 1)) : null;
-            }
-            case "image": {
-                const imagePart = harnessState.inputDocument.blocks
-                    .flatMap((block) => block.parts)
-                    .find((part) => part.kind === "atom");
-                return imagePart ? createInputHarnessNodeSelection(document, imagePart.key) : null;
-            }
-            default:
-                return null;
+    async function handleBeforeInput(event: InputEvent): Promise<void> {
+        const intent = readEditorBrowserHarnessBeforeInputIntent(event);
+        if (!intent) {
+            return;
         }
+
+        event.preventDefault();
+        activePreset = "none";
+
+        const selection = readCurrentSelection();
+        if (!selection) {
+            browserSelectionStatus = "The browser harness could not resolve a logical selection for beforeinput.";
+            return;
+        }
+
+        const outcome = applyInputHarnessBeforeInputIntent(harnessState.inputDocument, selection, intent);
+        if (outcome.kind === "unsupported") {
+            browserSelectionStatus = `Ignored ${intent.inputType}. ${outcome.reason}`;
+            return;
+        }
+
+        await commitBeforeInputOutcome(intent, outcome);
     }
 
-    function chromeForBlock(block: (typeof harnessState.projection.blocks)[number]): string {
-        switch (block.role) {
-            case "heading":
-                return `${"#".repeat(block.metadata.headingLevel ?? 1)} `;
-            case "listItem":
-                if (block.metadata.taskItem) {
-                    return `${block.metadata.listMarker ?? "-"} [${block.metadata.taskChecked ? "x" : " "}] `;
-                }
-                return `${block.metadata.listMarker ?? "-"} `;
-            case "blockquote":
-                return "> ";
-            default:
-                return "";
+    /**
+     * Commits the headless beforeinput outcome back into the rendered harness state.
+     */
+    async function commitBeforeInputOutcome(
+        intent: InputHarnessBeforeInputIntent,
+        outcome: Exclude<InputHarnessBeforeInputOutcome, { kind: "unsupported" }>
+    ): Promise<void> {
+        if (outcome.kind === "mutation") {
+            editableSource = outcome.mutation.source;
+            await applyLogicalSelection(
+                outcome.mutation.selection,
+                `Committed ${intent.inputType}. ${describeInputHarnessSelection(outcome.mutation.selection)}`,
+                `Committed ${intent.inputType}, but failed to restore the browser selection.`
+            );
+            return;
         }
+
+        await applyLogicalSelection(
+            outcome.selection,
+            `Updated selection for ${intent.inputType}. ${describeInputHarnessSelection(outcome.selection)}`,
+            `Updated logical selection for ${intent.inputType}, but failed to restore the browser selection.`
+        );
     }
 
-    function runClass(run: ViewProjectionInlineRun): string {
-        return [
-            run.atomic ? "editor-browser-harness__run--atom" : "",
-            run.marks.includes("strong") ? "editor-browser-harness__run--strong" : "",
-            run.marks.includes("emphasis") ? "editor-browser-harness__run--emphasis" : "",
-            run.marks.includes("strikethrough") ? "editor-browser-harness__run--strike" : "",
-            run.marks.includes("inlineCode") ? "editor-browser-harness__run--code" : "",
-            run.marks.includes("link") || run.marks.includes("autolink") ? "editor-browser-harness__run--link" : "",
-        ]
-            .filter(Boolean)
-            .join(" ");
+    /**
+     * Reads the freshest available logical selection, preferring the live DOM selection over stale component state.
+     */
+    function readCurrentSelection(): InputHarnessSelection | null {
+        if (rootElement) {
+            const domSelection = readInputHarnessDomSelectionFromBrowser(rootElement, harnessState.projection);
+            if (domSelection) {
+                const selection = reconcileInputHarnessDomSelection(harnessState.inputDocument, domSelection);
+                logicalSelection = selection;
+                return selection;
+            }
+        }
+
+        return logicalSelection;
+    }
+
+    /**
+     * Stores a logical selection, waits for the DOM to reflect the latest projection, and reapplies the browser selection.
+     */
+    async function applyLogicalSelection(
+        selection: InputHarnessSelection,
+        successStatus: string,
+        failureStatus: string
+    ): Promise<void> {
+        logicalSelection = selection;
+        await tick();
+
+        if (!rootElement) {
+            browserSelectionStatus = "The browser harness surface is not mounted yet.";
+            return;
+        }
+
+        const applied = applyInputHarnessSelectionToBrowser(
+            rootElement,
+            harnessState.projection,
+            harnessState.inputDocument,
+            selection
+        );
+
+        browserSelectionStatus = applied ? successStatus : failureStatus;
     }
 
     onMount(() => {
@@ -187,7 +211,13 @@
         <p>{describeInputHarnessSelection(logicalSelection)}</p>
     </div>
 
-    <div class="editor-browser-harness__surface" bind:this={rootElement} contenteditable="true" spellcheck="false">
+    <div
+        class="editor-browser-harness__surface"
+        bind:this={rootElement}
+        contenteditable="true"
+        spellcheck="false"
+        onbeforeinput={handleBeforeInput}
+    >
         {#each harnessState.projection.blocks as block (block.key)}
             <div
                 class={`editor-browser-harness__block editor-browser-harness__block--${block.role}`}
@@ -198,14 +228,14 @@
                     <div class="editor-browser-harness__chrome" contenteditable="false">```</div>
                 {/if}
 
-                {#if chromeForBlock(block)}
-                    <span class="editor-browser-harness__chrome" contenteditable="false">{chromeForBlock(block)}</span>
+                {#if describeEditorBrowserHarnessBlockChrome(block)}
+                    <span class="editor-browser-harness__chrome" contenteditable="false">{describeEditorBrowserHarnessBlockChrome(block)}</span>
                 {/if}
 
                 {#if block.runs.length > 0}
                     {#each block.runs as run (run.key)}
                         <span
-                            class={`editor-browser-harness__run ${runClass(run)}`}
+                            class={`editor-browser-harness__run ${buildEditorBrowserHarnessRunClass(run, logicalSelection)}`}
                             data-editor-run-key={run.key}
                             data-editor-part-key={run.partKey}
                             data-editor-run-kind={run.atomic ? "atom" : "text"}
@@ -339,6 +369,12 @@
         border: 1px solid var(--color-ui-muted);
         background: color-mix(in srgb, var(--color-accent-primary) 25%, transparent);
         user-select: none;
+    }
+
+    .editor-browser-harness__run--selected {
+        border-color: var(--color-accent-primary);
+        background: color-mix(in srgb, var(--color-accent-primary) 45%, transparent);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent-primary) 55%, transparent);
     }
 
     .editor-browser-harness__atom-label {
