@@ -9,7 +9,6 @@ import {
 	Paragraph,
 	FencedCode,
 	ThematicBreak,
-	UnrecognizedBlock,
 	Blockquote,
 	List,
 	ListItem,
