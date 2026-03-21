@@ -10,6 +10,7 @@ import {
 	FencedCode,
 	ThematicBreak,
 	SetextHeading,
+	IndentedCode,
 	Blockquote,
 	List,
 	ListItem,
@@ -51,7 +52,13 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 			continue;
 		}
 
-		const { node, nextIndex } = parseNextBlock(lines, index, end, pendingTrivia);
+		const { node, nextIndex } = parseNextBlock(
+			lines,
+			index,
+			end,
+			pendingTrivia,
+			children.length === 0
+		);
 		children.push(node);
 		pendingTrivia = '';
 		index = nextIndex;
@@ -64,7 +71,8 @@ function parseNextBlock(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	isFirstBlock: boolean = false
 ): { node: CstNode; nextIndex: number } {
 	const line = lines[startIndex];
 
@@ -103,6 +111,11 @@ function parseNextBlock(
 	const listItem = matchListItem(line.text);
 	if (listItem) {
 		return parseList(lines, startIndex, endIndex, leadingTrivia);
+	}
+
+	// Indented code block — cannot interrupt a paragraph (GFM spec 4.4)
+	if (matchIndentedCode(line.text) && (leadingTrivia.length > 0 || isFirstBlock)) {
+		return parseIndentedCode(lines, startIndex, endIndex, leadingTrivia);
 	}
 
 	// Fallback: paragraph — consume continuation lines
@@ -164,6 +177,38 @@ function parseParagraph(
 	const raw = joinRaw(lines, startIndex, i);
 	return {
 		node: new Paragraph(leadingTrivia, raw),
+		nextIndex: i
+	};
+}
+
+function parseIndentedCode(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	leadingTrivia: string
+): { node: IndentedCode; nextIndex: number } {
+	let i = startIndex;
+
+	while (i < endIndex) {
+		if (matchIndentedCode(lines[i].text)) {
+			i++;
+		} else if (isBlankLine(lines[i].text)) {
+			// Blank lines inside indented code are kept if followed by more indented lines
+			let j = i + 1;
+			while (j < endIndex && isBlankLine(lines[j].text)) j++;
+			if (j < endIndex && matchIndentedCode(lines[j].text)) {
+				i = j;
+			} else {
+				break;
+			}
+		} else {
+			break;
+		}
+	}
+
+	const raw = joinRaw(lines, startIndex, i);
+	return {
+		node: new IndentedCode(leadingTrivia, raw),
 		nextIndex: i
 	};
 }
@@ -299,6 +344,10 @@ export function matchThematicBreak(text: string): string | null {
 	if (/^(-[ \t]*){3,}$/.test(trimmed)) return '-';
 	if (/^(_[ \t]*){3,}$/.test(trimmed)) return '_';
 	return null;
+}
+
+function matchIndentedCode(text: string): boolean {
+	return /^(?: {4}|\t)/.test(text);
 }
 
 function matchBlockquote(text: string): boolean {
