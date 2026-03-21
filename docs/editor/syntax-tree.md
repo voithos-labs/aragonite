@@ -30,12 +30,14 @@ Decompose raw source into structured fields (marker, content, line ending, etc.)
 **Example of the progression for a heading (`## Hello World\n`):**
 
 Phase 1:
+
 ```
 Heading { raw: "## Hello World\n", level: 2 }
 // serialize → return raw verbatim
 ```
 
 Phase 3:
+
 ```
 Heading { marker: "## ", content: "Hello World", lineEnding: "\n", level: 2 }
 // serialize → marker + content + lineEnding
@@ -76,6 +78,7 @@ CstNode (abstract base)
 ### Node Definitions
 
 **Document** — root node:
+
 ```
 Document {
   kind: "document"
@@ -86,6 +89,7 @@ Document {
 ```
 
 **Container blocks:**
+
 ```
 Blockquote {
   kind: "blockquote"
@@ -121,6 +125,7 @@ ListItem {
 `innerPrefix` and `innerSuffix` on container blocks serve the same role as `Document.prefix` and `Document.suffix` — they capture leading/trailing blank lines inside the container that don't belong to any child. When the container's inner content is parsed recursively, the temporary `Document.prefix`/`suffix` from that parse become the container's `innerPrefix`/`innerSuffix`.
 
 **Leaf blocks:**
+
 ```
 Heading {
   kind: "heading"
@@ -237,38 +242,38 @@ Same approach for list items — strip the indentation/marker, parse inner conte
 
 ### v1 — Core Block Types (This Spec)
 
-| Block Type | Node Kind | Notes |
-|---|---|---|
-| ATX headings | `Heading` | `# ` through `###### ` |
-| Paragraphs | `Paragraph` | Fallback for unstructured text |
-| Fenced code blocks | `FencedCode` | `` ``` `` and `~~~` with info string |
-| Blockquotes | `Blockquote` | Container, recursive children |
+| Block Type         | Node Kind           | Notes                               |
+| ------------------ | ------------------- | ----------------------------------- |
+| ATX headings       | `Heading`           | `# ` through `###### `              |
+| Paragraphs         | `Paragraph`         | Fallback for unstructured text      |
+| Fenced code blocks | `FencedCode`        | ` ``` ` and `~~~` with info string  |
+| Blockquotes        | `Blockquote`        | Container, recursive children       |
 | Lists / list items | `List` / `ListItem` | Ordered, unordered, task checkboxes |
-| Thematic breaks | `ThematicBreak` | `---`, `***`, `___` variants |
+| Thematic breaks    | `ThematicBreak`     | `---`, `***`, `___` variants        |
 
 ### v2 — Deferred Block Types
 
 These round-trip as `UnrecognizedBlock` in v1. Each graduates to its own node kind when implemented.
 
-| Block Type | Future Node Kind | Notes |
-|---|---|---|
-| Setext headings | `SetextHeading` | Underline-style `===` / `---` |
-| Indented code blocks | `IndentedCode` | 4-space indent |
-| HTML blocks | `HtmlBlock` | Raw `<div>`, `<table>`, etc. |
-| Link reference definitions | `LinkReferenceDefinition` | `[ref]: url "title"` |
-| Tables | `Table` | GFM extension, pipe syntax |
+| Block Type                 | Future Node Kind          | Notes                         |
+| -------------------------- | ------------------------- | ----------------------------- |
+| Setext headings            | `SetextHeading`           | Underline-style `===` / `---` |
+| Indented code blocks       | `IndentedCode`            | 4-space indent                |
+| HTML blocks                | `HtmlBlock`               | Raw `<div>`, `<table>`, etc.  |
+| Link reference definitions | `LinkReferenceDefinition` | `[ref]: url "title"`          |
+| Tables                     | `Table`                   | GFM extension, pipe syntax    |
 
 ### Future — Inline Syntax (Phase 2)
 
-| Inline Type | Notes |
-|---|---|
-| Emphasis / strong | `*`, `_`, `**`, `__` |
-| Strikethrough | `~~` (GFM extension) |
-| Inline code | Single backticks |
-| Links | `[text](url)` |
-| Images | `![alt](url)` |
-| Autolinks | Bare URLs and emails |
-| Hard line breaks | Trailing `\` or two spaces |
+| Inline Type                  | Notes                           |
+| ---------------------------- | ------------------------------- |
+| Emphasis / strong            | `*`, `_`, `**`, `__`            |
+| Strikethrough                | `~~` (GFM extension)            |
+| Inline code                  | Single backticks                |
+| Links                        | `[text](url)`                   |
+| Images                       | `![alt](url)`                   |
+| Autolinks                    | Bare URLs and emails            |
+| Hard line breaks             | Trailing `\` or two spaces      |
 | Reference-style links/images | Uses link reference definitions |
 
 ### Future — Custom Extensions

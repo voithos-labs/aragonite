@@ -34,6 +34,7 @@ src/lib/editor/
 Setext headings are paragraphs followed by an underline of `===` (level 1) or `---` (level 2). This is the trickiest new type because `---` after a paragraph is currently absorbed as a paragraph (the setext/thematic-break guard from v1). Now we properly recognize it.
 
 **Files:**
+
 - Modify: `src/lib/editor/core/nodes.ts`
 - Modify: `src/lib/editor/core/parser.ts`
 - Modify: `src/lib/editor/test/serializer.test.ts`
@@ -54,7 +55,7 @@ describe('round-trip: setext headings', () => {
 		{ name: 'setext with multi-line content', source: 'Line one\nLine two\n---\n' },
 		{ name: 'setext then paragraph', source: 'Title\n===\n\nBody text.\n' },
 		{ name: 'setext H1 after blank lines', source: '\nTitle\n===\n' },
-		{ name: 'setext H2 trailing space on underline', source: 'Title\n--- \n' },
+		{ name: 'setext H2 trailing space on underline', source: 'Title\n--- \n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -84,15 +85,14 @@ it('parses setext H1 as SetextHeading node', () => {
 - [ ] **Step 3: Add SetextHeading node to nodes.ts**
 
 Add to `LeafBlockKind`:
+
 ```ts
-export type LeafBlockKind =
-	| 'heading'
-	| 'setextHeading'
-	| 'paragraph'
-	// ... rest
+export type LeafBlockKind = 'heading' | 'setextHeading' | 'paragraph';
+// ... rest
 ```
 
 Add metadata interface:
+
 ```ts
 export interface SetextHeadingMetadata {
 	level: 1 | 2;
@@ -100,6 +100,7 @@ export interface SetextHeadingMetadata {
 ```
 
 Add class:
+
 ```ts
 export class SetextHeading extends LeafBlock {
 	readonly kind = 'setextHeading' as const;
@@ -151,6 +152,7 @@ function parseParagraph(
 ```
 
 Add the matcher:
+
 ```ts
 function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
 	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
@@ -247,6 +249,7 @@ git commit -m "+ (editor) setext heading parsing"
 Lines indented by 4+ spaces (or 1+ tab) that aren't inside a list item form an indented code block. These are currently absorbed into paragraphs.
 
 **Files:**
+
 - Modify: `src/lib/editor/core/nodes.ts`
 - Modify: `src/lib/editor/core/parser.ts`
 - Modify: `src/lib/editor/test/serializer.test.ts`
@@ -266,7 +269,7 @@ describe('round-trip: indented code blocks', () => {
 		{ name: 'mixed indent', source: '    line 1\n\tline 2\n' },
 		{ name: 'with blank line inside', source: '    line 1\n\n    line 2\n' },
 		{ name: 'after paragraph', source: 'Paragraph.\n\n    code\n' },
-		{ name: 'before paragraph', source: '    code\n\nParagraph.\n' },
+		{ name: 'before paragraph', source: '    code\n\nParagraph.\n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -279,6 +282,7 @@ describe('round-trip: indented code blocks', () => {
 ```
 
 Plus structural test:
+
 ```ts
 it('parses indented code as IndentedCode node', () => {
 	const doc = parse('    code\n');
@@ -313,6 +317,7 @@ No metadata needed — indented code blocks have no configurable properties.
 Import `IndentedCode`.
 
 Add matcher:
+
 ```ts
 function matchIndentedCode(text: string): boolean {
 	return /^(?: {4}|\t)/.test(text);
@@ -320,6 +325,7 @@ function matchIndentedCode(text: string): boolean {
 ```
 
 Add parser — indented code continues through blank lines as long as the next non-blank line is also indented:
+
 ```ts
 function parseIndentedCode(
 	lines: ParsedLine[],
@@ -404,6 +410,7 @@ git commit -m "+ (editor) indented code block parsing"
 HTML blocks start with specific opening patterns (e.g., `<div`, `<table`, `<pre`, `<!--`, etc.) and continue until a specific closing condition or blank line. For the CST, we don't need to parse the HTML — just recognize the boundaries.
 
 **Files:**
+
 - Modify: `src/lib/editor/core/nodes.ts`
 - Modify: `src/lib/editor/core/parser.ts`
 - Modify: `src/lib/editor/test/serializer.test.ts`
@@ -422,7 +429,7 @@ describe('round-trip: HTML blocks', () => {
 		{ name: 'pre block', source: '<pre>\ncode\n</pre>\n' },
 		{ name: 'script block', source: '<script>\nalert(1);\n</script>\n' },
 		{ name: 'self-closing', source: '<hr />\n' },
-		{ name: 'html then paragraph', source: '<div>\nHello\n</div>\n\nParagraph.\n' },
+		{ name: 'html then paragraph', source: '<div>\nHello\n</div>\n\nParagraph.\n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -466,7 +473,8 @@ Import `HtmlBlock`.
 Add matcher — CommonMark defines 7 types of HTML block openers. For the CST we use a simplified approach: any line starting with `<` followed by a known block-level tag name, or `<!--`, or `<?`, or `<!`:
 
 ```ts
-const HTML_BLOCK_OPEN = /^ {0,3}(?:<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|pre|script|section|source|style|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)[\s/>]|<!--|<\?|<![A-Z]|<!\[CDATA\[)/i;
+const HTML_BLOCK_OPEN =
+	/^ {0,3}(?:<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|pre|script|section|source|style|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)[\s/>]|<!--|<\?|<![A-Z]|<!\[CDATA\[)/i;
 
 function matchHtmlBlock(text: string): boolean {
 	return HTML_BLOCK_OPEN.test(text);
@@ -474,6 +482,7 @@ function matchHtmlBlock(text: string): boolean {
 ```
 
 Add parser — simplified: HTML blocks continue until a blank line. This is correct for CommonMark types 6-7 but a simplification for types 1-5 (e.g., `<pre>` blocks with internal blank lines will be split). This is acceptable for Phase 1 — round-trip is preserved regardless since raw source is stored. Full type-specific termination can be added later if needed:
+
 ```ts
 function parseHtmlBlock(
 	lines: ParsedLine[],
@@ -531,6 +540,7 @@ git commit -m "+ (editor) HTML block parsing"
 Link reference definitions look like `[label]: url "title"`. They're leaf blocks that don't render content but define references used by links elsewhere. For the CST, we just recognize and tag them.
 
 **Files:**
+
 - Modify: `src/lib/editor/core/nodes.ts`
 - Modify: `src/lib/editor/core/parser.ts`
 - Modify: `src/lib/editor/test/serializer.test.ts`
@@ -550,7 +560,7 @@ describe('round-trip: link reference definitions', () => {
 		{ name: 'with title parens', source: '[ref]: https://example.com (Title)\n' },
 		{ name: 'with angle bracket url', source: '[ref]: <https://example.com>\n' },
 		{ name: 'multi-word label', source: '[my ref]: https://example.com\n' },
-		{ name: 'after paragraph', source: 'Paragraph.\n\n[ref]: https://example.com\n' },
+		{ name: 'after paragraph', source: 'Paragraph.\n\n[ref]: https://example.com\n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -578,6 +588,7 @@ npm run test:editor
 Add `'linkReferenceDefinition'` to `LeafBlockKind`.
 
 Add metadata:
+
 ```ts
 export interface LinkReferenceDefinitionMetadata {
 	label: string;
@@ -585,6 +596,7 @@ export interface LinkReferenceDefinitionMetadata {
 ```
 
 Add class:
+
 ```ts
 export class LinkReferenceDefinition extends LeafBlock {
 	readonly kind = 'linkReferenceDefinition' as const;
@@ -602,6 +614,7 @@ export class LinkReferenceDefinition extends LeafBlock {
 Import `LinkReferenceDefinition`.
 
 Add matcher — exclude `^`-prefixed labels since those are footnote syntax, not link refs:
+
 ```ts
 function matchLinkReferenceDefinition(text: string): { label: string } | null {
 	const m = text.match(/^ {0,3}\[([^\]]+)\]:\s+/);
@@ -669,6 +682,7 @@ git commit -m "+ (editor) link reference definition parsing"
 GFM tables use pipe syntax with a required delimiter row. A table starts with a header row, followed by a delimiter row (`| --- | --- |`), followed by zero or more data rows. For the CST, we recognize the boundary — we don't parse individual cells.
 
 **Files:**
+
 - Modify: `src/lib/editor/core/nodes.ts`
 - Modify: `src/lib/editor/core/parser.ts`
 - Modify: `src/lib/editor/test/serializer.test.ts`
@@ -683,11 +697,14 @@ Add to `src/lib/editor/test/serializer.test.ts`:
 describe('round-trip: tables', () => {
 	const cases: { name: string; source: string }[] = [
 		{ name: 'simple table', source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n' },
-		{ name: 'aligned columns', source: '| Left | Center | Right |\n| :--- | :---: | ---: |\n| a | b | c |\n' },
+		{
+			name: 'aligned columns',
+			source: '| Left | Center | Right |\n| :--- | :---: | ---: |\n| a | b | c |\n'
+		},
 		{ name: 'header only', source: '| A | B |\n| --- | --- |\n' },
 		{ name: 'no leading pipe', source: 'A | B\n--- | ---\n1 | 2\n' },
 		{ name: 'table then paragraph', source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n\nText.\n' },
-		{ name: 'many rows', source: '| H |\n| --- |\n| 1 |\n| 2 |\n| 3 |\n' },
+		{ name: 'many rows', source: '| H |\n| --- |\n| 1 |\n| 2 |\n| 3 |\n' }
 	];
 
 	for (const { name, source } of cases) {
@@ -715,6 +732,7 @@ npm run test:editor
 Add `'table'` to `LeafBlockKind`.
 
 Add metadata:
+
 ```ts
 export interface TableMetadata {
 	columnCount: number;
@@ -722,6 +740,7 @@ export interface TableMetadata {
 ```
 
 Add class:
+
 ```ts
 export class Table extends LeafBlock {
 	readonly kind = 'table' as const;

@@ -4,12 +4,9 @@
 
 Prettier handles all formatting. Run `npm run format` before committing.
 
-- **Tabs** for indentation
-- **Single quotes**
-- **No trailing commas**
-- **100 char print width**
-
 See `.prettierrc` for the full config.
+
+Also, note, indentations should be tab (four spaces)!
 
 ## File Structure
 
@@ -39,7 +36,7 @@ Use these for grouping related items: interfaces, classes, helper functions, etc
 
 ### When to Write Inline Comments
 
-- **Non-obvious "why"**: When the reason for a choice isn't clear from context. Explain *why*, not *what*.
+- **Non-obvious "why"**: When the reason for a choice isn't clear from context. Explain _why_, not _what_.
 - **Workarounds**: When code works around a bug, spec ambiguity, or platform quirk. Link to the issue if one exists.
 - **Deliberate exclusions**: When something is intentionally left out and a future reader might try to "fix" it by adding it back.
 
@@ -57,6 +54,7 @@ Use these for grouping related items: interfaces, classes, helper functions, etc
 ### Function-Level Comments
 
 Use a brief JSDoc comment when:
+
 - The function is part of a public API
 - The behavior has non-obvious edge cases
 - The function name alone doesn't convey what it returns or its side effects
