@@ -1,3 +1,7 @@
+/**
+ * Line splitting with preserved endings and offsets for the parser.
+ */
+
 export interface ParsedLine {
 	raw: string;
 	text: string;

@@ -1,3 +1,8 @@
+/**
+ * CST node type hierarchy for the GFM block-level parser.
+ * See docs/editor/syntax-tree.md for the design spec.
+ */
+
 // ── Node Kinds ──────────────────────────────────────────────────────────────
 
 export type LeafBlockKind =

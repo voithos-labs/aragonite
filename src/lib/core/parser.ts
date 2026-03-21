@@ -1,3 +1,8 @@
+/**
+ * Single-pass, line-oriented GFM block parser.
+ * Produces a recursive CST where serialize(parse(source)) === source.
+ */
+
 import {
 	Document,
 	Heading,
@@ -12,6 +17,7 @@ import {
 } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 
+/** Parse a markdown source string into a Document CST. */
 export function parse(source: string): Document {
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length);
