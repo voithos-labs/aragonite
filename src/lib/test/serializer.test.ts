@@ -502,3 +502,91 @@ describe('round-trip: tables', () => {
         expect(doc.children[0].kind).toBe('table');
     });
 });
+
+// ── V2 Edge Case Tests ──────────────────────────────────────────────────────
+
+describe('v2 edge cases', () => {
+    // Setext vs thematic break disambiguation
+    it('--- after blank line is thematic break, not setext', () => {
+        const doc = parse('Paragraph.\n\n---\n');
+        expect(doc.children.length).toBe(2);
+        expect(doc.children[0].kind).toBe('paragraph');
+        expect(doc.children[1].kind).toBe('thematicBreak');
+    });
+
+    it('--- at document start is thematic break', () => {
+        const doc = parse('---\n');
+        expect(doc.children[0].kind).toBe('thematicBreak');
+    });
+
+    it('=== alone is not a setext heading (no preceding text)', () => {
+        const doc = parse('===\n');
+        // === is not a thematic break either, so it's a paragraph
+        expect(doc.children[0].kind).toBe('paragraph');
+    });
+
+    // Setext in containers
+    it('round-trips setext inside blockquote', () => {
+        const source = '> Title\n> ---\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+
+    // Indented code at document start
+    it('round-trips indented code at document start', () => {
+        const source = '    code at start\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+        expect(doc.children[0].kind).toBe('indentedCode');
+    });
+
+    // HTML block boundaries
+    it('round-trips HTML block after heading with no blank line', () => {
+        const source = '# Title\n<div>\nContent\n</div>\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+
+    // Table detection edge cases
+    it('delimiter row alone is not a table', () => {
+        const doc = parse('| --- | --- |\n');
+        // No header row preceding it, so not a table
+        expect(doc.children[0].kind).not.toBe('table');
+    });
+
+    it('round-trips table immediately after heading', () => {
+        const source = '# Title\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+
+    // Link ref def edge cases
+    it('link ref def at document start', () => {
+        const doc = parse('[ref]: https://example.com\n');
+        expect(doc.children[0].kind).toBe('linkReferenceDefinition');
+    });
+
+    it('footnote definition is not a link ref def', () => {
+        const doc = parse('[^1]: Footnote content.\n');
+        expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
+    });
+
+    // Cross-block round-trips
+    it('round-trips setext heading then table', () => {
+        const source = 'Title\n===\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+
+    it('round-trips indented code then HTML block', () => {
+        const source = '    code\n\n<div>\nhtml\n</div>\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+
+    it('round-trips link ref def then setext heading', () => {
+        const source = '[ref]: https://example.com\n\nTitle\n---\n';
+        const doc = parse(source);
+        expect(serialize(doc)).toBe(source);
+    });
+});
