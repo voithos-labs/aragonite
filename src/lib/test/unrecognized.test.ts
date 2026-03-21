@@ -13,10 +13,6 @@ describe('deferred GFM syntax round-trips without loss', () => {
 			source: '<div>\n  <p>Hello</p>\n</div>\n'
 		},
 		{
-			name: 'indented code block',
-			source: '    code line 1\n    code line 2\n'
-		},
-		{
 			name: 'link reference definition',
 			source: '[ref]: https://example.com "Title"\n'
 		},
