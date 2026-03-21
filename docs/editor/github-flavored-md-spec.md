@@ -91,6 +91,46 @@ This is line two directly below it.
 ___
 ```
 
+**Indented Code Blocks:**
+
+```markdown
+    // Four spaces (or one tab) makes a code block
+    function hello() {
+        return "world";
+    }
+```
+
+Note: Indented code blocks cannot interrupt a paragraph — there must be a blank line before them. Fenced code blocks (`` ``` ``) are generally preferred.
+
+**HTML Blocks:**
+
+```markdown
+<div class="warning">
+  <p>This is raw HTML embedded in markdown.</p>
+</div>
+```
+
+CommonMark defines 7 types of HTML blocks based on opening tags. Block-level tags like `<div>`, `<table>`, `<pre>`, `<script>`, and HTML comments (`<!-- -->`) start HTML blocks. They continue until a blank line (for most types) or until their specific closing tag (for `<pre>`, `<script>`, `<style>`, `<textarea>`, and comments).
+
+**Soft Line Breaks vs Hard Line Breaks:**
+
+A regular newline within a paragraph is a "soft line break" — it is rendered as a space, not a visible line break:
+
+```markdown
+These two lines
+become one paragraph.
+```
+
+A "hard line break" forces a visible `<br>`. There are two ways:
+
+```markdown
+Trailing backslash:\
+Next line.
+
+Two trailing spaces:
+Next line.
+```
+
 **Setext Headings:**
 
 ```markdown
