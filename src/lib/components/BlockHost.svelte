@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MutableNode, BlockComponent } from '../editor-types';
 	import TextEditableBlock from './TextEditableBlock.svelte';
+	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
 
 	let {
 		node,
@@ -18,6 +19,8 @@
 	<TextEditableBlock {node} {index} bind:this={ref} blockClass="paragraph-block" />
 {:else if node.kind === 'heading' || node.kind === 'setextHeading'}
 	<TextEditableBlock {node} {index} bind:this={ref} blockClass={headingClass()} />
+{:else if node.kind === 'thematicBreak'}
+	<ThematicBreakBlock {node} {index} bind:this={ref} />
 {:else}
 	<!-- Fallback: render raw text for all unhandled block types -->
 	<div class="raw-block">
