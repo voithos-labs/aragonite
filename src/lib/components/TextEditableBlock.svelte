@@ -7,7 +7,12 @@
 		type BlockComponent
 	} from '../editor-types';
 
-	let { node, index }: { node: MutableNode; index: number } = $props();
+	let {
+		node,
+		index,
+		blockClass = 'paragraph-block',
+		splitOnEnter = true
+	}: { node: MutableNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let el: HTMLDivElement | undefined = $state();
@@ -176,7 +181,15 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			const offset = getCursorOffset() ?? 0;
-			actions.splitBlock(index, offset);
+			if (splitOnEnter) {
+				actions.splitBlock(index, offset);
+			} else {
+				const displayText = getDisplayText();
+				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
+				actions.updateBlockContent(index, newDisplay + '\n', preEditOffset);
+				if (el) el.textContent = newDisplay;
+				setCursorOffset(offset + 1);
+			}
 			return;
 		}
 
@@ -295,7 +308,7 @@
 <div
 	bind:this={el}
 	tabindex="0"
-	class="paragraph-block"
+	class="text-editable-block {blockClass}"
 	contenteditable="true"
 	role="textbox"
 	oninput={onInput}
@@ -309,7 +322,7 @@
 ></div>
 
 <style>
-	.paragraph-block {
+	.text-editable-block {
 		outline: none;
 		padding: 2px 0;
 		white-space: pre-wrap;
@@ -318,9 +331,22 @@
 		width: 100%;
 	}
 
-	.paragraph-block:empty::before {
+	.text-editable-block.paragraph-block:empty::before {
 		content: 'Start typing...';
 		color: var(--color-ui-dulled, #666);
 		pointer-events: none;
+	}
+
+	.text-editable-block.heading-1 { font-size: 2em; font-weight: bold; line-height: 1.2; }
+	.text-editable-block.heading-2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; }
+	.text-editable-block.heading-3 { font-size: 1.25em; font-weight: bold; }
+	.text-editable-block.heading-4 { font-size: 1.1em; font-weight: bold; }
+	.text-editable-block.heading-5 { font-size: 1em; font-weight: bold; }
+	.text-editable-block.heading-6 { font-size: 0.9em; font-weight: bold; }
+
+	.text-editable-block.raw-block {
+		font-family: 'Fira Code', 'Consolas', monospace;
+		font-size: 0.9em;
+		opacity: 0.85;
 	}
 </style>
