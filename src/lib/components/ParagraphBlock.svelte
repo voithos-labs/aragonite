@@ -296,6 +296,7 @@
 
 <div
     bind:this={el}
+    tabindex="0"
     class="paragraph-block"
     contenteditable="true"
     role="textbox"
