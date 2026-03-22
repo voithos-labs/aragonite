@@ -1,6 +1,6 @@
 <!-- src/lib/editor/components/ParagraphBlock.svelte -->
 <script lang="ts">
-    import { getContext, tick } from 'svelte';
+    import { getContext } from 'svelte';
     import { EDITOR_ACTIONS_KEY, type EditorActions, type MutableNode, type BlockComponent } from '../editor-types';
 
     let { node, index }: { node: MutableNode; index: number } = $props();
@@ -8,6 +8,8 @@
     const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
     let el: HTMLDivElement | undefined = $state();
     let composing = $state(false);
+    // Suppress reactive DOM updates while the user is typing
+    let userIsTyping = false;
 
     // ── BlockComponent interface ────────────────────────────────────────
 
@@ -96,22 +98,34 @@
         return range;
     }
 
-    // ── Content (strip line ending for display) ─────────────────────────
+    // ── Content sync ──────────────────────────────────────────────────────
 
     function getDisplayText(): string {
-        // Raw includes trailing \n — strip it for contenteditable display
         let text = node.raw;
         if (text.endsWith('\r\n')) text = text.slice(0, -2);
         else if (text.endsWith('\n')) text = text.slice(0, -1);
         return text;
     }
 
+    // Sync CST → DOM only when content changed externally (undo, split, merge).
+    // During user typing, the DOM is already correct — skip to avoid
+    // double characters and cursor jumps.
+    $effect(() => {
+        const display = getDisplayText();
+        if (!el || userIsTyping) return;
+        if (el.textContent !== display) {
+            el.textContent = display;
+        }
+    });
+
     // ── Event Handlers ──────────────────────────────────────────────────
 
     function onInput(): void {
         if (composing || !el) return;
+        userIsTyping = true;
         const text = el.textContent ?? '';
         actions.updateBlockContent(index, text + '\n');
+        userIsTyping = false;
     }
 
     function onCompositionStart(): void {
@@ -282,7 +296,7 @@
     onpaste={onPaste}
     oncompositionstart={onCompositionStart}
     oncompositionend={onCompositionEnd}
->{getDisplayText()}</div>
+></div>
 
 <style>
     .paragraph-block {
