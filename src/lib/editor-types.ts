@@ -3,6 +3,10 @@
  * See docs/editor/editor.md for the design spec.
  */
 
+// ── Context Keys ────────────────────────────────────────────────────────────
+
+export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
+
 // ── Editor Actions (block → editor communication via Svelte context) ────────
 
 export interface EditorActions {
@@ -30,6 +34,7 @@ export interface BlockComponent {
 
 export interface UndoEntry {
 	snapshot: MutableDocument;
+	blockIds: string[];
 	focusBlockIndex: number;
 	focusOffset: number;
 }

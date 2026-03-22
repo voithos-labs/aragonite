@@ -1,11 +1,11 @@
 <!-- src/lib/editor/components/ParagraphBlock.svelte -->
 <script lang="ts">
     import { getContext, tick } from 'svelte';
-    import type { EditorActions, MutableNode, BlockComponent } from '../editor-types';
+    import { EDITOR_ACTIONS_KEY, type EditorActions, type MutableNode, type BlockComponent } from '../editor-types';
 
     let { node, index }: { node: MutableNode; index: number } = $props();
 
-    const actions = getContext<EditorActions>('editor-actions');
+    const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
     let el: HTMLDivElement | undefined = $state();
     let composing = $state(false);
 
@@ -263,17 +263,9 @@
     }
 
     function getSelectedTextFromRaw(): string {
-        const sel = window.getSelection();
-        if (!sel || sel.isCollapsed || !el) return '';
-        // Get selection offsets and slice from raw
-        const range = sel.getRangeAt(0);
-        const preRange = document.createRange();
-        preRange.selectNodeContents(el);
-        preRange.setEnd(range.startContainer, range.startOffset);
-        const start = preRange.toString().length;
-        const end = start + sel.toString().length;
-        // Slice from raw (raw may have trailing \n, offsets are within display text)
-        return node.raw.slice(start, end);
+        const offsets = getSelectionOffsets();
+        if (!offsets) return '';
+        return node.raw.slice(offsets.start, offsets.end);
     }
 </script>
 

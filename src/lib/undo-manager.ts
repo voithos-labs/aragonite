@@ -6,6 +6,8 @@
 import type { UndoManager, UndoEntry } from './editor-types';
 import { cloneDocument } from './mutable-tree';
 
+const MAX_UNDO = 200;
+
 export function createUndoManager(): UndoManager {
     const undoStack: UndoEntry[] = [];
     const redoStack: UndoEntry[] = [];
@@ -13,6 +15,7 @@ export function createUndoManager(): UndoManager {
     function cloneEntry(entry: UndoEntry): UndoEntry {
         return {
             snapshot: cloneDocument(entry.snapshot),
+            blockIds: [...entry.blockIds],
             focusBlockIndex: entry.focusBlockIndex,
             focusOffset: entry.focusOffset
         };
@@ -20,22 +23,24 @@ export function createUndoManager(): UndoManager {
 
     return {
         push(entry: UndoEntry): void {
-            undoStack.push(cloneEntry(entry));
+            // Caller is responsible for cloning before push
+            undoStack.push(entry);
+            if (undoStack.length > MAX_UNDO) undoStack.shift();
             redoStack.length = 0;
         },
 
         undo(): UndoEntry | null {
             const entry = undoStack.pop();
             if (!entry) return null;
-            redoStack.push(entry);
-            return cloneEntry(entry);
+            redoStack.push(cloneEntry(entry));
+            return entry;
         },
 
         redo(): UndoEntry | null {
             const entry = redoStack.pop();
             if (!entry) return null;
-            undoStack.push(entry);
-            return cloneEntry(entry);
+            undoStack.push(cloneEntry(entry));
+            return entry;
         },
 
         clear(): void {
