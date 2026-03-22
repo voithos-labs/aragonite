@@ -35,6 +35,8 @@
 
     let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let lastUndoBlockIndex = -1;
+    // When true, the next keystroke should capture a "before" snapshot
+    let needsUndoCheckpoint = true;
 
     function pushUndoSnapshot(blockIndex: number, offset: number): void {
         undoManager.push({
@@ -45,34 +47,34 @@
         });
     }
 
+    /**
+     * Called before each edit. Captures a "before" snapshot on the first
+     * keystroke of a new batch. Subsequent keystrokes in the same batch
+     * just reset the debounce timer. When the timer fires (user paused),
+     * the next keystroke starts a new batch.
+     */
     function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
-        if (lastUndoBlockIndex !== blockIndex) {
-            // Focus moved to a different block — push immediately
-            flushUndoDebounce(blockIndex, offset);
+        if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
+            pushUndoSnapshot(blockIndex, offset);
             lastUndoBlockIndex = blockIndex;
-            return;
+            needsUndoCheckpoint = false;
         }
 
+        // Reset debounce — when it fires, the next keystroke starts a new batch
         if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
         undoDebounceTimer = setTimeout(() => {
-            pushUndoSnapshot(blockIndex, offset);
+            needsUndoCheckpoint = true;
             undoDebounceTimer = null;
         }, 500);
-    }
-
-    function flushUndoDebounce(blockIndex: number, offset: number): void {
-        if (undoDebounceTimer) {
-            clearTimeout(undoDebounceTimer);
-            undoDebounceTimer = null;
-        }
-        pushUndoSnapshot(blockIndex, offset);
     }
 
     // ── EditorActions ───────────────────────────────────────────────────
 
     const actions: EditorActions = {
         async splitBlock(blockIndex: number, offset: number): Promise<void> {
-            flushUndoDebounce(blockIndex, offset);
+            if (undoDebounceTimer) { clearTimeout(undoDebounceTimer); undoDebounceTimer = null; }
+            pushUndoSnapshot(blockIndex, offset);
+            needsUndoCheckpoint = true;
             performSplit(doc, blockIds, blockIndex, offset);
             // Trigger Svelte reactivity
             doc.children = [...doc.children];
@@ -89,7 +91,9 @@
             if (prevRaw.endsWith('\r\n')) mergeOffset -= 2;
             else if (prevRaw.endsWith('\n')) mergeOffset -= 1;
 
-            flushUndoDebounce(blockIndex, 0);
+            if (undoDebounceTimer) { clearTimeout(undoDebounceTimer); undoDebounceTimer = null; }
+            pushUndoSnapshot(blockIndex, 0);
+            needsUndoCheckpoint = true;
             performMerge(doc, blockIds, blockIndex);
             doc.children = [...doc.children];
             blockIds = [...blockIds];
@@ -98,7 +102,9 @@
         },
 
         async deleteBlock(blockIndex: number): Promise<void> {
-            flushUndoDebounce(blockIndex, 0);
+            if (undoDebounceTimer) { clearTimeout(undoDebounceTimer); undoDebounceTimer = null; }
+            pushUndoSnapshot(blockIndex, 0);
+            needsUndoCheckpoint = true;
             performDelete(doc, blockIds, blockIndex);
             doc.children = [...doc.children];
             blockIds = [...blockIds];
@@ -125,9 +131,8 @@
             }
         },
 
-        updateBlockContent(blockIndex: number, text: string): void {
-            const cursorOffset = blockRefs[blockIndex]?.getCursorOffset?.() ?? 0;
-            pushUndoSnapshotDebounced(blockIndex, cursorOffset);
+        updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
+            pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
             const result = performUpdate(doc, blockIndex, text);
             if (result.kindChanged) {
                 doc.children = [...doc.children];
@@ -135,11 +140,12 @@
         },
 
         async requestUndo(): Promise<void> {
-            // Flush any pending debounce so all edits are captured
+            // Clear pending debounce and reset checkpoint flag
             if (undoDebounceTimer) {
                 clearTimeout(undoDebounceTimer);
                 undoDebounceTimer = null;
             }
+            needsUndoCheckpoint = true;
 
             // Build current state entry so redo can restore it
             const focusedIndex = Math.max(0, blockRefs.findIndex(b => b?.getCursorOffset?.() !== null));
