@@ -4,6 +4,7 @@
 	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
 	import CodeBlock from './CodeBlock.svelte';
 	import BlockquoteBlock from './BlockquoteBlock.svelte';
+	import ListBlock from './ListBlock.svelte';
 
 	let {
 		node,
@@ -27,6 +28,8 @@
 	<CodeBlock {node} {index} bind:this={ref} />
 {:else if node.kind === 'blockquote'}
 	<BlockquoteBlock {node} {index} bind:this={ref} />
+{:else if node.kind === 'list'}
+	<ListBlock {node} {index} bind:this={ref} />
 {:else}
 	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
 		 linkReferenceDefinition, table, unrecognized) -->
