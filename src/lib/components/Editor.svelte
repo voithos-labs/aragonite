@@ -221,6 +221,23 @@
 			blockIds = entry.blockIds;
 			await tick();
 			blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
+		},
+
+		beginContainerEdit(blockIndex: number, offset: number): void {
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, offset);
+			needsUndoCheckpoint = true;
+		},
+
+		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+			pushUndoSnapshotDebounced(blockIndex, offset);
+		},
+
+		endContainerEdit(): void {
+			doc.children = [...doc.children];
 		}
 	};
 
