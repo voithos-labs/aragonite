@@ -41,8 +41,8 @@ export interface UndoEntry {
 
 export interface UndoManager {
 	push(entry: UndoEntry): void;
-	undo(): UndoEntry | null;
-	redo(): UndoEntry | null;
+	undo(currentState: UndoEntry): UndoEntry | null;
+	redo(currentState: UndoEntry): UndoEntry | null;
 	clear(): void;
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;

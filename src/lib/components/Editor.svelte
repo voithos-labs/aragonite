@@ -135,17 +135,23 @@
         },
 
         async requestUndo(): Promise<void> {
-            // Flush any pending debounce so the current state is captured
+            // Flush any pending debounce so all edits are captured
             if (undoDebounceTimer) {
                 clearTimeout(undoDebounceTimer);
                 undoDebounceTimer = null;
             }
-            // Save current state so redo can restore it
-            const focusedIndex = blockRefs.findIndex(b => b?.getCursorOffset?.() !== null);
-            const focusedOffset = focusedIndex >= 0 ? (blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0) : 0;
-            pushUndoSnapshot(Math.max(focusedIndex, 0), focusedOffset);
 
-            const entry = undoManager.undo();
+            // Build current state entry so redo can restore it
+            const focusedIndex = Math.max(0, blockRefs.findIndex(b => b?.getCursorOffset?.() !== null));
+            const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0;
+            const currentState = {
+                snapshot: cloneDocument(doc),
+                blockIds: [...blockIds],
+                focusBlockIndex: focusedIndex,
+                focusOffset: focusedOffset
+            };
+
+            const entry = undoManager.undo(currentState);
             if (!entry) return;
             doc = entry.snapshot;
             blockIds = entry.blockIds;
@@ -154,12 +160,16 @@
         },
 
         async requestRedo(): Promise<void> {
-            // Save current state so undo can get back to it
-            const focusedIndex = blockRefs.findIndex(b => b?.getCursorOffset?.() !== null);
-            const focusedOffset = focusedIndex >= 0 ? (blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0) : 0;
-            pushUndoSnapshot(Math.max(focusedIndex, 0), focusedOffset);
+            const focusedIndex = Math.max(0, blockRefs.findIndex(b => b?.getCursorOffset?.() !== null));
+            const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0;
+            const currentState = {
+                snapshot: cloneDocument(doc),
+                blockIds: [...blockIds],
+                focusBlockIndex: focusedIndex,
+                focusOffset: focusedOffset
+            };
 
-            const entry = undoManager.redo();
+            const entry = undoManager.redo(currentState);
             if (!entry) return;
             doc = entry.snapshot;
             blockIds = entry.blockIds;
