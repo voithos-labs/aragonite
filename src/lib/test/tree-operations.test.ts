@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { toMutable, serializeMutable } from '../mutable-tree';
-import { splitNode, mergeWithPrevious } from '../tree-operations';
+import { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from '../tree-operations';
 
 describe('splitNode', () => {
     it('splits a paragraph into two paragraphs', () => {
@@ -154,5 +154,71 @@ describe('mergeWithPrevious', () => {
         mergeWithPrevious(mutable, ids, 1);
         expect(mutable.children[0].kind).toBe('heading');
         expect(mutable.children[0].raw).toBe('## Title\n');
+    });
+});
+
+describe('deleteNode', () => {
+    it('removes the node at the given index', () => {
+        const source = 'A\n\nB\n\nC\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2', 'id-3'];
+        deleteNode(mutable, ids, 1);
+        expect(mutable.children).toHaveLength(2);
+        expect(mutable.children[0].raw).toBe('A\n');
+        expect(mutable.children[1].raw).toBe('C\n');
+        expect(ids).toEqual(['id-1', 'id-3']);
+    });
+
+    it('transfers leading trivia to the next block', () => {
+        const source = 'A\n\nB\n\nC\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2', 'id-3'];
+        const triviaB = mutable.children[1].leadingTrivia;
+        const triviaC = mutable.children[2].leadingTrivia;
+        deleteNode(mutable, ids, 1);
+        expect(mutable.children[1].leadingTrivia).toBe(triviaB + triviaC);
+    });
+});
+
+describe('updateNodeContent', () => {
+    it('updates the raw text of a node', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const result = updateNodeContent(mutable, 0, 'World\n');
+        expect(mutable.children[0].raw).toBe('World\n');
+        expect(result.kindChanged).toBe(false);
+    });
+
+    it('detects block type change from paragraph to heading', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const result = updateNodeContent(mutable, 0, '## Hello\n');
+        expect(mutable.children[0].kind).toBe('heading');
+        expect(mutable.children[0].metadata).toEqual({ level: 2 });
+        expect(result.kindChanged).toBe(true);
+        expect(result.newKind).toBe('heading');
+    });
+
+    it('detects block type change from heading to paragraph', () => {
+        const source = '## Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const result = updateNodeContent(mutable, 0, 'Hello\n');
+        expect(mutable.children[0].kind).toBe('paragraph');
+        expect(result.kindChanged).toBe(true);
+        expect(result.newKind).toBe('paragraph');
+    });
+
+    it('preserves leading trivia and ID position', () => {
+        const source = 'A\n\nB\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        updateNodeContent(mutable, 1, 'Changed\n');
+        expect(mutable.children[1].leadingTrivia).toBe('\n');
+        expect(mutable.children[1].raw).toBe('Changed\n');
     });
 });
