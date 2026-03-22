@@ -1,0 +1,230 @@
+<script lang="ts">
+	import { getContext, setContext, tick } from 'svelte';
+	import {
+		EDITOR_ACTIONS_KEY,
+		type EditorActions,
+		type MutableNode,
+		type BlockComponent
+	} from '../editor-types';
+	import { assignIds } from '../mutable-tree';
+	import {
+		splitNode as performSplit,
+		mergeWithPrevious as performMerge,
+		deleteNode as performDelete,
+		updateNodeContent as performUpdate
+	} from '../tree-operations';
+	import { isMergeEligible, isBlockEditable } from '../merge-rules';
+	import { rebuildListItemRaw } from '../container-raw';
+	import BlockList from './BlockList.svelte';
+
+	let { node, index }: { node: MutableNode; index: number } = $props();
+
+	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
+	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
+
+	// ── BlockComponent interface ────────────────────────────────────────
+
+	export const editable = true;
+	export const focusable = true;
+
+	export function focus(offset: number): void {
+		if (!node.children || node.children.length === 0) return;
+		if (offset === 0) {
+			innerBlockRefs[0]?.focus?.(0);
+		} else {
+			const last = node.children.length - 1;
+			innerBlockRefs[last]?.focus?.(999999);
+		}
+	}
+
+	export function getCursorOffset(): number | null {
+		for (const ref of innerBlockRefs) {
+			const offset = ref?.getCursorOffset?.();
+			if (offset !== null && offset !== undefined) return offset;
+		}
+		return null;
+	}
+
+	// ── Helpers ─────────────────────────────────────────────────────────
+
+	function innerParent(): { children: MutableNode[] } {
+		return { children: node.children! };
+	}
+
+	function rebuildAndNotify(): void {
+		rebuildListItemRaw(node);
+		parentActions.endContainerEdit?.();
+	}
+
+	function triggerInnerReactivity(): void {
+		node.children = [...(node.children ?? [])];
+		innerBlockIds = [...innerBlockIds];
+	}
+
+	function marker(): string {
+		return (node.metadata as { marker?: string })?.marker ?? '- ';
+	}
+
+	// ── Nested EditorActions ────────────────────────────────────────────
+	// (Same pattern as BlockquoteBlock — split, merge, delete, moveFocus,
+	// updateBlockContent, undo/redo delegation, container propagation.
+	// Uses rebuildListItemRaw instead of rebuildBlockquoteRaw.)
+
+	const nestedActions: EditorActions = {
+		async splitBlock(innerIndex: number, offset: number): Promise<void> {
+			if (!node.children) return;
+			parentActions.beginContainerEdit?.(index, offset);
+			performSplit(innerParent(), innerBlockIds, innerIndex, offset);
+			rebuildAndNotify();
+			triggerInnerReactivity();
+			await tick();
+			innerBlockRefs[innerIndex + 1]?.focus?.(0);
+		},
+
+		async mergeWithPrevious(innerIndex: number): Promise<void> {
+			if (!node.children) return;
+
+			if (innerIndex <= 0) {
+				// At start of first child in this list item
+				// Signal to list-level parent to handle (merge with previous item or exit list)
+				parentActions.mergeWithPrevious(index);
+				return;
+			}
+
+			const prevKind = node.children[innerIndex - 1].kind;
+			const currKind = node.children[innerIndex].kind;
+
+			if (isMergeEligible(prevKind, currKind)) {
+				const prevRaw = node.children[innerIndex - 1].raw;
+				let mergeOffset = prevRaw.length;
+				if (prevRaw.endsWith('\r\n')) mergeOffset -= 2;
+				else if (prevRaw.endsWith('\n')) mergeOffset -= 1;
+
+				parentActions.beginContainerEdit?.(index, 0);
+				performMerge(innerParent(), innerBlockIds, innerIndex);
+				rebuildAndNotify();
+				triggerInnerReactivity();
+				await tick();
+				innerBlockRefs[innerIndex - 1]?.focus?.(mergeOffset);
+			} else if (!isBlockEditable(prevKind)) {
+				parentActions.beginContainerEdit?.(index, 0);
+				performDelete(innerParent(), innerBlockIds, innerIndex - 1);
+				rebuildAndNotify();
+				triggerInnerReactivity();
+				await tick();
+				innerBlockRefs[innerIndex - 1]?.focus?.(0);
+			} else {
+				innerBlockRefs[innerIndex - 1]?.focus?.(999999);
+			}
+		},
+
+		async deleteBlock(innerIndex: number): Promise<void> {
+			if (!node.children) return;
+
+			if (node.children.length <= 1) {
+				parentActions.deleteBlock(index);
+				return;
+			}
+
+			parentActions.beginContainerEdit?.(index, 0);
+			performDelete(innerParent(), innerBlockIds, innerIndex);
+			rebuildAndNotify();
+			triggerInnerReactivity();
+			await tick();
+			const focusIdx = Math.min(innerIndex, node.children.length - 1);
+			innerBlockRefs[focusIdx]?.focus?.(0);
+		},
+
+		async moveFocus(
+			innerIndex: number,
+			position: 'start' | 'end' | number
+		): Promise<void> {
+			if (!node.children) return;
+
+			if (innerIndex < 0) {
+				parentActions.moveFocus(index - 1, 'end');
+			} else if (innerIndex >= node.children.length) {
+				parentActions.moveFocus(index + 1, 'start');
+			} else {
+				const block = innerBlockRefs[innerIndex];
+				if (!block?.focusable) return;
+				if (typeof position === 'number') block.focus?.(position);
+				else if (position === 'start') block.focus?.(0);
+				else block.focus?.(999999);
+			}
+		},
+
+		updateBlockContent(
+			innerIndex: number,
+			text: string,
+			preEditOffset?: number
+		): void {
+			if (!node.children) return;
+			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
+			const result = performUpdate(innerParent(), innerIndex, text);
+			rebuildListItemRaw(node);
+			if (result.kindChanged) {
+				triggerInnerReactivity();
+				tick().then(() => {
+					innerBlockRefs[innerIndex]?.focus?.(
+						text.length > 0 ? text.length - 1 : 0
+					);
+				});
+			}
+		},
+
+		requestUndo(): void | Promise<void> {
+			return parentActions.requestUndo();
+		},
+
+		requestRedo(): void | Promise<void> {
+			return parentActions.requestRedo();
+		},
+
+		beginContainerEdit(blockIndex: number, offset: number): void {
+			parentActions.beginContainerEdit?.(index, offset);
+		},
+
+		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+			parentActions.beginContainerEditDebounced?.(index, offset);
+		},
+
+		endContainerEdit(): void {
+			rebuildListItemRaw(node);
+			parentActions.endContainerEdit?.();
+		}
+	};
+
+	setContext(EDITOR_ACTIONS_KEY, nestedActions);
+</script>
+
+<div class="list-item-block">
+	<span class="list-item-marker">{marker()}</span>
+	<div class="list-item-content">
+		<BlockList
+			children={node.children ?? []}
+			blockIds={innerBlockIds}
+			bind:blockRefs={innerBlockRefs}
+		/>
+	</div>
+</div>
+
+<style>
+	.list-item-block {
+		display: flex;
+		align-items: flex-start;
+	}
+
+	.list-item-marker {
+		flex-shrink: 0;
+		width: 2em;
+		color: var(--color-ui-dulled, #888);
+		user-select: none;
+	}
+
+	.list-item-content {
+		flex: 1;
+		min-width: 0;
+	}
+</style>
