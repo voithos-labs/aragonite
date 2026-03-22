@@ -25,21 +25,7 @@
 {:else if node.kind === 'fencedCode'}
 	<CodeBlock {node} {index} bind:this={ref} />
 {:else}
-	<!-- Fallback: render raw text for all unhandled block types -->
-	<div class="raw-block">
-		<pre>{node.raw}</pre>
-	</div>
+	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
+		 linkReferenceDefinition, table, unrecognized) -->
+	<TextEditableBlock {node} {index} bind:this={ref} blockClass="raw-block" />
 {/if}
-
-<style>
-	.raw-block {
-		padding: 2px 0;
-		opacity: 0.7;
-	}
-
-	.raw-block pre {
-		margin: 0;
-		white-space: pre-wrap;
-		font-family: inherit;
-	}
-</style>
