@@ -54,6 +54,7 @@ Use these for grouping related items: interfaces, classes, helper functions, etc
 ### Function-Level Comments
 
 Use a brief JSDoc comment when:
+
 - The function is part of a public API
 - The behavior has non-obvious edge cases
 - The function name alone doesn't convey what it returns or its side effects

@@ -89,7 +89,6 @@ This is line two directly below it.
 
 ```markdown
 ---
-
 ---
 
 ---

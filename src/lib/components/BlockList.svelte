@@ -1,4 +1,3 @@
-<!-- src/lib/editor/components/BlockList.svelte -->
 <script lang="ts">
 	import type { MutableNode, BlockComponent } from '../editor-types';
 	import BlockHost from './BlockHost.svelte';
