@@ -1,4 +1,9 @@
-/** Structural type accepted by serialize — works with both immutable Document and MutableDocument. */
+/**
+ * Serialize a document tree to its source text representation.
+ * Works with both immutable Document and MutableDocument via structural typing.
+ */
+
+/** Structural type accepted by serialize. */
 interface Serializable {
     prefix: string;
     children: { leadingTrivia: string; raw: string }[];
