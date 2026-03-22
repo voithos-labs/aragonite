@@ -183,8 +183,8 @@
 
 <style>
     .editor {
-        max-width: 720px;
-        margin: 0 auto;
+        width: 100%;
+        flex: 1;
         padding: 1rem;
         font-family: var(--font-editor, system-ui, sans-serif);
         font-size: 1rem;
