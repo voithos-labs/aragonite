@@ -182,6 +182,73 @@ describe('deleteNode', () => {
     });
 });
 
+describe('splitNode edge cases', () => {
+    it('splits the only node in the document', () => {
+        const source = 'Hello World\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1'];
+        splitNode(mutable, ids, 0, 5);
+        expect(mutable.children).toHaveLength(2);
+        expect(serializeMutable(mutable)).toBe('Hello\n World\n');
+    });
+
+    it('split at offset beyond raw length produces empty second block', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1'];
+        splitNode(mutable, ids, 0, 100);
+        expect(mutable.children).toHaveLength(2);
+        expect(mutable.children[0].raw).toBe('Hello\n');
+        expect(mutable.children[1].raw).toBe('\n');
+    });
+});
+
+describe('mergeWithPrevious edge cases', () => {
+    it('does nothing when blockIndex is out of bounds', () => {
+        const source = 'A\n\nB\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2'];
+        mergeWithPrevious(mutable, ids, 5);
+        expect(mutable.children).toHaveLength(2);
+        expect(ids).toHaveLength(2);
+    });
+});
+
+describe('deleteNode edge cases', () => {
+    it('deleting the only node leaves empty document', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1'];
+        deleteNode(mutable, ids, 0);
+        expect(mutable.children).toHaveLength(0);
+        expect(ids).toHaveLength(0);
+    });
+
+    it('deleting the first node transfers trivia correctly', () => {
+        const source = 'A\n\nB\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2'];
+        deleteNode(mutable, ids, 0);
+        expect(mutable.children).toHaveLength(1);
+        expect(mutable.children[0].raw).toBe('B\n');
+    });
+
+    it('deleting the last node does not crash', () => {
+        const source = 'A\n\nB\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2'];
+        deleteNode(mutable, ids, 1);
+        expect(mutable.children).toHaveLength(1);
+        expect(mutable.children[0].raw).toBe('A\n');
+    });
+});
+
 describe('updateNodeContent', () => {
     it('updates the raw text of a node', () => {
         const source = 'Hello\n';
@@ -220,5 +287,36 @@ describe('updateNodeContent', () => {
         updateNodeContent(mutable, 1, 'Changed\n');
         expect(mutable.children[1].leadingTrivia).toBe('\n');
         expect(mutable.children[1].raw).toBe('Changed\n');
+    });
+
+    it('handles empty string content without crashing', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const result = updateNodeContent(mutable, 0, '');
+        expect(mutable.children[0].raw).toBe('');
+        expect(mutable.children[0].kind).toBe('paragraph');
+    });
+
+    it('with multi-block content uses only first block kind', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const result = updateNodeContent(mutable, 0, '# Heading\n\nParagraph\n');
+        // The raw is stored as-is (the full multi-block text)
+        expect(mutable.children[0].raw).toBe('# Heading\n\nParagraph\n');
+        // But kind is determined by re-parsing — only the first block matters
+        expect(mutable.children[0].kind).toBe('heading');
+        // Document still has 1 child (updateNodeContent doesn't split)
+        expect(mutable.children).toHaveLength(1);
+    });
+
+    it('clears metadata when block type changes from heading to paragraph', () => {
+        const source = '## Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        expect(mutable.children[0].metadata).toEqual({ level: 2 });
+        updateNodeContent(mutable, 0, 'Hello\n');
+        expect(mutable.children[0].metadata).toBeUndefined();
     });
 });
