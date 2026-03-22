@@ -17,7 +17,16 @@
 
     // ── State ───────────────────────────────────────────────────────────
 
-    let doc = $state<MutableDocument>(toMutable(parse(source)));
+    function initDocument(src: string): MutableDocument {
+        const d = toMutable(parse(src));
+        // Ensure there's always at least one block to edit
+        if (d.children.length === 0) {
+            d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+        }
+        return d;
+    }
+
+    let doc = $state<MutableDocument>(initDocument(source));
     let blockIds = $state<string[]>(assignIds(doc.children));
     let blockRefs = $state<(BlockComponent | undefined)[]>([]);
     const undoManager = createUndoManager();
