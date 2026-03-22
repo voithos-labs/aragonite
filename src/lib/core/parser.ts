@@ -294,25 +294,15 @@ function parseBlockquote(
     const raw = joinRaw(lines, startIndex, i);
 
     // Strip `> ` prefix from each line for recursive parse
+    let offset = 0;
     const strippedLines = lines.slice(startIndex, i).map((line) => {
         const stripped = line.text.replace(/^ {0,3}>[ \t]?/, '');
         const lineEnding = line.lineEnding;
-        return {
-            raw: stripped + lineEnding,
-            text: stripped,
-            lineEnding,
-            start: 0,
-            end: stripped.length + lineEnding.length
-        } as ParsedLine;
+        const raw = stripped + lineEnding;
+        const sl: ParsedLine = { raw, text: stripped, lineEnding, start: offset, end: offset + raw.length };
+        offset += raw.length;
+        return sl;
     });
-
-    // Recompute start offsets for stripped lines
-    let offset = 0;
-    for (const sl of strippedLines) {
-        sl.start = offset;
-        sl.end = offset + sl.raw.length;
-        offset = sl.end;
-    }
 
     const inner = parseBlocks(strippedLines, 0, strippedLines.length);
 

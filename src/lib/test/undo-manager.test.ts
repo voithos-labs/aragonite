@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
-import { toMutable, serializeMutable, cloneDocument } from '../mutable-tree';
+import { toMutable, serializeMutable, cloneDocument, assignIds } from '../mutable-tree';
 import { createUndoManager } from '../undo-manager';
 import type { UndoEntry } from '../editor-types';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
+    const snapshot = toMutable(parse(source));
     return {
-        snapshot: toMutable(parse(source)),
+        snapshot,
+        blockIds: assignIds(snapshot.children),
         focusBlockIndex: blockIndex,
         focusOffset: offset
     };
@@ -73,13 +75,13 @@ describe('UndoManager', () => {
         expect(manager.canRedo).toBe(false);
     });
 
-    it('stores deep copies so mutations do not affect history', () => {
+    it('undo returns a copy that does not share references with redo stack', () => {
         const manager = createUndoManager();
-        const entry = makeEntry('Hello\n');
-        manager.push(entry);
-        entry.snapshot.children[0].raw = 'Modified\n';
+        manager.push(makeEntry('Hello\n'));
         const restored = manager.undo();
-        expect(serializeMutable(restored!.snapshot)).toBe('Hello\n');
+        restored!.snapshot.children[0].raw = 'Modified\n';
+        const redone = manager.redo();
+        expect(serializeMutable(redone!.snapshot)).toBe('Hello\n');
     });
 
     it('preserves focus info in undo entries', () => {

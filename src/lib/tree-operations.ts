@@ -5,7 +5,7 @@
 
 import type { MutableDocument, MutableNode } from './editor-types';
 import { parse } from './core/parser';
-import { generateBlockId } from './mutable-tree';
+import { generateBlockId, toMutable } from './mutable-tree';
 
 // ── Split ───────────────────────────────────────────────────────────────────
 
@@ -144,27 +144,16 @@ export function updateNodeContent(
 
 /**
  * Parse a raw string as a single block node.
- * Returns a MutableNode with the parsed kind and metadata.
+ * Delegates to toMutable to reuse the CST → MutableNode conversion,
+ * including container block handling.
  */
 function reparseAsNode(raw: string, leadingTrivia: string): MutableNode {
-    const parsed = parse(raw);
-    if (parsed.children.length > 0) {
-        const child = parsed.children[0];
-        const node: MutableNode = {
-            kind: child.kind,
-            leadingTrivia,
-            raw
-        };
-        if ('metadata' in child && child.metadata) {
-            node.metadata = { ...(child.metadata as Record<string, unknown>) };
-        }
+    const doc = toMutable(parse(raw));
+    if (doc.children.length > 0) {
+        const node = doc.children[0];
+        node.leadingTrivia = leadingTrivia;
         return node;
     }
 
-    // Fallback: empty parse result
-    return {
-        kind: 'paragraph',
-        leadingTrivia,
-        raw
-    };
+    return { kind: 'paragraph', leadingTrivia, raw };
 }

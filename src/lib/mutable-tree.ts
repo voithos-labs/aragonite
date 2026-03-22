@@ -41,13 +41,9 @@ function nodeToMutable(node: CstNode): MutableNode {
 
 // ── Serialization ───────────────────────────────────────────────────────────
 
-export function serializeMutable(doc: MutableDocument): string {
-    return (
-        doc.prefix +
-        doc.children.map((node) => node.leadingTrivia + node.raw).join('') +
-        doc.suffix
-    );
-}
+// MutableDocument is structurally compatible with serialize() — re-export it
+// so callers can use `serializeMutable` without importing from core/serializer.
+export { serialize as serializeMutable } from './core/serializer';
 
 // ── Cloning ─────────────────────────────────────────────────────────────────
 
