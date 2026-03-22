@@ -104,7 +104,7 @@ describe('splitNode', () => {
 });
 
 describe('mergeWithPrevious', () => {
-    it('merges two paragraphs into one', () => {
+    it('merges two paragraphs into one (strips internal line break)', () => {
         const source = 'Hello\n\nWorld\n';
         const doc = parse(source);
         const mutable = toMutable(doc);
@@ -112,7 +112,7 @@ describe('mergeWithPrevious', () => {
         mergeWithPrevious(mutable, ids, 1);
         expect(mutable.children).toHaveLength(1);
         expect(mutable.children[0].kind).toBe('paragraph');
-        expect(mutable.children[0].raw).toBe('Hello\nWorld\n');
+        expect(mutable.children[0].raw).toBe('HelloWorld\n');
     });
 
     it('preserves the first block ID and removes the second', () => {

@@ -116,7 +116,17 @@
         if (el.textContent !== display) {
             el.textContent = display;
         }
+        // Ensure empty contenteditable always has a <br> so the browser
+        // places a caret when clicked
+        ensureBr();
     });
+
+    function ensureBr(): void {
+        if (!el) return;
+        if (el.textContent === '' && !el.querySelector('br')) {
+            el.appendChild(document.createElement('br'));
+        }
+    }
 
     // ── Event Handlers ──────────────────────────────────────────────────
 
@@ -126,6 +136,7 @@
         const text = el.textContent ?? '';
         actions.updateBlockContent(index, text + '\n');
         userIsTyping = false;
+        ensureBr();
     }
 
     function onCompositionStart(): void {

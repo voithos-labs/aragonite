@@ -126,15 +126,25 @@
         },
 
         updateBlockContent(blockIndex: number, text: string): void {
-            pushUndoSnapshotDebounced(blockIndex, 0);
+            const cursorOffset = blockRefs[blockIndex]?.getCursorOffset?.() ?? 0;
+            pushUndoSnapshotDebounced(blockIndex, cursorOffset);
             const result = performUpdate(doc, blockIndex, text);
             if (result.kindChanged) {
-                // Trigger full re-render for this block
                 doc.children = [...doc.children];
             }
         },
 
         async requestUndo(): Promise<void> {
+            // Flush any pending debounce so the current state is captured
+            if (undoDebounceTimer) {
+                clearTimeout(undoDebounceTimer);
+                undoDebounceTimer = null;
+            }
+            // Save current state so redo can restore it
+            const focusedIndex = blockRefs.findIndex(b => b?.getCursorOffset?.() !== null);
+            const focusedOffset = focusedIndex >= 0 ? (blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0) : 0;
+            pushUndoSnapshot(Math.max(focusedIndex, 0), focusedOffset);
+
             const entry = undoManager.undo();
             if (!entry) return;
             doc = entry.snapshot;
@@ -144,6 +154,11 @@
         },
 
         async requestRedo(): Promise<void> {
+            // Save current state so undo can get back to it
+            const focusedIndex = blockRefs.findIndex(b => b?.getCursorOffset?.() !== null);
+            const focusedOffset = focusedIndex >= 0 ? (blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0) : 0;
+            pushUndoSnapshot(Math.max(focusedIndex, 0), focusedOffset);
+
             const entry = undoManager.redo();
             if (!entry) return;
             doc = entry.snapshot;
