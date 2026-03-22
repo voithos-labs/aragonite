@@ -44,12 +44,12 @@ Block detects boundary event (Enter, Backspace at pos 0, arrow at edge)
 
 Four communication channels:
 
-| Direction | Mechanism | What Flows |
-| --- | --- | --- |
+| Direction      | Mechanism                           | What Flows                                        |
+| -------------- | ----------------------------------- | ------------------------------------------------- |
 | Block → Editor | Context callbacks (`EditorActions`) | Boundary events: split, merge, delete, move focus |
-| Editor → CST | Direct tree mutation | Structural changes to the document tree |
-| CST → Blocks | Svelte reactivity | Blocks re-render from new tree state |
-| Editor → Block | Component refs (`bind:this`) | `focus(offset)` for focus management |
+| Editor → CST   | Direct tree mutation                | Structural changes to the document tree           |
+| CST → Blocks   | Svelte reactivity                   | Blocks re-render from new tree state              |
+| Editor → Block | Component refs (`bind:this`)        | `focus(offset)` for focus management              |
 
 ## The Editing Surface
 
@@ -68,17 +68,17 @@ Not all blocks require `contenteditable`. A block only needs to conform to the c
 
 ```typescript
 interface BlockComponent {
-    // Focus management — optional, some blocks aren't text-editable
-    focus?(offset: number): void
-    getCursorOffset?(): number | null
+	// Focus management — optional, some blocks aren't text-editable
+	focus?(offset: number): void;
+	getCursorOffset?(): number | null;
 
-    // Selection — optional, same reason
-    getSelectedText?(): string
-    setSelection?(start: number, end: number): void
+	// Selection — optional, same reason
+	getSelectedText?(): string;
+	setSelection?(start: number, end: number): void;
 
-    // Identity
-    readonly editable: boolean   // can this block receive text input?
-    readonly focusable: boolean  // can this block receive focus at all?
+	// Identity
+	readonly editable: boolean; // can this block receive text input?
+	readonly focusable: boolean; // can this block receive focus at all?
 }
 ```
 
@@ -95,7 +95,7 @@ The orchestration layer checks `editable`/`focusable` before calling `focus()` o
 
 Always-visible styled source. Markdown syntax is visible at all times but styled:
 
-- Markers (`##`, `**`, `` ``` ``) are dimmed or colored
+- Markers (`##`, `**`, ` ``` `) are dimmed or colored
 - Content is styled according to its meaning (headings are large/bold, code is monospace, emphasis is italic)
 - No focus/unfocus mode switching
 - One rendering path per block type
@@ -141,14 +141,14 @@ The CST is the document-level source of truth. Within a single block during acti
 
 These operations are handled by the editor, not the browser:
 
-| Operation | Trigger | Behavior |
-| --- | --- | --- |
-| Enter | `keydown` → `preventDefault` | Split CST node at cursor offset, render two blocks |
-| Backspace at start | `keydown` → `preventDefault` | Merge with previous CST node via orchestrator |
-| Paste | `paste` → `preventDefault` | Read `clipboardData.getData('text/plain')`, apply to CST |
-| Undo/Redo | `beforeinput` type `historyUndo`/`historyRedo` → `preventDefault` | Pop/push from undo stack |
-| Copy | `copy` → `preventDefault` | Read selected range from CST `raw`, write plain text to clipboard |
-| Cut | `cut` → `preventDefault` | Copy from CST, then delete selected range, update CST |
+| Operation          | Trigger                                                           | Behavior                                                          |
+| ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Enter              | `keydown` → `preventDefault`                                      | Split CST node at cursor offset, render two blocks                |
+| Backspace at start | `keydown` → `preventDefault`                                      | Merge with previous CST node via orchestrator                     |
+| Paste              | `paste` → `preventDefault`                                        | Read `clipboardData.getData('text/plain')`, apply to CST          |
+| Undo/Redo          | `keydown` Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z → `preventDefault`      | Pop/push from undo stack                                          |
+| Copy               | `copy` → `preventDefault`                                         | Read selected range from CST `raw`, write plain text to clipboard |
+| Cut                | `cut` → `preventDefault`                                          | Copy from CST, then delete selected range, update CST             |
 
 ### IME Composition
 
@@ -166,13 +166,13 @@ Blocks receive typed callback functions via Svelte `getContext`:
 
 ```typescript
 interface EditorActions {
-    splitBlock(blockIndex: number, offset: number): void
-    mergeWithPrevious(blockIndex: number): void
-    deleteBlock(blockIndex: number): void
-    moveFocus(blockIndex: number, position: 'start' | 'end' | number): void
-    updateBlockContent(blockIndex: number, text: string): void  // updates raw, re-parses, swaps component if block type changed
-    requestUndo(): void
-    requestRedo(): void
+	splitBlock(blockIndex: number, offset: number): void;
+	mergeWithPrevious(blockIndex: number): void;
+	deleteBlock(blockIndex: number): void;
+	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void;
+	updateBlockContent(blockIndex: number, text: string): void; // updates raw, re-parses, swaps component if block type changed
+	requestUndo(): void;
+	requestRedo(): void;
 }
 ```
 
@@ -275,8 +275,8 @@ Native browser selection within the block's contenteditable. No custom handling 
 
 ```typescript
 interface EditorSelection {
-    anchor: { blockIndex: number; offset: number }
-    focus: { blockIndex: number; offset: number }
+	anchor: { blockIndex: number; offset: number };
+	focus: { blockIndex: number; offset: number };
 }
 ```
 
@@ -349,19 +349,19 @@ All changes go through a single undo system. The browser's built-in contentedita
 
 ```typescript
 interface UndoEntry {
-    snapshot: MutableDocument
-    blockIds: string[]
-    focusBlockIndex: number
-    focusOffset: number
+	snapshot: MutableDocument;
+	blockIds: string[];
+	focusBlockIndex: number;
+	focusOffset: number;
 }
 
 interface UndoManager {
-    push(entry: UndoEntry): void
-    undo(): UndoEntry | null
-    redo(): UndoEntry | null
-    clear(): void
-    readonly canUndo: boolean
-    readonly canRedo: boolean
+	push(entry: UndoEntry): void;
+	undo(): UndoEntry | null;
+	redo(): UndoEntry | null;
+	clear(): void;
+	readonly canUndo: boolean;
+	readonly canRedo: boolean;
 }
 ```
 
@@ -424,22 +424,22 @@ The ID array is updated atomically with every children array mutation:
 
 The CST defines 14 node types. The editor must handle all of them. Node types not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior.
 
-| Node Type | Kind | Editor Behavior |
-| --- | --- | --- |
-| Document | `document` | Root — not rendered as a block |
-| Paragraph | `paragraph` | Primary text block, contenteditable |
-| Heading | `heading` | Styled heading, contenteditable |
-| SetextHeading | `setextHeading` | Treated identically to Heading for editing purposes. The editor may normalize setext headings to ATX headings during editing (replacing the underline form with `##` form) since the user is editing styled source, not raw text layout |
-| FencedCode | `fencedCode` | Code editing surface (contenteditable, textarea, or CodeMirror) |
-| ThematicBreak | `thematicBreak` | Non-editable, focusable |
-| IndentedCode | `indentedCode` | Raw-editable block (until dedicated component built). Merge: not mergeable |
-| HtmlBlock | `htmlBlock` | Raw-editable block. Merge: not mergeable |
-| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Note: editing a link reference definition may affect reference-style links throughout the document — document-wide re-render may be needed when a definition's label changes. Merge: not mergeable |
-| Table | `table` | Grid editor (future). Raw-editable until then. Merge: not mergeable |
-| UnrecognizedBlock | `unrecognized` | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks |
-| Blockquote | `blockquote` | Container — recursive BlockList (see Container Blocks section) |
-| List | `list` | Container — renders ListItem children |
-| ListItem | `listItem` | Container — recursive BlockList for inner content |
+| Node Type               | Kind                      | Editor Behavior                                                                                                                                                                                                                         |
+| ----------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Document                | `document`                | Root — not rendered as a block                                                                                                                                                                                                          |
+| Paragraph               | `paragraph`               | Primary text block, contenteditable                                                                                                                                                                                                     |
+| Heading                 | `heading`                 | Styled heading, contenteditable                                                                                                                                                                                                         |
+| SetextHeading           | `setextHeading`           | Treated identically to Heading for editing purposes. The editor may normalize setext headings to ATX headings during editing (replacing the underline form with `##` form) since the user is editing styled source, not raw text layout |
+| FencedCode              | `fencedCode`              | Code editing surface (contenteditable, textarea, or CodeMirror)                                                                                                                                                                         |
+| ThematicBreak           | `thematicBreak`           | Non-editable, focusable                                                                                                                                                                                                                 |
+| IndentedCode            | `indentedCode`            | Raw-editable block (until dedicated component built). Merge: not mergeable                                                                                                                                                              |
+| HtmlBlock               | `htmlBlock`               | Raw-editable block. Merge: not mergeable                                                                                                                                                                                                |
+| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Note: editing a link reference definition may affect reference-style links throughout the document — document-wide re-render may be needed when a definition's label changes. Merge: not mergeable                  |
+| Table                   | `table`                   | Grid editor (future). Raw-editable until then. Merge: not mergeable                                                                                                                                                                     |
+| UnrecognizedBlock       | `unrecognized`            | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks                                 |
+| Blockquote              | `blockquote`              | Container — recursive BlockList (see Container Blocks section)                                                                                                                                                                          |
+| List                    | `list`                    | Container — renders ListItem children                                                                                                                                                                                                   |
+| ListItem                | `listItem`                | Container — recursive BlockList for inner content                                                                                                                                                                                       |
 
 ## Implementation Phases
 
