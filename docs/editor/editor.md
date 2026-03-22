@@ -348,15 +348,26 @@ All changes go through a single undo system. The browser's built-in contentedita
 ### Interface
 
 ```typescript
+interface UndoEntry {
+    snapshot: MutableDocument
+    blockIds: string[]
+    focusBlockIndex: number
+    focusOffset: number
+}
+
 interface UndoManager {
-    push(snapshot: Document): void
-    undo(): Document | null
-    redo(): Document | null
+    push(entry: UndoEntry): void
+    undo(): UndoEntry | null
+    redo(): UndoEntry | null
     clear(): void
+    readonly canUndo: boolean
+    readonly canRedo: boolean
 }
 ```
 
-The default implementation stores cloned CST `Document` trees. The CST is a lightweight tree of strings — cloning is cheap. If the Automerge history layer proves suitable for session-level undo later, the implementation behind this interface can be swapped without touching the editor.
+Each undo entry stores the full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position for cursor restoration. The caller clones the document before pushing — the undo manager stores entries directly and only clones when moving between stacks (undo → redo or vice versa).
+
+The default implementation stores cloned CST `Document` trees. The CST is a lightweight tree of strings — cloning is cheap. The stack is capped at 200 entries to prevent unbounded memory growth during long editing sessions. If the Automerge history layer proves suitable for session-level undo later, the implementation behind this interface can be swapped without touching the editor.
 
 ### When Snapshots Are Pushed
 
@@ -369,10 +380,11 @@ The default implementation stores cloned CST `Document` trees. The CST is a ligh
 
 ### Undo Behavior
 
-1. Pop the previous snapshot from the stack
-2. Replace the current CST `Document` with the snapshot
-3. Svelte reactivity re-renders all affected blocks
-4. Restore focus to the block and offset that was active when the snapshot was taken (stored alongside the snapshot)
+1. Pop the previous entry from the stack
+2. Replace the current CST `Document` with the entry's snapshot
+3. Restore `blockIds` from the entry (preserves DOM identity — Svelte reuses existing block components instead of destroying and recreating them)
+4. Svelte reactivity re-renders affected blocks
+5. Restore focus to the block and offset stored in the entry
 
 ### Redo Behavior
 
