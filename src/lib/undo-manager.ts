@@ -29,17 +29,19 @@ export function createUndoManager(): UndoManager {
             redoStack.length = 0;
         },
 
-        undo(): UndoEntry | null {
+        undo(currentState: UndoEntry): UndoEntry | null {
             const entry = undoStack.pop();
             if (!entry) return null;
-            redoStack.push(cloneEntry(entry));
+            // Save current state to redo so the user can redo back to it
+            redoStack.push(currentState);
             return entry;
         },
 
-        redo(): UndoEntry | null {
+        redo(currentState: UndoEntry): UndoEntry | null {
             const entry = redoStack.pop();
             if (!entry) return null;
-            undoStack.push(cloneEntry(entry));
+            // Save current state to undo so the user can undo back to it
+            undoStack.push(currentState);
             return entry;
         },
 
