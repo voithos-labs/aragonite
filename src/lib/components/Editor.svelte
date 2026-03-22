@@ -190,6 +190,12 @@
 			const result = performUpdate(doc, blockIndex, text);
 			if (result.kindChanged) {
 				doc.children = [...doc.children];
+				// Re-focus after Svelte swaps the component type.
+				// Use preEditOffset (the cursor position before the edit) to restore
+				// the cursor approximately where it was.
+				tick().then(() => {
+					blockRefs[blockIndex]?.focus?.(preEditOffset ?? 0);
+				});
 			}
 		},
 
