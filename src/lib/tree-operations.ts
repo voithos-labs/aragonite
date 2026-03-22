@@ -1,11 +1,15 @@
 /**
  * Pure tree mutation functions for the editor.
- * All functions operate on MutableDocument in place.
+ * All functions operate on a NodeParent in place.
  */
 
-import type { MutableDocument, MutableNode } from './editor-types';
+import type { MutableNode } from './editor-types';
 import { parse } from './core/parser';
 import { generateBlockId, toMutable } from './mutable-tree';
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type NodeParent = { children: MutableNode[] };
 
 // ── Split ───────────────────────────────────────────────────────────────────
 
@@ -18,12 +22,12 @@ import { generateBlockId, toMutable } from './mutable-tree';
  * The line ending style (\n or \r\n) is preserved from the original raw.
  */
 export function splitNode(
-	doc: MutableDocument,
+	parent: NodeParent,
 	blockIds: string[],
 	blockIndex: number,
 	offset: number
 ): void {
-	const node = doc.children[blockIndex];
+	const node = parent.children[blockIndex];
 	const rawText = node.raw;
 
 	// Detect line ending style from the original raw
@@ -53,7 +57,7 @@ export function splitNode(
 	const secondNode = reparseAsNode(secondRaw, '');
 
 	// Replace the original node with the two new nodes
-	doc.children.splice(blockIndex, 1, firstNode, secondNode);
+	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 
 	// Update IDs: original stays, new one inserted after
 	blockIds.splice(blockIndex + 1, 0, generateBlockId());
@@ -67,14 +71,14 @@ export function splitNode(
  * No-op if blockIndex is 0.
  */
 export function mergeWithPrevious(
-	doc: MutableDocument,
+	parent: NodeParent,
 	blockIds: string[],
 	blockIndex: number
 ): void {
-	if (blockIndex <= 0 || blockIndex >= doc.children.length) return;
+	if (blockIndex <= 0 || blockIndex >= parent.children.length) return;
 
-	const prev = doc.children[blockIndex - 1];
-	const curr = doc.children[blockIndex];
+	const prev = parent.children[blockIndex - 1];
+	const curr = parent.children[blockIndex];
 
 	// Strip trailing line ending from prev so the merged text flows together
 	let prevContent = prev.raw;
@@ -87,7 +91,7 @@ export function mergeWithPrevious(
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 
 	// Replace both nodes with the merged node
-	doc.children.splice(blockIndex - 1, 2, mergedNode);
+	parent.children.splice(blockIndex - 1, 2, mergedNode);
 
 	// Remove the second block's ID
 	blockIds.splice(blockIndex, 1);
@@ -99,18 +103,18 @@ export function mergeWithPrevious(
  * Remove the node at `blockIndex`.
  * Transfers leading trivia to the next sibling if one exists.
  */
-export function deleteNode(doc: MutableDocument, blockIds: string[], blockIndex: number): void {
-	if (blockIndex < 0 || blockIndex >= doc.children.length) return;
+export function deleteNode(parent: NodeParent, blockIds: string[], blockIndex: number): void {
+	if (blockIndex < 0 || blockIndex >= parent.children.length) return;
 
-	const deleted = doc.children[blockIndex];
+	const deleted = parent.children[blockIndex];
 
 	// Transfer leading trivia to the next block
-	if (blockIndex + 1 < doc.children.length) {
-		doc.children[blockIndex + 1].leadingTrivia =
-			deleted.leadingTrivia + doc.children[blockIndex + 1].leadingTrivia;
+	if (blockIndex + 1 < parent.children.length) {
+		parent.children[blockIndex + 1].leadingTrivia =
+			deleted.leadingTrivia + parent.children[blockIndex + 1].leadingTrivia;
 	}
 
-	doc.children.splice(blockIndex, 1);
+	parent.children.splice(blockIndex, 1);
 	blockIds.splice(blockIndex, 1);
 }
 
@@ -121,11 +125,11 @@ export function deleteNode(doc: MutableDocument, blockIds: string[], blockIndex:
  * for block type changes. Returns whether the kind changed.
  */
 export function updateNodeContent(
-	doc: MutableDocument,
+	parent: NodeParent,
 	blockIndex: number,
 	newText: string
 ): { kindChanged: boolean; newKind?: string } {
-	const node = doc.children[blockIndex];
+	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
 	// Re-parse the new text to determine block type
