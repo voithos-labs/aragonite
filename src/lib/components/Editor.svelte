@@ -15,6 +15,7 @@
 		updateNodeContent as performUpdate
 	} from '../tree-operations';
 	import { createUndoManager } from '../undo-manager';
+	import { isMergeEligible, isBlockEditable } from '../merge-rules';
 	import { parse } from '../core/parser';
 	import BlockList from './BlockList.svelte';
 
@@ -107,8 +108,33 @@
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
 			if (blockIndex <= 0) return;
+
+			const prevKind = doc.children[blockIndex - 1].kind;
+			const currKind = doc.children[blockIndex].kind;
+
+			if (!isMergeEligible(prevKind, currKind)) {
+				if (!isBlockEditable(prevKind)) {
+					// Previous block is non-editable — delete it
+					if (undoDebounceTimer) {
+						clearTimeout(undoDebounceTimer);
+						undoDebounceTimer = null;
+					}
+					pushUndoSnapshot(blockIndex, 0);
+					needsUndoCheckpoint = true;
+					performDelete(doc, blockIds, blockIndex - 1);
+					doc.children = [...doc.children];
+					blockIds = [...blockIds];
+					await tick();
+					blockRefs[blockIndex - 1]?.focus?.(0);
+				} else {
+					// Previous block is editable but not mergeable — move focus
+					blockRefs[blockIndex - 1]?.focus?.(999999);
+				}
+				return;
+			}
+
+			// Mergeable — proceed with merge
 			const prevRaw = doc.children[blockIndex - 1].raw;
-			// Cursor should go at the end of the previous block's text (before \n)
 			let mergeOffset = prevRaw.length;
 			if (prevRaw.endsWith('\r\n')) mergeOffset -= 2;
 			else if (prevRaw.endsWith('\n')) mergeOffset -= 1;
