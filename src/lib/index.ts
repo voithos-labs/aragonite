@@ -33,3 +33,23 @@ export type {
     ListMetadata,
     ListItemMetadata
 } from './core/nodes';
+
+// ── Editor runtime ──────────────────────────────────────────────────────────
+
+export type {
+    EditorActions,
+    BlockComponent,
+    UndoManager,
+    UndoEntry,
+    MutableNode,
+    MutableDocument
+} from './editor-types';
+export {
+    toMutable,
+    cloneDocument,
+    serializeMutable,
+    assignIds,
+    generateBlockId
+} from './mutable-tree';
+export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
+export { createUndoManager } from './undo-manager';
