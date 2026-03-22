@@ -316,6 +316,7 @@
         white-space: pre-wrap;
         word-wrap: break-word;
         min-height: 1.4em;
+        width: 100%;
     }
 
     .paragraph-block:empty::before {
