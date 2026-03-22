@@ -59,6 +59,35 @@ export function splitNode(
     blockIds.splice(blockIndex + 1, 0, generateBlockId());
 }
 
+// ── Merge ───────────────────────────────────────────────────────────────────
+
+/**
+ * Merge the node at `blockIndex` into the node at `blockIndex - 1`.
+ * The combined raw text is re-parsed. The first block's ID is kept.
+ * No-op if blockIndex is 0.
+ */
+export function mergeWithPrevious(
+    doc: MutableDocument,
+    blockIds: string[],
+    blockIndex: number
+): void {
+    if (blockIndex <= 0 || blockIndex >= doc.children.length) return;
+
+    const prev = doc.children[blockIndex - 1];
+    const curr = doc.children[blockIndex];
+
+    const mergedRaw = prev.raw + curr.raw;
+
+    // Re-parse to determine the merged block type
+    const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
+
+    // Replace both nodes with the merged node
+    doc.children.splice(blockIndex - 1, 2, mergedNode);
+
+    // Remove the second block's ID
+    blockIds.splice(blockIndex, 1);
+}
+
 /**
  * Parse a raw string as a single block node.
  * Returns a MutableNode with the parsed kind and metadata.
