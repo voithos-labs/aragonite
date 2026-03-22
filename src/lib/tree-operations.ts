@@ -76,7 +76,12 @@ export function mergeWithPrevious(
     const prev = doc.children[blockIndex - 1];
     const curr = doc.children[blockIndex];
 
-    const mergedRaw = prev.raw + curr.raw;
+    // Strip trailing line ending from prev so the merged text flows together
+    let prevContent = prev.raw;
+    if (prevContent.endsWith('\r\n')) prevContent = prevContent.slice(0, -2);
+    else if (prevContent.endsWith('\n')) prevContent = prevContent.slice(0, -1);
+
+    const mergedRaw = prevContent + curr.raw;
 
     // Re-parse to determine the merged block type
     const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
