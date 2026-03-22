@@ -3,6 +3,7 @@
 	import TextEditableBlock from './TextEditableBlock.svelte';
 	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
 	import CodeBlock from './CodeBlock.svelte';
+	import BlockquoteBlock from './BlockquoteBlock.svelte';
 
 	let {
 		node,
@@ -24,6 +25,8 @@
 	<ThematicBreakBlock {node} {index} bind:this={ref} />
 {:else if node.kind === 'fencedCode'}
 	<CodeBlock {node} {index} bind:this={ref} />
+{:else if node.kind === 'blockquote'}
+	<BlockquoteBlock {node} {index} bind:this={ref} />
 {:else}
 	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
 		 linkReferenceDefinition, table, unrecognized) -->
