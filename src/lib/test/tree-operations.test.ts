@@ -249,6 +249,48 @@ describe('deleteNode edge cases', () => {
 	});
 });
 
+describe('heading operations', () => {
+	it('splits a heading into heading + paragraph', () => {
+		const source = '## Hello World\n';
+		const doc = parse(source);
+		const mutable = toMutable(doc);
+		const ids = ['id-1'];
+		splitNode(mutable, ids, 0, 8);
+		expect(mutable.children).toHaveLength(2);
+		expect(mutable.children[0].kind).toBe('heading');
+		expect(mutable.children[0].raw).toBe('## Hello\n');
+		expect(mutable.children[1].kind).toBe('paragraph');
+		expect(mutable.children[1].raw).toBe(' World\n');
+	});
+
+	it('splits a heading at start produces empty paragraph + heading', () => {
+		const source = '## Title\n';
+		const doc = parse(source);
+		const mutable = toMutable(doc);
+		const ids = ['id-1'];
+		splitNode(mutable, ids, 0, 0);
+		expect(mutable.children).toHaveLength(2);
+		expect(mutable.children[0].kind).toBe('paragraph');
+		expect(mutable.children[0].raw).toBe('\n');
+		expect(mutable.children[1].kind).toBe('heading');
+		expect(mutable.children[1].raw).toBe('## Title\n');
+	});
+
+	it('merges heading + paragraph into heading', () => {
+		const doc = parse('');
+		const mutable = toMutable(doc);
+		mutable.children = [
+			{ kind: 'heading', leadingTrivia: '', raw: '## Hello\n', metadata: { level: 2 } },
+			{ kind: 'paragraph', leadingTrivia: '', raw: ' World\n' }
+		];
+		const ids = ['id-1', 'id-2'];
+		mergeWithPrevious(mutable, ids, 1);
+		expect(mutable.children).toHaveLength(1);
+		expect(mutable.children[0].kind).toBe('heading');
+		expect(mutable.children[0].raw).toBe('## Hello World\n');
+	});
+});
+
 describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {
 		const source = 'Hello\n';
