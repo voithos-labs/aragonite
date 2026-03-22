@@ -377,3 +377,18 @@ describe('thematic break operations', () => {
 		expect(mutable.children[1].raw).toBe('\n');
 	});
 });
+
+describe('tree operations on arbitrary parent', () => {
+	it('splitNode works on a container children array', () => {
+		const parent = {
+			children: [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello World\n' }
+			]
+		};
+		const ids = ['id-1'];
+		splitNode(parent, ids, 0, 5);
+		expect(parent.children).toHaveLength(2);
+		expect(parent.children[0].raw).toBe('Hello\n');
+		expect(parent.children[1].raw).toBe(' World\n');
+	});
+});
