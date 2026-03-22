@@ -175,5 +175,8 @@
         font-size: 1rem;
         line-height: 1.6;
         color: var(--color-text-primary);
+        min-height: 200px;
+        border: 1px solid var(--color-ui-muted, #333);
+        border-radius: 4px;
     }
 </style>

@@ -292,4 +292,10 @@
         word-wrap: break-word;
         min-height: 1.4em;
     }
+
+    .paragraph-block:empty::before {
+        content: 'Start typing...';
+        color: var(--color-ui-dulled, #666);
+        pointer-events: none;
+    }
 </style>
