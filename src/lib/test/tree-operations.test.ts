@@ -362,3 +362,18 @@ describe('updateNodeContent', () => {
 		expect(mutable.children[0].metadata).toBeUndefined();
 	});
 });
+
+describe('thematic break operations', () => {
+	it('splitting at end of thematic break produces break + empty paragraph', () => {
+		const source = '---\n';
+		const doc = parse(source);
+		const mutable = toMutable(doc);
+		const ids = ['id-1'];
+		splitNode(mutable, ids, 0, 3);
+		expect(mutable.children).toHaveLength(2);
+		expect(mutable.children[0].kind).toBe('thematicBreak');
+		expect(mutable.children[0].raw).toBe('---\n');
+		expect(mutable.children[1].kind).toBe('paragraph');
+		expect(mutable.children[1].raw).toBe('\n');
+	});
+});
