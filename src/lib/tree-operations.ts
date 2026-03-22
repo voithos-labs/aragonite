@@ -88,6 +88,60 @@ export function mergeWithPrevious(
     blockIds.splice(blockIndex, 1);
 }
 
+// ── Delete ──────────────────────────────────────────────────────────────────
+
+/**
+ * Remove the node at `blockIndex`.
+ * Transfers leading trivia to the next sibling if one exists.
+ */
+export function deleteNode(
+    doc: MutableDocument,
+    blockIds: string[],
+    blockIndex: number
+): void {
+    if (blockIndex < 0 || blockIndex >= doc.children.length) return;
+
+    const deleted = doc.children[blockIndex];
+
+    // Transfer leading trivia to the next block
+    if (blockIndex + 1 < doc.children.length) {
+        doc.children[blockIndex + 1].leadingTrivia =
+            deleted.leadingTrivia + doc.children[blockIndex + 1].leadingTrivia;
+    }
+
+    doc.children.splice(blockIndex, 1);
+    blockIds.splice(blockIndex, 1);
+}
+
+// ── Update Content ──────────────────────────────────────────────────────────
+
+/**
+ * Update the raw text of the node at `blockIndex` and re-parse to check
+ * for block type changes. Returns whether the kind changed.
+ */
+export function updateNodeContent(
+    doc: MutableDocument,
+    blockIndex: number,
+    newText: string
+): { kindChanged: boolean; newKind?: string } {
+    const node = doc.children[blockIndex];
+    const oldKind = node.kind;
+
+    // Re-parse the new text to determine block type
+    const reparsed = reparseAsNode(newText, node.leadingTrivia);
+
+    // Update the node in place
+    node.raw = newText;
+    node.kind = reparsed.kind;
+    node.metadata = reparsed.metadata;
+
+    const kindChanged = node.kind !== oldKind;
+    return {
+        kindChanged,
+        newKind: kindChanged ? node.kind : undefined
+    };
+}
+
 /**
  * Parse a raw string as a single block node.
  * Returns a MutableNode with the parsed kind and metadata.
