@@ -2,6 +2,7 @@
 	import type { MutableNode, BlockComponent } from '../editor-types';
 	import TextEditableBlock from './TextEditableBlock.svelte';
 	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
+	import CodeBlock from './CodeBlock.svelte';
 
 	let {
 		node,
@@ -21,6 +22,8 @@
 	<TextEditableBlock {node} {index} bind:this={ref} blockClass={headingClass()} />
 {:else if node.kind === 'thematicBreak'}
 	<ThematicBreakBlock {node} {index} bind:this={ref} />
+{:else if node.kind === 'fencedCode'}
+	<CodeBlock {node} {index} bind:this={ref} />
 {:else}
 	<!-- Fallback: render raw text for all unhandled block types -->
 	<div class="raw-block">
