@@ -1,7 +1,7 @@
 <!-- src/lib/editor/components/Editor.svelte -->
 <script lang="ts">
     import { setContext, tick } from 'svelte';
-    import type { EditorActions, BlockComponent, MutableDocument, UndoEntry } from '../editor-types';
+    import { EDITOR_ACTIONS_KEY, type EditorActions, type BlockComponent, type MutableDocument, type UndoEntry } from '../editor-types';
     import { toMutable, cloneDocument, serializeMutable, assignIds } from '../mutable-tree';
     import {
         splitNode as performSplit,
@@ -30,6 +30,7 @@
     function pushUndoSnapshot(blockIndex: number, offset: number): void {
         undoManager.push({
             snapshot: cloneDocument(doc),
+            blockIds: [...blockIds],
             focusBlockIndex: blockIndex,
             focusOffset: offset
         });
@@ -127,9 +128,8 @@
         async requestUndo(): Promise<void> {
             const entry = undoManager.undo();
             if (!entry) return;
-            // Push current state to redo first
             doc = entry.snapshot;
-            blockIds = assignIds(doc.children);
+            blockIds = entry.blockIds;
             await tick();
             blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
         },
@@ -138,13 +138,13 @@
             const entry = undoManager.redo();
             if (!entry) return;
             doc = entry.snapshot;
-            blockIds = assignIds(doc.children);
+            blockIds = entry.blockIds;
             await tick();
             blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
         }
     };
 
-    setContext('editor-actions', actions);
+    setContext(EDITOR_ACTIONS_KEY, actions);
 
     // ── Public API ──────────────────────────────────────────────────────
 

@@ -36,6 +36,7 @@ export type {
 
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
+export { EDITOR_ACTIONS_KEY } from './editor-types';
 export type {
     EditorActions,
     BlockComponent,
