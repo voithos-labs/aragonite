@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { toMutable, serializeMutable } from '../mutable-tree';
-import { splitNode } from '../tree-operations';
+import { splitNode, mergeWithPrevious } from '../tree-operations';
 
 describe('splitNode', () => {
     it('splits a paragraph into two paragraphs', () => {
@@ -100,5 +100,59 @@ describe('splitNode', () => {
         splitNode(mutable, ids, 0, 5);
         expect(mutable.children[0].raw).toBe('Hello\r\n');
         expect(mutable.children[1].raw).toBe(' World\r\n');
+    });
+});
+
+describe('mergeWithPrevious', () => {
+    it('merges two paragraphs into one', () => {
+        const source = 'Hello\n\nWorld\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2'];
+        mergeWithPrevious(mutable, ids, 1);
+        expect(mutable.children).toHaveLength(1);
+        expect(mutable.children[0].kind).toBe('paragraph');
+        expect(mutable.children[0].raw).toBe('Hello\nWorld\n');
+    });
+
+    it('preserves the first block ID and removes the second', () => {
+        const source = 'Hello\n\nWorld\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['keep-me', 'remove-me'];
+        mergeWithPrevious(mutable, ids, 1);
+        expect(ids).toEqual(['keep-me']);
+    });
+
+    it('preserves leading trivia of the first block', () => {
+        const source = 'A\n\nB\n\nC\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1', 'id-2', 'id-3'];
+        mergeWithPrevious(mutable, ids, 2);
+        expect(mutable.children[1].leadingTrivia).toBe('\n');
+    });
+
+    it('does nothing when blockIndex is 0', () => {
+        const source = 'Hello\n';
+        const doc = parse(source);
+        const mutable = toMutable(doc);
+        const ids = ['id-1'];
+        mergeWithPrevious(mutable, ids, 0);
+        expect(mutable.children).toHaveLength(1);
+        expect(ids).toEqual(['id-1']);
+    });
+
+    it('re-parses to determine merged block type', () => {
+        const doc = parse('');
+        const mutable = toMutable(doc);
+        mutable.children = [
+            { kind: 'paragraph', leadingTrivia: '', raw: '## ' },
+            { kind: 'paragraph', leadingTrivia: '', raw: 'Title\n' }
+        ];
+        const ids = ['id-1', 'id-2'];
+        mergeWithPrevious(mutable, ids, 1);
+        expect(mutable.children[0].kind).toBe('heading');
+        expect(mutable.children[0].raw).toBe('## Title\n');
     });
 });
