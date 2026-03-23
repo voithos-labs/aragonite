@@ -16,14 +16,26 @@ Parse GFM into a recursive tree of block nodes. Each node stores its raw source 
 
 ### Phase 2 — Inline syntax parsing
 
-Extend leaf block nodes to parse their text content into inline spans (bold, italic, code, links, images, autolinks, strikethrough, etc.). The raw source on the block still round-trips, but the tree now understands inline structure within blocks. This is necessary for syntax-aware rendering in the editor.
+Extend prose block nodes (paragraph, heading, setext heading) to parse their text content into an inline node tree. `raw` remains authoritative — the inline tree is derived from it and re-parsed on every edit. The inline tree is a rendering cache, not a serialization input. `serialize()` still reads `raw` only.
 
-### Phase 3 — Structured fields for editor support
+Inline nodes are trees, not flat spans. Inline syntax nests — `**bold *and italic***` produces Strong containing [Text, Emphasis containing [Text]]. Each inline node carries byte offsets into the parent block's `raw` for cursor mapping.
 
-Decompose raw source into structured fields (marker, content, line ending, etc.) on a per-block-type basis, as needed by the editor. Serialization shifts from "return raw" to "reassemble from fields." This enables:
+The editor uses the inline tree to build a styled DOM (nested `<strong>`, `<em>`, `<code>` spans) instead of flat `textContent`. Markdown markers remain visible but are dimmed/styled. This is the "always-visible styled source" rendering mode.
 
-- **Semantic editing**: e.g., change heading level by swapping the marker field
-- **Syntax-aware rendering**: e.g., style the `##` marker differently from the heading text (Obsidian-style live preview where the markup is visible and editable)
+See the "Inline Node Types" section below for the full type definitions.
+
+### Phase 3 — Structured fields and optional syntax hiding
+
+Two changes from Phase 2:
+
+1. **Ownership flip**: The inline tree becomes authoritative. `raw` is derived from the inline tree for serialization. Editing operates on the tree directly (inserting text into nodes, toggling marks by wrapping/unwrapping).
+
+2. **Block-level structured fields**: Decompose block-level `raw` into semantic fields (marker, content, line ending) per block type. Serialization shifts from "return raw" to "reassemble from fields."
+
+Together, these enable:
+
+- **Semantic editing**: e.g., change heading level by swapping the marker field, toggle bold by wrapping in a Strong node
+- **Optional syntax hiding**: Markers can be hidden when a block is unfocused and shown when focused (Obsidian-style live preview), since they are now separate fields rather than substrings of `raw`
 
 **The rule:** Every block type starts at Phase 1. It only moves to Phase 3 when the editor actively requires it. A block type that users don't meaningfully edit (e.g., thematic breaks) may never need to advance.
 
@@ -32,19 +44,35 @@ Decompose raw source into structured fields (marker, content, line ending, etc.)
 Phase 1:
 
 ```
-Heading { raw: "## Hello World\n", level: 2 }
+{ kind: "heading", raw: "## Hello World\n", metadata: { level: 2 } }
 // serialize → return raw verbatim
+// inline content: not parsed
+```
+
+Phase 2:
+
+```
+{ kind: "heading", raw: "## Hello World\n", metadata: { level: 2 },
+  inlineContent: [
+    { kind: "text", text: "Hello World", start: 3, end: 14 }
+  ] }
+// serialize → return raw verbatim (inline tree is derived, not authoritative)
+// inlineContent covers the content portion of raw (after the "## " marker)
+// the editor knows the marker range from metadata — it renders "## " as dimmed
 ```
 
 Phase 3:
 
 ```
-Heading { marker: "## ", content: "Hello World", lineEnding: "\n", level: 2 }
-// serialize → marker + content + lineEnding
-// editor can now change level by swapping marker to "### "
+{ kind: "heading", marker: "## ", lineEnding: "\n", metadata: { level: 2 },
+  inlineContent: [
+    { kind: "text", text: "Hello World" }
+  ] }
+// serialize → marker + serializeInline(inlineContent) + lineEnding
+// editor can change level by swapping marker to "### "
 ```
 
-**Catch-all for editing non-decomposed blocks:** Before a block type graduates to Phase 3, editing still works — the raw source is treated as a plain text string. The user types into it, raw is updated as a string, and the block is re-parsed to refresh metadata. The only thing lost compared to structured fields is semantic editing operations.
+**Catch-all for editing non-decomposed blocks:** Before a block type graduates to Phase 3, editing still works — the raw source is treated as a plain text string. The user types into it, raw is updated as a string, and the block is re-parsed to refresh metadata and inline content. The only thing lost compared to structured fields is semantic editing operations.
 
 ## Node Types and Tree Structure
 
@@ -56,24 +84,23 @@ The tree has three categories of nodes:
 - **Container blocks** — hold child nodes (Blockquote, List, ListItem)
 - **Leaf blocks** — terminal nodes with no children
 
-### Class Hierarchy
+### Node Type
+
+All nodes are **mutable plain objects** — no class hierarchy. There is one `CstNode` type used everywhere: the parser produces it, the editor mutates it, serialization reads it. No immutable→mutable conversion step.
+
+The type is a **discriminated union** keyed on `kind`. When you narrow on `kind`, TypeScript knows the metadata type, whether the node has children (containers), and whether it has inline content (prose blocks). This replaces `instanceof` checks with simple `kind` discrimination.
 
 ```
-CstNode (abstract base)
-├── Document
-├── ContainerBlock (abstract)
-│   ├── Blockquote
-│   ├── List
-│   └── ListItem
-└── LeafBlock (abstract)
-    ├── Heading
-    ├── Paragraph
-    ├── FencedCode
-    ├── ThematicBreak
-    └── UnrecognizedBlock
+CstNode (discriminated union on `kind`)
+├── Container kinds: blockquote, list, listItem
+│   └── have: children, innerPrefix, innerSuffix
+├── Prose kinds: paragraph, heading, setextHeading
+│   └── have: inlineContent (Phase 2)
+└── Other leaf kinds: fencedCode, thematicBreak, indentedCode,
+    htmlBlock, linkReferenceDefinition, table, unrecognized
 ```
 
-`CstNode` defines the shared interface: `kind`, `leadingTrivia`, `raw`. `ContainerBlock` adds `children: CstNode[]`. `LeafBlock` is terminal. Each concrete class owns its own metadata type. Pattern matching on `kind` gives access to specific metadata.
+A `MetadataMap` maps each `kind` to its typed metadata interface. Kinds without metadata (paragraph, indentedCode, htmlBlock, unrecognized) map to `undefined`. The metadata interfaces themselves are unchanged from the original design.
 
 ### Node Definitions
 
@@ -124,41 +151,26 @@ ListItem {
 
 `innerPrefix` and `innerSuffix` on container blocks serve the same role as `Document.prefix` and `Document.suffix` — they capture leading/trailing blank lines inside the container that don't belong to any child. When the container's inner content is parsed recursively, the temporary `Document.prefix`/`suffix` from that parse become the container's `innerPrefix`/`innerSuffix`.
 
-**Leaf blocks:**
+**Prose blocks** (leaf blocks that carry inline content in Phase 2):
 
 ```
-Heading {
-  kind: "heading"
-  leadingTrivia: string
-  raw: string
-  metadata: { level: number }
-}
+{ kind: "heading",        leadingTrivia, raw, metadata: { level }, inlineContent? }
+{ kind: "setextHeading",  leadingTrivia, raw, metadata: { level }, inlineContent? }
+{ kind: "paragraph",      leadingTrivia, raw, inlineContent? }
+```
 
-Paragraph {
-  kind: "paragraph"
-  leadingTrivia: string
-  raw: string
-}
+`inlineContent` is `undefined` in Phase 1 and populated via inline parsing in Phase 2.
 
-FencedCode {
-  kind: "fencedCode"
-  leadingTrivia: string
-  raw: string
-  metadata: { fenceMarker: "`" | "~", fenceLength: number, info: string, closed: boolean }
-}
+**Other leaf blocks:**
 
-ThematicBreak {
-  kind: "thematicBreak"
-  leadingTrivia: string
-  raw: string
-  metadata: { marker: string }
-}
-
-UnrecognizedBlock {
-  kind: "unrecognized"
-  leadingTrivia: string
-  raw: string
-}
+```
+{ kind: "fencedCode",              leadingTrivia, raw, metadata: { fenceMarker, fenceLength, info, closed } }
+{ kind: "thematicBreak",           leadingTrivia, raw, metadata: { marker } }
+{ kind: "indentedCode",            leadingTrivia, raw }
+{ kind: "htmlBlock",               leadingTrivia, raw }
+{ kind: "linkReferenceDefinition", leadingTrivia, raw, metadata: { label } }
+{ kind: "table",                   leadingTrivia, raw, metadata: { columnCount } }
+{ kind: "unrecognized",            leadingTrivia, raw }
 ```
 
 ### Design Invariants
@@ -166,7 +178,7 @@ UnrecognizedBlock {
 - **`raw` is the source of truth for serialization.** Metadata is derived from raw but never participates in round-trip.
 - **`leadingTrivia`** captures blank lines between blocks in the parent context. Combined with `Document.prefix`/`suffix` and container `innerPrefix`/`innerSuffix`, every whitespace character in the source is accounted for.
 - **Container blocks store `raw` as the full outer source text** (with `> ` prefixes, list markers, indentation, etc.). Children are a decomposition of the inner (stripped) content. The primary correctness invariant is document-level round-trip, not a per-node check. As a secondary test-time assertion, a `validateTree()` function can verify that stripping the container syntax from `raw` and serializing the children produce the same inner content: `stripContainerSyntax(node.raw) === node.innerPrefix + node.children.map(c => c.leadingTrivia + c.raw).join("") + node.innerSuffix`.
-- **`UnrecognizedBlock`** is the catch-all. Any syntax the parser doesn't recognize round-trips perfectly as an unrecognized block. When support for a new block type is added, it graduates from `UnrecognizedBlock` to its own kind. No data loss at any stage.
+- **`unrecognized` is the catch-all kind.** Any syntax the parser doesn't recognize round-trips perfectly as an unrecognized block. When support for a new block type is added, it graduates from `unrecognized` to its own kind. No data loss at any stage.
 
 ### Serialization
 
@@ -189,6 +201,43 @@ serializeChildren(container) =
 ```
 
 This produces the stripped inner content (e.g., without `> ` prefixes for blockquotes). The invariant is: `stripContainerSyntax(container.raw) === serializeChildren(container)`.
+
+### Inline Node Types (Phase 2)
+
+Inline content is a tree of `InlineNode` objects representing the inline syntax within a prose block's content (the portion of `raw` after block-level markers). Each node carries `start` and `end` byte offsets into the parent block's `raw` for cursor mapping. The inline parser receives the content range (e.g., after `## ` for headings) and produces the tree for that range.
+
+**Inline node kinds:**
+
+| Kind | Fields | Description |
+| ---- | ------ | ----------- |
+| `text` | `text` | Plain text with no markup |
+| `emphasis` | `children` | `*text*` or `_text_` |
+| `strong` | `children` | `**text**` or `__text__` |
+| `strikethrough` | `children` | `~~text~~` (GFM extension) |
+| `inlineCode` | `text` | `` `code` `` — no nested children |
+| `link` | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
+| `image` | `alt`, `url`, `title?` | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
+| `autolink` | `url` | `<url>` or GFM bare URL |
+| `hardLineBreak` | — | Trailing `\` or two spaces before `\n` |
+
+Inline nodes nest. `**bold *and italic***` produces:
+
+```
+Strong { children: [
+  Text { text: "bold " },
+  Emphasis { children: [
+    Text { text: "and italic" }
+  ] }
+] }
+```
+
+Each node (including wrapper nodes like Strong and Emphasis) has `start`/`end` offsets covering the full range in `raw`, including the markers. This allows the editor to map DOM cursor positions to `raw` offsets and vice versa.
+
+**Relationship to `raw`:**
+
+In Phase 2, `inlineContent` is **derived** from `raw`. It is a rendering cache — disposable and re-parsed whenever `raw` changes. The inline tree is never used for serialization. The invariant: concatenating all leaf `text` values and marker syntax in the inline tree reproduces the portion of `raw` that was parsed.
+
+In Phase 3, the ownership flips: `inlineContent` becomes authoritative and `raw` is derived from it. See the Phase 3 section above.
 
 ## Parser Design
 
@@ -232,9 +281,9 @@ Blockquotes and list items are parsed recursively. When we recognize a `> ` pref
 
 Same approach for list items — strip the indentation/marker, parse inner content recursively, keep the original as `raw`.
 
-### Deliberately Out of Scope
+### Deliberately Out of Scope (Phase 1)
 
-- **No inline parsing** — paragraph and heading content is opaque text in Phase 1
+- **No inline parsing** — paragraph and heading content is opaque text in Phase 1. Inline parsing is defined in this spec (see "Inline Node Types") but implemented in Phase 2.
 - **No incremental parsing** — full re-parse every time; incremental is an optimization for when editing is involved
 - **No error recovery machinery** — unrecognized syntax falls through to `UnrecognizedBlock` or gets absorbed into a paragraph
 
@@ -280,12 +329,12 @@ These round-trip as `UnrecognizedBlock` in v1. Each graduates to its own node ki
 
 The pattern for adding a new block type (standard or custom):
 
-1. Define a new class extending `LeafBlock` or `ContainerBlock`
-2. Add a unique `kind` string
+1. Add a new `kind` string to the `BlockKind` union
+2. Optionally add a metadata interface to `MetadataMap`
 3. Add parser recognition logic (matcher function + priority placement)
 4. What was previously `UnrecognizedBlock` for that syntax now gets its own typed node
 
-This same pattern applies to hypothetical custom blocks (callouts, embedded queries, custom containers). The tree doesn't care what the kind string is — it only requires the node to follow the `CstNode` contract.
+This same pattern applies to hypothetical custom blocks (callouts, embedded queries, custom containers). The tree doesn't care what the kind string is — it only requires the node to be a `CstNode` with the standard fields.
 
 ## Testing Strategy
 
