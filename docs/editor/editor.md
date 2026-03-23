@@ -110,17 +110,16 @@ This rendering mode maps naturally to the CST evolution:
 
 ## CST Mutability
 
-The CST parser (`src/lib/editor/core/nodes.ts`) declares all node fields as `readonly`. This is correct for the parser — parsed trees are immutable snapshots. However, the editor needs to mutate nodes during editing (updating `raw`, replacing children, etc.).
-
-The editor maintains its own mutable document representation. When a document is opened, the editor creates mutable wrappers (or clones with writable fields) from the parsed CST nodes. The immutable parser-level CST remains unchanged — it is used for initial parsing and for re-parsing blocks after edits. The editor's mutable tree is the live working copy.
+The CST uses mutable plain objects — no class hierarchy, no `readonly` fields on CST nodes. The parser produces mutable `CstNode` objects directly. The editor mutates them in place during editing (updating `raw`, replacing children, etc.). There is no immutable→mutable conversion step.
 
 This means:
 
-- `parse(source)` produces an immutable CST (as today)
-- The editor copies this into a mutable working tree on load
-- Edits mutate the working tree in place
-- Single-block re-parse uses `parse()` on the block's `raw` text, then transfers the result into the mutable tree
-- `serialize()` works on either representation (it only reads fields)
+- `parse(source)` produces a mutable `Document` with `CstNode` children
+- The editor works with these nodes directly — no wrapping or cloning on load
+- Edits mutate nodes in place
+- Single-block re-parse uses `parse()` on the block's `raw` text, then transfers the result into the existing tree
+- Undo uses deep clones (`cloneDocument`) to snapshot state before mutations
+- `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
 ## CST ↔ DOM Synchronization
 
@@ -131,11 +130,14 @@ The CST is the document-level source of truth. Within a single block during acti
 1. User types in a block's contenteditable
 2. Browser updates the DOM immediately
 3. `input` event fires — read `element.textContent`
-4. Update the CST node's `raw` field in the mutable working tree to match
+4. Update the CST node's `raw` field to match
 5. Re-parse the single block to refresh metadata — this uses `parse()` on just the block's `raw` text and reads the resulting node's kind and metadata. Note: single-block re-parse must use the full `parseNextBlock` pathway (or equivalent) with appropriate context, not just pattern matching, so that context-dependent block type recognition (e.g., indented code cannot interrupt a paragraph) works correctly.
-6. Check: did the block's structural interpretation change? (e.g., paragraph → heading)
-7. If no (the common case) — done, DOM and CST agree
-8. If yes — re-render the block from the CST (swap component type, update styling)
+6. In Phase 2+: re-parse inline content from the updated `raw` to refresh `inlineContent`
+7. Check: did the block's structural interpretation change? (e.g., paragraph → heading)
+8. If no (the common case) — done, DOM and CST agree
+9. If yes — re-render the block from the CST (swap component type, update styling)
+
+**Phase 2 rendering note:** Once inline parsing is active, the CST→DOM sync for prose blocks changes from setting `textContent` (flat string) to building a styled span tree from `inlineContent`. Markdown markers are rendered as dimmed spans, content is styled (bold, italic, etc.). Cursor offset math is unchanged — offsets still map to positions in `raw`, the DOM just has nested spans instead of a single text node.
 
 ### Intercepted Operations
 
@@ -349,7 +351,7 @@ All changes go through a single undo system. The browser's built-in contentedita
 
 ```typescript
 interface UndoEntry {
-	snapshot: MutableDocument;
+	snapshot: Document;
 	blockIds: string[];
 	focusBlockIndex: number;
 	focusOffset: number;
@@ -410,7 +412,7 @@ CST nodes need stable IDs for two reasons:
 
 ### Approach
 
-Assign a unique string ID to each block at parse time. IDs are an editor-level concern — they live on the mutable working tree nodes (as an `id` property added by the editor layer), not on the immutable parser-level CST nodes. The editor shell maintains a parallel `string[]` array of IDs aligned with the CST children array. This array is the `{#each}` key source: `{#each children as child, i (blockIds[i])}`.
+Assign a unique string ID to each block at parse time. IDs are an editor-level concern — the editor shell maintains a parallel `string[]` array of IDs aligned with the document's children array. This array is the `{#each}` key source: `{#each children as child, i (blockIds[i])}`. IDs are not stored on the CST nodes themselves.
 
 The ID array is updated atomically with every children array mutation:
 
