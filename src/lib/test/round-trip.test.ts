@@ -6,7 +6,6 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';
-import type { List } from '../core/nodes';
 
 // ── Leaf Blocks ─────────────────────────────────────────────────────────────
 
@@ -99,10 +98,10 @@ describe('round-trip: lists', () => {
 	it('parses list as List node with ListItem children', () => {
 		const doc = parse('- A\n- B\n');
 		expect(doc.children[0].kind).toBe('list');
-		const list = doc.children[0] as List;
-		expect(list.children.length).toBe(2);
-		expect(list.children[0].kind).toBe('listItem');
-		expect(list.children[1].kind).toBe('listItem');
+		const list = doc.children[0];
+		expect(list.children!.length).toBe(2);
+		expect(list.children![0].kind).toBe('listItem');
+		expect(list.children![1].kind).toBe('listItem');
 	});
 });
 

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
-import { toMutable, serializeMutable, cloneDocument, assignIds } from '../mutable-tree';
+import { serializeMutable, assignIds } from '../mutable-tree';
 import { createUndoManager } from '../undo-manager';
 import type { UndoEntry } from '../editor-types';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
-	const snapshot = toMutable(parse(source));
+	const snapshot = parse(source);
 	return {
 		snapshot,
 		blockIds: assignIds(snapshot.children),
