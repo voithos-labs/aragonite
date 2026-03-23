@@ -3,13 +3,13 @@
  * All functions operate on a NodeParent in place.
  */
 
-import type { MutableNode } from './editor-types';
+import type { CstNode } from './core/nodes';
 import { parse } from './core/parser';
-import { generateBlockId, toMutable } from './mutable-tree';
+import { generateBlockId } from './mutable-tree';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type NodeParent = { children: MutableNode[] };
+export type NodeParent = { children: CstNode[] };
 
 // ── Split ───────────────────────────────────────────────────────────────────
 
@@ -149,11 +149,10 @@ export function updateNodeContent(
 
 /**
  * Parse a raw string as a single block node.
- * Delegates to toMutable to reuse the CST → MutableNode conversion,
- * including container block handling.
+ * The parser produces mutable plain objects directly — no conversion needed.
  */
-function reparseAsNode(raw: string, leadingTrivia: string): MutableNode {
-	const doc = toMutable(parse(raw));
+function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
+	const doc = parse(raw);
 	if (doc.children.length > 0) {
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;

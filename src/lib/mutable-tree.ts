@@ -1,52 +1,18 @@
 /**
- * Mutable document tree for the editor.
- * Converts immutable parsed CST into a writable working copy.
+ * Document cloning and block ID management for the editor.
  */
 
-import type { CstNode, Document, ContainerBlock } from './core/nodes';
-import type { MutableNode, MutableDocument } from './editor-types';
-
-// ── Conversion ──────────────────────────────────────────────────────────────
-
-export function toMutable(doc: Document): MutableDocument {
-	return {
-		kind: 'document',
-		prefix: doc.prefix,
-		children: doc.children.map(nodeToMutable),
-		suffix: doc.suffix
-	};
-}
-
-function nodeToMutable(node: CstNode): MutableNode {
-	const mutable: MutableNode = {
-		kind: node.kind,
-		leadingTrivia: node.leadingTrivia,
-		raw: node.raw
-	};
-
-	if ('metadata' in node && node.metadata) {
-		mutable.metadata = { ...(node.metadata as Record<string, unknown>) };
-	}
-
-	if ('innerPrefix' in node) {
-		const container = node as ContainerBlock;
-		mutable.innerPrefix = container.innerPrefix;
-		mutable.children = container.children.map(nodeToMutable);
-		mutable.innerSuffix = container.innerSuffix;
-	}
-
-	return mutable;
-}
+import type { CstNode, Document } from './core/nodes';
 
 // ── Serialization ───────────────────────────────────────────────────────────
 
-// MutableDocument is structurally compatible with serialize() — re-export it
-// so callers can use `serializeMutable` without importing from core/serializer.
+// Re-export serialize so callers can use `serializeMutable` without
+// importing from core/serializer directly.
 export { serialize as serializeMutable } from './core/serializer';
 
 // ── Cloning ─────────────────────────────────────────────────────────────────
 
-export function cloneDocument(doc: MutableDocument): MutableDocument {
+export function cloneDocument(doc: Document): Document {
 	return {
 		kind: 'document',
 		prefix: doc.prefix,
@@ -55,8 +21,8 @@ export function cloneDocument(doc: MutableDocument): MutableDocument {
 	};
 }
 
-function cloneNode(node: MutableNode): MutableNode {
-	const cloned: MutableNode = {
+function cloneNode(node: CstNode): CstNode {
+	const cloned: CstNode = {
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
@@ -81,6 +47,6 @@ export function generateBlockId(): string {
 	return crypto.randomUUID();
 }
 
-export function assignIds(children: MutableNode[]): string[] {
+export function assignIds(children: CstNode[]): string[] {
 	return children.map(() => generateBlockId());
 }
