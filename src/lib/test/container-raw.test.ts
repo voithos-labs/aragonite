@@ -1,11 +1,11 @@
 // src/lib/editor/test/container-raw.test.ts
 import { describe, it, expect } from 'vitest';
 import { rebuildBlockquoteRaw, rebuildListItemRaw, rebuildListRaw } from '../container-raw';
-import type { MutableNode } from '../editor-types';
+import type { CstNode } from '../core/nodes';
 
 describe('rebuildBlockquoteRaw', () => {
 	it('rebuilds single paragraph blockquote', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
@@ -18,7 +18,7 @@ describe('rebuildBlockquoteRaw', () => {
 	});
 
 	it('rebuilds multi-paragraph blockquote with blank line', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
@@ -34,7 +34,7 @@ describe('rebuildBlockquoteRaw', () => {
 	});
 
 	it('handles multi-line paragraph inside blockquote', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
@@ -47,7 +47,7 @@ describe('rebuildBlockquoteRaw', () => {
 	});
 
 	it('handles empty paragraph inside blockquote', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
@@ -63,7 +63,7 @@ describe('rebuildBlockquoteRaw', () => {
 
 describe('rebuildListItemRaw', () => {
 	it('rebuilds simple list item', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
@@ -77,7 +77,7 @@ describe('rebuildListItemRaw', () => {
 	});
 
 	it('rebuilds list item with multi-line paragraph', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
@@ -91,7 +91,7 @@ describe('rebuildListItemRaw', () => {
 	});
 
 	it('rebuilds ordered list item', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
@@ -105,7 +105,7 @@ describe('rebuildListItemRaw', () => {
 	});
 
 	it('rebuilds list item with two paragraphs separated by blank line', () => {
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
@@ -127,17 +127,17 @@ describe('rebuildListItemRaw', () => {
 
 describe('rebuildListRaw', () => {
 	it('rebuilds list from items', () => {
-		const item1: MutableNode = {
+		const item1: CstNode = {
 			kind: 'listItem', leadingTrivia: '', raw: '- A\n',
 			metadata: { marker: '- ', taskItem: false, taskChecked: false },
 			innerPrefix: '', children: [], innerSuffix: ''
 		};
-		const item2: MutableNode = {
+		const item2: CstNode = {
 			kind: 'listItem', leadingTrivia: '', raw: '- B\n',
 			metadata: { marker: '- ', taskItem: false, taskChecked: false },
 			innerPrefix: '', children: [], innerSuffix: ''
 		};
-		const node: MutableNode = {
+		const node: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
 			raw: '',
