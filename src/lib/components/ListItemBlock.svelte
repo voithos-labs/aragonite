@@ -23,6 +23,14 @@
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
+	// Re-sync inner block IDs when children count changes externally (undo/redo)
+	$effect(() => {
+		const childCount = (node.children ?? []).length;
+		if (childCount !== innerBlockIds.length) {
+			innerBlockIds = assignIds(node.children ?? []);
+		}
+	});
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const editable = true;
