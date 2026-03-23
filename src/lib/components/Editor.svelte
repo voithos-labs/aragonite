@@ -4,10 +4,10 @@
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
 		type BlockComponent,
-		type MutableDocument,
+		type Document,
 		type UndoEntry
 	} from '../editor-types';
-	import { toMutable, cloneDocument, serializeMutable, assignIds } from '../mutable-tree';
+	import { cloneDocument, serializeMutable, assignIds } from '../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -23,8 +23,8 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): MutableDocument {
-		const d = toMutable(parse(src));
+	function initDocument(src: string): Document {
+		const d = parse(src);
 		// Ensure there's always at least one block to edit
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
@@ -32,7 +32,7 @@
 		return d;
 	}
 
-	let doc = $state<MutableDocument>(initDocument(source));
+	let doc = $state<Document>(initDocument(source));
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
 	const undoManager = createUndoManager();

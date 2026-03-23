@@ -3,11 +3,11 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
-		type MutableNode,
+		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
 
-	let { node, index }: { node: MutableNode; index: number } = $props();
+	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let el: HTMLDivElement | undefined = $state();
