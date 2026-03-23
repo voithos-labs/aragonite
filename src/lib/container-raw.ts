@@ -4,7 +4,7 @@
  * to keep serialization consistent.
  */
 
-import type { MutableNode } from './editor-types';
+import type { CstNode } from './core/nodes';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -12,7 +12,7 @@ import type { MutableNode } from './editor-types';
  * Rebuild a blockquote's `raw` from its inner children.
  * Prepends `> ` to each content line and `>` to blank lines.
  */
-export function rebuildBlockquoteRaw(node: MutableNode): void {
+export function rebuildBlockquoteRaw(node: CstNode): void {
 	if (!node.children) return;
 
 	const innerContent =
@@ -31,7 +31,7 @@ export function rebuildBlockquoteRaw(node: MutableNode): void {
  * Blank lines between paragraphs are preserved without indentation
  * (this is how GFM represents "loose" list items).
  */
-export function rebuildListItemRaw(node: MutableNode): void {
+export function rebuildListItemRaw(node: CstNode): void {
 	if (!node.children || !node.metadata) return;
 
 	const marker = (node.metadata as { marker?: string }).marker ?? '- ';
@@ -60,7 +60,7 @@ export function rebuildListItemRaw(node: MutableNode): void {
 /**
  * Rebuild a list's `raw` by concatenating its list item children.
  */
-export function rebuildListRaw(node: MutableNode): void {
+export function rebuildListRaw(node: CstNode): void {
 	if (!node.children) return;
 	node.raw = node.children.map((c) => c.leadingTrivia + c.raw).join('');
 }

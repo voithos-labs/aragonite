@@ -3,6 +3,11 @@
  * See docs/editor/editor.md for the design spec.
  */
 
+import type { CstNode, Document } from './core/nodes';
+
+// Re-export CstNode and Document so consumers can import from here
+export type { CstNode, Document } from './core/nodes';
+
 // ── Context Keys ────────────────────────────────────────────────────────────
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
@@ -39,7 +44,7 @@ export interface BlockComponent {
 // ── Undo Manager ────────────────────────────────────────────────────────────
 
 export interface UndoEntry {
-	snapshot: MutableDocument;
+	snapshot: Document;
 	blockIds: string[];
 	focusBlockIndex: number;
 	focusOffset: number;
@@ -52,23 +57,4 @@ export interface UndoManager {
 	clear(): void;
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;
-}
-
-// ── Mutable Tree Types ──────────────────────────────────────────────────────
-
-export interface MutableNode {
-	kind: string;
-	leadingTrivia: string;
-	raw: string;
-	metadata?: Record<string, unknown>;
-	innerPrefix?: string;
-	children?: MutableNode[];
-	innerSuffix?: string;
-}
-
-export interface MutableDocument {
-	kind: 'document';
-	prefix: string;
-	children: MutableNode[];
-	suffix: string;
 }
