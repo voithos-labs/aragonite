@@ -1,6 +1,7 @@
 /**
- * CST node type hierarchy for the GFM block-level parser.
- * See docs/editor/syntax-tree.md for the design spec.
+ * CST node types for the GFM block-level parser.
+ * Mutable plain objects — no class hierarchy.
+ * See docs/editor/syntax-tree/syntax-tree.md for the design spec.
  */
 
 // ── Node Kinds ──────────────────────────────────────────────────────────────
@@ -64,202 +65,38 @@ export interface ListItemMetadata {
 	taskChecked: boolean;
 }
 
-// ── Base Classes ────────────────────────────────────────────────────────────
+/** Union of all block metadata types. */
+export type BlockMetadata =
+	| HeadingMetadata
+	| SetextHeadingMetadata
+	| FencedCodeMetadata
+	| ThematicBreakMetadata
+	| LinkReferenceDefinitionMetadata
+	| TableMetadata
+	| BlockquoteMetadata
+	| ListMetadata
+	| ListItemMetadata;
 
-export abstract class CstNode {
-	abstract readonly kind: BlockKind | 'document';
-	readonly leadingTrivia: string;
-	readonly raw: string;
+// ── Node Types ──────────────────────────────────────────────────────────────
 
-	constructor(leadingTrivia: string, raw: string) {
-		this.leadingTrivia = leadingTrivia;
-		this.raw = raw;
-	}
+/**
+ * A single mutable CST block node. Plain object — no class hierarchy.
+ * The editor, parser, and serializer all use this type directly.
+ */
+export interface CstNode {
+	kind: BlockKind;
+	leadingTrivia: string;
+	raw: string;
+	metadata?: BlockMetadata;
+	innerPrefix?: string;
+	children?: CstNode[];
+	innerSuffix?: string;
 }
 
-export abstract class LeafBlock extends CstNode {
-	abstract readonly kind: LeafBlockKind;
-}
-
-export abstract class ContainerBlock extends CstNode {
-	abstract readonly kind: ContainerBlockKind;
-	readonly innerPrefix: string;
-	readonly children: CstNode[];
-	readonly innerSuffix: string;
-
-	constructor(
-		leadingTrivia: string,
-		raw: string,
-		innerPrefix: string,
-		children: CstNode[],
-		innerSuffix: string
-	) {
-		super(leadingTrivia, raw);
-		this.innerPrefix = innerPrefix;
-		this.children = children;
-		this.innerSuffix = innerSuffix;
-	}
-}
-
-// ── Document ────────────────────────────────────────────────────────────────
-
-export class Document {
-	readonly kind = 'document' as const;
-	readonly prefix: string;
-	readonly children: CstNode[];
-	readonly suffix: string;
-
-	constructor(prefix: string, children: CstNode[], suffix: string) {
-		this.prefix = prefix;
-		this.children = children;
-		this.suffix = suffix;
-	}
-}
-
-// ── Leaf Blocks ─────────────────────────────────────────────────────────────
-
-export class Heading extends LeafBlock {
-	readonly kind = 'heading' as const;
-	readonly metadata: HeadingMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: HeadingMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class SetextHeading extends LeafBlock {
-	readonly kind = 'setextHeading' as const;
-	readonly metadata: SetextHeadingMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: SetextHeadingMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class Paragraph extends LeafBlock {
-	readonly kind = 'paragraph' as const;
-
-	constructor(leadingTrivia: string, raw: string) {
-		super(leadingTrivia, raw);
-	}
-}
-
-export class FencedCode extends LeafBlock {
-	readonly kind = 'fencedCode' as const;
-	readonly metadata: FencedCodeMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: FencedCodeMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class ThematicBreak extends LeafBlock {
-	readonly kind = 'thematicBreak' as const;
-	readonly metadata: ThematicBreakMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: ThematicBreakMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class IndentedCode extends LeafBlock {
-	readonly kind = 'indentedCode' as const;
-
-	constructor(leadingTrivia: string, raw: string) {
-		super(leadingTrivia, raw);
-	}
-}
-
-export class HtmlBlock extends LeafBlock {
-	readonly kind = 'htmlBlock' as const;
-
-	constructor(leadingTrivia: string, raw: string) {
-		super(leadingTrivia, raw);
-	}
-}
-
-export class LinkReferenceDefinition extends LeafBlock {
-	readonly kind = 'linkReferenceDefinition' as const;
-	readonly metadata: LinkReferenceDefinitionMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: LinkReferenceDefinitionMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class Table extends LeafBlock {
-	readonly kind = 'table' as const;
-	readonly metadata: TableMetadata;
-
-	constructor(leadingTrivia: string, raw: string, metadata: TableMetadata) {
-		super(leadingTrivia, raw);
-		this.metadata = metadata;
-	}
-}
-
-export class UnrecognizedBlock extends LeafBlock {
-	readonly kind = 'unrecognized' as const;
-
-	constructor(leadingTrivia: string, raw: string) {
-		super(leadingTrivia, raw);
-	}
-}
-
-// ── Container Blocks ────────────────────────────────────────────────────────
-
-export class Blockquote extends ContainerBlock {
-	readonly kind = 'blockquote' as const;
-	readonly metadata: BlockquoteMetadata;
-
-	constructor(
-		leadingTrivia: string,
-		raw: string,
-		innerPrefix: string,
-		children: CstNode[],
-		innerSuffix: string,
-		metadata: BlockquoteMetadata
-	) {
-		super(leadingTrivia, raw, innerPrefix, children, innerSuffix);
-		this.metadata = metadata;
-	}
-}
-
-export class List extends ContainerBlock {
-	readonly kind = 'list' as const;
-	declare readonly children: ListItem[];
-	readonly metadata: ListMetadata;
-
-	constructor(
-		leadingTrivia: string,
-		raw: string,
-		innerPrefix: string,
-		children: ListItem[],
-		innerSuffix: string,
-		metadata: ListMetadata
-	) {
-		super(leadingTrivia, raw, innerPrefix, children, innerSuffix);
-		this.metadata = metadata;
-	}
-}
-
-export class ListItem extends ContainerBlock {
-	readonly kind = 'listItem' as const;
-	readonly metadata: ListItemMetadata;
-
-	constructor(
-		leadingTrivia: string,
-		raw: string,
-		innerPrefix: string,
-		children: CstNode[],
-		innerSuffix: string,
-		metadata: ListItemMetadata
-	) {
-		super(leadingTrivia, raw, innerPrefix, children, innerSuffix);
-		this.metadata = metadata;
-	}
+/** Root document node. */
+export interface Document {
+	kind: 'document';
+	prefix: string;
+	children: CstNode[];
+	suffix: string;
 }

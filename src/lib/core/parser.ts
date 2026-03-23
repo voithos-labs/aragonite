@@ -3,29 +3,14 @@
  * Produces a recursive CST where serialize(parse(source)) === source.
  */
 
-import {
-	Document,
-	Heading,
-	Paragraph,
-	FencedCode,
-	ThematicBreak,
-	SetextHeading,
-	IndentedCode,
-	HtmlBlock,
-	LinkReferenceDefinition,
-	Table,
-	Blockquote,
-	List,
-	ListItem,
-	type CstNode
-} from './nodes';
+import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 
 /** Parse a markdown source string into a Document CST. */
 export function parse(source: string): Document {
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length);
-	return new Document(result.prefix, result.children, result.suffix);
+	return { kind: 'document', prefix: result.prefix, children: result.children, suffix: result.suffix };
 }
 
 interface ParseBlocksResult {
@@ -89,7 +74,7 @@ function parseNextBlock(
 	const heading = matchHeading(line.text);
 	if (heading) {
 		return {
-			node: new Heading(leadingTrivia, line.raw, { level: heading.level }),
+			node: { kind: 'heading', leadingTrivia, raw: line.raw, metadata: { level: heading.level } },
 			nextIndex: startIndex + 1
 		};
 	}
@@ -98,9 +83,7 @@ function parseNextBlock(
 	const thematic = matchThematicBreak(line.text);
 	if (thematic) {
 		return {
-			node: new ThematicBreak(leadingTrivia, line.raw, {
-				marker: thematic
-			}),
+			node: { kind: 'thematicBreak', leadingTrivia, raw: line.raw, metadata: { marker: thematic } },
 			nextIndex: startIndex + 1
 		};
 	}
@@ -130,7 +113,7 @@ function parseNextBlock(
 	const linkRef = matchLinkReferenceDefinition(line.text);
 	if (linkRef) {
 		return {
-			node: new LinkReferenceDefinition(leadingTrivia, line.raw, { label: linkRef.label }),
+			node: { kind: 'linkReferenceDefinition', leadingTrivia, raw: line.raw, metadata: { label: linkRef.label } },
 			nextIndex: startIndex + 1
 		};
 	}
@@ -145,7 +128,7 @@ function parseFencedCode(
 	endIndex: number,
 	leadingTrivia: string,
 	fence: { marker: '`' | '~'; length: number; info: string }
-): { node: FencedCode; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	let i = startIndex + 1;
 	let closed = false;
 
@@ -160,12 +143,17 @@ function parseFencedCode(
 
 	const raw = joinRaw(lines, startIndex, i);
 	return {
-		node: new FencedCode(leadingTrivia, raw, {
-			fenceMarker: fence.marker,
-			fenceLength: fence.length,
-			info: fence.info,
-			closed
-		}),
+		node: {
+			kind: 'fencedCode',
+			leadingTrivia,
+			raw,
+			metadata: {
+				fenceMarker: fence.marker,
+				fenceLength: fence.length,
+				info: fence.info,
+				closed
+			}
+		},
 		nextIndex: i
 	};
 }
@@ -175,7 +163,7 @@ function parseParagraph(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: Paragraph | SetextHeading | Table; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	// Check for table: first line has a pipe and second line is a delimiter row
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
@@ -192,7 +180,7 @@ function parseParagraph(
 		if (setext) {
 			const raw = joinRaw(lines, startIndex, i + 1);
 			return {
-				node: new SetextHeading(leadingTrivia, raw, { level: setext.level }),
+				node: { kind: 'setextHeading', leadingTrivia, raw, metadata: { level: setext.level } },
 				nextIndex: i + 1
 			};
 		}
@@ -201,7 +189,7 @@ function parseParagraph(
 
 	const raw = joinRaw(lines, startIndex, i);
 	return {
-		node: new Paragraph(leadingTrivia, raw),
+		node: { kind: 'paragraph', leadingTrivia, raw },
 		nextIndex: i
 	};
 }
@@ -211,7 +199,7 @@ function parseIndentedCode(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: IndentedCode; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	let i = startIndex;
 
 	while (i < endIndex) {
@@ -233,7 +221,7 @@ function parseIndentedCode(
 
 	const raw = joinRaw(lines, startIndex, i);
 	return {
-		node: new IndentedCode(leadingTrivia, raw),
+		node: { kind: 'indentedCode', leadingTrivia, raw },
 		nextIndex: i
 	};
 }
@@ -243,7 +231,7 @@ function parseHtmlBlock(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: HtmlBlock; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	let i = startIndex + 1;
 
 	// Simplified: HTML blocks continue until a blank line
@@ -253,7 +241,7 @@ function parseHtmlBlock(
 
 	const raw = joinRaw(lines, startIndex, i);
 	return {
-		node: new HtmlBlock(leadingTrivia, raw),
+		node: { kind: 'htmlBlock', leadingTrivia, raw },
 		nextIndex: i
 	};
 }
@@ -264,7 +252,7 @@ function parseTable(
 	endIndex: number,
 	leadingTrivia: string,
 	columnCount: number
-): { node: Table; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	// Header row + delimiter row already confirmed, consume data rows
 	let i = startIndex + 2;
 
@@ -274,7 +262,7 @@ function parseTable(
 
 	const raw = joinRaw(lines, startIndex, i);
 	return {
-		node: new Table(leadingTrivia, raw, { columnCount }),
+		node: { kind: 'table', leadingTrivia, raw, metadata: { columnCount } },
 		nextIndex: i
 	};
 }
@@ -284,7 +272,7 @@ function parseBlockquote(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: Blockquote; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	// Collect continuation lines
 	let i = startIndex;
 	while (i < endIndex && matchBlockquote(lines[i].text)) {
@@ -320,9 +308,15 @@ function parseBlockquote(
 			.filter((c) => c === '>').length ?? 1;
 
 	return {
-		node: new Blockquote(leadingTrivia, raw, inner.prefix, inner.children, inner.suffix, {
-			quoteDepth
-		}),
+		node: {
+			kind: 'blockquote',
+			leadingTrivia,
+			raw,
+			metadata: { quoteDepth },
+			innerPrefix: inner.prefix,
+			children: inner.children,
+			innerSuffix: inner.suffix
+		},
 		nextIndex: i
 	};
 }
@@ -332,10 +326,10 @@ function parseList(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: List; nextIndex: number } {
+): { node: CstNode; nextIndex: number } {
 	const firstMatch = matchListItem(lines[startIndex].text)!;
 	const ordered = firstMatch.ordered;
-	const items: ListItem[] = [];
+	const items: CstNode[] = [];
 	let i = startIndex;
 
 	while (i < endIndex) {
@@ -350,23 +344,39 @@ function parseList(
 			? contentText.slice(contentText.match(/^\[.\]\s+/)![0].length)
 			: contentText;
 
-		const innerParagraph =
-			innerText.length > 0 ? [new Paragraph('', innerText + itemLine.lineEnding)] : [];
+		const innerParagraph: CstNode[] =
+			innerText.length > 0
+				? [{ kind: 'paragraph', leadingTrivia: '', raw: innerText + itemLine.lineEnding }]
+				: [];
 
-		items.push(
-			new ListItem('', itemLine.raw, '', innerParagraph, '', {
+		items.push({
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: itemLine.raw,
+			metadata: {
 				marker: itemMatch.marker,
 				taskItem: task !== null,
 				taskChecked: task?.checked ?? false
-			})
-		);
+			},
+			innerPrefix: '',
+			children: innerParagraph,
+			innerSuffix: ''
+		});
 		i++;
 	}
 
 	const raw = joinRaw(lines, startIndex, i);
 
 	return {
-		node: new List(leadingTrivia, raw, '', items, '', { ordered }),
+		node: {
+			kind: 'list',
+			leadingTrivia,
+			raw,
+			metadata: { ordered },
+			innerPrefix: '',
+			children: items,
+			innerSuffix: ''
+		},
 		nextIndex: i
 	};
 }
