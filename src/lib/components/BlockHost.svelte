@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MutableNode, BlockComponent } from '../editor-types';
+	import type { CstNode, BlockComponent } from '../editor-types';
 	import TextEditableBlock from './TextEditableBlock.svelte';
 	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
 	import CodeBlock from './CodeBlock.svelte';
@@ -10,7 +10,7 @@
 		node,
 		index,
 		ref = $bindable()
-	}: { node: MutableNode; index: number; ref?: BlockComponent } = $props();
+	}: { node: CstNode; index: number; ref?: BlockComponent } = $props();
 
 	function headingClass(): string {
 		const level = (node.metadata as { level?: number })?.level ?? 1;
