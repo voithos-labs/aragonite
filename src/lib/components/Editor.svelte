@@ -37,6 +37,18 @@
 	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
 	const undoManager = createUndoManager();
 
+	// Re-initialize when source prop changes (e.g., async document load)
+	let lastSource = source;
+	$effect(() => {
+		if (source !== lastSource) {
+			lastSource = source;
+			doc = initDocument(source);
+			blockIds = assignIds(doc.children);
+			blockRefs = [];
+			undoManager.clear();
+		}
+	});
+
 	// ── Undo snapshot helpers ───────────────────────────────────────────
 
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
