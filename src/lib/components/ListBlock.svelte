@@ -3,7 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
-		type MutableNode,
+		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
 	import { assignIds } from '../mutable-tree';
@@ -11,7 +11,7 @@
 	import { rebuildListRaw } from '../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
-	let { node, index }: { node: MutableNode; index: number } = $props();
+	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));

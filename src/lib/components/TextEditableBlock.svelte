@@ -3,7 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
-		type MutableNode,
+		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
 
@@ -12,7 +12,7 @@
 		index,
 		blockClass = 'paragraph-block',
 		splitOnEnter = true
-	}: { node: MutableNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
+	}: { node: CstNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let el: HTMLDivElement | undefined = $state();

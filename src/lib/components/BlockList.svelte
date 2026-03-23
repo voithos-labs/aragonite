@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MutableNode, BlockComponent } from '../editor-types';
+	import type { CstNode, BlockComponent } from '../editor-types';
 	import BlockHost from './BlockHost.svelte';
 
 	let {
@@ -7,7 +7,7 @@
 		blockIds,
 		blockRefs = $bindable([])
 	}: {
-		children: MutableNode[];
+		children: CstNode[];
 		blockIds: string[];
 		blockRefs?: (BlockComponent | undefined)[];
 	} = $props();

@@ -3,7 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
-		type MutableNode,
+		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
 	import { assignIds } from '../mutable-tree';
@@ -17,7 +17,7 @@
 	import { rebuildBlockquoteRaw } from '../container-raw';
 	import BlockList from './BlockList.svelte';
 
-	let { node, index }: { node: MutableNode; index: number } = $props();
+	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
@@ -66,7 +66,7 @@
 
 	// ── Helpers ──────────────────────────────────────────────────────────
 
-	function innerParent(): { children: MutableNode[] } {
+	function innerParent(): { children: CstNode[] } {
 		return { children: node.children! };
 	}
 
