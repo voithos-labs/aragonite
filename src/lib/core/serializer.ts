@@ -1,6 +1,6 @@
 /**
  * Serialize a document tree to its source text representation.
- * Works with both immutable Document and MutableDocument via structural typing.
+ * Structurally typed — works with any object that has prefix, children (with leadingTrivia + raw), and suffix.
  */
 
 /** Structural type accepted by serialize. */
