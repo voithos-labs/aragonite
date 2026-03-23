@@ -23,6 +23,16 @@
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
+	// Re-sync inner block IDs when children count changes externally (undo/redo).
+	// Internal operations (split/merge) update innerBlockIds directly via
+	// triggerInnerReactivity(), so the effect is a no-op for those.
+	$effect(() => {
+		const childCount = (node.children ?? []).length;
+		if (childCount !== innerBlockIds.length) {
+			innerBlockIds = assignIds(node.children ?? []);
+		}
+	});
+
 	// ── BlockComponent interface ─────────────────────────────────────────
 
 	// Containers are editable (they hold text content via inner children).
