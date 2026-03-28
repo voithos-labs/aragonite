@@ -4,6 +4,7 @@
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
 		type BlockComponent,
+		type CstNode,
 		type Document,
 		type UndoEntry
 	} from '../editor-types';
@@ -18,11 +19,24 @@
 	import { createUndoManager } from '../undo-manager';
 	import { isMergeEligible, isBlockEditable } from '../merge-rules';
 	import { parse } from '../core/parser';
+	import { parseInline, getContentRange } from '../core/inline-parser';
 	import BlockList from './BlockList.svelte';
 
 	let { source = '' }: { source?: string } = $props();
 
 	// ── State ───────────────────────────────────────────────────────────
+
+	function parseAllInlineContent(children: CstNode[]): void {
+		for (const child of children) {
+			if (child.kind === 'paragraph' || child.kind === 'heading' || child.kind === 'setextHeading') {
+				const range = getContentRange(child);
+				child.inlineContent = parseInline(child.raw, range.start, range.end);
+			}
+			if (child.children) {
+				parseAllInlineContent(child.children);
+			}
+		}
+	}
 
 	function initDocument(src: string): Document {
 		const d = parse(src);
@@ -34,6 +48,7 @@
 		for (const child of d.children) {
 			ensureEditableContainers(child);
 		}
+		parseAllInlineContent(d.children);
 		return d;
 	}
 
@@ -226,6 +241,7 @@
 			const entry = undoManager.undo(captureCurrentState());
 			if (!entry) return;
 			doc = entry.snapshot;
+			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
 			blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
@@ -235,6 +251,7 @@
 			const entry = undoManager.redo(captureCurrentState());
 			if (!entry) return;
 			doc = entry.snapshot;
+			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
 			blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
