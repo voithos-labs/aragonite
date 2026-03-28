@@ -108,12 +108,39 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				break;
 			}
 
-			case 'link':
-			case 'image':
-			case 'autolink':
-				// Placeholder: render as plain raw text
-				frag.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
+			case 'link': {
+				// [children](url) or [children](url "title")
+				const children = node.children ?? [];
+				const urlPart = node.title
+					? `](${node.url} "${node.title}")`
+					: `](${node.url})`;
+				frag.appendChild(markerSpan('['));
+				const anchor = document.createElement('a');
+				anchor.className = 'md-link-content';
+				anchor.appendChild(renderInlineNodes(children, raw));
+				frag.appendChild(anchor);
+				frag.appendChild(markerSpan(urlPart));
 				break;
+			}
+
+			case 'image': {
+				// ![alt](url) or ![alt](url "title")
+				const urlPart = node.title
+					? `](${node.url} "${node.title}")`
+					: `](${node.url})`;
+				frag.appendChild(markerSpan('!['));
+				frag.appendChild(document.createTextNode(node.alt ?? ''));
+				frag.appendChild(markerSpan(urlPart));
+				break;
+			}
+
+			case 'autolink': {
+				const span = document.createElement('span');
+				span.className = 'md-autolink';
+				span.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(span);
+				break;
+			}
 		}
 	}
 

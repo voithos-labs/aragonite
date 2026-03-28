@@ -388,4 +388,9 @@
 		border-radius: 3px;
 		padding: 1px 4px;
 	}
+
+	.text-editable-block :global(.md-autolink) {
+		color: var(--color-accent, #4a9eff);
+		text-decoration: underline;
+	}
 </style>

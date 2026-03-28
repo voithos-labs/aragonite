@@ -248,3 +248,76 @@ describe('parseInline — hard line breaks (Stage 2)', () => {
 		expect(breakNode).toBeUndefined();
 	});
 });
+
+describe('parseInline — links and images (Stage 3)', () => {
+	function inlineOf(rawContent: string) {
+		return parseInline(rawContent, 0, rawContent.length);
+	}
+
+	it('simple inline link', () => {
+		const nodes = inlineOf('Click [here](https://example.com) now');
+		expect(nodes.length).toBe(3);
+		expect(nodes[0]).toEqual({ kind: 'text', start: 0, end: 6, text: 'Click ' });
+		expect(nodes[1].kind).toBe('link');
+		expect(nodes[1].start).toBe(6);
+		expect(nodes[1].end).toBe(33);
+		expect(nodes[1].url).toBe('https://example.com');
+		expect(nodes[1].children!.length).toBe(1);
+		expect(nodes[1].children![0]).toEqual({ kind: 'text', start: 7, end: 11, text: 'here' });
+	});
+
+	it('link with title', () => {
+		const nodes = inlineOf('[text](url "title")');
+		expect(nodes[0].kind).toBe('link');
+		expect(nodes[0].url).toBe('url');
+		expect(nodes[0].title).toBe('title');
+	});
+
+	it('image', () => {
+		const nodes = inlineOf('See ![alt text](image.png) here');
+		expect(nodes[1].kind).toBe('image');
+		expect(nodes[1].alt).toBe('alt text');
+		expect(nodes[1].url).toBe('image.png');
+	});
+
+	it('link with emphasis in text', () => {
+		const nodes = inlineOf('[**bold link**](url)');
+		expect(nodes[0].kind).toBe('link');
+		expect(nodes[0].children![0].kind).toBe('strong');
+	});
+
+	it('unmatched [ is plain text', () => {
+		const nodes = inlineOf('Hello [world');
+		expect(nodes).toEqual([
+			{ kind: 'text', start: 0, end: 12, text: 'Hello [world' }
+		]);
+	});
+
+	it('link without closing paren is plain text', () => {
+		const nodes = inlineOf('[text](url');
+		expect(nodes.every(n => n.kind === 'text')).toBe(true);
+	});
+});
+
+describe('parseInline — autolinks (Stage 3)', () => {
+	function inlineOf(rawContent: string) {
+		return parseInline(rawContent, 0, rawContent.length);
+	}
+
+	it('angle-bracket autolink', () => {
+		const nodes = inlineOf('Visit <https://example.com> now');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('https://example.com');
+	});
+
+	it('bare URL autolink', () => {
+		const nodes = inlineOf('Visit https://example.com now');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('https://example.com');
+	});
+
+	it('non-URL angle brackets are text', () => {
+		const nodes = inlineOf('Hello <world> end');
+		expect(nodes.every(n => n.kind === 'text')).toBe(true);
+	});
+});
