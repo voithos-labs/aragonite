@@ -2,6 +2,12 @@
  * Inline parser for prose block content (CST Phase 2).
  * Produces InlineNode trees from the content portion of raw text.
  * See docs/editor/inline-parsing-design.md for the design spec.
+ *
+ * Parsing stages:
+ *   Stage 1  — backtick code spans (scanBacktickSpans)
+ *   Stage 1.5 — links, images, autolinks (scanLinksAndAutolinks)
+ *   Stage 2  — delimiter runs / emphasis (buildSegments + processEmphasis)
+ *   Post     — hard line breaks, merge adjacent text
  */
 
 import type { CstNode, InlineNode } from './nodes';
@@ -56,14 +62,18 @@ function trimTrailingLineEnding(raw: string): number {
  * All start/end offsets in returned nodes are relative to the full raw string.
  */
 export function parseInline(raw: string, start: number, end: number): InlineNode[] {
+	// Stage 1: backtick code spans
 	const codeSpans = scanBacktickSpans(raw, start, end);
 
-	// Check if there are any delimiter characters in the text regions
-	if (!hasDelimiterChars(raw, start, end, codeSpans)) {
-		return processHardLineBreaks(codeSpans, raw);
+	// Stage 1.5: links, images, autolinks — these become occupied ranges for Stage 2
+	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans);
+
+	// Check if there are any delimiter characters in the unoccupied text regions
+	if (!hasDelimiterChars(raw, start, end, withLinks)) {
+		return processHardLineBreaks(withLinks, raw);
 	}
 
-	const segments = buildSegments(raw, start, end, codeSpans);
+	const segments = buildSegments(raw, start, end, withLinks);
 	const emphasized = processEmphasis(raw, segments);
 	const merged = mergeAdjacentText(emphasized);
 	return processHardLineBreaks(merged, raw);
@@ -141,6 +151,249 @@ function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[
 	return nodes;
 }
 
+// ── Links, Images, Autolinks (Stage 1.5) ──────────────────────────────────
+
+/**
+ * Attempt to parse a link/image destination `(url "title")` starting at pos.
+ * pos must point at the `(` character.
+ * Returns { url, title, end } on success (end is past the closing `)`), or null.
+ */
+function parseDestination(
+	raw: string,
+	pos: number,
+	limit: number
+): { url: string; title: string | undefined; end: number } | null {
+	if (pos >= limit || raw[pos] !== '(') return null;
+	pos++; // consume '('
+
+	// Skip optional leading whitespace
+	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
+
+	// Read URL — stop at whitespace, '"', "'", ')', or '<'
+	const urlStart = pos;
+	while (pos < limit && raw[pos] !== ')' && raw[pos] !== ' ' && raw[pos] !== '\t' && raw[pos] !== '"' && raw[pos] !== "'") {
+		pos++;
+	}
+	const url = raw.slice(urlStart, pos);
+
+	// Skip whitespace between url and optional title
+	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
+
+	// Optional title: "..." or '...'
+	let title: string | undefined;
+	if (pos < limit && (raw[pos] === '"' || raw[pos] === "'")) {
+		const quote = raw[pos];
+		pos++; // consume opening quote
+		const titleStart = pos;
+		while (pos < limit && raw[pos] !== quote) pos++;
+		if (pos >= limit) return null; // unterminated title
+		title = raw.slice(titleStart, pos);
+		pos++; // consume closing quote
+	}
+
+	// Skip trailing whitespace
+	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
+
+	if (pos >= limit || raw[pos] !== ')') return null;
+	pos++; // consume ')'
+
+	return { url, title, end: pos };
+}
+
+/**
+ * Scan text regions (not occupied by code spans) for links, images, and autolinks.
+ * Returns an updated node list where link/image/autolink nodes are spliced in
+ * and the surrounding text nodes are trimmed accordingly.
+ *
+ * Occupied ranges (code spans + found links/images/autolinks) are used to ensure
+ * Stage 2 treats their ranges as non-text.
+ */
+function scanLinksAndAutolinks(
+	raw: string,
+	start: number,
+	end: number,
+	codeSpans: InlineNode[]
+): InlineNode[] {
+	// Build list of occupied ranges from code spans
+	const occupied: Array<{ s: number; e: number }> = codeSpans
+		.filter(n => n.kind === 'inlineCode')
+		.map(n => ({ s: n.start, e: n.end }));
+
+	// Collect all link/image/autolink nodes found in unoccupied text
+	const found: InlineNode[] = [];
+
+	// Walk through text regions between code spans
+	let pos = start;
+	for (const occ of occupied) {
+		scanRegionForLinksAndAutolinks(raw, pos, occ.s, found);
+		pos = occ.e;
+	}
+	scanRegionForLinksAndAutolinks(raw, pos, end, found);
+
+	if (found.length === 0) return codeSpans;
+
+	// Merge code spans and found nodes, sorted by start position
+	const allOccupied: InlineNode[] = [...codeSpans.filter(n => n.kind === 'inlineCode'), ...found]
+		.sort((a, b) => a.start - b.start);
+
+	// Rebuild the node list: text gaps + occupied nodes
+	const result: InlineNode[] = [];
+	let cursor = start;
+
+	for (const node of allOccupied) {
+		if (cursor < node.start) {
+			result.push({
+				kind: 'text',
+				start: cursor,
+				end: node.start,
+				text: raw.slice(cursor, node.start)
+			});
+		}
+		result.push(node);
+		cursor = node.end;
+	}
+	if (cursor < end) {
+		result.push({
+			kind: 'text',
+			start: cursor,
+			end,
+			text: raw.slice(cursor, end)
+		});
+	}
+
+	return result;
+}
+
+/**
+ * Scan a single unoccupied text region for link, image, and autolink patterns.
+ * Appends any found nodes to `out`.
+ */
+function scanRegionForLinksAndAutolinks(
+	raw: string,
+	start: number,
+	end: number,
+	out: InlineNode[]
+): void {
+	let pos = start;
+
+	while (pos < end) {
+		const ch = raw[pos];
+
+		// Check for image: ![
+		if (ch === '!' && pos + 1 < end && raw[pos + 1] === '[') {
+			const bracketOpen = pos + 1;
+			const bracketClose = findMatchingBracket(raw, bracketOpen, end);
+			if (bracketClose !== -1) {
+				const dest = parseDestination(raw, bracketClose + 1, end);
+				if (dest !== null) {
+					const alt = raw.slice(bracketOpen + 1, bracketClose);
+					out.push({
+						kind: 'image',
+						start: pos,
+						end: dest.end,
+						alt,
+						url: dest.url,
+						...(dest.title !== undefined ? { title: dest.title } : {})
+					});
+					pos = dest.end;
+					continue;
+				}
+			}
+			pos++;
+			continue;
+		}
+
+		// Check for link: [
+		if (ch === '[') {
+			const bracketClose = findMatchingBracket(raw, pos, end);
+			if (bracketClose !== -1) {
+				const dest = parseDestination(raw, bracketClose + 1, end);
+				if (dest !== null) {
+					// Recursively parse the link text for emphasis etc.
+					const children = parseInline(raw, pos + 1, bracketClose);
+					out.push({
+						kind: 'link',
+						start: pos,
+						end: dest.end,
+						children,
+						url: dest.url,
+						...(dest.title !== undefined ? { title: dest.title } : {})
+					});
+					pos = dest.end;
+					continue;
+				}
+			}
+			pos++;
+			continue;
+		}
+
+		// Check for angle-bracket autolink: <https://...> or <http://...>
+		if (ch === '<') {
+			const closeAngle = raw.indexOf('>', pos + 1);
+			if (closeAngle !== -1 && closeAngle < end) {
+				const inner = raw.slice(pos + 1, closeAngle);
+				if (/^https?:\/\/\S+$/.test(inner)) {
+					out.push({
+						kind: 'autolink',
+						start: pos,
+						end: closeAngle + 1,
+						url: inner
+					});
+					pos = closeAngle + 1;
+					continue;
+				}
+			}
+			pos++;
+			continue;
+		}
+
+		// Check for bare URL autolink: https:// or http://
+		if (
+			(ch === 'h' || ch === 'H') &&
+			pos + 7 < end
+		) {
+			const schemeMatch = /^https?:\/\//i.exec(raw.slice(pos, Math.min(pos + 8, end)));
+			if (schemeMatch) {
+				// Read until whitespace or end
+				let urlEnd = pos + schemeMatch[0].length;
+				while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+				const url = raw.slice(pos, urlEnd);
+				if (url.length > schemeMatch[0].length) {
+					out.push({
+						kind: 'autolink',
+						start: pos,
+						end: urlEnd,
+						url
+					});
+					pos = urlEnd;
+					continue;
+				}
+			}
+		}
+
+		pos++;
+	}
+}
+
+/**
+ * Find the matching `]` for the `[` at bracketStart.
+ * bracketStart points at `[`. Handles nested brackets.
+ * Returns the index of `]`, or -1 if not found within limit.
+ */
+function findMatchingBracket(raw: string, bracketStart: number, limit: number): number {
+	let depth = 0;
+	let pos = bracketStart;
+	while (pos < limit) {
+		if (raw[pos] === '[') depth++;
+		else if (raw[pos] === ']') {
+			depth--;
+			if (depth === 0) return pos;
+		}
+		pos++;
+	}
+	return -1;
+}
+
 // ── Delimiter Run Scanning (Stage 2) ───────────────────────────────────────
 
 /** A delimiter run: a sequence of *, _, or ~ characters. */
@@ -166,16 +419,16 @@ type Segment =
 	| { type: 'node'; node: InlineNode }
 	| { type: 'delimiter'; entry: DelimiterEntry };
 
-/** Returns true if any text region between code spans contains *, _, or ~. */
+/** Returns true if any text region between occupied nodes contains *, _, or ~. */
 function hasDelimiterChars(
 	raw: string,
 	start: number,
 	end: number,
-	codeSpans: InlineNode[]
+	nodes: InlineNode[]
 ): boolean {
-	// Build occupied ranges from code spans
-	const occupied: Array<{ s: number; e: number }> = codeSpans
-		.filter(n => n.kind === 'inlineCode')
+	// Build occupied ranges from all non-text nodes
+	const occupied: Array<{ s: number; e: number }> = nodes
+		.filter(n => n.kind !== 'text')
 		.map(n => ({ s: n.start, e: n.end }));
 
 	let pos = start;
@@ -254,34 +507,33 @@ function classifyRun(
 
 /**
  * Build a flat list of segments from the content range.
- * Code spans (from stage 1) are inserted as 'node' segments; text regions
- * between them are scanned for delimiter runs.
+ * Occupied nodes (inlineCode, link, image, autolink from stages 1/1.5) are
+ * inserted as 'node' segments; text regions between them are scanned for
+ * delimiter runs.
  */
 function buildSegments(
 	raw: string,
 	start: number,
 	end: number,
-	codeSpans: InlineNode[]
+	stageNodes: InlineNode[]
 ): Segment[] {
 	const segments: Segment[] = [];
 
-	// Partition into (text region, code span) pairs
 	let pos = start;
 
-	for (const node of codeSpans) {
-		if (node.kind === 'inlineCode') {
-			// Scan the text region before this code span for delimiters
+	for (const node of stageNodes) {
+		if (node.kind !== 'text') {
+			// Scan the text region before this occupied node for delimiters
 			if (pos < node.start) {
 				scanTextRegionForDelimiters(raw, pos, node.start, segments);
 			}
 			segments.push({ type: 'node', node });
 			pos = node.end;
 		}
-		// 'text' nodes from stage 1 will be reconstructed during processing;
-		// we only use code spans as anchors here.
+		// 'text' nodes will be reconstructed from delimiter scanning; skip them.
 	}
 
-	// Remaining text after the last code span
+	// Remaining text after the last occupied node
 	if (pos < end) {
 		scanTextRegionForDelimiters(raw, pos, end, segments);
 	}
