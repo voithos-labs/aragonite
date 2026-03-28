@@ -11,6 +11,14 @@ export type { CstNode, Document } from './core/nodes';
 // ── Context Keys ────────────────────────────────────────────────────────────
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
+export const LIST_CONTEXT_KEY = Symbol('list-context');
+
+// ── List Context (list item → list block communication via Svelte context) ──
+
+export interface ListContext {
+	insertItemAfter(itemIndex: number, newItem?: CstNode): void;
+	exitListAtItem(itemIndex: number): void;
+}
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────
 

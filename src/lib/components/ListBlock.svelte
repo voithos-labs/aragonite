@@ -2,13 +2,15 @@
 	import { getContext, setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		LIST_CONTEXT_KEY,
 		type EditorActions,
+		type ListContext,
 		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
-	import { assignIds } from '../mutable-tree';
+	import { assignIds, generateBlockId } from '../mutable-tree';
 	import { deleteNode as performDelete } from '../tree-operations';
-	import { rebuildListRaw } from '../container-raw';
+	import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
@@ -144,6 +146,56 @@
 	};
 
 	setContext(EDITOR_ACTIONS_KEY, listActions);
+
+	// ── List Context ────────────────────────────────────────────────────
+	// Provides list-specific operations to child ListItemBlock components.
+
+	const listContext: ListContext = {
+		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
+			if (!node.children) return;
+
+			if (!newItem) {
+				const marker = (node.children[itemIndex]?.metadata as { marker?: string })?.marker ?? '- ';
+				newItem = {
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '',
+					metadata: { marker, taskItem: false, taskChecked: false },
+					innerPrefix: '',
+					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
+					innerSuffix: ''
+				};
+				rebuildListItemRaw(newItem);
+			}
+
+			node.children.splice(itemIndex + 1, 0, newItem);
+			itemBlockIds.splice(itemIndex + 1, 0, generateBlockId());
+			rebuildListRaw(node);
+			triggerItemReactivity();
+			await tick();
+			itemBlockRefs[itemIndex + 1]?.focus?.(0);
+		},
+
+		async exitListAtItem(itemIndex: number): Promise<void> {
+			if (!node.children) return;
+
+			if (node.children.length <= 1) {
+				parentActions.deleteBlock(index);
+				return;
+			}
+
+			parentActions.beginContainerEdit?.(index, 0);
+			performDelete({ children: node.children }, itemBlockIds, itemIndex);
+			rebuildListRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerItemReactivity();
+			await tick();
+			const focusIdx = Math.min(itemIndex, node.children.length - 1);
+			itemBlockRefs[focusIdx]?.focus?.(0);
+		}
+	};
+
+	setContext(LIST_CONTEXT_KEY, listContext);
 </script>
 
 <div class="list-block">
