@@ -282,7 +282,26 @@
 		color: var(--color-text-primary);
 		min-height: 200px;
 		overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-ui-muted, #444) transparent;
 		border: 1px solid var(--color-ui-muted, #333);
 		border-radius: 4px;
+	}
+
+	.editor::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.editor::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.editor::-webkit-scrollbar-thumb {
+		background: var(--color-ui-muted, #444);
+		border-radius: 3px;
+	}
+
+	.editor::-webkit-scrollbar-thumb:hover {
+		background: var(--color-ui-dulled, #666);
 	}
 </style>

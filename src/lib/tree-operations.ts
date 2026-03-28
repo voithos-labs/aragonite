@@ -135,10 +135,14 @@ export function updateNodeContent(
 	// Re-parse the new text to determine block type
 	const reparsed = reparseAsNode(newText, node.leadingTrivia);
 
-	// Update the node in place
+	// Update the node in place — copy all fields so leaf↔container transitions
+	// (e.g., paragraph → list) propagate children and container structure
 	node.raw = newText;
 	node.kind = reparsed.kind;
 	node.metadata = reparsed.metadata;
+	node.children = reparsed.children;
+	node.innerPrefix = reparsed.innerPrefix;
+	node.innerSuffix = reparsed.innerSuffix;
 
 	const kindChanged = node.kind !== oldKind;
 	return {
