@@ -12,7 +12,8 @@
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
 		deleteNode as performDelete,
-		updateNodeContent as performUpdate
+		updateNodeContent as performUpdate,
+		ensureEditableContainers
 	} from '../tree-operations';
 	import { createUndoManager } from '../undo-manager';
 	import { isMergeEligible, isBlockEditable } from '../merge-rules';
@@ -28,6 +29,10 @@
 		// Ensure there's always at least one block to edit
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		}
+		// Ensure every container has at least one child (editing surface)
+		for (const child of d.children) {
+			ensureEditableContainers(child);
 		}
 		return d;
 	}
@@ -276,6 +281,7 @@
 		line-height: 1.6;
 		color: var(--color-text-primary);
 		min-height: 200px;
+		overflow-y: auto;
 		border: 1px solid var(--color-ui-muted, #333);
 		border-radius: 4px;
 	}
