@@ -101,36 +101,46 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				break;
 
 			case 'hardLineBreak': {
-				// Marker span holds the raw trailing-space or backslash chars, then <br>
-				const markerText = raw.slice(node.start, node.end).replace(/\n$/, '');
-				frag.appendChild(markerSpan(markerText));
-				frag.appendChild(document.createElement('br'));
+				// Split into marker (\ or spaces) and the \n.
+				// Use a text node for \n instead of <br> — white-space: pre-wrap
+				// on the contenteditable handles the visual break, and a text node
+				// guarantees textContent matches raw (browser-independent).
+				const breakRaw = raw.slice(node.start, node.end);
+				const nlIdx = breakRaw.indexOf('\n');
+				if (nlIdx > 0) frag.appendChild(markerSpan(breakRaw.slice(0, nlIdx)));
+				frag.appendChild(document.createTextNode('\n'));
 				break;
 			}
 
 			case 'link': {
-				// [children](url) or [children](url "title")
+				// Markers from raw.slice() — never reconstruct from parsed fields
 				const children = node.children ?? [];
-				const urlPart = node.title
-					? `](${node.url} "${node.title}")`
-					: `](${node.url})`;
-				frag.appendChild(markerSpan('['));
-				const anchor = document.createElement('a');
-				anchor.className = 'md-link-content';
-				anchor.appendChild(renderInlineNodes(children, raw));
-				frag.appendChild(anchor);
-				frag.appendChild(markerSpan(urlPart));
+				if (children.length > 0) {
+					const openMarker = raw.slice(node.start, children[0].start);
+					const closeMarker = raw.slice(children[children.length - 1].end, node.end);
+					frag.appendChild(markerSpan(openMarker));
+					const anchor = document.createElement('a');
+					anchor.className = 'md-link-content';
+					anchor.appendChild(renderInlineNodes(children, raw));
+					frag.appendChild(anchor);
+					frag.appendChild(markerSpan(closeMarker));
+				} else {
+					// Empty link text: [](url)
+					const mid = raw.indexOf(']', node.start);
+					frag.appendChild(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)));
+					if (mid !== -1) frag.appendChild(markerSpan(raw.slice(mid, node.end)));
+				}
 				break;
 			}
 
 			case 'image': {
-				// ![alt](url) or ![alt](url "title")
-				const urlPart = node.title
-					? `](${node.url} "${node.title}")`
-					: `](${node.url})`;
-				frag.appendChild(markerSpan('!['));
-				frag.appendChild(document.createTextNode(node.alt ?? ''));
-				frag.appendChild(markerSpan(urlPart));
+				// Markers from raw.slice() — never reconstruct from parsed fields
+				const altText = node.alt ?? '';
+				const altStart = node.start + 2; // after '!['
+				const altEnd = altStart + altText.length;
+				frag.appendChild(markerSpan(raw.slice(node.start, altStart)));
+				frag.appendChild(document.createTextNode(altText));
+				frag.appendChild(markerSpan(raw.slice(altEnd, node.end)));
 				break;
 			}
 
