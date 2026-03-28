@@ -125,8 +125,10 @@ The block parser does NOT call the inline parser. Inline parsing is triggered by
 Pure function producing DOM nodes from the inline tree:
 
 ```typescript
-function renderInlineNodes(nodes: InlineNode[]): DocumentFragment
+function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment
 ```
+
+The `raw` parameter is needed to extract marker text via `raw.slice()` when building marker spans.
 
 Kind-to-DOM mapping:
 
