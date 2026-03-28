@@ -6,6 +6,8 @@
 		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
+	import { parseInline, getContentRange } from '../core/inline-parser';
+	import { renderInlineNodes, setCursorFromRawOffset } from '../inline-renderer';
 
 	let {
 		node,
@@ -21,6 +23,16 @@
 	let userIsTyping = false;
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
+
+	function isProseBlock(): boolean {
+		return node.kind === 'paragraph' || node.kind === 'heading' || node.kind === 'setextHeading';
+	}
+
+	function refreshInlineContent(): void {
+		if (!isProseBlock()) return;
+		const range = getContentRange(node);
+		node.inlineContent = parseInline(node.raw, range.start, range.end);
+	}
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -124,7 +136,10 @@
 	$effect(() => {
 		const display = getDisplayText();
 		if (!el || userIsTyping) return;
-		if (el.textContent !== display) {
+
+		if (node.inlineContent && node.inlineContent.length > 0) {
+			el.replaceChildren(renderInlineNodes(node.inlineContent, node.raw));
+		} else if (el.textContent !== display) {
 			el.textContent = display;
 		}
 		// Ensure empty contenteditable always has a <br> so the browser
@@ -145,7 +160,17 @@
 		if (composing || !el) return;
 		userIsTyping = true;
 		const text = el.textContent ?? '';
+		const savedOffset = getCursorOffset() ?? 0;
 		actions.updateBlockContent(index, text + '\n', preEditOffset);
+
+		// Re-parse and re-render inline content
+		if (isProseBlock() && node.inlineContent) {
+			refreshInlineContent();
+			el.replaceChildren(renderInlineNodes(node.inlineContent, node.raw));
+			setCursorFromRawOffset(el, savedOffset);
+			ensureBr();
+		}
+
 		userIsTyping = false;
 		ensureBr();
 	}
@@ -348,5 +373,19 @@
 		font-family: 'Fira Code', 'Consolas', monospace;
 		font-size: 0.9em;
 		opacity: 0.85;
+	}
+
+	.text-editable-block :global(.md-marker) {
+		opacity: 0.4;
+		font-weight: normal;
+		font-style: normal;
+	}
+
+	.text-editable-block :global(.inline-code-content) {
+		font-family: 'Fira Code', 'Consolas', monospace;
+		font-size: 0.9em;
+		background: var(--color-bg-secondary, #1e1e1e);
+		border-radius: 3px;
+		padding: 1px 4px;
 	}
 </style>
