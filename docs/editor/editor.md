@@ -273,6 +273,7 @@ The nested `BlockList` inside a container block creates its own `EditorActions` 
 - **Splitting inside a container**: splits the inner child, not the container. The container's `raw` is reconstructed from its children.
 - **Deleting all children of a container**: removes the entire container from the parent.
 - **Backspace at start of first child**: currently moves focus to the block before the container. Future: in a blockquote, may "unwrap" the child (lift it out of the blockquote). In a list, may unindent the item.
+- **Enter in a list item**: currently splits the inner paragraph (creating a second paragraph within the same list item). Future: should create a new list item — Enter at the end of a list item's content inserts a new sibling item below; Enter in the middle splits the content across two items. Enter in an empty list item should exit the list. This is a targeted enhancement that doesn't depend on cross-block selection or inline parsing.
 
 ### Impact on Block Identity and Selection
 
