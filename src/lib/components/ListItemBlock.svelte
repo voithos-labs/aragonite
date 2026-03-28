@@ -2,7 +2,9 @@
 	import { getContext, setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		LIST_CONTEXT_KEY,
 		type EditorActions,
+		type ListContext,
 		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
@@ -20,6 +22,7 @@
 	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
@@ -82,12 +85,64 @@
 	const nestedActions: EditorActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
+
+			// Case 1: Empty item — exit list
+			const isEmptyItem = node.children.length === 1
+				&& node.children[0].kind === 'paragraph'
+				&& node.children[0].raw.trim() === '';
+			if (isEmptyItem) {
+				listContext.exitListAtItem(index);
+				return;
+			}
+
+			// Case 2: At end of last child — insert new empty sibling item
+			const lastChild = node.children[node.children.length - 1];
+			let displayLen = lastChild.raw.length;
+			if (lastChild.raw.endsWith('\r\n')) displayLen -= 2;
+			else if (lastChild.raw.endsWith('\n')) displayLen -= 1;
+			const isAtEnd = innerIndex === node.children.length - 1 && offset >= displayLen;
+
+			if (isAtEnd) {
+				parentActions.beginContainerEdit?.(index, offset);
+				listContext.insertItemAfter(index);
+				parentActions.endContainerEdit?.();
+				return;
+			}
+
+			// Case 3: In middle — split content across two items
 			parentActions.beginContainerEdit?.(index, offset);
+
+			// Split the inner paragraph
 			performSplit(innerParent(), innerBlockIds, innerIndex, offset);
-			rebuildAndNotify();
+
+			// Move everything from innerIndex+1 onward to a new item
+			const newChildren = node.children.splice(innerIndex + 1);
+			innerBlockIds.splice(innerIndex + 1);
+
+			// First child of new item should have empty leadingTrivia
+			if (newChildren.length > 0) {
+				newChildren[0].leadingTrivia = '';
+			}
+
+			// Rebuild current item
+			rebuildListItemRaw(node);
+
+			// Create new item with split-off content
+			const m = marker();
+			const newItem: CstNode = {
+				kind: 'listItem',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { marker: m, taskItem: false, taskChecked: false },
+				innerPrefix: '',
+				children: newChildren,
+				innerSuffix: ''
+			};
+			rebuildListItemRaw(newItem);
+
+			listContext.insertItemAfter(index, newItem);
+			parentActions.endContainerEdit?.();
 			triggerInnerReactivity();
-			await tick();
-			innerBlockRefs[innerIndex + 1]?.focus?.(0);
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
