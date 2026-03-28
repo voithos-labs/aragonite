@@ -15,7 +15,9 @@ export type {
 	TableMetadata,
 	BlockquoteMetadata,
 	ListMetadata,
-	ListItemMetadata
+	ListItemMetadata,
+	InlineNodeKind,
+	InlineNode
 } from './core/nodes';
 
 // ── Editor runtime ──────────────────────────────────────────────────────────
