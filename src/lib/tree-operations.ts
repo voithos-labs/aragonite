@@ -156,8 +156,25 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	if (doc.children.length > 0) {
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;
+		ensureEditableContainers(node);
 		return node;
 	}
 
 	return { kind: 'paragraph', leadingTrivia, raw };
+}
+
+/**
+ * Ensure every container node in the tree has at least one child block.
+ * Without this, container blocks (e.g., a list item with no content after
+ * the marker) would have no editing surface for the cursor.
+ */
+export function ensureEditableContainers(node: CstNode): void {
+	if (node.children !== undefined) {
+		if (node.children.length === 0) {
+			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		}
+		for (const child of node.children) {
+			ensureEditableContainers(child);
+		}
+	}
 }
