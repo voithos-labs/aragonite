@@ -54,6 +54,11 @@ function trimTrailingLineEnding(raw: string): number {
 	return end;
 }
 
+/** Returns true if the given block kind carries inline content (paragraph, heading, setextHeading). */
+export function isProseKind(kind: string): boolean {
+	return kind === 'paragraph' || kind === 'heading' || kind === 'setextHeading';
+}
+
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**
@@ -348,17 +353,14 @@ function scanRegionForLinksAndAutolinks(
 		}
 
 		// Check for bare URL autolink: https:// or http://
-		if (
-			(ch === 'h' || ch === 'H') &&
-			pos + 7 < end
-		) {
-			const schemeMatch = /^https?:\/\//i.exec(raw.slice(pos, Math.min(pos + 8, end)));
-			if (schemeMatch) {
-				// Read until whitespace or end
-				let urlEnd = pos + schemeMatch[0].length;
+		if (ch === 'h' || ch === 'H') {
+			const lower = raw.slice(pos, pos + 8).toLowerCase();
+			const schemeLen = lower.startsWith('https://') ? 8 : lower.startsWith('http://') ? 7 : 0;
+			if (schemeLen > 0) {
+				let urlEnd = pos + schemeLen;
 				while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-				const url = raw.slice(pos, urlEnd);
-				if (url.length > schemeMatch[0].length) {
+				if (urlEnd > pos + schemeLen) {
+					const url = raw.slice(pos, urlEnd);
 					out.push({
 						kind: 'autolink',
 						start: pos,
@@ -715,7 +717,7 @@ function processEmphasis(raw: string, segments: Segment[]): InlineNode[] {
 
 			// Collect child nodes/delimiters between opener and closer
 			const childItems = items.slice(openerIdx + 1, ci);
-			const children = resolveItems(raw, childItems, openerMarkerEnd, closerMarkerStart);
+			const children = resolveItems(raw, childItems);
 
 			const wrappedNode: InlineNode = {
 				kind: nodeKind,
@@ -735,40 +737,23 @@ function processEmphasis(raw: string, segments: Segment[]): InlineNode[] {
 			const newItem: Item = { type: 'node', node: wrappedNode };
 			items.splice(openerIdx + 1, ci - openerIdx - 1, newItem);
 
-			// If opener is exhausted, remove it (but keep its position reference for text)
-			// We convert exhausted delimiters to text nodes
 			if (opener.count === 0) {
-				// The opener run is fully consumed; check if there's a preceding text portion
-				if (opener.start < opener.end) {
-					// Residual text from the opener (shouldn't exist when count==0, but safe)
-				}
-				// Remove the opener item; we already adjusted openerMarkerStart
 				items.splice(openerIdx, 1);
-				// ci shifts down by 1 because we removed openerIdx, and then replaced
-				// openerIdx+1..ci-1 range above (now shifted). Re-scan from beginning.
-				changed = true;
-				break;
-			} else {
-				// Opener still has chars — it stays as a delimiter (partially consumed)
-				changed = true;
-				break;
 			}
+
+			changed = true;
+			break;
 		}
 	}
 
 	// Convert remaining items to InlineNodes
-	return resolveItems(raw, items, -1, -1);
+	return resolveItems(raw, items);
 }
 
-/**
- * Convert a list of items to InlineNode[], treating unmatched delimiters as text.
- * start/end are the enclosing markers' boundaries (used to skip them if -1).
- */
+/** Convert a list of items to InlineNode[], treating unmatched delimiters as text. */
 function resolveItems(
 	raw: string,
-	items: Array<{ type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry }>,
-	_innerStart: number,
-	_innerEnd: number
+	items: Array<{ type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry }>
 ): InlineNode[] {
 	const nodes: InlineNode[] = [];
 	for (const item of items) {

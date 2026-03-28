@@ -6,7 +6,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../editor-types';
-	import { parseInline, getContentRange } from '../core/inline-parser';
+	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../inline-renderer';
 
 	let {
@@ -24,12 +24,8 @@
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
 
-	function isProseBlock(): boolean {
-		return node.kind === 'paragraph' || node.kind === 'heading' || node.kind === 'setextHeading';
-	}
-
 	function refreshInlineContent(): void {
-		if (!isProseBlock()) return;
+		if (!isProseKind(node.kind)) return;
 		const range = getContentRange(node);
 		node.inlineContent = parseInline(node.raw, range.start, range.end);
 	}
@@ -164,7 +160,7 @@
 		actions.updateBlockContent(index, text + '\n', preEditOffset);
 
 		// Re-parse and re-render inline content
-		if (isProseBlock() && node.inlineContent) {
+		if (isProseKind(node.kind) && node.inlineContent) {
 			refreshInlineContent();
 			el.replaceChildren(renderInlineNodes(node.inlineContent, node.raw));
 			setCursorFromRawOffset(el, savedOffset);
