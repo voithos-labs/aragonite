@@ -1,5 +1,7 @@
 # Block Editor — Design Spec
 
+**Current status:** Core editing loop (Phase 1) and all block types (Phase 2) are implemented. The editor handles paragraphs, headings, fenced code, thematic breaks, blockquotes, lists, and raw-editable fallback for remaining leaf types. Cross-block selection (Phase 3) and polish (Phase 4) are not yet implemented.
+
 ## Goal
 
 A block-based markdown editor for Limestone that renders and edits GFM documents using the CST as its structural backbone. Each CST block node maps to an independent editing component. The editor supports the full GFM spec, is extensible to custom block types, and evolves alongside the CST's three-phase architecture (raw source → inline parsing → structured fields).
@@ -16,21 +18,22 @@ The primary design principles:
 ### Component Hierarchy
 
 ```
-Editor (shell — owns CST, undo stack, selection state, EditorActions context)
-  └─ BlockList (keyed {#each} over CST children, renders selection overlays)
+Editor (shell — owns CST, undo stack, EditorActions context)
+  └─ BlockList (keyed {#each} over CST children)
        ├─ BlockHost (resolves component by node.kind)
-       │    └─ HeadingBlock
-       ├─ BlockHost
-       │    └─ ParagraphBlock
-       ├─ BlockHost
-       │    └─ CodeBlock
+       │    ├─ TextEditableBlock (paragraph, heading, setextHeading, raw-editable)
+       │    ├─ CodeBlock (fenced code — textarea surface)
+       │    ├─ ThematicBreakBlock (non-editable, focusable)
+       │    ├─ BlockquoteBlock (container — nested BlockList)
+       │    └─ ListBlock (container — ListItemBlock children, each with nested BlockList)
        └─ ...
 ```
 
-- **Editor** — top-level shell. Owns the CST `Document`, the undo stack, and the `EditorSelection` state. Provides `EditorActions` via Svelte context. Handles document-level keyboard shortcuts (Ctrl+Z, Ctrl+A). Manages focus after structural operations using `await tick()`.
-- **BlockList** — renders the CST children array via a keyed `{#each}`. Renders cross-block selection overlays. Could be merged into Editor if thin enough.
+- **Editor** — top-level shell. Owns the CST `Document`, the undo stack, and the `EditorActions` context. Manages focus after structural operations using `await tick()`.
+- **BlockList** — renders the CST children array via a keyed `{#each}`.
 - **BlockHost** — given a CST node, resolves which block component to render by `node.kind`. Thin wrapper.
-- **Concrete block components** — each handles its own editing internally. Calls context callbacks for boundary events.
+- **TextEditableBlock** — shared contenteditable surface for paragraphs, headings, and raw-editable block types, parameterized by CSS class.
+- **Container block components** — `BlockquoteBlock` and `ListBlock`/`ListItemBlock` each host a nested `BlockList` with their own `EditorActions` context.
 
 ### Data Flow
 
@@ -84,9 +87,10 @@ interface BlockComponent {
 
 Examples:
 
-- `ParagraphBlock`: `{ editable: true, focusable: true }` — full text editing via contenteditable
-- `CodeBlock`: `{ editable: true, focusable: true }` — text editing, possibly via a different surface (textarea, CodeMirror)
-- `ThematicBreak`: `{ editable: false, focusable: true }` — arrow-key navigable, Enter creates a paragraph below, Backspace deletes it
+- `TextEditableBlock` (paragraph, heading, raw): `{ editable: true, focusable: true }` — contenteditable, parameterized by CSS class
+- `CodeBlock`: `{ editable: true, focusable: true }` — textarea editing surface
+- `ThematicBreakBlock`: `{ editable: false, focusable: true }` — arrow-key navigable, Enter creates a paragraph below, Backspace deletes it
+- `BlockquoteBlock`, `ListBlock`, `ListItemBlock`: `{ editable: true, focusable: true }` — containers delegate focus to inner children
 - `ImageBlock` (future): `{ editable: false, focusable: true }` — focusable for keyboard navigation and deletion
 
 The orchestration layer checks `editable`/`focusable` before calling `focus()` or `getCursorOffset()`.
@@ -168,15 +172,22 @@ Blocks receive typed callback functions via Svelte `getContext`:
 
 ```typescript
 interface EditorActions {
-	splitBlock(blockIndex: number, offset: number): void;
-	mergeWithPrevious(blockIndex: number): void;
-	deleteBlock(blockIndex: number): void;
-	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void;
-	updateBlockContent(blockIndex: number, text: string): void; // updates raw, re-parses, swaps component if block type changed
-	requestUndo(): void;
-	requestRedo(): void;
+	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
+	mergeWithPrevious(blockIndex: number): void | Promise<void>;
+	deleteBlock(blockIndex: number): void | Promise<void>;
+	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void | Promise<void>;
+	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
+	requestUndo(): void | Promise<void>;
+	requestRedo(): void | Promise<void>;
+
+	// Container block support — called by nested EditorActions contexts
+	beginContainerEdit?(blockIndex: number, offset: number): void;
+	beginContainerEditDebounced?(blockIndex: number, offset: number): void;
+	endContainerEdit?(): void;
 }
 ```
+
+Structural operations return `void | Promise<void>` because they use `await tick()` for post-render focus management. The three container methods are optional — only called by container block components to coordinate undo snapshots and reactivity with the parent editor.
 
 No signal dispatcher, no string matching, no performer registry, no reindexing. Blocks call typed functions directly.
 
@@ -261,7 +272,7 @@ The nested `BlockList` inside a container block creates its own `EditorActions` 
 
 - **Splitting inside a container**: splits the inner child, not the container. The container's `raw` is reconstructed from its children.
 - **Deleting all children of a container**: removes the entire container from the parent.
-- **Backspace at start of first child**: depends on the container type. In a blockquote, it may "unwrap" the child (lift it out of the blockquote). In a list, it may unindent the item.
+- **Backspace at start of first child**: currently moves focus to the block before the container. Future: in a blockquote, may "unwrap" the child (lift it out of the blockquote). In a list, may unindent the item.
 
 ### Impact on Block Identity and Selection
 
@@ -359,15 +370,15 @@ interface UndoEntry {
 
 interface UndoManager {
 	push(entry: UndoEntry): void;
-	undo(): UndoEntry | null;
-	redo(): UndoEntry | null;
+	undo(currentState: UndoEntry): UndoEntry | null;
+	redo(currentState: UndoEntry): UndoEntry | null;
 	clear(): void;
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;
 }
 ```
 
-Each undo entry stores the full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position for cursor restoration. The caller clones the document before pushing — the undo manager stores entries directly and only clones when moving between stacks (undo → redo or vice versa).
+Each undo entry stores the full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position for cursor restoration. `undo()` and `redo()` take the current state as a parameter so the opposite stack can capture it (undo pushes current state onto redo stack, redo pushes onto undo stack). The caller clones the document before pushing.
 
 The default implementation stores cloned CST `Document` trees. The CST is a lightweight tree of strings — cloning is cheap. The stack is capped at 200 entries to prevent unbounded memory growth during long editing sessions. If the Automerge history layer proves suitable for session-level undo later, the implementation behind this interface can be swapped without touching the editor.
 
@@ -447,32 +458,28 @@ The CST defines 14 node types. The editor must handle all of them. Node types no
 
 Each phase must feel solid before moving to the next.
 
-### Phase 1 — Core Editing Loop (Paragraphs Only)
+### Phase 1 — Core Editing Loop (complete)
 
-Get the fundamental architecture working with the simplest possible block type:
+The fundamental architecture with paragraph blocks:
 
-- Editor → BlockList → BlockHost → ParagraphBlock
+- Editor → BlockList → BlockHost → TextEditableBlock
 - Contenteditable rendering with CST sync (input → update `raw` → re-parse)
-- Split (Enter) and merge (Backspace at start)
+- Split (Enter) and merge (Backspace at start) with merge eligibility rules
 - Focus traversal (arrow keys at block boundaries)
-- Undo/redo with CST snapshots
+- Undo/redo with CST snapshots (debounced batching)
 - Block identity and keyed rendering
 - Single-block clipboard (copy/cut/paste, all intercepted, all from CST)
 
-No other block types. If this doesn't feel rock solid — if focus is flaky, if undo behaves inconsistently, if split/merge has edge cases — stop and fix it before moving on.
+### Phase 2 — Block Types (complete)
 
-### Phase 2 — Block Types (One at a Time)
+All block types are implemented:
 
-Each leaf block type is an additive change: a new component, registered in BlockHost's resolver. Order by value:
-
-1. **Headings** — tests the re-parse pathway (user types `## ` at start of paragraph → block transforms to heading)
-2. **Fenced code** — tests a non-contenteditable editing surface, validates the block interface with a different internal editor
-3. **Thematic breaks** — tests a non-editable block (`editable: false, focusable: true`)
-4. **Blockquotes** — tests the recursive BlockList architecture for container blocks. This is the first container block and will require building the nested `EditorActions` context and cross-boundary focus traversal. This is not a simple "new component and registry entry" — it exercises the container block architecture described in the Container Blocks section.
-5. **Lists / list items** — tests nested container blocks, indentation, task checkboxes. Builds on the container infrastructure from blockquotes.
-6. **Remaining leaf blocks** — tables, HTML blocks, setext headings, indented code, link reference definitions, unrecognized blocks. These render as raw-editable until dedicated components are built.
-
-For leaf block types, each addition should require only a new component and a registry entry. Container block types (4 and 5) require the recursive BlockList infrastructure — once this is built for blockquotes, lists reuse it.
+- **TextEditableBlock** — shared contenteditable for paragraphs, headings (with level-based CSS), and raw-editable fallback blocks
+- **CodeBlock** — textarea editing surface for fenced code
+- **ThematicBreakBlock** — non-editable, focusable (`editable: false, focusable: true`)
+- **BlockquoteBlock** — recursive BlockList with nested EditorActions context
+- **ListBlock / ListItemBlock** — nested container blocks with two levels of EditorActions nesting
+- **Raw-editable fallback** — tables, HTML blocks, indented code, link reference definitions, unrecognized blocks render through TextEditableBlock with monospace styling
 
 ### Phase 3 — Cross-Block Selection & Advanced Clipboard
 
@@ -496,7 +503,7 @@ Deferred because the core editing experience (Phase 1 + 2) works without it. Sin
 
 ## Lessons from Previous Failures
 
-These are guardrails for implementation, derived from a previous failed attempt at a per-block editor (see `docs/editor/legacy-editor-design.md`).
+These are guardrails for implementation, derived from a previous failed attempt at a per-block editor.
 
 ### 1. If you need a timing hack, the design is wrong
 

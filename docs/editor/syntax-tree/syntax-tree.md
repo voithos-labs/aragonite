@@ -1,5 +1,7 @@
 # GFM Concrete Syntax Tree — Design Spec
 
+**Current status:** Phase 1 (block-level CST) is fully implemented. All GFM block types are parsed. The parser produces mutable plain objects (`CstNode` interface). Phase 2 (inline parsing) and Phase 3 (structured fields) are designed but not yet implemented.
+
 ## Goal
 
 A TypeScript concrete syntax tree (CST) that parses GitHub Flavored Markdown into a recursive tree of block nodes, then reconstructs the original source without any loss. The primary invariant: `serialize(parse(source)) === source` for all valid inputs.
@@ -10,7 +12,7 @@ This CST is the foundation for a custom markdown editor (Obsidian-like). It is n
 
 The CST is designed around three phases. Each phase builds on the previous without requiring a rewrite. This progression is a core architectural decision — every block type follows this lifecycle independently.
 
-### Phase 1 — Block-level CST with raw source (this spec)
+### Phase 1 — Block-level CST with raw source (implemented)
 
 Parse GFM into a recursive tree of block nodes. Each node stores its raw source text verbatim. Round-trip is guaranteed by construction: serialize = concatenate raw source down the tree. Metadata (heading level, fence marker, etc.) is extracted alongside the raw source but does not participate in serialization.
 
@@ -86,21 +88,21 @@ The tree has three categories of nodes:
 
 ### Node Type
 
-All nodes are **mutable plain objects** — no class hierarchy. There is one `CstNode` type used everywhere: the parser produces it, the editor mutates it, serialization reads it. No immutable→mutable conversion step.
+All nodes are **mutable plain objects** — no class hierarchy. There is one `CstNode` interface used everywhere: the parser produces it, the editor mutates it in place, serialization reads it. No immutable→mutable conversion step.
 
-The type is a **discriminated union** keyed on `kind`. When you narrow on `kind`, TypeScript knows the metadata type, whether the node has children (containers), and whether it has inline content (prose blocks). This replaces `instanceof` checks with simple `kind` discrimination.
+`CstNode` is a flat interface with optional fields for container structure and metadata. The editor discriminates on `kind` (a `BlockKind` string union) to determine behavior. Container fields (`children`, `innerPrefix`, `innerSuffix`) are present only on container kinds. Metadata is typed as a union of all metadata interfaces (`BlockMetadata`), narrowed manually after checking `kind`.
 
 ```
-CstNode (discriminated union on `kind`)
+CstNode (flat interface, discriminated by `kind`)
 ├── Container kinds: blockquote, list, listItem
 │   └── have: children, innerPrefix, innerSuffix
 ├── Prose kinds: paragraph, heading, setextHeading
-│   └── have: inlineContent (Phase 2)
+│   └── will have: inlineContent (Phase 2, not yet implemented)
 └── Other leaf kinds: fencedCode, thematicBreak, indentedCode,
     htmlBlock, linkReferenceDefinition, table, unrecognized
 ```
 
-A `MetadataMap` maps each `kind` to its typed metadata interface. Kinds without metadata (paragraph, indentedCode, htmlBlock, unrecognized) map to `undefined`. The metadata interfaces themselves are unchanged from the original design.
+Why a flat interface instead of a mapped-type discriminated union: the editor's `updateNodeContent` mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would type `kind` as a literal per member, making in-place mutation a type error. The flat interface with `kind: BlockKind` allows this.
 
 ### Node Definitions
 
@@ -285,32 +287,26 @@ Same approach for list items — strip the indentation/marker, parse inner conte
 
 - **No inline parsing** — paragraph and heading content is opaque text in Phase 1. Inline parsing is defined in this spec (see "Inline Node Types") but implemented in Phase 2.
 - **No incremental parsing** — full re-parse every time; incremental is an optimization for when editing is involved
-- **No error recovery machinery** — unrecognized syntax falls through to `UnrecognizedBlock` or gets absorbed into a paragraph
+- **No error recovery machinery** — unrecognized syntax falls through to `unrecognized` blocks or gets absorbed into a paragraph
 
-## GFM Coverage Roadmap
+## GFM Block Coverage
 
-### v1 — Core Block Types (This Spec)
+All GFM block types are implemented and have their own node kinds:
 
-| Block Type         | Node Kind           | Notes                               |
-| ------------------ | ------------------- | ----------------------------------- |
-| ATX headings       | `Heading`           | `# ` through `###### `              |
-| Paragraphs         | `Paragraph`         | Fallback for unstructured text      |
-| Fenced code blocks | `FencedCode`        | ` ``` ` and `~~~` with info string  |
-| Blockquotes        | `Blockquote`        | Container, recursive children       |
-| Lists / list items | `List` / `ListItem` | Ordered, unordered, task checkboxes |
-| Thematic breaks    | `ThematicBreak`     | `---`, `***`, `___` variants        |
-
-### v2 — Deferred Block Types
-
-These round-trip as `UnrecognizedBlock` in v1. Each graduates to its own node kind when implemented.
-
-| Block Type                 | Future Node Kind          | Notes                         |
-| -------------------------- | ------------------------- | ----------------------------- |
-| Setext headings            | `SetextHeading`           | Underline-style `===` / `---` |
-| Indented code blocks       | `IndentedCode`            | 4-space indent                |
-| HTML blocks                | `HtmlBlock`               | Raw `<div>`, `<table>`, etc.  |
-| Link reference definitions | `LinkReferenceDefinition` | `[ref]: url "title"`          |
-| Tables                     | `Table`                   | GFM extension, pipe syntax    |
+| Block Type                 | Kind                      | Notes                               |
+| -------------------------- | ------------------------- | ----------------------------------- |
+| ATX headings               | `heading`                 | `# ` through `###### `              |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`       |
+| Paragraphs                 | `paragraph`               | Fallback for unstructured text      |
+| Fenced code blocks         | `fencedCode`              | `` ``` `` and `~~~` with info string |
+| Indented code blocks       | `indentedCode`            | 4-space indent                      |
+| Blockquotes                | `blockquote`              | Container, recursive children       |
+| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes |
+| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___` variants        |
+| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.        |
+| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                |
+| Tables                     | `table`                   | GFM extension, pipe syntax          |
+| Unrecognized               | `unrecognized`            | Catch-all for unknown syntax        |
 
 ### Future — Inline Syntax (Phase 2)
 
@@ -332,7 +328,7 @@ The pattern for adding a new block type (standard or custom):
 1. Add a new `kind` string to the `BlockKind` union
 2. Optionally add a metadata interface to `MetadataMap`
 3. Add parser recognition logic (matcher function + priority placement)
-4. What was previously `UnrecognizedBlock` for that syntax now gets its own typed node
+4. What was previously `unrecognized` for that syntax now gets its own typed node
 
 This same pattern applies to hypothetical custom blocks (callouts, embedded queries, custom containers). The tree doesn't care what the kind string is — it only requires the node to be a `CstNode` with the standard fields.
 
@@ -357,6 +353,6 @@ Feed a markdown string in, parse it, serialize it, assert exact string equality.
 
 Parse specific inputs and assert the parser identifies correct block kinds and metadata values. Secondary to round-trip — if metadata is wrong but round-trip passes, that's a bug but not a data-loss bug.
 
-**Tier 3 — Unrecognized block coverage:**
+**Tier 3 — Full block type coverage:**
 
-Feed in GFM syntax we deliberately defer (tables, setext headings, HTML blocks). Assert they round-trip as `UnrecognizedBlock` nodes without loss.
+Parse documents with all GFM block types and verify correct `kind` assignment and round-trip fidelity. Ensure no syntax falls through to `unrecognized` unless it genuinely isn't GFM.
