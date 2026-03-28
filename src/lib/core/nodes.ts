@@ -77,6 +77,34 @@ export type BlockMetadata =
 	| ListMetadata
 	| ListItemMetadata;
 
+// ── Inline Node Types (Phase 2) ────────────────────────────────────────────
+
+export type InlineNodeKind =
+	| 'text'
+	| 'emphasis'
+	| 'strong'
+	| 'strikethrough'
+	| 'inlineCode'
+	| 'link'
+	| 'image'
+	| 'autolink'
+	| 'hardLineBreak';
+
+/**
+ * A single inline node within a prose block's content.
+ * start/end are byte offsets into the parent block's raw, including markers.
+ */
+export interface InlineNode {
+	kind: InlineNodeKind;
+	start: number;
+	end: number;
+	text?: string;
+	children?: InlineNode[];
+	url?: string;
+	title?: string;
+	alt?: string;
+}
+
 // ── Node Types ──────────────────────────────────────────────────────────────
 
 /**
@@ -91,6 +119,8 @@ export interface CstNode {
 	innerPrefix?: string;
 	children?: CstNode[];
 	innerSuffix?: string;
+	/** Phase 2: parsed inline content for prose blocks. Rendering cache — derived from raw. */
+	inlineContent?: InlineNode[];
 }
 
 /** Root document node. */
