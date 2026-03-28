@@ -19,7 +19,7 @@
 	import { createUndoManager } from '../undo-manager';
 	import { isMergeEligible, isBlockEditable } from '../merge-rules';
 	import { parse } from '../core/parser';
-	import { parseInline, getContentRange } from '../core/inline-parser';
+	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
 	import BlockList from './BlockList.svelte';
 
 	let { source = '' }: { source?: string } = $props();
@@ -28,7 +28,7 @@
 
 	function parseAllInlineContent(children: CstNode[]): void {
 		for (const child of children) {
-			if (child.kind === 'paragraph' || child.kind === 'heading' || child.kind === 'setextHeading') {
+			if (isProseKind(child.kind)) {
 				const range = getContentRange(child);
 				child.inlineContent = parseInline(child.raw, range.start, range.end);
 			}

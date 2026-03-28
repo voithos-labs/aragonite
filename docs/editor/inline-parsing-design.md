@@ -139,12 +139,18 @@ Kind-to-DOM mapping:
 | emphasis | marker spans (dim) + `<em>` wrapping recursive children |
 | strong | marker spans (dim) + `<strong>` wrapping recursive children |
 | strikethrough | marker spans (dim) + `<s>` wrapping recursive children |
-| link | marker spans for `[`, `](`, url, `)` + content span with recursive children |
-| image | marker spans for `![`, `](`, url, `)` + alt text |
+| link | marker from `raw.slice()` for `[` and `](url)` + `<a>` wrapping recursive children |
+| image | marker from `raw.slice()` for `![` and `](url)` + alt text |
 | autolink | styled span for URL |
-| hardLineBreak | marker span for `\` or spaces + `<br>` |
+| hardLineBreak | marker span for `\` or spaces + text node `\n` (no `<br>` — see below) |
 
 **Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. `textContent` of the contenteditable still equals `raw` (minus trailing line ending), preserving the existing `onInput` → `textContent` → `raw` flow.
+
+**Rendering rules that preserve this invariant:**
+
+- **Never reconstruct marker text from parsed fields.** Always use `raw.slice()` to extract markers from the gaps between `node.start`/`node.end` and children boundaries. This guarantees textContent matches raw even when the original syntax has unusual whitespace (e.g., `[text](  url  )`).
+- **Hard line breaks use `\n` text nodes, not `<br>`.** The contenteditable has `white-space: pre-wrap`, so `\n` renders as a visual line break. Using a text node instead of `<br>` guarantees browser-independent textContent behavior — `<br>` to textContent mapping varies by browser, but `\n` text nodes are always `\n`.
+- **`isProseKind(kind)`** is the canonical check for which block kinds carry inline content (paragraph, heading, setextHeading). Exported from `core/inline-parser.ts`.
 
 ### Integration with TextEditableBlock
 
