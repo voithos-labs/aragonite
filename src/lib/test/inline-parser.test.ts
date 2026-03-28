@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getContentRange, parseInline } from '../core/inline-parser';
-import type { CstNode } from '../core/nodes';
+import type { CstNode, InlineNode } from '../core/nodes';
 
 describe('getContentRange', () => {
 	it('paragraph: full raw minus trailing newline', () => {
@@ -124,6 +124,74 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 
 	it('round-trip: concatenating inline nodes reproduces content', () => {
 		const content = 'Hello `code` **not parsed yet** world';
+		const nodes = inlineOf(content);
+		const reconstructed = nodes.map(n => content.slice(n.start, n.end)).join('');
+		expect(reconstructed).toBe(content);
+	});
+});
+
+describe('parseInline — emphasis and strong (Stage 2)', () => {
+	function inlineOf(rawContent: string) {
+		return parseInline(rawContent, 0, rawContent.length);
+	}
+
+	it('simple emphasis with *', () => {
+		const nodes = inlineOf('Hello *world*');
+		expect(nodes.length).toBe(2);
+		expect(nodes[0]).toEqual({ kind: 'text', start: 0, end: 6, text: 'Hello ' });
+		expect(nodes[1].kind).toBe('emphasis');
+		expect(nodes[1].start).toBe(6);
+		expect(nodes[1].end).toBe(13);
+		expect(nodes[1].children).toEqual([
+			{ kind: 'text', start: 7, end: 12, text: 'world' }
+		]);
+	});
+
+	it('simple emphasis with _', () => {
+		const nodes = inlineOf('Hello _world_');
+		expect(nodes[1].kind).toBe('emphasis');
+		expect(nodes[1].children).toEqual([
+			{ kind: 'text', start: 7, end: 12, text: 'world' }
+		]);
+	});
+
+	it('strong with **', () => {
+		const nodes = inlineOf('Hello **world**');
+		expect(nodes[1].kind).toBe('strong');
+		expect(nodes[1].start).toBe(6);
+		expect(nodes[1].end).toBe(15);
+		expect(nodes[1].children).toEqual([
+			{ kind: 'text', start: 8, end: 13, text: 'world' }
+		]);
+	});
+
+	it('nested strong inside emphasis', () => {
+		const nodes = inlineOf('*Hello **world***');
+		expect(nodes[0].kind).toBe('emphasis');
+		expect(nodes[0].children!.length).toBe(2);
+		expect(nodes[0].children![0]).toEqual({ kind: 'text', start: 1, end: 7, text: 'Hello ' });
+		expect(nodes[0].children![1].kind).toBe('strong');
+	});
+
+	it('unmatched * is plain text', () => {
+		const nodes = inlineOf('Hello *world');
+		expect(nodes).toEqual([
+			{ kind: 'text', start: 0, end: 12, text: 'Hello *world' }
+		]);
+	});
+
+	it('emphasis does not cross inline code', () => {
+		const nodes = inlineOf('*hello `code* end` world*');
+		// The backtick span takes priority — * inside backticks is literal.
+		// inlineCode may be nested inside emphasis; check the whole tree.
+		function hasKind(ns: InlineNode[], kind: string): boolean {
+			return ns.some(n => n.kind === kind || (n.children ? hasKind(n.children, kind) : false));
+		}
+		expect(hasKind(nodes, 'inlineCode')).toBe(true);
+	});
+
+	it('round-trip: inline nodes cover entire content', () => {
+		const content = 'Hello **bold *nested*** end';
 		const nodes = inlineOf(content);
 		const reconstructed = nodes.map(n => content.slice(n.start, n.end)).join('');
 		expect(reconstructed).toBe(content);
