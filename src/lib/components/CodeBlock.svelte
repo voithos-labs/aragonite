@@ -57,8 +57,8 @@
 		if (!textarea || userIsTyping) return;
 		if (textarea.value !== display) {
 			textarea.value = display;
-			autoResize();
 		}
+		autoResize();
 	});
 
 	function autoResize(): void {
