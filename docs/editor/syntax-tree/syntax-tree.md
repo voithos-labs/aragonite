@@ -74,6 +74,8 @@ Phase 3:
 // editor can change level by swapping marker to "### "
 ```
 
+**Reassessment note (2026-03-28):** Phase 3 may not be necessary. The ownership flip introduces significant costs: round-trip preservation becomes fragile (the serializer must perfectly reproduce original delimiter styles — `*italic*` vs `_italic_`, `**bold**` vs `__bold__`), partial/broken syntax during typing has no clean tree representation (an unclosed `**` is just text with raw-as-truth, but a modeling problem with tree-as-truth), and the two features Phase 3 enables can be approximated without it (toggle bold by manipulating `raw` directly, change heading level by swapping the prefix in `raw`). The editor's design philosophy is "always-visible styled source" with dimmed markers — not hidden markers — which Phase 2 handles fully. Syntax hiding is the only capability that truly requires Phase 3, and it's described as an "optional user preference" and "cosmetic enhancement." Revisit this when Phase 2 is complete and there's a concrete need that raw manipulation can't satisfy.
+
 **Catch-all for editing non-decomposed blocks:** Before a block type graduates to Phase 3, editing still works — the raw source is treated as a plain text string. The user types into it, raw is updated as a string, and the block is re-parsed to refresh metadata and inline content. The only thing lost compared to structured fields is semantic editing operations.
 
 ## Node Types and Tree Structure
