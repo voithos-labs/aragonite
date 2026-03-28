@@ -60,12 +60,13 @@ export function parseInline(raw: string, start: number, end: number): InlineNode
 
 	// Check if there are any delimiter characters in the text regions
 	if (!hasDelimiterChars(raw, start, end, codeSpans)) {
-		return codeSpans;
+		return processHardLineBreaks(codeSpans, raw);
 	}
 
 	const segments = buildSegments(raw, start, end, codeSpans);
-	const nodes = processEmphasis(raw, segments);
-	return mergeAdjacentText(nodes);
+	const emphasized = processEmphasis(raw, segments);
+	const merged = mergeAdjacentText(emphasized);
+	return processHardLineBreaks(merged, raw);
 }
 
 // ── Backtick Scanning (Stage 1) ────────────────────────────────────────────
@@ -142,9 +143,9 @@ function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[
 
 // ── Delimiter Run Scanning (Stage 2) ───────────────────────────────────────
 
-/** A delimiter run: a sequence of * or _ characters. */
+/** A delimiter run: a sequence of *, _, or ~ characters. */
 interface DelimiterEntry {
-	kind: '*' | '_';
+	kind: '*' | '_' | '~';
 	/** Number of delimiter characters remaining (decremented as matched). */
 	count: number;
 	/** Original length of this run. */
@@ -165,7 +166,7 @@ type Segment =
 	| { type: 'node'; node: InlineNode }
 	| { type: 'delimiter'; entry: DelimiterEntry };
 
-/** Returns true if any text region between code spans contains * or _. */
+/** Returns true if any text region between code spans contains *, _, or ~. */
 function hasDelimiterChars(
 	raw: string,
 	start: number,
@@ -180,12 +181,12 @@ function hasDelimiterChars(
 	let pos = start;
 	for (const { s, e } of occupied) {
 		for (let i = pos; i < s; i++) {
-			if (raw[i] === '*' || raw[i] === '_') return true;
+			if (raw[i] === '*' || raw[i] === '_' || raw[i] === '~') return true;
 		}
 		pos = e;
 	}
 	for (let i = pos; i < end; i++) {
-		if (raw[i] === '*' || raw[i] === '_') return true;
+		if (raw[i] === '*' || raw[i] === '_' || raw[i] === '~') return true;
 	}
 	return false;
 }
@@ -220,7 +221,7 @@ function classifyRun(
 	raw: string,
 	runStart: number,
 	runEnd: number,
-	kind: '*' | '_'
+	kind: '*' | '_' | '~'
 ): { canOpen: boolean; canClose: boolean } {
 	const charBefore = runStart > 0 ? raw[runStart - 1] : '';
 	const charAfter = runEnd < raw.length ? raw[runEnd] : '';
@@ -240,7 +241,8 @@ function classifyRun(
 	const rightFlanking =
 		!precededByWhitespace && (!precededByPunct || followedByWhitespace || followedByPunct);
 
-	if (kind === '*') {
+	if (kind === '*' || kind === '~') {
+		// * and ~ use pure left/right flanking rules
 		return { canOpen: leftFlanking, canClose: rightFlanking };
 	} else {
 		// _: extra restrictions to avoid intra-word emphasis
@@ -301,12 +303,40 @@ function scanTextRegionForDelimiters(
 
 	while (pos < end) {
 		const ch = raw[pos];
-		if (ch === '*' || ch === '_') {
+		if (ch === '*' || ch === '_' || ch === '~') {
 			const runStart = pos;
 			while (pos < end && raw[pos] === ch) pos++;
 			const runEnd = pos;
 			const count = runEnd - runStart;
-			const { canOpen, canClose } = classifyRun(raw, runStart, runEnd, ch as '*' | '_');
+
+			// ~ is only valid as a strikethrough delimiter in runs of exactly 2
+			if (ch === '~' && count !== 2) {
+				// Emit the whole ~ run as plain text
+				if (textStart < runStart) {
+					out.push({
+						type: 'node',
+						node: {
+							kind: 'text',
+							start: textStart,
+							end: runStart,
+							text: raw.slice(textStart, runStart)
+						}
+					});
+				}
+				out.push({
+					type: 'node',
+					node: {
+						kind: 'text',
+						start: runStart,
+						end: runEnd,
+						text: raw.slice(runStart, runEnd)
+					}
+				});
+				textStart = runEnd;
+				continue;
+			}
+
+			const { canOpen, canClose } = classifyRun(raw, runStart, runEnd, ch as '*' | '_' | '~');
 
 			// Emit preceding text as a text segment
 			if (textStart < runStart) {
@@ -324,7 +354,7 @@ function scanTextRegionForDelimiters(
 			out.push({
 				type: 'delimiter',
 				entry: {
-					kind: ch as '*' | '_',
+					kind: ch as '*' | '_' | '~',
 					count,
 					origCount: count,
 					start: runStart,
@@ -411,9 +441,17 @@ function processEmphasis(raw: string, segments: Segment[]): InlineNode[] {
 			const openerItem = items[openerIdx] as { type: 'delimiter'; entry: DelimiterEntry };
 			const opener = openerItem.entry;
 
-			// Determine consume count: strong (2) if both have ≥2, else emphasis (1)
-			const consume = opener.count >= 2 && closer.count >= 2 ? 2 : 1;
-			const nodeKind: InlineNode['kind'] = consume === 2 ? 'strong' : 'emphasis';
+			// Determine consume count and kind
+			let consume: number;
+			let nodeKind: InlineNode['kind'];
+			if (opener.kind === '~') {
+				// ~ delimiters are always exactly 2 (enforced during scanning)
+				consume = 2;
+				nodeKind = 'strikethrough';
+			} else {
+				consume = opener.count >= 2 && closer.count >= 2 ? 2 : 1;
+				nodeKind = consume === 2 ? 'strong' : 'emphasis';
+			}
 
 			// The opener marker occupies the last `consume` chars of its run
 			const openerMarkerStart = opener.end - consume;
@@ -500,6 +538,113 @@ function resolveItems(
 }
 
 // ── Post-processing ────────────────────────────────────────────────────────
+
+/**
+ * Walk the inline node tree and split text nodes on hard line break patterns.
+ * Hard breaks: backslash immediately before \n, or two or more spaces before \n.
+ * Single space before \n is NOT a hard break.
+ */
+function processHardLineBreaks(nodes: InlineNode[], raw: string): InlineNode[] {
+	const result: InlineNode[] = [];
+	for (const node of nodes) {
+		if (node.kind === 'text') {
+			const split = splitTextOnHardBreaks(node, raw);
+			for (const n of split) result.push(n);
+		} else if (node.children && node.children.length > 0) {
+			result.push({ ...node, children: processHardLineBreaks(node.children, raw) });
+		} else {
+			result.push(node);
+		}
+	}
+	return result;
+}
+
+/**
+ * Split a single text node on hard line break sequences.
+ * Returns one or more nodes: text, hardLineBreak, text, ...
+ */
+function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
+	const { start, end } = node;
+	const text = raw.slice(start, end);
+	const result: InlineNode[] = [];
+	let segStart = start;
+
+	let i = 0;
+	while (i < text.length) {
+		const nlIdx = text.indexOf('\n', i);
+		if (nlIdx === -1) break;
+
+		const absNl = start + nlIdx;
+
+		// Check for backslash break: char immediately before \n is '\'
+		if (nlIdx > 0 && text[nlIdx - 1] === '\\') {
+			// Text before the backslash
+			const breakerStart = absNl - 1; // position of '\'
+			if (segStart < breakerStart) {
+				result.push({
+					kind: 'text',
+					start: segStart,
+					end: breakerStart,
+					text: raw.slice(segStart, breakerStart)
+				});
+			}
+			// The hardLineBreak node covers the '\' and '\n'
+			result.push({
+				kind: 'hardLineBreak',
+				start: breakerStart,
+				end: absNl + 1
+			});
+			segStart = absNl + 1;
+			i = nlIdx + 1;
+			continue;
+		}
+
+		// Check for two-or-more spaces before \n
+		let spaceCount = 0;
+		let j = nlIdx - 1;
+		while (j >= 0 && text[j] === ' ') {
+			spaceCount++;
+			j--;
+		}
+
+		if (spaceCount >= 2) {
+			const spacesStart = start + j + 1; // absolute start of the trailing spaces
+			// Text before the trailing spaces
+			if (segStart < spacesStart) {
+				result.push({
+					kind: 'text',
+					start: segStart,
+					end: spacesStart,
+					text: raw.slice(segStart, spacesStart)
+				});
+			}
+			// The hardLineBreak node covers the spaces + \n
+			result.push({
+				kind: 'hardLineBreak',
+				start: spacesStart,
+				end: absNl + 1
+			});
+			segStart = absNl + 1;
+			i = nlIdx + 1;
+			continue;
+		}
+
+		// Not a hard break — advance past the \n
+		i = nlIdx + 1;
+	}
+
+	// Remaining text
+	if (segStart < end) {
+		result.push({
+			kind: 'text',
+			start: segStart,
+			end: end,
+			text: raw.slice(segStart, end)
+		});
+	}
+
+	return result.length > 0 ? result : [node];
+}
 
 /** Merge adjacent text nodes into a single text node. */
 function mergeAdjacentText(nodes: InlineNode[]): InlineNode[] {

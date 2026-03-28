@@ -197,3 +197,54 @@ describe('parseInline — emphasis and strong (Stage 2)', () => {
 		expect(reconstructed).toBe(content);
 	});
 });
+
+describe('parseInline — strikethrough (Stage 2)', () => {
+	function inlineOf(rawContent: string) {
+		return parseInline(rawContent, 0, rawContent.length);
+	}
+
+	it('simple strikethrough', () => {
+		const nodes = inlineOf('Hello ~~world~~ end');
+		expect(nodes[1].kind).toBe('strikethrough');
+		expect(nodes[1].children).toEqual([
+			{ kind: 'text', start: 8, end: 13, text: 'world' }
+		]);
+	});
+
+	it('single ~ is not strikethrough', () => {
+		const nodes = inlineOf('Hello ~world~ end');
+		expect(nodes).toEqual([
+			{ kind: 'text', start: 0, end: 17, text: 'Hello ~world~ end' }
+		]);
+	});
+
+	it('triple ~ is not strikethrough', () => {
+		const nodes = inlineOf('Hello ~~~world~~~ end');
+		expect(nodes.every(n => n.kind === 'text')).toBe(true);
+	});
+});
+
+describe('parseInline — hard line breaks (Stage 2)', () => {
+	function inlineOf(rawContent: string) {
+		return parseInline(rawContent, 0, rawContent.length);
+	}
+
+	it('backslash before newline', () => {
+		const nodes = inlineOf('Hello\\\nworld');
+		const breakNode = nodes.find(n => n.kind === 'hardLineBreak');
+		expect(breakNode).toBeDefined();
+		expect(breakNode!.start).toBe(5);
+	});
+
+	it('two spaces before newline', () => {
+		const nodes = inlineOf('Hello  \nworld');
+		const breakNode = nodes.find(n => n.kind === 'hardLineBreak');
+		expect(breakNode).toBeDefined();
+	});
+
+	it('single space before newline is not a break', () => {
+		const nodes = inlineOf('Hello \nworld');
+		const breakNode = nodes.find(n => n.kind === 'hardLineBreak');
+		expect(breakNode).toBeUndefined();
+	});
+});
