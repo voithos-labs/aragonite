@@ -100,10 +100,7 @@
 			itemBlockRefs[focusIdx]?.focus?.(0);
 		},
 
-		async moveFocus(
-			itemIndex: number,
-			position: 'start' | 'end' | number
-		): Promise<void> {
+		async moveFocus(itemIndex: number, position: 'start' | 'end' | number): Promise<void> {
 			if (!node.children) return;
 
 			if (itemIndex < 0) {

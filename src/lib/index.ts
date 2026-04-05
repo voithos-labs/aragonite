@@ -25,7 +25,13 @@ export type {
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
 export { EDITOR_ACTIONS_KEY, LIST_CONTEXT_KEY } from './editor-types';
-export type { EditorActions, BlockComponent, UndoManager, UndoEntry, ListContext } from './editor-types';
+export type {
+	EditorActions,
+	BlockComponent,
+	UndoManager,
+	UndoEntry,
+	ListContext
+} from './editor-types';
 export { cloneDocument, serializeMutable, assignIds, generateBlockId } from './mutable-tree';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
 export { createUndoManager } from './undo-manager';

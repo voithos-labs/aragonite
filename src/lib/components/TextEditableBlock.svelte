@@ -358,12 +358,32 @@
 		pointer-events: none;
 	}
 
-	.text-editable-block.heading-1 { font-size: 2em; font-weight: bold; line-height: 1.2; }
-	.text-editable-block.heading-2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; }
-	.text-editable-block.heading-3 { font-size: 1.25em; font-weight: bold; }
-	.text-editable-block.heading-4 { font-size: 1.1em; font-weight: bold; }
-	.text-editable-block.heading-5 { font-size: 1em; font-weight: bold; }
-	.text-editable-block.heading-6 { font-size: 0.9em; font-weight: bold; }
+	.text-editable-block.heading-1 {
+		font-size: 2em;
+		font-weight: bold;
+		line-height: 1.2;
+	}
+	.text-editable-block.heading-2 {
+		font-size: 1.5em;
+		font-weight: bold;
+		line-height: 1.3;
+	}
+	.text-editable-block.heading-3 {
+		font-size: 1.25em;
+		font-weight: bold;
+	}
+	.text-editable-block.heading-4 {
+		font-size: 1.1em;
+		font-weight: bold;
+	}
+	.text-editable-block.heading-5 {
+		font-size: 1em;
+		font-weight: bold;
+	}
+	.text-editable-block.heading-6 {
+		font-size: 0.9em;
+		font-weight: bold;
+	}
 
 	.text-editable-block.raw-block {
 		font-family: 'Fira Code', 'Consolas', monospace;

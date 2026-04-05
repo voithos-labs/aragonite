@@ -153,7 +153,7 @@ describe('structural: headings', () => {
 	it('empty heading is still a heading', () => {
 		const doc = parse('#\n');
 		expect(doc.children[0].kind).toBe('heading');
-		expect((doc.children[0]).metadata.level).toBe(1);
+		expect(doc.children[0].metadata.level).toBe(1);
 	});
 });
 
@@ -207,9 +207,9 @@ describe('structural: mixed list types', () => {
 		const doc = parse('- A\n\n1. B\n');
 		expect(doc.children.length).toBe(2);
 		expect(doc.children[0].kind).toBe('list');
-		expect((doc.children[0]).metadata.ordered).toBe(false);
+		expect(doc.children[0].metadata.ordered).toBe(false);
 		expect(doc.children[1].kind).toBe('list');
-		expect((doc.children[1]).metadata.ordered).toBe(true);
+		expect(doc.children[1].metadata.ordered).toBe(true);
 	});
 });
 

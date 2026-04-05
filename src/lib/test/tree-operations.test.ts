@@ -132,7 +132,7 @@ describe('mergeWithPrevious', () => {
 
 	it('re-parses to determine merged block type', () => {
 		const doc = parse('');
-		
+
 		doc.children = [
 			{ kind: 'paragraph', leadingTrivia: '', raw: '## ' },
 			{ kind: 'paragraph', leadingTrivia: '', raw: 'Title\n' }
@@ -255,7 +255,7 @@ describe('heading operations', () => {
 
 	it('merges heading + paragraph into heading', () => {
 		const doc = parse('');
-		
+
 		doc.children = [
 			{ kind: 'heading', leadingTrivia: '', raw: '## Hello\n', metadata: { level: 2 } },
 			{ kind: 'paragraph', leadingTrivia: '', raw: ' World\n' }
@@ -350,9 +350,7 @@ describe('thematic break operations', () => {
 describe('tree operations on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
-			children: [
-				{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello World\n' }
-			]
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello World\n' }]
 		};
 		const ids = ['id-1'];
 		splitNode(parent, ids, 0, 5);

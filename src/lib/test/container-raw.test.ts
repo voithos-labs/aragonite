@@ -128,14 +128,22 @@ describe('rebuildListItemRaw', () => {
 describe('rebuildListRaw', () => {
 	it('rebuilds list from items', () => {
 		const item1: CstNode = {
-			kind: 'listItem', leadingTrivia: '', raw: '- A\n',
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: '- A\n',
 			metadata: { marker: '- ', taskItem: false, taskChecked: false },
-			innerPrefix: '', children: [], innerSuffix: ''
+			innerPrefix: '',
+			children: [],
+			innerSuffix: ''
 		};
 		const item2: CstNode = {
-			kind: 'listItem', leadingTrivia: '', raw: '- B\n',
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: '- B\n',
 			metadata: { marker: '- ', taskItem: false, taskChecked: false },
-			innerPrefix: '', children: [], innerSuffix: ''
+			innerPrefix: '',
+			children: [],
+			innerSuffix: ''
 		};
 		const node: CstNode = {
 			kind: 'list',
