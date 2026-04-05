@@ -1,9 +1,5 @@
 # Inline Parsing — Design Spec
 
-**Status:** Designed, not yet implemented.
-**Depends on:** Block-level CST (Phase 1, complete), Editor Phase 2 (complete).
-**Date:** 2026-03-28
-
 ## Goal
 
 Parse inline markdown syntax within prose blocks (paragraph, heading, setextHeading) to produce an inline node tree. The editor renders this tree as styled spans with visible but dimmed markers. This is CST Phase 2 — `raw` remains the source of truth, and the inline tree is a rendering cache derived from it.

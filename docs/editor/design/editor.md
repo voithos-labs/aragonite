@@ -1,7 +1,5 @@
 # Block Editor — Design Spec
 
-**Current status:** Core editing loop (Phase 1) and all block types (Phase 2) are implemented. The editor handles paragraphs, headings, fenced code, thematic breaks, blockquotes, lists, and raw-editable fallback for remaining leaf types. Cross-block selection (Phase 3) and polish (Phase 4) are not yet implemented.
-
 ## Goal
 
 A block-based markdown editor for Limestone that renders and edits GFM documents using the CST as its structural backbone. Each CST block node maps to an independent editing component. The editor supports the full GFM spec, is extensible to custom block types, and evolves alongside the CST's three-phase architecture (raw source → inline parsing → structured fields).
@@ -272,12 +270,12 @@ The nested `BlockList` inside a container block creates its own `EditorActions` 
 
 - **Splitting inside a container**: splits the inner child, not the container. The container's `raw` is reconstructed from its children.
 - **Deleting all children of a container**: removes the entire container from the parent.
-- **Backspace at start of first child**: currently moves focus to the block before the container. Future: in a blockquote, may "unwrap" the child (lift it out of the blockquote). In a list, may unindent the item.
-- **Enter in a list item**: currently splits the inner paragraph (creating a second paragraph within the same list item). Future: should create a new list item — Enter at the end of a list item's content inserts a new sibling item below; Enter in the middle splits the content across two items. Enter in an empty list item should exit the list. This is a targeted enhancement that doesn't depend on cross-block selection or inline parsing.
+- **Backspace at start of first child**: Moves focus to the block before the container. The design allows for future unwrap behavior (lifting a child out of a blockquote, or unindenting a list item).
+- **Enter in a list item**: Creates a new sibling list item. Enter at the end of a list item's content inserts a new item below; Enter in the middle splits the content across two items. Enter in an empty list item exits the list.
 
 ### Impact on Block Identity and Selection
 
-Block identity (`blockIds`) is maintained per `BlockList` — each nesting level has its own ID array. Cross-block selection within a container uses the same `EditorSelection` model scoped to that container's `BlockList`. Cross-container selection (selecting from inside a blockquote to outside it) is a Phase 3+ concern.
+Block identity (`blockIds`) is maintained per `BlockList` — each nesting level has its own ID array. Cross-block selection within a container uses the same `EditorSelection` model scoped to that container's `BlockList`. Cross-container selection (selecting from inside a blockquote to outside it) requires the cross-block selection system.
 
 ## Selection
 
@@ -455,53 +453,6 @@ The CST defines 14 node types. The editor must handle all of them. Node types no
 | List                    | `list`                    | Container — renders ListItem children                                                                                                                                                                                                   |
 | ListItem                | `listItem`                | Container — recursive BlockList for inner content                                                                                                                                                                                       |
 
-## Implementation Phases
-
-Each phase must feel solid before moving to the next.
-
-### Phase 1 — Core Editing Loop (complete)
-
-The fundamental architecture with paragraph blocks:
-
-- Editor → BlockList → BlockHost → TextEditableBlock
-- Contenteditable rendering with CST sync (input → update `raw` → re-parse)
-- Split (Enter) and merge (Backspace at start) with merge eligibility rules
-- Focus traversal (arrow keys at block boundaries)
-- Undo/redo with CST snapshots (debounced batching)
-- Block identity and keyed rendering
-- Single-block clipboard (copy/cut/paste, all intercepted, all from CST)
-
-### Phase 2 — Block Types (complete)
-
-All block types are implemented:
-
-- **TextEditableBlock** — shared contenteditable for paragraphs, headings (with level-based CSS), and raw-editable fallback blocks
-- **CodeBlock** — textarea editing surface for fenced code
-- **ThematicBreakBlock** — non-editable, focusable (`editable: false, focusable: true`)
-- **BlockquoteBlock** — recursive BlockList with nested EditorActions context
-- **ListBlock / ListItemBlock** — nested container blocks with two levels of EditorActions nesting
-- **Raw-editable fallback** — tables, HTML blocks, indented code, link reference definitions, unrecognized blocks render through TextEditableBlock with monospace styling
-
-### Phase 3 — Cross-Block Selection & Advanced Clipboard
-
-- Cross-block selection model (`EditorSelection` with anchor/focus)
-- Custom selection rendering (overlays via `getClientRects`)
-- Shift+click, Shift+arrow, click-and-drag across blocks
-- Select All (double Ctrl+A)
-- Cross-block copy/cut/paste
-- Cross-block delete
-
-Deferred because the core editing experience (Phase 1 + 2) works without it. Single-block selection covers the most common editing workflows.
-
-### Phase 4 — Polish & Enhancement
-
-- Drag-and-drop block reordering
-- Block toolbar / hover handles
-- Syntax styling refinement (dimmed markers, colored syntax)
-- Keyboard shortcuts for block type transformation (Ctrl+1 for H1, etc.)
-- Search and replace
-- Optional: Obsidian-style hide-syntax-on-unfocus (layered on Phase 3 structured CST fields)
-
 ## Lessons from Previous Failures
 
 These are guardrails for implementation, derived from a previous failed attempt at a per-block editor.
@@ -522,6 +473,6 @@ If the CST and the DOM disagree, the CST wins. If the CST and the undo stack dis
 
 Write a component, register it, done. If adding a new block type requires touching the editor shell, the orchestration logic, or the selection system, the architecture has a coupling problem.
 
-### 5. Don't build Phase 3 until Phase 1 is solid
+### 5. Don't build upward on a shaky foundation
 
 Pillar collapsed because it built upward on a shaky foundation. A paragraph-only editor that handles split/merge/focus/undo flawlessly is more valuable than a full-featured editor where nothing quite works.
