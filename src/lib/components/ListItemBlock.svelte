@@ -87,9 +87,10 @@
 			if (!node.children) return;
 
 			// Case 1: Empty item — exit list
-			const isEmptyItem = node.children.length === 1
-				&& node.children[0].kind === 'paragraph'
-				&& node.children[0].raw.trim() === '';
+			const isEmptyItem =
+				node.children.length === 1 &&
+				node.children[0].kind === 'paragraph' &&
+				node.children[0].raw.trim() === '';
 			if (isEmptyItem) {
 				listContext.exitListAtItem(index);
 				return;
@@ -199,10 +200,7 @@
 			innerBlockRefs[focusIdx]?.focus?.(0);
 		},
 
-		async moveFocus(
-			innerIndex: number,
-			position: 'start' | 'end' | number
-		): Promise<void> {
+		async moveFocus(innerIndex: number, position: 'start' | 'end' | number): Promise<void> {
 			if (!node.children) return;
 
 			if (innerIndex < 0) {
@@ -218,11 +216,7 @@
 			}
 		},
 
-		updateBlockContent(
-			innerIndex: number,
-			text: string,
-			preEditOffset?: number
-		): void {
+		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
 			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
 			const result = performUpdate(innerParent(), innerIndex, text);
@@ -230,9 +224,7 @@
 			if (result.kindChanged) {
 				triggerInnerReactivity();
 				tick().then(() => {
-					innerBlockRefs[innerIndex]?.focus?.(
-						text.length > 0 ? text.length - 1 : 0
-					);
+					innerBlockRefs[innerIndex]?.focus?.(text.length > 0 ? text.length - 1 : 0);
 				});
 			}
 		},

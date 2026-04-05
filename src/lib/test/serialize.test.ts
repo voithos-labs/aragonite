@@ -26,7 +26,12 @@ describe('serialize', () => {
 			children: [
 				{ kind: 'heading' as const, leadingTrivia: '', raw: '# Title\n', metadata: { level: 1 } },
 				{ kind: 'paragraph' as const, leadingTrivia: '\n', raw: 'Some text.\n' },
-				{ kind: 'thematicBreak' as const, leadingTrivia: '\n', raw: '---\n', metadata: { marker: '-' } }
+				{
+					kind: 'thematicBreak' as const,
+					leadingTrivia: '\n',
+					raw: '---\n',
+					metadata: { marker: '-' }
+				}
 			],
 			suffix: ''
 		};

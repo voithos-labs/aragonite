@@ -7,10 +7,10 @@
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
 const MERGEABLE_PAIRS = new Set([
-    'paragraph+paragraph',
-    'heading+paragraph',
-    'setextHeading+paragraph',
-    'unrecognized+unrecognized',
+	'paragraph+paragraph',
+	'heading+paragraph',
+	'setextHeading+paragraph',
+	'unrecognized+unrecognized'
 ]);
 
 /**
@@ -19,7 +19,7 @@ const MERGEABLE_PAIRS = new Set([
  * or moves focus to the end of the previous block (if editable).
  */
 export function isMergeEligible(prevKind: string, currKind: string): boolean {
-    return MERGEABLE_PAIRS.has(`${prevKind}+${currKind}`);
+	return MERGEABLE_PAIRS.has(`${prevKind}+${currKind}`);
 }
 
 // ── Block Editability ───────────────────────────────────────────────────────
@@ -31,5 +31,5 @@ const NON_EDITABLE_KINDS = new Set(['thematicBreak']);
  * are deleted on Backspace from the following block.
  */
 export function isBlockEditable(kind: string): boolean {
-    return !NON_EDITABLE_KINDS.has(kind);
+	return !NON_EDITABLE_KINDS.has(kind);
 }

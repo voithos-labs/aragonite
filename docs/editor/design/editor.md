@@ -145,14 +145,14 @@ The CST is the document-level source of truth. Within a single block during acti
 
 These operations are handled by the editor, not the browser:
 
-| Operation          | Trigger                                                           | Behavior                                                          |
-| ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Enter              | `keydown` → `preventDefault`                                      | Split CST node at cursor offset, render two blocks                |
-| Backspace at start | `keydown` → `preventDefault`                                      | Merge with previous CST node via orchestrator                     |
-| Paste              | `paste` → `preventDefault`                                        | Read `clipboardData.getData('text/plain')`, apply to CST          |
-| Undo/Redo          | `keydown` Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z → `preventDefault`      | Pop/push from undo stack                                          |
-| Copy               | `copy` → `preventDefault`                                         | Read selected range from CST `raw`, write plain text to clipboard |
-| Cut                | `cut` → `preventDefault`                                          | Copy from CST, then delete selected range, update CST             |
+| Operation          | Trigger                                                     | Behavior                                                          |
+| ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| Enter              | `keydown` → `preventDefault`                                | Split CST node at cursor offset, render two blocks                |
+| Backspace at start | `keydown` → `preventDefault`                                | Merge with previous CST node via orchestrator                     |
+| Paste              | `paste` → `preventDefault`                                  | Read `clipboardData.getData('text/plain')`, apply to CST          |
+| Undo/Redo          | `keydown` Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z → `preventDefault` | Pop/push from undo stack                                          |
+| Copy               | `copy` → `preventDefault`                                   | Read selected range from CST `raw`, write plain text to clipboard |
+| Cut                | `cut` → `preventDefault`                                    | Copy from CST, then delete selected range, update CST             |
 
 ### IME Composition
 

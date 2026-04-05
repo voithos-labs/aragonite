@@ -176,7 +176,14 @@ function parseDestination(
 
 	// Read URL — stop at whitespace, '"', "'", ')', or '<'
 	const urlStart = pos;
-	while (pos < limit && raw[pos] !== ')' && raw[pos] !== ' ' && raw[pos] !== '\t' && raw[pos] !== '"' && raw[pos] !== "'") {
+	while (
+		pos < limit &&
+		raw[pos] !== ')' &&
+		raw[pos] !== ' ' &&
+		raw[pos] !== '\t' &&
+		raw[pos] !== '"' &&
+		raw[pos] !== "'"
+	) {
 		pos++;
 	}
 	const url = raw.slice(urlStart, pos);
@@ -221,8 +228,8 @@ function scanLinksAndAutolinks(
 ): InlineNode[] {
 	// Build list of occupied ranges from code spans
 	const occupied: Array<{ s: number; e: number }> = codeSpans
-		.filter(n => n.kind === 'inlineCode')
-		.map(n => ({ s: n.start, e: n.end }));
+		.filter((n) => n.kind === 'inlineCode')
+		.map((n) => ({ s: n.start, e: n.end }));
 
 	// Collect all link/image/autolink nodes found in unoccupied text
 	const found: InlineNode[] = [];
@@ -238,8 +245,10 @@ function scanLinksAndAutolinks(
 	if (found.length === 0) return codeSpans;
 
 	// Merge code spans and found nodes, sorted by start position
-	const allOccupied: InlineNode[] = [...codeSpans.filter(n => n.kind === 'inlineCode'), ...found]
-		.sort((a, b) => a.start - b.start);
+	const allOccupied: InlineNode[] = [
+		...codeSpans.filter((n) => n.kind === 'inlineCode'),
+		...found
+	].sort((a, b) => a.start - b.start);
 
 	// Rebuild the node list: text gaps + occupied nodes
 	const result: InlineNode[] = [];
@@ -417,21 +426,14 @@ interface DelimiterEntry {
  * A segment is either a resolved inline node (text or code span produced by
  * stage 1) or a delimiter entry that still needs matching.
  */
-type Segment =
-	| { type: 'node'; node: InlineNode }
-	| { type: 'delimiter'; entry: DelimiterEntry };
+type Segment = { type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry };
 
 /** Returns true if any text region between occupied nodes contains *, _, or ~. */
-function hasDelimiterChars(
-	raw: string,
-	start: number,
-	end: number,
-	nodes: InlineNode[]
-): boolean {
+function hasDelimiterChars(raw: string, start: number, end: number, nodes: InlineNode[]): boolean {
 	// Build occupied ranges from all non-text nodes
 	const occupied: Array<{ s: number; e: number }> = nodes
-		.filter(n => n.kind !== 'text')
-		.map(n => ({ s: n.start, e: n.end }));
+		.filter((n) => n.kind !== 'text')
+		.map((n) => ({ s: n.start, e: n.end }));
 
 	let pos = start;
 	for (const { s, e } of occupied) {
@@ -649,12 +651,12 @@ function processEmphasis(raw: string, segments: Segment[]): InlineNode[] {
 	// wrap the content between them, and restart.
 
 	// Clone segments into a working list
-	type Item =
-		| { type: 'node'; node: InlineNode }
-		| { type: 'delimiter'; entry: DelimiterEntry };
+	type Item = { type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry };
 
-	const items: Item[] = segments.map(s =>
-		s.type === 'node' ? { type: 'node', node: s.node } : { type: 'delimiter', entry: { ...s.entry } }
+	const items: Item[] = segments.map((s) =>
+		s.type === 'node'
+			? { type: 'node', node: s.node }
+			: { type: 'delimiter', entry: { ...s.entry } }
 	);
 
 	let changed = true;
