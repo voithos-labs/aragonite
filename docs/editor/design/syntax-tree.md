@@ -1,7 +1,5 @@
 # GFM Concrete Syntax Tree — Design Spec
 
-**Current status:** Phase 1 (block-level CST) is fully implemented. All GFM block types are parsed. The parser produces mutable plain objects (`CstNode` interface). Phase 2 (inline parsing) and Phase 3 (structured fields) are designed but not yet implemented.
-
 ## Goal
 
 A TypeScript concrete syntax tree (CST) that parses GitHub Flavored Markdown into a recursive tree of block nodes, then reconstructs the original source without any loss. The primary invariant: `serialize(parse(source)) === source` for all valid inputs.
@@ -12,7 +10,7 @@ This CST is the foundation for a custom markdown editor (Obsidian-like). It is n
 
 The CST is designed around three phases. Each phase builds on the previous without requiring a rewrite. This progression is a core architectural decision — every block type follows this lifecycle independently.
 
-### Phase 1 — Block-level CST with raw source (implemented)
+### Phase 1 — Block-level CST with raw source
 
 Parse GFM into a recursive tree of block nodes. Each node stores its raw source text verbatim. Round-trip is guaranteed by construction: serialize = concatenate raw source down the tree. Metadata (heading level, fence marker, etc.) is extracted alongside the raw source but does not participate in serialization.
 
@@ -74,7 +72,7 @@ Phase 3:
 // editor can change level by swapping marker to "### "
 ```
 
-**Reassessment note (2026-03-28):** Phase 3 may not be necessary. The ownership flip introduces significant costs: round-trip preservation becomes fragile (the serializer must perfectly reproduce original delimiter styles — `*italic*` vs `_italic_`, `**bold**` vs `__bold__`), partial/broken syntax during typing has no clean tree representation (an unclosed `**` is just text with raw-as-truth, but a modeling problem with tree-as-truth), and the two features Phase 3 enables can be approximated without it (toggle bold by manipulating `raw` directly, change heading level by swapping the prefix in `raw`). The editor's design philosophy is "always-visible styled source" with dimmed markers — not hidden markers — which Phase 2 handles fully. Syntax hiding is the only capability that truly requires Phase 3, and it's described as an "optional user preference" and "cosmetic enhancement." Revisit this when Phase 2 is complete and there's a concrete need that raw manipulation can't satisfy.
+**Design note on Phase 3:** The ownership flip introduces significant costs: round-trip preservation becomes fragile (the serializer must perfectly reproduce original delimiter styles — `*italic*` vs `_italic_`, `**bold**` vs `__bold__`), partial/broken syntax during typing has no clean tree representation (an unclosed `**` is just text with raw-as-truth, but a modeling problem with tree-as-truth), and both target features can be approximated without it (toggle bold by manipulating `raw` directly, change heading level by swapping the prefix in `raw`). The editor's design philosophy is "always-visible styled source" with dimmed markers — not hidden markers — which Phase 2 handles fully. Syntax hiding is the only capability that truly requires Phase 3, and it's an "optional user preference" and "cosmetic enhancement." Phase 3 should only be pursued when there's a concrete need that raw manipulation can't satisfy.
 
 **Catch-all for editing non-decomposed blocks:** Before a block type graduates to Phase 3, editing still works — the raw source is treated as a plain text string. The user types into it, raw is updated as a string, and the block is re-parsed to refresh metadata and inline content. The only thing lost compared to structured fields is semantic editing operations.
 
@@ -99,7 +97,7 @@ CstNode (flat interface, discriminated by `kind`)
 ├── Container kinds: blockquote, list, listItem
 │   └── have: children, innerPrefix, innerSuffix
 ├── Prose kinds: paragraph, heading, setextHeading
-│   └── will have: inlineContent (Phase 2, not yet implemented)
+│   └── have: inlineContent (populated by inline parser)
 └── Other leaf kinds: fencedCode, thematicBreak, indentedCode,
     htmlBlock, linkReferenceDefinition, table, unrecognized
 ```
@@ -285,11 +283,11 @@ Blockquotes and list items are parsed recursively. When we recognize a `> ` pref
 
 Same approach for list items — strip the indentation/marker, parse inner content recursively, keep the original as `raw`.
 
-### Deliberately Out of Scope (Phase 1)
+### Block Parser Scope Boundaries
 
-- **No inline parsing** — paragraph and heading content is opaque text in Phase 1. Inline parsing is defined in this spec (see "Inline Node Types") but implemented in Phase 2.
-- **No incremental parsing** — full re-parse every time; incremental is an optimization for when editing is involved
-- **No error recovery machinery** — unrecognized syntax falls through to `unrecognized` blocks or gets absorbed into a paragraph
+- **Inline parsing is separate** — the block parser does not parse inline syntax. Inline parsing is triggered by the editor layer, not the block parser (see inline-parsing.md).
+- **No incremental parsing** — full re-parse every time; incremental is an optimization that can be added later without architectural changes.
+- **No error recovery machinery** — unrecognized syntax falls through to `unrecognized` blocks or gets absorbed into a paragraph.
 
 ## GFM Block Coverage
 
@@ -310,7 +308,7 @@ All GFM block types are implemented and have their own node kinds:
 | Tables                     | `table`                   | GFM extension, pipe syntax          |
 | Unrecognized               | `unrecognized`            | Catch-all for unknown syntax        |
 
-### Future — Inline Syntax (Phase 2)
+### Inline Syntax
 
 | Inline Type                  | Notes                           |
 | ---------------------------- | ------------------------------- |
@@ -323,7 +321,7 @@ All GFM block types are implemented and have their own node kinds:
 | Hard line breaks             | Trailing `\` or two spaces      |
 | Reference-style links/images | Uses link reference definitions |
 
-### Future — Custom Extensions
+### Custom Extensions
 
 The pattern for adding a new block type (standard or custom):
 
