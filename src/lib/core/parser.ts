@@ -466,7 +466,7 @@ function matchBlockquote(text: string): boolean {
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {
-	const m = text.match(/^( {0,3})([-*+])\s+/);
+	const m = text.match(/^( {0,3})([-*+]\s+)/);
 	if (m) {
 		return {
 			marker: m[2],
@@ -475,7 +475,7 @@ export function matchListItem(
 		};
 	}
 
-	const om = text.match(/^( {0,3})(\d{1,9}[.)])\s+/);
+	const om = text.match(/^( {0,3})(\d{1,9}[.)]\s+)/);
 	if (om) {
 		return {
 			marker: om[2],
