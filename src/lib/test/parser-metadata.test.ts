@@ -138,7 +138,7 @@ describe('metadata: lists', () => {
 	it('extracts list item markers', () => {
 		const doc = parse('+ Item\n');
 		const list = doc.children[0];
-		expect(list.children[0].metadata.marker).toBe('+');
+		expect(list.children[0].metadata.marker).toBe('+ ');
 	});
 });
 

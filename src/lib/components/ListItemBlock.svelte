@@ -221,6 +221,7 @@
 			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
 			const result = performUpdate(innerParent(), innerIndex, text);
 			rebuildListItemRaw(node);
+			parentActions.endContainerEdit?.();
 			if (result.kindChanged) {
 				triggerInnerReactivity();
 				tick().then(() => {

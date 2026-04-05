@@ -170,6 +170,7 @@
 			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
 			const result = performUpdate(innerParent(), innerIndex, text);
 			rebuildBlockquoteRaw(node);
+			parentActions.endContainerEdit?.();
 			if (result.kindChanged) {
 				triggerInnerReactivity();
 				tick().then(() => {
