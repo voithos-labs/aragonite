@@ -1,5 +1,13 @@
 # Editor Changelog
 
+## 0.3.1 — Bug Fixes
+
+### Fixes
+
+- Container raw propagation: editing inside a list item now correctly rebuilds the parent list's raw (was only rebuilding the list item, leaving the list stale for serialization)
+- Same fix applied to blockquotes for consistency with deeply nested containers
+- List item marker: parser now stores the full marker including trailing space (`"- "` instead of `"-"`), fixing raw reconstruction that dropped the space
+
 ## 0.3 — Inline Parsing
 
 Inline syntax parsing for prose blocks (paragraphs, headings, setext headings). The inline tree is a rendering cache derived from `raw` — parsed on every edit, never used for serialization.
