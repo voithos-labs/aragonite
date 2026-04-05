@@ -25,11 +25,11 @@ Two-phase approach per the CommonMark spec:
 
 ### Staged implementation
 
-| Stage | Scope | What it proves |
-|-------|-------|----------------|
-| 1 | InlineNode types, parser infra, backtick scanning, span rendering, cursor save/restore, per-input re-render | Full pipeline works end-to-end |
-| 2 | Delimiter-run algorithm for `*`/`_`/`~~`, hard line breaks | Complex parsing with nesting |
-| 3 | Link/image bracket matching, reference resolution, autolinks | Structured inline types with document-level context |
+| Stage | Scope                                                                                                       | What it proves                                      |
+| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1     | InlineNode types, parser infra, backtick scanning, span rendering, cursor save/restore, per-input re-render | Full pipeline works end-to-end                      |
+| 2     | Delimiter-run algorithm for `*`/`_`/`~~`, hard line breaks                                                  | Complex parsing with nesting                        |
+| 3     | Link/image bracket matching, reference resolution, autolinks                                                | Structured inline types with document-level context |
 
 Each stage is independently shippable. Unrecognized inline syntax renders as plain text (current behavior).
 
@@ -39,25 +39,25 @@ Extends `core/nodes.ts`. Flat interface, same philosophy as CstNode — discrimi
 
 ```typescript
 type InlineNodeKind =
-    | 'text'
-    | 'emphasis'
-    | 'strong'
-    | 'strikethrough'
-    | 'inlineCode'
-    | 'link'
-    | 'image'
-    | 'autolink'
-    | 'hardLineBreak';
+	| 'text'
+	| 'emphasis'
+	| 'strong'
+	| 'strikethrough'
+	| 'inlineCode'
+	| 'link'
+	| 'image'
+	| 'autolink'
+	| 'hardLineBreak';
 
 interface InlineNode {
-    kind: InlineNodeKind;
-    start: number;            // byte offset into parent block's raw
-    end: number;              // byte offset into parent block's raw
-    text?: string;            // text, inlineCode
-    children?: InlineNode[];  // emphasis, strong, strikethrough, link
-    url?: string;             // link, image, autolink
-    title?: string;           // link, image
-    alt?: string;             // image
+	kind: InlineNodeKind;
+	start: number; // byte offset into parent block's raw
+	end: number; // byte offset into parent block's raw
+	text?: string; // text, inlineCode
+	children?: InlineNode[]; // emphasis, strong, strikethrough, link
+	url?: string; // link, image, autolink
+	title?: string; // link, image
+	alt?: string; // image
 }
 ```
 
@@ -67,8 +67,8 @@ Added to CstNode as optional:
 
 ```typescript
 interface CstNode {
-    // ... existing fields ...
-    inlineContent?: InlineNode[];
+	// ... existing fields ...
+	inlineContent?: InlineNode[];
 }
 ```
 
@@ -81,7 +81,7 @@ New file: `core/inline-parser.ts`. Separate from the block parser.
 ### Entry point
 
 ```typescript
-function parseInline(raw: string, contentStart: number, contentEnd: number): InlineNode[]
+function parseInline(raw: string, contentStart: number, contentEnd: number): InlineNode[];
 ```
 
 Takes the block's `raw` and the content range within it (after block-level markers). For a heading `## Hello **world**\n`, contentStart is 3 (after `## `), contentEnd is before `\n`. Produces `start`/`end` offsets relative to the full `raw`.
@@ -98,12 +98,12 @@ A helper function per kind extracts contentStart/contentEnd from raw + metadata.
 
 ### Parsing pipeline (priority order)
 
-1. **Backtick spans** (inline code) — match backtick sequences, content is literal *(Stage 1)*
-2. **Angle-bracket autolinks** — `<url>`, literal content *(Stage 3)*
-3. **Hard line breaks** — trailing `\` or two spaces before `\n` *(Stage 2)*
-4. **Delimiter runs** — classify `*`/`_`/`~~` using flanking rules, match via CommonMark algorithm, recurse for nesting *(Stage 2)*
-5. **Link/image brackets** — `[text](url)` and `![alt](url)`, recurse into bracket content *(Stage 3)*
-6. **Bare autolinks** — GFM bare URL detection *(Stage 3)*
+1. **Backtick spans** (inline code) — match backtick sequences, content is literal _(Stage 1)_
+2. **Angle-bracket autolinks** — `<url>`, literal content _(Stage 3)_
+3. **Hard line breaks** — trailing `\` or two spaces before `\n` _(Stage 2)_
+4. **Delimiter runs** — classify `*`/`_`/`~~` using flanking rules, match via CommonMark algorithm, recurse for nesting _(Stage 2)_
+5. **Link/image brackets** — `[text](url)` and `![alt](url)`, recurse into bracket content _(Stage 3)_
+6. **Bare autolinks** — GFM bare URL detection _(Stage 3)_
 7. **Remaining text** — unmatched content becomes `text` nodes
 
 ### Separation from block parser
@@ -121,24 +121,24 @@ The block parser does NOT call the inline parser. Inline parsing is triggered by
 Pure function producing DOM nodes from the inline tree:
 
 ```typescript
-function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment
+function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment;
 ```
 
 The `raw` parameter is needed to extract marker text via `raw.slice()` when building marker spans.
 
 Kind-to-DOM mapping:
 
-| Kind | DOM output |
-|------|-----------|
-| text | Text node |
-| inlineCode | marker spans (dim) + text node for content |
-| emphasis | marker spans (dim) + `<em>` wrapping recursive children |
-| strong | marker spans (dim) + `<strong>` wrapping recursive children |
-| strikethrough | marker spans (dim) + `<s>` wrapping recursive children |
-| link | marker from `raw.slice()` for `[` and `](url)` + `<a>` wrapping recursive children |
-| image | marker from `raw.slice()` for `![` and `](url)` + alt text |
-| autolink | styled span for URL |
-| hardLineBreak | marker span for `\` or spaces + text node `\n` (no `<br>` — see below) |
+| Kind          | DOM output                                                                         |
+| ------------- | ---------------------------------------------------------------------------------- |
+| text          | Text node                                                                          |
+| inlineCode    | marker spans (dim) + text node for content                                         |
+| emphasis      | marker spans (dim) + `<em>` wrapping recursive children                            |
+| strong        | marker spans (dim) + `<strong>` wrapping recursive children                        |
+| strikethrough | marker spans (dim) + `<s>` wrapping recursive children                             |
+| link          | marker from `raw.slice()` for `[` and `](url)` + `<a>` wrapping recursive children |
+| image         | marker from `raw.slice()` for `![` and `](url)` + alt text                         |
+| autolink      | styled span for URL                                                                |
+| hardLineBreak | marker span for `\` or spaces + text node `\n` (no `<br>` — see below)             |
 
 **Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. `textContent` of the contenteditable still equals `raw` (minus trailing line ending), preserving the existing `onInput` → `textContent` → `raw` flow.
 
@@ -225,6 +225,7 @@ Stage 1 is the proving ground. If Approach A works for inline code spans, it wor
 **Metadata correctness:** Parse specific inputs and verify tree structure — node kinds, nesting, start/end offsets.
 
 **Edge cases per stage:**
+
 - Stage 1: backtick matching (mismatched lengths, escaped backticks, empty code spans)
 - Stage 2: delimiter runs (overlapping `*`/`_`, odd/even lengths, unclosed delimiters, `***` ambiguity)
 - Stage 3: nested brackets, reference resolution, bare URLs
@@ -232,6 +233,7 @@ Stage 1 is the proving ground. If Approach A works for inline code spans, it wor
 ### Content range extraction tests
 
 Verify the helper extracting contentStart/contentEnd from each prose block kind:
+
 - Paragraph: full raw minus trailing line ending
 - Heading: after `# ` prefix (accounting for level)
 - Setext heading: first line(s) before underline

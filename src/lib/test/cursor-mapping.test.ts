@@ -32,18 +32,14 @@ describe('findNodeAtOffset', () => {
 	});
 
 	it('offset at end of all nodes', () => {
-		const nodes: InlineNode[] = [
-			{ kind: 'text', start: 0, end: 5, text: 'Hello' }
-		];
+		const nodes: InlineNode[] = [{ kind: 'text', start: 0, end: 5, text: 'Hello' }];
 		const result = findNodeAtOffset(nodes, 5);
 		expect(result).toEqual({ node: nodes[0], localOffset: 5 });
 	});
 
 	it('handles nested emphasis children', () => {
 		const inner: InlineNode = { kind: 'text', start: 2, end: 6, text: 'bold' };
-		const nodes: InlineNode[] = [
-			{ kind: 'strong', start: 0, end: 8, children: [inner] }
-		];
+		const nodes: InlineNode[] = [{ kind: 'strong', start: 0, end: 8, children: [inner] }];
 		const result = findNodeAtOffset(nodes, 4);
 		expect(result).toEqual({ node: inner, localOffset: 2 });
 	});

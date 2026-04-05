@@ -210,17 +210,17 @@ Inline content is a tree of `InlineNode` objects representing the inline syntax 
 
 **Inline node kinds:**
 
-| Kind | Fields | Description |
-| ---- | ------ | ----------- |
-| `text` | `text` | Plain text with no markup |
-| `emphasis` | `children` | `*text*` or `_text_` |
-| `strong` | `children` | `**text**` or `__text__` |
-| `strikethrough` | `children` | `~~text~~` (GFM extension) |
-| `inlineCode` | `text` | `` `code` `` — no nested children |
-| `link` | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
-| `image` | `alt`, `url`, `title?` | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
-| `autolink` | `url` | `<url>` or GFM bare URL |
-| `hardLineBreak` | — | Trailing `\` or two spaces before `\n` |
+| Kind            | Fields                      | Description                                                                   |
+| --------------- | --------------------------- | ----------------------------------------------------------------------------- |
+| `text`          | `text`                      | Plain text with no markup                                                     |
+| `emphasis`      | `children`                  | `*text*` or `_text_`                                                          |
+| `strong`        | `children`                  | `**text**` or `__text__`                                                      |
+| `strikethrough` | `children`                  | `~~text~~` (GFM extension)                                                    |
+| `inlineCode`    | `text`                      | `` `code` `` — no nested children                                             |
+| `link`          | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
+| `image`         | `alt`, `url`, `title?`      | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
+| `autolink`      | `url`                       | `<url>` or GFM bare URL                                                       |
+| `hardLineBreak` | —                           | Trailing `\` or two spaces before `\n`                                        |
 
 Inline nodes nest. `**bold *and italic***` produces:
 
@@ -298,7 +298,7 @@ All GFM block types are implemented and have their own node kinds:
 | ATX headings               | `heading`                 | `# ` through `###### `              |
 | Setext headings            | `setextHeading`           | Underline-style `===` / `---`       |
 | Paragraphs                 | `paragraph`               | Fallback for unstructured text      |
-| Fenced code blocks         | `fencedCode`              | `` ``` `` and `~~~` with info string |
+| Fenced code blocks         | `fencedCode`              | ` ``` ` and `~~~` with info string  |
 | Indented code blocks       | `indentedCode`            | 4-space indent                      |
 | Blockquotes                | `blockquote`              | Container, recursive children       |
 | Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes |

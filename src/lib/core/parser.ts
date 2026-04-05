@@ -10,7 +10,12 @@ import { splitLines, type ParsedLine } from './lines';
 export function parse(source: string): Document {
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length);
-	return { kind: 'document', prefix: result.prefix, children: result.children, suffix: result.suffix };
+	return {
+		kind: 'document',
+		prefix: result.prefix,
+		children: result.children,
+		suffix: result.suffix
+	};
 }
 
 interface ParseBlocksResult {
@@ -113,7 +118,12 @@ function parseNextBlock(
 	const linkRef = matchLinkReferenceDefinition(line.text);
 	if (linkRef) {
 		return {
-			node: { kind: 'linkReferenceDefinition', leadingTrivia, raw: line.raw, metadata: { label: linkRef.label } },
+			node: {
+				kind: 'linkReferenceDefinition',
+				leadingTrivia,
+				raw: line.raw,
+				metadata: { label: linkRef.label }
+			},
 			nextIndex: startIndex + 1
 		};
 	}
