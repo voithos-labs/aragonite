@@ -122,7 +122,23 @@
 			}
 		}
 
-		// Enter: let textarea handle naturally (inserts newline)
+		// Enter on empty trailing line — exit the code block
+		if (e.key === 'Enter' && !e.shiftKey && textarea) {
+			const pos = textarea.selectionStart;
+			const val = textarea.value;
+			// Check: cursor is at the end, and the last line is empty
+			if (pos === val.length && val.endsWith('\n')) {
+				e.preventDefault();
+				// Remove the trailing empty line from the code block
+				const trimmed = val.slice(0, -1);
+				actions.updateBlockContent(index, trimmed + '\n', preEditOffset);
+				textarea.value = trimmed;
+				autoResize();
+				// Create a new block after the code block
+				actions.moveFocus(index + 1, 'start');
+				return;
+			}
+		}
 	}
 
 	// Clipboard — intercept to source from node.raw

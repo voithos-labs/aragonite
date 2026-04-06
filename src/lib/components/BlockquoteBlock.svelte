@@ -85,6 +85,29 @@
 	const nestedActions: EditorActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
+
+			// Enter on empty trailing paragraph — exit the blockquote
+			const child = node.children[innerIndex];
+			const isLastChild = innerIndex === node.children.length - 1;
+			const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
+			if (isLastChild && isEmpty) {
+				if (node.children.length <= 1) {
+					// Only child is empty — replace blockquote with a new paragraph
+					let displayLen = node.raw.length;
+					if (node.raw.endsWith('\r\n')) displayLen -= 2;
+					else if (node.raw.endsWith('\n')) displayLen -= 1;
+					parentActions.splitBlock(index, displayLen);
+				} else {
+					// Remove the empty child, rebuild, then create block after
+					parentActions.beginContainerEdit?.(index, 0);
+					performDelete(innerParent(), innerBlockIds, innerIndex);
+					rebuildAndNotify();
+					triggerInnerReactivity();
+					parentActions.moveFocus(index + 1, 'start');
+				}
+				return;
+			}
+
 			parentActions.beginContainerEdit?.(index, offset);
 			performSplit(innerParent(), innerBlockIds, innerIndex, offset);
 			rebuildAndNotify();

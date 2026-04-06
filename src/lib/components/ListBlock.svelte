@@ -152,7 +152,10 @@
 			if (!node.children) return;
 
 			if (!newItem) {
-				const marker = (node.children[itemIndex]?.metadata as { marker?: string })?.marker ?? '- ';
+				const prevMarker =
+					(node.children[itemIndex]?.metadata as { marker?: string })?.marker ?? '- ';
+				// For ordered lists, increment the number (e.g. "1. " → "2. ")
+				const marker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 				newItem = {
 					kind: 'listItem',
 					leadingTrivia: '',
@@ -177,18 +180,28 @@
 			if (!node.children) return;
 
 			if (node.children.length <= 1) {
-				parentActions.deleteBlock(index);
+				// Only item — replace the list with an empty paragraph via split
+				// Splitting at the end of raw creates a new empty block after
+				let displayLen = node.raw.length;
+				if (node.raw.endsWith('\r\n')) displayLen -= 2;
+				else if (node.raw.endsWith('\n')) displayLen -= 1;
+				parentActions.splitBlock(index, displayLen);
 				return;
 			}
 
+			// Remove the empty item, rebuild list, then create a new paragraph
+			// after the list by splitting at the end of the list's raw
 			parentActions.beginContainerEdit?.(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
 			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
-			await tick();
-			const focusIdx = Math.min(itemIndex, node.children.length - 1);
-			itemBlockRefs[focusIdx]?.focus?.(0);
+
+			// Split the list at its end to create a new empty paragraph after it
+			let displayLen = node.raw.length;
+			if (node.raw.endsWith('\r\n')) displayLen -= 2;
+			else if (node.raw.endsWith('\n')) displayLen -= 1;
+			parentActions.splitBlock(index, displayLen);
 		}
 	};
 
