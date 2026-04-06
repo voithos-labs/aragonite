@@ -8,7 +8,7 @@
 		type Document,
 		type UndoEntry
 	} from '../editor-types';
-	import { cloneDocument, serializeMutable, assignIds } from '../mutable-tree';
+	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -203,7 +203,18 @@
 		},
 
 		async moveFocus(blockIndex: number, position: 'start' | 'end' | number): Promise<void> {
-			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
+			if (blockIndex < 0) return;
+			if (blockIndex >= doc.children.length) {
+				// Past the last block — create a new empty paragraph
+				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
+				doc.children.push(newBlock);
+				blockIds.push(generateBlockId());
+				doc.children = [...doc.children];
+				blockIds = [...blockIds];
+				await tick();
+				blockRefs[doc.children.length - 1]?.focus?.(0);
+				return;
+			}
 			const block = blockRefs[blockIndex];
 			if (!block?.focusable) return;
 
