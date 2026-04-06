@@ -30,6 +30,37 @@
 		node.inlineContent = parseInline(node.raw, range.start, range.end);
 	}
 
+	/**
+	 * Get the block-level marker prefix that is NOT covered by inline content.
+	 * For headings this is "# " / "## " etc. For paragraphs it's empty.
+	 * This prefix must be rendered as a dimmed span before inline content
+	 * so that el.textContent matches getDisplayText().
+	 */
+	function getBlockMarkerPrefix(): string {
+		if (!isProseKind(node.kind) || !node.inlineContent || node.inlineContent.length === 0) {
+			return '';
+		}
+		const range = getContentRange(node);
+		return node.raw.slice(0, range.start);
+	}
+
+	/**
+	 * Build the DOM fragment for inline content, including the block-level marker.
+	 * Ensures el.textContent === getDisplayText() for correct onInput sync.
+	 */
+	function buildInlineDOM(): DocumentFragment {
+		const frag = document.createDocumentFragment();
+		const prefix = getBlockMarkerPrefix();
+		if (prefix) {
+			const span = document.createElement('span');
+			span.className = 'md-marker';
+			span.textContent = prefix;
+			frag.appendChild(span);
+		}
+		frag.appendChild(renderInlineNodes(node.inlineContent!, node.raw));
+		return frag;
+	}
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const editable = true;
@@ -134,7 +165,7 @@
 		if (!el || userIsTyping) return;
 
 		if (node.inlineContent && node.inlineContent.length > 0) {
-			el.replaceChildren(renderInlineNodes(node.inlineContent, node.raw));
+			el.replaceChildren(buildInlineDOM());
 		} else if (el.textContent !== display) {
 			el.textContent = display;
 		}
@@ -157,12 +188,12 @@
 		userIsTyping = true;
 		const text = el.textContent ?? '';
 		const savedOffset = getCursorOffset() ?? 0;
-		actions.updateBlockContent(index, text + '\n', preEditOffset);
+		actions.updateBlockContent(index, text + '\n', savedOffset);
 
 		// Re-parse and re-render inline content
 		if (isProseKind(node.kind) && node.inlineContent) {
 			refreshInlineContent();
-			el.replaceChildren(renderInlineNodes(node.inlineContent, node.raw));
+			el.replaceChildren(buildInlineDOM());
 			setCursorFromRawOffset(el, savedOffset);
 			ensureBr();
 		}
