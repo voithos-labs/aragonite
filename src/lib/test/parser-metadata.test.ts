@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 
 describe('metadata: headings', () => {
-	it('extracts heading levels 1-6', () => {
-		for (let level = 1; level <= 6; level++) {
+	for (let level = 1; level <= 6; level++) {
+		it(`extracts heading level ${level}`, () => {
 			const doc = parse(`${'#'.repeat(level)} Title\n`);
 			const node = doc.children[0];
 			expect(node.kind).toBe('heading');
 			expect(node.metadata.level).toBe(level);
-		}
-	});
+		});
+	}
 
 	it('handles indented heading', () => {
 		const doc = parse('  ## Title\n');
@@ -53,24 +53,20 @@ describe('metadata: fenced code', () => {
 });
 
 describe('metadata: thematic breaks', () => {
-	it('identifies dash marker', () => {
-		const doc = parse('---\n');
-		const node = doc.children[0];
-		expect(node.kind).toBe('thematicBreak');
-		expect(node.metadata.marker).toBe('-');
-	});
+	const markers: [string, string][] = [
+		['---', '-'],
+		['***', '*'],
+		['___', '_']
+	];
 
-	it('identifies asterisk marker', () => {
-		const doc = parse('***\n');
-		const node = doc.children[0];
-		expect(node.metadata.marker).toBe('*');
-	});
-
-	it('identifies underscore marker', () => {
-		const doc = parse('___\n');
-		const node = doc.children[0];
-		expect(node.metadata.marker).toBe('_');
-	});
+	for (const [source, marker] of markers) {
+		it(`identifies ${marker} marker`, () => {
+			const doc = parse(`${source}\n`);
+			const node = doc.children[0];
+			expect(node.kind).toBe('thematicBreak');
+			expect(node.metadata.marker).toBe(marker);
+		});
+	}
 
 	it('parses --- after paragraph as setext H2, not thematic break', () => {
 		const doc = parse('Title\n---\n');
@@ -80,19 +76,19 @@ describe('metadata: thematic breaks', () => {
 });
 
 describe('metadata: setext headings', () => {
-	it('identifies setext H1 with ===', () => {
-		const doc = parse('Title\n===\n');
-		const node = doc.children[0];
-		expect(node.kind).toBe('setextHeading');
-		expect(node.metadata.level).toBe(1);
-	});
+	const cases: [string, string, number][] = [
+		['===', 'setext H1', 1],
+		['---', 'setext H2', 2]
+	];
 
-	it('identifies setext H2 with ---', () => {
-		const doc = parse('Title\n---\n');
-		const node = doc.children[0];
-		expect(node.kind).toBe('setextHeading');
-		expect(node.metadata.level).toBe(2);
-	});
+	for (const [underline, label, level] of cases) {
+		it(`identifies ${label} with ${underline}`, () => {
+			const doc = parse(`Title\n${underline}\n`);
+			const node = doc.children[0];
+			expect(node.kind).toBe('setextHeading');
+			expect(node.metadata.level).toBe(level);
+		});
+	}
 });
 
 describe('metadata: blockquotes', () => {
