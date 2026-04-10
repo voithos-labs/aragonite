@@ -189,19 +189,25 @@
 				return;
 			}
 
-			// Remove the empty item, rebuild list, then create a new paragraph
-			// after the list by splitting at the end of the list's raw
+			// Remove the empty item, rebuild list, then create a paragraph
 			parentActions.beginContainerEdit?.(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
 			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
 
-			// Split the list at its end to create a new empty paragraph after it
-			let displayLen = node.raw.length;
-			if (node.raw.endsWith('\r\n')) displayLen -= 2;
-			else if (node.raw.endsWith('\n')) displayLen -= 1;
-			parentActions.splitBlock(index, displayLen);
+			if (itemIndex === 0) {
+				// Empty item was at the start — create paragraph before the list
+				await parentActions.splitBlock(index, 0);
+				// splitBlock focused the list (index+1), redirect to the paragraph (index)
+				parentActions.moveFocus(index, 'start');
+			} else {
+				// Empty item was in the middle or end — create paragraph after the list
+				let displayLen = node.raw.length;
+				if (node.raw.endsWith('\r\n')) displayLen -= 2;
+				else if (node.raw.endsWith('\n')) displayLen -= 1;
+				parentActions.splitBlock(index, displayLen);
+			}
 		}
 	};
 
