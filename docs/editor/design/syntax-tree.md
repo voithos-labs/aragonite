@@ -39,7 +39,7 @@ Together, these enable:
 
 **The rule:** Every block type starts at Phase 1. It only moves to Phase 3 when the editor actively requires it. A block type that users don't meaningfully edit (e.g., thematic breaks) may never need to advance.
 
-**Example of the progression for a heading (`## Hello World\n`):**
+**Illustrative example** — progression for a heading (`## Hello World\n`). These are conceptual sketches showing how the node shape evolves across phases, not implementation code:
 
 Phase 1:
 
@@ -92,88 +92,43 @@ All nodes are **mutable plain objects** — no class hierarchy. There is one `Cs
 
 `CstNode` is a flat interface with optional fields for container structure and metadata. The editor discriminates on `kind` (a `BlockKind` string union) to determine behavior. Container fields (`children`, `innerPrefix`, `innerSuffix`) are present only on container kinds. Metadata is typed as a union of all metadata interfaces (`BlockMetadata`), narrowed manually after checking `kind`.
 
-```
-CstNode (flat interface, discriminated by `kind`)
-├── Container kinds: blockquote, list, listItem
-│   └── have: children, innerPrefix, innerSuffix
-├── Prose kinds: paragraph, heading, setextHeading
-│   └── have: inlineContent (populated by inline parser)
-└── Other leaf kinds: fencedCode, thematicBreak, indentedCode,
-    htmlBlock, linkReferenceDefinition, table, unrecognized
-```
+Node kind categories:
+
+- **Container kinds** (blockquote, list, listItem) carry `children`, `innerPrefix`, and `innerSuffix`.
+- **Prose kinds** (paragraph, heading, setextHeading) carry `inlineContent` (populated by the inline parser).
+- **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, table, unrecognized) have no children or inline content.
 
 Why a flat interface instead of a mapped-type discriminated union: the editor's `updateNodeContent` mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would type `kind` as a literal per member, making in-place mutation a type error. The flat interface with `kind: BlockKind` allows this.
 
 ### Node Definitions
 
-**Document** — root node:
-
-```
-Document {
-  kind: "document"
-  prefix: string          // leading blank lines / whitespace before first block
-  children: CstNode[]     // container and leaf blocks
-  suffix: string          // trailing whitespace after last block
-}
-```
+**Document** — the root node. Carries a `prefix` (leading blank lines/whitespace before the first block), an ordered list of `children` (container and leaf blocks), and a `suffix` (trailing whitespace after the last block).
 
 **Container blocks:**
 
-```
-Blockquote {
-  kind: "blockquote"
-  leadingTrivia: string   // blank lines before this block in the parent context
-  raw: string             // full source text including children
-  innerPrefix: string     // leading blank lines inside the container, before first child
-  children: CstNode[]
-  innerSuffix: string     // trailing blank lines inside the container, after last child
-  metadata: { quoteDepth: number }
-}
-
-List {
-  kind: "list"
-  leadingTrivia: string
-  raw: string
-  innerPrefix: string
-  children: ListItem[]
-  innerSuffix: string
-  metadata: { ordered: boolean }
-}
-
-ListItem {
-  kind: "listItem"
-  leadingTrivia: string
-  raw: string
-  innerPrefix: string
-  children: CstNode[]     // can contain paragraphs, code blocks, nested lists
-  innerSuffix: string
-  metadata: { marker: string, taskItem: boolean, taskChecked: boolean }
-}
-```
+- **Blockquote** — carries `leadingTrivia` (blank lines before this block), `raw` (full source text including children), `innerPrefix`/`innerSuffix` (leading/trailing blank lines inside the container), `children`, and metadata with `quoteDepth`.
+- **List** — same container fields as blockquote. Children are ListItem nodes. Metadata carries `ordered` (boolean).
+- **ListItem** — same container fields. Children can be paragraphs, code blocks, nested lists, etc. Metadata carries the `marker` string, `taskItem` flag, and `taskChecked` flag.
 
 `innerPrefix` and `innerSuffix` on container blocks serve the same role as `Document.prefix` and `Document.suffix` — they capture leading/trailing blank lines inside the container that don't belong to any child. When the container's inner content is parsed recursively, the temporary `Document.prefix`/`suffix` from that parse become the container's `innerPrefix`/`innerSuffix`.
 
 **Prose blocks** (leaf blocks that carry inline content in Phase 2):
 
-```
-{ kind: "heading",        leadingTrivia, raw, metadata: { level }, inlineContent? }
-{ kind: "setextHeading",  leadingTrivia, raw, metadata: { level }, inlineContent? }
-{ kind: "paragraph",      leadingTrivia, raw, inlineContent? }
-```
+- **heading** — `leadingTrivia`, `raw`, metadata with `level`, and optional `inlineContent`.
+- **setextHeading** — same shape as heading.
+- **paragraph** — `leadingTrivia`, `raw`, and optional `inlineContent` (no metadata).
 
 `inlineContent` is `undefined` in Phase 1 and populated via inline parsing in Phase 2.
 
-**Other leaf blocks:**
+**Other leaf blocks** — all carry `leadingTrivia` and `raw`. Metadata varies by kind:
 
-```
-{ kind: "fencedCode",              leadingTrivia, raw, metadata: { fenceMarker, fenceLength, info, closed } }
-{ kind: "thematicBreak",           leadingTrivia, raw, metadata: { marker } }
-{ kind: "indentedCode",            leadingTrivia, raw }
-{ kind: "htmlBlock",               leadingTrivia, raw }
-{ kind: "linkReferenceDefinition", leadingTrivia, raw, metadata: { label } }
-{ kind: "table",                   leadingTrivia, raw, metadata: { columnCount } }
-{ kind: "unrecognized",            leadingTrivia, raw }
-```
+- **fencedCode** — metadata: `fenceMarker`, `fenceLength`, `info`, `closed`.
+- **thematicBreak** — metadata: `marker`.
+- **indentedCode** — no metadata.
+- **htmlBlock** — no metadata.
+- **linkReferenceDefinition** — metadata: `label`.
+- **table** — metadata: `columnCount`.
+- **unrecognized** — no metadata (catch-all for unknown syntax).
 
 ### Design Invariants
 
@@ -184,25 +139,9 @@ ListItem {
 
 ### Serialization
 
-Trivially recursive. At the document level, `raw` on each top-level node already contains the full outer source text, so serialization never needs to recurse into children — it just concatenates:
+Trivially recursive. At the document level, `raw` on each top-level node already contains the full outer source text, so serialization never needs to recurse into children. It concatenates the document prefix, then each child's leading trivia and raw source in order, then the document suffix.
 
-```
-serialize(document) =
-  document.prefix
-  + document.children.map(node => node.leadingTrivia + node.raw).join("")
-  + document.suffix
-```
-
-For test-time verification of container internals, the inner content can be reconstructed from children:
-
-```
-serializeChildren(container) =
-  container.innerPrefix
-  + container.children.map(node => node.leadingTrivia + node.raw).join("")
-  + container.innerSuffix
-```
-
-This produces the stripped inner content (e.g., without `> ` prefixes for blockquotes). The invariant is: `stripContainerSyntax(container.raw) === serializeChildren(container)`.
+For test-time verification of container internals, the inner content can be reconstructed from children by concatenating the container's inner prefix, each child's leading trivia and raw source, and the inner suffix. This produces the stripped inner content (e.g., without `> ` prefixes for blockquotes). The invariant is: stripping the container syntax from `raw` yields the same result as serializing the children.
 
 ### Inline Node Types (Phase 2)
 
@@ -222,18 +161,7 @@ Inline content is a tree of `InlineNode` objects representing the inline syntax 
 | `autolink`      | `url`                       | `<url>` or GFM bare URL                                                       |
 | `hardLineBreak` | —                           | Trailing `\` or two spaces before `\n`                                        |
 
-Inline nodes nest. `**bold *and italic***` produces:
-
-```
-Strong { children: [
-  Text { text: "bold " },
-  Emphasis { children: [
-    Text { text: "and italic" }
-  ] }
-] }
-```
-
-Each node (including wrapper nodes like Strong and Emphasis) has `start`/`end` offsets covering the full range in `raw`, including the markers. This allows the editor to map DOM cursor positions to `raw` offsets and vice versa.
+Inline nodes nest. For example, `**bold *and italic***` produces a Strong node containing a Text child ("bold ") and an Emphasis child, which itself contains a Text child ("and italic"). Each node (including wrapper nodes like Strong and Emphasis) has `start`/`end` offsets covering the full range in `raw`, including the markers. This allows the editor to map DOM cursor positions to `raw` offsets and vice versa.
 
 **Relationship to `raw`:**
 
@@ -247,12 +175,7 @@ Single-pass, line-oriented scanner. Reads the source line by line and builds the
 
 ### Flow
 
-```
-source string
-  → split into lines (preserving line endings)
-  → scan lines, recognizing block openers
-  → emit CstNode tree
-```
+The parser takes a source string, splits it into lines (preserving line endings), scans lines to recognize block openers, and emits a CstNode tree.
 
 ### Algorithm
 
