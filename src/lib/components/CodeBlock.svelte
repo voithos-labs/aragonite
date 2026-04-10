@@ -200,8 +200,8 @@
 		font-family: 'Fira Code', 'Consolas', monospace;
 		font-size: 0.9em;
 		line-height: 1.5;
-		background: var(--color-bg-secondary, #1e1e1e);
-		border: 1px solid var(--color-ui-muted, #333);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		border: 1px solid var(--color-ui-muted, rgba(128, 128, 128, 0.25));
 		border-radius: 4px;
 		color: inherit;
 		resize: none;

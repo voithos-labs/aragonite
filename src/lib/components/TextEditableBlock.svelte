@@ -164,7 +164,10 @@
 		const display = getDisplayText();
 		if (!el || userIsTyping) return;
 
-		if (node.inlineContent && node.inlineContent.length > 0) {
+		if (isProseKind(node.kind)) {
+			// Ensure inline content is parsed — blocks from split/merge
+			// may not have had parseAllInlineContent called on them yet
+			if (!node.inlineContent) refreshInlineContent();
 			el.replaceChildren(buildInlineDOM());
 		} else if (el.textContent !== display) {
 			el.textContent = display;
@@ -190,8 +193,10 @@
 		const savedOffset = getCursorOffset() ?? 0;
 		actions.updateBlockContent(index, text + '\n', savedOffset);
 
-		// Re-parse and re-render inline content
-		if (isProseKind(node.kind) && node.inlineContent) {
+		// Re-parse and re-render inline content for all prose blocks.
+		// Always re-parse — blocks created by split/merge may not have
+		// inlineContent populated yet. refreshInlineContent() populates it.
+		if (isProseKind(node.kind)) {
 			refreshInlineContent();
 			el.replaceChildren(buildInlineDOM());
 			setCursorFromRawOffset(el, savedOffset);
@@ -431,7 +436,7 @@
 	.text-editable-block :global(.inline-code-content) {
 		font-family: 'Fira Code', 'Consolas', monospace;
 		font-size: 0.9em;
-		background: var(--color-bg-secondary, #1e1e1e);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border-radius: 3px;
 		padding: 1px 4px;
 	}

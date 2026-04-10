@@ -98,11 +98,12 @@
 					else if (node.raw.endsWith('\n')) displayLen -= 1;
 					parentActions.splitBlock(index, displayLen);
 				} else {
-					// Remove the empty child, rebuild, then create block after
+					// Remove the empty child, rebuild, then focus block after
 					parentActions.beginContainerEdit?.(index, 0);
 					performDelete(innerParent(), innerBlockIds, innerIndex);
 					rebuildAndNotify();
 					triggerInnerReactivity();
+					await tick();
 					parentActions.moveFocus(index + 1, 'start');
 				}
 				return;
