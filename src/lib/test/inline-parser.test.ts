@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { getContentRange, parseInline } from '../core/inline-parser';
 import type { CstNode, InlineNode } from '../core/nodes';
 
+function inlineOf(rawContent: string) {
+	return parseInline(rawContent, 0, rawContent.length);
+}
+
 describe('getContentRange', () => {
 	it('paragraph: full raw minus trailing newline', () => {
 		const node: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello **world**\n' };
@@ -78,10 +82,6 @@ describe('getContentRange', () => {
 });
 
 describe('parseInline — backtick spans (Stage 1)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
-	}
-
 	it('plain text with no markup', () => {
 		const nodes = inlineOf('Hello world');
 		expect(nodes).toEqual([{ kind: 'text', start: 0, end: 11, text: 'Hello world' }]);
@@ -155,25 +155,19 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 });
 
 describe('parseInline — emphasis and strong (Stage 2)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
+	const emphasisChars = ['*', '_'] as const;
+
+	for (const ch of emphasisChars) {
+		it(`simple emphasis with ${ch}`, () => {
+			const nodes = inlineOf(`Hello ${ch}world${ch}`);
+			expect(nodes.length).toBe(2);
+			expect(nodes[0]).toEqual({ kind: 'text', start: 0, end: 6, text: 'Hello ' });
+			expect(nodes[1].kind).toBe('emphasis');
+			expect(nodes[1].start).toBe(6);
+			expect(nodes[1].end).toBe(13);
+			expect(nodes[1].children).toEqual([{ kind: 'text', start: 7, end: 12, text: 'world' }]);
+		});
 	}
-
-	it('simple emphasis with *', () => {
-		const nodes = inlineOf('Hello *world*');
-		expect(nodes.length).toBe(2);
-		expect(nodes[0]).toEqual({ kind: 'text', start: 0, end: 6, text: 'Hello ' });
-		expect(nodes[1].kind).toBe('emphasis');
-		expect(nodes[1].start).toBe(6);
-		expect(nodes[1].end).toBe(13);
-		expect(nodes[1].children).toEqual([{ kind: 'text', start: 7, end: 12, text: 'world' }]);
-	});
-
-	it('simple emphasis with _', () => {
-		const nodes = inlineOf('Hello _world_');
-		expect(nodes[1].kind).toBe('emphasis');
-		expect(nodes[1].children).toEqual([{ kind: 'text', start: 7, end: 12, text: 'world' }]);
-	});
 
 	it('strong with **', () => {
 		const nodes = inlineOf('Hello **world**');
@@ -215,32 +209,26 @@ describe('parseInline — emphasis and strong (Stage 2)', () => {
 });
 
 describe('parseInline — strikethrough (Stage 2)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
-	}
-
 	it('simple strikethrough', () => {
 		const nodes = inlineOf('Hello ~~world~~ end');
 		expect(nodes[1].kind).toBe('strikethrough');
 		expect(nodes[1].children).toEqual([{ kind: 'text', start: 8, end: 13, text: 'world' }]);
 	});
 
-	it('single ~ is not strikethrough', () => {
-		const nodes = inlineOf('Hello ~world~ end');
-		expect(nodes).toEqual([{ kind: 'text', start: 0, end: 17, text: 'Hello ~world~ end' }]);
-	});
+	const rejectedTildes = [
+		{ label: 'single ~', input: 'Hello ~world~ end' },
+		{ label: 'triple ~', input: 'Hello ~~~world~~~ end' }
+	];
 
-	it('triple ~ is not strikethrough', () => {
-		const nodes = inlineOf('Hello ~~~world~~~ end');
-		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
-	});
+	for (const { label, input } of rejectedTildes) {
+		it(`${label} is not strikethrough`, () => {
+			const nodes = inlineOf(input);
+			expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+		});
+	}
 });
 
 describe('parseInline — hard line breaks (Stage 2)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
-	}
-
 	it('backslash before newline', () => {
 		const nodes = inlineOf('Hello\\\nworld');
 		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
@@ -262,10 +250,6 @@ describe('parseInline — hard line breaks (Stage 2)', () => {
 });
 
 describe('parseInline — links and images (Stage 3)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
-	}
-
 	it('simple inline link', () => {
 		const nodes = inlineOf('Click [here](https://example.com) now');
 		expect(nodes.length).toBe(3);
@@ -310,10 +294,6 @@ describe('parseInline — links and images (Stage 3)', () => {
 });
 
 describe('parseInline — autolinks (Stage 3)', () => {
-	function inlineOf(rawContent: string) {
-		return parseInline(rawContent, 0, rawContent.length);
-	}
-
 	it('angle-bracket autolink', () => {
 		const nodes = inlineOf('Visit <https://example.com> now');
 		expect(nodes[1].kind).toBe('autolink');
