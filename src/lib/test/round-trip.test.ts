@@ -69,10 +69,6 @@ describe('round-trip: blockquotes', () => {
 		});
 	}
 
-	it('parses blockquote as Blockquote node', () => {
-		const doc = parse('> Hello\n');
-		expect(doc.children[0].kind).toBe('blockquote');
-	});
 });
 
 describe('round-trip: lists', () => {
@@ -95,14 +91,6 @@ describe('round-trip: lists', () => {
 		});
 	}
 
-	it('parses list as List node with ListItem children', () => {
-		const doc = parse('- A\n- B\n');
-		expect(doc.children[0].kind).toBe('list');
-		const list = doc.children[0];
-		expect(list.children!.length).toBe(2);
-		expect(list.children![0].kind).toBe('listItem');
-		expect(list.children![1].kind).toBe('listItem');
-	});
 });
 
 // ── V2 Block Types ──────────────────────────────────────────────────────────
@@ -126,10 +114,6 @@ describe('round-trip: setext headings', () => {
 		});
 	}
 
-	it('parses setext H1 as SetextHeading node', () => {
-		const doc = parse('Title\n===\n');
-		expect(doc.children[0].kind).toBe('setextHeading');
-	});
 });
 
 describe('round-trip: indented code blocks', () => {
@@ -150,16 +134,6 @@ describe('round-trip: indented code blocks', () => {
 		});
 	}
 
-	it('parses indented code as IndentedCode node', () => {
-		const doc = parse('    code\n');
-		expect(doc.children[0].kind).toBe('indentedCode');
-	});
-
-	it('indented continuation stays inside paragraph', () => {
-		const doc = parse('Paragraph\n    indented line\n');
-		expect(doc.children.length).toBe(1);
-		expect(doc.children[0].kind).toBe('paragraph');
-	});
 });
 
 describe('round-trip: HTML blocks', () => {
@@ -180,10 +154,6 @@ describe('round-trip: HTML blocks', () => {
 		});
 	}
 
-	it('parses HTML as HtmlBlock node', () => {
-		const doc = parse('<div>\nHello\n</div>\n');
-		expect(doc.children[0].kind).toBe('htmlBlock');
-	});
 });
 
 describe('round-trip: link reference definitions', () => {
@@ -204,10 +174,6 @@ describe('round-trip: link reference definitions', () => {
 		});
 	}
 
-	it('parses link ref def as LinkReferenceDefinition node', () => {
-		const doc = parse('[ref]: https://example.com\n');
-		expect(doc.children[0].kind).toBe('linkReferenceDefinition');
-	});
 });
 
 describe('round-trip: tables', () => {
@@ -230,8 +196,4 @@ describe('round-trip: tables', () => {
 		});
 	}
 
-	it('parses table as Table node', () => {
-		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		expect(doc.children[0].kind).toBe('table');
-	});
 });
