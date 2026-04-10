@@ -39,7 +39,7 @@
 	 * so that el.textContent matches getDisplayText().
 	 */
 	function getBlockMarkerPrefix(): string {
-		if (!isProseKind(node.kind) || !node.inlineContent || node.inlineContent.length === 0) {
+		if (!isProseKind(node.kind) || !node.inlineContent) {
 			return '';
 		}
 		const range = getContentRange(node);
@@ -163,7 +163,9 @@
 		if (!el) return;
 
 		if (isProseKind(node.kind)) {
-			// Guard: skip rebuild if raw hasn't changed (spurious re-run)
+			// Guard: skip rebuild if raw hasn't changed (spurious re-run).
+			// This also covers kind changes — updateNodeContent always sets
+			// node.raw when kind changes, so raw change implies kind change.
 			if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
 
 			if (!node.inlineContent) refreshInlineContent();
