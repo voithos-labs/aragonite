@@ -19,8 +19,10 @@
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
-	// Suppress reactive DOM updates while the user is typing
-	let userIsTyping = false;
+	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
+	let pendingCursorOffset = $state<number | null>(null);
+	/** Last raw string the $effect rendered — prevents spurious rebuilds. */
+	let lastRenderedRaw = '';
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
 
@@ -157,24 +159,31 @@
 		return text;
 	}
 
-	// Sync CST → DOM only when content changed externally (undo, split, merge).
-	// During user typing, the DOM is already correct — skip to avoid
-	// double characters and cursor jumps.
 	$effect(() => {
-		const display = getDisplayText();
-		if (!el || userIsTyping) return;
+		if (!el) return;
 
 		if (isProseKind(node.kind)) {
-			// Ensure inline content is parsed — blocks from split/merge
-			// may not have had parseAllInlineContent called on them yet
+			// Guard: skip rebuild if raw hasn't changed (spurious re-run)
+			if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
+
 			if (!node.inlineContent) refreshInlineContent();
 			el.replaceChildren(buildInlineDOM());
-		} else if (el.textContent !== display) {
-			el.textContent = display;
+			lastRenderedRaw = node.raw;
+		} else {
+			const display = getDisplayText();
+			if (el.textContent !== display) {
+				el.textContent = display;
+				lastRenderedRaw = node.raw;
+			}
 		}
-		// Ensure empty contenteditable always has a <br> so the browser
-		// places a caret when clicked
+
 		ensureBr();
+
+		// Restore cursor if a handler requested it
+		if (pendingCursorOffset !== null) {
+			setCursorFromRawOffset(el, pendingCursorOffset);
+			pendingCursorOffset = null;
+		}
 	});
 
 	function ensureBr(): void {
@@ -188,23 +197,17 @@
 
 	function onInput(): void {
 		if (composing || !el) return;
-		userIsTyping = true;
 		const text = el.textContent ?? '';
 		const savedOffset = getCursorOffset() ?? 0;
 		actions.updateBlockContent(index, text + '\n', savedOffset);
 
-		// Re-parse and re-render inline content for all prose blocks.
-		// Always re-parse — blocks created by split/merge may not have
-		// inlineContent populated yet. refreshInlineContent() populates it.
+		// Re-parse inline content AFTER updateBlockContent has set node.raw
 		if (isProseKind(node.kind)) {
 			refreshInlineContent();
-			el.replaceChildren(buildInlineDOM());
-			setCursorFromRawOffset(el, savedOffset);
-			ensureBr();
 		}
 
-		userIsTyping = false;
-		ensureBr();
+		// Signal the $effect to restore cursor after it rebuilds the DOM
+		pendingCursorOffset = savedOffset;
 	}
 
 	function onCompositionStart(): void {
@@ -244,8 +247,8 @@
 				const displayText = getDisplayText();
 				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
 				actions.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-				if (el) el.textContent = newDisplay;
-				setCursorOffset(offset + 1);
+				if (isProseKind(node.kind)) refreshInlineContent();
+				pendingCursorOffset = offset + 1;
 			}
 			return;
 		}
@@ -305,15 +308,13 @@
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
 
-		// Delete selected range via CST: compute new raw without the selection
 		const selOffsets = getSelectionOffsets();
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
 			actions.updateBlockContent(index, newDisplay + '\n');
-			// Re-render the contenteditable from updated CST
-			if (el) el.textContent = newDisplay;
-			setCursorOffset(selOffsets.start);
+			if (isProseKind(node.kind)) refreshInlineContent();
+			pendingCursorOffset = selOffsets.start;
 		}
 	}
 
@@ -322,9 +323,6 @@
 		const text = e.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
 
-		// Phase 1 simplification: all paste is inline within the current block.
-		// Multi-block paste (splitting and inserting parsed blocks) is deferred
-		// to a later phase. For now, insert the pasted text at the cursor position.
 		const offset = getCursorOffset() ?? 0;
 		const displayText = getDisplayText();
 		const selOffsets = getSelectionOffsets();
@@ -332,8 +330,8 @@
 		const end = selOffsets?.end ?? offset;
 		const newDisplay = displayText.slice(0, start) + text + displayText.slice(end);
 		actions.updateBlockContent(index, newDisplay + '\n');
-		if (el) el.textContent = newDisplay;
-		setCursorOffset(start + text.length);
+		if (isProseKind(node.kind)) refreshInlineContent();
+		pendingCursorOffset = start + text.length;
 	}
 
 	// ── Helpers ─────────────────────────────────────────────────────────
