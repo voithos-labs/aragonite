@@ -67,21 +67,7 @@ Not all blocks require `contenteditable`. A block only needs to conform to the c
 
 ### Block Interface
 
-```typescript
-interface BlockComponent {
-	// Focus management — optional, some blocks aren't text-editable
-	focus?(offset: number): void;
-	getCursorOffset?(): number | null;
-
-	// Selection — optional, same reason
-	getSelectedText?(): string;
-	setSelection?(start: number, end: number): void;
-
-	// Identity
-	readonly editable: boolean; // can this block receive text input?
-	readonly focusable: boolean; // can this block receive focus at all?
-}
-```
+Every block component exposes a common shape. Two boolean flags — `editable` (can receive text input) and `focusable` (can receive focus at all) — let the orchestration layer decide what interactions are valid. Optional methods cover focus management (`focus` with an offset, `getCursorOffset`) and selection (`getSelectedText`, `setSelection` with start/end offsets). Not every block implements every method; non-text blocks omit the selection and cursor methods.
 
 Examples:
 
@@ -168,24 +154,9 @@ The CST is always up-to-date (updated on every input event). The DOM is only pat
 
 Blocks receive typed callback functions via Svelte `getContext`:
 
-```typescript
-interface EditorActions {
-	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
-	mergeWithPrevious(blockIndex: number): void | Promise<void>;
-	deleteBlock(blockIndex: number): void | Promise<void>;
-	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void | Promise<void>;
-	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
-	requestUndo(): void | Promise<void>;
-	requestRedo(): void | Promise<void>;
+The `EditorActions` context provides seven core actions: `splitBlock`, `mergeWithPrevious`, `deleteBlock`, `moveFocus`, `updateBlockContent`, `requestUndo`, and `requestRedo`. Each takes a `blockIndex` (relative to the local children array) plus operation-specific parameters — for example, `splitBlock` takes an offset, and `moveFocus` takes a position (start, end, or a numeric offset). Structural operations may be async (they use `await tick()` for post-render focus management).
 
-	// Container block support — called by nested EditorActions contexts
-	beginContainerEdit?(blockIndex: number, offset: number): void;
-	beginContainerEditDebounced?(blockIndex: number, offset: number): void;
-	endContainerEdit?(): void;
-}
-```
-
-Structural operations return `void | Promise<void>` because they use `await tick()` for post-render focus management. The three container methods are optional — only called by container block components to coordinate undo snapshots and reactivity with the parent editor.
+Three optional container methods — `beginContainerEdit`, `beginContainerEditDebounced`, and `endContainerEdit` — exist only for container block components. They coordinate undo snapshots and reactivity between nested editors and the parent editor.
 
 No signal dispatcher, no string matching, no performer registry, no reindexing. Blocks call typed functions directly.
 
@@ -285,14 +256,7 @@ Native browser selection within the block's contenteditable. No custom handling 
 
 ### Cross-Block Selection Model
 
-```typescript
-interface EditorSelection {
-	anchor: { blockIndex: number; offset: number };
-	focus: { blockIndex: number; offset: number };
-}
-```
-
-When `anchor.blockIndex === focus.blockIndex`, it is a single-block selection and the browser handles it. When they differ, the editor takes over all selection rendering.
+The selection model tracks two endpoints — anchor and focus — each identified by a block index and a character offset within that block. When both endpoints share the same block index, it is a single-block selection and the browser handles it natively. When they differ, the editor takes over all selection rendering.
 
 ### Entering Cross-Block Selection
 
@@ -359,25 +323,9 @@ All changes go through a single undo system. The browser's built-in contentedita
 
 ### Interface
 
-```typescript
-interface UndoEntry {
-	snapshot: Document;
-	blockIds: string[];
-	focusBlockIndex: number;
-	focusOffset: number;
-}
+Each undo entry captures four things: a full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position (block index and character offset) for cursor restoration.
 
-interface UndoManager {
-	push(entry: UndoEntry): void;
-	undo(currentState: UndoEntry): UndoEntry | null;
-	redo(currentState: UndoEntry): UndoEntry | null;
-	clear(): void;
-	readonly canUndo: boolean;
-	readonly canRedo: boolean;
-}
-```
-
-Each undo entry stores the full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position for cursor restoration. `undo()` and `redo()` take the current state as a parameter so the opposite stack can capture it (undo pushes current state onto redo stack, redo pushes onto undo stack). The caller clones the document before pushing.
+The undo manager exposes push, undo, redo, and clear operations, plus read-only flags for whether undo/redo are available. Both `undo` and `redo` accept the current editor state so the opposite stack can capture it — undo pushes the current state onto the redo stack, and vice versa. The caller clones the document before pushing.
 
 The default implementation stores cloned CST `Document` trees. The CST is a lightweight tree of strings — cloning is cheap. The stack is capped at 200 entries to prevent unbounded memory growth during long editing sessions. If the Automerge history layer proves suitable for session-level undo later, the implementation behind this interface can be swapped without touching the editor.
 

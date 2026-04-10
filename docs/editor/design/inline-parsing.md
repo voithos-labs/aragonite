@@ -35,44 +35,25 @@ Each stage is independently shippable. Unrecognized inline syntax renders as pla
 
 ## InlineNode Type System
 
-Extends `core/nodes.ts`. Flat interface, same philosophy as CstNode — discriminate on `kind`, no class hierarchy.
+Extends `core/nodes.ts`. Flat interface, same philosophy as CstNode — discriminate on `kind`, no class hierarchy. See `core/nodes.ts` for the canonical definitions.
 
-```typescript
-type InlineNodeKind =
-	| 'text'
-	| 'emphasis'
-	| 'strong'
-	| 'strikethrough'
-	| 'inlineCode'
-	| 'link'
-	| 'image'
-	| 'autolink'
-	| 'hardLineBreak';
+An `InlineNode` carries a `kind` discriminator and byte-offset range (`start`/`end`) into the parent block's `raw`. The kind determines which optional fields are present:
 
-interface InlineNode {
-	kind: InlineNodeKind;
-	start: number; // byte offset into parent block's raw
-	end: number; // byte offset into parent block's raw
-	text?: string; // text, inlineCode
-	children?: InlineNode[]; // emphasis, strong, strikethrough, link
-	url?: string; // link, image, autolink
-	title?: string; // link, image
-	alt?: string; // image
-}
-```
+| Kind            | Extra fields                              |
+| --------------- | ----------------------------------------- |
+| text            | `text`                                    |
+| emphasis        | `children` (recursive InlineNode array)   |
+| strong          | `children`                                |
+| strikethrough   | `children`                                |
+| inlineCode      | `text`                                    |
+| link            | `children`, `url`, `title`                |
+| image           | `alt`, `url`, `title`                     |
+| autolink        | `url`                                     |
+| hardLineBreak   | (none)                                    |
 
 `start`/`end` cover the full range in `raw` including markers. For `**bold**`, start is at the first `*`, end is after the last `*`. Every character in `raw` belongs to exactly one inline node's range.
 
-Added to CstNode as optional:
-
-```typescript
-interface CstNode {
-	// ... existing fields ...
-	inlineContent?: InlineNode[];
-}
-```
-
-Only populated on prose kinds (paragraph, heading, setextHeading).
+CstNode gains an optional `inlineContent` field (an array of InlineNode). Only populated on prose kinds (paragraph, heading, setextHeading).
 
 ## Inline Parser Architecture
 
@@ -80,11 +61,7 @@ New file: `core/inline-parser.ts`. Separate from the block parser.
 
 ### Entry point
 
-```typescript
-function parseInline(raw: string, contentStart: number, contentEnd: number): InlineNode[];
-```
-
-Takes the block's `raw` and the content range within it (after block-level markers). For a heading `## Hello **world**\n`, contentStart is 3 (after `## `), contentEnd is before `\n`. Produces `start`/`end` offsets relative to the full `raw`.
+`parseInline` takes the block's `raw` string and the content range within it (contentStart and contentEnd, after block-level markers) and returns an array of InlineNode. For a heading `## Hello **world**\n`, contentStart is 3 (after `## `), contentEnd is before `\n`. The returned nodes carry `start`/`end` offsets relative to the full `raw`.
 
 ### Content range extraction
 
@@ -118,13 +95,7 @@ The block parser does NOT call the inline parser. Inline parsing is triggered by
 
 ### Rendering function
 
-Pure function producing DOM nodes from the inline tree:
-
-```typescript
-function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment;
-```
-
-The `raw` parameter is needed to extract marker text via `raw.slice()` when building marker spans.
+`renderInlineNodes` is a pure function that takes an array of InlineNode and the block's `raw` string, and returns a DocumentFragment. The `raw` parameter is needed to extract marker text via `raw.slice()` when building marker spans.
 
 Kind-to-DOM mapping:
 
@@ -183,19 +154,7 @@ The `renderInlineNodes` function annotates DOM elements with `data-start`/`data-
 
 ## onInput Flow (Approach A)
 
-Revised handler for prose blocks with inline content:
-
-```
-1. Read el.textContent → newText
-2. Save cursor offset via getCursorOffset()
-3. Call updateBlockContent(index, newText + '\n', preEditOffset)
-   — updates raw, reparses block, detects kind changes
-4. Call parseInline() on updated raw → new inlineContent
-5. Rebuild span tree: el.replaceChildren(renderInlineNodes(inlineContent))
-6. Restore cursor via setCursorFromRawOffset(savedOffset)
-```
-
-Steps 1-3 are the existing flow. Steps 4-6 are new.
+Revised handler for prose blocks with inline content. The existing flow (read textContent, save cursor offset, call updateBlockContent to update raw and reparse) is extended with three new steps: run parseInline on the updated raw to produce a new inline tree, replace the element's children with the rendered span tree, and restore the cursor from the saved raw offset. The first three steps are unchanged; the last three are new.
 
 **IME composition:** Suppress steps 4-6 during compositionstart → compositionend. The DOM stays dirty during composition, then on compositionend the full flow runs. Existing pattern, extended.
 
