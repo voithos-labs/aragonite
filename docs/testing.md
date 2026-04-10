@@ -5,8 +5,8 @@ Two test layers: **unit tests** (Vitest) for the CST and editor logic, and **E2E
 ## Running Tests
 
 ```bash
-npm run test:editor    # unit tests (283 tests, ~0.5s)
-npm run test:e2e       # E2E tests (59 tests, ~15s, auto-starts dev server)
+npm run test:editor    # unit tests
+npm run test:e2e       # E2E tests (auto-starts dev server)
 ```
 
 Run a specific E2E suite:
