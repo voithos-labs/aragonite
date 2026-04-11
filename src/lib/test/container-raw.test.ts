@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { rebuildBlockquoteRaw, rebuildListItemRaw, rebuildListRaw } from '../container-raw';
 import type { CstNode } from '../core/nodes';
+import { parse } from '../core/parser';
+import { serialize } from '../core/serializer';
 
 describe('rebuildBlockquoteRaw', () => {
 	it('rebuilds single paragraph blockquote', () => {
@@ -156,5 +158,64 @@ describe('rebuildListRaw', () => {
 		};
 		rebuildListRaw(node);
 		expect(node.raw).toBe('- A\n- B\n');
+	});
+});
+
+describe('rebuildListItemRaw: nested content', () => {
+	it('rebuilds item with nested list', () => {
+		const item: CstNode = {
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			innerPrefix: '',
+			children: [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'Item\n' },
+				{
+					kind: 'list',
+					leadingTrivia: '',
+					raw: '- Nested a\n- Nested b\n',
+					metadata: { ordered: false },
+					innerPrefix: '',
+					children: [],
+					innerSuffix: ''
+				}
+			],
+			innerSuffix: ''
+		};
+		rebuildListItemRaw(item);
+		expect(item.raw).toBe('- Item\n  - Nested a\n  - Nested b\n');
+	});
+
+	it('rebuilds item with continuation paragraph', () => {
+		const item: CstNode = {
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			innerPrefix: '',
+			children: [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }
+			],
+			innerSuffix: ''
+		};
+		rebuildListItemRaw(item);
+		expect(item.raw).toBe('- Line 1\n  Line 2\n');
+	});
+});
+
+describe('parse + rebuild round-trip', () => {
+	it('parse nested list then rebuild preserves raw', () => {
+		const source = '- Item 1\n  - Nested\n- Item 2\n';
+		const doc = parse(source);
+		const list = doc.children[0];
+		const item1 = list.children![0];
+
+		// Rebuild item 1 raw from its children
+		rebuildListItemRaw(item1);
+		// Rebuild list raw from its items
+		rebuildListRaw(list);
+
+		expect(serialize(doc)).toBe(source);
 	});
 });
