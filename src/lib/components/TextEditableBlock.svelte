@@ -270,6 +270,9 @@
 		if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && !e.shiftKey) {
 			const offset = getCursorOffset();
 			if (offset === 0) {
+				// Don't intercept ArrowUp on empty blocks — let the browser
+				// handle it (no-op) so the cursor can "rest" here
+				if (e.key === 'ArrowUp' && (el?.textContent ?? '').length === 0) return;
 				e.preventDefault();
 				actions.moveFocus(index - 1, 'end');
 				return;
@@ -281,6 +284,8 @@
 			const textLen = (el?.textContent ?? '').length;
 			const offset = getCursorOffset();
 			if (offset === textLen) {
+				// Don't intercept ArrowDown on empty blocks — same reason
+				if (e.key === 'ArrowDown' && textLen === 0) return;
 				e.preventDefault();
 				actions.moveFocus(index + 1, 'start');
 				return;
