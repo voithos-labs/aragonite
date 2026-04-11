@@ -264,6 +264,16 @@
 			}
 		}
 
+		if (e.key === 'Delete') {
+			const offset = getCursorOffset();
+			const textLen = (el?.textContent ?? '').length;
+			if (offset === textLen && !hasSelection()) {
+				e.preventDefault();
+				actions.mergeWithNext(index);
+				return;
+			}
+		}
+
 		// ArrowLeft/ArrowUp at offset 0 → move to end of previous block
 		// Phase 1 simplification: ArrowUp uses offset-based detection instead of
 		// visual-line geometry. Visual-line detection can be added in a later phase.
