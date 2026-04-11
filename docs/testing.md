@@ -51,17 +51,16 @@ Editor.svelte (production component, unchanged)
 
 ### Test Suites
 
-| Suite                            | Focus                                                       |
-| -------------------------------- | ----------------------------------------------------------- |
-| `block-rendering.spec.ts`        | All block types render, correct kinds, loadContent          |
-| `text-editing.spec.ts`           | Typing, Enter split, Backspace merge, kind change           |
-| `focus-traversal.spec.ts`        | Arrow keys between blocks                                   |
-| `undo-redo.spec.ts`              | Undo/redo after splits and text edits                       |
-| `inline-rendering.spec.ts`       | Bold, italic, code, links render with semantic elements     |
-| `container-blocks.spec.ts`       | Blockquotes, lists, nested editing                          |
-| `edge-cases-split-merge.spec.ts` | Split at offset 0/end, heading split, merge eligibility     |
-| `edge-cases-inline.spec.ts`      | Nested formatting, autolinks, images, strikethrough         |
-| `edge-cases-containers.spec.ts`  | Nested containers, empty documents, task items, code blocks |
+| Suite                          | Focus                                                       |
+| ------------------------------ | ----------------------------------------------------------- |
+| `smoke.spec.ts`                | Test harness, loadContent, empty documents                  |
+| `text-editing.spec.ts`         | Typing, Enter split, Backspace merge, kind change           |
+| `keyboard-navigation.spec.ts`  | Arrow keys across blocks, container traversal               |
+| `undo-redo.spec.ts`            | Undo/redo for splits, merges, typing, kind changes          |
+| `inline-editing.spec.ts`       | Bold, italic, code, links — editing and rendering           |
+| `container-editing.spec.ts`    | Blockquotes, lists, nested editing, exit behavior           |
+| `selection-clipboard.spec.ts`  | Cut, copy, paste, select-all, type-to-replace               |
+| `code-block-editing.spec.ts`   | Code block typing, Enter, exit, navigation                  |
 
 ### Writing New E2E Tests
 
@@ -99,4 +98,4 @@ test.describe('my feature', () => {
 
 **Block selectors use `.block-list > *`.** The editor renders as `.editor > .block-list > [block elements]`. Individual blocks are children of `.block-list`, not `.editor`.
 
-**Heading contenteditables don't include the `## ` prefix.** The block marker is rendered separately from the inline content. `getBlockText(i)` returns only the content portion.
+**Heading contenteditables include the `## ` prefix.** The block marker is rendered as a dimmed `.md-marker` span inside the contenteditable. `getBlockText(i)` returns the full text including the marker prefix.
