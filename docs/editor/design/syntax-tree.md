@@ -58,43 +58,23 @@ Node kind categories:
 - **Prose kinds** (paragraph, heading, setextHeading) carry `inlineContent` (populated by the inline parser).
 - **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, table, unrecognized) have no children or inline content.
 
-Why a flat interface instead of a mapped-type discriminated union: the editor's `updateNodeContent` mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would type `kind` as a literal per member, making in-place mutation a type error. The flat interface with `kind: BlockKind` allows this.
+Why a flat interface instead of a mapped-type discriminated union: the editor mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would make in-place mutation a type error.
 
-### Node Definitions
+### Node Shape
 
-**Document** — the root node. Carries a `prefix` (leading blank lines/whitespace before the first block), an ordered list of `children` (container and leaf blocks), and a `suffix` (trailing whitespace after the last block).
+All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full source text). The root `Document` additionally carries `prefix`/`suffix` for document-level whitespace.
 
-**Container blocks:**
+**Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content.
 
-- **Blockquote** — carries `leadingTrivia` (blank lines before this block), `raw` (full source text including children), `innerPrefix`/`innerSuffix` (leading/trailing blank lines inside the container), `children`, and metadata with `quoteDepth`.
-- **List** — same container fields as blockquote. Children are ListItem nodes. Metadata carries `ordered` (boolean).
-- **ListItem** — same container fields. Children can be paragraphs, code blocks, nested lists, etc. Metadata carries the `marker` string, `taskItem` flag, and `taskChecked` flag.
+**Prose blocks** (paragraph, heading, setextHeading) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
 
-`innerPrefix` and `innerSuffix` on container blocks serve the same role as `Document.prefix` and `Document.suffix` — they capture leading/trailing blank lines inside the container that don't belong to any child. When the container's inner content is parsed recursively, the temporary `Document.prefix`/`suffix` from that parse become the container's `innerPrefix`/`innerSuffix`.
-
-**Prose blocks** (leaf blocks that carry inline content in Phase 2):
-
-- **heading** — `leadingTrivia`, `raw`, metadata with `level`, and optional `inlineContent`.
-- **setextHeading** — same shape as heading.
-- **paragraph** — `leadingTrivia`, `raw`, and optional `inlineContent` (no metadata).
-
-`inlineContent` is `undefined` in Phase 1 and populated via inline parsing in Phase 2.
-
-**Other leaf blocks** — all carry `leadingTrivia` and `raw`. Metadata varies by kind:
-
-- **fencedCode** — metadata: `fenceMarker`, `fenceLength`, `info`, `closed`.
-- **thematicBreak** — metadata: `marker`.
-- **indentedCode** — no metadata.
-- **htmlBlock** — no metadata.
-- **linkReferenceDefinition** — metadata: `label`.
-- **table** — metadata: `columnCount`.
-- **unrecognized** — no metadata (catch-all for unknown syntax).
+**Other leaf blocks** carry kind-specific metadata where applicable. The `unrecognized` kind is the catch-all — any syntax the parser doesn't recognize round-trips as an unrecognized block.
 
 ### Design Invariants
 
 - **`raw` is the source of truth for serialization.** Metadata is derived from raw but never participates in round-trip.
 - **`leadingTrivia`** captures blank lines between blocks in the parent context. Combined with `Document.prefix`/`suffix` and container `innerPrefix`/`innerSuffix`, every whitespace character in the source is accounted for.
-- **Container blocks store `raw` as the full outer source text** (with `> ` prefixes, list markers, indentation, etc.). Children are a decomposition of the inner (stripped) content. The primary correctness invariant is document-level round-trip, not a per-node check. As a secondary test-time assertion, a `validateTree()` function can verify that stripping the container syntax from `raw` and serializing the children produce the same inner content: `stripContainerSyntax(node.raw) === node.innerPrefix + node.children.map(c => c.leadingTrivia + c.raw).join("") + node.innerSuffix`.
+- **Container blocks store `raw` as the full outer source text** (with `> ` prefixes, list markers, indentation, etc.). Children are a decomposition of the inner (stripped) content. The primary correctness invariant is document-level round-trip. A secondary invariant: stripping the container syntax from `raw` produces the same result as serializing the children.
 - **`unrecognized` is the catch-all kind.** Any syntax the parser doesn't recognize round-trips perfectly as an unrecognized block. When support for a new block type is added, it graduates from `unrecognized` to its own kind. No data loss at any stage.
 
 ### Serialization
@@ -131,29 +111,18 @@ Phase 3 (ownership flip to tree-as-truth) was evaluated and rejected — Phase 2
 
 ## Parser Design
 
-Single-pass, line-oriented scanner. Reads the source line by line and builds the tree top-down.
-
-### Flow
-
-The parser takes a source string, splits it into lines (preserving line endings), scans lines to recognize block openers, and emits a CstNode tree.
-
 ### Algorithm
 
-1. **Split** the source into lines, preserving `\n` or `\r\n` endings and tracking each line's start offset.
+Single-pass, line-oriented scanner. Takes a source string, splits into lines, matches each against block openers in priority order:
 
-2. **Consume leading blank lines** into `Document.prefix`.
+1. Fenced code → consume until matching close fence or EOF
+2. ATX heading
+3. Thematic break (only after a blank line, to avoid ambiguity with setext underlines)
+4. Blockquote → recursive parse of stripped inner content
+5. List item → recursive parse of stripped inner content
+6. Fallback → start a paragraph, consume continuation lines
 
-3. **Main loop** — for each line, try matchers in priority order:
-   - Fenced code open (` ``` ` or `~~~`) → consume lines until matching close fence or EOF. A close fence must use the same character as the opener and have at least as many characters (e.g., a 4-backtick open requires 4+ backticks to close). The closing fence line must contain only the fence characters and optional trailing whitespace — no info string.
-   - ATX heading (`#` through `######` followed by space or end of line)
-   - Thematic break (`---`, `***`, `___` with optional spaces) — **only when preceded by a blank line or at document start.** A thematic-break-like line (`---`, `***`, `___`) immediately following a non-blank, non-container line must not be consumed as a thematic break, because `---` and `===` can be setext heading underlines (deferred to v2). In this case, the line is absorbed into the preceding paragraph. Note: `===` is never a thematic break in GFM (it is only a setext H1 underline), so it always falls through to paragraph/unrecognized. Applying the "preceded by blank line" rule consistently to all three markers (`-`, `*`, `_`) ensures forward compatibility with setext heading support.
-   - Blockquote (`> `) → enter recursive context, parse inner content as children
-   - List item (unordered: `- `, `* `, `+ `; ordered: one or more digits followed by `.` or `)` and a space) → enter recursive context, parse inner content as children
-   - **Fallback** → start a paragraph, consume continuation lines until a blank line or a recognized block opener
-
-4. **Between blocks**, blank lines accumulate as `leadingTrivia` on the next block.
-
-5. **Trailing blank lines** after the last block become `Document.suffix`.
+Blank lines between blocks become `leadingTrivia` on the next block. Leading/trailing document whitespace becomes `Document.prefix`/`suffix`.
 
 ### Container Block Parsing
 
@@ -206,36 +175,5 @@ All GFM block types are implemented and have their own node kinds:
 
 ### Custom Extensions
 
-The pattern for adding a new block type (standard or custom):
+New block types are additive — a kind string, optional metadata, and a parser matcher. Unrecognized syntax graduates to its own kind. The tree is agnostic to kind strings.
 
-1. Add a new `kind` string to the `BlockKind` union
-2. Optionally add a metadata interface to `MetadataMap`
-3. Add parser recognition logic (matcher function + priority placement)
-4. What was previously `unrecognized` for that syntax now gets its own typed node
-
-This same pattern applies to hypothetical custom blocks (callouts, embedded queries, custom containers). The tree doesn't care what the kind string is — it only requires the node to be a `CstNode` with the standard fields.
-
-## Testing Strategy
-
-### Test Runner
-
-Vitest — runs TypeScript natively via Vite, no compilation step. Test files live alongside source in `src/lib/editor/test/`.
-
-### Test Tiers
-
-**Tier 1 — Round-trip tests (must never fail):**
-
-Feed a markdown string in, parse it, serialize it, assert exact string equality.
-
-- Each block type in isolation
-- Mixed documents with multiple block types
-- Edge cases: empty document, only blank lines, no trailing newline, `\r\n` line endings, multiple consecutive blank lines
-- Nested containers: blockquote containing a heading, list containing a code block, nested lists, blockquote containing a list
-
-**Tier 2 — Metadata extraction tests:**
-
-Parse specific inputs and assert the parser identifies correct block kinds and metadata values. Secondary to round-trip — if metadata is wrong but round-trip passes, that's a bug but not a data-loss bug.
-
-**Tier 3 — Full block type coverage:**
-
-Parse documents with all GFM block types and verify correct `kind` assignment and round-trip fidelity. Ensure no syntax falls through to `unrecognized` unless it genuinely isn't GFM.
