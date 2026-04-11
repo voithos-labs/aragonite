@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
 		type EditorActions,
@@ -351,6 +351,19 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getCursorOffset() ?? 0;
 
+		// Ctrl+B / Ctrl+I — toggle bold / italic formatting on selection
+		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+			e.preventDefault();
+			toggleFormat('strong');
+			return;
+		}
+
+		if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+			e.preventDefault();
+			toggleFormat('emphasis');
+			return;
+		}
+
 		// Ctrl+Z / Ctrl+Y — catch here because Ctrl+Y doesn't trigger
 		// beforeinput historyRedo in Chromium/WebView2
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
@@ -492,6 +505,57 @@
 		actions.updateBlockContent(index, newDisplay + '\n', start + text.length);
 		if (isProseKind(node.kind)) refreshInlineContent();
 		pendingCursorOffset = start + text.length;
+	}
+
+	// ── Formatting shortcuts ────────────────────────────────────────────
+
+	function toggleFormat(format: 'strong' | 'emphasis'): void {
+		if (!el) return;
+
+		const offsets = getSelectionOffsets();
+		if (!offsets) return;
+
+		const displayText = getDisplayText();
+		const markers = format === 'strong' ? '**' : '*';
+		const mLen = markers.length;
+
+		const selectedSlice = displayText.slice(offsets.start, offsets.end);
+
+		// Check if selection is already wrapped with markers
+		const isFormatted =
+			selectedSlice.startsWith(markers) &&
+			selectedSlice.endsWith(markers) &&
+			selectedSlice.length > mLen * 2;
+
+		let newDisplay: string;
+		let newSelStart: number;
+		let newSelEnd: number;
+
+		if (isFormatted) {
+			// Remove markers
+			const unwrapped = selectedSlice.slice(mLen, -mLen);
+			newDisplay =
+				displayText.slice(0, offsets.start) + unwrapped + displayText.slice(offsets.end);
+			newSelStart = offsets.start;
+			newSelEnd = offsets.start + unwrapped.length;
+		} else {
+			// Add markers
+			newDisplay =
+				displayText.slice(0, offsets.start) +
+				markers +
+				selectedSlice +
+				markers +
+				displayText.slice(offsets.end);
+			newSelStart = offsets.start;
+			newSelEnd = offsets.start + selectedSlice.length + mLen * 2;
+		}
+
+		actions.updateBlockContent(index, newDisplay + '\n', newSelStart);
+		if (isProseKind(node.kind)) refreshInlineContent();
+
+		tick().then(() => {
+			setSelection(newSelStart, newSelEnd);
+		});
 	}
 
 	// ── Helpers ─────────────────────────────────────────────────────────
