@@ -196,7 +196,7 @@ Arrow key navigation at block boundaries:
 
 - **ArrowUp** at the top visual line of a block, or **ArrowLeft** at offset 0: trigger `moveFocus` to the previous block with `position: 'end'`
 - **ArrowDown** at the bottom visual line of a block, or **ArrowRight** at the end of content: trigger `moveFocus` to the next block with `position: 'start'`
-- Detecting "top visual line" vs "middle of block" requires geometry measurement: compare the cursor's bounding rect before and after the arrow key press. If the rect didn't change vertically, the cursor didn't move — it's at the boundary.
+- **Current implementation:** ArrowUp triggers at offset 0; ArrowDown triggers when offset equals text length. This is offset-based, not geometry-based. A future phase may add visual-line geometry detection (bounding rect comparison) for more accurate behavior in multi-line blocks.
 - `moveFocus` skips non-focusable blocks. For non-editable but focusable blocks (thematic breaks), `position` is ignored — the block receives a whole-block focus highlight.
 - `focus(offset)` on non-editable blocks ignores the offset parameter. The block highlights itself as focused. Enter on a focused non-editable block creates a new paragraph below it. Backspace deletes it.
 

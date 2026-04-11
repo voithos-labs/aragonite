@@ -1,7 +1,7 @@
 /**
  * CST node types for the GFM block-level parser.
  * Mutable plain objects — no class hierarchy.
- * See docs/editor/syntax-tree/syntax-tree.md for the design spec.
+ * See docs/editor/design/syntax-tree.md for the design spec.
  */
 
 // ── Node Kinds ──────────────────────────────────────────────────────────────

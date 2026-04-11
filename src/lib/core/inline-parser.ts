@@ -1,7 +1,7 @@
 /**
  * Inline parser for prose block content (CST Phase 2).
  * Produces InlineNode trees from the content portion of raw text.
- * See docs/editor/inline-parsing-design.md for the design spec.
+ * See docs/editor/design/inline-parsing.md for the design spec.
  *
  * Parsing stages:
  *   Stage 1  — backtick code spans (scanBacktickSpans)
