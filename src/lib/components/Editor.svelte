@@ -2,6 +2,7 @@
 	import { setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		CURSOR_END,
 		type EditorActions,
 		type BlockComponent,
 		type CstNode,
@@ -160,7 +161,7 @@
 					blockRefs[blockIndex - 1]?.focus?.(0);
 				} else {
 					// Previous block is editable but not mergeable — move focus
-					blockRefs[blockIndex - 1]?.focus?.(999999);
+					blockRefs[blockIndex - 1]?.focus?.(CURSOR_END);
 				}
 				return;
 			}
@@ -224,7 +225,7 @@
 				block.focus?.(0);
 			} else {
 				// 'end' — use a large number, focus() should clamp to content length
-				block.focus?.(999999);
+				block.focus?.(CURSOR_END);
 			}
 		},
 

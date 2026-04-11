@@ -3,6 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		LIST_CONTEXT_KEY,
+		CURSOR_END,
 		type EditorActions,
 		type ListContext,
 		type CstNode,
@@ -45,7 +46,7 @@
 			innerBlockRefs[0]?.focus?.(0);
 		} else {
 			const last = node.children.length - 1;
-			innerBlockRefs[last]?.focus?.(999999);
+			innerBlockRefs[last]?.focus?.(CURSOR_END);
 		}
 	}
 
@@ -179,7 +180,7 @@
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus?.(0);
 			} else {
-				innerBlockRefs[innerIndex - 1]?.focus?.(999999);
+				innerBlockRefs[innerIndex - 1]?.focus?.(CURSOR_END);
 			}
 		},
 
@@ -212,7 +213,7 @@
 				if (!block?.focusable) return;
 				if (typeof position === 'number') block.focus?.(position);
 				else if (position === 'start') block.focus?.(0);
-				else block.focus?.(999999);
+				else block.focus?.(CURSOR_END);
 			}
 		},
 
