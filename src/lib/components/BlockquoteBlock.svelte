@@ -19,7 +19,7 @@
 	import { rebuildBlockquoteRaw } from '../container-raw';
 	import BlockList from './BlockList.svelte';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let { node = $bindable(), index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));

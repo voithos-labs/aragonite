@@ -15,7 +15,7 @@
 	import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let { node = $bindable(), index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));
