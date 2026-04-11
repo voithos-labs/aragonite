@@ -8,6 +8,9 @@ import type { CstNode, Document } from './core/nodes';
 // Re-export CstNode and Document so consumers can import from here
 export type { CstNode, Document } from './core/nodes';
 
+/** Sentinel offset meaning "place cursor at end of content". focus() clamps to content length. */
+export const CURSOR_END = 999999;
+
 // ── Context Keys ────────────────────────────────────────────────────────────
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');

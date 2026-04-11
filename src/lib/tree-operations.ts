@@ -51,9 +51,7 @@ export function splitNode(
 		}
 	}
 
-	// Re-parse each half to determine block type
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
-	// No blank line between split halves — empty leading trivia
 	const secondNode = reparseAsNode(secondRaw, '');
 
 	// Replace the original node with the two new nodes
@@ -87,7 +85,6 @@ export function mergeWithPrevious(
 
 	const mergedRaw = prevContent + curr.raw;
 
-	// Re-parse to determine the merged block type
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 
 	// Replace both nodes with the merged node
@@ -132,7 +129,6 @@ export function updateNodeContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
-	// Re-parse the new text to determine block type
 	const reparsed = reparseAsNode(newText, node.leadingTrivia);
 
 	// Update the node in place — copy all fields so leaf↔container transitions
