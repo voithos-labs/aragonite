@@ -290,12 +290,21 @@
 		}
 	};
 
+	function handleKeydown(e: KeyboardEvent): void {
+		if (e.defaultPrevented) return;
+		if (e.key === 'Tab' && !e.shiftKey) {
+			e.preventDefault();
+			listContext.indentItem(index);
+		}
+	}
+
 	setContext(EDITOR_ACTIONS_KEY, nestedActions);
 </script>
 
 <div class="list-item-block">
 	<span class="list-item-marker">{marker()}</span>
-	<div class="list-item-content">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="list-item-content" onkeydown={handleKeydown}>
 		<BlockList
 			children={node.children ?? []}
 			blockIds={innerBlockIds}

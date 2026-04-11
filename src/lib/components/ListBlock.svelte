@@ -167,6 +167,54 @@
 	// Provides list-specific operations to child ListItemBlock components.
 
 	const listContext: ListContext = {
+		async indentItem(itemIndex: number): Promise<void> {
+			if (!node.children || itemIndex === 0) return;
+
+			const item = node.children[itemIndex];
+			const prevItem = node.children[itemIndex - 1];
+			if (!prevItem.children) return;
+
+			parentActions.beginContainerEdit?.(index, 0);
+
+			// Remove current item from this list
+			node.children.splice(itemIndex, 1);
+			itemBlockIds.splice(itemIndex, 1);
+
+			// Check if prevItem already has a nested list of the same type
+			const ordered = (node.metadata as { ordered: boolean }).ordered;
+			const existingNestedList = prevItem.children.find(
+				(c) =>
+					c.kind === 'list' &&
+					(c.metadata as { ordered: boolean }).ordered === ordered
+			);
+
+			if (existingNestedList && existingNestedList.children) {
+				// Append to existing nested list
+				existingNestedList.children.push(item);
+				rebuildListRaw(existingNestedList);
+			} else {
+				// Create a new nested list with this item as its only child
+				const nestedList: CstNode = {
+					kind: 'list',
+					leadingTrivia: '',
+					raw: '',
+					metadata: { ordered },
+					children: [item]
+				};
+				rebuildListRaw(nestedList);
+				prevItem.children.push(nestedList);
+			}
+
+			rebuildListItemRaw(prevItem);
+			rebuildListRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerItemReactivity();
+			await tick();
+
+			// Focus the indented item (now inside the previous item's nested list)
+			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
+		},
+
 		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
 			if (!node.children) return;
 
