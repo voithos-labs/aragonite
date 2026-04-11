@@ -213,11 +213,11 @@
 		},
 
 		// Propagate container support for deeply nested containers
-		beginContainerEdit(blockIndex: number, offset: number): void {
+		beginContainerEdit(_blockIndex: number, offset: number): void {
 			parentActions.beginContainerEdit?.(index, offset);
 		},
 
-		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
 			parentActions.beginContainerEditDebounced?.(index, offset);
 		},
 
