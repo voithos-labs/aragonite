@@ -83,11 +83,41 @@
 	// updateBlockContent, undo/redo delegation, container propagation.
 	// Uses rebuildListItemRaw instead of rebuildBlockquoteRaw.)
 
+	/** Split the current item's content at offset, moving trailing children to a new sibling item. */
+	function splitItemAtOffset(innerIndex: number, offset: number): void {
+		if (!node.children) return;
+
+		performSplit(innerParent(), innerBlockIds, innerIndex, offset);
+
+		const newChildren = node.children.splice(innerIndex + 1);
+		innerBlockIds.splice(innerIndex + 1);
+
+		if (newChildren.length > 0) {
+			newChildren[0].leadingTrivia = '';
+		}
+
+		rebuildListItemRaw(node);
+
+		const newItem: CstNode = {
+			kind: 'listItem',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { marker: marker(), taskItem: false, taskChecked: false },
+			innerPrefix: '',
+			children: newChildren,
+			innerSuffix: ''
+		};
+		rebuildListItemRaw(newItem);
+
+		listContext.insertItemAfter(index, newItem);
+		triggerInnerReactivity();
+	}
+
 	const nestedActions: EditorActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
 
-			// Case 1: Empty item — exit list
+			// Empty item — exit list
 			const isEmptyItem =
 				node.children.length === 1 &&
 				node.children[0].kind === 'paragraph' &&
@@ -97,7 +127,7 @@
 				return;
 			}
 
-			// Case 2: At end of last child — insert new empty sibling item
+			// At end of last child — insert new empty sibling item
 			const lastChild = node.children[node.children.length - 1];
 			let displayLen = lastChild.raw.length;
 			if (lastChild.raw.endsWith('\r\n')) displayLen -= 2;
@@ -111,40 +141,10 @@
 				return;
 			}
 
-			// Case 3: In middle — split content across two items
+			// In middle — split content across two items
 			parentActions.beginContainerEdit?.(index, offset);
-
-			// Split the inner paragraph
-			performSplit(innerParent(), innerBlockIds, innerIndex, offset);
-
-			// Move everything from innerIndex+1 onward to a new item
-			const newChildren = node.children.splice(innerIndex + 1);
-			innerBlockIds.splice(innerIndex + 1);
-
-			// First child of new item should have empty leadingTrivia
-			if (newChildren.length > 0) {
-				newChildren[0].leadingTrivia = '';
-			}
-
-			// Rebuild current item
-			rebuildListItemRaw(node);
-
-			// Create new item with split-off content
-			const m = marker();
-			const newItem: CstNode = {
-				kind: 'listItem',
-				leadingTrivia: '',
-				raw: '',
-				metadata: { marker: m, taskItem: false, taskChecked: false },
-				innerPrefix: '',
-				children: newChildren,
-				innerSuffix: ''
-			};
-			rebuildListItemRaw(newItem);
-
-			listContext.insertItemAfter(index, newItem);
+			splitItemAtOffset(innerIndex, offset);
 			parentActions.endContainerEdit?.();
-			triggerInnerReactivity();
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
@@ -239,11 +239,11 @@
 			return parentActions.requestRedo();
 		},
 
-		beginContainerEdit(blockIndex: number, offset: number): void {
+		beginContainerEdit(_blockIndex: number, offset: number): void {
 			parentActions.beginContainerEdit?.(index, offset);
 		},
 
-		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
 			parentActions.beginContainerEditDebounced?.(index, offset);
 		},
 
