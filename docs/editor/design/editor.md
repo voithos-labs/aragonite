@@ -112,17 +112,9 @@ The CST is the document-level source of truth. Within a single block during acti
 
 ### Normal Text Input
 
-1. User types in a block's contenteditable
-2. Browser updates the DOM immediately
-3. `input` event fires — read `element.textContent`
-4. Update the CST node's `raw` field to match
-5. Re-parse the single block to refresh metadata — this uses `parse()` on just the block's `raw` text and reads the resulting node's kind and metadata. Note: single-block re-parse must use the full `parseNextBlock` pathway (or equivalent) with appropriate context, not just pattern matching, so that context-dependent block type recognition (e.g., indented code cannot interrupt a paragraph) works correctly.
-6. In Phase 2+: re-parse inline content from the updated `raw` to refresh `inlineContent`
-7. Check: did the block's structural interpretation change? (e.g., paragraph → heading)
-8. If no (the common case) — done, DOM and CST agree
-9. If yes — re-render the block from the CST (swap component type, update styling)
+User types → browser updates DOM → `input` event reads `textContent` → CST `raw` updated → single-block re-parse refreshes metadata and inline content → if the block's kind changed, re-render with the new component type.
 
-**Phase 2 rendering note:** Once inline parsing is active, the CST→DOM sync for prose blocks changes from setting `textContent` (flat string) to building a styled span tree from `inlineContent`. Markdown markers are rendered as dimmed spans, content is styled (bold, italic, etc.). Cursor offset math is unchanged — offsets still map to positions in `raw`, the DOM just has nested spans instead of a single text node.
+The common case (no kind change) requires no DOM patching — the browser's update and the CST agree. Prose blocks rebuild their styled span tree from `inlineContent` on every input; cursor offsets map to `raw` positions unchanged.
 
 ### Intercepted Operations
 
@@ -149,13 +141,11 @@ The CST is always up-to-date (updated on every input event). The DOM is only pat
 
 ### Upward Communication (Block → Editor)
 
-Blocks receive typed callback functions via Svelte `getContext`:
+Blocks call typed context functions for structural operations: split, merge, delete, move focus, update content, undo, redo. Each takes a block index relative to the local children array. Structural operations use `await tick()` for post-render focus management.
 
-The `EditorActions` context provides seven core actions: `splitBlock`, `mergeWithPrevious`, `deleteBlock`, `moveFocus`, `updateBlockContent`, `requestUndo`, and `requestRedo`. Each takes a `blockIndex` (relative to the local children array) plus operation-specific parameters — for example, `splitBlock` takes an offset, and `moveFocus` takes a position (start, end, or a numeric offset). Structural operations may be async (they use `await tick()` for post-render focus management).
+Container blocks have additional context methods for coordinating undo snapshots between nested and parent editors.
 
-Three optional container methods — `beginContainerEdit`, `beginContainerEditDebounced`, and `endContainerEdit` — exist only for container block components. They coordinate undo snapshots and reactivity between nested editors and the parent editor.
-
-No signal dispatcher, no string matching, no performer registry, no reindexing. Blocks call typed functions directly.
+No signal dispatcher, no string matching, no performer registry. Blocks call typed functions directly.
 
 ### Downward Communication (Editor → Block)
 
@@ -165,9 +155,7 @@ The editor only needs to reach down to blocks for focus management. This uses co
 
 All structural operations are CST tree mutations performed by the editor shell. Blocks never modify the tree structure.
 
-**Split** — take `node.raw`, cut at the text offset, create two new CST nodes, replace the original in the document's children array. The original block keeps its ID; the new block gets a fresh ID.
-
-The `offset` parameter is relative to `raw` — it includes any syntax markers. The block component is responsible for translating the contenteditable cursor position to a `raw` offset (accounting for any markers rendered in the DOM). Splitting a heading `## Hello World\n` at raw offset 8 (between "Hello" and " World") produces `## Hello\n` (remains a heading) and ` World\n` (re-parses as a paragraph). The marker is not duplicated — the second half is a new block whose type is determined by re-parsing.
+**Split** — cut `raw` at the cursor offset, produce two nodes, re-parse each to determine type. The original keeps its ID; the new block gets a fresh ID. Offsets are relative to `raw` including markers — block components translate DOM positions to raw offsets. The marker is not duplicated; the second half re-parses as its natural type.
 
 **Merge** — take two adjacent CST nodes, concatenate their `raw` text, replace both with one node, re-parse to determine the merged block's type. The surviving block keeps its ID.
 
@@ -314,38 +302,19 @@ Always intercepted:
 
 ## Undo/Redo
 
-### Unified Undo Stack
+### Model
 
-All changes go through a single undo system. The browser's built-in contenteditable undo is disabled by intercepting `beforeinput` with `inputType: 'historyUndo'` / `'historyRedo'`.
+Single unified undo stack; browser contenteditable undo is disabled. Each entry captures a full CST document snapshot, the block ID array (for stable keyed rendering), and the focus position for cursor restoration. Entries are cloned CST trees — cheap to snapshot. The stack is capped to prevent unbounded growth.
 
-### Interface
+### Snapshot Triggers
 
-Each undo entry captures four things: a full document snapshot, the block ID array (so undo/redo preserves Svelte's keyed DOM identity), and the focus position (block index and character offset) for cursor restoration.
-
-The undo manager exposes push, undo, redo, and clear operations, plus read-only flags for whether undo/redo are available. Both `undo` and `redo` accept the current editor state so the opposite stack can capture it — undo pushes the current state onto the redo stack, and vice versa. The caller clones the document before pushing.
-
-The default implementation stores cloned CST `Document` trees. The CST is a lightweight tree of strings — cloning is cheap. The stack is capped at 200 entries to prevent unbounded memory growth during long editing sessions. If the Automerge history layer proves suitable for session-level undo later, the implementation behind this interface can be swapped without touching the editor.
-
-### When Snapshots Are Pushed
-
-- Before every structural operation (split, merge, delete block, reorder)
+- Before every structural operation (split, merge, delete, reorder)
 - Before every clipboard operation (cut, paste)
-- On text input, batched: consecutive keystrokes within the same block are grouped into one undo entry. A new entry is created when:
-  - The user pauses typing (~500ms debounce)
-  - The user moves focus to a different block
-  - A structural or clipboard operation occurs
+- Text input is batched: consecutive keystrokes in the same block group into one entry, broken by pauses, focus changes, or structural operations
 
-### Undo Behavior
+### Behavior
 
-1. Pop the previous entry from the stack
-2. Replace the current CST `Document` with the entry's snapshot
-3. Restore `blockIds` from the entry (preserves DOM identity — Svelte reuses existing block components instead of destroying and recreating them)
-4. Svelte reactivity re-renders affected blocks
-5. Restore focus to the block and offset stored in the entry
-
-### Redo Behavior
-
-Same flow, opposite direction. The redo stack is cleared whenever a new edit occurs after an undo (standard redo semantics).
+Undo restores the previous snapshot, pushes the current state onto the redo stack, and restores focus. Redo is the inverse. The redo stack clears on any new edit.
 
 ### Relationship to Persistent History
 
