@@ -11,7 +11,7 @@
 	import { parse } from '../core/parser';
 
 	let {
-		node = $bindable(),
+		node,
 		index,
 		blockClass = 'paragraph-block',
 		splitOnEnter = true
@@ -412,18 +412,21 @@
 			}
 		}
 
-		// ArrowUp — geometry-based: cross block boundary when cursor is on first visual line.
+		// ArrowUp — geometry-based: cross block boundary only when cursor is on first visual line.
+		// Empty blocks are excluded — the browser handles ArrowUp as a no-op, allowing
+		// the cursor to "rest" in the empty block.
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
-			if (isAtFirstVisualLine()) {
+			if ((el?.textContent ?? '').length > 0 && isAtFirstVisualLine()) {
 				e.preventDefault();
 				actions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
 
-		// ArrowDown — geometry-based: cross block boundary when cursor is on last visual line.
+		// ArrowDown — geometry-based: cross block boundary only when cursor is on last visual line.
+		// Empty blocks are excluded — same reason as ArrowUp.
 		if (e.key === 'ArrowDown' && !e.shiftKey) {
-			if (isAtLastVisualLine()) {
+			if ((el?.textContent ?? '').length > 0 && isAtLastVisualLine()) {
 				e.preventDefault();
 				actions.moveFocus(index + 1, 'start');
 				return;
