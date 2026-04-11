@@ -346,33 +346,52 @@ function parseList(
 		const itemMatch = matchListItem(lines[i].text);
 		if (!itemMatch || itemMatch.ordered !== ordered) break;
 
-		const itemLine = lines[i];
-		const contentText = itemLine.text.slice(itemMatch.indent);
-		const task = matchTaskCheckbox(contentText);
+		const contentIndent = itemMatch.indent;
+		const itemStartIndex = i;
+		i++;
 
-		const innerText = task
-			? contentText.slice(contentText.match(/^\[.\]\s+/)![0].length)
-			: contentText;
+		// Collect continuation lines: indented by at least contentIndent spaces.
+		// Blank lines are included if followed by indented content (multi-paragraph items).
+		while (i < endIndex) {
+			if (isBlankLine(lines[i].text)) {
+				let j = i;
+				while (j < endIndex && isBlankLine(lines[j].text)) j++;
+				if (j < endIndex && getIndent(lines[j].text) >= contentIndent) {
+					i = j + 1;
+				} else {
+					break;
+				}
+			} else if (getIndent(lines[i].text) >= contentIndent) {
+				i++;
+			} else {
+				break;
+			}
+		}
 
-		const innerParagraph: CstNode[] =
-			innerText.length > 0
-				? [{ kind: 'paragraph', leadingTrivia: '', raw: innerText + itemLine.lineEnding }]
-				: [];
+		// Lines [itemStartIndex, i) belong to this item
+		const itemRaw = joinRaw(lines, itemStartIndex, i);
+		const strippedLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
+
+		// Detect task checkbox from first stripped line
+		const firstStrippedText = strippedLines.length > 0 ? strippedLines[0].text : '';
+		const task = matchTaskCheckbox(firstStrippedText);
+
+		// Parse inner content recursively
+		const inner = parseBlocks(strippedLines, 0, strippedLines.length);
 
 		items.push({
 			kind: 'listItem',
 			leadingTrivia: '',
-			raw: itemLine.raw,
+			raw: itemRaw,
 			metadata: {
 				marker: itemMatch.marker,
 				taskItem: task !== null,
 				taskChecked: task?.checked ?? false
 			},
-			innerPrefix: '',
-			children: innerParagraph,
-			innerSuffix: ''
+			innerPrefix: inner.prefix,
+			children: inner.children,
+			innerSuffix: inner.suffix
 		});
-		i++;
 	}
 
 	const raw = joinRaw(lines, startIndex, i);
@@ -490,6 +509,38 @@ export function matchListItem(
 function matchTaskCheckbox(text: string): { checked: boolean } | null {
 	const m = text.match(/^\[( |x|X)\]\s+/);
 	return m ? { checked: m[1].toLowerCase() === 'x' } : null;
+}
+
+function getIndent(text: string): number {
+	const m = text.match(/^( *)/);
+	return m ? m[1].length : 0;
+}
+
+function stripListItemLines(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	contentIndent: number
+): ParsedLine[] {
+	let offset = 0;
+	return lines.slice(startIndex, endIndex).map((line, i) => {
+		// First line: strip the full marker prefix
+		// Other lines: strip up to contentIndent spaces of indentation
+		const stripCount =
+			i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
+		const stripped = line.text.slice(stripCount);
+		const lineEnding = line.lineEnding;
+		const raw = stripped + lineEnding;
+		const sl: ParsedLine = {
+			raw,
+			text: stripped,
+			lineEnding,
+			start: offset,
+			end: offset + raw.length
+		};
+		offset += raw.length;
+		return sl;
+	});
 }
 
 function startsNewBlock(text: string): boolean {
