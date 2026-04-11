@@ -21,6 +21,7 @@ export const LIST_CONTEXT_KEY = Symbol('list-context');
 export interface ListContext {
 	insertItemAfter(itemIndex: number, newItem?: CstNode): void;
 	exitListAtItem(itemIndex: number): void;
+	indentItem(itemIndex: number): void;
 }
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────
