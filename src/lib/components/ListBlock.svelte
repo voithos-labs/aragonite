@@ -15,7 +15,7 @@
 	import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let { node = $bindable(), index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));
@@ -323,7 +323,7 @@
 				// Empty item was at the start — create paragraph before the list
 				await parentActions.splitBlock(index, 0);
 				// splitBlock focused the list (index+1), redirect to the paragraph (index)
-				parentActions.moveFocus(index, 'start');
+				parentActions.moveFocus(index - 1, 'start');
 			} else {
 				// Empty item was in the middle or end — create paragraph after the list
 				let displayLen = node.raw.length;

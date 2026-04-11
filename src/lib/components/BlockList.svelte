@@ -15,7 +15,7 @@
 
 <div class="block-list">
 	{#each children as node, i (blockIds[i])}
-		<BlockHost {node} index={i} bind:ref={blockRefs[i]} />
+		<BlockHost bind:node={children[i]} index={i} bind:ref={blockRefs[i]} />
 	{/each}
 </div>
 
