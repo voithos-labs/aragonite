@@ -28,6 +28,7 @@ export interface ListContext {
 export interface EditorActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
+	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
 	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void | Promise<void>;
 	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
