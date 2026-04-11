@@ -140,6 +140,91 @@
 			blockRefs[blockIndex + 1]?.focus?.(0);
 		},
 
+		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+			if (blocks.length === 0) return;
+
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, offset);
+			needsUndoCheckpoint = true;
+
+			const currentNode = doc.children[blockIndex];
+			const rawText = currentNode.raw;
+			const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
+
+			// Split the current block's raw at offset into before/after
+			const rawBefore = rawText.slice(0, offset);
+			let rawAfter = rawText.slice(offset);
+			// Strip trailing line ending from rawAfter since it came from the full raw
+			if (rawAfter.endsWith('\r\n')) rawAfter = rawAfter.slice(0, -2);
+			else if (rawAfter.endsWith('\n')) rawAfter = rawAfter.slice(0, -1);
+
+			const newNodes: CstNode[] = [];
+
+			// If there's text before the cursor, it becomes the first block
+			if (rawBefore.length > 0) {
+				const beforeRaw = rawBefore + lineEnding;
+				const beforeDoc = parse(beforeRaw);
+				const beforeNode = beforeDoc.children.length > 0
+					? beforeDoc.children[0]
+					: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
+				beforeNode.leadingTrivia = currentNode.leadingTrivia;
+				ensureEditableContainers(beforeNode);
+				newNodes.push(beforeNode);
+			}
+
+			// Add all pasted blocks except the last
+			for (let i = 0; i < blocks.length - 1; i++) {
+				const node = { ...blocks[i] };
+				if (newNodes.length === 0) {
+					node.leadingTrivia = currentNode.leadingTrivia;
+				}
+				ensureEditableContainers(node);
+				newNodes.push(node);
+			}
+
+			// Last pasted block gets rawAfter appended
+			const lastPasted = blocks[blocks.length - 1];
+			let lastPastedRaw = lastPasted.raw;
+			if (lastPastedRaw.endsWith('\r\n')) lastPastedRaw = lastPastedRaw.slice(0, -2);
+			else if (lastPastedRaw.endsWith('\n')) lastPastedRaw = lastPastedRaw.slice(0, -1);
+
+			const mergedLastRaw = lastPastedRaw + rawAfter + lineEnding;
+			const lastDoc = parse(mergedLastRaw);
+			const lastNode = lastDoc.children.length > 0
+				? lastDoc.children[0]
+				: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
+			if (newNodes.length === 0) {
+				lastNode.leadingTrivia = currentNode.leadingTrivia;
+			} else {
+				lastNode.leadingTrivia = '';
+			}
+			ensureEditableContainers(lastNode);
+			newNodes.push(lastNode);
+
+			// Parse inline content for all new nodes
+			parseAllInlineContent(newNodes);
+
+			// Replace the original block with new nodes
+			doc.children.splice(blockIndex, 1, ...newNodes);
+
+			// Update blockIds: keep original ID for first, generate new for the rest
+			const newIds = newNodes.slice(1).map(() => generateBlockId());
+			blockIds.splice(blockIndex + 1, 0, ...newIds);
+
+			// Trigger reactivity
+			doc.children = [...doc.children];
+			blockIds = [...blockIds];
+
+			await tick();
+
+			// Focus at end of last inserted node
+			const lastIndex = blockIndex + newNodes.length - 1;
+			blockRefs[lastIndex]?.focus?.(CURSOR_END);
+		},
+
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
 			if (blockIndex <= 0) return;
 
