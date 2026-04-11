@@ -7,7 +7,7 @@
 		type BlockComponent
 	} from '../editor-types';
 
-	let { node = $bindable(), index }: { node: CstNode; index: number } = $props();
+	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
 	let textarea: HTMLTextAreaElement | undefined = $state();
