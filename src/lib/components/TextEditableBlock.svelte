@@ -295,6 +295,11 @@
 		} else if (e.inputType === 'historyRedo') {
 			e.preventDefault();
 			actions.requestRedo();
+		} else if (e.inputType === 'insertLineBreak') {
+			// Shift+Enter: prevent browser from inserting \n into contenteditable.
+			// A bare \n in textContent would cause onInput → updateBlockContent →
+			// reparseAsNode to produce two blocks, silently dropping content after the \n.
+			e.preventDefault();
 		}
 	}
 
@@ -314,7 +319,7 @@
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-			actions.updateBlockContent(index, newDisplay + '\n');
+			actions.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
 			if (isProseKind(node.kind)) refreshInlineContent();
 			pendingCursorOffset = selOffsets.start;
 		}
@@ -331,7 +336,7 @@
 		const start = selOffsets?.start ?? offset;
 		const end = selOffsets?.end ?? offset;
 		const newDisplay = displayText.slice(0, start) + text + displayText.slice(end);
-		actions.updateBlockContent(index, newDisplay + '\n');
+		actions.updateBlockContent(index, newDisplay + '\n', start + text.length);
 		if (isProseKind(node.kind)) refreshInlineContent();
 		pendingCursorOffset = start + text.length;
 	}
