@@ -517,7 +517,12 @@
 			if (isProseKind(node.kind)) refreshInlineContent();
 			pendingCursorOffset = effectiveOffset + text.length;
 		} else {
-			// Multi-block paste — splice parsed blocks into document
+			// Multi-block paste — splice parsed blocks into document.
+			// First, update the block's raw to remove selected text so that
+			// insertParsedBlocks (which reads currentNode.raw) sees the correct content.
+			if (selOffsets) {
+				actions.updateBlockContent(index, effectiveDisplay + '\n', effectiveOffset);
+			}
 			actions.insertParsedBlocks(index, effectiveOffset, parsed.children);
 		}
 	}
