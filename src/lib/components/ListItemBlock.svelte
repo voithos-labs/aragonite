@@ -284,4 +284,8 @@
 		flex: 1;
 		min-width: 0;
 	}
+
+	.list-item-content :global(.list-block) {
+		padding-left: 1em;
+	}
 </style>
