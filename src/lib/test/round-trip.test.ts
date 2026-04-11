@@ -81,7 +81,15 @@ describe('round-trip: lists', () => {
 		{ name: 'plus marker', source: '+ Item\n' },
 		{ name: 'star marker', source: '* Item\n' },
 		{ name: 'list then paragraph', source: '- Item\n\nParagraph.\n' },
-		{ name: 'multi-digit ordered', source: '10. Tenth\n11. Eleventh\n' }
+		{ name: 'multi-digit ordered', source: '10. Tenth\n11. Eleventh\n' },
+		{ name: 'continuation line', source: '- Item\n  more text\n' },
+		{ name: 'multi-paragraph item', source: '- Para 1\n\n  Para 2\n' },
+		{ name: 'nested unordered list', source: '- Item 1\n  - Nested a\n  - Nested b\n- Item 2\n' },
+		{ name: 'nested ordered in unordered', source: '- Item\n  1. First\n  2. Second\n' },
+		{ name: 'deeply nested list', source: '- L1\n  - L2\n    - L3\n' },
+		{ name: 'item with code block', source: '- Item\n  ```\n  code\n  ```\n' },
+		{ name: 'item with blockquote', source: '- Item\n  > quote\n' },
+		{ name: 'ordered with continuation', source: '1. Item\n   more text\n' }
 	];
 
 	for (const { name, source } of cases) {
