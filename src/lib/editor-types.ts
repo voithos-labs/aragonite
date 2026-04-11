@@ -15,6 +15,7 @@ export const CURSOR_END = 999999;
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
 export const LIST_CONTEXT_KEY = Symbol('list-context');
+export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
 
 // ── List Context (list item → list block communication via Svelte context) ──
 
@@ -22,6 +23,15 @@ export interface ListContext {
 	insertItemAfter(itemIndex: number, newItem?: CstNode): void;
 	exitListAtItem(itemIndex: number): void;
 	indentItem(itemIndex: number): void;
+	unindentItem(itemIndex: number): void;
+	/**
+	 * Promote a nested list item to the parent list level.
+	 * Called by a nested ListBlock on the PARENT list's context.
+	 * @param parentItemIndex Index of the parent list item containing the nested list
+	 * @param nestedListNode The nested list CstNode (for direct manipulation)
+	 * @param nestedItemIndex Index of the item within the nested list to promote
+	 */
+	promoteNestedItem(parentItemIndex: number, nestedListNode: CstNode, nestedItemIndex: number): void;
 }
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────

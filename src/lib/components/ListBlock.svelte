@@ -3,6 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		LIST_CONTEXT_KEY,
+		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
 		type EditorActions,
 		type ListContext,
@@ -165,6 +166,10 @@
 
 	// ── List Context ────────────────────────────────────────────────────
 	// Provides list-specific operations to child ListItemBlock components.
+	// Read parent list context BEFORE setContext shadows it. For nested lists
+	// this returns the outer list's context; for top-level lists it is undefined.
+	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
+	const getParentItemIndex = getContext<(() => number) | undefined>(LIST_PARENT_ITEM_INDEX_KEY);
 
 	const listContext: ListContext = {
 		async indentItem(itemIndex: number): Promise<void> {
@@ -215,6 +220,13 @@
 			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
 		},
 
+		async unindentItem(itemIndex: number): Promise<void> {
+			if (!parentListContext || !getParentItemIndex || !node.children) return;
+			// Delegate the full operation to the parent list, which has direct
+			// access to its own children array and the parent item node.
+			await parentListContext.promoteNestedItem(getParentItemIndex(), node, itemIndex);
+		},
+
 		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
 			if (!node.children) return;
 
@@ -241,6 +253,50 @@
 			triggerItemReactivity();
 			await tick();
 			itemBlockRefs[itemIndex + 1]?.focus?.(0);
+		},
+
+		async promoteNestedItem(
+			parentItemIdx: number,
+			nestedListNode: CstNode,
+			nestedItemIdx: number
+		): Promise<void> {
+			if (!node.children || !nestedListNode.children) return;
+
+			const parentItem = node.children[parentItemIdx];
+			if (!parentItem?.children) return;
+
+			parentActions.beginContainerEdit?.(index, 0);
+
+			const item = nestedListNode.children[nestedItemIdx];
+
+			// 1. Remove item from nested list
+			nestedListNode.children.splice(nestedItemIdx, 1);
+
+			// 2. If nested list is now empty, remove it from the parent item's children
+			if (nestedListNode.children.length === 0) {
+				const nestedIdx = parentItem.children.indexOf(nestedListNode);
+				if (nestedIdx !== -1) {
+					parentItem.children.splice(nestedIdx, 1);
+				}
+			} else {
+				rebuildListRaw(nestedListNode);
+			}
+
+			// 3. Rebuild parent item raw
+			rebuildListItemRaw(parentItem);
+
+			// 4. Insert the promoted item into this list after the parent item
+			node.children.splice(parentItemIdx + 1, 0, item);
+			itemBlockIds.splice(parentItemIdx + 1, 0, generateBlockId());
+
+			// 5. Rebuild this list's raw
+			rebuildListRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerItemReactivity();
+			await tick();
+
+			// Focus the promoted item
+			itemBlockRefs[parentItemIdx + 1]?.focus?.(0);
 		},
 
 		async exitListAtItem(itemIndex: number): Promise<void> {
