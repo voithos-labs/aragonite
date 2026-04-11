@@ -101,6 +101,42 @@ describe('round-trip: lists', () => {
 
 });
 
+describe('round-trip: nested list edge cases', () => {
+	const cases: { name: string; source: string }[] = [
+		{
+			name: 'mixed nesting: list in blockquote',
+			source: '> - Item 1\n> - Item 2\n'
+		},
+		{
+			name: 'list after nested content in same item',
+			source: '- Paragraph\n\n  - Nested\n\n- Next item\n'
+		},
+		{
+			name: 'task item with continuation',
+			source: '- [x] Line 1\n  Line 2\n'
+		},
+		{
+			name: 'ordered nested in ordered',
+			source: '1. Outer\n   1. Inner\n2. Next\n'
+		},
+		{
+			name: 'empty item then nested content',
+			source: '- \n  - Nested\n'
+		},
+		{
+			name: 'item with indented code block',
+			source: '- Item\n\n      code line\n'
+		},
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
+
 // ── V2 Block Types ──────────────────────────────────────────────────────────
 
 describe('round-trip: setext headings', () => {
