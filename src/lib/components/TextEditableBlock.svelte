@@ -195,6 +195,130 @@
 		}
 	}
 
+	// ── Visual-line detection ───────────────────────────────────────────
+
+	/**
+	 * Get the vertical position (top) of the cursor.
+	 * For collapsed ranges, getClientRects() may return an empty list or
+	 * zero-height rects. We try getClientRects first, then getBoundingClientRect,
+	 * and return null if neither produces a usable value.
+	 */
+	function getRangeTop(range: Range): number | null {
+		const rects = range.getClientRects();
+		if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
+		const br = range.getBoundingClientRect();
+		if (br.height > 0) return br.top;
+		return null;
+	}
+
+	/**
+	 * Get the vertical position of a non-collapsed range around a character.
+	 * Non-collapsed ranges reliably return rects, unlike collapsed ones.
+	 */
+	function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
+		if (!el) return null;
+		try {
+			const range = document.createRange();
+			if (atEnd) {
+				// Range covering the last character
+				range.setStart(container, Math.max(0, offset - 1));
+				range.setEnd(container, offset);
+			} else {
+				// Range covering the first character
+				range.setStart(container, offset);
+				range.setEnd(container, offset + 1);
+			}
+			const rects = range.getClientRects();
+			if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
+			const br = range.getBoundingClientRect();
+			if (br.height > 0) return br.top;
+		} catch {
+			// offset out of bounds — ignore
+		}
+		return null;
+	}
+
+	function isAtFirstVisualLine(): boolean {
+		if (!el) return true;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return true;
+		if ((el.textContent ?? '').length === 0) return true;
+
+		const cursorRange = sel.getRangeAt(0);
+		let cursorTop = getRangeTop(cursorRange);
+
+		// For collapsed cursor, try measuring the character at cursor position
+		if (cursorTop === null && cursorRange.collapsed) {
+			const offset = getCursorOffset() ?? 0;
+			// If at offset 0, we're definitely at first visual line
+			if (offset === 0) return true;
+			// Otherwise fall back to offset check
+			return false;
+		}
+		if (cursorTop === null) return true;
+
+		// Get vertical position of the start of the element.
+		// Use a non-collapsed range around the first character for reliability.
+		const firstChild = el.firstChild;
+		if (!firstChild) return true;
+		let startTop: number | null = null;
+		if (firstChild.nodeType === Node.TEXT_NODE && (firstChild.textContent?.length ?? 0) > 0) {
+			startTop = getCharRangeTop(firstChild, 0, false);
+		} else {
+			const startRange = document.createRange();
+			startRange.selectNodeContents(el);
+			startRange.collapse(true);
+			startTop = getRangeTop(startRange);
+		}
+		if (startTop === null) {
+			// Can't determine geometry — fall back to offset-based
+			return (getCursorOffset() ?? 0) === 0;
+		}
+
+		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+		return Math.abs(cursorTop - startTop) < lineHeight * 0.8;
+	}
+
+	function isAtLastVisualLine(): boolean {
+		if (!el) return true;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return true;
+		const textLen = (el.textContent ?? '').length;
+		if (textLen === 0) return true;
+
+		const cursorRange = sel.getRangeAt(0);
+		let cursorTop = getRangeTop(cursorRange);
+
+		// For collapsed cursor at end of text, we're at last visual line
+		if (cursorTop === null && cursorRange.collapsed) {
+			const offset = getCursorOffset() ?? 0;
+			if (offset === textLen) return true;
+			return false;
+		}
+		if (cursorTop === null) return true;
+
+		// Get vertical position of the end of the element.
+		// Use a non-collapsed range around the last character for reliability.
+		const lastChild = el.lastChild;
+		if (!lastChild) return true;
+		let endTop: number | null = null;
+		if (lastChild.nodeType === Node.TEXT_NODE && (lastChild.textContent?.length ?? 0) > 0) {
+			const len = lastChild.textContent!.length;
+			endTop = getCharRangeTop(lastChild, len, true);
+		} else {
+			const endRange = document.createRange();
+			endRange.selectNodeContents(el);
+			endRange.collapse(false);
+			endTop = getRangeTop(endRange);
+		}
+		if (endTop === null) {
+			return (getCursorOffset() ?? 0) === textLen;
+		}
+
+		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+		return Math.abs(cursorTop - endTop) < lineHeight * 0.8;
+	}
+
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
@@ -274,28 +398,42 @@
 			}
 		}
 
-		// ArrowLeft/ArrowUp at offset 0 → move to end of previous block
-		// Phase 1 simplification: ArrowUp uses offset-based detection instead of
-		// visual-line geometry. Visual-line detection can be added in a later phase.
-		if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && !e.shiftKey) {
-			const offset = getCursorOffset();
-			if (offset === 0) {
-				// Don't intercept ArrowUp on empty blocks — let the browser
-				// handle it (no-op) so the cursor can "rest" here
-				if (e.key === 'ArrowUp' && (el?.textContent ?? '').length === 0) return;
+		// ArrowUp — geometry-based: cross block boundary only when cursor is on first visual line.
+		// Empty blocks are excluded — the browser handles ArrowUp as a no-op, allowing
+		// the cursor to "rest" in the empty block.
+		if (e.key === 'ArrowUp' && !e.shiftKey) {
+			if ((el?.textContent ?? '').length > 0 && isAtFirstVisualLine()) {
 				e.preventDefault();
 				actions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
 
-		// ArrowRight/ArrowDown at end of content → move to start of next block
-		if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && !e.shiftKey) {
+		// ArrowDown — geometry-based: cross block boundary only when cursor is on last visual line.
+		// Empty blocks are excluded — same reason as ArrowUp.
+		if (e.key === 'ArrowDown' && !e.shiftKey) {
+			if ((el?.textContent ?? '').length > 0 && isAtLastVisualLine()) {
+				e.preventDefault();
+				actions.moveFocus(index + 1, 'start');
+				return;
+			}
+		}
+
+		// ArrowLeft at offset 0 → move to end of previous block
+		if (e.key === 'ArrowLeft' && !e.shiftKey) {
+			const offset = getCursorOffset();
+			if (offset === 0) {
+				e.preventDefault();
+				actions.moveFocus(index - 1, 'end');
+				return;
+			}
+		}
+
+		// ArrowRight at end of content → move to start of next block
+		if (e.key === 'ArrowRight' && !e.shiftKey) {
 			const textLen = (el?.textContent ?? '').length;
 			const offset = getCursorOffset();
 			if (offset === textLen) {
-				// Don't intercept ArrowDown on empty blocks — same reason
-				if (e.key === 'ArrowDown' && textLen === 0) return;
 				e.preventDefault();
 				actions.moveFocus(index + 1, 'start');
 				return;
