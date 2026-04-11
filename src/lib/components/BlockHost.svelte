@@ -7,7 +7,7 @@
 	import ListBlock from './ListBlock.svelte';
 
 	let {
-		node = $bindable(),
+		node,
 		index,
 		ref = $bindable()
 	}: { node: CstNode; index: number; ref?: BlockComponent } = $props();
@@ -19,19 +19,19 @@
 </script>
 
 {#if node.kind === 'paragraph'}
-	<TextEditableBlock bind:node {index} bind:this={ref} blockClass="paragraph-block" />
+	<TextEditableBlock {node} {index} bind:this={ref} blockClass="paragraph-block" />
 {:else if node.kind === 'heading' || node.kind === 'setextHeading'}
-	<TextEditableBlock bind:node {index} bind:this={ref} blockClass={headingClass()} />
+	<TextEditableBlock {node} {index} bind:this={ref} blockClass={headingClass()} />
 {:else if node.kind === 'thematicBreak'}
-	<ThematicBreakBlock bind:node {index} bind:this={ref} />
+	<ThematicBreakBlock {node} {index} bind:this={ref} />
 {:else if node.kind === 'fencedCode'}
-	<CodeBlock bind:node {index} bind:this={ref} />
+	<CodeBlock {node} {index} bind:this={ref} />
 {:else if node.kind === 'blockquote'}
-	<BlockquoteBlock bind:node {index} bind:this={ref} />
+	<BlockquoteBlock {node} {index} bind:this={ref} />
 {:else if node.kind === 'list'}
-	<ListBlock bind:node {index} bind:this={ref} />
+	<ListBlock {node} {index} bind:this={ref} />
 {:else}
 	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
 		 linkReferenceDefinition, table, unrecognized) -->
-	<TextEditableBlock bind:node {index} bind:this={ref} blockClass="raw-block" />
+	<TextEditableBlock {node} {index} bind:this={ref} blockClass="raw-block" />
 {/if}
