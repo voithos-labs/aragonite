@@ -45,9 +45,8 @@ export function rebuildListItemRaw(node: CstNode): void {
 	const lines = innerContent.split('\n');
 	node.raw = lines
 		.map((line, i) => {
-			// Trailing empty string after final \n — preserve as-is
 			if (i === lines.length - 1 && line === '') return '';
-			// First line gets the marker
+			// First line: marker prefix; continuation lines: indented
 			if (i === 0) return marker + line;
 			// Blank lines are preserved without indentation (loose list items)
 			if (line === '') return '';

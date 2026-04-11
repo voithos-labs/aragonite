@@ -227,18 +227,16 @@ function scanLinksAndAutolinks(
 	codeSpans: InlineNode[]
 ): InlineNode[] {
 	// Build list of occupied ranges from code spans
-	const occupied: Array<{ s: number; e: number }> = codeSpans
+	const occupied: Array<{ start: number; end: number }> = codeSpans
 		.filter((n) => n.kind === 'inlineCode')
-		.map((n) => ({ s: n.start, e: n.end }));
+		.map((n) => ({ start: n.start, end: n.end }));
 
-	// Collect all link/image/autolink nodes found in unoccupied text
 	const found: InlineNode[] = [];
 
-	// Walk through text regions between code spans
 	let pos = start;
 	for (const occ of occupied) {
-		scanRegionForLinksAndAutolinks(raw, pos, occ.s, found);
-		pos = occ.e;
+		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found);
+		pos = occ.end;
 	}
 	scanRegionForLinksAndAutolinks(raw, pos, end, found);
 
@@ -431,16 +429,16 @@ type Segment = { type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: 
 /** Returns true if any text region between occupied nodes contains *, _, or ~. */
 function hasDelimiterChars(raw: string, start: number, end: number, nodes: InlineNode[]): boolean {
 	// Build occupied ranges from all non-text nodes
-	const occupied: Array<{ s: number; e: number }> = nodes
+	const occupied: Array<{ start: number; end: number }> = nodes
 		.filter((n) => n.kind !== 'text')
-		.map((n) => ({ s: n.start, e: n.end }));
+		.map((n) => ({ start: n.start, end: n.end }));
 
 	let pos = start;
-	for (const { s, e } of occupied) {
-		for (let i = pos; i < s; i++) {
+	for (const { start: occStart, end: occEnd } of occupied) {
+		for (let i = pos; i < occStart; i++) {
 			if (raw[i] === '*' || raw[i] === '_' || raw[i] === '~') return true;
 		}
-		pos = e;
+		pos = occEnd;
 	}
 	for (let i = pos; i < end; i++) {
 		if (raw[i] === '*' || raw[i] === '_' || raw[i] === '~') return true;

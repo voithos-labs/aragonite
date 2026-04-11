@@ -3,6 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		LIST_CONTEXT_KEY,
+		CURSOR_END,
 		type EditorActions,
 		type ListContext,
 		type CstNode,
@@ -38,7 +39,7 @@
 			itemBlockRefs[0]?.focus?.(0);
 		} else {
 			const last = node.children.length - 1;
-			itemBlockRefs[last]?.focus?.(999999);
+			itemBlockRefs[last]?.focus?.(CURSOR_END);
 		}
 	}
 
@@ -79,7 +80,7 @@
 			}
 
 			// Move focus to end of previous list item
-			itemBlockRefs[itemIndex - 1]?.focus?.(999999);
+			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
 		},
 
 		async deleteBlock(itemIndex: number): Promise<void> {
@@ -112,7 +113,7 @@
 				if (!item?.focusable) return;
 				if (typeof position === 'number') item.focus?.(position);
 				else if (position === 'start') item.focus?.(0);
-				else item.focus?.(999999);
+				else item.focus?.(CURSOR_END);
 			}
 		},
 

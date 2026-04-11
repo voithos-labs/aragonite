@@ -17,7 +17,7 @@
 	export const editable = false;
 	export const focusable = true;
 
-	export function focus(): void {
+	export function focus(_offset: number): void {
 		el?.focus();
 	}
 
