@@ -3,6 +3,7 @@
 	import {
 		EDITOR_ACTIONS_KEY,
 		LIST_CONTEXT_KEY,
+		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
 		type EditorActions,
 		type ListContext,
@@ -295,10 +296,17 @@
 		if (e.key === 'Tab' && !e.shiftKey) {
 			e.preventDefault();
 			listContext.indentItem(index);
+		} else if (e.key === 'Tab' && e.shiftKey) {
+			e.preventDefault();
+			listContext.unindentItem(index);
 		}
 	}
 
 	setContext(EDITOR_ACTIONS_KEY, nestedActions);
+	// Expose this item's index so nested ListBlocks can find their parent item
+	// position in the outer list (needed for unindent). Wrapped in a getter
+	// because the index prop is reactive and may change after initialization.
+	setContext(LIST_PARENT_ITEM_INDEX_KEY, () => index);
 </script>
 
 <div class="list-item-block">
