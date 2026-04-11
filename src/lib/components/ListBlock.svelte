@@ -79,7 +79,25 @@
 				return;
 			}
 
-			// Move focus to end of previous list item
+			// Check if current item is empty — if so, delete it
+			const item = node.children[itemIndex];
+			const isEmptyItem =
+				item.children &&
+				item.children.length === 1 &&
+				item.children[0].kind === 'paragraph' &&
+				item.children[0].raw.trim() === '';
+			if (isEmptyItem) {
+				parentActions.beginContainerEdit?.(index, 0);
+				performDelete({ children: node.children }, itemBlockIds, itemIndex);
+				rebuildListRaw(node);
+				parentActions.endContainerEdit?.();
+				triggerItemReactivity();
+				await tick();
+				itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
+				return;
+			}
+
+			// Non-empty item — move focus to end of previous item
 			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
 		},
 
