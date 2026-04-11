@@ -34,6 +34,8 @@ export interface EditorActions {
 	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
 	requestUndo(): void | Promise<void>;
 	requestRedo(): void | Promise<void>;
+	/** Insert parsed blocks at a split point, replacing the current block with spliced content. */
+	insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): void | Promise<void>;
 	/** Push a document-level undo snapshot. Called by container blocks before structural mutations. */
 	beginContainerEdit?(blockIndex: number, offset: number): void;
 	/** Push a debounced undo snapshot. Called by container blocks for text input. */

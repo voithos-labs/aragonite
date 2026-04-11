@@ -8,6 +8,7 @@
 	} from '../editor-types';
 	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../inline-renderer';
+	import { parse } from '../core/parser';
 
 	let {
 		node,
@@ -501,10 +502,24 @@
 		const selOffsets = getSelectionOffsets();
 		const start = selOffsets?.start ?? offset;
 		const end = selOffsets?.end ?? offset;
-		const newDisplay = displayText.slice(0, start) + text + displayText.slice(end);
-		actions.updateBlockContent(index, newDisplay + '\n', start + text.length);
-		if (isProseKind(node.kind)) refreshInlineContent();
-		pendingCursorOffset = start + text.length;
+
+		// Delete selected text first if there's a selection
+		const effectiveDisplay = displayText.slice(0, start) + displayText.slice(end);
+		const effectiveOffset = start;
+
+		// Parse the pasted text to check if it produces multiple blocks
+		const parsed = parse(text);
+
+		if (parsed.children.length <= 1) {
+			// Single block or empty — inline paste (existing behavior)
+			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
+			actions.updateBlockContent(index, newDisplay + '\n', effectiveOffset + text.length);
+			if (isProseKind(node.kind)) refreshInlineContent();
+			pendingCursorOffset = effectiveOffset + text.length;
+		} else {
+			// Multi-block paste — splice parsed blocks into document
+			actions.insertParsedBlocks(index, effectiveOffset, parsed.children);
+		}
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
