@@ -11,6 +11,7 @@
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
+		mergeWithNext as performMergeNext,
 		deleteNode as performDelete,
 		updateNodeContent as performUpdate
 	} from '../tree-operations';
@@ -151,6 +152,42 @@
 				innerBlockRefs[innerIndex - 1]?.focus?.(0);
 			} else {
 				innerBlockRefs[innerIndex - 1]?.focus?.(CURSOR_END);
+			}
+		},
+
+		async mergeWithNext(innerIndex: number): Promise<void> {
+			if (!node.children) return;
+
+			if (innerIndex >= node.children.length - 1) {
+				// At last child — cross boundary downward
+				parentActions.mergeWithNext(index);
+				return;
+			}
+
+			const currKind = node.children[innerIndex].kind;
+			const nextKind = node.children[innerIndex + 1].kind;
+
+			if (isMergeEligible(currKind, nextKind)) {
+				const currRaw = node.children[innerIndex].raw;
+				let mergeOffset = currRaw.length;
+				if (currRaw.endsWith('\r\n')) mergeOffset -= 2;
+				else if (currRaw.endsWith('\n')) mergeOffset -= 1;
+
+				parentActions.beginContainerEdit?.(index, 0);
+				performMergeNext(innerParent(), innerBlockIds, innerIndex);
+				rebuildAndNotify();
+				triggerInnerReactivity();
+				await tick();
+				innerBlockRefs[innerIndex]?.focus?.(mergeOffset);
+			} else if (!isBlockEditable(nextKind)) {
+				parentActions.beginContainerEdit?.(index, 0);
+				performDelete(innerParent(), innerBlockIds, innerIndex + 1);
+				rebuildAndNotify();
+				triggerInnerReactivity();
+				await tick();
+				innerBlockRefs[innerIndex]?.focus?.(CURSOR_END);
+			} else {
+				innerBlockRefs[innerIndex + 1]?.focus?.(0);
 			}
 		},
 

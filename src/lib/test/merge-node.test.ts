@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
-import { mergeWithPrevious } from '../tree-operations';
+import { mergeWithPrevious, mergeWithNext } from '../tree-operations';
 
 describe('mergeWithPrevious', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
@@ -76,5 +76,77 @@ describe('heading merge operations', () => {
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Hello World\n');
+	});
+});
+
+// ── mergeWithNext ──────────────────────────────────────────────────────────
+
+describe('mergeWithNext', () => {
+	it('merges two paragraphs into one (strips internal line break)', () => {
+		const source = 'Hello\n\nWorld\n';
+		const doc = parse(source);
+		const ids = ['id-1', 'id-2'];
+		mergeWithNext(doc, ids, 0);
+		expect(doc.children).toHaveLength(1);
+		expect(doc.children[0].kind).toBe('paragraph');
+		expect(doc.children[0].raw).toBe('HelloWorld\n');
+	});
+
+	it('preserves the current block ID and removes the next', () => {
+		const source = 'Hello\n\nWorld\n';
+		const doc = parse(source);
+		const ids = ['keep-me', 'remove-me'];
+		mergeWithNext(doc, ids, 0);
+		expect(ids).toEqual(['keep-me']);
+	});
+
+	it('preserves leading trivia of the current block', () => {
+		const source = 'A\n\nB\n\nC\n';
+		const doc = parse(source);
+		const ids = ['id-1', 'id-2', 'id-3'];
+		mergeWithNext(doc, ids, 1);
+		expect(doc.children[1].leadingTrivia).toBe('\n');
+	});
+
+	it('does nothing when blockIndex is the last block', () => {
+		const source = 'Hello\n';
+		const doc = parse(source);
+		const ids = ['id-1'];
+		mergeWithNext(doc, ids, 0);
+		expect(doc.children).toHaveLength(1);
+		expect(ids).toEqual(['id-1']);
+	});
+
+	it('re-parses to determine merged block type', () => {
+		const doc = parse('');
+
+		doc.children = [
+			{ kind: 'paragraph', leadingTrivia: '', raw: '## ' },
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'Title\n' }
+		];
+		const ids = ['id-1', 'id-2'];
+		mergeWithNext(doc, ids, 0);
+		expect(doc.children[0].kind).toBe('heading');
+		expect(doc.children[0].raw).toBe('## Title\n');
+	});
+});
+
+describe('mergeWithNext edge cases', () => {
+	it('does nothing when blockIndex is out of bounds', () => {
+		const source = 'A\n\nB\n';
+		const doc = parse(source);
+		const ids = ['id-1', 'id-2'];
+		mergeWithNext(doc, ids, 5);
+		expect(doc.children).toHaveLength(2);
+		expect(ids).toHaveLength(2);
+	});
+
+	it('does nothing when blockIndex is negative', () => {
+		const source = 'A\n\nB\n';
+		const doc = parse(source);
+		const ids = ['id-1', 'id-2'];
+		mergeWithNext(doc, ids, -1);
+		expect(doc.children).toHaveLength(2);
+		expect(ids).toHaveLength(2);
 	});
 });
