@@ -13,6 +13,7 @@
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
+		mergeWithNext as performMergeNext,
 		deleteNode as performDelete,
 		updateNodeContent as performUpdate,
 		ensureEditableContainers
@@ -183,6 +184,52 @@
 			blockIds = [...blockIds];
 			await tick();
 			blockRefs[blockIndex - 1]?.focus?.(mergeOffset);
+		},
+
+		async mergeWithNext(blockIndex: number): Promise<void> {
+			if (blockIndex >= doc.children.length - 1) return;
+
+			const currKind = doc.children[blockIndex].kind;
+			const nextKind = doc.children[blockIndex + 1].kind;
+
+			if (!isMergeEligible(currKind, nextKind)) {
+				if (!isBlockEditable(nextKind)) {
+					// Next block is non-editable — delete it
+					if (undoDebounceTimer) {
+						clearTimeout(undoDebounceTimer);
+						undoDebounceTimer = null;
+					}
+					pushUndoSnapshot(blockIndex, CURSOR_END);
+					needsUndoCheckpoint = true;
+					performDelete(doc, blockIds, blockIndex + 1);
+					doc.children = [...doc.children];
+					blockIds = [...blockIds];
+					await tick();
+					blockRefs[blockIndex]?.focus?.(CURSOR_END);
+				} else {
+					// Next block is editable but not mergeable — move focus
+					blockRefs[blockIndex + 1]?.focus?.(0);
+				}
+				return;
+			}
+
+			// Mergeable — proceed with merge
+			const currRaw = doc.children[blockIndex].raw;
+			let mergeOffset = currRaw.length;
+			if (currRaw.endsWith('\r\n')) mergeOffset -= 2;
+			else if (currRaw.endsWith('\n')) mergeOffset -= 1;
+
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, CURSOR_END);
+			needsUndoCheckpoint = true;
+			performMergeNext(doc, blockIds, blockIndex);
+			doc.children = [...doc.children];
+			blockIds = [...blockIds];
+			await tick();
+			blockRefs[blockIndex]?.focus?.(mergeOffset);
 		},
 
 		async deleteBlock(blockIndex: number): Promise<void> {

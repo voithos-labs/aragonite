@@ -94,6 +94,37 @@ export function mergeWithPrevious(
 	blockIds.splice(blockIndex, 1);
 }
 
+/**
+ * Merge the node at `blockIndex` with the node at `blockIndex + 1`.
+ * The combined raw text is re-parsed. The current block's ID is kept.
+ * No-op if blockIndex is the last block.
+ */
+export function mergeWithNext(
+	parent: NodeParent,
+	blockIds: string[],
+	blockIndex: number
+): void {
+	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return;
+
+	const curr = parent.children[blockIndex];
+	const next = parent.children[blockIndex + 1];
+
+	// Strip trailing line ending from current so the merged text flows together
+	let currContent = curr.raw;
+	if (currContent.endsWith('\r\n')) currContent = currContent.slice(0, -2);
+	else if (currContent.endsWith('\n')) currContent = currContent.slice(0, -1);
+
+	const mergedRaw = currContent + next.raw;
+
+	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
+
+	// Replace both nodes with the merged node
+	parent.children.splice(blockIndex, 2, mergedNode);
+
+	// Remove the next block's ID
+	blockIds.splice(blockIndex + 1, 1);
+}
+
 // ── Delete ──────────────────────────────────────────────────────────────────
 
 /**
