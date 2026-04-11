@@ -88,13 +88,10 @@ Always-visible styled source. Markdown syntax is visible at all times but styled
 - No focus/unfocus mode switching
 - One rendering path per block type
 
-The Obsidian-style "hide syntax on unfocus" can be layered on later via Phase 3 structured CST fields as an optional user preference. It is a cosmetic enhancement, not an architectural decision.
-
-This rendering mode maps naturally to the CST evolution:
+This rendering mode maps to the CST phases:
 
 - **Phase 1 (raw source)**: Block-level styling only — headings are large, code blocks have a monospace background
-- **Phase 2 (inline parsing)**: Inline syntax gets styled — bold text is bold even with visible `**`
-- **Phase 3 (structured fields)**: Optional hide-on-unfocus becomes possible since markers are separate fields
+- **Phase 2 (inline parsing)**: Inline syntax gets styled — bold text is bold even with visible `**`. This is the permanent architecture — Phase 3 was evaluated and rejected (see `docs/editor/design/syntax-tree.md`)
 
 ## CST Mutability
 

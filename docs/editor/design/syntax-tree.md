@@ -24,57 +24,17 @@ The editor uses the inline tree to build a styled DOM (nested `<strong>`, `<em>`
 
 See the "Inline Node Types" section below for the full type definitions.
 
-### Phase 3 — Structured fields and optional syntax hiding
+### Phase 3 — Rejected
 
-Two changes from Phase 2:
+Phase 3 proposed an ownership flip: the inline tree would become authoritative, `raw` derived from it. Block-level structured fields would decompose `raw` into semantic fields. This would have enabled tree-based semantic editing and optional syntax hiding (Obsidian-style markers hidden on unfocus).
 
-1. **Ownership flip**: The inline tree becomes authoritative. `raw` is derived from the inline tree for serialization. Editing operates on the tree directly (inserting text into nodes, toggling marks by wrapping/unwrapping).
+**Decision: Phase 2 is the permanent architecture.** Phase 3 was evaluated after the editor reached maturity (v0.3.1, ~4,300 lines of source) and rejected for these reasons:
 
-2. **Block-level structured fields**: Decompose block-level `raw` into semantic fields (marker, content, line ending) per block type. Serialization shifts from "return raw" to "reassemble from fields."
-
-Together, these enable:
-
-- **Semantic editing**: e.g., change heading level by swapping the marker field, toggle bold by wrapping in a Strong node
-- **Optional syntax hiding**: Markers can be hidden when a block is unfocused and shown when focused (Obsidian-style live preview), since they are now separate fields rather than substrings of `raw`
-
-**The rule:** Every block type starts at Phase 1. It only moves to Phase 3 when the editor actively requires it. A block type that users don't meaningfully edit (e.g., thematic breaks) may never need to advance.
-
-**Illustrative example** — progression for a heading (`## Hello World\n`). These are conceptual sketches showing how the node shape evolves across phases, not implementation code:
-
-Phase 1:
-
-```
-{ kind: "heading", raw: "## Hello World\n", metadata: { level: 2 } }
-// serialize → return raw verbatim
-// inline content: not parsed
-```
-
-Phase 2:
-
-```
-{ kind: "heading", raw: "## Hello World\n", metadata: { level: 2 },
-  inlineContent: [
-    { kind: "text", text: "Hello World", start: 3, end: 14 }
-  ] }
-// serialize → return raw verbatim (inline tree is derived, not authoritative)
-// inlineContent covers the content portion of raw (after the "## " marker)
-// the editor knows the marker range from metadata — it renders "## " as dimmed
-```
-
-Phase 3:
-
-```
-{ kind: "heading", marker: "## ", lineEnding: "\n", metadata: { level: 2 },
-  inlineContent: [
-    { kind: "text", text: "Hello World" }
-  ] }
-// serialize → marker + serializeInline(inlineContent) + lineEnding
-// editor can change level by swapping marker to "### "
-```
-
-**Design note on Phase 3:** The ownership flip introduces significant costs: round-trip preservation becomes fragile (the serializer must perfectly reproduce original delimiter styles — `*italic*` vs `_italic_`, `**bold**` vs `__bold__`), partial/broken syntax during typing has no clean tree representation (an unclosed `**` is just text with raw-as-truth, but a modeling problem with tree-as-truth), and both target features can be approximated without it (toggle bold by manipulating `raw` directly, change heading level by swapping the prefix in `raw`). The editor's design philosophy is "always-visible styled source" with dimmed markers — not hidden markers — which Phase 2 handles fully. Syntax hiding is the only capability that truly requires Phase 3, and it's an "optional user preference" and "cosmetic enhancement." Phase 3 should only be pursued when there's a concrete need that raw manipulation can't satisfy.
-
-**Catch-all for editing non-decomposed blocks:** Before a block type graduates to Phase 3, editing still works — the raw source is treated as a plain text string. The user types into it, raw is updated as a string, and the block is re-parsed to refresh metadata and inline content. The only thing lost compared to structured fields is semantic editing operations.
+- **Round-trip fidelity.** Phase 2's `serialize(parse(source)) === source` is trivially maintained because serialization concatenates `raw`. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`), making round-trip fragile.
+- **Partial syntax during typing.** `**bold` mid-typing is just a string in raw-as-truth. In tree-as-truth, it's an invalid tree state that every keystroke must handle.
+- **Semantic editing already works.** Toggle bold = insert `**` around selection in `raw`. Change heading level = swap `# ` prefix. The editor already does this for kind changes. No tree manipulation needed.
+- **Syntax hiding contradicts the design philosophy.** The editor's philosophy is "always-visible styled source." Syntax hiding is a cosmetic preference that doesn't justify an architectural phase.
+- **Complexity cost.** Tree-DOM sync, fragile serialization, and new bug classes outweigh the benefits. Editors that adopted tree-as-truth (ProseMirror, Slate) pay an enormous complexity tax for it.
 
 ## Node Types and Tree Structure
 
@@ -167,7 +127,7 @@ Inline nodes nest. For example, `**bold *and italic***` produces a Strong node c
 
 In Phase 2, `inlineContent` is **derived** from `raw`. It is a rendering cache — disposable and re-parsed whenever `raw` changes. The inline tree is never used for serialization. The invariant: concatenating all leaf `text` values and marker syntax in the inline tree reproduces the portion of `raw` that was parsed.
 
-In Phase 3, the ownership flips: `inlineContent` becomes authoritative and `raw` is derived from it. See the Phase 3 section above.
+Phase 3 (ownership flip to tree-as-truth) was evaluated and rejected — Phase 2 is the permanent architecture. See the Phase 3 section above for rationale.
 
 ## Parser Design
 
