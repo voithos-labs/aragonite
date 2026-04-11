@@ -40,18 +40,17 @@
 	 * so that el.textContent matches getDisplayText().
 	 */
 	function getBlockMarkerPrefix(): string {
-		if (!isProseKind(node.kind) || !node.inlineContent) {
-			return '';
-		}
+		if (!isProseKind(node.kind)) return '';
 		const range = getContentRange(node);
 		return node.raw.slice(0, range.start);
 	}
 
 	/**
 	 * Build the DOM fragment for inline content, including the block-level marker.
-	 * Ensures el.textContent === getDisplayText() for correct onInput sync.
+	 * Takes content as parameter to avoid reading node.inlineContent (which would
+	 * require mutating the node prop and trigger Svelte 5 ownership cascades).
 	 */
-	function buildInlineDOM(): DocumentFragment {
+	function buildInlineDOM(content: import('../core/nodes').InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
 		const prefix = getBlockMarkerPrefix();
 		if (prefix) {
@@ -60,7 +59,7 @@
 			span.textContent = prefix;
 			frag.appendChild(span);
 		}
-		frag.appendChild(renderInlineNodes(node.inlineContent!, node.raw));
+		frag.appendChild(renderInlineNodes(content, node.raw));
 		return frag;
 	}
 
@@ -169,8 +168,13 @@
 			// node.raw when kind changes, so raw change implies kind change.
 			if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
 
-			if (!node.inlineContent) refreshInlineContent();
-			el.replaceChildren(buildInlineDOM());
+			// Compute inline content locally — do NOT write to node.inlineContent.
+			// Mutating the node prop triggers Svelte 5's ownership system, which causes
+			// a reactivity cascade that corrupts keyed {#each} index assignments after
+			// structural operations like splitBlock.
+			const range = getContentRange(node);
+			const content = parseInline(node.raw, range.start, range.end);
+			el.replaceChildren(buildInlineDOM(content));
 			lastRenderedRaw = node.raw;
 		} else {
 			const display = getDisplayText();
@@ -328,12 +332,8 @@
 		const savedOffset = getCursorOffset() ?? 0;
 		actions.updateBlockContent(index, text + '\n', savedOffset);
 
-		// Re-parse inline content AFTER updateBlockContent has set node.raw
-		if (isProseKind(node.kind)) {
-			refreshInlineContent();
-		}
-
-		// Signal the $effect to restore cursor after it rebuilds the DOM
+		// Signal the $effect to restore cursor after it rebuilds the DOM.
+		// The $effect computes inline content locally — no refreshInlineContent needed.
 		pendingCursorOffset = savedOffset;
 	}
 
@@ -387,7 +387,7 @@
 				const displayText = getDisplayText();
 				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
 				actions.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-				if (isProseKind(node.kind)) refreshInlineContent();
+				// $effect handles inline re-render — no refreshInlineContent needed
 				pendingCursorOffset = offset + 1;
 			}
 			return;
@@ -412,21 +412,18 @@
 			}
 		}
 
-		// ArrowUp — geometry-based: cross block boundary only when cursor is on first visual line.
-		// Empty blocks are excluded — the browser handles ArrowUp as a no-op, allowing
-		// the cursor to "rest" in the empty block.
+		// ArrowUp — geometry-based: cross block boundary when cursor is on first visual line.
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
-			if ((el?.textContent ?? '').length > 0 && isAtFirstVisualLine()) {
+			if (isAtFirstVisualLine()) {
 				e.preventDefault();
 				actions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
 
-		// ArrowDown — geometry-based: cross block boundary only when cursor is on last visual line.
-		// Empty blocks are excluded — same reason as ArrowUp.
+		// ArrowDown — geometry-based: cross block boundary when cursor is on last visual line.
 		if (e.key === 'ArrowDown' && !e.shiftKey) {
-			if ((el?.textContent ?? '').length > 0 && isAtLastVisualLine()) {
+			if (isAtLastVisualLine()) {
 				e.preventDefault();
 				actions.moveFocus(index + 1, 'start');
 				return;
@@ -487,7 +484,7 @@
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
 			actions.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
-			if (isProseKind(node.kind)) refreshInlineContent();
+			// $effect handles inline re-render — no refreshInlineContent needed
 			pendingCursorOffset = selOffsets.start;
 		}
 	}
@@ -514,7 +511,7 @@
 			// Single block or empty — inline paste (existing behavior)
 			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
 			actions.updateBlockContent(index, newDisplay + '\n', effectiveOffset + text.length);
-			if (isProseKind(node.kind)) refreshInlineContent();
+			// $effect handles inline re-render — no refreshInlineContent needed
 			pendingCursorOffset = effectiveOffset + text.length;
 		} else {
 			// Multi-block paste — splice parsed blocks into document.
@@ -571,7 +568,6 @@
 		}
 
 		actions.updateBlockContent(index, newDisplay + '\n', newSelStart);
-		if (isProseKind(node.kind)) refreshInlineContent();
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);
