@@ -110,7 +110,7 @@
 					item.children[0].raw.trim() === '';
 
 				if (firstChildEmpty && node.children.length > 1) {
-					// Empty first item with siblings — delete it
+					// Empty first item with siblings — delete just the item
 					parentActions.beginContainerEdit?.(index, 0);
 					performDelete({ children: node.children }, itemBlockIds, 0);
 					renumberFrom(0);
@@ -119,8 +119,12 @@
 					triggerItemReactivity();
 					await tick();
 					itemBlockRefs[0]?.focus?.(0);
+				} else if (firstChildEmpty && node.children.length === 1) {
+					// Empty only item — delete the entire list, focus block before it
+					await parentActions.deleteBlock(index);
+					parentActions.moveFocus(index - 1, 'end');
 				} else {
-					// Non-empty first item, or only item — move focus before list
+					// Non-empty first item — move focus before list
 					parentActions.moveFocus(index - 1, 'end');
 				}
 				return;
