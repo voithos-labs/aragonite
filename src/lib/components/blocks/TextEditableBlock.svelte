@@ -9,6 +9,7 @@
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline-parser';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
+	import type { InlineNode } from '../../core/nodes';
 
 	let {
 		node,
@@ -50,7 +51,7 @@
 	 * Takes content as parameter to avoid reading node.inlineContent (which would
 	 * require mutating the node prop and trigger Svelte 5 ownership cascades).
 	 */
-	function buildInlineDOM(content: import('../../core/nodes').InlineNode[]): DocumentFragment {
+	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
 		const prefix = getBlockMarkerPrefix();
 		if (prefix) {
