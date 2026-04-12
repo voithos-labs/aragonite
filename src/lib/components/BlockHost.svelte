@@ -1,10 +1,10 @@
 <script lang="ts">
 	import type { CstNode, BlockComponent } from '../editor-types';
-	import TextEditableBlock from './TextEditableBlock.svelte';
-	import ThematicBreakBlock from './ThematicBreakBlock.svelte';
-	import CodeBlock from './CodeBlock.svelte';
-	import BlockquoteBlock from './BlockquoteBlock.svelte';
-	import ListBlock from './ListBlock.svelte';
+	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
+	import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
+	import CodeBlock from './blocks/CodeBlock.svelte';
+	import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
+	import ListBlock from './blocks/ListBlock.svelte';
 
 	let {
 		node,

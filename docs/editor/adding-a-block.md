@@ -1,6 +1,10 @@
 # Adding a New Block Type
 
-How to add a block type to the CST editor. See `docs/editor/design/editor.md` for the architecture.
+How to add a block type to the CST editor. See `docs/design/editor/editor.md` for the architecture.
+
+## Where Blocks Live
+
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`.
 
 ## Two Categories
 
@@ -42,6 +46,6 @@ Add a case to BlockHost's `{#if}` chain. The block receives `node`, `index`, and
 
 ## Testing
 
-Complex blocks (lists, tables) get a dedicated spec in `e2e/requirements/blocks/` and test file in `e2e/tests/blocks/`. Simple blocks are covered by the feature-level test suites.
+Complex blocks (lists, tables) get a dedicated spec in `src/lib/editor/e2e/requirements/blocks/` and test file in `src/lib/editor/e2e/tests/blocks/`. Simple blocks are covered by the feature-level test suites.
 
 Write the requirements first, then the tests, then the implementation.
