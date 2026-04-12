@@ -5,7 +5,7 @@
 
 import type { CstNode } from './core/nodes';
 import { parse } from './core/parser';
-import { generateBlockId } from './mutable-tree';
+import { generateBlockId, trimTrailingLineEnding } from './mutable-tree';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,11 +79,7 @@ export function mergeWithPrevious(
 	const curr = parent.children[blockIndex];
 
 	// Strip trailing line ending from prev so the merged text flows together
-	let prevContent = prev.raw;
-	if (prevContent.endsWith('\r\n')) prevContent = prevContent.slice(0, -2);
-	else if (prevContent.endsWith('\n')) prevContent = prevContent.slice(0, -1);
-
-	const mergedRaw = prevContent + curr.raw;
+	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
 
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 
@@ -110,11 +106,7 @@ export function mergeWithNext(
 	const next = parent.children[blockIndex + 1];
 
 	// Strip trailing line ending from current so the merged text flows together
-	let currContent = curr.raw;
-	if (currContent.endsWith('\r\n')) currContent = currContent.slice(0, -2);
-	else if (currContent.endsWith('\n')) currContent = currContent.slice(0, -1);
-
-	const mergedRaw = currContent + next.raw;
+	const mergedRaw = trimTrailingLineEnding(curr.raw) + next.raw;
 
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 
