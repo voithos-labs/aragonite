@@ -63,6 +63,7 @@
 		}
 		return null;
 	}
+	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
@@ -273,6 +274,9 @@
 				});
 			}
 		},
+
+		// insertParsedBlocks inside list item: not yet supported (paste is inline only within containers)
+		async insertParsedBlocks(): Promise<void> {},
 
 		requestUndo(): void | Promise<void> {
 			return parentActions.requestUndo();

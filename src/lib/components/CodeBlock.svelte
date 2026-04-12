@@ -42,6 +42,7 @@
 		textarea.selectionStart = start;
 		textarea.selectionEnd = end;
 	}
+	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Content sync ────────────────────────────────────────────────────
 
