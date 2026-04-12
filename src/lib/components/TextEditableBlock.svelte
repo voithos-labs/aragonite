@@ -101,6 +101,7 @@
 		sel?.removeAllRanges();
 		sel?.addRange(range);
 	}
+	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Cursor utilities ────────────────────────────────────────────────
 

@@ -25,6 +25,7 @@
 		if (!el || document.activeElement !== el) return null;
 		return 0;
 	}
+	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 

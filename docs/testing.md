@@ -51,6 +51,8 @@ Editor.svelte (production component, unchanged)
 
 ### Test Suites
 
+Feature-level tests in `e2e/tests/`:
+
 | Suite                          | Focus                                                       |
 | ------------------------------ | ----------------------------------------------------------- |
 | `smoke.spec.ts`                | Test harness, loadContent, empty documents                  |
@@ -60,7 +62,12 @@ Editor.svelte (production component, unchanged)
 | `inline-editing.spec.ts`       | Bold, italic, code, links — editing and rendering           |
 | `container-editing.spec.ts`    | Blockquotes, lists, nested editing, exit behavior           |
 | `selection-clipboard.spec.ts`  | Cut, copy, paste, select-all, type-to-replace               |
-| `code-block-editing.spec.ts`   | Code block typing, Enter, exit, navigation                  |
+
+Block-specific tests in `e2e/tests/blocks/` with requirements in `e2e/requirements/blocks/`:
+
+| Suite                          | Focus                                                       |
+| ------------------------------ | ----------------------------------------------------------- |
+| `blocks/code-block.spec.ts`    | Code block typing, Enter, exit, navigation                  |
 
 ### Writing New E2E Tests
 

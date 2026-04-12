@@ -65,8 +65,8 @@ export interface EditorActions {
 // ── Block Component Interface (what each block exposes to the editor) ───────
 
 export interface BlockComponent {
-	focus?(offset: number): void;
-	getCursorOffset?(): number | null;
+	focus(offset: number): void;
+	getCursorOffset(): number | null;
 	getSelectedText?(): string;
 	setSelection?(start: number, end: number): void;
 	readonly editable: boolean;
