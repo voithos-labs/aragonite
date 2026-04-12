@@ -50,3 +50,6 @@ export function generateBlockId(): string {
 export function assignIds(children: CstNode[]): string[] {
 	return children.map(() => generateBlockId());
 }
+
+// Re-export text helpers so editor code can import from one place.
+export { displayLength, trimTrailingLineEnding } from './core/text-utils';

@@ -6,6 +6,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
+	import { trimTrailingLineEnding } from '../../mutable-tree';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
@@ -47,10 +48,7 @@
 	// ── Content sync ────────────────────────────────────────────────────
 
 	function getDisplayText(): string {
-		let text = node.raw;
-		if (text.endsWith('\r\n')) text = text.slice(0, -2);
-		else if (text.endsWith('\n')) text = text.slice(0, -1);
-		return text;
+		return trimTrailingLineEnding(node.raw);
 	}
 
 	$effect(() => {

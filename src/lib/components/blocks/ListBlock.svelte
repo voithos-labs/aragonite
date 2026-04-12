@@ -11,7 +11,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds, generateBlockId } from '../../mutable-tree';
+	import { assignIds, generateBlockId, displayLength } from '../../mutable-tree';
 	import { deleteNode as performDelete } from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -40,18 +40,18 @@
 		if (offset === FOCUS_LAST_START) {
 			// Focus last descendant at start — cascade sentinel through nested containers
 			const last = node.children.length - 1;
-			itemBlockRefs[last]?.focus?.(FOCUS_LAST_START);
+			itemBlockRefs[last]?.focus(FOCUS_LAST_START);
 		} else if (offset === 0) {
-			itemBlockRefs[0]?.focus?.(0);
+			itemBlockRefs[0]?.focus(0);
 		} else {
 			const last = node.children.length - 1;
-			itemBlockRefs[last]?.focus?.(CURSOR_END);
+			itemBlockRefs[last]?.focus(CURSOR_END);
 		}
 	}
 
 	export function getCursorOffset(): number | null {
 		for (const ref of itemBlockRefs) {
-			const offset = ref?.getCursorOffset?.();
+			const offset = ref?.getCursorOffset();
 			if (offset !== null && offset !== undefined) return offset;
 		}
 		return null;
@@ -118,7 +118,7 @@
 					parentActions.endContainerEdit?.();
 					triggerItemReactivity();
 					await tick();
-					itemBlockRefs[0]?.focus?.(0);
+					itemBlockRefs[0]?.focus(0);
 				} else if (firstChildEmpty && node.children.length === 1) {
 					// Empty only item — delete the entire list, focus block before it
 					await parentActions.deleteBlock(index);
@@ -145,12 +145,12 @@
 				parentActions.endContainerEdit?.();
 				triggerItemReactivity();
 				await tick();
-				itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
+				itemBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 				return;
 			}
 
 			// Non-empty item — move focus to end of previous item
-			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
+			itemBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 		},
 
 		async deleteBlock(itemIndex: number): Promise<void> {
@@ -168,7 +168,7 @@
 			triggerItemReactivity();
 			await tick();
 			const focusIdx = Math.min(itemIndex, node.children.length - 1);
-			itemBlockRefs[focusIdx]?.focus?.(0);
+			itemBlockRefs[focusIdx]?.focus(0);
 		},
 
 		async moveFocus(itemIndex: number, position: 'start' | 'end' | number): Promise<void> {
@@ -181,9 +181,9 @@
 			} else {
 				const item = itemBlockRefs[itemIndex];
 				if (!item?.focusable) return;
-				if (typeof position === 'number') item.focus?.(position);
-				else if (position === 'start') item.focus?.(0);
-				else item.focus?.(CURSOR_END);
+				if (typeof position === 'number') item.focus(position);
+				else if (position === 'start') item.focus(0);
+				else item.focus(CURSOR_END);
 			}
 		},
 
@@ -284,7 +284,7 @@
 			// Focus the indented item — it's now the last child of the previous
 			// item's nested list. FOCUS_LAST_START cascades through containers
 			// choosing the last child at each level, placing cursor at offset 0.
-			itemBlockRefs[itemIndex - 1]?.focus?.(FOCUS_LAST_START);
+			itemBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
@@ -320,7 +320,7 @@
 			rebuildListRaw(node);
 			triggerItemReactivity();
 			await tick();
-			itemBlockRefs[itemIndex + 1]?.focus?.(0);
+			itemBlockRefs[itemIndex + 1]?.focus(0);
 		},
 
 		async promoteNestedItem(
@@ -364,19 +364,16 @@
 			await tick();
 
 			// Focus the promoted item
-			itemBlockRefs[parentItemIdx + 1]?.focus?.(0);
+			itemBlockRefs[parentItemIdx + 1]?.focus(0);
 		},
 
 		async exitListAtItem(itemIndex: number): Promise<void> {
 			if (!node.children) return;
 
 			if (node.children.length <= 1) {
-				// Only item — replace the list with an empty paragraph via split
-				// Splitting at the end of raw creates a new empty block after
-				let displayLen = node.raw.length;
-				if (node.raw.endsWith('\r\n')) displayLen -= 2;
-				else if (node.raw.endsWith('\n')) displayLen -= 1;
-				parentActions.splitBlock(index, displayLen);
+				// Only item — replace the list with an empty paragraph via split.
+				// Splitting at the end of raw creates a new empty block after.
+				parentActions.splitBlock(index, displayLength(node.raw));
 				return;
 			}
 
@@ -394,10 +391,7 @@
 				parentActions.moveFocus(index, 'start');
 			} else if (itemIndex >= node.children.length) {
 				// Empty item was at the end — create paragraph after the list
-				let displayLen = node.raw.length;
-				if (node.raw.endsWith('\r\n')) displayLen -= 2;
-				else if (node.raw.endsWith('\n')) displayLen -= 1;
-				parentActions.splitBlock(index, displayLen);
+				parentActions.splitBlock(index, displayLength(node.raw));
 			} else {
 				// Empty item was in the middle — split the list at the deletion point.
 				// Compute offset: sum of raw for items before the gap.

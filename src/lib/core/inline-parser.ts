@@ -11,6 +11,7 @@
  */
 
 import type { CstNode, InlineNode } from './nodes';
+import { displayLength } from './text-utils';
 
 // ── Content Range ──────────────────────────────────────────────────────────
 
@@ -31,11 +32,11 @@ export function getContentRange(node: CstNode): ContentRange {
 		while (i < raw.length && raw[i] === ' ') i++;
 		while (i < raw.length && raw[i] === '#') i++;
 		if (i < raw.length && raw[i] === ' ') i++;
-		return { start: i, end: trimTrailingLineEnding(raw) };
+		return { start: i, end: displayLength(raw) };
 	}
 
 	if (node.kind === 'setextHeading') {
-		const end = trimTrailingLineEnding(raw);
+		const end = displayLength(raw);
 		let underlineStart = raw.lastIndexOf('\n', end - 1);
 		if (underlineStart === -1) return { start: 0, end };
 		let contentEnd = underlineStart;
@@ -44,14 +45,7 @@ export function getContentRange(node: CstNode): ContentRange {
 	}
 
 	// paragraph and other prose blocks
-	return { start: 0, end: trimTrailingLineEnding(raw) };
-}
-
-function trimTrailingLineEnding(raw: string): number {
-	let end = raw.length;
-	if (raw.endsWith('\r\n')) end -= 2;
-	else if (raw.endsWith('\n')) end -= 1;
-	return end;
+	return { start: 0, end: displayLength(raw) };
 }
 
 /** Returns true if the given block kind carries inline content (paragraph, heading, setextHeading). */
