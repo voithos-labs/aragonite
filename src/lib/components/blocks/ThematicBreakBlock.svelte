@@ -6,6 +6,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
+	import { displayLength } from '../../mutable-tree';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
@@ -43,12 +44,7 @@
 
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			const displayLen = node.raw.endsWith('\r\n')
-				? node.raw.length - 2
-				: node.raw.endsWith('\n')
-					? node.raw.length - 1
-					: node.raw.length;
-			actions.splitBlock(index, displayLen);
+			actions.splitBlock(index, displayLength(node.raw));
 			return;
 		}
 

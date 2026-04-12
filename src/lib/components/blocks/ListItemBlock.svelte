@@ -11,7 +11,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds } from '../../mutable-tree';
+	import { assignIds, displayLength } from '../../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -47,18 +47,18 @@
 		if (!node.children || node.children.length === 0) return;
 		if (offset === FOCUS_LAST_START) {
 			const last = node.children.length - 1;
-			innerBlockRefs[last]?.focus?.(FOCUS_LAST_START);
+			innerBlockRefs[last]?.focus(FOCUS_LAST_START);
 		} else if (offset === 0) {
-			innerBlockRefs[0]?.focus?.(0);
+			innerBlockRefs[0]?.focus(0);
 		} else {
 			const last = node.children.length - 1;
-			innerBlockRefs[last]?.focus?.(CURSOR_END);
+			innerBlockRefs[last]?.focus(CURSOR_END);
 		}
 	}
 
 	export function getCursorOffset(): number | null {
 		for (const ref of innerBlockRefs) {
-			const offset = ref?.getCursorOffset?.();
+			const offset = ref?.getCursorOffset();
 			if (offset !== null && offset !== undefined) return offset;
 		}
 		return null;
@@ -137,10 +137,7 @@
 
 			// At end of last child — insert new empty sibling item
 			const lastChild = node.children[node.children.length - 1];
-			let displayLen = lastChild.raw.length;
-			if (lastChild.raw.endsWith('\r\n')) displayLen -= 2;
-			else if (lastChild.raw.endsWith('\n')) displayLen -= 1;
-			const isAtEnd = innerIndex === node.children.length - 1 && offset >= displayLen;
+			const isAtEnd = innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
 
 			if (isAtEnd) {
 				parentActions.beginContainerEdit?.(index, offset);
@@ -169,26 +166,23 @@
 			const currKind = node.children[innerIndex].kind;
 
 			if (isMergeEligible(prevKind, currKind)) {
-				const prevRaw = node.children[innerIndex - 1].raw;
-				let mergeOffset = prevRaw.length;
-				if (prevRaw.endsWith('\r\n')) mergeOffset -= 2;
-				else if (prevRaw.endsWith('\n')) mergeOffset -= 1;
+				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
 				performMerge(innerParent(), innerBlockIds, innerIndex);
 				rebuildAndNotify();
 				triggerInnerReactivity();
 				await tick();
-				innerBlockRefs[innerIndex - 1]?.focus?.(mergeOffset);
+				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
 				performDelete(innerParent(), innerBlockIds, innerIndex - 1);
 				rebuildAndNotify();
 				triggerInnerReactivity();
 				await tick();
-				innerBlockRefs[innerIndex - 1]?.focus?.(0);
+				innerBlockRefs[innerIndex - 1]?.focus(0);
 			} else {
-				innerBlockRefs[innerIndex - 1]?.focus?.(CURSOR_END);
+				innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
 			}
 		},
 
@@ -205,26 +199,23 @@
 			const nextKind = node.children[innerIndex + 1].kind;
 
 			if (isMergeEligible(currKind, nextKind)) {
-				const currRaw = node.children[innerIndex].raw;
-				let mergeOffset = currRaw.length;
-				if (currRaw.endsWith('\r\n')) mergeOffset -= 2;
-				else if (currRaw.endsWith('\n')) mergeOffset -= 1;
+				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
 				performMergeNext(innerParent(), innerBlockIds, innerIndex);
 				rebuildAndNotify();
 				triggerInnerReactivity();
 				await tick();
-				innerBlockRefs[innerIndex]?.focus?.(mergeOffset);
+				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
 				performDelete(innerParent(), innerBlockIds, innerIndex + 1);
 				rebuildAndNotify();
 				triggerInnerReactivity();
 				await tick();
-				innerBlockRefs[innerIndex]?.focus?.(CURSOR_END);
+				innerBlockRefs[innerIndex]?.focus(CURSOR_END);
 			} else {
-				innerBlockRefs[innerIndex + 1]?.focus?.(0);
+				innerBlockRefs[innerIndex + 1]?.focus(0);
 			}
 		},
 
@@ -242,7 +233,7 @@
 			triggerInnerReactivity();
 			await tick();
 			const focusIdx = Math.min(innerIndex, node.children.length - 1);
-			innerBlockRefs[focusIdx]?.focus?.(0);
+			innerBlockRefs[focusIdx]?.focus(0);
 		},
 
 		async moveFocus(innerIndex: number, position: 'start' | 'end' | number): Promise<void> {
@@ -255,9 +246,9 @@
 			} else {
 				const block = innerBlockRefs[innerIndex];
 				if (!block?.focusable) return;
-				if (typeof position === 'number') block.focus?.(position);
-				else if (position === 'start') block.focus?.(0);
-				else block.focus?.(CURSOR_END);
+				if (typeof position === 'number') block.focus(position);
+				else if (position === 'start') block.focus(0);
+				else block.focus(CURSOR_END);
 			}
 		},
 
@@ -270,7 +261,7 @@
 			if (result.kindChanged) {
 				triggerInnerReactivity();
 				tick().then(() => {
-					innerBlockRefs[innerIndex]?.focus?.(text.length > 0 ? text.length - 1 : 0);
+					innerBlockRefs[innerIndex]?.focus(text.length > 0 ? text.length - 1 : 0);
 				});
 			}
 		},

@@ -9,7 +9,14 @@
 		type Document,
 		type UndoEntry
 	} from '../editor-types';
-	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
+	import {
+		cloneDocument,
+		serializeMutable,
+		assignIds,
+		generateBlockId,
+		displayLength,
+		trimTrailingLineEnding
+	} from '../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -111,9 +118,9 @@
 	function captureCurrentState(): UndoEntry {
 		const focusedIndex = Math.max(
 			0,
-			blockRefs.findIndex((b) => b?.getCursorOffset?.() !== null)
+			blockRefs.findIndex((b) => b?.getCursorOffset() !== null)
 		);
-		const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset?.() ?? 0;
+		const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset() ?? 0;
 		return {
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
@@ -135,19 +142,19 @@
 			// Work on plain array copies to prevent $state proxy splice mutations
 			// from triggering intermediate reactive updates that corrupt the keyed
 			// {#each} component-to-index mapping.
-			const childrenSnapshot = [...doc.children];
-			const idsSnapshot = [...blockIds];
-			performSplit({ children: childrenSnapshot }, idsSnapshot, blockIndex, offset);
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			performSplit({ children: childrenCopy }, idsCopy, blockIndex, offset);
 			// Sync blockRefs: insert undefined slot for the new block.
 			// bind:ref in keyed {#each} only fires on mount, not when components
 			// shift positions, so we must manually keep refs aligned.
-			const refsSnapshot = [...blockRefs];
-			refsSnapshot.splice(blockIndex + 1, 0, undefined);
-			doc.children = childrenSnapshot;
-			blockIds = idsSnapshot;
-			blockRefs = refsSnapshot;
+			const refsCopy = [...blockRefs];
+			refsCopy.splice(blockIndex + 1, 0, undefined);
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
 			await tick();
-			blockRefs[blockIndex + 1]?.focus?.(0);
+			blockRefs[blockIndex + 1]?.focus(0);
 		},
 
 		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
@@ -166,10 +173,7 @@
 
 			// Split the current block's raw at offset into before/after
 			const rawBefore = rawText.slice(0, offset);
-			let rawAfter = rawText.slice(offset);
-			// Strip trailing line ending from rawAfter since it came from the full raw
-			if (rawAfter.endsWith('\r\n')) rawAfter = rawAfter.slice(0, -2);
-			else if (rawAfter.endsWith('\n')) rawAfter = rawAfter.slice(0, -1);
+			const rawAfter = trimTrailingLineEnding(rawText.slice(offset));
 
 			const newNodes: CstNode[] = [];
 
@@ -197,11 +201,7 @@
 
 			// Last pasted block gets rawAfter appended
 			const lastPasted = blocks[blocks.length - 1];
-			let lastPastedRaw = lastPasted.raw;
-			if (lastPastedRaw.endsWith('\r\n')) lastPastedRaw = lastPastedRaw.slice(0, -2);
-			else if (lastPastedRaw.endsWith('\n')) lastPastedRaw = lastPastedRaw.slice(0, -1);
-
-			const mergedLastRaw = lastPastedRaw + rawAfter + lineEnding;
+			const mergedLastRaw = trimTrailingLineEnding(lastPasted.raw) + rawAfter + lineEnding;
 			const lastDoc = parse(mergedLastRaw);
 			const lastNode = lastDoc.children.length > 0
 				? lastDoc.children[0]
@@ -218,31 +218,31 @@
 			parseAllInlineContent(newNodes);
 
 			// Work on plain copies to prevent proxy splice cascades
-			const childrenSnapshot = [...doc.children];
-			const idsSnapshot = [...blockIds];
-			const refsSnapshot = [...blockRefs];
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
 
 			// Replace the original block with new nodes
-			childrenSnapshot.splice(blockIndex, 1, ...newNodes);
+			childrenCopy.splice(blockIndex, 1, ...newNodes);
 
 			// Update blockIds: keep original ID for first, generate new for the rest
 			const newIds = newNodes.slice(1).map(() => generateBlockId());
-			idsSnapshot.splice(blockIndex + 1, 0, ...newIds);
+			idsCopy.splice(blockIndex + 1, 0, ...newIds);
 
 			// Sync refs: replace one slot with N undefined slots
 			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(undefined);
-			newRefSlots[0] = refsSnapshot[blockIndex]; // keep existing ref for first node
-			refsSnapshot.splice(blockIndex, 1, ...newRefSlots);
+			newRefSlots[0] = refsCopy[blockIndex]; // keep existing ref for first node
+			refsCopy.splice(blockIndex, 1, ...newRefSlots);
 
-			doc.children = childrenSnapshot;
-			blockIds = idsSnapshot;
-			blockRefs = refsSnapshot;
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
 
 			await tick();
 
 			// Focus at end of last inserted node
 			const lastIndex = blockIndex + newNodes.length - 1;
-			blockRefs[lastIndex]?.focus?.(CURSOR_END);
+			blockRefs[lastIndex]?.focus(CURSOR_END);
 		},
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
@@ -260,28 +260,25 @@
 					}
 					pushUndoSnapshot(blockIndex, 0);
 					needsUndoCheckpoint = true;
-					const cs1 = [...doc.children];
-					const is1 = [...blockIds];
-					const rs1 = [...blockRefs];
-					performDelete({ children: cs1 }, is1, blockIndex - 1);
-					rs1.splice(blockIndex - 1, 1);
-					doc.children = cs1;
-					blockIds = is1;
-					blockRefs = rs1;
+					const childrenCopy = [...doc.children];
+					const idsCopy = [...blockIds];
+					const refsCopy = [...blockRefs];
+					performDelete({ children: childrenCopy }, idsCopy, blockIndex - 1);
+					refsCopy.splice(blockIndex - 1, 1);
+					doc.children = childrenCopy;
+					blockIds = idsCopy;
+					blockRefs = refsCopy;
 					await tick();
-					blockRefs[blockIndex - 1]?.focus?.(0);
+					blockRefs[blockIndex - 1]?.focus(0);
 				} else {
 					// Previous block is editable but not mergeable — move focus
-					blockRefs[blockIndex - 1]?.focus?.(CURSOR_END);
+					blockRefs[blockIndex - 1]?.focus(CURSOR_END);
 				}
 				return;
 			}
 
 			// Mergeable — proceed with merge
-			const prevRaw = doc.children[blockIndex - 1].raw;
-			let mergeOffset = prevRaw.length;
-			if (prevRaw.endsWith('\r\n')) mergeOffset -= 2;
-			else if (prevRaw.endsWith('\n')) mergeOffset -= 1;
+			const mergeOffset = displayLength(doc.children[blockIndex - 1].raw);
 
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
@@ -289,16 +286,16 @@
 			}
 			pushUndoSnapshot(blockIndex, 0);
 			needsUndoCheckpoint = true;
-			const cs2 = [...doc.children];
-			const is2 = [...blockIds];
-			const rs2 = [...blockRefs];
-			performMerge({ children: cs2 }, is2, blockIndex);
-			rs2.splice(blockIndex, 1); // Remove absorbed block's ref
-			doc.children = cs2;
-			blockIds = is2;
-			blockRefs = rs2;
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+			performMerge({ children: childrenCopy }, idsCopy, blockIndex);
+			refsCopy.splice(blockIndex, 1); // Remove absorbed block's ref
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
 			await tick();
-			blockRefs[blockIndex - 1]?.focus?.(mergeOffset);
+			blockRefs[blockIndex - 1]?.focus(mergeOffset);
 		},
 
 		async mergeWithNext(blockIndex: number): Promise<void> {
@@ -316,28 +313,25 @@
 					}
 					pushUndoSnapshot(blockIndex, CURSOR_END);
 					needsUndoCheckpoint = true;
-					const cs3 = [...doc.children];
-					const is3 = [...blockIds];
-					const rs3 = [...blockRefs];
-					performDelete({ children: cs3 }, is3, blockIndex + 1);
-					rs3.splice(blockIndex + 1, 1);
-					doc.children = cs3;
-					blockIds = is3;
-					blockRefs = rs3;
+					const childrenCopy = [...doc.children];
+					const idsCopy = [...blockIds];
+					const refsCopy = [...blockRefs];
+					performDelete({ children: childrenCopy }, idsCopy, blockIndex + 1);
+					refsCopy.splice(blockIndex + 1, 1);
+					doc.children = childrenCopy;
+					blockIds = idsCopy;
+					blockRefs = refsCopy;
 					await tick();
-					blockRefs[blockIndex]?.focus?.(CURSOR_END);
+					blockRefs[blockIndex]?.focus(CURSOR_END);
 				} else {
 					// Next block is editable but not mergeable — move focus
-					blockRefs[blockIndex + 1]?.focus?.(0);
+					blockRefs[blockIndex + 1]?.focus(0);
 				}
 				return;
 			}
 
 			// Mergeable — proceed with merge
-			const currRaw = doc.children[blockIndex].raw;
-			let mergeOffset = currRaw.length;
-			if (currRaw.endsWith('\r\n')) mergeOffset -= 2;
-			else if (currRaw.endsWith('\n')) mergeOffset -= 1;
+			const mergeOffset = displayLength(doc.children[blockIndex].raw);
 
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
@@ -345,16 +339,16 @@
 			}
 			pushUndoSnapshot(blockIndex, CURSOR_END);
 			needsUndoCheckpoint = true;
-			const cs4 = [...doc.children];
-			const is4 = [...blockIds];
-			const rs4 = [...blockRefs];
-			performMergeNext({ children: cs4 }, is4, blockIndex);
-			rs4.splice(blockIndex + 1, 1); // Remove next block's ref
-			doc.children = cs4;
-			blockIds = is4;
-			blockRefs = rs4;
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+			performMergeNext({ children: childrenCopy }, idsCopy, blockIndex);
+			refsCopy.splice(blockIndex + 1, 1); // Remove next block's ref
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
 			await tick();
-			blockRefs[blockIndex]?.focus?.(mergeOffset);
+			blockRefs[blockIndex]?.focus(mergeOffset);
 		},
 
 		async deleteBlock(blockIndex: number): Promise<void> {
@@ -364,19 +358,19 @@
 			}
 			pushUndoSnapshot(blockIndex, 0);
 			needsUndoCheckpoint = true;
-			const cs5 = [...doc.children];
-			const is5 = [...blockIds];
-			const rs5 = [...blockRefs];
-			performDelete({ children: cs5 }, is5, blockIndex);
-			rs5.splice(blockIndex, 1);
-			doc.children = cs5;
-			blockIds = is5;
-			blockRefs = rs5;
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+			performDelete({ children: childrenCopy }, idsCopy, blockIndex);
+			refsCopy.splice(blockIndex, 1);
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
 			await tick();
 			// Focus the block that took the deleted block's position, or the previous one
 			const focusIndex = Math.min(blockIndex, doc.children.length - 1);
 			if (focusIndex >= 0) {
-				blockRefs[focusIndex]?.focus?.(0);
+				blockRefs[focusIndex]?.focus(0);
 			}
 		},
 
@@ -389,19 +383,19 @@
 				blockIds = [...blockIds, generateBlockId()];
 				blockRefs = [...blockRefs, undefined];
 				await tick();
-				blockRefs[doc.children.length - 1]?.focus?.(0);
+				blockRefs[doc.children.length - 1]?.focus(0);
 				return;
 			}
 			const block = blockRefs[blockIndex];
 			if (!block?.focusable) return;
 
 			if (typeof position === 'number') {
-				block.focus?.(position);
+				block.focus(position);
 			} else if (position === 'start') {
-				block.focus?.(0);
+				block.focus(0);
 			} else {
 				// 'end' — use a large number, focus() should clamp to content length
-				block.focus?.(CURSOR_END);
+				block.focus(CURSOR_END);
 			}
 		},
 
@@ -414,7 +408,7 @@
 				// Use preEditOffset (the cursor position before the edit) to restore
 				// the cursor approximately where it was.
 				tick().then(() => {
-					blockRefs[blockIndex]?.focus?.(preEditOffset ?? 0);
+					blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
 				});
 			}
 		},
@@ -432,7 +426,7 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
+			blockRefs[entry.focusBlockIndex]?.focus(entry.focusOffset);
 		},
 
 		async requestRedo(): Promise<void> {
@@ -442,7 +436,7 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			blockRefs[entry.focusBlockIndex]?.focus?.(entry.focusOffset);
+			blockRefs[entry.focusBlockIndex]?.focus(entry.focusOffset);
 		},
 
 		beginContainerEdit(blockIndex: number, offset: number): void {
