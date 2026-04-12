@@ -56,6 +56,7 @@
 		}
 		return null;
 	}
+	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
@@ -67,6 +68,21 @@
 	function triggerItemReactivity(): void {
 		node.children = [...(node.children ?? [])];
 		itemBlockIds = [...itemBlockIds];
+	}
+
+	/** Renumber ordered list items starting from `fromIndex`. */
+	function renumberFrom(fromIndex: number): void {
+		if (!(node.metadata as { ordered: boolean }).ordered || !node.children) return;
+		for (let j = fromIndex; j < node.children.length; j++) {
+			const prev = j > 0
+				? (node.children[j - 1].metadata as { marker: string }).marker
+				: '0. ';
+			const prevNum = parseInt(prev, 10) || 0;
+			const meta = node.children[j].metadata as { marker: string };
+			const suffix = meta.marker.replace(/^\d+/, '');
+			meta.marker = String(prevNum + 1) + suffix;
+			rebuildListItemRaw(node.children[j]);
+		}
 	}
 
 	// ── List-level EditorActions ────────────────────────────────────────
@@ -97,6 +113,7 @@
 					// Empty first item with siblings — delete it
 					parentActions.beginContainerEdit?.(index, 0);
 					performDelete({ children: node.children }, itemBlockIds, 0);
+					renumberFrom(0);
 					rebuildListRaw(node);
 					parentActions.endContainerEdit?.();
 					triggerItemReactivity();
@@ -119,6 +136,7 @@
 			if (isEmptyItem) {
 				parentActions.beginContainerEdit?.(index, 0);
 				performDelete({ children: node.children }, itemBlockIds, itemIndex);
+				renumberFrom(itemIndex);
 				rebuildListRaw(node);
 				parentActions.endContainerEdit?.();
 				triggerItemReactivity();
@@ -165,9 +183,15 @@
 			}
 		},
 
+		// mergeWithNext at list level: not applicable (list items handle their own merges)
+		async mergeWithNext(): Promise<void> {},
+
 		updateBlockContent(): void {
 			// List items handle their own content updates
 		},
+
+		// insertParsedBlocks at list level: not applicable (paste is handled by inner blocks)
+		async insertParsedBlocks(): Promise<void> {},
 
 		requestUndo(): void | Promise<void> {
 			return parentActions.requestUndo();
@@ -214,8 +238,16 @@
 			node.children.splice(itemIndex, 1);
 			itemBlockIds.splice(itemIndex, 1);
 
-			// Check if prevItem already has a nested list of the same type
+			// Reset ordered marker to 1 before nesting (new numbering context)
 			const ordered = (node.metadata as { ordered: boolean }).ordered;
+			if (ordered) {
+				const meta = item.metadata as { marker: string };
+				const suffix = meta.marker.replace(/^\d+/, '');
+				meta.marker = '1' + suffix;
+				rebuildListItemRaw(item);
+			}
+
+			// Check if prevItem already has a nested list of the same type
 			const existingNestedList = prevItem.children.find(
 				(c) =>
 					c.kind === 'list' &&
@@ -223,11 +255,9 @@
 			);
 
 			if (existingNestedList && existingNestedList.children) {
-				// Append to existing nested list
 				existingNestedList.children.push(item);
 				rebuildListRaw(existingNestedList);
 			} else {
-				// Create a new nested list with this item as its only child
 				const nestedList: CstNode = {
 					kind: 'list',
 					leadingTrivia: '',
@@ -240,6 +270,8 @@
 			}
 
 			rebuildListItemRaw(prevItem);
+			// Renumber remaining items in the parent list after removal
+			renumberFrom(itemIndex);
 			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
@@ -280,16 +312,7 @@
 
 			node.children.splice(itemIndex + 1, 0, newItem);
 			itemBlockIds.splice(itemIndex + 1, 0, generateBlockId());
-
-			// Renumber subsequent ordered list items
-			if ((node.metadata as { ordered: boolean }).ordered) {
-				for (let j = itemIndex + 2; j < node.children.length; j++) {
-					const meta = node.children[j].metadata as { marker: string };
-					meta.marker = meta.marker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
-					rebuildListItemRaw(node.children[j]);
-				}
-			}
-
+			renumberFrom(itemIndex + 1);
 			rebuildListRaw(node);
 			triggerItemReactivity();
 			await tick();
