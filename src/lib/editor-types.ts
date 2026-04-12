@@ -1,6 +1,6 @@
 /**
  * Interfaces for the block editor system.
- * See docs/editor/design/editor.md for the design spec.
+ * See docs/design/editor/editor.md for the design spec.
  */
 
 import type { CstNode, Document } from './core/nodes';

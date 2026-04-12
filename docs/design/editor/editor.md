@@ -91,7 +91,7 @@ Always-visible styled source. Markdown syntax is visible at all times but styled
 This rendering mode maps to the CST phases:
 
 - **Phase 1 (raw source)**: Block-level styling only — headings are large, code blocks have a monospace background
-- **Phase 2 (inline parsing)**: Inline syntax gets styled — bold text is bold even with visible `**`. This is the permanent architecture — Phase 3 was evaluated and rejected (see `docs/editor/design/syntax-tree.md`)
+- **Phase 2 (inline parsing)**: Inline syntax gets styled — bold text is bold even with visible `**`. This is the permanent architecture — Phase 3 was evaluated and rejected (see `docs/design/editor/syntax-tree.md`)
 
 ## CST Mutability
 

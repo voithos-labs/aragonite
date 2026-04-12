@@ -10,10 +10,10 @@
 		type ListContext,
 		type CstNode,
 		type BlockComponent
-	} from '../editor-types';
-	import { assignIds, generateBlockId } from '../mutable-tree';
-	import { deleteNode as performDelete } from '../tree-operations';
-	import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
+	} from '../../editor-types';
+	import { assignIds, generateBlockId } from '../../mutable-tree';
+	import { deleteNode as performDelete } from '../../tree-operations';
+	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let { node, index }: { node: CstNode; index: number } = $props();

@@ -5,10 +5,10 @@
 		type EditorActions,
 		type CstNode,
 		type BlockComponent
-	} from '../editor-types';
-	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
-	import { renderInlineNodes, setCursorFromRawOffset } from '../inline-renderer';
-	import { parse } from '../core/parser';
+	} from '../../editor-types';
+	import { parseInline, getContentRange, isProseKind } from '../../core/inline-parser';
+	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
+	import { parse } from '../../core/parser';
 
 	let {
 		node,
@@ -50,7 +50,7 @@
 	 * Takes content as parameter to avoid reading node.inlineContent (which would
 	 * require mutating the node prop and trigger Svelte 5 ownership cascades).
 	 */
-	function buildInlineDOM(content: import('../core/nodes').InlineNode[]): DocumentFragment {
+	function buildInlineDOM(content: import('../../core/nodes').InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
 		const prefix = getBlockMarkerPrefix();
 		if (prefix) {

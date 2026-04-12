@@ -5,7 +5,7 @@
 		type EditorActions,
 		type CstNode,
 		type BlockComponent
-	} from '../editor-types';
+	} from '../../editor-types';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
