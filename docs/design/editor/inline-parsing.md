@@ -20,7 +20,7 @@ Emphasis, strong, and strikethrough use the CommonMark two-phase approach: scan 
 
 ## InlineNode Model
 
-Same flat-interface philosophy as CstNode — discriminate on `kind`, no class hierarchy. See `docs/editor/design/syntax-tree.md` for the full type table.
+Same flat-interface philosophy as CstNode — discriminate on `kind`, no class hierarchy. See `docs/design/editor/syntax-tree.md` for the full type table.
 
 Each node carries `start`/`end` byte offsets into the parent block's `raw`, covering the full range including markers. Every character in `raw` belongs to exactly one inline node's range. Nodes with children (emphasis, strong, strikethrough, link) nest recursively.
 

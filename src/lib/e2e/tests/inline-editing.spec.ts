@@ -1,0 +1,251 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../editor-page';
+
+const INLINE_CONTENT = `A paragraph with **bold text** and *italic text* here.
+
+A line with \`inline code\` in it.
+
+A line with a [link](https://example.com) present.
+
+Plain paragraph for editing.
+`;
+
+test.describe('inline editing', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(INLINE_CONTENT);
+	});
+
+	// ── Happy paths: inline formatting renders correct HTML elements ────
+
+	test('bold text renders with <strong> element', async () => {
+	const block = editor.getBlock(0);
+	await expect(block.locator('strong')).toHaveCount(1);
+	await expect(block.locator('strong')).toHaveText('bold text');
+});
+
+test('italic text renders with <em> element', async () => {
+	const block = editor.getBlock(0);
+	await expect(block.locator('em')).toHaveCount(1);
+	await expect(block.locator('em')).toHaveText('italic text');
+});
+
+test('inline code renders with backtick markers and <code> element', async () => {
+	const block = editor.getBlock(1);
+	await expect(block.locator('code.inline-code-content')).toHaveCount(1);
+	await expect(block.locator('code.inline-code-content')).toHaveText('inline code');
+	// Backtick markers rendered as .md-marker spans
+	const markers = block.locator('.md-marker');
+	const count = await markers.count();
+	expect(count).toBeGreaterThanOrEqual(2);
+});
+
+test('link renders with <a> element', async () => {
+	const block = editor.getBlock(2);
+	await expect(block.locator('a.md-link-content')).toHaveCount(1);
+	await expect(block.locator('a.md-link-content')).toHaveText('link');
+});
+
+// ── Edge cases: editing near inline formatting ──────────────────────────────
+
+test('typing after bold span preserves formatting in source', async () => {
+	await editor.focusBlockEnd(0);
+	await editor.typeText(' tail');
+	const src = await editor.getSource();
+	// The bold markers must still be intact
+	expect(src).toContain('**bold text**');
+	expect(src).toContain('tail');
+});
+
+test('source round-trips after editing formatted content', async () => {
+	await editor.focusBlockEnd(1);
+	await editor.typeText(' more');
+	const src = await editor.getSource();
+	// Inline code markers preserved
+	expect(src).toContain('`inline code`');
+	expect(src).toContain('more');
+});
+
+test('editing does not corrupt inline bold markers', async () => {
+	// Type at the start of the formatted block
+	await editor.focusBlockStart(0);
+	await editor.typeText('Prefix: ');
+	const src = await editor.getSource();
+	expect(src).toContain('**bold text**');
+	expect(src).toContain('*italic text*');
+	expect(src).toContain('Prefix: ');
+});
+
+test('nested formatting renders (bold wrapping italic)', async () => {
+	const nested = '**bold *and italic* rest**';
+	await editor.loadContent(`${nested}\n`);
+	const block = editor.getBlock(0);
+	await expect(block.locator('strong')).toHaveCount(1);
+	await expect(block.locator('strong em')).toHaveCount(1);
+	await expect(block.locator('strong em')).toHaveText('and italic');
+});
+
+// ── User interactions ───────────────────────────────────────────────────────
+
+test('click into formatted paragraph, type at end, source updates', async () => {
+	await editor.clickBlock(0);
+	await editor.focusBlockEnd(0);
+	await editor.typeText(' appended');
+	const src = await editor.getSource();
+	expect(src).toContain('**bold text**');
+	expect(src).toContain('appended');
+});
+
+test('typing bold in a split-created block renders strong element', async () => {
+	// Regression: blocks created by Enter split had no inlineContent,
+	// so typed formatting was never rendered (appeared as plain **text**)
+	await editor.loadContent('First paragraph.\n');
+	await editor.focusBlockEnd(0);
+	await editor.pressEnter();
+	await editor.page.waitForTimeout(200);
+
+	// Now in the new (split-created) block — type bold syntax
+	await editor.typeSlowly('**bold**');
+	await editor.page.waitForTimeout(200);
+
+	const block = editor.getBlock(1);
+	await expect(block.locator('strong')).toHaveCount(1);
+	await expect(block.locator('strong')).toContainText('bold');
+});
+
+test('heading markers are dimmed after typing # to convert', async () => {
+	// Regression: typing # at start of a split-created paragraph converted
+	// it to a heading but the marker wasn't rendered as .md-marker
+	await editor.loadContent('Some text.\n');
+	await editor.focusBlockEnd(0);
+	await editor.pressEnter();
+	await editor.page.waitForTimeout(200);
+
+	await editor.typeSlowly('# New heading');
+	await editor.page.waitForTimeout(200);
+
+	const block = editor.getBlock(1);
+	await expect(block.locator('.md-marker')).toHaveCount(1);
+	const markerText = await block.locator('.md-marker').textContent();
+	expect(markerText).toBe('# ');
+});
+
+test('character-by-character typing produces correct bold rendering', async () => {
+	// Regression: keyboard.type() (per-character) caused reversed text due to
+	// double DOM rebuild. The single render path fix resolves this.
+	await editor.loadContent('Hello.\n');
+	await editor.focusBlockEnd(0);
+	await editor.typeSlowly(' **bold**');
+	await editor.page.waitForTimeout(200);
+
+	const block = editor.getBlock(0);
+	await expect(block.locator('strong')).toHaveCount(1);
+	await expect(block.locator('strong')).toContainText('bold');
+	const source = await editor.getSource();
+	expect(source).toContain('Hello. **bold**');
+});
+
+test('Ctrl+B wraps selection with **', async () => {
+		await editor.loadContent('Hello world\n');
+		await editor.focusBlock(0, 6);
+		// Select "world" — need to select from offset 6 to 11
+		for (let i = 0; i < 5; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.keyboard.press('Control+b');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello **world**');
+	});
+
+	test('Ctrl+B on already-bold text removes **', async () => {
+		await editor.loadContent('Hello **world**\n');
+		await editor.focusBlock(0, 6);
+		// Select "**world**" (9 chars)
+		for (let i = 0; i < 9; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.keyboard.press('Control+b');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello world');
+		expect(source).not.toContain('**');
+	});
+
+	test('Ctrl+I wraps selection with *', async () => {
+		await editor.loadContent('Hello world\n');
+		await editor.focusBlock(0, 6);
+		for (let i = 0; i < 5; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.keyboard.press('Control+i');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello *world*');
+	});
+
+	test('Ctrl+I on already-italic text removes *', async () => {
+		await editor.loadContent('Hello *world*\n');
+		await editor.focusBlock(0, 6);
+		for (let i = 0; i < 7; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.keyboard.press('Control+i');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello world');
+		expect(source).not.toContain('*');
+	});
+
+	test('Ctrl+B with no selection is a no-op', async () => {
+		await editor.loadContent('Hello world\n');
+		await editor.focusBlock(0, 5);
+		await editor.page.keyboard.press('Control+b');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toBe('Hello world\n');
+	});
+
+	test('split paragraph with inline formatting preserves both halves', async () => {
+	// Load a block with bold in the middle for a clean split
+	await editor.loadContent(`before **bold** after\n`);
+	// Place cursor right after "before " (offset 7)
+	await editor.focusBlockStart(0);
+	// Move cursor to offset 7 via selection
+	await editor.page.evaluate(() => {
+		const block = document.querySelector('.block-list > *') as HTMLElement;
+		if (!block) return;
+		const range = document.createRange();
+		let charCount = 0;
+		function walk(n: Node): boolean {
+			if (n.nodeType === Node.TEXT_NODE) {
+				const len = n.textContent?.length ?? 0;
+				if (charCount + len >= 7) {
+					range.setStart(n, 7 - charCount);
+					range.collapse(true);
+					return true;
+				}
+				charCount += len;
+			} else {
+				for (const child of n.childNodes) {
+					if (walk(child)) return true;
+				}
+			}
+			return false;
+		}
+		walk(block);
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(range);
+	});
+
+	await editor.pressEnter();
+	expect(await editor.getDomBlockCount()).toBe(2);
+	const src = await editor.getSource();
+	expect(src).toContain('before');
+	expect(src).toContain('**bold** after');
+});
+});

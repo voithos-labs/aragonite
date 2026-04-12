@@ -6,18 +6,18 @@
 		type EditorActions,
 		type CstNode,
 		type BlockComponent
-	} from '../editor-types';
-	import { assignIds } from '../mutable-tree';
+	} from '../../editor-types';
+	import { assignIds } from '../../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
 		mergeWithNext as performMergeNext,
 		deleteNode as performDelete,
 		updateNodeContent as performUpdate
-	} from '../tree-operations';
-	import { isMergeEligible, isBlockEditable } from '../merge-rules';
-	import { rebuildBlockquoteRaw } from '../container-raw';
-	import BlockList from './BlockList.svelte';
+	} from '../../tree-operations';
+	import { isMergeEligible, isBlockEditable } from '../../merge-rules';
+	import { rebuildBlockquoteRaw } from '../../container-raw';
+	import BlockList from '../BlockList.svelte';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 

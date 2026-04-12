@@ -1,7 +1,7 @@
 /**
  * Merge eligibility rules for the block editor.
  * Determines what happens on Backspace at the start of a block.
- * See docs/editor/design/editor.md — Structural Operations, Merge Eligibility.
+ * See docs/design/editor/editor.md — Structural Operations, Merge Eligibility.
  */
 
 // ── Merge Eligibility ───────────────────────────────────────────────────────
