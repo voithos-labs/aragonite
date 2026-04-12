@@ -94,6 +94,10 @@ test.describe('my feature', () => {
 
 **Use `getDomBlockCount()` for structural assertions after split.** The test bridge's `getBlockCount()` re-parses the serialized source, which may absorb empty blocks as whitespace. `getDomBlockCount()` counts DOM elements, reflecting the editor's true internal state.
 
+**Test structural operations with container navigation, not just flat paragraphs.** Structural operations (split, merge, delete) shift block indices. Container blocks (blockquote, list) use their `index` prop in delegation chains when focus exits the container. A test that splits a paragraph and then navigates through flat paragraphs won't catch stale-index or stale-ref bugs — the delegation chain is only one hop deep. Always include a test that performs the structural operation and then navigates *through* a container block to verify the full delegation chain works. See "focus traversal after block insertion" in `keyboard-navigation.spec.ts` for the pattern.
+
+**Use "type and check where it appeared" for focus assertions.** `getSource()` serializes the CST, which is always correct regardless of focus state. To verify where focus actually landed after a navigation operation, type a marker character and assert on its position in the source. `getSource()`-only assertions can't detect focus bugs.
+
 **Container edits need time to propagate.** Edits inside nested containers (list items, blockquotes) trigger debounced raw rebuilds up the chain. Use `waitForTimeout(200)` after edits before asserting on `getSource()`.
 
 **Block selectors use `.block-list > *`.** The editor renders as `.editor > .block-list > [block elements]`. Individual blocks are children of `.block-list`, not `.editor`.

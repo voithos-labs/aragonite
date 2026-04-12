@@ -5,6 +5,7 @@
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
+		FOCUS_LAST_START,
 		type EditorActions,
 		type ListContext,
 		type CstNode,
@@ -36,7 +37,11 @@
 
 	export function focus(offset: number): void {
 		if (!node.children || node.children.length === 0) return;
-		if (offset === 0) {
+		if (offset === FOCUS_LAST_START) {
+			// Focus last descendant at start — cascade sentinel through nested containers
+			const last = node.children.length - 1;
+			itemBlockRefs[last]?.focus?.(FOCUS_LAST_START);
+		} else if (offset === 0) {
 			itemBlockRefs[0]?.focus?.(0);
 		} else {
 			const last = node.children.length - 1;
@@ -75,8 +80,32 @@
 			if (!node.children) return;
 
 			if (itemIndex <= 0) {
-				// At start of first list item — exit the list
-				parentActions.moveFocus(index - 1, 'end');
+				// Nested list: promote the first item to parent level (like Shift+Tab)
+				if (parentListContext && getParentItemIndex) {
+					await parentListContext.promoteNestedItem(getParentItemIndex(), node, 0);
+					return;
+				}
+
+				// Top-level list: check if first item is empty
+				const item = node.children[0];
+				const firstChildEmpty = item.children &&
+					item.children.length >= 1 &&
+					item.children[0].kind === 'paragraph' &&
+					item.children[0].raw.trim() === '';
+
+				if (firstChildEmpty && node.children.length > 1) {
+					// Empty first item with siblings — delete it
+					parentActions.beginContainerEdit?.(index, 0);
+					performDelete({ children: node.children }, itemBlockIds, 0);
+					rebuildListRaw(node);
+					parentActions.endContainerEdit?.();
+					triggerItemReactivity();
+					await tick();
+					itemBlockRefs[0]?.focus?.(0);
+				} else {
+					// Non-empty first item, or only item — move focus before list
+					parentActions.moveFocus(index - 1, 'end');
+				}
 				return;
 			}
 
@@ -84,7 +113,7 @@
 			const item = node.children[itemIndex];
 			const isEmptyItem =
 				item.children &&
-				item.children.length === 1 &&
+				item.children.length >= 1 &&
 				item.children[0].kind === 'paragraph' &&
 				item.children[0].raw.trim() === '';
 			if (isEmptyItem) {
@@ -216,8 +245,10 @@
 			triggerItemReactivity();
 			await tick();
 
-			// Focus the indented item (now inside the previous item's nested list)
-			itemBlockRefs[itemIndex - 1]?.focus?.(CURSOR_END);
+			// Focus the indented item — it's now the last child of the previous
+			// item's nested list. FOCUS_LAST_START cascades through containers
+			// choosing the last child at each level, placing cursor at offset 0.
+			itemBlockRefs[itemIndex - 1]?.focus?.(FOCUS_LAST_START);
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
@@ -249,6 +280,16 @@
 
 			node.children.splice(itemIndex + 1, 0, newItem);
 			itemBlockIds.splice(itemIndex + 1, 0, generateBlockId());
+
+			// Renumber subsequent ordered list items
+			if ((node.metadata as { ordered: boolean }).ordered) {
+				for (let j = itemIndex + 2; j < node.children.length; j++) {
+					const meta = node.children[j].metadata as { marker: string };
+					meta.marker = meta.marker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
+					rebuildListItemRaw(node.children[j]);
+				}
+			}
+
 			rebuildListRaw(node);
 			triggerItemReactivity();
 			await tick();
@@ -324,12 +365,24 @@
 				await parentActions.splitBlock(index, 0);
 				// splitBlock focused the list (index+1), redirect to the paragraph (index)
 				parentActions.moveFocus(index, 'start');
-			} else {
-				// Empty item was in the middle or end — create paragraph after the list
+			} else if (itemIndex >= node.children.length) {
+				// Empty item was at the end — create paragraph after the list
 				let displayLen = node.raw.length;
 				if (node.raw.endsWith('\r\n')) displayLen -= 2;
 				else if (node.raw.endsWith('\n')) displayLen -= 1;
 				parentActions.splitBlock(index, displayLen);
+			} else {
+				// Empty item was in the middle — split the list at the deletion point.
+				// Compute offset: sum of raw for items before the gap.
+				let splitOffset = (node.innerPrefix ?? '').length;
+				for (let j = 0; j < itemIndex; j++) {
+					splitOffset += (node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
+				}
+				await parentActions.splitBlock(index, splitOffset);
+				// After split: [first-list at index, second-list at index+1].
+				// Split second list at offset 0 to insert a paragraph between them.
+				await parentActions.splitBlock(index + 1, 0);
+				parentActions.moveFocus(index + 1, 'start');
 			}
 		}
 	};

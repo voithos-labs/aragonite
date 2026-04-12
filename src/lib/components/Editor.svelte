@@ -132,10 +132,20 @@
 			}
 			pushUndoSnapshot(blockIndex, offset);
 			needsUndoCheckpoint = true;
-			performSplit(doc, blockIds, blockIndex, offset);
-			// Trigger Svelte reactivity
-			doc.children = [...doc.children];
-			blockIds = [...blockIds];
+			// Work on plain array copies to prevent $state proxy splice mutations
+			// from triggering intermediate reactive updates that corrupt the keyed
+			// {#each} component-to-index mapping.
+			const childrenSnapshot = [...doc.children];
+			const idsSnapshot = [...blockIds];
+			performSplit({ children: childrenSnapshot }, idsSnapshot, blockIndex, offset);
+			// Sync blockRefs: insert undefined slot for the new block.
+			// bind:ref in keyed {#each} only fires on mount, not when components
+			// shift positions, so we must manually keep refs aligned.
+			const refsSnapshot = [...blockRefs];
+			refsSnapshot.splice(blockIndex + 1, 0, undefined);
+			doc.children = childrenSnapshot;
+			blockIds = idsSnapshot;
+			blockRefs = refsSnapshot;
 			await tick();
 			blockRefs[blockIndex + 1]?.focus?.(0);
 		},
@@ -207,16 +217,26 @@
 			// Parse inline content for all new nodes
 			parseAllInlineContent(newNodes);
 
+			// Work on plain copies to prevent proxy splice cascades
+			const childrenSnapshot = [...doc.children];
+			const idsSnapshot = [...blockIds];
+			const refsSnapshot = [...blockRefs];
+
 			// Replace the original block with new nodes
-			doc.children.splice(blockIndex, 1, ...newNodes);
+			childrenSnapshot.splice(blockIndex, 1, ...newNodes);
 
 			// Update blockIds: keep original ID for first, generate new for the rest
 			const newIds = newNodes.slice(1).map(() => generateBlockId());
-			blockIds.splice(blockIndex + 1, 0, ...newIds);
+			idsSnapshot.splice(blockIndex + 1, 0, ...newIds);
 
-			// Trigger reactivity
-			doc.children = [...doc.children];
-			blockIds = [...blockIds];
+			// Sync refs: replace one slot with N undefined slots
+			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(undefined);
+			newRefSlots[0] = refsSnapshot[blockIndex]; // keep existing ref for first node
+			refsSnapshot.splice(blockIndex, 1, ...newRefSlots);
+
+			doc.children = childrenSnapshot;
+			blockIds = idsSnapshot;
+			blockRefs = refsSnapshot;
 
 			await tick();
 
@@ -240,9 +260,14 @@
 					}
 					pushUndoSnapshot(blockIndex, 0);
 					needsUndoCheckpoint = true;
-					performDelete(doc, blockIds, blockIndex - 1);
-					doc.children = [...doc.children];
-					blockIds = [...blockIds];
+					const cs1 = [...doc.children];
+					const is1 = [...blockIds];
+					const rs1 = [...blockRefs];
+					performDelete({ children: cs1 }, is1, blockIndex - 1);
+					rs1.splice(blockIndex - 1, 1);
+					doc.children = cs1;
+					blockIds = is1;
+					blockRefs = rs1;
 					await tick();
 					blockRefs[blockIndex - 1]?.focus?.(0);
 				} else {
@@ -264,9 +289,14 @@
 			}
 			pushUndoSnapshot(blockIndex, 0);
 			needsUndoCheckpoint = true;
-			performMerge(doc, blockIds, blockIndex);
-			doc.children = [...doc.children];
-			blockIds = [...blockIds];
+			const cs2 = [...doc.children];
+			const is2 = [...blockIds];
+			const rs2 = [...blockRefs];
+			performMerge({ children: cs2 }, is2, blockIndex);
+			rs2.splice(blockIndex, 1); // Remove absorbed block's ref
+			doc.children = cs2;
+			blockIds = is2;
+			blockRefs = rs2;
 			await tick();
 			blockRefs[blockIndex - 1]?.focus?.(mergeOffset);
 		},
@@ -286,9 +316,14 @@
 					}
 					pushUndoSnapshot(blockIndex, CURSOR_END);
 					needsUndoCheckpoint = true;
-					performDelete(doc, blockIds, blockIndex + 1);
-					doc.children = [...doc.children];
-					blockIds = [...blockIds];
+					const cs3 = [...doc.children];
+					const is3 = [...blockIds];
+					const rs3 = [...blockRefs];
+					performDelete({ children: cs3 }, is3, blockIndex + 1);
+					rs3.splice(blockIndex + 1, 1);
+					doc.children = cs3;
+					blockIds = is3;
+					blockRefs = rs3;
 					await tick();
 					blockRefs[blockIndex]?.focus?.(CURSOR_END);
 				} else {
@@ -310,9 +345,14 @@
 			}
 			pushUndoSnapshot(blockIndex, CURSOR_END);
 			needsUndoCheckpoint = true;
-			performMergeNext(doc, blockIds, blockIndex);
-			doc.children = [...doc.children];
-			blockIds = [...blockIds];
+			const cs4 = [...doc.children];
+			const is4 = [...blockIds];
+			const rs4 = [...blockRefs];
+			performMergeNext({ children: cs4 }, is4, blockIndex);
+			rs4.splice(blockIndex + 1, 1); // Remove next block's ref
+			doc.children = cs4;
+			blockIds = is4;
+			blockRefs = rs4;
 			await tick();
 			blockRefs[blockIndex]?.focus?.(mergeOffset);
 		},
@@ -324,9 +364,14 @@
 			}
 			pushUndoSnapshot(blockIndex, 0);
 			needsUndoCheckpoint = true;
-			performDelete(doc, blockIds, blockIndex);
-			doc.children = [...doc.children];
-			blockIds = [...blockIds];
+			const cs5 = [...doc.children];
+			const is5 = [...blockIds];
+			const rs5 = [...blockRefs];
+			performDelete({ children: cs5 }, is5, blockIndex);
+			rs5.splice(blockIndex, 1);
+			doc.children = cs5;
+			blockIds = is5;
+			blockRefs = rs5;
 			await tick();
 			// Focus the block that took the deleted block's position, or the previous one
 			const focusIndex = Math.min(blockIndex, doc.children.length - 1);
@@ -340,10 +385,9 @@
 			if (blockIndex >= doc.children.length) {
 				// Past the last block — create a new empty paragraph
 				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
-				doc.children.push(newBlock);
-				blockIds.push(generateBlockId());
-				doc.children = [...doc.children];
-				blockIds = [...blockIds];
+				doc.children = [...doc.children, newBlock];
+				blockIds = [...blockIds, generateBlockId()];
+				blockRefs = [...blockRefs, undefined];
 				await tick();
 				blockRefs[doc.children.length - 1]?.focus?.(0);
 				return;

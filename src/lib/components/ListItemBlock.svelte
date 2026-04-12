@@ -5,6 +5,7 @@
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
+		FOCUS_LAST_START,
 		type EditorActions,
 		type ListContext,
 		type CstNode,
@@ -44,7 +45,10 @@
 
 	export function focus(offset: number): void {
 		if (!node.children || node.children.length === 0) return;
-		if (offset === 0) {
+		if (offset === FOCUS_LAST_START) {
+			const last = node.children.length - 1;
+			innerBlockRefs[last]?.focus?.(FOCUS_LAST_START);
+		} else if (offset === 0) {
 			innerBlockRefs[0]?.focus?.(0);
 		} else {
 			const last = node.children.length - 1;
@@ -119,11 +123,12 @@
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
 
-			// Empty item — exit list
+			// Empty item — exit list. An item is "user-empty" if its first
+			// child is an empty paragraph, even if it has trailing structural
+			// children (nested lists moved from a previous split).
+			const firstChild = node.children[0];
 			const isEmptyItem =
-				node.children.length === 1 &&
-				node.children[0].kind === 'paragraph' &&
-				node.children[0].raw.trim() === '';
+				firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 			if (isEmptyItem) {
 				listContext.exitListAtItem(index);
 				return;

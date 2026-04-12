@@ -71,7 +71,8 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		setCursorOffset(offset);
+		// FOCUS_LAST_START (-1) cascades through containers; at the leaf level it means offset 0
+		setCursorOffset(Math.max(0, offset));
 	}
 
 	export function getCursorOffset(): number | null {
