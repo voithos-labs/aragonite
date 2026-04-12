@@ -11,6 +11,13 @@ export type { CstNode, Document } from './core/nodes';
 /** Sentinel offset meaning "place cursor at end of content". focus() clamps to content length. */
 export const CURSOR_END = 999999;
 
+/**
+ * Sentinel offset meaning "focus the last descendant at its start."
+ * Used after indent: cascade through containers choosing the last child at each
+ * level, but when the leaf is reached, place the cursor at offset 0.
+ */
+export const FOCUS_LAST_START = -1;
+
 // ── Context Keys ────────────────────────────────────────────────────────────
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
