@@ -370,8 +370,10 @@ test.describe('list Backspace', () => {
 		//     - B
 		//       - CD
 		//     - E
-		expect(source).toContain('CD');
-		// E should be at the same indent level as B (depth 1), not at depth 2
+		// Strong assertions: CD at depth 2 (4 spaces), B at depth 1 (2 spaces),
+		// E also at depth 1 (2 spaces, sibling of B, not under CD).
+		expect(source).toMatch(/^    - CD/m);
+		expect(source).toMatch(/^  - B/m);
 		expect(source).toMatch(/^  - E/m);
 	});
 
