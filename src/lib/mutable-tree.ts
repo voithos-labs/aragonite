@@ -21,7 +21,7 @@ export function cloneDocument(doc: Document): Document {
 	};
 }
 
-function cloneNode(node: CstNode): CstNode {
+export function cloneNode(node: CstNode): CstNode {
 	const cloned: CstNode = {
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
