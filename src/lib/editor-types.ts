@@ -54,6 +54,20 @@ export interface EditorActions {
 	requestRedo(): void | Promise<void>;
 	/** Insert parsed blocks at a split point, replacing the current block with spliced content. */
 	insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): void | Promise<void>;
+	/**
+	 * Replace the block at `blockIndex` with zero or more new blocks.
+	 * Handles undo snapshot, ID generation, blockRefs splice, and post-tick
+	 * focus. If `focus` is given, focuses the replacement block at that
+	 * index (relative to the replacement array, not doc.children) with the
+	 * given offset after tick.
+	 *
+	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
+	 */
+	replaceBlock(
+		blockIndex: number,
+		replacement: CstNode[],
+		focus?: { replacementIndex: number; offset: number }
+	): void | Promise<void>;
 	/** Push a document-level undo snapshot. Called by container blocks before structural mutations. */
 	beginContainerEdit?(blockIndex: number, offset: number): void;
 	/** Push a debounced undo snapshot. Called by container blocks for text input. */
