@@ -56,6 +56,32 @@
 		}
 		return null;
 	}
+
+	/**
+	 * Cascade focus down a path of child indices to land a cursor at `offset`
+	 * in the target leaf block. Used by M1 merge to position the cursor at
+	 * the merge point inside a potentially-nested list item.
+	 *
+	 * A path of `[]` means "this list itself" — we treat that as focus at
+	 * offset 0 of the first item for safety; this should not happen in
+	 * practice because M1 always provides a non-empty path.
+	 */
+	export function focusByPath(path: number[], offset: number): void {
+		if (path.length === 0) {
+			itemBlockRefs[0]?.focus(0);
+			return;
+		}
+		const [first, ...rest] = path;
+		const child = itemBlockRefs[first];
+		if (!child) return;
+		if (rest.length === 0) {
+			child.focus(offset);
+		} else {
+			// child is a ListItemBlock — delegate
+			(child as unknown as { focusByPath?(p: number[], o: number): void }).focusByPath?.(rest, offset);
+		}
+	}
+
 	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
