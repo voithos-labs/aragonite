@@ -315,6 +315,40 @@ describe('mergeListItemIntoPrevious', () => {
         expect(mergePoint.offset).toBe('AA'.length);
     });
 
+    it('row 4: deep target (depth 2) — E stays at depth 1 (preserve-absolute-indent)', () => {
+        // Input: - A / - B / - C / - D / - E
+        // where B is nested in A, C is nested in B, E is nested in D.
+        // This is the spec-mandated row 4 case: merging D into the deepest target (C)
+        // should preserve E at its ORIGINAL absolute depth 1 (not deepen it to match C's depth 2).
+        const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        // Result:
+        //   - A
+        //     - B
+        //       - CD
+        //     - E   ← E is at depth 1 alongside B, not under CD at depth 2
+        expect(list.children?.length).toBe(1);
+        const aItem = list.children?.[0];
+        // A's nested list has [B, E]
+        const depth1List = aItem?.children?.find((c) => c.kind === 'list');
+        expect(depth1List?.children?.length).toBe(2);
+        // First: B (with its nested list containing CD)
+        const bItem = depth1List?.children?.[0];
+        const depth2List = bItem?.children?.find((c) => c.kind === 'list');
+        expect(
+            (depth2List?.children?.[0]?.children?.[0]?.raw ?? '').trim()
+        ).toBe('CD');
+        // Second: E (at depth 1 as sibling of B)
+        expect(
+            (depth1List?.children?.[1]?.children?.[0]?.raw ?? '').trim()
+        ).toBe('E');
+        // Target path should have 3 elements: [0 (A), 0 (B), 0 (C)]
+        expect(mergePoint.targetPath.length).toBe(3);
+        expect(mergePoint.offset).toBe('C'.length);
+    });
+
     it('row 5: current has non-listItem extra paragraph; absorbed into target item children', () => {
         // Loose item: B has two paragraphs (paragraph "B" and paragraph "extra")
         const list = parseList('- A\n- B\n\n  extra\n');
