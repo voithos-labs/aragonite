@@ -122,10 +122,15 @@
 			if (!node.children) return;
 
 			if (innerIndex <= 0) {
-				// Rule U2 — unwrap first child out of the blockquote
+				// Rule U2 — unwrap first child out of the blockquote.
+				// replaceBlock is typed optional on EditorActions but always
+				// implemented by Editor.svelte and every container's nested
+				// actions; the non-null assertion expresses that invariant
+				// and turns a future missing-implementation bug into a runtime
+				// error instead of a silent no-op.
 				const replacement = unwrapFirstChildFromBlockquote(node);
 				if (replacement.length === 0) return;
-				await parentActions.replaceBlock?.(
+				await parentActions.replaceBlock!(
 					index,
 					replacement,
 					{ replacementIndex: 0, offset: 0 }
