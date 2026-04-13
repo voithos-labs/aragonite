@@ -12,7 +12,10 @@
 		type BlockComponent
 	} from '../../editor-types';
 	import { assignIds, generateBlockId, displayLength } from '../../mutable-tree';
-	import { deleteNode as performDelete } from '../../tree-operations';
+	import {
+		deleteNode as performDelete,
+		unwrapFirstItemFromList
+	} from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
 
@@ -166,8 +169,14 @@
 					await parentActions.deleteBlock(index);
 					parentActions.moveFocus(index - 1, 'end');
 				} else {
-					// Non-empty first item — move focus before list
-					parentActions.moveFocus(index - 1, 'end');
+					// Non-empty first item — Rule U1: unwrap the item out of the list
+					const replacement = unwrapFirstItemFromList(node);
+					if (replacement.length === 0) return;
+					await parentActions.replaceBlock!(
+						index,
+						replacement,
+						{ replacementIndex: 0, offset: 0 }
+					);
 				}
 				return;
 			}
