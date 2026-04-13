@@ -245,6 +245,66 @@
 			blockRefs[lastIndex]?.focus(CURSOR_END);
 		},
 
+		async replaceBlock(
+			blockIndex: number,
+			replacement: CstNode[],
+			focus?: { replacementIndex: number; offset: number }
+		): Promise<void> {
+			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
+
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, focus?.offset ?? 0);
+			needsUndoCheckpoint = true;
+
+			// Work on plain copies to prevent $state proxy splice cascades.
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+
+			if (replacement.length === 0) {
+				// Degenerate case: delete the block.
+				childrenCopy.splice(blockIndex, 1);
+				idsCopy.splice(blockIndex, 1);
+				refsCopy.splice(blockIndex, 1);
+			} else {
+				// Preserve leading trivia of the original block on the first replacement.
+				const originalTrivia = doc.children[blockIndex].leadingTrivia;
+				const normalizedReplacement = replacement.map((node, i) => {
+					const copy = { ...node };
+					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+					ensureEditableContainers(copy);
+					return copy;
+				});
+
+				// Parse inline content for any prose-kind replacement blocks.
+				parseAllInlineContent(normalizedReplacement);
+
+				childrenCopy.splice(blockIndex, 1, ...normalizedReplacement);
+
+				// IDs: fresh for each replacement block.
+				const newIds = normalizedReplacement.map(() => generateBlockId());
+				idsCopy.splice(blockIndex, 1, ...newIds);
+
+				// Refs: new undefined slots for each replacement block.
+				const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+				refsCopy.splice(blockIndex, 1, ...newRefSlots);
+			}
+
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
+
+			await tick();
+
+			if (focus && replacement.length > 0) {
+				const targetIndex = blockIndex + focus.replacementIndex;
+				blockRefs[targetIndex]?.focus(focus.offset);
+			}
+		},
+
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
 			if (blockIndex <= 0) return;
 
