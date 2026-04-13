@@ -307,16 +307,115 @@ test.describe('list Backspace', () => {
 		expect((source.match(/^- /gm) || []).length).toBe(2);
 	});
 
-	test('Backspace at start of non-empty non-first item moves focus to previous', async () => {
+	test('Backspace at start of non-empty non-first item merges into previous item (rule B: deepest visible above)', async () => {
 		await editor.loadContent('- Item one\n- Item two\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Item two' });
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "Item two" text should be merged into "Item one"
+		expect(source).toContain('Item oneItem two');
+		// Only one list item should remain
+		expect((source.match(/^- /gm) ?? []).length).toBe(1);
+	});
+
+	test('M1 row 2: current item has nested sub-list; nested absorbed into target', async () => {
+		await editor.loadContent('- A\n- B\n  - C\n');
+		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).first();
+		await second.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Result: - AB\n  - C
+		expect(source).toContain('- AB');
+		expect(source).toMatch(/^\s+- C/m);
+	});
+
+	test('M1 row 3: target nested in previous item; current-item nested children become sibling of target (preserve absolute indent)', async () => {
+		await editor.loadContent('- A\n  - AA\n- B\n  - C\n');
+		const bItem = editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).first();
+		await bItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Expected:
+		//   - A
+		//     - AAB
+		//     - C
+		expect(source).toContain('- A');
+		expect(source).toMatch(/- AAB/);
+		// C should now be at the same level as AAB (sibling in A's nested list)
+		expect(source).toMatch(/- AAB\s*\n\s+- C/);
+	});
+
+	test('M1 row 4 (deep nesting): E preserves its original absolute depth of 1, sibling of B', async () => {
+		const content = '- A\n  - B\n    - C\n- D\n  - E\n';
+		await editor.loadContent(content);
+		const dItem = editor.page.locator('[contenteditable="true"]', { hasText: 'D' }).first();
+		await dItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Expected:
+		//   - A
+		//     - B
+		//       - CD
+		//     - E
+		expect(source).toContain('CD');
+		// E should be at the same indent level as B (depth 1), not at depth 2
+		expect(source).toMatch(/^  - E/m);
+	});
+
+	test('M1 row 5: current item has non-listItem continuation paragraph; absorbed into target item children', async () => {
+		await editor.loadContent('- A\n- B\n\n  extra\n');
+		const bItem = editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).first();
+		await bItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Result: - AB with "extra" somewhere in the merged content
+		expect(source).toContain('- AB');
+		expect(source).toMatch(/extra/);
+	});
+
+	test('M1 ordered list: merged item deletion renumbers remaining', async () => {
+		await editor.loadContent('1. First\n2. Second\n3. Third\n');
+		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Second' });
+		await second.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Result: 1. FirstSecond\n2. Third
+		expect(source).toMatch(/^1\. FirstSecond/m);
+		expect(source).toMatch(/^2\. Third/m);
+	});
+
+	test('M1 cursor lands at merge point in target', async () => {
+		await editor.loadContent('- Alpha\n- Beta\n');
+		const betaItem = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });
+		await betaItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		// Cursor should be at the merge point — between "Alpha" and "Beta"
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('Item oneZ');
+		const source = await editor.getSource();
+		expect(source).toContain('AlphaZBeta');
 	});
 
 	test('Backspace at start of nested item promotes it', async () => {
