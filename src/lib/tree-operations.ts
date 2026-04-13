@@ -5,7 +5,8 @@
 
 import type { CstNode } from './core/nodes';
 import { parse } from './core/parser';
-import { generateBlockId, trimTrailingLineEnding, cloneNode } from './mutable-tree';
+import { generateBlockId, cloneNode } from './mutable-tree';
+import { trimTrailingLineEnding } from './core/text-utils';
 import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -203,6 +204,65 @@ export function ensureEditableContainers(node: CstNode): void {
 	}
 }
 
+// ── Ordered-list numbering helpers ──────────────────────────────────────────
+
+/**
+ * Renumber an ordered list's items in place starting at `fromIndex`. Items
+ * before `fromIndex` keep their markers; each item at or after gets the
+ * next number in sequence, seeded from the prior item's current marker (or
+ * from 1 when `fromIndex` is 0). No-op on unordered lists.
+ *
+ * Preserves each item's marker suffix (`. ` vs `) `) instead of rewriting
+ * it, so mixed-suffix lists stay intact. Rebuilds each touched item's raw.
+ *
+ * Note: when `fromIndex` is 0 this resets the sequence to 1, not to the
+ * list's original start number. Callers that need to preserve a non-1
+ * base (e.g. `unwrapFirstItemFromList`) must seed the item at index 0
+ * manually and then call this helper with `fromIndex=1`.
+ */
+export function renumberOrderedList(list: CstNode, fromIndex = 0): void {
+	if (!list.children) return;
+	if (!(list.metadata as { ordered?: boolean } | undefined)?.ordered) return;
+	for (let j = fromIndex; j < list.children.length; j++) {
+		const prevNum =
+			j > 0 ? parseInt((list.children[j - 1].metadata as { marker: string }).marker, 10) || 0 : 0;
+		const meta = list.children[j].metadata as { marker: string };
+		const suffix = meta.marker.replace(/^\d+/, '');
+		meta.marker = String(prevNum + 1) + suffix;
+		rebuildListItemRaw(list.children[j]);
+	}
+}
+
+/**
+ * Rewrite `item`'s marker so its style matches `parentList` (ordered ↔
+ * unordered). The new marker's suffix character is templated from a
+ * sibling in `parentList` so `*`/`+`/`-` or `.`/`)` choices follow
+ * whatever the destination list already uses. No-op when the item already
+ * matches the parent list's ordering. The caller should renumber the
+ * parent list afterward — this helper only touches marker style, not
+ * sequence numbers.
+ */
+export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
+	const parentOrdered = (parentList.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const meta = item.metadata as { marker: string };
+	const itemOrdered = /^\d/.test(meta.marker);
+	if (itemOrdered === parentOrdered) return;
+
+	const siblings = parentList.children ?? [];
+	const templateMarker =
+		siblings.length > 0 ? (siblings[0].metadata as { marker: string }).marker : undefined;
+
+	if (parentOrdered) {
+		// Item is unordered, parent is ordered. Template gives the numeric suffix.
+		const suffix = templateMarker?.replace(/^\d+/, '') ?? '. ';
+		meta.marker = '1' + suffix;
+	} else {
+		// Item is ordered, parent is unordered. Use the template marker verbatim.
+		meta.marker = templateMarker ?? '- ';
+	}
+	rebuildListItemRaw(item);
+}
+
 // ── Container Unwrap ────────────────────────────────────────────────────────
 
 /**
@@ -283,20 +343,6 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 	// Normalize leading trivia of the first remaining item
 	remainingItems[0].leadingTrivia = '';
 
-	// Renumber ordered markers from the base of the original list
-	if (parentOrdered) {
-		// Determine the original starting number from the first item's original marker.
-		const originalFirstMarker = (firstItem.metadata as { marker: string }).marker;
-		const match = originalFirstMarker.match(/^(\d+)/);
-		const base = match ? parseInt(match[1], 10) : 1;
-		for (let i = 0; i < remainingItems.length; i++) {
-			const meta = remainingItems[i].metadata as { marker: string };
-			const suffix = meta.marker.replace(/^\d+/, '');
-			meta.marker = String(base + i) + suffix;
-			rebuildListItemRaw(remainingItems[i]);
-		}
-	}
-
 	const remainingList: CstNode = {
 		kind: 'list',
 		leadingTrivia: '',
@@ -306,6 +352,18 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 		innerPrefix: clonedList.innerPrefix ?? '',
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};
+
+	// Renumber from the base of the original list, preserving its starting
+	// number. Seed the first remaining item with the original base, then let
+	// renumberOrderedList carry the sequence forward.
+	if (parentOrdered) {
+		const base = parseInt((firstItem.metadata as { marker: string }).marker, 10) || 1;
+		const firstMeta = remainingItems[0].metadata as { marker: string };
+		firstMeta.marker = String(base) + firstMeta.marker.replace(/^\d+/, '');
+		rebuildListItemRaw(remainingItems[0]);
+		renumberOrderedList(remainingList, 1);
+	}
+
 	rebuildListRaw(remainingList);
 
 	liftedBlocks.push(remainingList);
@@ -313,6 +371,19 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 }
 
 // ── List Item Merge ─────────────────────────────────────────────────────────
+
+/**
+ * Resolve the list item at a target path. At each hop, the item's LAST child
+ * must be a nested list — that's the descent step taken by the rule-B search.
+ */
+function resolveItemAtPath(list: CstNode, path: number[]): CstNode {
+	let item = list.children![path[0]];
+	for (let i = 1; i < path.length; i++) {
+		const nestedList = item.children![item.children!.length - 1];
+		item = nestedList.children![path[i]];
+	}
+	return item;
+}
 
 /**
  * Walk an item's subtree depth-first, preferring the LAST child at each level,
@@ -381,17 +452,7 @@ export function mergeListItemIntoPrevious(
 		throw new Error('mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf');
 	}
 
-	// Resolve the target listItem by walking the path.
-	function resolveItem(list: CstNode, path: number[]): CstNode {
-		let item = list.children![path[0]];
-		for (let i = 1; i < path.length; i++) {
-			// At each hop, item's LAST child should be the nested list we descend into.
-			const nestedList = item.children![item.children!.length - 1];
-			item = nestedList.children![path[i]];
-		}
-		return item;
-	}
-	const targetItem = resolveItem(list, targetPath);
+	const targetItem = resolveItemAtPath(list, targetPath);
 
 	if (!targetItem.children || targetItem.children.length === 0 || targetItem.children[0].kind !== 'paragraph') {
 		throw new Error('mergeListItemIntoPrevious: target item does not start with a paragraph');
@@ -468,27 +529,15 @@ export function mergeListItemIntoPrevious(
 	// 4. Rebuild raw for all affected container nodes
 	// The target item may be deeply nested — rebuild it and all ancestors.
 	function rebuildFromPath(list: CstNode, path: number[]): void {
-		// Rebuild deepest first, then walk up
 		if (path.length === 0) {
 			rebuildListRaw(list);
 			return;
 		}
-		// Resolve the item at this path
-		function resolveItemByPath(list: CstNode, p: number[]): CstNode {
-			let item = list.children![p[0]];
-			for (let i = 1; i < p.length; i++) {
-				const nl = item.children![item.children!.length - 1];
-				item = nl.children![p[i]];
-			}
-			return item;
-		}
-		const item = resolveItemByPath(list, path);
+		const item = resolveItemAtPath(list, path);
 		rebuildListItemRaw(item);
-		// Walk up one level
 		if (path.length > 1) {
 			const parentPath = path.slice(0, -1);
-			// Rebuild the nested list that contained `item`
-			const parentItem = resolveItemByPath(list, parentPath);
+			const parentItem = resolveItemAtPath(list, parentPath);
 			for (const child of parentItem.children ?? []) {
 				if (child.kind === 'list') rebuildListRaw(child);
 			}
@@ -500,18 +549,8 @@ export function mergeListItemIntoPrevious(
 	rebuildFromPath(list, targetPath);
 
 	// 5. Renumber ordered markers at the top level
-	const ordered = (list.metadata as { ordered: boolean } | undefined)?.ordered ?? false;
-	if (ordered) {
-		for (let j = 0; j < list.children.length; j++) {
-			const prev = j > 0
-				? (list.children[j - 1].metadata as { marker: string }).marker
-				: '0. ';
-			const prevNum = parseInt(prev, 10) || 0;
-			const meta = list.children[j].metadata as { marker: string };
-			const suffix = meta.marker.replace(/^\d+/, '');
-			meta.marker = String(prevNum + 1) + suffix;
-			rebuildListItemRaw(list.children[j]);
-		}
+	if ((list.metadata as { ordered?: boolean } | undefined)?.ordered) {
+		renumberOrderedList(list);
 		rebuildListRaw(list);
 	}
 

@@ -24,7 +24,11 @@ export type {
 
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
-export { EDITOR_ACTIONS_KEY, LIST_CONTEXT_KEY } from './editor-types';
+export {
+	EDITOR_ACTIONS_KEY,
+	LIST_CONTEXT_KEY,
+	LIST_PARENT_ITEM_INDEX_KEY
+} from './editor-types';
 export type {
 	EditorActions,
 	BlockComponent,

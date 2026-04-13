@@ -10,7 +10,7 @@
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../mutable-tree';
+	import { trimTrailingLineEnding } from '../../core/text-utils';
 
 	let {
 		node,

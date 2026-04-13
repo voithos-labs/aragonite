@@ -45,7 +45,7 @@ Covers ordered and unordered lists — flat items, nested items, and all keyboar
 | `- A`<br>`- B`<br>`  - C` | start of B | `- AB`<br>`  - C` | C nests under AB (target A at depth 0) |
 | `- A`<br>`  - AA`<br>`- B`<br>`  - C` | start of B | `- A`<br>`  - AAB`<br>`  - C` | C becomes sibling of AA (target AA at depth 1, preserving C's absolute depth 1) |
 | `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2 |
-| `- A`<br>`- B`<br>`\n`<br>`  extra` | start of B | `- AB`<br>`\n`<br>`  extra` | extra paragraph absorbed into target item's children |
+| `- A`<br>`- B`<br>_blank line_<br>`  extra` | start of B | `- AB`<br>_blank line_<br>`  extra` | extra paragraph absorbed into target item's children |
 
 See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.md` for full semantic rules.
 
@@ -72,6 +72,18 @@ See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.m
 - Shift+Tab on a top-level item is a no-op
 - The promoted item is inserted after the parent item in the parent list
 - If the nested list becomes empty after promotion, it is removed
+
+### Ordered list numbering and marker style on Shift+Tab
+
+- The nested list's remaining items (if any) are renumbered from 1
+- The parent list's items after the insertion point are renumbered, so the promoted item slots into the sequence and every later item shifts up
+- When the nested and parent lists are different types (ordered ↔ unordered), the promoted item's marker is rewritten to match the parent list's style before renumbering. The destination marker suffix (`. ` / `) ` for ordered, `- ` / `*` / `+` for unordered) is templated from an existing sibling in the parent list
+
+## Tab (indent) — ordered list numbering and marker style
+
+- When Tab appends an ordered item to an existing ordered nested list, the appended item continues the nested list's sequence (e.g., joining `[1, 2]` becomes `[1, 2, 3]`, not `[1, 2, 1]`)
+- When Tab creates a new nested list, its sole item starts at `1`
+- The parent list's items after the removed item are renumbered
 
 ## Delete (forward delete)
 

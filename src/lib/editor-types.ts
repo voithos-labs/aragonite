@@ -27,10 +27,10 @@ export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
 // ── List Context (list item → list block communication via Svelte context) ──
 
 export interface ListContext {
-	insertItemAfter(itemIndex: number, newItem?: CstNode): void;
-	exitListAtItem(itemIndex: number): void;
-	indentItem(itemIndex: number): void;
-	unindentItem(itemIndex: number): void;
+	insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void>;
+	exitListAtItem(itemIndex: number): Promise<void>;
+	indentItem(itemIndex: number): Promise<void>;
+	unindentItem(itemIndex: number): Promise<void>;
 	/**
 	 * Promote a nested list item to the parent list level.
 	 * Called by a nested ListBlock on the PARENT list's context.
@@ -38,7 +38,11 @@ export interface ListContext {
 	 * @param nestedListNode The nested list CstNode (for direct manipulation)
 	 * @param nestedItemIndex Index of the item within the nested list to promote
 	 */
-	promoteNestedItem(parentItemIndex: number, nestedListNode: CstNode, nestedItemIndex: number): void;
+	promoteNestedItem(
+		parentItemIndex: number,
+		nestedListNode: CstNode,
+		nestedItemIndex: number
+	): Promise<void>;
 }
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────
@@ -62,8 +66,10 @@ export interface EditorActions {
 	 * given offset after tick.
 	 *
 	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
+	 * Container-nested implementations delegate to the parent via
+	 * `parentActions.replaceBlock` — the method is always available.
 	 */
-	replaceBlock?(
+	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number }
@@ -83,6 +89,14 @@ export interface BlockComponent {
 	getCursorOffset(): number | null;
 	getSelectedText?(): string;
 	setSelection?(start: number, end: number): void;
+	/**
+	 * Cascade focus down a path of child indices to reach a leaf at the
+	 * given cursor offset. Implemented by container blocks (ListBlock,
+	 * ListItemBlock) whose leaves may be arbitrarily deep; optional on
+	 * leaf blocks that cannot nest further. Used by M1 to place the
+	 * cursor at the merge point in a potentially deeply-nested target.
+	 */
+	focusByPath?(path: number[], offset: number): void;
 	readonly editable: boolean;
 	readonly focusable: boolean;
 }
