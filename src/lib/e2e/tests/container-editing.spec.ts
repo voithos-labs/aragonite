@@ -486,9 +486,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		expect(source).toMatch(/Above paragraph\.\n\s*\nHello/);
 	});
 
-	test.skip('blockquote containing a list: Backspace at start of list item unwraps inside blockquote', async () => {
-		// SKIPPED until Task 9 (U1 list unwrap) lands. Re-enable by changing
-		// test.skip → test in Task 9's Step 3.
+	test('blockquote containing a list: Backspace at start of list item unwraps inside blockquote', async () => {
 		await editor.loadContent('> - Item\n');
 		const item = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await item.click();
