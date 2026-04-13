@@ -209,6 +209,58 @@
 		// insertParsedBlocks at list level: not applicable (paste is handled by inner blocks)
 		async insertParsedBlocks(): Promise<void> {},
 
+		async replaceBlock(
+			itemIndex: number,
+			replacement: CstNode[],
+			focus?: { replacementIndex: number; offset: number }
+		): Promise<void> {
+			// Note: ListBlock.listActions.replaceBlock is called when a caller wants
+			// to splice list items. In practice, this happens rarely — U1 and U2
+			// typically call replaceBlock on a parent that contains the list, not
+			// on the list itself. But a future feature could replace list items.
+			if (!node.children || itemIndex < 0 || itemIndex >= node.children.length) return;
+
+			parentActions.beginContainerEdit?.(index, 0);
+
+			// Work on plain copies to prevent $state proxy splice cascades.
+			const childrenCopy = [...node.children];
+			const idsCopy = [...itemBlockIds];
+			const refsCopy = [...itemBlockRefs];
+
+			if (replacement.length === 0) {
+				childrenCopy.splice(itemIndex, 1);
+				idsCopy.splice(itemIndex, 1);
+				refsCopy.splice(itemIndex, 1);
+			} else {
+				const originalTrivia = node.children[itemIndex].leadingTrivia ?? '';
+				const normalizedReplacement = replacement.map((n, i) => {
+					const copy = { ...n };
+					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+					return copy;
+				});
+				childrenCopy.splice(itemIndex, 1, ...normalizedReplacement);
+				const newIds = normalizedReplacement.map(() => generateBlockId());
+				idsCopy.splice(itemIndex, 1, ...newIds);
+				const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+				refsCopy.splice(itemIndex, 1, ...newRefSlots);
+			}
+
+			node.children = childrenCopy;
+			itemBlockIds = idsCopy;
+			itemBlockRefs = refsCopy;
+
+			rebuildListRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerItemReactivity();
+
+			await tick();
+
+			if (focus && replacement.length > 0) {
+				const targetIdx = itemIndex + focus.replacementIndex;
+				itemBlockRefs[targetIdx]?.focus(focus.offset);
+			}
+		},
+
 		requestUndo(): void | Promise<void> {
 			return parentActions.requestUndo();
 		},
