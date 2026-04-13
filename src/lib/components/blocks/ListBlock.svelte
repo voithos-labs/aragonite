@@ -200,8 +200,9 @@
 			// Non-empty item — Rule M1: merge into deepest visible text above (rule B)
 			// with preserve-absolute-indent child placement.
 			parentActions.beginContainerEdit?.(index, 0);
+			// mergeListItemIntoPrevious mutates `node` in place and internally rebuilds
+			// raw for all affected containers (including `node` itself). No outer rebuildListRaw needed.
 			const { mergePoint } = mergeListItemIntoPrevious(node, itemIndex);
-			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
 			await tick();
