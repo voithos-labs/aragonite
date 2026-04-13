@@ -287,7 +287,8 @@ test.describe('list Backspace', () => {
 
 		const source = await editor.getSource();
 		// "First" as plain paragraph, then ordered list with [Second=1, Third=2]
-		expect(source).toContain('First');
+		expect(source).toMatch(/^First/m);
+		expect(source).not.toMatch(/^1\. First/m);
 		expect(source).toMatch(/^1\. Second/m);
 		expect(source).toMatch(/^2\. Third/m);
 	});
