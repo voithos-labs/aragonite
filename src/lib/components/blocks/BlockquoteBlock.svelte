@@ -13,7 +13,8 @@
 		mergeWithPrevious as performMerge,
 		mergeWithNext as performMergeNext,
 		deleteNode as performDelete,
-		updateNodeContent as performUpdate
+		updateNodeContent as performUpdate,
+		unwrapFirstChildFromBlockquote
 	} from '../../tree-operations';
 	import { isMergeEligible, isBlockEditable } from '../../merge-rules';
 	import { rebuildBlockquoteRaw } from '../../container-raw';
@@ -121,8 +122,14 @@
 			if (!node.children) return;
 
 			if (innerIndex <= 0) {
-				// At start of first child — cross boundary upward
-				parentActions.moveFocus(index - 1, 'end');
+				// Rule U2 — unwrap first child out of the blockquote
+				const replacement = unwrapFirstChildFromBlockquote(node);
+				if (replacement.length === 0) return;
+				await parentActions.replaceBlock?.(
+					index,
+					replacement,
+					{ replacementIndex: 0, offset: 0 }
+				);
 				return;
 			}
 
