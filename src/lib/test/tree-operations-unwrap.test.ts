@@ -3,7 +3,8 @@ import { parse } from '../core/parser';
 import { serializeMutable } from '../mutable-tree';
 import {
     unwrapFirstChildFromBlockquote,
-    unwrapFirstItemFromList
+    unwrapFirstItemFromList,
+    mergeListItemIntoPrevious
 } from '../tree-operations';
 import type { CstNode } from '../core/nodes';
 
@@ -237,5 +238,118 @@ describe('unwrapFirstItemFromList', () => {
             suffix: ''
         });
         expect(after).toBe(before);
+    });
+});
+
+// ── mergeListItemIntoPrevious ──────────────────────────────────────────────
+
+describe('mergeListItemIntoPrevious', () => {
+    function parseList(src: string): CstNode {
+        const doc = parse(src);
+        const list = doc.children[0];
+        if (list?.kind !== 'list') {
+            throw new Error(`expected list, got ${list?.kind}`);
+        }
+        return list;
+    }
+
+    it('row 1: flat merge of two paragraphs', () => {
+        const list = parseList('- A\n- B\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        expect(list.children?.length).toBe(1);
+        const mergedRaw = list.children?.[0].raw ?? '';
+        expect(mergedRaw).toContain('AB');
+        // Target path should be [0] (first item in list), offset = length of "A"
+        expect(mergePoint.targetPath).toEqual([0]);
+        expect(mergePoint.offset).toBe('A'.length);
+    });
+
+    it('row 2: current item has nested sub-list; it nests under target item (absorb)', () => {
+        const list = parseList('- A\n- B\n  - C\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        // Result: [- AB\n  - C\n]
+        expect(list.children?.length).toBe(1);
+        const mergedItem = list.children?.[0];
+        // First child is paragraph with merged text
+        expect(mergedItem?.children?.[0].kind).toBe('paragraph');
+        expect((mergedItem?.children?.[0].raw ?? '').trim()).toBe('AB');
+        // Second child is the absorbed nested list containing C
+        expect(mergedItem?.children?.[1].kind).toBe('list');
+        expect((mergedItem?.children?.[1].children?.[0].raw ?? '')).toContain('C');
+        // Target: [0] (first item), offset = length of "A"
+        expect(mergePoint.targetPath).toEqual([0]);
+        expect(mergePoint.offset).toBe('A'.length);
+    });
+
+    it('row 3: target is nested inside previous item; merged text appends to nested paragraph; current\'s nested children become sibling of target', () => {
+        const list = parseList('- A\n  - AA\n- B\n  - C\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        // Result: [- A\n  - AAB\n  - C\n]
+        expect(list.children?.length).toBe(1);
+        const parentItem = list.children?.[0];
+        // Parent item's first child is paragraph "A"
+        expect((parentItem?.children?.[0].raw ?? '').trim()).toBe('A');
+        // Parent item's second child is the nested list containing [AAB, C]
+        const nestedList = parentItem?.children?.[1];
+        expect(nestedList?.kind).toBe('list');
+        expect(nestedList?.children?.length).toBe(2);
+        // First nested item: "AAB"
+        expect((nestedList?.children?.[0].children?.[0].raw ?? '').trim()).toBe('AAB');
+        // Second nested item: "C" (moved from being B's child)
+        expect((nestedList?.children?.[1].children?.[0].raw ?? '').trim()).toBe('C');
+        // Target path: [0, 1, 0] → parent item → nested list (as container within parent) → first item (AA)
+        // Note: the path convention walks listItem→list→listItem, so children indices alternate.
+        // For our format: path[0] = outer list item index, path[1+] = nested list item indices.
+        // Under path semantics where each element is a list-level index, the target "AA" is at
+        // depth-1 nested list item index 0, so path is [0, 0]. But see implementation notes
+        // below — the path format is an implementation choice; update the assertion based on
+        // the actual returned path if it differs.
+        // For this test, assert targetPath length is 2 and the offset is correct.
+        expect(mergePoint.targetPath.length).toBeGreaterThanOrEqual(2);
+        expect(mergePoint.offset).toBe('AA'.length);
+    });
+
+    it('row 5: current has non-listItem extra paragraph; absorbed into target item children', () => {
+        // Loose item: B has two paragraphs (paragraph "B" and paragraph "extra")
+        const list = parseList('- A\n- B\n\n  extra\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        // Result: [- AB\n\n  extra\n] — the "extra" paragraph is absorbed into target item
+        expect(list.children?.length).toBe(1);
+        const target = list.children?.[0];
+        // First child: paragraph "AB"
+        expect((target?.children?.[0].raw ?? '').trim()).toBe('AB');
+        // Second child: paragraph "extra" (absorbed from current item's extras)
+        // After absorption, "extra" is somewhere in target's children
+        const hasExtra = target?.children?.some((c) => (c.raw ?? '').trim() === 'extra');
+        expect(hasExtra).toBe(true);
+        expect(mergePoint.targetPath).toEqual([0]);
+        expect(mergePoint.offset).toBe('A'.length);
+    });
+
+    it('ordered list: remaining items renumber after the merged item is deleted', () => {
+        const list = parseList('1. First\n2. Second\n3. Third\n');
+
+        const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+        // Result: [1. FirstSecond\n2. Third\n]
+        expect(list.children?.length).toBe(2);
+        expect((list.children?.[0].children?.[0].raw ?? '').trim()).toBe('FirstSecond');
+        const thirdMarker = (list.children?.[1].metadata as { marker: string }).marker;
+        expect(thirdMarker).toMatch(/^2\./);
+        expect(mergePoint.offset).toBe('First'.length);
+    });
+
+    it('itemIndex = 0 is rejected (caller\'s responsibility to handle)', () => {
+        const list = parseList('- A\n- B\n');
+
+        expect(() => mergeListItemIntoPrevious(list, 0)).toThrow();
     });
 });
