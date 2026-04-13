@@ -243,7 +243,7 @@ The nested `BlockList` inside a container block creates its own `EditorActions` 
 
 - **Splitting inside a container**: splits the inner child, not the container. The container's `raw` is reconstructed from its children.
 - **Deleting all children of a container**: removes the entire container from the parent.
-- **Backspace at start of first child**: Moves focus to the block before the container. The design allows for future unwrap behavior (lifting a child out of a blockquote, or unindenting a list item).
+- **Backspace at start of first child**: unwraps (see "Container Unwrap" above). Rules U1 / U2 / M1 cover list first-item, blockquote first-child, and list non-first item respectively.
 - **Enter in a list item**: Creates a new sibling list item. Enter at the end of a list item's content inserts a new item below; Enter in the middle splits the content across two items. Enter in an empty list item exits the list.
 
 ### Impact on Block Identity and Selection

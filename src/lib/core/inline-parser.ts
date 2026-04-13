@@ -754,13 +754,13 @@ function resolveItems(
 		if (item.type === 'node') {
 			nodes.push(item.node);
 		} else {
-			const e = item.entry;
-			if (e.count > 0) {
+			const entry = item.entry;
+			if (entry.count > 0) {
 				nodes.push({
 					kind: 'text',
-					start: e.start,
-					end: e.start + e.count,
-					text: raw.slice(e.start, e.start + e.count)
+					start: entry.start,
+					end: entry.start + entry.count,
+					text: raw.slice(entry.start, entry.start + entry.count)
 				});
 			}
 		}

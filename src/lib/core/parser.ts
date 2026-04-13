@@ -297,7 +297,7 @@ function parseBlockquote(
 		const stripped = line.text.replace(/^ {0,3}>[ \t]?/, '');
 		const lineEnding = line.lineEnding;
 		const raw = stripped + lineEnding;
-		const sl: ParsedLine = {
+		const strippedLine: ParsedLine = {
 			raw,
 			text: stripped,
 			lineEnding,
@@ -305,7 +305,7 @@ function parseBlockquote(
 			end: offset + raw.length
 		};
 		offset += raw.length;
-		return sl;
+		return strippedLine;
 	});
 
 	const inner = parseBlocks(strippedLines, 0, strippedLines.length);
@@ -531,7 +531,7 @@ function stripListItemLines(
 		const stripped = line.text.slice(stripCount);
 		const lineEnding = line.lineEnding;
 		const raw = stripped + lineEnding;
-		const sl: ParsedLine = {
+		const strippedLine: ParsedLine = {
 			raw,
 			text: stripped,
 			lineEnding,
@@ -539,7 +539,7 @@ function stripListItemLines(
 			end: offset + raw.length
 		};
 		offset += raw.length;
-		return sl;
+		return strippedLine;
 	});
 }
 

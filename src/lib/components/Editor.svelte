@@ -9,14 +9,8 @@
 		type Document,
 		type UndoEntry
 	} from '../editor-types';
-	import {
-		cloneDocument,
-		serializeMutable,
-		assignIds,
-		generateBlockId,
-		displayLength,
-		trimTrailingLineEnding
-	} from '../mutable-tree';
+	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
+	import { displayLength, trimTrailingLineEnding } from '../core/text-utils';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,

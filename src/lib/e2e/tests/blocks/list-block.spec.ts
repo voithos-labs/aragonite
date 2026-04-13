@@ -541,6 +541,20 @@ test.describe('list Tab', () => {
 		// Third should renumber to 2
 		expect(source).toMatch(/^2\.\s*Third/m);
 	});
+
+	test('ordered: Tab appending to existing ordered nested list continues the sequence', async () => {
+		await editor.loadContent('1. A\n   1. AA\n   2. AB\n2. B\n');
+		const b = editor.page.locator('[contenteditable="true"]', { hasText: /^B$/ });
+		await b.click();
+		await editor.page.keyboard.press('Tab');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// B joins the existing nested list after AB; should become 3, not 1.
+		expect(source).toMatch(/^\s+1\. AA$/m);
+		expect(source).toMatch(/^\s+2\. AB$/m);
+		expect(source).toMatch(/^\s+3\. B$/m);
+		expect(source).not.toMatch(/^\s+1\. B$/m);
+	});
 });
 
 // ── Shift+Tab (unindent) ────────────────────────────────────────────
@@ -570,6 +584,76 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toBe('- Item 1\n- Item 2\n');
+	});
+
+	// Regression: promoteNestedItem must renumber both lists and normalize the
+	// promoted item's marker when the parent and nested list types differ.
+
+	test('ordered: promoting only nested item renumbers parent list', async () => {
+		await editor.loadContent('1. First\n   1. Nested\n2. Second\n');
+		const nested = editor.page.locator('[contenteditable="true"]', { hasText: 'Nested' });
+		await nested.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. First$/m);
+		expect(source).toMatch(/^2\. Nested$/m);
+		expect(source).toMatch(/^3\. Second$/m);
+		// Nested list should be gone entirely.
+		expect(source).not.toMatch(/^\s+\d+\./m);
+	});
+
+	test('ordered: promoting first of two nested items renumbers both lists', async () => {
+		await editor.loadContent('1. P A\n   1. N A\n   2. N B\n2. P B\n');
+		const na = editor.page.locator('[contenteditable="true"]', { hasText: 'N A' });
+		await na.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. P A$/m);
+		// Remaining nested item must renumber from 2 to 1.
+		expect(source).toMatch(/^\s+1\. N B$/m);
+		expect(source).not.toMatch(/^\s+2\. N B$/m);
+		// Promoted item lands between P A and P B; P B renumbers to 3.
+		expect(source).toMatch(/^2\. N A$/m);
+		expect(source).toMatch(/^3\. P B$/m);
+	});
+
+	test('ordered nested in unordered parent: promoted item takes unordered marker, nested remainder renumbers', async () => {
+		await editor.loadContent('- P A\n  1. N1\n  2. N2\n- P B\n');
+		const n1 = editor.page.locator('[contenteditable="true"]', { hasText: 'N1' });
+		await n1.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// Remaining ordered nested list must renumber its sole item from 2 to 1.
+		expect(source).toMatch(/^\s+1\. N2$/m);
+		expect(source).not.toMatch(/^\s+2\. N2$/m);
+		// Promoted item must adopt the unordered marker of its new parent.
+		expect(source).toMatch(/^- N1$/m);
+		expect(source).not.toMatch(/^\d+\. N1$/m);
+		expect(source).toMatch(/^- P A$/m);
+		expect(source).toMatch(/^- P B$/m);
+	});
+
+	test('unordered nested in ordered parent: promoted item takes ordered marker, parent renumbers', async () => {
+		await editor.loadContent('1. P A\n   - N1\n   - N2\n2. P B\n');
+		const n1 = editor.page.locator('[contenteditable="true"]', { hasText: 'N1' });
+		await n1.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// Remaining unordered nested list keeps its marker style for N2.
+		expect(source).toMatch(/^\s+- N2$/m);
+		// Promoted item must adopt an ordered marker and slot at position 2.
+		expect(source).toMatch(/^2\. N1$/m);
+		expect(source).not.toMatch(/^- N1$/m);
+		// Parent B renumbered from 2 to 3.
+		expect(source).toMatch(/^3\. P B$/m);
 	});
 });
 
@@ -604,5 +688,31 @@ test.describe('list arrow navigation', () => {
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('Before.Z');
+	});
+
+	test('ArrowLeft at start of item content moves to end of previous item', async () => {
+		await editor.loadContent('- Alpha\n- Beta\n');
+		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });
+		await second.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowLeft');
+		await editor.page.waitForTimeout(100);
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		// "Z" lands at end of Alpha (the target of ArrowLeft from start of Beta)
+		expect(await editor.getSource()).toContain('- AlphaZ\n- Beta');
+	});
+
+	test('ArrowRight at end of item content moves to start of next item', async () => {
+		await editor.loadContent('- Alpha\n- Beta\n');
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Alpha' });
+		await first.click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('ArrowRight');
+		await editor.page.waitForTimeout(100);
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		// "Z" lands at start of Beta
+		expect(await editor.getSource()).toContain('- Alpha\n- ZBeta');
 	});
 });

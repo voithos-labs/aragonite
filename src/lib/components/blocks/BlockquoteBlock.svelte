@@ -7,7 +7,8 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds, displayLength, generateBlockId } from '../../mutable-tree';
+	import { assignIds, generateBlockId } from '../../mutable-tree';
+	import { displayLength } from '../../core/text-utils';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -70,11 +71,11 @@
 
 	// ── Helpers ──────────────────────────────────────────────────────────
 
-	function innerParent(): { children: CstNode[] } {
+	function asNodeParent(): { children: CstNode[] } {
 		return { children: node.children! };
 	}
 
-	function rebuildAndNotify(): void {
+	function finalizeContainerEdit(): void {
 		rebuildBlockquoteRaw(node);
 		parentActions.endContainerEdit?.();
 	}
@@ -101,8 +102,9 @@
 				} else {
 					// Remove the empty child, rebuild, then focus block after
 					parentActions.beginContainerEdit?.(index, 0);
-					performDelete(innerParent(), innerBlockIds, innerIndex);
-					rebuildAndNotify();
+					performDelete(asNodeParent(), innerBlockIds, innerIndex);
+					innerBlockRefs.splice(innerIndex, 1);
+					finalizeContainerEdit();
 					triggerInnerReactivity();
 					await tick();
 					parentActions.moveFocus(index + 1, 'start');
@@ -111,8 +113,8 @@
 			}
 
 			parentActions.beginContainerEdit?.(index, offset);
-			performSplit(innerParent(), innerBlockIds, innerIndex, offset);
-			rebuildAndNotify();
+			performSplit(asNodeParent(), innerBlockIds, innerIndex, offset);
+			finalizeContainerEdit();
 			triggerInnerReactivity();
 			await tick();
 			innerBlockRefs[innerIndex + 1]?.focus(0);
@@ -123,14 +125,9 @@
 
 			if (innerIndex <= 0) {
 				// Rule U2 — unwrap first child out of the blockquote.
-				// replaceBlock is typed optional on EditorActions but always
-				// implemented by Editor.svelte and every container's nested
-				// actions; the non-null assertion expresses that invariant
-				// and turns a future missing-implementation bug into a runtime
-				// error instead of a silent no-op.
 				const replacement = unwrapFirstChildFromBlockquote(node);
 				if (replacement.length === 0) return;
-				await parentActions.replaceBlock!(
+				await parentActions.replaceBlock(
 					index,
 					replacement,
 					{ replacementIndex: 0, offset: 0 }
@@ -145,15 +142,17 @@
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMerge(innerParent(), innerBlockIds, innerIndex);
-				rebuildAndNotify();
+				performMerge(asNodeParent(), innerBlockIds, innerIndex);
+				innerBlockRefs.splice(innerIndex, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(innerParent(), innerBlockIds, innerIndex - 1);
-				rebuildAndNotify();
+				performDelete(asNodeParent(), innerBlockIds, innerIndex - 1);
+				innerBlockRefs.splice(innerIndex - 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(0);
@@ -178,15 +177,17 @@
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMergeNext(innerParent(), innerBlockIds, innerIndex);
-				rebuildAndNotify();
+				performMergeNext(asNodeParent(), innerBlockIds, innerIndex);
+				innerBlockRefs.splice(innerIndex + 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(innerParent(), innerBlockIds, innerIndex + 1);
-				rebuildAndNotify();
+				performDelete(asNodeParent(), innerBlockIds, innerIndex + 1);
+				innerBlockRefs.splice(innerIndex + 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(CURSOR_END);
@@ -205,8 +206,9 @@
 			}
 
 			parentActions.beginContainerEdit?.(index, 0);
-			performDelete(innerParent(), innerBlockIds, innerIndex);
-			rebuildAndNotify();
+			performDelete(asNodeParent(), innerBlockIds, innerIndex);
+			innerBlockRefs.splice(innerIndex, 1);
+			finalizeContainerEdit();
 			triggerInnerReactivity();
 			await tick();
 			const focusIdx = Math.min(innerIndex, node.children.length - 1);
@@ -234,7 +236,7 @@
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
 			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
-			const result = performUpdate(innerParent(), innerIndex, text);
+			const result = performUpdate(asNodeParent(), innerIndex, text);
 			rebuildBlockquoteRaw(node);
 			parentActions.endContainerEdit?.();
 			if (result.kindChanged) {
@@ -268,8 +270,8 @@
 				refsCopy.splice(innerIndex, 1);
 			} else {
 				const originalTrivia = node.children[innerIndex].leadingTrivia ?? '';
-				const normalizedReplacement = replacement.map((n, i) => {
-					const copy = { ...n };
+				const normalizedReplacement = replacement.map((replacementNode, i) => {
+					const copy = { ...replacementNode };
 					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
 					return copy;
 				});

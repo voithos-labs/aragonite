@@ -11,7 +11,8 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds, displayLength, generateBlockId } from '../../mutable-tree';
+	import { assignIds, generateBlockId } from '../../mutable-tree';
+	import { displayLength } from '../../core/text-utils';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -77,20 +78,19 @@
 		if (rest.length === 0) {
 			child.focus(offset);
 		} else {
-			// child may be a nested ListBlock (or another container) — delegate
-			(child as unknown as { focusByPath?(p: number[], o: number): void }).focusByPath?.(rest, offset);
+			child.focusByPath?.(rest, offset);
 		}
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	void ({ editable, focusable, focus, getCursorOffset, focusByPath } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
-	function innerParent(): { children: CstNode[] } {
+	function asNodeParent(): { children: CstNode[] } {
 		return { children: node.children! };
 	}
 
-	function rebuildAndNotify(): void {
+	function finalizeContainerEdit(): void {
 		rebuildListItemRaw(node);
 		parentActions.endContainerEdit?.();
 	}
@@ -105,15 +105,13 @@
 	}
 
 	// ── Nested EditorActions ────────────────────────────────────────────
-	// (Same pattern as BlockquoteBlock — split, merge, delete, moveFocus,
-	// updateBlockContent, undo/redo delegation, container propagation.
-	// Uses rebuildListItemRaw instead of rebuildBlockquoteRaw.)
+	// Mirrors BlockquoteBlock's delegation pattern; uses rebuildListItemRaw.
 
 	/** Split the current item's content at offset, moving trailing children to a new sibling item. */
-	function splitItemAtOffset(innerIndex: number, offset: number): void {
+	async function splitItemAtOffset(innerIndex: number, offset: number): Promise<void> {
 		if (!node.children) return;
 
-		performSplit(innerParent(), innerBlockIds, innerIndex, offset);
+		performSplit(asNodeParent(), innerBlockIds, innerIndex, offset);
 
 		const newChildren = node.children.splice(innerIndex + 1);
 		innerBlockIds.splice(innerIndex + 1);
@@ -135,7 +133,7 @@
 		};
 		rebuildListItemRaw(newItem);
 
-		listContext.insertItemAfter(index, newItem);
+		await listContext.insertItemAfter(index, newItem);
 		triggerInnerReactivity();
 	}
 
@@ -167,7 +165,7 @@
 
 			// In middle — split content across two items
 			parentActions.beginContainerEdit?.(index, offset);
-			splitItemAtOffset(innerIndex, offset);
+			await splitItemAtOffset(innerIndex, offset);
 			parentActions.endContainerEdit?.();
 		},
 
@@ -188,15 +186,17 @@
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMerge(innerParent(), innerBlockIds, innerIndex);
-				rebuildAndNotify();
+				performMerge(asNodeParent(), innerBlockIds, innerIndex);
+				innerBlockRefs.splice(innerIndex, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(innerParent(), innerBlockIds, innerIndex - 1);
-				rebuildAndNotify();
+				performDelete(asNodeParent(), innerBlockIds, innerIndex - 1);
+				innerBlockRefs.splice(innerIndex - 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(0);
@@ -221,15 +221,17 @@
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMergeNext(innerParent(), innerBlockIds, innerIndex);
-				rebuildAndNotify();
+				performMergeNext(asNodeParent(), innerBlockIds, innerIndex);
+				innerBlockRefs.splice(innerIndex + 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(innerParent(), innerBlockIds, innerIndex + 1);
-				rebuildAndNotify();
+				performDelete(asNodeParent(), innerBlockIds, innerIndex + 1);
+				innerBlockRefs.splice(innerIndex + 1, 1);
+				finalizeContainerEdit();
 				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(CURSOR_END);
@@ -247,8 +249,9 @@
 			}
 
 			parentActions.beginContainerEdit?.(index, 0);
-			performDelete(innerParent(), innerBlockIds, innerIndex);
-			rebuildAndNotify();
+			performDelete(asNodeParent(), innerBlockIds, innerIndex);
+			innerBlockRefs.splice(innerIndex, 1);
+			finalizeContainerEdit();
 			triggerInnerReactivity();
 			await tick();
 			const focusIdx = Math.min(innerIndex, node.children.length - 1);
@@ -274,7 +277,7 @@
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
 			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
-			const result = performUpdate(innerParent(), innerIndex, text);
+			const result = performUpdate(asNodeParent(), innerIndex, text);
 			rebuildListItemRaw(node);
 			parentActions.endContainerEdit?.();
 			if (result.kindChanged) {
@@ -308,8 +311,8 @@
 				refsCopy.splice(innerIndex, 1);
 			} else {
 				const originalTrivia = node.children[innerIndex].leadingTrivia ?? '';
-				const normalizedReplacement = replacement.map((n, i) => {
-					const copy = { ...n };
+				const normalizedReplacement = replacement.map((replacementNode, i) => {
+					const copy = { ...replacementNode };
 					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
 					return copy;
 				});

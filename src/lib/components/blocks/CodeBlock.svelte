@@ -6,7 +6,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { trimTrailingLineEnding } from '../../mutable-tree';
+	import { trimTrailingLineEnding } from '../../core/text-utils';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
@@ -79,7 +79,6 @@
 	function onKeyDown(e: KeyboardEvent): void {
 		preEditOffset = textarea?.selectionStart ?? 0;
 
-		// Undo/Redo
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 			e.preventDefault();
 			actions.requestUndo();
@@ -91,7 +90,6 @@
 			return;
 		}
 
-		// Backspace at position 0 → move focus to previous block
 		if (e.key === 'Backspace' && textarea) {
 			if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
 				e.preventDefault();
@@ -100,9 +98,8 @@
 			}
 		}
 
-		// ArrowUp at start → move to previous block
 		if (e.key === 'ArrowUp' && !e.shiftKey && textarea) {
-			// At position 0 or within the first line
+			// No newline before cursor means we're on the first visual line.
 			const textBefore = textarea.value.slice(0, textarea.selectionStart);
 			if (!textBefore.includes('\n')) {
 				e.preventDefault();
@@ -111,7 +108,6 @@
 			}
 		}
 
-		// ArrowDown at end → move to next block
 		if (e.key === 'ArrowDown' && !e.shiftKey && textarea) {
 			const textAfter = textarea.value.slice(textarea.selectionStart);
 			if (!textAfter.includes('\n')) {
@@ -121,7 +117,7 @@
 			}
 		}
 
-		// Enter on empty trailing line — exit the code block
+		// Enter at end, when the last line is already empty, exits the code block.
 		if (e.key === 'Enter' && !e.shiftKey && textarea) {
 			const pos = textarea.selectionStart;
 			const val = textarea.value;
