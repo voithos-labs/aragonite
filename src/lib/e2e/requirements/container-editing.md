@@ -17,6 +17,11 @@ Editing inside blockquotes and lists: nested content, item creation, exit behavi
 - editing preserves container raw: after typing in a list item, getSource() still has correct indentation
 - ordered list numbering: new items in an ordered list get incrementing markers
 - Backspace on empty non-first list item deletes the item: pressing Backspace at the start of an empty item (not the first) removes it and moves focus to end of previous item
+- Blockquote first-child unwrap on Backspace: pressing Backspace at offset 0 of a blockquote's first child's first paragraph lifts that child out of the blockquote into the parent at the blockquote's position. If the blockquote becomes empty, it is deleted. Each press lifts exactly one structural level; nested blockquotes require multiple presses.
+- Blockquote unwrap preserves multi-paragraph blockquotes: for a blockquote with multiple inner paragraphs, Backspace lifts only the first paragraph out; the remaining paragraphs stay inside the (shrunk) blockquote.
+- Nested blockquote: Backspace at start of innermost content unwraps one level (inner blockquote dissolves, content stays inside the outer blockquote).
+- Blockquote containing a list: Backspace at start of the list's first item runs U1 (list unwrap) against the inner list, producing a plain paragraph still wrapped by the blockquote.
+- Blockquote unwrap does NOT auto-merge with the preceding block: Backspace at start of a blockquote that follows a paragraph produces two separate paragraphs, not a merged one.
 
 ## User interactions
 - click into nested container then type: click a list item, focusBlockEnd, typeText, verify source
