@@ -11,11 +11,14 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds, generateBlockId, displayLength } from '../../mutable-tree';
+	import { assignIds, generateBlockId } from '../../mutable-tree';
+	import { displayLength } from '../../core/text-utils';
 	import {
 		deleteNode as performDelete,
 		unwrapFirstItemFromList,
-		mergeListItemIntoPrevious
+		mergeListItemIntoPrevious,
+		renumberOrderedList,
+		normalizeItemMarkerToList
 	} from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -81,16 +84,15 @@
 		if (rest.length === 0) {
 			child.focus(offset);
 		} else {
-			// child is a ListItemBlock — delegate
-			(child as unknown as { focusByPath?(p: number[], o: number): void }).focusByPath?.(rest, offset);
+			child.focusByPath?.(rest, offset);
 		}
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	void ({ editable, focusable, focus, getCursorOffset, focusByPath } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
-	function rebuildAndNotify(): void {
+	function finalizeContainerEdit(): void {
 		rebuildListRaw(node);
 		parentActions.endContainerEdit?.();
 	}
@@ -98,21 +100,6 @@
 	function triggerItemReactivity(): void {
 		node.children = [...(node.children ?? [])];
 		itemBlockIds = [...itemBlockIds];
-	}
-
-	/** Renumber ordered list items starting from `fromIndex`. */
-	function renumberFrom(fromIndex: number): void {
-		if (!(node.metadata as { ordered: boolean }).ordered || !node.children) return;
-		for (let j = fromIndex; j < node.children.length; j++) {
-			const prev = j > 0
-				? (node.children[j - 1].metadata as { marker: string }).marker
-				: '0. ';
-			const prevNum = parseInt(prev, 10) || 0;
-			const meta = node.children[j].metadata as { marker: string };
-			const suffix = meta.marker.replace(/^\d+/, '');
-			meta.marker = String(prevNum + 1) + suffix;
-			rebuildListItemRaw(node.children[j]);
-		}
 	}
 
 	/**
@@ -159,7 +146,8 @@
 					// Empty first item with siblings — delete just the item
 					parentActions.beginContainerEdit?.(index, 0);
 					performDelete({ children: node.children }, itemBlockIds, 0);
-					renumberFrom(0);
+					itemBlockRefs.splice(0, 1);
+					renumberOrderedList(node, 0);
 					rebuildListRaw(node);
 					parentActions.endContainerEdit?.();
 					triggerItemReactivity();
@@ -173,7 +161,7 @@
 					// Non-empty first item — Rule U1: unwrap the item out of the list
 					const replacement = unwrapFirstItemFromList(node);
 					if (replacement.length === 0) return;
-					await parentActions.replaceBlock!(
+					await parentActions.replaceBlock(
 						index,
 						replacement,
 						{ replacementIndex: 0, offset: 0 }
@@ -188,7 +176,8 @@
 			if (isEmptyItem) {
 				parentActions.beginContainerEdit?.(index, 0);
 				performDelete({ children: node.children }, itemBlockIds, itemIndex);
-				renumberFrom(itemIndex);
+				itemBlockRefs.splice(itemIndex, 1);
+				renumberOrderedList(node, itemIndex);
 				rebuildListRaw(node);
 				parentActions.endContainerEdit?.();
 				triggerItemReactivity();
@@ -207,16 +196,11 @@
 			triggerItemReactivity();
 			await tick();
 			// Cascade focus down the target path via focusByPath.
-			// targetPath is a path of list-item indices (e.g. [0] for top-level item 0,
-			// [0, 1] for item 0 → nested item 1). The offset is within the first child
-			// (paragraph) of the target list item, so we always forward via focusByPath
-			// with [0] appended to address that first child.
+			// targetPath is a sequence of list-item indices from this list down
+			// to the target item; appending `0` forwards into the item's first
+			// child (the target paragraph).
 			const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-			const topItemRef = itemBlockRefs[firstPathIdx];
-			if (topItemRef) {
-				(topItemRef as unknown as { focusByPath?(p: number[], o: number): void })
-					.focusByPath?.([...restPath, 0], mergePoint.offset);
-			}
+			itemBlockRefs[firstPathIdx]?.focusByPath?.([...restPath, 0], mergePoint.offset);
 		},
 
 		async deleteBlock(itemIndex: number): Promise<void> {
@@ -230,7 +214,8 @@
 
 			parentActions.beginContainerEdit?.(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
-			rebuildAndNotify();
+			itemBlockRefs.splice(itemIndex, 1);
+			finalizeContainerEdit();
 			triggerItemReactivity();
 			await tick();
 			const focusIdx = Math.min(itemIndex, node.children.length - 1);
@@ -253,14 +238,9 @@
 			}
 		},
 
-		// mergeWithNext at list level: not applicable (list items handle their own merges)
+		// list items handle their own merges / updates / paste
 		async mergeWithNext(): Promise<void> {},
-
-		updateBlockContent(): void {
-			// List items handle their own content updates
-		},
-
-		// insertParsedBlocks at list level: not applicable (paste is handled by inner blocks)
+		updateBlockContent(): void {},
 		async insertParsedBlocks(): Promise<void> {},
 
 		async replaceBlock(
@@ -287,8 +267,8 @@
 				refsCopy.splice(itemIndex, 1);
 			} else {
 				const originalTrivia = node.children[itemIndex].leadingTrivia ?? '';
-				const normalizedReplacement = replacement.map((n, i) => {
-					const copy = { ...n };
+				const normalizedReplacement = replacement.map((replacementNode, i) => {
+					const copy = { ...replacementNode };
 					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
 					return copy;
 				});
@@ -360,40 +340,35 @@
 			node.children.splice(itemIndex, 1);
 			itemBlockIds.splice(itemIndex, 1);
 
-			// Reset ordered marker to 1 before nesting (new numbering context)
+			// Append to prevItem's existing same-type nested list, or create one.
 			const ordered = (node.metadata as { ordered: boolean }).ordered;
-			if (ordered) {
-				const meta = item.metadata as { marker: string };
-				const suffix = meta.marker.replace(/^\d+/, '');
-				meta.marker = '1' + suffix;
-				rebuildListItemRaw(item);
-			}
-
-			// Check if prevItem already has a nested list of the same type
 			const existingNestedList = prevItem.children.find(
 				(c) =>
 					c.kind === 'list' &&
 					(c.metadata as { ordered: boolean }).ordered === ordered
 			);
 
+			let destList: CstNode;
 			if (existingNestedList && existingNestedList.children) {
 				existingNestedList.children.push(item);
-				rebuildListRaw(existingNestedList);
+				destList = existingNestedList;
 			} else {
-				const nestedList: CstNode = {
+				destList = {
 					kind: 'list',
 					leadingTrivia: '',
 					raw: '',
 					metadata: { ordered },
 					children: [item]
 				};
-				rebuildListRaw(nestedList);
-				prevItem.children.push(nestedList);
+				prevItem.children.push(destList);
 			}
 
+			// Renumber the destination list (so the appended item slots into the
+			// right position in the sequence) and the now-shrunk parent list.
+			renumberOrderedList(destList);
+			rebuildListRaw(destList);
 			rebuildListItemRaw(prevItem);
-			// Renumber remaining items in the parent list after removal
-			renumberFrom(itemIndex);
+			renumberOrderedList(node, itemIndex);
 			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
@@ -434,7 +409,7 @@
 
 			node.children.splice(itemIndex + 1, 0, newItem);
 			itemBlockIds.splice(itemIndex + 1, 0, generateBlockId());
-			renumberFrom(itemIndex + 1);
+			renumberOrderedList(node, itemIndex + 1);
 			rebuildListRaw(node);
 			triggerItemReactivity();
 			await tick();
@@ -455,33 +430,34 @@
 
 			const item = nestedListNode.children[nestedItemIdx];
 
-			// 1. Remove item from nested list
+			// 1. Remove item from nested list; renumber and rebuild the remainder,
+			// or delete the nested list if it's now empty.
 			nestedListNode.children.splice(nestedItemIdx, 1);
-
-			// 2. If nested list is now empty, remove it from the parent item's children
 			if (nestedListNode.children.length === 0) {
 				const nestedIdx = parentItem.children.indexOf(nestedListNode);
-				if (nestedIdx !== -1) {
-					parentItem.children.splice(nestedIdx, 1);
-				}
+				if (nestedIdx !== -1) parentItem.children.splice(nestedIdx, 1);
 			} else {
+				renumberOrderedList(nestedListNode);
 				rebuildListRaw(nestedListNode);
 			}
-
-			// 3. Rebuild parent item raw
 			rebuildListItemRaw(parentItem);
 
-			// 4. Insert the promoted item into this list after the parent item
+			// 2. Normalize the promoted item's marker style to this list's type
+			// (ordered ↔ unordered) before inserting, so the subsequent renumber
+			// pass can read a well-formed marker suffix.
+			normalizeItemMarkerToList(item, node);
+
+			// 3. Insert into this list after the parent item and renumber from
+			// the insertion point so both the new item and everything after it
+			// pick up correct sequential numbers.
 			node.children.splice(parentItemIdx + 1, 0, item);
 			itemBlockIds.splice(parentItemIdx + 1, 0, generateBlockId());
-
-			// 5. Rebuild this list's raw
+			renumberOrderedList(node, parentItemIdx + 1);
 			rebuildListRaw(node);
+
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();
 			await tick();
-
-			// Focus the promoted item
 			itemBlockRefs[parentItemIdx + 1]?.focus(0);
 		},
 
@@ -498,6 +474,7 @@
 			// Remove the empty item, rebuild list, then create a paragraph
 			parentActions.beginContainerEdit?.(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
+			itemBlockRefs.splice(itemIndex, 1);
 			rebuildListRaw(node);
 			parentActions.endContainerEdit?.();
 			triggerItemReactivity();

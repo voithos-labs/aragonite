@@ -314,9 +314,12 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Z should be inside the code block, not in "Final text."
-		expect(source).toMatch(/Z```|```[\s\S]*Z/);
+		// Z should land immediately before the opening fence (cursor at start
+		// of the code block's textarea when entering from above), not inside
+		// the code body and not in "Final text."
+		expect(source).toContain('Z```');
 		expect(source).not.toMatch(/ZFinal/);
+		expect(source).not.toMatch(/codeZ|Zcode/);
 	});
 });
 

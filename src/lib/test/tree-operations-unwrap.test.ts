@@ -303,15 +303,9 @@ describe('mergeListItemIntoPrevious', () => {
         expect((nestedList?.children?.[0].children?.[0].raw ?? '').trim()).toBe('AAB');
         // Second nested item: "C" (moved from being B's child)
         expect((nestedList?.children?.[1].children?.[0].raw ?? '').trim()).toBe('C');
-        // Target path: [0, 1, 0] → parent item → nested list (as container within parent) → first item (AA)
-        // Note: the path convention walks listItem→list→listItem, so children indices alternate.
-        // For our format: path[0] = outer list item index, path[1+] = nested list item indices.
-        // Under path semantics where each element is a list-level index, the target "AA" is at
-        // depth-1 nested list item index 0, so path is [0, 0]. But see implementation notes
-        // below — the path format is an implementation choice; update the assertion based on
-        // the actual returned path if it differs.
-        // For this test, assert targetPath length is 2 and the offset is correct.
-        expect(mergePoint.targetPath.length).toBeGreaterThanOrEqual(2);
+        // Target "AA" lives in A's (index 0) nested list at index 0 → path [0, 0].
+        // Offset is measured within AA's paragraph, before the appended text.
+        expect(mergePoint.targetPath).toEqual([0, 0]);
         expect(mergePoint.offset).toBe('AA'.length);
     });
 
@@ -355,15 +349,12 @@ describe('mergeListItemIntoPrevious', () => {
 
         const { mergePoint } = mergeListItemIntoPrevious(list, 1);
 
-        // Result: [- AB\n\n  extra\n] — the "extra" paragraph is absorbed into target item
+        // Result: [- AB\n\n  extra\n] — the "extra" paragraph is absorbed as
+        // the second child of the target item, after the merged paragraph.
         expect(list.children?.length).toBe(1);
         const target = list.children?.[0];
-        // First child: paragraph "AB"
         expect((target?.children?.[0].raw ?? '').trim()).toBe('AB');
-        // Second child: paragraph "extra" (absorbed from current item's extras)
-        // After absorption, "extra" is somewhere in target's children
-        const hasExtra = target?.children?.some((c) => (c.raw ?? '').trim() === 'extra');
-        expect(hasExtra).toBe(true);
+        expect((target?.children?.[1]?.raw ?? '').trim()).toBe('extra');
         expect(mergePoint.targetPath).toEqual([0]);
         expect(mergePoint.offset).toBe('A'.length);
     });
