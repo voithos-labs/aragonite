@@ -206,15 +206,6 @@ export function ensureEditableContainers(node: CstNode): void {
 // ── Container Unwrap ────────────────────────────────────────────────────────
 
 /**
- * Compute the result of unwrapping a blockquote's first child.
- * Returns the blocks that should replace the blockquote in its parent's
- * children array.
- * - 1-child blockquote: returns [liftedChild]
- * - N-child blockquote: returns [liftedChild, remainingBlockquote]
- * Input is not mutated; returned blocks are fresh clones via cloneNode
- * (omits the inlineContent rendering cache).
- */
-/**
  * Compute the result of unwrapping a list's first item under Rule U1.
  *
  * Output ordering (when the first item has mixed content):
@@ -321,6 +312,15 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 	return liftedBlocks;
 }
 
+/**
+ * Compute the result of unwrapping a blockquote's first child.
+ * Returns the blocks that should replace the blockquote in its parent's
+ * children array.
+ * - 1-child blockquote: returns [liftedChild]
+ * - N-child blockquote: returns [liftedChild, remainingBlockquote]
+ * Input is not mutated; returned blocks are fresh clones via cloneNode
+ * (omits the inlineContent rendering cache).
+ */
 export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
 	if (blockquote.kind !== 'blockquote' || !blockquote.children || blockquote.children.length === 0) {
 		return [];
