@@ -414,3 +414,96 @@ test.describe('list bug fixes', () => {
 		expect(source).toMatch(/4\.\s*Third/);
 	});
 });
+
+test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('single-paragraph blockquote: Backspace at start lifts paragraph, deletes blockquote', async () => {
+		await editor.loadContent('> Hello world\n');
+		const bq = editor.getBlock(0).locator('[contenteditable="true"]').first();
+		await bq.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		expect(source).not.toContain('> ');
+		expect(source).toContain('Hello world');
+	});
+
+	test('multi-paragraph blockquote: Backspace at start lifts only the first paragraph', async () => {
+		await editor.loadContent('> First\n>\n> Second\n');
+		const firstInner = editor.getBlock(0).locator('[contenteditable="true"]').first();
+		await firstInner.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "First" should be plain paragraph (no > prefix on its line)
+		const firstLineIdx = source.indexOf('First');
+		const lineStart = source.lastIndexOf('\n', firstLineIdx) + 1;
+		expect(source.slice(lineStart, lineStart + 2)).not.toBe('> ');
+		// "Second" should still be inside a blockquote
+		const secondLineIdx = source.indexOf('Second');
+		const secondLineStart = source.lastIndexOf('\n', secondLineIdx) + 1;
+		expect(source.slice(secondLineStart, secondLineStart + 2)).toBe('> ');
+	});
+
+	test('nested blockquote: Backspace inside inner lifts content one level', async () => {
+		await editor.loadContent('> > Deep\n');
+		// Navigate into the innermost paragraph
+		const deepEditable = editor.page.locator(
+			'.blockquote-block .blockquote-block [contenteditable="true"]'
+		);
+		await deepEditable.first().click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// After one press: cursor is still inside the outer blockquote, but the
+		// inner blockquote is gone. Expect one level of > prefix, not two.
+		expect(source).toContain('> Deep');
+		expect(source).not.toContain('> > ');
+	});
+
+	test('blockquote preceded by paragraph: no auto-merge', async () => {
+		await editor.loadContent('Above paragraph.\n\n> Hello\n');
+		const inner = editor.getBlock(1).locator('[contenteditable="true"]').first();
+		await inner.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "Above" and "Hello" should be separate paragraphs, not merged.
+		expect(source).toContain('Above paragraph.');
+		expect(source).toContain('Hello');
+		expect(source).not.toContain('Above paragraph.Hello');
+		// Specifically: separated by a blank line
+		expect(source).toMatch(/Above paragraph\.\n\s*\nHello/);
+	});
+
+	test.skip('blockquote containing a list: Backspace at start of list item unwraps inside blockquote', async () => {
+		// SKIPPED until Task 9 (U1 list unwrap) lands. Re-enable by changing
+		// test.skip → test in Task 9's Step 3.
+		await editor.loadContent('> - Item\n');
+		const item = editor.getBlock(0).locator('[contenteditable="true"]').first();
+		await item.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// List's first-item unwrap (U1) runs inside the blockquote, producing
+		// a plain paragraph "Item" still wrapped by `> `.
+		expect(source).toContain('> Item');
+		expect(source).not.toContain('- Item');
+	});
+});
