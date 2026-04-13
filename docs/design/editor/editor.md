@@ -167,7 +167,24 @@ Merge eligibility: merge is only attempted between compatible block types. Rules
 - Any block following a non-editable block (thematic break, image): not mergeable (Backspace deletes the non-editable block)
 - Fenced code, tables, HTML blocks: not mergeable (Backspace at start moves focus to end of previous block)
 
-When merge is not eligible, Backspace at the start of a block either deletes the previous block (if non-editable) or moves focus to the end of the previous block (if editable).
+When merge is not eligible, Backspace at the start of a block has three possible outcomes depending on context:
+
+- **Previous block is non-editable**: delete the previous block
+- **Current block is the first child of a container (blockquote, list)**: unwrap the container — see "Container Unwrap" below
+- **Otherwise**: move focus to the end of the previous block (if editable)
+
+### Container Unwrap
+
+Backspace at offset 0 of a container's first child triggers an unwrap operation:
+
+- **Blockquote (Rule U2)**: the first child is lifted out of the blockquote into the parent at the blockquote's position. If the blockquote becomes empty, it is deleted. Each press lifts exactly one structural level.
+- **List, non-empty first item (Rule U1)**: the item's first paragraph becomes a plain paragraph before the list. Matching-type nested sub-list items promote to the shrunk parent list level; mismatched-type sub-lists become separate blocks. If removing the first item empties the list, the list is deleted.
+- **List, non-empty non-first item (Rule M1)**: the item merges into the "deepest visible text above" via rule B; remaining children are placed by preserve-absolute-indent. Ordered markers renumber.
+- **List, nested first item (any list that has a parent list)**: the item is promoted to the parent list level (Shift+Tab equivalent). Unchanged from pre-v0.3.3 behavior.
+
+No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
+
+See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.md` for full semantic rules and the preserve-absolute-indent worked examples.
 
 **Delete** — remove the node from the children array.
 
