@@ -68,7 +68,7 @@
 	 */
 	export function focusByPath(path: number[], offset: number): void {
 		if (path.length === 0) {
-			itemBlockRefs[0]?.focus(0);
+			itemBlockRefs[0]?.focus(offset);
 			return;
 		}
 		const [first, ...rest] = path;
