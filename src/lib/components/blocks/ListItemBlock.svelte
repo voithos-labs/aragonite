@@ -11,7 +11,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { assignIds, displayLength } from '../../mutable-tree';
+	import { assignIds, displayLength, generateBlockId } from '../../mutable-tree';
 	import {
 		splitNode as performSplit,
 		mergeWithPrevious as performMerge,
@@ -268,6 +268,54 @@
 
 		// insertParsedBlocks inside list item: not yet supported (paste is inline only within containers)
 		async insertParsedBlocks(): Promise<void> {},
+
+		async replaceBlock(
+			innerIndex: number,
+			replacement: CstNode[],
+			focus?: { replacementIndex: number; offset: number }
+		): Promise<void> {
+			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
+
+			parentActions.beginContainerEdit?.(index, 0);
+
+			// Work on plain copies to prevent $state proxy splice cascades.
+			const childrenCopy = [...node.children];
+			const idsCopy = [...innerBlockIds];
+			const refsCopy = [...innerBlockRefs];
+
+			if (replacement.length === 0) {
+				childrenCopy.splice(innerIndex, 1);
+				idsCopy.splice(innerIndex, 1);
+				refsCopy.splice(innerIndex, 1);
+			} else {
+				const originalTrivia = node.children[innerIndex].leadingTrivia ?? '';
+				const normalizedReplacement = replacement.map((n, i) => {
+					const copy = { ...n };
+					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+					return copy;
+				});
+				childrenCopy.splice(innerIndex, 1, ...normalizedReplacement);
+				const newIds = normalizedReplacement.map(() => generateBlockId());
+				idsCopy.splice(innerIndex, 1, ...newIds);
+				const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+				refsCopy.splice(innerIndex, 1, ...newRefSlots);
+			}
+
+			node.children = childrenCopy;
+			innerBlockIds = idsCopy;
+			innerBlockRefs = refsCopy;
+
+			rebuildListItemRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerInnerReactivity();
+
+			await tick();
+
+			if (focus && replacement.length > 0) {
+				const targetIdx = innerIndex + focus.replacementIndex;
+				innerBlockRefs[targetIdx]?.focus(focus.offset);
+			}
+		},
 
 		requestUndo(): void | Promise<void> {
 			return parentActions.requestUndo();
