@@ -63,7 +63,7 @@ export interface EditorActions {
 	 *
 	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
 	 */
-	replaceBlock(
+	replaceBlock?(
 		blockIndex: number,
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number }
