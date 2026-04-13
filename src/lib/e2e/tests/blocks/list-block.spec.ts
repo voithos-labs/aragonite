@@ -207,16 +207,89 @@ test.describe('list Backspace', () => {
 		expect(source).toContain('Second');
 	});
 
-	test('Backspace at start of non-empty first item moves focus before list', async () => {
-		await editor.loadContent('Before\n\n- Item one\n');
+	test('Backspace at start of non-empty first item unwraps to a plain paragraph', async () => {
+		await editor.loadContent('Before\n\n- Item one\n- Item two\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item one' });
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "Item one" should now be a plain paragraph, not a list item
+		expect(source).toMatch(/^Item one/m);
+		// "Item two" should still be a list item
+		expect(source).toMatch(/^- Item two/m);
+		// "Before" should still be present, unchanged (no auto-merge)
+		expect(source).toContain('Before');
+	});
+
+	test('Backspace on single-item list (non-empty) removes the list entirely and lands cursor at the lifted paragraph', async () => {
+		await editor.loadContent('- Solo\n');
+		const item = editor.page.locator('[contenteditable="true"]').first();
+		await item.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// List gone, plain paragraph remains
+		expect(source).not.toMatch(/^- /m);
+		expect(source).toContain('Solo');
+
+		// Cursor at start of "Solo" — typing lands at start
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('BeforeZ');
+		const after = await editor.getSource();
+		expect(after).toContain('ZSolo');
+	});
+
+	test('Backspace on first item with matching-type nested sub-list: nested items promote to parent list level', async () => {
+		await editor.loadContent('- First\n  - Nested\n- Second\n');
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' }).first();
+		await first.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "First" is now a plain paragraph before the list
+		expect(source).toMatch(/^First/m);
+		// "Nested" and "Second" are both top-level list items
+		expect(source).toMatch(/^- Nested/m);
+		expect(source).toMatch(/^- Second/m);
+	});
+
+	test('Backspace on first item with mismatched-type nested sub-list: sub-list becomes separate block', async () => {
+		await editor.loadContent('- First\n  1. OrderedNested\n- Second\n');
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' }).first();
+		await first.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "First" as plain paragraph
+		expect(source).toMatch(/^First/m);
+		// Ordered sub-list still exists as a top-level block
+		expect(source).toMatch(/^1\. OrderedNested/m);
+		// Unordered parent list still contains "Second"
+		expect(source).toMatch(/^- Second/m);
+	});
+
+	test('Backspace on first item of ordered list: remaining items renumber from base', async () => {
+		await editor.loadContent('1. First\n2. Second\n3. Third\n');
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' }).first();
+		await first.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// "First" as plain paragraph, then ordered list with [Second=1, Third=2]
+		expect(source).toContain('First');
+		expect(source).toMatch(/^1\. Second/m);
+		expect(source).toMatch(/^2\. Third/m);
 	});
 
 	test('Backspace deletes empty non-first item', async () => {
