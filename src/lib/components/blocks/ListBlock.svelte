@@ -14,7 +14,8 @@
 	import { assignIds, generateBlockId, displayLength } from '../../mutable-tree';
 	import {
 		deleteNode as performDelete,
-		unwrapFirstItemFromList
+		unwrapFirstItemFromList,
+		mergeListItemIntoPrevious
 	} from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import ListItemBlock from './ListItemBlock.svelte';
@@ -196,8 +197,25 @@
 				return;
 			}
 
-			// Non-empty item — move focus to end of previous item
-			itemBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
+			// Non-empty item — Rule M1: merge into deepest visible text above (rule B)
+			// with preserve-absolute-indent child placement.
+			parentActions.beginContainerEdit?.(index, 0);
+			const { mergePoint } = mergeListItemIntoPrevious(node, itemIndex);
+			rebuildListRaw(node);
+			parentActions.endContainerEdit?.();
+			triggerItemReactivity();
+			await tick();
+			// Cascade focus down the target path via focusByPath.
+			// targetPath is a path of list-item indices (e.g. [0] for top-level item 0,
+			// [0, 1] for item 0 → nested item 1). The offset is within the first child
+			// (paragraph) of the target list item, so we always forward via focusByPath
+			// with [0] appended to address that first child.
+			const [firstPathIdx, ...restPath] = mergePoint.targetPath;
+			const topItemRef = itemBlockRefs[firstPathIdx];
+			if (topItemRef) {
+				(topItemRef as unknown as { focusByPath?(p: number[], o: number): void })
+					.focusByPath?.([...restPath, 0], mergePoint.offset);
+			}
 		},
 
 		async deleteBlock(itemIndex: number): Promise<void> {
