@@ -446,13 +446,9 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 
 		const source = await editor.getSource();
 		// "First" should be plain paragraph (no > prefix on its line)
-		const firstLineIdx = source.indexOf('First');
-		const lineStart = source.lastIndexOf('\n', firstLineIdx) + 1;
-		expect(source.slice(lineStart, lineStart + 2)).not.toBe('> ');
+		expect(source).toMatch(/^First/m);
 		// "Second" should still be inside a blockquote
-		const secondLineIdx = source.indexOf('Second');
-		const secondLineStart = source.lastIndexOf('\n', secondLineIdx) + 1;
-		expect(source.slice(secondLineStart, secondLineStart + 2)).toBe('> ');
+		expect(source).toMatch(/^> Second/m);
 	});
 
 	test('nested blockquote: Backspace inside inner lifts content one level', async () => {
