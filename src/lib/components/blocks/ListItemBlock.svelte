@@ -63,6 +63,25 @@
 		}
 		return null;
 	}
+
+	/**
+	 * Cascade focus down a path of child indices inside this list item.
+	 * Used by ListBlock.focusByPath when the next path element addresses
+	 * a nested list inside this item.
+	 */
+	export function focusByPath(path: number[], offset: number): void {
+		if (path.length === 0 || !node.children) return;
+		const [first, ...rest] = path;
+		const child = innerBlockRefs[first];
+		if (!child) return;
+		if (rest.length === 0) {
+			child.focus(offset);
+		} else {
+			// child may be a nested ListBlock (or another container) — delegate
+			(child as unknown as { focusByPath?(p: number[], o: number): void }).focusByPath?.(rest, offset);
+		}
+	}
+
 	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
