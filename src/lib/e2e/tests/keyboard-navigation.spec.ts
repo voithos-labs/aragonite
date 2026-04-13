@@ -271,6 +271,53 @@ test.describe('focus traversal after block insertion', () => {
 		expect(source).toContain('Z```');
 		expect(source).not.toMatch(/ZAfter code/);
 	});
+
+	test('ArrowDown traverses correctly after M1 list merge near a container', async () => {
+		// Layout: list → code block → final paragraph. Merge two items in the list,
+		// then navigate out through the code block to verify container delegation
+		// still works after the merge shifted indices inside the list.
+		const content = [
+			'- Item one',
+			'- Item two',
+			'',
+			'```',
+			'code',
+			'```',
+			'',
+			'Final text.',
+			''
+		].join('\n');
+
+		await editor.loadContent(content);
+
+		// Merge "Item two" into "Item one" via Backspace at start of Item two
+		const itemTwo = editor.page.locator('[contenteditable="true"]', { hasText: 'Item two' });
+		await itemTwo.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+
+		// After M1, the list has one item "Item oneItem two". Navigate from end of list
+		// out through the code block and into the final paragraph.
+		const listBlock = editor.getBlock(0);
+		const listEditable = listBlock.locator('[contenteditable="true"]').first();
+		await listEditable.click();
+		await editor.page.keyboard.press('End');
+		await editor.page.waitForTimeout(100);
+
+		// ArrowDown should exit the list and enter the code block
+		await editor.pressArrowDown();
+		await editor.page.waitForTimeout(100);
+
+		// Type a marker — it should appear in the code block (first block after list)
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Z should be inside the code block, not in "Final text."
+		expect(source).toMatch(/Z```|```[\s\S]*Z/);
+		expect(source).not.toMatch(/ZFinal/);
+	});
 });
 
 test.describe('geometry-based focus traversal', () => {
