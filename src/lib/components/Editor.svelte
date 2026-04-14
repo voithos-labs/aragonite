@@ -25,7 +25,7 @@
 	import { createUndoManager } from '../undo-manager';
 	import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
 	import { parse } from '../core/parser';
-	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
+	import { parseInline, getContentRange, isProseKind } from '../core/inline';
 	import BlockList from './BlockList.svelte';
 
 	let { source = '' }: { source?: string } = $props();

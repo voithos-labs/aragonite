@@ -9,7 +9,7 @@
 		type StickyColumnDirection
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
-	import { parseInline, getContentRange, isProseKind } from '../../core/inline-parser';
+	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
