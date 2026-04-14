@@ -465,6 +465,17 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getCursorOffset() ?? 0;
 
+		// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
+		const PRESERVE_KEYS_NON_ARROW = ['PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta'];
+		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+			const x = getCurrentCursorEditorRelativeX();
+			if (x !== null) stickyColumn.capture(x);
+			// Fall through to the existing vertical-arrow branches below
+		} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
+			stickyColumn.reset();
+			// Fall through — we still handle the key normally
+		}
+
 		// Ctrl+B / Ctrl+I — toggle bold / italic formatting on selection
 		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
 			e.preventDefault();
