@@ -221,8 +221,7 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 
 	it('multi-paragraph blockquote: only the last paragraph is mutated', () => {
 		const result = simulateMerge('> first\n>\n> second\n', 'text');
-		expect(result).toContain('> first');
-		expect(result).toContain('> secondtext');
+		expect(result).toBe('> first\n>\n> secondtext\n');
 	});
 
 	it('nested blockquote: innermost paragraph receives the merge and both levels rebuild', () => {
@@ -232,22 +231,19 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 
 	it('flat list: last item last paragraph receives the merge', () => {
 		const result = simulateMerge('- first\n- second\n', 'text');
-		expect(result).toContain('- secondtext');
-		expect(result).toContain('- first');
+		expect(result).toBe('- first\n- secondtext\n');
 	});
 
 	it('nested list: deepest nested item receives the merge, ancestry rebuilds correctly', () => {
 		const result = simulateMerge('- a\n  - b\n', 'text');
-		expect(result).toContain('- btext');
-		expect(result).toContain('- a');
+		expect(result).toBe('- a\n  - btext\n');
 	});
 
 	it('blockquote with opaque deepest leaf: simulateMerge returns unchanged (walker returned null)', () => {
-		// The `code` fenced block is the last inner child; walker fails, no mutation.
-		const result = simulateMerge('> para\n>\n> ```\n> code\n> ```\n', 'text');
-		expect(result).toContain('para');
-		expect(result).toContain('```');
-		expect(result).not.toContain('paratext');
-		expect(result).not.toContain('codetext');
+		// The fenced code block is the last inner child; walker fails, no mutation.
+		// simulateMerge returns prevSrc unchanged when findMergeTarget returns null.
+		const input = '> para\n>\n> ```\n> code\n> ```\n';
+		const result = simulateMerge(input, 'text');
+		expect(result).toBe(input);
 	});
 });
