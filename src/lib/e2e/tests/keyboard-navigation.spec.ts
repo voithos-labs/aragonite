@@ -34,8 +34,9 @@ test.describe('keyboard navigation', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// ArrowUp lands cursor at END of previous block
-		expect(source).toContain('First paragraph.Y');
+		// Sticky column: ArrowUp from column 0 of block 1 preserves column 0,
+		// landing cursor at START of block 0 (not at the end).
+		expect(source).toContain('YFirst paragraph.');
 	});
 
 	// ── Edge cases ──────────────────────────────────────────────────────
@@ -141,17 +142,18 @@ test.describe('keyboard navigation', () => {
 		expect(hasExcl).toBe(true);
 	});
 
-	test('navigate up then type at end of first block', async () => {
+	test('navigate up then type at start of first block', async () => {
 		await editor.loadContent('Hello.\n\nWorld.\n');
 
 		await editor.focusBlockStart(1);
 		await editor.pressArrowUp();
-		// Cursor is now at end of first block
-		await editor.typeText(' there');
+		// Sticky column: cursor preserves column 0 across the boundary,
+		// landing at START of first block.
+		await editor.typeText('hi ');
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		expect(source).toContain('Hello. there');
+		expect(source).toContain('hi Hello.');
 	});
 });
 
@@ -375,7 +377,10 @@ test.describe('geometry-based focus traversal', () => {
 		await editor.typeText('!');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		expect(source).toContain('# Title!');
+		// Sticky column: ArrowUp from column 0 of block 1 preserves column 0,
+		// landing at start of block 0. Typing `!` before the `# ` marker turns
+		// the heading into a paragraph `!# Title`.
+		expect(source).toContain('!# Title');
 	});
 
 	test('ArrowDown at end of single-line block moves to next block', async () => {
