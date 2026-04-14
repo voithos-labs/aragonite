@@ -36,17 +36,19 @@
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
-	const state = createBlockListState(node);
+	const state = createBlockListState(() => node);
 
 	const bundle = createStandardNestedActions(state, {
-		// Pass index as a getter so factory closures always read the current
-		// reactive prop value (Svelte 5 $props() makes it reactive; a plain
-		// value capture at factory-call time would be stale after a parent
-		// splitBlock shifts this container's position in the document).
+		// Pass reactive props via getters so factory closures always read
+		// the current values. Plain capture at factory-call time would be
+		// stale after a parent splitBlock shifts this container's index,
+		// or after undo/redo replaces the document tree with a fresh clone.
 		get index() {
 			return index;
 		},
-		node,
+		get node() {
+			return node;
+		},
 		rebuildRaw: () => rebuildBlockquoteRaw(node),
 		stickyColumn,
 		parent: {
