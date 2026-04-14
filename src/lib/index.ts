@@ -26,8 +26,7 @@ export type {
 
 export {
 	EDITOR_ACTIONS_KEY,
-	LIST_CONTEXT_KEY,
-	LIST_PARENT_ITEM_INDEX_KEY
+	LIST_CONTEXT_KEY
 } from './editor-types';
 export type {
 	EditorActions,

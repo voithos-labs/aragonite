@@ -8,7 +8,6 @@
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
-		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type EditorActions,
@@ -176,8 +175,8 @@
 
 			if (itemIndex <= 0) {
 				// Nested list: promote the first item to parent level (like Shift+Tab)
-				if (parentListContext && getParentItemIndex) {
-					await parentListContext.promoteNestedItem(getParentItemIndex(), node, 0);
+				if (parentListContext) {
+					await parentListContext.promoteNestedItem(parentListContext.getContainingItemIndex(), node, 0);
 					return;
 				}
 
@@ -401,7 +400,6 @@
 	// Read parent list context BEFORE setContext shadows it. For nested lists
 	// this returns the outer list's context; for top-level lists it is undefined.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
-	const getParentItemIndex = getContext<(() => number) | undefined>(LIST_PARENT_ITEM_INDEX_KEY);
 
 	const listContext: ListContext = {
 		async indentItem(itemIndex: number): Promise<void> {
@@ -458,10 +456,10 @@
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
-			if (!parentListContext || !getParentItemIndex || !node.children) return;
+			if (!parentListContext || !node.children) return;
 			// Delegate the full operation to the parent list, which has direct
 			// access to its own children array and the parent item node.
-			await parentListContext.promoteNestedItem(getParentItemIndex(), node, itemIndex);
+			await parentListContext.promoteNestedItem(parentListContext.getContainingItemIndex(), node, itemIndex);
 		},
 
 		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
@@ -536,6 +534,10 @@
 			triggerItemReactivity();
 			await tick();
 			itemBlockRefs[parentItemIdx + 1]?.focus(0);
+		},
+
+		getContainingItemIndex(): number {
+			return -1; // top-level list; never read because unindentItem guards on parentListContext.
 		},
 
 		async exitListAtItem(itemIndex: number): Promise<void> {
