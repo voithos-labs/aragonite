@@ -340,6 +340,41 @@
 	}
 
 	/**
+	 * Find the first descendant text node with non-empty content. Used by
+	 * isAtFirstVisualLine to measure the top of the block's first visual
+	 * line reliably — a collapsed range on the block (e.g., selectNodeContents
+	 * + collapse(true)) can return null rects during transient layout states
+	 * and is especially unreliable when firstChild is a non-text element like
+	 * a dimmed marker span. A non-collapsed range around an actual character
+	 * always returns a valid rect once there's text to measure.
+	 */
+	function findFirstTextNode(node: Node): Text | null {
+		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
+			return node as Text;
+		}
+		for (let i = 0; i < node.childNodes.length; i++) {
+			const found = findFirstTextNode(node.childNodes[i]);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	/**
+	 * Find the last descendant text node with non-empty content. Symmetric
+	 * counterpart to findFirstTextNode; used by isAtLastVisualLine.
+	 */
+	function findLastTextNode(node: Node): Text | null {
+		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
+			return node as Text;
+		}
+		for (let i = node.childNodes.length - 1; i >= 0; i--) {
+			const found = findLastTextNode(node.childNodes[i]);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	/**
 	 * Get the vertical position of a non-collapsed range around a character.
 	 * Non-collapsed ranges reliably return rects, unlike collapsed ones.
 	 */
@@ -385,14 +420,22 @@
 		}
 		if (cursorTop === null) return true;
 
-		// Get vertical position of the start of the element.
-		// Use a non-collapsed range around the first character for reliability.
-		const firstChild = el.firstChild;
-		if (!firstChild) return true;
+		// Get the vertical position of the start of the element. We walk the
+		// DOM to find the first *text node* with content rather than using
+		// `el.firstChild` directly, because inline markers are rendered as
+		// dimmed spans — for a heading like `## Heading` or a paragraph
+		// starting with `**bold**`, `firstChild` is a span (non-text), which
+		// would force us through an unreliable collapsed-range path.
+		// getCharRangeTop on a real text node always returns a valid rect.
+		const firstText = findFirstTextNode(el);
 		let startTop: number | null = null;
-		if (firstChild.nodeType === Node.TEXT_NODE && (firstChild.textContent?.length ?? 0) > 0) {
-			startTop = getCharRangeTop(firstChild, 0, false);
-		} else {
+		if (firstText) {
+			startTop = getCharRangeTop(firstText, 0, false);
+		}
+		if (startTop === null) {
+			// Fallback: collapsed range at the start of the element. Kept
+			// only as a last resort; see findFirstTextNode for why the
+			// walk-based path is preferred.
 			const startRange = document.createRange();
 			startRange.selectNodeContents(el);
 			startRange.collapse(true);
@@ -425,15 +468,18 @@
 		}
 		if (cursorTop === null) return true;
 
-		// Get vertical position of the end of the element.
-		// Use a non-collapsed range around the last character for reliability.
-		const lastChild = el.lastChild;
-		if (!lastChild) return true;
+		// Get the vertical position of the end of the element. Symmetric to
+		// isAtFirstVisualLine: walk the DOM to find the LAST text node with
+		// content, because the last child may be a dimmed marker span (e.g.
+		// a paragraph ending in `**bold**`).
+		const lastText = findLastTextNode(el);
 		let endTop: number | null = null;
-		if (lastChild.nodeType === Node.TEXT_NODE && (lastChild.textContent?.length ?? 0) > 0) {
-			const len = lastChild.textContent!.length;
-			endTop = getCharRangeTop(lastChild, len, true);
-		} else {
+		if (lastText) {
+			const len = lastText.textContent!.length;
+			endTop = getCharRangeTop(lastText, len, true);
+		}
+		if (endTop === null) {
+			// Fallback: collapsed range at the end of the element.
 			const endRange = document.createRange();
 			endRange.selectNodeContents(el);
 			endRange.collapse(false);
