@@ -45,19 +45,22 @@ export interface BlockListState {
 }
 
 /**
- * Build a reactive state bundle for `node.children`. The caller passes
- * `node` as a Svelte $state proxy (typically inherited from Editor.svelte's
- * document state via the block props chain).
+ * Build a reactive state bundle for `node.children`. The caller passes a
+ * getter (`() => node`) rather than the node itself so that reassignments
+ * of the component's `node` prop — e.g. after undo/redo replaces the
+ * document with a cloned snapshot — reach every closure in the factory.
+ * Passing by value would capture a stale snapshot at call time and later
+ * writes would go to a detached object.
  */
-export function createBlockListState(node: CstNode): BlockListState {
-	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
+export function createBlockListState(getNode: () => CstNode): BlockListState {
+	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
 	// Re-sync IDs when children count changes externally (undo/redo).
 	$effect(() => {
-		const childCount = (node.children ?? []).length;
+		const childCount = (getNode().children ?? []).length;
 		if (childCount !== innerBlockIds.length) {
-			innerBlockIds = assignIds(node.children ?? []);
+			innerBlockIds = assignIds(getNode().children ?? []);
 		}
 	});
 
@@ -68,6 +71,7 @@ export function createBlockListState(node: CstNode): BlockListState {
 			refs: (BlockComponent | undefined)[]
 		) => void
 	): void {
+		const node = getNode();
 		const childrenCopy = [...(node.children ?? [])];
 		const idsCopy = [...innerBlockIds];
 		const refsCopy = [...innerBlockRefs];
@@ -78,6 +82,7 @@ export function createBlockListState(node: CstNode): BlockListState {
 	}
 
 	function triggerReactivity(): void {
+		const node = getNode();
 		node.children = [...(node.children ?? [])];
 		innerBlockIds = [...innerBlockIds];
 	}

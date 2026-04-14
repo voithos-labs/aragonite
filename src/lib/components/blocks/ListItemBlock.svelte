@@ -53,7 +53,7 @@
 	};
 	setContext(LIST_CONTEXT_KEY, wrappedListContext);
 
-	const state = createBlockListState(node);
+	const state = createBlockListState(() => node);
 
 	function marker(): string {
 		return (node.metadata as { marker?: string })?.marker ?? '- ';
@@ -94,7 +94,9 @@
 		get index() {
 			return index;
 		},
-		node,
+		get node() {
+			return node;
+		},
 		rebuildRaw: () => rebuildListItemRaw(node),
 		stickyColumn,
 		parent: {

@@ -48,12 +48,12 @@ function fakeParentBundles() {
 describe('createStandardNestedActions', () => {
 	it('returns a bundle with blockEdit, focus, containerEdit (no history)', () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			node,
+			get node() { return node; },
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -67,12 +67,12 @@ describe('createStandardNestedActions', () => {
 
 	it('containerEdit.beginContainerEdit translates inner index to container index', () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 5,
-			node,
+			get node() { return node; },
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -86,12 +86,12 @@ describe('createStandardNestedActions', () => {
 	it('containerEdit.endContainerEdit calls rebuildRaw and forwards to parent', () => {
 		const rebuildRaw = vi.fn();
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			node,
+			get node() { return node; },
 			rebuildRaw,
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -106,7 +106,7 @@ describe('createStandardNestedActions', () => {
 	it('containerEdit tolerates missing parent containerEdit', () => {
 		const rebuildRaw = vi.fn();
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = {
 			blockEdit: fakeParentBundles().blockEdit,
 			focus: fakeParentBundles().focus
@@ -115,7 +115,7 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			node,
+			get node() { return node; },
 			rebuildRaw,
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -128,12 +128,12 @@ describe('createStandardNestedActions', () => {
 
 	it('focus.moveFocus delegates upward when innerIndex is out of range', async () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 7,
-			node,
+			get node() { return node; },
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -148,12 +148,12 @@ describe('createStandardNestedActions', () => {
 
 	it('blockEdit.mergeWithPrevious delegates upward at innerIndex=0', async () => {
 		const node = makeNode([makePara('a\n'), makePara('b\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 3,
-			node,
+			get node() { return node; },
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -166,12 +166,12 @@ describe('createStandardNestedActions', () => {
 
 	it('blockEdit.deleteBlock on last remaining child delegates upward', async () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
 			index: 3,
-			node,
+			get node() { return node; },
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent

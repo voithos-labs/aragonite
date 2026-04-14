@@ -20,20 +20,20 @@ function makePara(raw: string): CstNode {
 describe('createBlockListState', () => {
 	it('seeds innerBlockIds to one unique id per child', () => {
 		const node = makeNode([makePara('a\n'), makePara('b\n'), makePara('c\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		expect(state.innerBlockIds).toHaveLength(3);
 		expect(new Set(state.innerBlockIds).size).toBe(3);
 	});
 
 	it('seeds innerBlockRefs as an empty array', () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		expect(state.innerBlockRefs).toEqual([]);
 	});
 
 	it('commitChildrenEdit appends a child atomically', () => {
 		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const originalIds = [...state.innerBlockIds];
 
 		state.commitChildrenEdit((children, ids, refs) => {
@@ -51,7 +51,7 @@ describe('createBlockListState', () => {
 
 	it('commitChildrenEdit splices a child out atomically', () => {
 		const node = makeNode([makePara('a\n'), makePara('b\n'), makePara('c\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const idsBefore = [...state.innerBlockIds];
 
 		state.commitChildrenEdit((children, ids, refs) => {
@@ -69,7 +69,7 @@ describe('createBlockListState', () => {
 
 	it('commitChildrenEdit callback receives plain-array copies, not the state proxies', () => {
 		const node = makeNode([makePara('a\n'), makePara('b\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const originalChildren = node.children;
 
 		state.commitChildrenEdit((children, ids, refs) => {
@@ -82,7 +82,7 @@ describe('createBlockListState', () => {
 
 	it('triggerReactivity re-spreads children and ids without changing length', () => {
 		const node = makeNode([makePara('a\n'), makePara('b\n')]);
-		const state = createBlockListState(node);
+		const state = createBlockListState(() => node);
 		const idsBefore = state.innerBlockIds;
 		const childrenBefore = node.children;
 

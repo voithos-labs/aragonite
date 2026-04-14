@@ -46,7 +46,7 @@
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
-	const state = createBlockListState(node);
+	const state = createBlockListState(() => node);
 
 	// Shorthand helpers — keep calling code concise.
 	function finalizeContainerEdit(): void {
@@ -77,7 +77,9 @@
 		get index() {
 			return index;
 		},
-		node,
+		get node() {
+			return node;
+		},
 		rebuildRaw: () => rebuildListRaw(node),
 		stickyColumn,
 		parent: {
