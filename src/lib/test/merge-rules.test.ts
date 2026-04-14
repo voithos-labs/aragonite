@@ -58,7 +58,7 @@ describe('findMergeTarget', () => {
 
 	it('prose prev (paragraph) returns prev itself with empty path', () => {
 		const prev = parseBlock('hello\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect(result!.target).toBe(prev);
 		expect(result!.path).toEqual([]);
@@ -66,7 +66,7 @@ describe('findMergeTarget', () => {
 
 	it('prose-absorber prev (heading) returns prev itself with empty path', () => {
 		const prev = parseBlock('# Heading\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect(result!.target).toBe(prev);
 		expect(result!.path).toEqual([]);
@@ -74,7 +74,7 @@ describe('findMergeTarget', () => {
 
 	it('single-paragraph blockquote returns inner paragraph with path [0]', () => {
 		const prev = parseBlock('> hello\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect(result!.target.kind).toBe('paragraph');
 		expect((result!.target.raw ?? '').trim()).toBe('hello');
@@ -83,24 +83,24 @@ describe('findMergeTarget', () => {
 
 	it('multi-paragraph blockquote returns last inner paragraph', () => {
 		const prev = parseBlock('> first\n>\n> second\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect((result!.target.raw ?? '').trim()).toBe('second');
 		expect(result!.path).toEqual([1]);
 	});
 
-	it('nested blockquote returns deepest paragraph with length-2 path', () => {
+	it('nested blockquote returns deepest paragraph with exact path [0, 0]', () => {
 		const prev = parseBlock('> > deep\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect(result!.target.kind).toBe('paragraph');
 		expect((result!.target.raw ?? '').trim()).toBe('deep');
-		expect(result!.path.length).toBe(2);
+		expect(result!.path).toEqual([0, 0]);
 	});
 
 	it('flat unordered list returns last item last paragraph', () => {
 		const prev = parseBlock('- first\n- second\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect(result!.target.kind).toBe('paragraph');
 		expect((result!.target.raw ?? '').trim()).toBe('second');
@@ -110,22 +110,22 @@ describe('findMergeTarget', () => {
 
 	it('list with nested sub-list returns deepest nested paragraph', () => {
 		const prev = parseBlock('- a\n  - b\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect((result!.target.raw ?? '').trim()).toBe('b');
 		// path walks: top list → item 0 (a) → nested list (last child of item a) → item 0 (b) → paragraph (item 0 of b)
-		expect(result!.path.length).toBeGreaterThanOrEqual(3);
+		expect(result!.path).toEqual([0, 1, 0, 0]);
 	});
 
 	it('blockquote with opaque deepest leaf (fenced code) returns null', () => {
 		const prev = parseBlock('> before\n>\n> ```\n> code\n> ```\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).toBeNull();
 	});
 
 	it('thematic break as prev returns null (opaque)', () => {
 		const prev = parseBlock('---\n');
-		const result = findMergeTarget(prev, 'paragraph');
+		const result = findMergeTarget(prev);
 		expect(result).toBeNull();
 	});
 });
