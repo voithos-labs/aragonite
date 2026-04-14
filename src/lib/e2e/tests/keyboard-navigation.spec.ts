@@ -321,6 +321,52 @@ test.describe('focus traversal after block insertion', () => {
 		expect(source).not.toMatch(/ZFinal/);
 		expect(source).not.toMatch(/codeZ|Zcode/);
 	});
+
+	test('ArrowDown traverses correctly after cross-container merge into blockquote', async () => {
+		// Layout: blockquote → following paragraph → fenced code → final paragraph.
+		// Merge the paragraph into the blockquote, then navigate from blockquote
+		// content down through the code block into the final paragraph.
+		const content = [
+			'> quote line',
+			'text',
+			'',
+			'```',
+			'code',
+			'```',
+			'',
+			'Final.',
+			''
+		].join('\n');
+
+		await editor.loadContent(content);
+
+		// Merge "text" into the blockquote via Backspace at start of "text"
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+
+		// After merge, the blockquote contains "quote linetext". Navigate from there
+		// through the code block to the final paragraph.
+		const bqEditable = editor.getBlock(0).locator('[contenteditable="true"]').first();
+		await bqEditable.click();
+		await editor.pressKey('End');
+		await editor.page.waitForTimeout(100);
+
+		// ArrowDown should exit the blockquote and land in the code block
+		await editor.pressArrowDown();
+		await editor.page.waitForTimeout(100);
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		// Z should have landed at the start of the code block (entering from above)
+		expect(source).toContain('Z```');
+		expect(source).not.toMatch(/ZFinal/);
+		// The merge must still be intact
+		expect(source).toContain('> quote linetext');
+	});
 });
 
 test.describe('geometry-based focus traversal', () => {
