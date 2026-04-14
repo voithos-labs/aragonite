@@ -103,7 +103,7 @@ This means:
 - The editor works with these nodes directly — no wrapping or cloning on load
 - Edits mutate nodes in place
 - Single-block re-parse uses `parse()` on the block's `raw` text, then transfers the result into the existing tree
-- Undo uses deep clones (`cloneDocument`) to snapshot state before mutations
+- Undo takes deep CST snapshots before mutations
 - `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
 ## CST ↔ DOM Synchronization
@@ -159,7 +159,7 @@ All structural operations are CST tree mutations performed by the editor shell. 
 
 **Merge** — take two adjacent CST nodes, concatenate their `raw` text, replace both with one node, re-parse to determine the merged block's type. The surviving block keeps its ID.
 
-Merge eligibility is derived from per-kind **merge roles** rather than an enumerated pair set. Each block kind is assigned one of five roles in `src/lib/editor/merge-rules.ts`:
+Merge eligibility is derived from per-kind **merge roles** rather than an enumerated pair set. Each block kind is assigned one of five roles:
 
 - `prose` — leaf text block (paragraph)
 - `prose-absorber` — prose leaf that keeps its kind when absorbing prose (heading, setextHeading)
@@ -194,7 +194,7 @@ Backspace at offset 0 of a container's first child triggers an unwrap operation:
 
 No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
 
-The preserve-absolute-indent worked examples for Rule M1 live in `src/lib/editor/test/tree-operations-unwrap.test.ts` — those unit tests are the ground truth for the expected reshuffling of remaining children.
+Unit tests codify the preserve-absolute-indent worked examples for Rule M1 as the ground truth for the expected child reshuffling.
 
 **Delete** — remove the node from the children array.
 
@@ -214,19 +214,16 @@ Arrow key navigation at block boundaries uses geometry-based visual-line detecti
 
 #### Sticky column
 
-Cross-block caret column memory. When the user presses ArrowUp/ArrowDown, the editor captures the cursor's editor-relative pixel X and preserves it across multiple vertical arrow presses, so navigating through short intermediate lines doesn't lose the user's original column intent.
+Cross-block caret column memory. Vertical arrow presses capture the cursor's editor-relative pixel X and preserve it across multiple presses, so navigating through short intermediate lines doesn't lose the user's original column intent. Within a single block the browser's native sticky column handles movement; we layer on top only at block boundaries where the native sticky resets.
 
 **Key rules:**
 
-- **Scope**: only cross-block. Within a single block, browser-native sticky column handles vertical movement. We layer on top only at block boundaries where the native sticky resets.
-- **Capture**: idempotent on the first vertical arrow press after a reset. Captured value is editor-relative pixel X (viewport X minus editor container left), so vertical scroll within the editor doesn't affect it.
-- **Reset**: triggered by any user action other than plain or shifted vertical arrows — typing, click, horizontal arrows, structural ops, undo/redo, editor blur, document visibility hidden.
-- **Transparent blocks** (thematic break): pass through without capturing or resetting sticky X; the next cross-block move continues with the existing value.
-- **Opaque blocks** (code block): the textarea surface has no standard pixel-X API, so sticky column treats it as opaque — reset on any interaction inside, and cursor lands at offset 0 / CURSOR_END on entry via the focusAtColumn fallback path.
+- **Capture**: idempotent on the first vertical arrow press after a reset. The captured value is editor-relative (scroll-invariant).
+- **Reset**: any user action other than plain or shifted vertical arrows — typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden.
+- **Transparent blocks** (thematic break): pass through without capturing or resetting; the next cross-block move continues with the existing value.
+- **Opaque blocks** (code block): reset on any interaction inside; the cursor lands at start-of-block or end-of-block on entry rather than at the sticky column. The textarea surface has no standard pixel-X API.
 
-**State location**: `src/lib/editor/sticky-column.ts` exports `createStickyColumnState()`. Each `Editor.svelte` instance creates its own state and provides it via the `STICKY_COLUMN_KEY` Svelte context. Block components read the context to capture, reset, and query the sticky X.
-
-**Focus dispatch**: a new variant of `EditorActions.moveFocus` position parameter, `{ stickyColumnFrom: 'above' | 'below' }`, tells the target block to call `BlockComponent.focusAtColumn?(x, from)` — an optional method that positions the cursor at the offset whose pixel X is nearest to the sticky X on the first (`from === 'above'`) or last (`from === 'below'`) visual line. Blocks that don't implement `focusAtColumn?` fall back to `focus(0)` / `focus(CURSOR_END)`, which gracefully handles opaque blocks.
+Each editor instance owns its own sticky column state, provided to block components via Svelte context. Cross-block vertical moves carry a "from above / from below" direction through the focus-dispatch chain; target blocks that support pixel-column positioning use it to land the cursor at the nearest column on the appropriate visual line. Blocks that don't participate fall back to start-of-block or end-of-block focus.
 
 ## Container Blocks (Recursive Nesting)
 
