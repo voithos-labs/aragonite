@@ -194,7 +194,7 @@ Backspace at offset 0 of a container's first child triggers an unwrap operation:
 
 No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
 
-See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.md` for full semantic rules and the preserve-absolute-indent worked examples.
+The preserve-absolute-indent worked examples for Rule M1 live in `src/lib/editor/test/tree-operations-unwrap.test.ts` — those unit tests are the ground truth for the expected reshuffling of remaining children.
 
 **Delete** — remove the node from the children array.
 
@@ -216,7 +216,7 @@ Arrow key navigation at block boundaries:
 
 Cross-block caret column memory. When the user presses ArrowUp/ArrowDown, the editor captures the cursor's editor-relative pixel X and preserves it across multiple vertical arrow presses, so navigating through short intermediate lines doesn't lose the user's original column intent.
 
-**Key rules** (full spec: `docs/superpowers/specs/2026-04-12-sticky-column-design.md`):
+**Key rules:**
 
 - **Scope**: only cross-block. Within a single block, browser-native sticky column handles vertical movement. We layer on top only at block boundaries where the native sticky resets.
 - **Capture**: idempotent on the first vertical arrow press after a reset. Captured value is editor-relative pixel X (viewport X minus editor container left), so vertical scroll within the editor doesn't affect it.

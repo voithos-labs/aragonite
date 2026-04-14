@@ -4,8 +4,10 @@
  * surviving intermediate clamping on shorter visual lines.
  *
  * Captured on the first vertical arrow press after a reset. Used at every
- * cross-block focus transition until reset. Reset on any non-vertical-arrow
- * user action (see v0.3.3 Spec B, Rule S3 for the full trigger list).
+ * cross-block focus transition until reset. The consumer decides when to
+ * call `reset()` — see `PRESERVE_KEYS_NON_ARROW` below and the call sites
+ * in `TextEditableBlock`, `CodeBlock`, and `Editor.svelte`'s structural
+ * actions for the full reset-trigger policy.
  *
  * This module is intentionally pure: no Svelte, no DOM, no framework
  * coupling. Each `Editor.svelte` instance creates its own state via
