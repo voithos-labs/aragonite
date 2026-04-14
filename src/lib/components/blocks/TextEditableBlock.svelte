@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
-		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
 		type CstNode,
 		type BlockComponent,
 		type StickyColumnDirection
@@ -22,7 +26,9 @@
 		splitOnEnter = true
 	}: { node: CstNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
 
-	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -500,7 +506,7 @@
 		if (composing || !el) return;
 		const text = el.textContent ?? '';
 		const savedOffset = getCursorOffset() ?? 0;
-		actions.updateBlockContent(index, text + '\n', savedOffset);
+		blockEdit.updateBlockContent(index, text + '\n', savedOffset);
 
 		// Signal the $effect to restore cursor after it rebuilds the DOM.
 		// The $effect computes inline content locally — no refreshInlineContent needed.
@@ -553,12 +559,12 @@
 		// beforeinput historyRedo in Chromium/WebView2
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 			e.preventDefault();
-			actions.requestUndo();
+			history.requestUndo();
 			return;
 		}
 		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
 			e.preventDefault();
-			actions.requestRedo();
+			history.requestRedo();
 			return;
 		}
 
@@ -566,11 +572,11 @@
 			e.preventDefault();
 			const offset = getCursorOffset() ?? 0;
 			if (splitOnEnter) {
-				actions.splitBlock(index, offset);
+				blockEdit.splitBlock(index, offset);
 			} else {
 				const displayText = getDisplayText();
 				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
-				actions.updateBlockContent(index, newDisplay + '\n', preEditOffset);
+				blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
 				// $effect handles inline re-render — no refreshInlineContent needed
 				pendingCursorOffset = offset + 1;
 			}
@@ -581,7 +587,7 @@
 			const offset = getCursorOffset();
 			if (offset === 0 && !hasSelection()) {
 				e.preventDefault();
-				actions.mergeWithPrevious(index);
+				blockEdit.mergeWithPrevious(index);
 				return;
 			}
 		}
@@ -591,7 +597,7 @@
 			const textLen = (el?.textContent ?? '').length;
 			if (offset === textLen && !hasSelection()) {
 				e.preventDefault();
-				actions.mergeWithNext(index);
+				blockEdit.mergeWithNext(index);
 				return;
 			}
 		}
@@ -600,7 +606,7 @@
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
 			if (isAtFirstVisualLine()) {
 				e.preventDefault();
-				actions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+				focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return;
 			}
 		}
@@ -609,7 +615,7 @@
 		if (e.key === 'ArrowDown' && !e.shiftKey) {
 			if (isAtLastVisualLine()) {
 				e.preventDefault();
-				actions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+				focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return;
 			}
 		}
@@ -619,7 +625,7 @@
 			const offset = getCursorOffset();
 			if (offset === 0) {
 				e.preventDefault();
-				actions.moveFocus(index - 1, 'end');
+				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
@@ -630,7 +636,7 @@
 			const offset = getCursorOffset();
 			if (offset === textLen) {
 				e.preventDefault();
-				actions.moveFocus(index + 1, 'start');
+				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}
@@ -639,10 +645,10 @@
 	function onBeforeInput(e: InputEvent): void {
 		if (e.inputType === 'historyUndo') {
 			e.preventDefault();
-			actions.requestUndo();
+			history.requestUndo();
 		} else if (e.inputType === 'historyRedo') {
 			e.preventDefault();
-			actions.requestRedo();
+			history.requestRedo();
 		} else if (e.inputType === 'insertLineBreak') {
 			// Shift+Enter: prevent browser from inserting \n into contenteditable.
 			// A bare \n in textContent would cause onInput → updateBlockContent →
@@ -669,7 +675,7 @@
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-			actions.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
 			// $effect handles inline re-render — no refreshInlineContent needed
 			pendingCursorOffset = selOffsets.start;
 		}
@@ -697,7 +703,7 @@
 		if (parsed.children.length <= 1) {
 			// Single block or empty — inline paste (existing behavior)
 			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
-			actions.updateBlockContent(index, newDisplay + '\n', effectiveOffset + text.length);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + text.length);
 			// $effect handles inline re-render — no refreshInlineContent needed
 			pendingCursorOffset = effectiveOffset + text.length;
 		} else {
@@ -705,9 +711,9 @@
 			// First, update the block's raw to remove selected text so that
 			// insertParsedBlocks (which reads currentNode.raw) sees the correct content.
 			if (selOffsets) {
-				actions.updateBlockContent(index, effectiveDisplay + '\n', effectiveOffset);
+				blockEdit.updateBlockContent(index, effectiveDisplay + '\n', effectiveOffset);
 			}
-			actions.insertParsedBlocks(index, effectiveOffset, parsed.children);
+			blockEdit.insertParsedBlocks(index, effectiveOffset, parsed.children);
 		}
 	}
 
@@ -758,7 +764,7 @@
 			newSelEnd = offsets.start + selectedSlice.length + mLen * 2;
 		}
 
-		actions.updateBlockContent(index, newDisplay + '\n', newSelStart);
+		blockEdit.updateBlockContent(index, newDisplay + '\n', newSelStart);
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);
