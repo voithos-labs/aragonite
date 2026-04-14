@@ -1,5 +1,7 @@
 /**
- * Small text helpers used by both the core parser and the editor layer.
+ * Editor-layer helpers for the CST node `raw` field's display vs storage distinction.
+ * The parser writes `raw` with trailing line endings; the editor strips them to produce
+ * the text the user sees in a contenteditable surface.
  */
 
 /** Length of `raw` excluding any trailing line ending (LF or CRLF). */

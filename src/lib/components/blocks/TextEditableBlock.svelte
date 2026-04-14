@@ -13,7 +13,7 @@
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../core/text-utils';
+	import { trimTrailingLineEnding } from '../../raw-text';
 
 	let {
 		node,

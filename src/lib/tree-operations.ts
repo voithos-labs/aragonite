@@ -6,7 +6,7 @@
 import type { CstNode } from './core/nodes';
 import { parse } from './core/parser';
 import { generateBlockId, cloneNode } from './mutable-tree';
-import { trimTrailingLineEnding } from './core/text-utils';
+import { trimTrailingLineEnding } from './raw-text';
 import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
 import { walkToDeepestMergeLeaf } from './merge-rules';
 
