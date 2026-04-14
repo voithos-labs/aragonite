@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
 import { parse } from '../core/parser';
 import type { CstNode } from '../core/nodes';
+import { rebuildAncestryRaw } from '../tree-operations';
+import { serializeMutable } from '../mutable-tree';
 
 describe('isMergeEligible', () => {
 	const eligible: [string, string][] = [
@@ -188,5 +190,64 @@ describe('isMergeEligible — role-pair coverage', () => {
 
 	it('prose + self-merge → not eligible (mixing roles)', () => {
 		expect(isMergeEligible(PROSE, SELF_MERGE)).toBe(false);
+	});
+});
+
+describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
+	function parseBlock(src: string): CstNode {
+		const doc = parse(src);
+		return doc.children[0];
+	}
+
+	function simulateMerge(prevSrc: string, currText: string): string {
+		const prev = parseBlock(prevSrc);
+		const result = findMergeTarget(prev);
+		if (!result) return prevSrc; // caller would fall back — we just return unchanged
+		const target = result.target;
+		const raw = target.raw ?? '';
+		const lineEnding = raw.endsWith('\r\n') ? '\r\n' : '\n';
+		const targetText = raw.replace(/\r?\n$/, '');
+		target.raw = targetText + currText + lineEnding;
+		if (result.path.length > 0) {
+			rebuildAncestryRaw(prev, result.path);
+		}
+		return serializeMutable({ children: [prev], prefix: '', suffix: '' });
+	}
+
+	it('flat blockquote: serialize returns the expected post-merge source', () => {
+		const result = simulateMerge('> text\n', 'text2');
+		expect(result).toBe('> texttext2\n');
+	});
+
+	it('multi-paragraph blockquote: only the last paragraph is mutated', () => {
+		const result = simulateMerge('> first\n>\n> second\n', 'text');
+		expect(result).toContain('> first');
+		expect(result).toContain('> secondtext');
+	});
+
+	it('nested blockquote: innermost paragraph receives the merge and both levels rebuild', () => {
+		const result = simulateMerge('> > deep\n', 'text');
+		expect(result).toContain('> > deeptext');
+	});
+
+	it('flat list: last item last paragraph receives the merge', () => {
+		const result = simulateMerge('- first\n- second\n', 'text');
+		expect(result).toContain('- secondtext');
+		expect(result).toContain('- first');
+	});
+
+	it('nested list: deepest nested item receives the merge, ancestry rebuilds correctly', () => {
+		const result = simulateMerge('- a\n  - b\n', 'text');
+		expect(result).toContain('- btext');
+		expect(result).toContain('- a');
+	});
+
+	it('blockquote with opaque deepest leaf: simulateMerge returns unchanged (walker returned null)', () => {
+		// The `code` fenced block is the last inner child; walker fails, no mutation.
+		const result = simulateMerge('> para\n>\n> ```\n> code\n> ```\n', 'text');
+		expect(result).toContain('para');
+		expect(result).toContain('```');
+		expect(result).not.toContain('paratext');
+		expect(result).not.toContain('codetext');
 	});
 });
