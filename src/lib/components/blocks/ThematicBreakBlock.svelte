@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
-		type EditorActions,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
@@ -10,7 +14,9 @@
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
-	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
 	let el: HTMLDivElement | undefined = $state();
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -33,48 +39,48 @@
 	function onKeyDown(e: KeyboardEvent): void {
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 			e.preventDefault();
-			actions.requestUndo();
+			history.requestUndo();
 			return;
 		}
 		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
 			e.preventDefault();
-			actions.requestRedo();
+			history.requestRedo();
 			return;
 		}
 
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			actions.splitBlock(index, displayLength(node.raw));
+			blockEdit.splitBlock(index, displayLength(node.raw));
 			return;
 		}
 
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
-			actions.deleteBlock(index);
+			blockEdit.deleteBlock(index);
 			return;
 		}
 
 		if (e.key === 'ArrowUp') {
 			e.preventDefault();
-			actions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+			focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 			return;
 		}
 
 		if (e.key === 'ArrowLeft') {
 			e.preventDefault();
-			actions.moveFocus(index - 1, 'end');
+			focusActions.moveFocus(index - 1, 'end');
 			return;
 		}
 
 		if (e.key === 'ArrowDown') {
 			e.preventDefault();
-			actions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+			focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 			return;
 		}
 
 		if (e.key === 'ArrowRight') {
 			e.preventDefault();
-			actions.moveFocus(index + 1, 'start');
+			focusActions.moveFocus(index + 1, 'start');
 			return;
 		}
 	}
