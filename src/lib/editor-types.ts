@@ -99,8 +99,6 @@ export interface BlockEditActions {
 	 * given offset after tick.
 	 *
 	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
-	 * Container-nested implementations delegate to the parent via
-	 * `parentActions.replaceBlock` — the method is always available.
 	 */
 	replaceBlock(
 		blockIndex: number,
