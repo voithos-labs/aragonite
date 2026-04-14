@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
-		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
@@ -12,7 +16,9 @@
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
-	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let userIsTyping = false;
@@ -75,7 +81,7 @@
 		stickyColumn.reset();
 		if (!textarea) return;
 		userIsTyping = true;
-		actions.updateBlockContent(index, textarea.value + '\n', preEditOffset);
+		blockEdit.updateBlockContent(index, textarea.value + '\n', preEditOffset);
 		userIsTyping = false;
 		autoResize();
 	}
@@ -103,19 +109,19 @@
 
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 			e.preventDefault();
-			actions.requestUndo();
+			history.requestUndo();
 			return;
 		}
 		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
 			e.preventDefault();
-			actions.requestRedo();
+			history.requestRedo();
 			return;
 		}
 
 		if (e.key === 'Backspace' && textarea) {
 			if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
 				e.preventDefault();
-				actions.moveFocus(index - 1, 'end');
+				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
@@ -125,7 +131,7 @@
 			const textBefore = textarea.value.slice(0, textarea.selectionStart);
 			if (!textBefore.includes('\n')) {
 				e.preventDefault();
-				actions.moveFocus(index - 1, 'end');
+				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
@@ -134,7 +140,7 @@
 			const textAfter = textarea.value.slice(textarea.selectionStart);
 			if (!textAfter.includes('\n')) {
 				e.preventDefault();
-				actions.moveFocus(index + 1, 'start');
+				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}
@@ -148,11 +154,11 @@
 				e.preventDefault();
 				// Remove the trailing empty line from the code block
 				const trimmed = val.slice(0, -1);
-				actions.updateBlockContent(index, trimmed + '\n', preEditOffset);
+				blockEdit.updateBlockContent(index, trimmed + '\n', preEditOffset);
 				textarea.value = trimmed;
 				autoResize();
 				// Create a new block after the code block
-				actions.moveFocus(index + 1, 'start');
+				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}
@@ -177,7 +183,7 @@
 		e.clipboardData?.setData('text/plain', text);
 
 		const newValue = textarea.value.slice(0, start) + textarea.value.slice(end);
-		actions.updateBlockContent(index, newValue + '\n');
+		blockEdit.updateBlockContent(index, newValue + '\n');
 		textarea.value = newValue;
 		textarea.selectionStart = textarea.selectionEnd = start;
 		autoResize();
@@ -193,7 +199,7 @@
 		const start = textarea.selectionStart;
 		const end = textarea.selectionEnd;
 		const newValue = textarea.value.slice(0, start) + text + textarea.value.slice(end);
-		actions.updateBlockContent(index, newValue + '\n');
+		blockEdit.updateBlockContent(index, newValue + '\n');
 		textarea.value = newValue;
 		textarea.selectionStart = textarea.selectionEnd = start + text.length;
 		autoResize();
