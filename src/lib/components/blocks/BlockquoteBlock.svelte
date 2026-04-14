@@ -69,8 +69,11 @@
 	}
 	/**
 	 * Cascade focus down a path of child indices inside this blockquote.
-	 * Mirrors ListBlock.focusByPath — peel off path[0], delegate to the child
-	 * at that index (or call focus(offset) if the path ends here).
+	 * Mirrors ListItemBlock.focusByPath — peels off path[0], delegates to the
+	 * child at that index via focus(offset) if the path ends here, or
+	 * recursively via focusByPath?(rest, offset) if further descent is needed.
+	 * Called by Editor.mergeWithPrevious for cross-container merge focus
+	 * cascade when the merge target is inside a blockquote.
 	 */
 	export function focusByPath(path: number[], offset: number): void {
 		if (path.length === 0 || !node.children) return;
