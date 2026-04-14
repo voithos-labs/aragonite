@@ -105,6 +105,30 @@
 		innerBlockIds = [...innerBlockIds];
 	}
 
+	/**
+	 * Apply a structural mutation to children/ids/refs on plain-array copies,
+	 * then publish all three in one commit. This mirrors Editor.svelte's
+	 * splitBlock/merge/delete pattern: splicing directly on $state proxies
+	 * (or on node.children, whose parent is a proxy) during a keyed {#each}
+	 * re-render interleaves reactivity with the mutation and can leave
+	 * `innerBlockRefs` out of sync with the rendered components — bind:ref
+	 * in a keyed each only fires on mount, so shifted or re-mounted children
+	 * can't rebind an already-populated slot. Committing all three arrays at
+	 * once gives Svelte a consistent snapshot to diff against and keeps the
+	 * refs array aligned with the shifted components.
+	 */
+	function commitChildrenEdit(
+		mutate: (childrenCopy: CstNode[], idsCopy: string[], refsCopy: (BlockComponent | undefined)[]) => void
+	): void {
+		const childrenCopy = [...(node.children ?? [])];
+		const idsCopy = [...innerBlockIds];
+		const refsCopy = [...innerBlockRefs];
+		mutate(childrenCopy, idsCopy, refsCopy);
+		node.children = childrenCopy;
+		innerBlockIds = idsCopy;
+		innerBlockRefs = refsCopy;
+	}
+
 	// ── Nested EditorActions ─────────────────────────────────────────────
 
 	const nestedActions: EditorActions = {
@@ -122,10 +146,11 @@
 				} else {
 					// Remove the empty child, rebuild, then focus block after
 					parentActions.beginContainerEdit?.(index, 0);
-					performDelete(asNodeParent(), innerBlockIds, innerIndex);
-					innerBlockRefs.splice(innerIndex, 1);
+					commitChildrenEdit((children, ids, refs) => {
+						performDelete({ children }, ids, innerIndex);
+						refs.splice(innerIndex, 1);
+					});
 					finalizeContainerEdit();
-					triggerInnerReactivity();
 					await tick();
 					parentActions.moveFocus(index + 1, 'start');
 				}
@@ -133,9 +158,14 @@
 			}
 
 			parentActions.beginContainerEdit?.(index, offset);
-			performSplit(asNodeParent(), innerBlockIds, innerIndex, offset);
+			commitChildrenEdit((children, ids, refs) => {
+				performSplit({ children }, ids, innerIndex, offset);
+				// New child inserted at innerIndex+1. Splice an undefined slot so
+				// existing refs for shifted children stay aligned; the newly
+				// mounted component lands in the empty slot.
+				refs.splice(innerIndex + 1, 0, undefined);
+			});
 			finalizeContainerEdit();
-			triggerInnerReactivity();
 			await tick();
 			innerBlockRefs[innerIndex + 1]?.focus(0);
 		},
@@ -162,18 +192,20 @@
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMerge(asNodeParent(), innerBlockIds, innerIndex);
-				innerBlockRefs.splice(innerIndex, 1);
+				commitChildrenEdit((children, ids, refs) => {
+					performMerge({ children }, ids, innerIndex);
+					refs.splice(innerIndex, 1);
+				});
 				finalizeContainerEdit();
-				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(asNodeParent(), innerBlockIds, innerIndex - 1);
-				innerBlockRefs.splice(innerIndex - 1, 1);
+				commitChildrenEdit((children, ids, refs) => {
+					performDelete({ children }, ids, innerIndex - 1);
+					refs.splice(innerIndex - 1, 1);
+				});
 				finalizeContainerEdit();
-				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(0);
 			} else {
@@ -197,18 +229,20 @@
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
 				parentActions.beginContainerEdit?.(index, 0);
-				performMergeNext(asNodeParent(), innerBlockIds, innerIndex);
-				innerBlockRefs.splice(innerIndex + 1, 1);
+				commitChildrenEdit((children, ids, refs) => {
+					performMergeNext({ children }, ids, innerIndex);
+					refs.splice(innerIndex + 1, 1);
+				});
 				finalizeContainerEdit();
-				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
 				parentActions.beginContainerEdit?.(index, 0);
-				performDelete(asNodeParent(), innerBlockIds, innerIndex + 1);
-				innerBlockRefs.splice(innerIndex + 1, 1);
+				commitChildrenEdit((children, ids, refs) => {
+					performDelete({ children }, ids, innerIndex + 1);
+					refs.splice(innerIndex + 1, 1);
+				});
 				finalizeContainerEdit();
-				triggerInnerReactivity();
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(CURSOR_END);
 			} else {
@@ -226,10 +260,11 @@
 			}
 
 			parentActions.beginContainerEdit?.(index, 0);
-			performDelete(asNodeParent(), innerBlockIds, innerIndex);
-			innerBlockRefs.splice(innerIndex, 1);
+			commitChildrenEdit((children, ids, refs) => {
+				performDelete({ children }, ids, innerIndex);
+				refs.splice(innerIndex, 1);
+			});
 			finalizeContainerEdit();
-			triggerInnerReactivity();
 			await tick();
 			const focusIdx = Math.min(innerIndex, node.children.length - 1);
 			innerBlockRefs[focusIdx]?.focus(0);

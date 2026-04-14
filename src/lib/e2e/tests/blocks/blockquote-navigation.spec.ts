@@ -103,10 +103,16 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 	});
 
 	test('Enter at end of inner paragraph, then ArrowDown from empty paragraph reaches next paragraph', async () => {
-		// Build the state: > 1 / > [caret on empty] / > 2
+		// There is no Markdown that loads to {"1", "", "2"} — CommonMark collapses
+		// blank > lines into paragraph separators. The empty middle only exists
+		// as a transient CST state after splitBlock. Build it via a real Enter.
 		await editor.loadContent('> 1\n>\n> 2\n');
-		const middle = editor.page.locator('[contenteditable="true"]').nth(1);
-		await middle.click();
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
+		await first.click();
+		await editor.pressKey('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Focus is now on the new empty middle paragraph (nth 1); "2" is at nth 2.
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
@@ -117,24 +123,31 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 
 	test('Enter at end of inner paragraph, then ArrowUp from empty paragraph reaches previous paragraph', async () => {
 		await editor.loadContent('> 1\n>\n> 2\n');
-		const middle = editor.page.locator('[contenteditable="true"]').nth(1);
-		await middle.click();
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
+		await first.click();
+		await editor.pressKey('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Focus on new empty middle; ArrowUp should reach end of "1".
 		await editor.pressArrowUp();
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		// Z should land at end of "1"
 		expect(await editor.getSource()).toMatch(/^> 1Z$/m);
 	});
 
 	test('After Enter at end of first paragraph: ArrowDown from new empty paragraph reaches second paragraph (user-reported recipe)', async () => {
-		await editor.loadContent('> 1\n> 2\n');
+		// User-reported flow. "> 1\n> 2\n" alone is ONE soft-wrapped paragraph;
+		// the user actually builds two discrete paragraphs by typing Enter
+		// between them. Seed with the post-Enter state and press Enter again
+		// to exercise the "split creates new empty middle" code path.
+		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
 		await editor.pressKey('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
-		// Now at an empty second inner paragraph; "2" shifted to third
+		// Now at an empty middle paragraph; "2" is the third child.
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
@@ -153,13 +166,19 @@ test.describe('blockquote navigation — after Backspace (delete empty middle pa
 	});
 
 	test('Delete empty middle paragraph, then ArrowDown crosses the gap', async () => {
-		// Build: > 1 / > [empty] / > 2 then delete the empty middle
+		// Build {"1", "", "2"} via Enter (no Markdown loads that state — see
+		// the "after Enter" describe block above), then Backspace to merge the
+		// empty middle back into "1", then ArrowDown to reach "2".
 		await editor.loadContent('> 1\n>\n> 2\n');
-		const middle = editor.page.locator('[contenteditable="true"]').nth(1);
-		await middle.click();
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
+		await first.click();
+		await editor.pressKey('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Focus on the new empty middle; Backspace merges it back into "1".
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
-		// Cursor should now be at end of "1"; ArrowDown should reach "2"
+		// Cursor now at end of "1"; ArrowDown should reach "2".
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
@@ -237,19 +256,19 @@ test.describe('blockquote navigation — long permutations', () => {
 
 	test('sequence of unrelated edits does not break final navigation', async () => {
 		await editor.loadContent('> 1\n>\n> 2\n');
-		// Edit inside the first paragraph
+		// Edit inside the first paragraph, then Enter to create a transient
+		// empty middle, then ArrowDown twice to cross into "2".
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
 		await editor.pressKey('End');
 		await editor.typeText(' extra');
 		await editor.page.waitForTimeout(200);
-		// Now navigate down to the second paragraph
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Focus on new empty middle. First ArrowDown reaches "2".
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
-		// Navigate through the empty middle
-		await editor.pressArrowDown();
-		await editor.page.waitForTimeout(100);
-		// Should now be at start of "2"
+		// Type Z at start of "2".
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toMatch(/^> Z2$/m);
