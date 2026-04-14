@@ -1,17 +1,13 @@
 <script lang="ts">
 	import { getContext, setContext, tick } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
-		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		CURSOR_END,
-		type EditorActions,
 		type BlockEditActions,
 		type FocusActions,
-		type HistoryActions,
 		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
@@ -37,7 +33,6 @@
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
@@ -424,21 +419,6 @@
 	setContext(BLOCK_EDIT_KEY, nestedBlockEdit);
 	setContext(FOCUS_KEY, nestedFocus);
 	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
-
-	// Legacy bridge: kept until Task 10 removes EDITOR_ACTIONS_KEY reads from all containers.
-	// Removed in Task 10 once all containers have migrated to sub-interface keys.
-	const nestedActionsBridge: EditorActions = {
-		...nestedBlockEdit,
-		...nestedFocus,
-		requestUndo(): void | Promise<void> {
-			return parentHistory.requestUndo();
-		},
-		requestRedo(): void | Promise<void> {
-			return parentHistory.requestRedo();
-		},
-		...nestedContainerEdit
-	};
-	setContext(EDITOR_ACTIONS_KEY, nestedActionsBridge);
 </script>
 
 <div class="blockquote-block">

@@ -25,11 +25,9 @@ export type {
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
 export {
-	EDITOR_ACTIONS_KEY,
 	LIST_CONTEXT_KEY
 } from './editor-types';
 export type {
-	EditorActions,
 	BlockComponent,
 	UndoManager,
 	UndoEntry,

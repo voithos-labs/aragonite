@@ -1,14 +1,12 @@
 <script lang="ts">
 	import { setContext, tick } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		CURSOR_END,
-		type EditorActions,
 		type BlockEditActions,
 		type FocusActions,
 		type HistoryActions,
@@ -636,20 +634,10 @@
 		}
 	};
 
-	// Transitional aggregate — consumed via EDITOR_ACTIONS_KEY until every
-	// component is migrated to the sub-interface keys (cluster A, Task 10).
-	const actions: EditorActions = {
-		...blockEditActions,
-		...focusActions,
-		...historyActions,
-		...containerEditActions
-	};
-
 	setContext(BLOCK_EDIT_KEY, blockEditActions);
 	setContext(FOCUS_KEY, focusActions);
 	setContext(HISTORY_KEY, historyActions);
 	setContext(CONTAINER_EDIT_KEY, containerEditActions);
-	setContext(EDITOR_ACTIONS_KEY, actions); // transitional — removed in Task 10
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 
 	// ── Public API ──────────────────────────────────────────────────────
