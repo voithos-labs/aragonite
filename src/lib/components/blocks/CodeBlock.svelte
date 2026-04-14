@@ -7,7 +7,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import type { StickyColumnState } from '../../sticky-column';
+	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
 	import { trimTrailingLineEnding } from '../../core/text-utils';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
@@ -93,7 +93,8 @@
 		// Arrows stay preserve-keys because the code block cannot capture its own
 		// sticky X (no pixel API on textarea) — passing through without resetting
 		// keeps a pre-existing sticky X valid for whatever the user does next.
-		const PRESERVE_KEYS_NON_ARROW = ['PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta'];
+		// PRESERVE_KEYS_NON_ARROW is shared with TextEditableBlock; see its JSDoc
+		// in sticky-column.ts for the full preserve/reset policy.
 		if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && !PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
 			stickyColumn.reset();
 		}
