@@ -2,15 +2,19 @@
 	import { getContext, setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type EditorActions,
+		type FocusPosition,
+		type StickyColumnDirection,
 		type ListContext,
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
+	import type { StickyColumnState } from '../../sticky-column';
 	import { assignIds, generateBlockId } from '../../mutable-tree';
 	import { displayLength } from '../../core/text-utils';
 	import {
@@ -26,6 +30,7 @@
 	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let itemBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
@@ -88,7 +93,34 @@
 		}
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset, focusByPath } satisfies BlockComponent);
+	/**
+	 * Position the cursor at the offset nearest to editor-relative pixel X
+	 * inside this list's first (from='above') or last (from='below') item.
+	 * Delegates to the child item's focusAtColumn? if available, else falls
+	 * back to focus(0) / focus(CURSOR_END). List itself does no pixel math —
+	 * it just picks the right item and forwards.
+	 */
+	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		if (!node.children || node.children.length === 0) return;
+		if (from === 'above') {
+			const first = itemBlockRefs[0];
+			if (first?.focusAtColumn) {
+				first.focusAtColumn(x, from);
+			} else {
+				first?.focus(0);
+			}
+		} else {
+			const last = node.children.length - 1;
+			const lastRef = itemBlockRefs[last];
+			if (lastRef?.focusAtColumn) {
+				lastRef.focusAtColumn(x, from);
+			} else {
+				lastRef?.focus(CURSOR_END);
+			}
+		}
+	}
+
+	void ({ editable, focusable, focus, getCursorOffset, focusByPath, focusAtColumn } satisfies BlockComponent);
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
@@ -223,20 +255,38 @@
 			itemBlockRefs[focusIdx]?.focus(0);
 		},
 
-		async moveFocus(itemIndex: number, position: 'start' | 'end' | number): Promise<void> {
+		async moveFocus(itemIndex: number, position: FocusPosition): Promise<void> {
 			if (!node.children) return;
 
 			if (itemIndex < 0) {
-				parentActions.moveFocus(index - 1, 'end');
-			} else if (itemIndex >= node.children.length) {
-				parentActions.moveFocus(index + 1, 'start');
-			} else {
-				const item = itemBlockRefs[itemIndex];
-				if (!item?.focusable) return;
-				if (typeof position === 'number') item.focus(position);
-				else if (position === 'start') item.focus(0);
-				else item.focus(CURSOR_END);
+				// Before first item — move before the list
+				parentActions.moveFocus(index - 1, position);
+				return;
 			}
+			if (itemIndex >= node.children.length) {
+				// After last item — move after the list
+				parentActions.moveFocus(index + 1, position);
+				return;
+			}
+
+			const item = itemBlockRefs[itemIndex];
+			if (!item?.focusable) return;
+
+			// Sticky-column variant: use focusAtColumn if available, else fall back
+			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+				const x = stickyColumn.get();
+				const from = position.stickyColumnFrom;
+				if (x !== null && item.focusAtColumn) {
+					item.focusAtColumn(x, from);
+					return;
+				}
+				item.focus(from === 'above' ? 0 : CURSOR_END);
+				return;
+			}
+
+			if (typeof position === 'number') item.focus(position);
+			else if (position === 'start') item.focus(0);
+			else item.focus(CURSOR_END);
 		},
 
 		// list items handle their own merges / updates / paste
