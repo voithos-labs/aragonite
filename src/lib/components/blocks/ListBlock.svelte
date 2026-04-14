@@ -196,8 +196,9 @@
 			triggerItemReactivity();
 			await tick();
 			// Cascade focus down the target path via focusByPath.
-			// targetPath is a sequence of list-item indices from this list down
-			// to the target item; appending `0` forwards into the item's first
+			// targetPath is a uniform path (every child-array index explicit) from
+			// this list down to the target listItem — the paragraph index was stripped
+			// before returning, so we append 0 here to forward into the item's first
 			// child (the target paragraph).
 			const [firstPathIdx, ...restPath] = mergePoint.targetPath;
 			itemBlockRefs[firstPathIdx]?.focusByPath?.([...restPath, 0], mergePoint.offset);

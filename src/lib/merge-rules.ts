@@ -103,7 +103,7 @@ export interface MergeTarget {
  * list children (list items), and list-item children (inner blocks) all share
  * the convention that the last child is visually last in the source.
  */
-function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
+export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
 	const role = MERGE_ROLE[node.kind];
 	if (role === 'prose' || role === 'prose-absorber') {
 		return { target: node, path };

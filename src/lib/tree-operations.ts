@@ -8,6 +8,7 @@ import { parse } from './core/parser';
 import { generateBlockId, cloneNode } from './mutable-tree';
 import { trimTrailingLineEnding } from './core/text-utils';
 import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
+import { walkToDeepestMergeLeaf } from './merge-rules';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -442,52 +443,24 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 // ── List Item Merge ─────────────────────────────────────────────────────────
 
 /**
- * Resolve the list item at a target path. At each hop, the item's LAST child
- * must be a nested list — that's the descent step taken by the rule-B search.
- */
-function resolveItemAtPath(list: CstNode, path: number[]): CstNode {
-	let item = list.children![path[0]];
-	for (let i = 1; i < path.length; i++) {
-		const nestedList = item.children![item.children!.length - 1];
-		item = nestedList.children![path[i]];
-	}
-	return item;
-}
-
-/**
- * Walk an item's subtree depth-first, preferring the LAST child at each level,
- * to find the "deepest visible text" target (rule B). Returns the path to the
- * target list item, or null if no text-bearing paragraph is found.
+ * M1's target-finder: given a list and the index of the current item being
+ * backspaced, find the "deepest visible text above" by descending the
+ * previous item's subtree last-child-first.
  *
- * Path convention: each element is the index of a list item within its
- * enclosing list. path[0] is the top-level item index in `list`; path[1] is
- * the index within that item's last nested list (if any); path[2] is the
- * index within that nested list's last item's last nested list; etc.
+ * Returns a uniform path (every child-array index explicit) from `list` down
+ * to the target paragraph leaf, or null when no prose leaf is reachable
+ * (walker hit opaque content or an empty container).
+ *
+ * The result is directly consumable by rebuildAncestryRaw without any
+ * path-shape adaptation.
  */
 function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): number[] | null {
 	if (!list.children || targetItemIndex < 0 || targetItemIndex >= list.children.length) {
 		return null;
 	}
-
-	// Start at the target item. Descend into its LAST nested-list's LAST item
-	// repeatedly while such a nested list exists.
-	const path: number[] = [targetItemIndex];
-	let current = list.children[targetItemIndex];
-
-	while (current.children && current.children.length > 0) {
-		// Look at the last child of the current item
-		const lastChild = current.children[current.children.length - 1];
-		if (lastChild.kind === 'list' && lastChild.children && lastChild.children.length > 0) {
-			// Descend into the last item of this nested list
-			const lastItemIndex = lastChild.children.length - 1;
-			path.push(lastItemIndex);
-			current = lastChild.children[lastItemIndex];
-		} else {
-			break;
-		}
-	}
-
-	return path;
+	const startItem = list.children[targetItemIndex];
+	const result = walkToDeepestMergeLeaf(startItem, [targetItemIndex]);
+	return result ? result.path : null;
 }
 
 /**
@@ -504,7 +477,9 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
  * target item's inner children.
  *
  * Returns the merge point so the caller can position the cursor:
- *   targetPath: chain of child indices from `list` down to the target listItem
+ *   targetPath: uniform path (every child-array index explicit) from `list` down
+ *               to the target listItem — the trailing paragraph index (0) is stripped
+ *               so the caller can append 0 itself when cascading through focusByPath.
  *   offset:     display-length position within the target paragraph, before the appended content
  */
 export function mergeListItemIntoPrevious(
@@ -521,7 +496,14 @@ export function mergeListItemIntoPrevious(
 		throw new Error('mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf');
 	}
 
-	const targetItem = resolveItemAtPath(list, targetPath);
+	// Walk the uniform path from list down to the target paragraph, stopping one
+	// step before the leaf so we land on the target listItem.
+	let targetItem: CstNode = list;
+	for (let i = 0; i < targetPath.length - 1; i++) {
+		targetItem = targetItem.children![targetPath[i]];
+	}
+	// After this loop, targetItem is the listItem directly containing the
+	// target paragraph at targetPath[targetPath.length - 1].
 
 	if (!targetItem.children || targetItem.children.length === 0 || targetItem.children[0].kind !== 'paragraph') {
 		throw new Error('mergeListItemIntoPrevious: target item does not start with a paragraph');
@@ -546,14 +528,16 @@ export function mergeListItemIntoPrevious(
 	// 2. Relocate current's remaining children by preserve-absolute-indent.
 	// currentItem is at depth 0 (top-level in `list`). Its children that are list items
 	// were originally at depth 1. They should be placed at depth 1 in the target's
-	// ancestry, which means: in the container at depth 1 along target's path, which is
-	// the last nested list inside targetPath[0]'s item (if one exists).
+	// ancestry, which means: in the container at depth 1 along target's path.
 	//
-	// If target is at depth 0 (targetPath.length === 1), the container at depth 1 along
-	// target's ancestry doesn't exist. In that case, fall through to absorbing children
+	// targetPath is a uniform path: [topItemIdx, ...]. Its length is always odd + 1
+	// (one index per node level). The target listItem is at depth (targetPath.length-1)/2.
+	//
+	// If target is at depth 0 (targetPath.length === 2: [itemIdx, 0]), the container at
+	// depth 1 along target's ancestry doesn't exist — fall through to absorb children
 	// as new children of the target item.
 	//
-	// If target is at depth >= 1 (targetPath.length >= 2), the depth-1 container exists
+	// If target is at depth >= 1 (targetPath.length >= 4), the depth-1 container exists
 	// and we promote current's nested-list items to be siblings of the target's ancestor
 	// at depth 1.
 
@@ -563,7 +547,7 @@ export function mergeListItemIntoPrevious(
 		if (child.kind === 'list' && child.children) {
 			// child is a nested list whose items are at depth 1 (relative to currentItem's depth 0)
 			// Find the container at depth 1 along target's ancestry.
-			if (targetPath.length >= 2) {
+			if (targetPath.length >= 4) {
 				// Target is at depth >= 1. The depth-1 container is the last nested list
 				// inside list.children[targetPath[0]].
 				const depthOneParent = list.children[targetPath[0]];
@@ -596,26 +580,10 @@ export function mergeListItemIntoPrevious(
 	list.children.splice(currentIndex, 1);
 
 	// 4. Rebuild raw for all affected container nodes along the target's ancestry.
-	// targetPath uses M1's compressed convention (one index per listItem level,
-	// with implicit descent through each listItem's last-child nested list).
-	// rebuildAncestryRaw expects a uniform path where every child-array index is
-	// explicit. Expand the compressed path by interleaving the actual nested-list
-	// child indices, then append a 0 (the paragraph leaf inside the target
-	// listItem) so rebuildAncestryRaw's loop rebuilds the target listItem itself.
-	const uniformPath: number[] = [];
-	let cur: CstNode = list;
-	for (let i = 0; i < targetPath.length; i++) {
-		uniformPath.push(targetPath[i]); // index of listItem within current list
-		cur = cur.children![targetPath[i]]; // advance to listItem
-		if (i < targetPath.length - 1) {
-			// Interleave the nested-list child index (always the last child of the listItem)
-			const nestedListIdx = cur.children!.length - 1;
-			uniformPath.push(nestedListIdx);
-			cur = cur.children![nestedListIdx]; // advance to nested list
-		}
-	}
-	uniformPath.push(0); // paragraph is always index 0 inside the target listItem (the leaf)
-	rebuildAncestryRaw(list, uniformPath);
+	// targetPath is already a uniform path (every child-array index explicit), ending
+	// at the paragraph leaf. rebuildAncestryRaw expects exactly that shape, so no
+	// expansion is needed — just call it directly.
+	rebuildAncestryRaw(list, targetPath);
 
 	// 5. Renumber ordered markers at the top level
 	if ((list.metadata as { ordered?: boolean } | undefined)?.ordered) {
@@ -623,7 +591,11 @@ export function mergeListItemIntoPrevious(
 		rebuildListRaw(list);
 	}
 
-	return { mergePoint: { targetPath, offset: mergeOffset } };
+	// Return the merge point. Strip the trailing paragraph index (always 0) from
+	// targetPath before returning, so the returned targetPath ends at the target
+	// listItem. ListBlock.svelte appends a 0 itself when cascading focus via
+	// focusByPath, so stripping it here keeps the caller's convention intact.
+	return { mergePoint: { targetPath: targetPath.slice(0, -1), offset: mergeOffset } };
 }
 
 /**
