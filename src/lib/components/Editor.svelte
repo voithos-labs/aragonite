@@ -2,9 +2,17 @@
 	import { setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		CURSOR_END,
 		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
+		type ContainerEditActions,
 		type FocusPosition,
 		type BlockComponent,
 		type CstNode,
@@ -159,9 +167,9 @@
 		};
 	}
 
-	// ── EditorActions ───────────────────────────────────────────────────
+	// ── Action Bundles ──────────────────────────────────────────────────
 
-	const actions: EditorActions = {
+	const blockEditActions: BlockEditActions = {
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
 			stickyColumn.reset();
 			if (undoDebounceTimer) {
@@ -186,162 +194,6 @@
 			blockRefs = refsCopy;
 			await tick();
 			blockRefs[blockIndex + 1]?.focus(0);
-		},
-
-		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
-			stickyColumn.reset();
-			if (blocks.length === 0) return;
-
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, offset);
-			needsUndoCheckpoint = true;
-
-			const currentNode = doc.children[blockIndex];
-			const rawText = currentNode.raw;
-			const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
-
-			// Split the current block's raw at offset into before/after
-			const rawBefore = rawText.slice(0, offset);
-			const rawAfter = trimTrailingLineEnding(rawText.slice(offset));
-
-			const newNodes: CstNode[] = [];
-
-			// If there's text before the cursor, it becomes the first block
-			if (rawBefore.length > 0) {
-				const beforeRaw = rawBefore + lineEnding;
-				const beforeDoc = parse(beforeRaw);
-				const beforeNode =
-					beforeDoc.children.length > 0
-						? beforeDoc.children[0]
-						: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
-				beforeNode.leadingTrivia = currentNode.leadingTrivia;
-				ensureEditableContainers(beforeNode);
-				newNodes.push(beforeNode);
-			}
-
-			// Add all pasted blocks except the last
-			for (let i = 0; i < blocks.length - 1; i++) {
-				const node = { ...blocks[i] };
-				if (newNodes.length === 0) {
-					node.leadingTrivia = currentNode.leadingTrivia;
-				}
-				ensureEditableContainers(node);
-				newNodes.push(node);
-			}
-
-			// Last pasted block gets rawAfter appended
-			const lastPasted = blocks[blocks.length - 1];
-			const mergedLastRaw = trimTrailingLineEnding(lastPasted.raw) + rawAfter + lineEnding;
-			const lastDoc = parse(mergedLastRaw);
-			const lastNode =
-				lastDoc.children.length > 0
-					? lastDoc.children[0]
-					: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
-			if (newNodes.length === 0) {
-				lastNode.leadingTrivia = currentNode.leadingTrivia;
-			} else {
-				lastNode.leadingTrivia = '';
-			}
-			ensureEditableContainers(lastNode);
-			newNodes.push(lastNode);
-
-			// Parse inline content for all new nodes
-			parseAllInlineContent(newNodes);
-
-			// Work on plain copies to prevent proxy splice cascades
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-
-			// Replace the original block with new nodes
-			childrenCopy.splice(blockIndex, 1, ...newNodes);
-
-			// Update blockIds: keep original ID for first, generate new for the rest
-			const newIds = newNodes.slice(1).map(() => generateBlockId());
-			idsCopy.splice(blockIndex + 1, 0, ...newIds);
-
-			// Sync refs: replace one slot with N undefined slots
-			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
-				undefined
-			);
-			newRefSlots[0] = refsCopy[blockIndex]; // keep existing ref for first node
-			refsCopy.splice(blockIndex, 1, ...newRefSlots);
-
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-
-			await tick();
-
-			// Focus at end of last inserted node
-			const lastIndex = blockIndex + newNodes.length - 1;
-			blockRefs[lastIndex]?.focus(CURSOR_END);
-		},
-
-		async replaceBlock(
-			blockIndex: number,
-			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number }
-		): Promise<void> {
-			stickyColumn.reset();
-			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
-
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, focus?.offset ?? 0);
-			needsUndoCheckpoint = true;
-
-			// Work on plain copies to prevent $state proxy splice cascades.
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-
-			if (replacement.length === 0) {
-				// Degenerate case: delete the block.
-				childrenCopy.splice(blockIndex, 1);
-				idsCopy.splice(blockIndex, 1);
-				refsCopy.splice(blockIndex, 1);
-			} else {
-				// Preserve leading trivia of the original block on the first replacement.
-				const originalTrivia = doc.children[blockIndex].leadingTrivia;
-				const normalizedReplacement = replacement.map((node, i) => {
-					const copy = { ...node };
-					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-					ensureEditableContainers(copy);
-					return copy;
-				});
-
-				// Parse inline content for any prose-kind replacement blocks.
-				parseAllInlineContent(normalizedReplacement);
-
-				childrenCopy.splice(blockIndex, 1, ...normalizedReplacement);
-
-				// IDs: fresh for each replacement block.
-				const newIds = normalizedReplacement.map(() => generateBlockId());
-				idsCopy.splice(blockIndex, 1, ...newIds);
-
-				// Refs: new undefined slots for each replacement block.
-				const newRefSlots: (BlockComponent | undefined)[] = new Array(
-					normalizedReplacement.length
-				).fill(undefined);
-				refsCopy.splice(blockIndex, 1, ...newRefSlots);
-			}
-
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-
-			await tick();
-
-			if (focus && replacement.length > 0) {
-				const targetIndex = blockIndex + focus.replacementIndex;
-				blockRefs[targetIndex]?.focus(focus.offset);
-			}
 		},
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
@@ -521,6 +373,179 @@
 			}
 		},
 
+		updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
+			stickyColumn.reset();
+			pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
+			const result = performUpdate(doc, blockIndex, text);
+			if (result.kindChanged) {
+				doc.children = [...doc.children];
+				// Re-focus after Svelte swaps the component type.
+				// Use preEditOffset (the cursor position before the edit) to restore
+				// the cursor approximately where it was.
+				tick().then(() => {
+					blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
+				});
+			}
+		},
+
+		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+			stickyColumn.reset();
+			if (blocks.length === 0) return;
+
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, offset);
+			needsUndoCheckpoint = true;
+
+			const currentNode = doc.children[blockIndex];
+			const rawText = currentNode.raw;
+			const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
+
+			// Split the current block's raw at offset into before/after
+			const rawBefore = rawText.slice(0, offset);
+			const rawAfter = trimTrailingLineEnding(rawText.slice(offset));
+
+			const newNodes: CstNode[] = [];
+
+			// If there's text before the cursor, it becomes the first block
+			if (rawBefore.length > 0) {
+				const beforeRaw = rawBefore + lineEnding;
+				const beforeDoc = parse(beforeRaw);
+				const beforeNode =
+					beforeDoc.children.length > 0
+						? beforeDoc.children[0]
+						: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
+				beforeNode.leadingTrivia = currentNode.leadingTrivia;
+				ensureEditableContainers(beforeNode);
+				newNodes.push(beforeNode);
+			}
+
+			// Add all pasted blocks except the last
+			for (let i = 0; i < blocks.length - 1; i++) {
+				const node = { ...blocks[i] };
+				if (newNodes.length === 0) {
+					node.leadingTrivia = currentNode.leadingTrivia;
+				}
+				ensureEditableContainers(node);
+				newNodes.push(node);
+			}
+
+			// Last pasted block gets rawAfter appended
+			const lastPasted = blocks[blocks.length - 1];
+			const mergedLastRaw = trimTrailingLineEnding(lastPasted.raw) + rawAfter + lineEnding;
+			const lastDoc = parse(mergedLastRaw);
+			const lastNode =
+				lastDoc.children.length > 0
+					? lastDoc.children[0]
+					: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
+			if (newNodes.length === 0) {
+				lastNode.leadingTrivia = currentNode.leadingTrivia;
+			} else {
+				lastNode.leadingTrivia = '';
+			}
+			ensureEditableContainers(lastNode);
+			newNodes.push(lastNode);
+
+			// Parse inline content for all new nodes
+			parseAllInlineContent(newNodes);
+
+			// Work on plain copies to prevent proxy splice cascades
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+
+			// Replace the original block with new nodes
+			childrenCopy.splice(blockIndex, 1, ...newNodes);
+
+			// Update blockIds: keep original ID for first, generate new for the rest
+			const newIds = newNodes.slice(1).map(() => generateBlockId());
+			idsCopy.splice(blockIndex + 1, 0, ...newIds);
+
+			// Sync refs: replace one slot with N undefined slots
+			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
+				undefined
+			);
+			newRefSlots[0] = refsCopy[blockIndex]; // keep existing ref for first node
+			refsCopy.splice(blockIndex, 1, ...newRefSlots);
+
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
+
+			await tick();
+
+			// Focus at end of last inserted node
+			const lastIndex = blockIndex + newNodes.length - 1;
+			blockRefs[lastIndex]?.focus(CURSOR_END);
+		},
+
+		async replaceBlock(
+			blockIndex: number,
+			replacement: CstNode[],
+			focus?: { replacementIndex: number; offset: number }
+		): Promise<void> {
+			stickyColumn.reset();
+			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
+
+			if (undoDebounceTimer) {
+				clearTimeout(undoDebounceTimer);
+				undoDebounceTimer = null;
+			}
+			pushUndoSnapshot(blockIndex, focus?.offset ?? 0);
+			needsUndoCheckpoint = true;
+
+			// Work on plain copies to prevent $state proxy splice cascades.
+			const childrenCopy = [...doc.children];
+			const idsCopy = [...blockIds];
+			const refsCopy = [...blockRefs];
+
+			if (replacement.length === 0) {
+				// Degenerate case: delete the block.
+				childrenCopy.splice(blockIndex, 1);
+				idsCopy.splice(blockIndex, 1);
+				refsCopy.splice(blockIndex, 1);
+			} else {
+				// Preserve leading trivia of the original block on the first replacement.
+				const originalTrivia = doc.children[blockIndex].leadingTrivia;
+				const normalizedReplacement = replacement.map((node, i) => {
+					const copy = { ...node };
+					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+					ensureEditableContainers(copy);
+					return copy;
+				});
+
+				// Parse inline content for any prose-kind replacement blocks.
+				parseAllInlineContent(normalizedReplacement);
+
+				childrenCopy.splice(blockIndex, 1, ...normalizedReplacement);
+
+				// IDs: fresh for each replacement block.
+				const newIds = normalizedReplacement.map(() => generateBlockId());
+				idsCopy.splice(blockIndex, 1, ...newIds);
+
+				// Refs: new undefined slots for each replacement block.
+				const newRefSlots: (BlockComponent | undefined)[] = new Array(
+					normalizedReplacement.length
+				).fill(undefined);
+				refsCopy.splice(blockIndex, 1, ...newRefSlots);
+			}
+
+			doc.children = childrenCopy;
+			blockIds = idsCopy;
+			blockRefs = refsCopy;
+
+			await tick();
+
+			if (focus && replacement.length > 0) {
+				const targetIndex = blockIndex + focus.replacementIndex;
+				blockRefs[targetIndex]?.focus(focus.offset);
+			}
+		}
+	};
+
+	const focusActions: FocusActions = {
 		async moveFocus(blockIndex: number, position: FocusPosition): Promise<void> {
 			if (blockIndex < 0) return;
 			if (blockIndex >= doc.children.length) {
@@ -557,23 +582,10 @@
 				// 'end' — use a large number, focus() should clamp to content length
 				block.focus(CURSOR_END);
 			}
-		},
+		}
+	};
 
-		updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
-			stickyColumn.reset();
-			pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
-			const result = performUpdate(doc, blockIndex, text);
-			if (result.kindChanged) {
-				doc.children = [...doc.children];
-				// Re-focus after Svelte swaps the component type.
-				// Use preEditOffset (the cursor position before the edit) to restore
-				// the cursor approximately where it was.
-				tick().then(() => {
-					blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
-				});
-			}
-		},
-
+	const historyActions: HistoryActions = {
 		async requestUndo(): Promise<void> {
 			stickyColumn.reset();
 			if (undoDebounceTimer) {
@@ -600,8 +612,10 @@
 			blockIds = entry.blockIds;
 			await tick();
 			blockRefs[entry.focusBlockIndex]?.focus(entry.focusOffset);
-		},
+		}
+	};
 
+	const containerEditActions: ContainerEditActions = {
 		beginContainerEdit(blockIndex: number, offset: number): void {
 			stickyColumn.reset();
 			if (undoDebounceTimer) {
@@ -622,7 +636,20 @@
 		}
 	};
 
-	setContext(EDITOR_ACTIONS_KEY, actions);
+	// Transitional aggregate — consumed via EDITOR_ACTIONS_KEY until every
+	// component is migrated to the sub-interface keys (cluster A, Task 10).
+	const actions: EditorActions = {
+		...blockEditActions,
+		...focusActions,
+		...historyActions,
+		...containerEditActions
+	};
+
+	setContext(BLOCK_EDIT_KEY, blockEditActions);
+	setContext(FOCUS_KEY, focusActions);
+	setContext(HISTORY_KEY, historyActions);
+	setContext(CONTAINER_EDIT_KEY, containerEditActions);
+	setContext(EDITOR_ACTIONS_KEY, actions); // transitional — removed in Task 10
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 
 	// ── Public API ──────────────────────────────────────────────────────
