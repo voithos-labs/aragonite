@@ -43,3 +43,28 @@ export function createStickyColumnState(): StickyColumnState {
 		}
 	};
 }
+
+/**
+ * Keys that should NEITHER capture NOR reset sticky column on keydown.
+ * Vertical arrows capture via a dedicated branch in the block's onKeyDown;
+ * the keys in this list are the additional "do nothing to sticky" set:
+ * PageUp/PageDown don't actually move the caret in contenteditable (and
+ * shouldn't reset), and pure modifier keys on their own are noise.
+ *
+ * Every key NOT in this list AND not a vertical arrow resets sticky X —
+ * including ArrowLeft, ArrowRight, Home, End, Escape, and every typable
+ * character. That "reset by default, preserve explicitly" policy is how
+ * horizontal arrows, Home/End, and Escape clear sticky without each one
+ * needing its own dedicated handler.
+ *
+ * Exported so TextEditableBlock and CodeBlock share one source of truth —
+ * preventing drift if the list is updated in one file but not the other.
+ */
+export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
+	'PageUp',
+	'PageDown',
+	'Shift',
+	'Control',
+	'Alt',
+	'Meta'
+];
