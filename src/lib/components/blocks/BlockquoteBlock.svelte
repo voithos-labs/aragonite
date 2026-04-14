@@ -113,7 +113,11 @@
 	 * refs array aligned with the shifted components.
 	 */
 	function commitChildrenEdit(
-		mutate: (childrenCopy: CstNode[], idsCopy: string[], refsCopy: (BlockComponent | undefined)[]) => void
+		mutate: (
+			childrenCopy: CstNode[],
+			idsCopy: string[],
+			refsCopy: (BlockComponent | undefined)[]
+		) => void
 	): void {
 		const childrenCopy = [...(node.children ?? [])];
 		const idsCopy = [...innerBlockIds];
@@ -172,11 +176,7 @@
 				// Rule U2 — unwrap first child out of the blockquote.
 				const replacement = unwrapFirstChildFromBlockquote(node);
 				if (replacement.length === 0) return;
-				await parentActions.replaceBlock(
-					index,
-					replacement,
-					{ replacementIndex: 0, offset: 0 }
-				);
+				await parentActions.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
 				return;
 			}
 
@@ -325,7 +325,9 @@
 					});
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-					const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+					const newRefSlots: (BlockComponent | undefined)[] = new Array(
+						normalizedReplacement.length
+					).fill(undefined);
 					refs.splice(innerIndex, 1, ...newRefSlots);
 				}
 			});
