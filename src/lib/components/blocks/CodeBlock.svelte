@@ -8,7 +8,7 @@
 		type BlockComponent
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
-	import { trimTrailingLineEnding } from '../../core/text-utils';
+	import { trimTrailingLineEnding } from '../../raw-text';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
