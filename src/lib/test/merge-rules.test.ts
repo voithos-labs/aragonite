@@ -11,7 +11,9 @@ describe('isMergeEligible', () => {
 		['paragraph', 'paragraph'],
 		['heading', 'paragraph'],
 		['setextHeading', 'paragraph'],
-		['unrecognized', 'unrecognized']
+		['unrecognized', 'unrecognized'],
+		['blockquote', 'paragraph'],
+		['list', 'paragraph']
 	];
 
 	for (const [a, b] of eligible) {
@@ -26,9 +28,7 @@ describe('isMergeEligible', () => {
 		['fencedCode', 'paragraph'],
 		['paragraph', 'fencedCode'],
 		['thematicBreak', 'paragraph'],
-		['table', 'paragraph'],
-		['blockquote', 'paragraph'],
-		['list', 'paragraph']
+		['table', 'paragraph']
 	];
 
 	for (const [a, b] of ineligible) {
@@ -149,11 +149,8 @@ describe('isMergeEligible — role-pair coverage', () => {
 		expect(isMergeEligible(PROSE_ABSORBER, PROSE)).toBe(true);
 	});
 
-	// NOTE: container + prose eligibility is deferred to Task 8 per the plan.
-	// Task 1 intentionally leaves it disabled, so this test asserts false here
-	// and will be flipped to true in Task 8 alongside the Editor rewrite.
-	it('container + prose → NOT eligible yet (deferred to Task 8)', () => {
-		expect(isMergeEligible(CONTAINER, PROSE)).toBe(false);
+	it('container + prose → eligible (cross-container merge)', () => {
+		expect(isMergeEligible(CONTAINER, PROSE)).toBe(true);
 	});
 
 	it('self-merge + self-merge → eligible', () => {
