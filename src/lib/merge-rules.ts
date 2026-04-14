@@ -124,11 +124,15 @@ function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | nu
  * - self-merge prev → returns prev itself, empty path
  * - opaque prev → returns null (caller falls back to move-focus)
  *
- * `currKind` is currently unused by this function, but kept in the signature
- * so the caller's intent is explicit and future eligibility rules can branch
- * on the merging block's kind.
+ * NOTE: for `self-merge` prev (currently only `unrecognized` blocks), the
+ * caller receives `{ target: prev, path: [] }` and must handle the self-merge
+ * splice itself — the existing `isMergeEligible('unrecognized','unrecognized')`
+ * rule only fires when both prev and curr are unrecognized, and the correct
+ * behavior is raw-text concatenation without inline content re-parsing.
+ * This helper returns a target shape for symmetry but does not prescribe
+ * how the caller should use it.
  */
-export function findMergeTarget(prev: CstNode, _currKind: BlockKind): MergeTarget | null {
+export function findMergeTarget(prev: CstNode): MergeTarget | null {
 	const role = MERGE_ROLE[prev.kind];
 	if (role === 'prose' || role === 'prose-absorber' || role === 'self-merge') {
 		return { target: prev, path: [] };
