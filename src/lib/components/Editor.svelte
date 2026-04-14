@@ -2,13 +2,16 @@
 	import { setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		STICKY_COLUMN_KEY,
 		CURSOR_END,
 		type EditorActions,
+		type FocusPosition,
 		type BlockComponent,
 		type CstNode,
 		type Document,
 		type UndoEntry
 	} from '../editor-types';
+	import { createStickyColumnState } from '../sticky-column';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import { displayLength, trimTrailingLineEnding } from '../core/text-utils';
 	import {
@@ -59,6 +62,7 @@
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
 	const undoManager = createUndoManager();
+	const stickyColumn = createStickyColumnState();
 
 	// Re-initialize when source prop changes (e.g., async document load)
 	let lastSource = source;
@@ -479,7 +483,7 @@
 			}
 		},
 
-		async moveFocus(blockIndex: number, position: 'start' | 'end' | number): Promise<void> {
+		async moveFocus(blockIndex: number, position: FocusPosition): Promise<void> {
 			if (blockIndex < 0) return;
 			if (blockIndex >= doc.children.length) {
 				// Past the last block — create a new empty paragraph
@@ -493,6 +497,19 @@
 			}
 			const block = blockRefs[blockIndex];
 			if (!block?.focusable) return;
+
+			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+				// Sticky-column variant: dispatch to focusAtColumn? if available,
+				// else fall back to focus(0) / focus(CURSOR_END) based on direction.
+				const x = stickyColumn.get();
+				const from = position.stickyColumnFrom;
+				if (x !== null && block.focusAtColumn) {
+					block.focusAtColumn(x, from);
+					return;
+				}
+				block.focus(from === 'above' ? 0 : CURSOR_END);
+				return;
+			}
 
 			if (typeof position === 'number') {
 				block.focus(position);
@@ -563,6 +580,7 @@
 	};
 
 	setContext(EDITOR_ACTIONS_KEY, actions);
+	setContext(STICKY_COLUMN_KEY, stickyColumn);
 
 	// ── Public API ──────────────────────────────────────────────────────
 
