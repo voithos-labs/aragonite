@@ -204,13 +204,13 @@ The preserve-absolute-indent worked examples for Rule M1 live in `src/lib/editor
 
 ### Focus Traversal
 
-Arrow key navigation at block boundaries:
+Arrow key navigation at block boundaries uses geometry-based visual-line detection (cursor rect compared against the first/last line's rect inside the block):
 
-- **ArrowUp** at the top visual line of a block, or **ArrowLeft** at offset 0: trigger `moveFocus` to the previous block with `position: 'end'`
-- **ArrowDown** at the bottom visual line of a block, or **ArrowRight** at the end of content: trigger `moveFocus` to the next block with `position: 'start'`
-- **Current implementation:** ArrowUp triggers at offset 0; ArrowDown triggers when offset equals text length. This is offset-based, not geometry-based. A future phase may add visual-line geometry detection (bounding rect comparison) for more accurate behavior in multi-line blocks.
-- `moveFocus` skips non-focusable blocks. For non-editable but focusable blocks (thematic breaks), `position` is ignored — the block receives a whole-block focus highlight.
-- `focus(offset)` on non-editable blocks ignores the offset parameter. The block highlights itself as focused. Enter on a focused non-editable block creates a new paragraph below it. Backspace deletes it.
+- **ArrowUp** at the top visual line, or **ArrowLeft** at offset 0: move focus into the previous block.
+- **ArrowDown** at the bottom visual line, or **ArrowRight** at end of content: move focus into the next block.
+- Vertical arrows additionally carry sticky column state — see the Sticky column subsection below.
+- `moveFocus` skips non-focusable blocks. Thematic breaks receive a whole-block focus highlight.
+- `focus(offset)` on non-editable blocks ignores the offset. Enter creates a new paragraph below; Backspace deletes the block.
 
 #### Sticky column
 
