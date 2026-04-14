@@ -151,6 +151,45 @@
 		}, 500);
 	}
 
+	/**
+	 * Wrap a structural mutation with the full ceremony: clear pending undo
+	 * debounce timer, push a snapshot, reset the checkpoint flag, apply the
+	 * mutation on plain array copies, publish in one atomic write, tick,
+	 * and invoke the optional post-tick callback (typically a focus call).
+	 *
+	 * Every structural action method begins with this sequence; extracting
+	 * it here removes ~8 lines of duplication from each action.
+	 */
+	async function commitStructural(
+		snapshotBlockIndex: number,
+		snapshotOffset: number,
+		mutate: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void,
+		afterTick?: () => void
+	): Promise<void> {
+		stickyColumn.reset();
+		if (undoDebounceTimer) {
+			clearTimeout(undoDebounceTimer);
+			undoDebounceTimer = null;
+		}
+		pushUndoSnapshot(snapshotBlockIndex, snapshotOffset);
+		needsUndoCheckpoint = true;
+
+		const childrenCopy = [...doc.children];
+		const idsCopy = [...blockIds];
+		const refsCopy = [...blockRefs];
+		mutate(childrenCopy, idsCopy, refsCopy);
+		doc.children = childrenCopy;
+		blockIds = idsCopy;
+		blockRefs = refsCopy;
+
+		await tick();
+		afterTick?.();
+	}
+
 	function captureCurrentState(): UndoEntry {
 		const focusedIndex = Math.max(
 			0,
@@ -169,29 +208,21 @@
 
 	const blockEditActions: BlockEditActions = {
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
-			stickyColumn.reset();
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, offset);
-			needsUndoCheckpoint = true;
-			// Work on plain array copies to prevent $state proxy splice mutations
-			// from triggering intermediate reactive updates that corrupt the keyed
-			// {#each} component-to-index mapping.
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			performSplit({ children: childrenCopy }, idsCopy, blockIndex, offset);
-			// Sync blockRefs: insert undefined slot for the new block.
-			// bind:ref in keyed {#each} only fires on mount, not when components
-			// shift positions, so we must manually keep refs aligned.
-			const refsCopy = [...blockRefs];
-			refsCopy.splice(blockIndex + 1, 0, undefined);
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-			await tick();
-			blockRefs[blockIndex + 1]?.focus(0);
+			await commitStructural(
+				blockIndex,
+				offset,
+				(children, ids, refs) => {
+					// Work on plain array copies to prevent $state proxy splice mutations
+					// from triggering intermediate reactive updates that corrupt the keyed
+					// {#each} component-to-index mapping.
+					performSplit({ children }, ids, blockIndex, offset);
+					// Sync blockRefs: insert undefined slot for the new block.
+					// bind:ref in keyed {#each} only fires on mount, not when components
+					// shift positions, so we must manually keep refs aligned.
+					refs.splice(blockIndex + 1, 0, undefined);
+				},
+				() => blockRefs[blockIndex + 1]?.focus(0)
+			);
 		},
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
@@ -206,22 +237,15 @@
 			if (!isMergeEligible(prevKind, currKind)) {
 				if (!isBlockEditable(prevKind)) {
 					// Previous block is non-editable — delete it
-					if (undoDebounceTimer) {
-						clearTimeout(undoDebounceTimer);
-						undoDebounceTimer = null;
-					}
-					pushUndoSnapshot(blockIndex, 0);
-					needsUndoCheckpoint = true;
-					const childrenCopy = [...doc.children];
-					const idsCopy = [...blockIds];
-					const refsCopy = [...blockRefs];
-					performDelete({ children: childrenCopy }, idsCopy, blockIndex - 1);
-					refsCopy.splice(blockIndex - 1, 1);
-					doc.children = childrenCopy;
-					blockIds = idsCopy;
-					blockRefs = refsCopy;
-					await tick();
-					blockRefs[blockIndex - 1]?.focus(0);
+					await commitStructural(
+						blockIndex,
+						0,
+						(children, ids, refs) => {
+							performDelete({ children }, ids, blockIndex - 1);
+							refs.splice(blockIndex - 1, 1);
+						},
+						() => blockRefs[blockIndex - 1]?.focus(0)
+					);
 				} else {
 					// Previous block is editable but not mergeable — move focus
 					blockRefs[blockIndex - 1]?.focus(CURSOR_END);
@@ -240,14 +264,8 @@
 				return;
 			}
 
-			// Mutate the target's raw and track the join offset for cursor placement.
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, 0);
-			needsUndoCheckpoint = true;
-
+			// Pre-compute join values before mutating (snapshot in commitStructural
+			// must capture the pre-mutation state, so all mutation goes inside mutate).
 			const target = mergeTarget.target;
 			const targetRaw = target.raw ?? '';
 			const currRaw = curr.raw ?? '';
@@ -256,41 +274,46 @@
 			const targetText = trimTrailingLineEnding(targetRaw);
 			const currText = trimTrailingLineEnding(currRaw);
 			const joinOffset = targetText.length;
-			target.raw = targetText + currText + lineEnding;
-
-			// Refresh the target's inline content cache. The per-input reactive
-			// pipeline doesn't fire here because the user was typing in curr, not
-			// in target — we must re-parse explicitly.
-			if (isProseKind(target.kind)) {
-				const range = getContentRange(target);
-				target.inlineContent = parseInline(target.raw, range.start, range.end);
-			}
+			const mergedRaw = targetText + currText + lineEnding;
 
 			// Delete curr from top-level children / ids / refs.
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-			performDelete({ children: childrenCopy }, idsCopy, blockIndex);
-			refsCopy.splice(blockIndex, 1);
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
+			// All mutations (target.raw, inline reparse, ancestry rebuild, array splice)
+			// happen inside mutate so commitStructural snapshots the pre-mutation state.
+			await commitStructural(
+				blockIndex,
+				0,
+				(children, ids, refs) => {
+					// Mutate the target's raw. target is a reference into the same object
+					// tree that childrenCopy shares (shallow copy), so this is safe.
+					target.raw = mergedRaw;
 
-			// Rebuild ancestry raw for container-target merges. For top-level prose
-			// merges (empty path) there's no ancestry to rebuild — the target IS prev.
-			if (mergeTarget.path.length > 0) {
-				rebuildAncestryRaw(prev, mergeTarget.path);
-			}
+					// Refresh the target's inline content cache. The per-input reactive
+					// pipeline doesn't fire here because the user was typing in curr, not
+					// in target — we must re-parse explicitly.
+					if (isProseKind(target.kind)) {
+						const range = getContentRange(target);
+						target.inlineContent = parseInline(target.raw, range.start, range.end);
+					}
 
-			await tick();
+					// Rebuild ancestry raw for container-target merges. For top-level prose
+					// merges (empty path) there's no ancestry to rebuild — the target IS prev.
+					if (mergeTarget.path.length > 0) {
+						rebuildAncestryRaw(prev, mergeTarget.path);
+					}
 
-			// Focus cascade: for flat (prev === target) merges, focus prev directly.
-			// For nested-target merges, use focusByPath to cascade down.
-			if (mergeTarget.path.length === 0) {
-				blockRefs[blockIndex - 1]?.focus(joinOffset);
-			} else {
-				blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
-			}
+					performDelete({ children }, ids, blockIndex);
+					refs.splice(blockIndex, 1);
+				},
+				() => {
+					// Focus cascade: for flat (prev === target) merges, focus prev directly.
+					// For nested-target merges, use focusByPath to cascade down.
+					if (mergeTarget.path.length === 0) {
+						blockRefs[blockIndex - 1]?.focus(joinOffset);
+					} else {
+						blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
+					}
+				}
+			);
 		},
 
 		async mergeWithNext(blockIndex: number): Promise<void> {
@@ -303,22 +326,15 @@
 			if (!isMergeEligible(currKind, nextKind)) {
 				if (!isBlockEditable(nextKind)) {
 					// Next block is non-editable — delete it
-					if (undoDebounceTimer) {
-						clearTimeout(undoDebounceTimer);
-						undoDebounceTimer = null;
-					}
-					pushUndoSnapshot(blockIndex, CURSOR_END);
-					needsUndoCheckpoint = true;
-					const childrenCopy = [...doc.children];
-					const idsCopy = [...blockIds];
-					const refsCopy = [...blockRefs];
-					performDelete({ children: childrenCopy }, idsCopy, blockIndex + 1);
-					refsCopy.splice(blockIndex + 1, 1);
-					doc.children = childrenCopy;
-					blockIds = idsCopy;
-					blockRefs = refsCopy;
-					await tick();
-					blockRefs[blockIndex]?.focus(CURSOR_END);
+					await commitStructural(
+						blockIndex,
+						CURSOR_END,
+						(children, ids, refs) => {
+							performDelete({ children }, ids, blockIndex + 1);
+							refs.splice(blockIndex + 1, 1);
+						},
+						() => blockRefs[blockIndex]?.focus(CURSOR_END)
+					);
 				} else {
 					// Next block is editable but not mergeable — move focus
 					blockRefs[blockIndex + 1]?.focus(0);
@@ -329,46 +345,33 @@
 			// Mergeable — proceed with merge
 			const mergeOffset = displayLength(doc.children[blockIndex].raw);
 
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, CURSOR_END);
-			needsUndoCheckpoint = true;
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-			performMergeNext({ children: childrenCopy }, idsCopy, blockIndex);
-			refsCopy.splice(blockIndex + 1, 1); // Remove next block's ref
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-			await tick();
-			blockRefs[blockIndex]?.focus(mergeOffset);
+			await commitStructural(
+				blockIndex,
+				CURSOR_END,
+				(children, ids, refs) => {
+					performMergeNext({ children }, ids, blockIndex);
+					refs.splice(blockIndex + 1, 1); // Remove next block's ref
+				},
+				() => blockRefs[blockIndex]?.focus(mergeOffset)
+			);
 		},
 
 		async deleteBlock(blockIndex: number): Promise<void> {
-			stickyColumn.reset();
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, 0);
-			needsUndoCheckpoint = true;
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-			performDelete({ children: childrenCopy }, idsCopy, blockIndex);
-			refsCopy.splice(blockIndex, 1);
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-			await tick();
-			// Focus the block that took the deleted block's position, or the previous one
-			const focusIndex = Math.min(blockIndex, doc.children.length - 1);
-			if (focusIndex >= 0) {
-				blockRefs[focusIndex]?.focus(0);
-			}
+			await commitStructural(
+				blockIndex,
+				0,
+				(children, ids, refs) => {
+					performDelete({ children }, ids, blockIndex);
+					refs.splice(blockIndex, 1);
+				},
+				() => {
+					// Focus the block that took the deleted block's position, or the previous one
+					const focusIndex = Math.min(blockIndex, doc.children.length - 1);
+					if (focusIndex >= 0) {
+						blockRefs[focusIndex]?.focus(0);
+					}
+				}
+			);
 		},
 
 		updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
@@ -387,15 +390,7 @@
 		},
 
 		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
-			stickyColumn.reset();
 			if (blocks.length === 0) return;
-
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
-			}
-			pushUndoSnapshot(blockIndex, offset);
-			needsUndoCheckpoint = true;
 
 			const currentNode = doc.children[blockIndex];
 			const rawText = currentNode.raw;
@@ -449,34 +444,32 @@
 			// Parse inline content for all new nodes
 			parseAllInlineContent(newNodes);
 
-			// Work on plain copies to prevent proxy splice cascades
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
-
-			// Replace the original block with new nodes
-			childrenCopy.splice(blockIndex, 1, ...newNodes);
-
-			// Update blockIds: keep original ID for first, generate new for the rest
-			const newIds = newNodes.slice(1).map(() => generateBlockId());
-			idsCopy.splice(blockIndex + 1, 0, ...newIds);
-
-			// Sync refs: replace one slot with N undefined slots
-			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
-				undefined
-			);
-			newRefSlots[0] = refsCopy[blockIndex]; // keep existing ref for first node
-			refsCopy.splice(blockIndex, 1, ...newRefSlots);
-
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-
-			await tick();
-
-			// Focus at end of last inserted node
 			const lastIndex = blockIndex + newNodes.length - 1;
-			blockRefs[lastIndex]?.focus(CURSOR_END);
+
+			// Work on plain copies to prevent proxy splice cascades
+			await commitStructural(
+				blockIndex,
+				offset,
+				(children, ids, refs) => {
+					// Replace the original block with new nodes
+					children.splice(blockIndex, 1, ...newNodes);
+
+					// Update blockIds: keep original ID for first, generate new for the rest
+					const newIds = newNodes.slice(1).map(() => generateBlockId());
+					ids.splice(blockIndex + 1, 0, ...newIds);
+
+					// Sync refs: replace one slot with N undefined slots
+					const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
+						undefined
+					);
+					newRefSlots[0] = refs[blockIndex]; // keep existing ref for first node
+					refs.splice(blockIndex, 1, ...newRefSlots);
+				},
+				() => {
+					// Focus at end of last inserted node
+					blockRefs[lastIndex]?.focus(CURSOR_END);
+				}
+			);
 		},
 
 		async replaceBlock(
@@ -484,62 +477,59 @@
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number }
 		): Promise<void> {
-			stickyColumn.reset();
 			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
 
-			if (undoDebounceTimer) {
-				clearTimeout(undoDebounceTimer);
-				undoDebounceTimer = null;
+			// Preserve leading trivia of the original block on the first replacement.
+			const originalTrivia = doc.children[blockIndex].leadingTrivia;
+
+			// Normalize replacement nodes before entering commitStructural so the
+			// mutation callback only handles the array splice.
+			const normalizedReplacement =
+				replacement.length > 0
+					? replacement.map((node, i) => {
+							const copy = { ...node };
+							copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+							ensureEditableContainers(copy);
+							return copy;
+						})
+					: [];
+
+			// Parse inline content for any prose-kind replacement blocks.
+			if (normalizedReplacement.length > 0) {
+				parseAllInlineContent(normalizedReplacement);
 			}
-			pushUndoSnapshot(blockIndex, focus?.offset ?? 0);
-			needsUndoCheckpoint = true;
 
 			// Work on plain copies to prevent $state proxy splice cascades.
-			const childrenCopy = [...doc.children];
-			const idsCopy = [...blockIds];
-			const refsCopy = [...blockRefs];
+			await commitStructural(
+				blockIndex,
+				focus?.offset ?? 0,
+				(children, ids, refs) => {
+					if (normalizedReplacement.length === 0) {
+						// Degenerate case: delete the block.
+						children.splice(blockIndex, 1);
+						ids.splice(blockIndex, 1);
+						refs.splice(blockIndex, 1);
+					} else {
+						children.splice(blockIndex, 1, ...normalizedReplacement);
 
-			if (replacement.length === 0) {
-				// Degenerate case: delete the block.
-				childrenCopy.splice(blockIndex, 1);
-				idsCopy.splice(blockIndex, 1);
-				refsCopy.splice(blockIndex, 1);
-			} else {
-				// Preserve leading trivia of the original block on the first replacement.
-				const originalTrivia = doc.children[blockIndex].leadingTrivia;
-				const normalizedReplacement = replacement.map((node, i) => {
-					const copy = { ...node };
-					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-					ensureEditableContainers(copy);
-					return copy;
-				});
+						// IDs: fresh for each replacement block.
+						const newIds = normalizedReplacement.map(() => generateBlockId());
+						ids.splice(blockIndex, 1, ...newIds);
 
-				// Parse inline content for any prose-kind replacement blocks.
-				parseAllInlineContent(normalizedReplacement);
-
-				childrenCopy.splice(blockIndex, 1, ...normalizedReplacement);
-
-				// IDs: fresh for each replacement block.
-				const newIds = normalizedReplacement.map(() => generateBlockId());
-				idsCopy.splice(blockIndex, 1, ...newIds);
-
-				// Refs: new undefined slots for each replacement block.
-				const newRefSlots: (BlockComponent | undefined)[] = new Array(
-					normalizedReplacement.length
-				).fill(undefined);
-				refsCopy.splice(blockIndex, 1, ...newRefSlots);
-			}
-
-			doc.children = childrenCopy;
-			blockIds = idsCopy;
-			blockRefs = refsCopy;
-
-			await tick();
-
-			if (focus && replacement.length > 0) {
-				const targetIndex = blockIndex + focus.replacementIndex;
-				blockRefs[targetIndex]?.focus(focus.offset);
-			}
+						// Refs: new undefined slots for each replacement block.
+						const newRefSlots: (BlockComponent | undefined)[] = new Array(
+							normalizedReplacement.length
+						).fill(undefined);
+						refs.splice(blockIndex, 1, ...newRefSlots);
+					}
+				},
+				() => {
+					if (focus && normalizedReplacement.length > 0) {
+						const targetIndex = blockIndex + focus.replacementIndex;
+						blockRefs[targetIndex]?.focus(focus.offset);
+					}
+				}
+			);
 		}
 	};
 
