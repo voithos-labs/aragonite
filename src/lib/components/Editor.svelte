@@ -131,6 +131,7 @@
 
 	const actions: EditorActions = {
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
+			stickyColumn.reset();
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
 				undoDebounceTimer = null;
@@ -156,6 +157,7 @@
 		},
 
 		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+			stickyColumn.reset();
 			if (blocks.length === 0) return;
 
 			if (undoDebounceTimer) {
@@ -252,6 +254,7 @@
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number }
 		): Promise<void> {
+			stickyColumn.reset();
 			if (blockIndex < 0 || blockIndex >= doc.children.length) return;
 
 			if (undoDebounceTimer) {
@@ -310,6 +313,7 @@
 		},
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
+			stickyColumn.reset();
 			if (blockIndex <= 0) return;
 
 			const prev = doc.children[blockIndex - 1];
@@ -408,6 +412,7 @@
 		},
 
 		async mergeWithNext(blockIndex: number): Promise<void> {
+			stickyColumn.reset();
 			if (blockIndex >= doc.children.length - 1) return;
 
 			const currKind = doc.children[blockIndex].kind;
@@ -461,6 +466,7 @@
 		},
 
 		async deleteBlock(blockIndex: number): Promise<void> {
+			stickyColumn.reset();
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
 				undoDebounceTimer = null;
@@ -522,6 +528,7 @@
 		},
 
 		updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
+			stickyColumn.reset();
 			pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
 			const result = performUpdate(doc, blockIndex, text);
 			if (result.kindChanged) {
@@ -536,6 +543,7 @@
 		},
 
 		async requestUndo(): Promise<void> {
+			stickyColumn.reset();
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
 				undoDebounceTimer = null;
@@ -552,6 +560,7 @@
 		},
 
 		async requestRedo(): Promise<void> {
+			stickyColumn.reset();
 			const entry = undoManager.redo(captureCurrentState());
 			if (!entry) return;
 			doc = entry.snapshot;
@@ -562,6 +571,7 @@
 		},
 
 		beginContainerEdit(blockIndex: number, offset: number): void {
+			stickyColumn.reset();
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
 				undoDebounceTimer = null;
@@ -571,6 +581,7 @@
 		},
 
 		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+			stickyColumn.reset();
 			pushUndoSnapshotDebounced(blockIndex, offset);
 		},
 
