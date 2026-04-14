@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, setContext, tick } from 'svelte';
+	import { getContext } from 'svelte';
 	import {
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
@@ -9,24 +9,24 @@
 		type BlockEditActions,
 		type FocusActions,
 		type ContainerEditActions,
-		type FocusPosition,
 		type StickyColumnDirection,
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
 	import type { StickyColumnState } from '../../sticky-column';
-	import { assignIds, generateBlockId } from '../../mutable-tree';
-	import { displayLength } from '../../raw-text';
-	import {
-		splitNode as performSplit,
-		mergeWithPrevious as performMerge,
-		mergeWithNext as performMergeNext,
-		deleteNode as performDelete,
-		updateNodeContent as performUpdate,
-		unwrapFirstChildFromBlockquote
-	} from '../../tree-operations';
-	import { isMergeEligible, isBlockEditable } from '../../merge-rules';
 	import { rebuildBlockquoteRaw } from '../../container-raw';
+	import { unwrapFirstChildFromBlockquote, deleteNode as performDelete } from '../../tree-operations';
+	import { displayLength } from '../../raw-text';
+	import { tick } from 'svelte';
+	import { createBlockListState } from '../../container-state/block-list-state.svelte';
+	import {
+		createStandardNestedActions,
+		setNestedActionsContexts
+	} from '../../container-state/nested-actions';
+	import {
+		dispatchFocusByPath,
+		dispatchFocusAtColumn
+	} from '../../container-state/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
@@ -35,397 +35,126 @@
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
-	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
-	// Re-sync inner block IDs when children count changes externally (undo/redo).
-	// Internal structural ops set innerBlockIds directly via commitChildrenEdit,
-	// so this effect is a no-op for those paths.
-	$effect(() => {
-		const childCount = (node.children ?? []).length;
-		if (childCount !== innerBlockIds.length) {
-			innerBlockIds = assignIds(node.children ?? []);
+	const state = createBlockListState(node);
+
+	const bundle = createStandardNestedActions(state, {
+		// Pass index as a getter so factory closures always read the current
+		// reactive prop value (Svelte 5 $props() makes it reactive; a plain
+		// value capture at factory-call time would be stale after a parent
+		// splitBlock shifts this container's position in the document).
+		get index() {
+			return index;
+		},
+		node,
+		rebuildRaw: () => rebuildBlockquoteRaw(node),
+		stickyColumn,
+		parent: {
+			blockEdit: parentBlockEdit,
+			focus: parentFocus,
+			containerEdit: parentContainerEdit
 		}
 	});
 
-	// ── BlockComponent interface ─────────────────────────────────────────
+	// Override splitBlock for blockquote-specific Enter behavior: pressing Enter
+	// on the last child when it is an empty paragraph exits the blockquote instead
+	// of creating another empty inner paragraph. The factory's default splitBlock
+	// is correct for all other cases and is chained via factorySplitBlock.
+	const factorySplitBlock = bundle.blockEdit.splitBlock;
+	bundle.blockEdit.splitBlock = async (innerIndex: number, offset: number): Promise<void> => {
+		if (!node.children) return;
 
-	// Containers are editable (they hold text content via inner children).
-	// This matters for merge eligibility: Backspace from the block after a
-	// container should move focus into it, not delete it. isMergeEligible
-	// already blocks direct text merging with containers.
+		const child = node.children[innerIndex];
+		const isLastChild = innerIndex === node.children.length - 1;
+		const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
+		if (isLastChild && isEmpty) {
+			if (node.children.length <= 1) {
+				// Only child is empty — replace blockquote with a new paragraph
+				parentBlockEdit.splitBlock(index, displayLength(node.raw));
+			} else {
+				// Remove the empty trailing child, rebuild, then focus block after
+				parentContainerEdit?.beginContainerEdit(index, 0);
+				state.commitChildrenEdit((children, ids, refs) => {
+					performDelete({ children }, ids, innerIndex);
+					refs.splice(innerIndex, 1);
+				});
+				rebuildBlockquoteRaw(node);
+				parentContainerEdit?.endContainerEdit();
+				await tick();
+				parentFocus.moveFocus(index + 1, 'start');
+			}
+			return;
+		}
+
+		return factorySplitBlock(innerIndex, offset);
+	};
+
+	// Override mergeWithPrevious for Rule U2: at innerIndex === 0, unwrap the
+	// first child out of the blockquote. The default factory method delegates
+	// to parent.blockEdit.mergeWithPrevious at innerIndex === 0, which is the
+	// wrong behavior for blockquote — we want to lift the child out, not merge
+	// the whole blockquote with its previous sibling.
+	const factoryMergeWithPrevious = bundle.blockEdit.mergeWithPrevious;
+	bundle.blockEdit.mergeWithPrevious = async (innerIndex: number): Promise<void> => {
+		if (!node.children) return;
+		if (innerIndex <= 0) {
+			// Rule U2 — unwrap first child out of the blockquote.
+			const replacement = unwrapFirstChildFromBlockquote(node);
+			if (replacement.length === 0) return;
+			await parentBlockEdit.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
+			return;
+		}
+		return factoryMergeWithPrevious(innerIndex);
+	};
+
+	setNestedActionsContexts(bundle);
+
+	// ── BlockComponent interface ────────────────────────────────────────
+
 	export const editable = true;
 	export const focusable = true;
 
 	export function focus(offset: number): void {
 		if (!node.children || node.children.length === 0) return;
-		// Container focus only supports two modes: start (offset 0) → first
-		// child, or end (any non-zero offset) → last child. Numeric raw-text
-		// offsets cannot meaningfully map into nested children. If undo
-		// restores focus to a container, it routes to the nearest edge.
 		if (offset === 0) {
-			innerBlockRefs[0]?.focus(0);
+			state.innerBlockRefs[0]?.focus(0);
 		} else {
 			const last = node.children.length - 1;
-			innerBlockRefs[last]?.focus(CURSOR_END);
+			state.innerBlockRefs[last]?.focus(CURSOR_END);
 		}
 	}
 
 	export function getCursorOffset(): number | null {
-		for (const ref of innerBlockRefs) {
+		for (const ref of state.innerBlockRefs) {
 			const offset = ref?.getCursorOffset();
 			if (offset !== null && offset !== undefined) return offset;
 		}
 		return null;
 	}
-	/**
-	 * Cascade focus down a path of child indices inside this blockquote.
-	 * Mirrors ListItemBlock.focusByPath — peels off path[0], delegates to the
-	 * child at that index via focus(offset) if the path ends here, or
-	 * recursively via focusByPath?(rest, offset) if further descent is needed.
-	 * Called by Editor.mergeWithPrevious for cross-container merge focus
-	 * cascade when the merge target is inside a blockquote.
-	 */
+
 	export function focusByPath(path: number[], offset: number): void {
-		if (path.length === 0 || !node.children) return;
-		const [first, ...rest] = path;
-		const child = innerBlockRefs[first];
-		if (!child) return;
-		if (rest.length === 0) {
-			child.focus(offset);
-		} else {
-			child.focusByPath?.(rest, offset);
-		}
+		dispatchFocusByPath(state.innerBlockRefs, path, offset);
 	}
 
-	/**
-	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * inside this blockquote's first (from='above') or last (from='below')
-	 * inner child. Delegates to the child's focusAtColumn? if available,
-	 * else falls back to focus(0) / focus(CURSOR_END). Container itself
-	 * does no pixel math — it just picks the right child and forwards.
-	 */
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		if (!node.children || node.children.length === 0) return;
-		if (from === 'above') {
-			const first = innerBlockRefs[0];
-			if (first?.focusAtColumn) {
-				first.focusAtColumn(x, from);
-			} else {
-				first?.focus(0);
-			}
-		} else {
-			const last = node.children.length - 1;
-			const lastRef = innerBlockRefs[last];
-			if (lastRef?.focusAtColumn) {
-				lastRef.focusAtColumn(x, from);
-			} else {
-				lastRef?.focus(CURSOR_END);
-			}
-		}
+		dispatchFocusAtColumn(state.innerBlockRefs, x, from);
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset, focusByPath, focusAtColumn } satisfies BlockComponent);
-
-	// ── Helpers ──────────────────────────────────────────────────────────
-
-	function asNodeParent(): { children: CstNode[] } {
-		return { children: node.children! };
-	}
-
-	function finalizeContainerEdit(): void {
-		rebuildBlockquoteRaw(node);
-		parentContainerEdit?.endContainerEdit();
-	}
-
-	/**
-	 * Apply a structural mutation to children/ids/refs on plain-array copies,
-	 * then publish all three in one commit. This mirrors Editor.svelte's
-	 * splitBlock/merge/delete pattern: splicing directly on $state proxies
-	 * (or on node.children, whose parent is a proxy) during a keyed {#each}
-	 * re-render interleaves reactivity with the mutation and can leave
-	 * `innerBlockRefs` out of sync with the rendered components — bind:ref
-	 * in a keyed each only fires on mount, so shifted or re-mounted children
-	 * can't rebind an already-populated slot. Committing all three arrays at
-	 * once gives Svelte a consistent snapshot to diff against and keeps the
-	 * refs array aligned with the shifted components.
-	 */
-	function commitChildrenEdit(
-		mutate: (
-			childrenCopy: CstNode[],
-			idsCopy: string[],
-			refsCopy: (BlockComponent | undefined)[]
-		) => void
-	): void {
-		const childrenCopy = [...(node.children ?? [])];
-		const idsCopy = [...innerBlockIds];
-		const refsCopy = [...innerBlockRefs];
-		mutate(childrenCopy, idsCopy, refsCopy);
-		node.children = childrenCopy;
-		innerBlockIds = idsCopy;
-		innerBlockRefs = refsCopy;
-	}
-
-	// ── Nested action bundles ────────────────────────────────────────────
-
-	const nestedBlockEdit: BlockEditActions = {
-		async splitBlock(innerIndex: number, offset: number): Promise<void> {
-			if (!node.children) return;
-
-			// Enter on empty trailing paragraph — exit the blockquote
-			const child = node.children[innerIndex];
-			const isLastChild = innerIndex === node.children.length - 1;
-			const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
-			if (isLastChild && isEmpty) {
-				if (node.children.length <= 1) {
-					// Only child is empty — replace blockquote with a new paragraph
-					parentBlockEdit.splitBlock(index, displayLength(node.raw));
-				} else {
-					// Remove the empty child, rebuild, then focus block after
-					parentContainerEdit?.beginContainerEdit(index, 0);
-					commitChildrenEdit((children, ids, refs) => {
-						performDelete({ children }, ids, innerIndex);
-						refs.splice(innerIndex, 1);
-					});
-					finalizeContainerEdit();
-					await tick();
-					parentFocus.moveFocus(index + 1, 'start');
-				}
-				return;
-			}
-
-			parentContainerEdit?.beginContainerEdit(index, offset);
-			commitChildrenEdit((children, ids, refs) => {
-				performSplit({ children }, ids, innerIndex, offset);
-				// New child inserted at innerIndex+1. Splice an undefined slot so
-				// existing refs for shifted children stay aligned; the newly
-				// mounted component lands in the empty slot.
-				refs.splice(innerIndex + 1, 0, undefined);
-			});
-			finalizeContainerEdit();
-			await tick();
-			innerBlockRefs[innerIndex + 1]?.focus(0);
-		},
-
-		async mergeWithPrevious(innerIndex: number): Promise<void> {
-			if (!node.children) return;
-
-			if (innerIndex <= 0) {
-				// Rule U2 — unwrap first child out of the blockquote.
-				const replacement = unwrapFirstChildFromBlockquote(node);
-				if (replacement.length === 0) return;
-				await parentBlockEdit.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
-				return;
-			}
-
-			const prevKind = node.children[innerIndex - 1].kind;
-			const currKind = node.children[innerIndex].kind;
-
-			if (isMergeEligible(prevKind, currKind)) {
-				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
-
-				parentContainerEdit?.beginContainerEdit(index, 0);
-				commitChildrenEdit((children, ids, refs) => {
-					performMerge({ children }, ids, innerIndex);
-					refs.splice(innerIndex, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
-			} else if (!isBlockEditable(prevKind)) {
-				parentContainerEdit?.beginContainerEdit(index, 0);
-				commitChildrenEdit((children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex - 1);
-					refs.splice(innerIndex - 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				innerBlockRefs[innerIndex - 1]?.focus(0);
-			} else {
-				innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
-			}
-		},
-
-		async mergeWithNext(innerIndex: number): Promise<void> {
-			if (!node.children) return;
-
-			if (innerIndex >= node.children.length - 1) {
-				// At last child — cross boundary downward
-				parentBlockEdit.mergeWithNext(index);
-				return;
-			}
-
-			const currKind = node.children[innerIndex].kind;
-			const nextKind = node.children[innerIndex + 1].kind;
-
-			if (isMergeEligible(currKind, nextKind)) {
-				const mergeOffset = displayLength(node.children[innerIndex].raw);
-
-				parentContainerEdit?.beginContainerEdit(index, 0);
-				commitChildrenEdit((children, ids, refs) => {
-					performMergeNext({ children }, ids, innerIndex);
-					refs.splice(innerIndex + 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				innerBlockRefs[innerIndex]?.focus(mergeOffset);
-			} else if (!isBlockEditable(nextKind)) {
-				parentContainerEdit?.beginContainerEdit(index, 0);
-				commitChildrenEdit((children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex + 1);
-					refs.splice(innerIndex + 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				innerBlockRefs[innerIndex]?.focus(CURSOR_END);
-			} else {
-				innerBlockRefs[innerIndex + 1]?.focus(0);
-			}
-		},
-
-		async deleteBlock(innerIndex: number): Promise<void> {
-			if (!node.children) return;
-
-			if (node.children.length <= 1) {
-				// Last child — delete entire blockquote
-				parentBlockEdit.deleteBlock(index);
-				return;
-			}
-
-			parentContainerEdit?.beginContainerEdit(index, 0);
-			commitChildrenEdit((children, ids, refs) => {
-				performDelete({ children }, ids, innerIndex);
-				refs.splice(innerIndex, 1);
-			});
-			finalizeContainerEdit();
-			await tick();
-			const focusIdx = Math.min(innerIndex, node.children.length - 1);
-			innerBlockRefs[focusIdx]?.focus(0);
-		},
-
-		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
-			if (!node.children) return;
-			parentContainerEdit?.beginContainerEditDebounced(index, preEditOffset ?? 0);
-			const result = performUpdate(asNodeParent(), innerIndex, text);
-			rebuildBlockquoteRaw(node);
-			parentContainerEdit?.endContainerEdit();
-			if (result.kindChanged) {
-				// Force re-mount of the in-place kind-swapped child by re-spreading
-				// node.children. Child count is unchanged, so innerBlockIds stays put.
-				node.children = [...(node.children ?? [])];
-				tick().then(() => {
-					innerBlockRefs[innerIndex]?.focus(text.length > 0 ? text.length - 1 : 0);
-				});
-			}
-		},
-
-		// insertParsedBlocks inside blockquote: not yet supported (paste is inline only within containers)
-		async insertParsedBlocks(): Promise<void> {},
-
-		async replaceBlock(
-			innerIndex: number,
-			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number }
-		): Promise<void> {
-			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
-
-			parentContainerEdit?.beginContainerEdit(index, 0);
-
-			commitChildrenEdit((children, ids, refs) => {
-				if (replacement.length === 0) {
-					children.splice(innerIndex, 1);
-					ids.splice(innerIndex, 1);
-					refs.splice(innerIndex, 1);
-				} else {
-					const originalTrivia = node.children![innerIndex].leadingTrivia ?? '';
-					const normalizedReplacement = replacement.map((replacementNode, i) => {
-						const copy = { ...replacementNode };
-						copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-						return copy;
-					});
-					children.splice(innerIndex, 1, ...normalizedReplacement);
-					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-					const newRefSlots: (BlockComponent | undefined)[] = new Array(
-						normalizedReplacement.length
-					).fill(undefined);
-					refs.splice(innerIndex, 1, ...newRefSlots);
-				}
-			});
-
-			rebuildBlockquoteRaw(node);
-			parentContainerEdit?.endContainerEdit();
-
-			await tick();
-
-			if (focus && replacement.length > 0) {
-				const targetIdx = innerIndex + focus.replacementIndex;
-				innerBlockRefs[targetIdx]?.focus(focus.offset);
-			}
-		}
-	};
-
-	const nestedFocus: FocusActions = {
-		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			if (!node.children) return;
-
-			if (innerIndex < 0) {
-				// Before first child — move before blockquote
-				parentFocus.moveFocus(index - 1, position);
-				return;
-			}
-			if (innerIndex >= node.children.length) {
-				// After last child — move after blockquote
-				parentFocus.moveFocus(index + 1, position);
-				return;
-			}
-
-			const block = innerBlockRefs[innerIndex];
-			if (!block?.focusable) return;
-
-			// Sticky-column variant: use focusAtColumn if available, else fall back
-			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
-				const x = stickyColumn.get();
-				const from = position.stickyColumnFrom;
-				if (x !== null && block.focusAtColumn) {
-					block.focusAtColumn(x, from);
-					return;
-				}
-				block.focus(from === 'above' ? 0 : CURSOR_END);
-				return;
-			}
-
-			if (typeof position === 'number') block.focus(position);
-			else if (position === 'start') block.focus(0);
-			else block.focus(CURSOR_END);
-		}
-	};
-
-	const nestedContainerEdit: ContainerEditActions = {
-		// Propagate container support for deeply nested containers
-		beginContainerEdit(_blockIndex: number, offset: number): void {
-			parentContainerEdit?.beginContainerEdit(index, offset);
-		},
-
-		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
-			parentContainerEdit?.beginContainerEditDebounced(index, offset);
-		},
-
-		endContainerEdit(): void {
-			rebuildBlockquoteRaw(node);
-			parentContainerEdit?.endContainerEdit();
-		}
-	};
-
-	setContext(BLOCK_EDIT_KEY, nestedBlockEdit);
-	setContext(FOCUS_KEY, nestedFocus);
-	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		focusByPath,
+		focusAtColumn
+	} satisfies BlockComponent);
 </script>
 
 <div class="blockquote-block">
 	<BlockList
 		children={node.children ?? []}
-		blockIds={innerBlockIds}
-		bind:blockRefs={innerBlockRefs}
+		blockIds={state.innerBlockIds}
+		bind:blockRefs={state.innerBlockRefs}
 	/>
 </div>
 

@@ -68,7 +68,12 @@ export function createStandardNestedActions(
 	state: BlockListState,
 	deps: NestedActionsDeps
 ): NestedActionsBundle {
-	const { index, node, rebuildRaw, stickyColumn, parent } = deps;
+	// Note: `index` is intentionally NOT destructured. Containers pass
+	// `{ get index() { return index; } }` so that factory closures always
+	// read the current reactive prop value rather than the value captured
+	// at factory-call time (which would be stale after a parent splitBlock
+	// shifts the container's position).
+	const { node, rebuildRaw, stickyColumn, parent } = deps;
 
 	function finalizeContainerEdit(): void {
 		rebuildRaw();
@@ -78,7 +83,7 @@ export function createStandardNestedActions(
 	const blockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
-			parent.containerEdit?.beginContainerEdit(index, offset);
+			parent.containerEdit?.beginContainerEdit(deps.index, offset);
 			state.commitChildrenEdit((children, ids, refs) => {
 				performSplit({ children }, ids, innerIndex, offset);
 				refs.splice(innerIndex + 1, 0, undefined);
@@ -96,7 +101,7 @@ export function createStandardNestedActions(
 			// that override for unwrap behavior (BlockquoteBlock U2, ListBlock U1/M1)
 			// override this whole method.
 			if (innerIndex <= 0) {
-				parent.blockEdit.mergeWithPrevious(index);
+				parent.blockEdit.mergeWithPrevious(deps.index);
 				return;
 			}
 
@@ -105,7 +110,7 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
-				parent.containerEdit?.beginContainerEdit(index, 0);
+				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performMerge({ children }, ids, innerIndex);
 					refs.splice(innerIndex, 1);
@@ -114,7 +119,7 @@ export function createStandardNestedActions(
 				await tick();
 				state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
-				parent.containerEdit?.beginContainerEdit(index, 0);
+				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performDelete({ children }, ids, innerIndex - 1);
 					refs.splice(innerIndex - 1, 1);
@@ -131,7 +136,7 @@ export function createStandardNestedActions(
 			if (!node.children) return;
 
 			if (innerIndex >= node.children.length - 1) {
-				parent.blockEdit.mergeWithNext(index);
+				parent.blockEdit.mergeWithNext(deps.index);
 				return;
 			}
 
@@ -140,7 +145,7 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
-				parent.containerEdit?.beginContainerEdit(index, 0);
+				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performMergeNext({ children }, ids, innerIndex);
 					refs.splice(innerIndex + 1, 1);
@@ -149,7 +154,7 @@ export function createStandardNestedActions(
 				await tick();
 				state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
-				parent.containerEdit?.beginContainerEdit(index, 0);
+				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performDelete({ children }, ids, innerIndex + 1);
 					refs.splice(innerIndex + 1, 1);
@@ -166,11 +171,11 @@ export function createStandardNestedActions(
 			if (!node.children) return;
 
 			if (node.children.length <= 1) {
-				parent.blockEdit.deleteBlock(index);
+				parent.blockEdit.deleteBlock(deps.index);
 				return;
 			}
 
-			parent.containerEdit?.beginContainerEdit(index, 0);
+			parent.containerEdit?.beginContainerEdit(deps.index, 0);
 			state.commitChildrenEdit((children, ids, refs) => {
 				performDelete({ children }, ids, innerIndex);
 				refs.splice(innerIndex, 1);
@@ -183,7 +188,7 @@ export function createStandardNestedActions(
 
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
-			parent.containerEdit?.beginContainerEditDebounced(index, preEditOffset ?? 0);
+			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
 			const result = performUpdate({ children: node.children }, innerIndex, text);
 			rebuildRaw();
 			parent.containerEdit?.endContainerEdit();
@@ -207,7 +212,7 @@ export function createStandardNestedActions(
 		): Promise<void> {
 			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
 
-			parent.containerEdit?.beginContainerEdit(index, 0);
+			parent.containerEdit?.beginContainerEdit(deps.index, 0);
 
 			state.commitChildrenEdit((children, ids, refs) => {
 				if (replacement.length === 0) {
@@ -243,18 +248,18 @@ export function createStandardNestedActions(
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
 			await dispatchMoveFocus(state.innerBlockRefs, innerIndex, position, stickyColumn, {
 				focus: parent.focus,
-				index
+				index: deps.index
 			});
 		}
 	};
 
 	const containerEdit: ContainerEditActions = {
 		beginContainerEdit(_innerIndex: number, offset: number): void {
-			parent.containerEdit?.beginContainerEdit(index, offset);
+			parent.containerEdit?.beginContainerEdit(deps.index, offset);
 		},
 
 		beginContainerEditDebounced(_innerIndex: number, offset: number): void {
-			parent.containerEdit?.beginContainerEditDebounced(index, offset);
+			parent.containerEdit?.beginContainerEditDebounced(deps.index, offset);
 		},
 
 		endContainerEdit(): void {
