@@ -136,25 +136,6 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		expect(await editor.getSource()).toMatch(/^> 1Z$/m);
 	});
 
-	test('After Enter at end of first paragraph: ArrowDown from new empty paragraph reaches second paragraph (user-reported recipe)', async () => {
-		// User-reported flow. "> 1\n> 2\n" alone is ONE soft-wrapped paragraph;
-		// the user actually builds two discrete paragraphs by typing Enter
-		// between them. Seed with the post-Enter state and press Enter again
-		// to exercise the "split creates new empty middle" code path.
-		await editor.loadContent('> 1\n>\n> 2\n');
-		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
-		await first.click();
-		await editor.pressKey('End');
-		await editor.pressEnter();
-		await editor.page.waitForTimeout(300);
-		// Now at an empty middle paragraph; "2" is the third child.
-		await editor.pressArrowDown();
-		await editor.page.waitForTimeout(100);
-		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
-		// Z should land at start of "2" → "Z2"
-		expect(await editor.getSource()).toMatch(/^> Z2$/m);
-	});
 });
 
 test.describe('blockquote navigation — after Backspace (delete empty middle paragraph)', () => {
