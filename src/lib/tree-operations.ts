@@ -279,8 +279,10 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
  */
 export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 	if (path.length === 0) {
-		// No ancestry — root IS the leaf (or the caller has a bug). Rebuild root
-		// defensively as the container-rebuild equivalent of a no-op for leaves.
+		// Rebuild just the root container. Valid when the caller wants to
+		// refresh `root.raw` without having mutated anything deeper — e.g.,
+		// after a top-level child was replaced directly. If `root` is not a
+		// container, `rebuildContainerRaw` throws (enforced in Fix 1).
 		rebuildContainerRaw(root);
 		return;
 	}
@@ -317,8 +319,16 @@ function rebuildContainerRaw(node: CstNode): void {
 		case 'listItem':
 			rebuildListItemRaw(node);
 			return;
-		// Any other kind is a programming error — rebuildAncestryRaw should
-		// only ever traverse containers.
+		default:
+			// rebuildAncestryRaw should only ever traverse containers. Reaching
+			// this branch means either an off-by-one in the caller's path (the
+			// path included the leaf index instead of stopping before it) or a
+			// new container kind was added to BlockKind without updating this
+			// switch. Either way, silent no-op would produce corrupt serialized
+			// output — throw loudly instead.
+			throw new Error(
+				`rebuildContainerRaw: unexpected kind "${node.kind}" — only container kinds (blockquote, list, listItem) are valid`
+			);
 	}
 }
 
