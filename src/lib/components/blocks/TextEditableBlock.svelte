@@ -440,6 +440,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
+		stickyColumn.reset();
 		if (composing || !el) return;
 		const text = el.textContent ?? '';
 		const savedOffset = getCursorOffset() ?? 0;
@@ -451,6 +452,7 @@
 	}
 
 	function onCompositionStart(): void {
+		stickyColumn.reset();
 		composing = true;
 	}
 
@@ -592,12 +594,14 @@
 	}
 
 	function onCopy(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		e.preventDefault();
 		const text = getSelectedTextFromRaw();
 		e.clipboardData?.setData('text/plain', text);
 	}
 
 	function onCut(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		e.preventDefault();
 		const selectedText = getSelectedTextFromRaw();
 		if (!selectedText) return;
@@ -614,6 +618,7 @@
 	}
 
 	function onPaste(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		e.preventDefault();
 		const text = e.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
@@ -646,6 +651,10 @@
 			}
 			actions.insertParsedBlocks(index, effectiveOffset, parsed.children);
 		}
+	}
+
+	function onPointerDown(_e: PointerEvent): void {
+		stickyColumn.reset();
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
@@ -736,6 +745,7 @@
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}
+	onpointerdown={onPointerDown}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
