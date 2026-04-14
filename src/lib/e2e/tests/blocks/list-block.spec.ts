@@ -747,6 +747,9 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		const source = await editor.getSource();
 		expect(source).toMatch(/^1\. first$/m);
 		expect(source).toMatch(/^2\. secondtext$/m);
+		// Guard against a renumbering bug that promotes 2. → 1.
+		expect(source).not.toMatch(/^1\. secondtext$/m);
+		expect(source).not.toMatch(/^3\./m);
 	});
 
 	test('nested list: merge recurses into deepest nested item paragraph', async () => {
@@ -759,6 +762,25 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		const source = await editor.getSource();
 		expect(source).toMatch(/^- a$/m);
 		expect(source).toMatch(/^\s+- btext$/m);
+	});
+
+	test('loose list item (multi-paragraph): merge lands in the LAST paragraph of the last item', async () => {
+		// A "loose" list item has a blank line between its paragraphs, making
+		// each paragraph a distinct child of the listItem. The walker descends
+		// to the last child, which is the second paragraph "second para".
+		await editor.loadContent('- first item\n\n- second item\n\n  second para\ntext\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		// "second para" (the last paragraph of the last loose item) receives the merge
+		expect(source).toMatch(/second paratext/);
+		// The first paragraph of the last item is untouched
+		expect(source).toMatch(/^- second item$/m);
+		// "text" is gone from the top level
+		expect(source).not.toMatch(/^text$/m);
 	});
 
 	test('list inside blockquote: merge recurses through both containers', async () => {
@@ -782,6 +804,8 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await editor.page.waitForTimeout(200);
 		// No merge — the list item and the following paragraph stay separate
 		const source = await editor.getSource();
+		// List item is still present and unchanged — no merge happened
+		expect(source).toMatch(/^- item$/m);
 		expect(source).toMatch(/^text$/m);
 		expect(source).toContain('code');
 	});
