@@ -2,6 +2,9 @@
 	import { getContext, setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
@@ -421,6 +424,9 @@
 	}
 
 	setContext(EDITOR_ACTIONS_KEY, nestedActions);
+	setContext(BLOCK_EDIT_KEY, nestedActions);
+	setContext(FOCUS_KEY, nestedActions);
+	setContext(HISTORY_KEY, nestedActions);
 	// Expose this item's index so nested ListBlocks can find their parent item
 	// position in the outer list (needed for unindent). Wrapped in a getter
 	// because the index prop is reactive and may change after initialization.
