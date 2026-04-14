@@ -4,45 +4,50 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`.
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Pure container state and focus helpers live in `src/lib/editor/container-state/`. Pure contenteditable DOM helpers live in `src/lib/editor/text-surface/`.
 
 ## Two Categories
 
 | Category | Editing surface | Reference |
 |----------|----------------|-----------|
 | **Leaf** | Own editing surface (contenteditable, textarea, static) | TextEditableBlock, CodeBlock, ThematicBreakBlock |
-| **Container** | Hosts a recursive BlockList of child blocks | BlockquoteBlock, ListBlock |
+| **Container** | Hosts a recursive BlockList of child blocks | BlockquoteBlock, ListBlock, ListItemBlock |
 
 Pick the reference closest to your block. Read it fully before starting.
 
-## Required Exports
+## BlockComponent Interface
 
-Every block must export the `BlockComponent` shape. The `satisfies` check enforces this at compile time:
+Every block exposes the `BlockComponent` shape — two boolean flags (`editable`, `focusable`) plus focus and cursor methods. Optional extensions cover selection and path-based focus cascade for containers. A `satisfies BlockComponent` assertion at the bottom of the script enforces the shape at compile time.
 
-```
-export const editable = true | false;
-export const focusable = true | false;
-export function focus(offset: number): void { ... }
-export function getCursorOffset(): number | null { ... }
-void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
-```
+## Reading Parent Contexts
 
-Optional: `getSelectedText()`, `setSelection(start, end)` — for blocks with text selection.
+Leaf and container blocks alike read from the concern-specific sub-interface contexts:
 
-## Context
+- `BLOCK_EDIT_KEY` → `BlockEditActions` — structural mutations (split, merge, delete, updateContent, replaceBlock, insertParsedBlocks)
+- `FOCUS_KEY` → `FocusActions` — moveFocus (with sticky-column variant)
+- `HISTORY_KEY` → `HistoryActions` — requestUndo / requestRedo
+- `CONTAINER_EDIT_KEY` → `ContainerEditActions` — container-edit bracketing (begin / beginDebounced / end)
 
-Every block reads `EditorActions` from Svelte context to communicate structural operations (split, merge, delete, focus) upward. Container blocks set a NEW context for their inner content.
+A block reads only the sub-interfaces it actually uses. Containers set only the sub-interfaces they override for their nested children; Svelte context walking delivers everything else from the nearest ancestor that does set it.
 
 ## Registration
 
-Add a case to BlockHost's `{#if}` chain. The block receives `node`, `index`, and binds `ref`.
+Add a case to `BlockHost`'s `{#if}` chain. The block receives `node`, `index`, and binds `ref`.
 
-## Container Blocks: Extra Requirements
+## Container Blocks
 
-- Maintain a parallel ID array and refs array for inner children
-- Provide nested `EditorActions` that handle local operations and delegate boundary-crossing operations to the parent
-- Rebuild the container's `raw` from its children after every structural mutation
-- Implement all `EditorActions` methods (use no-op stubs for inapplicable ones like `insertParsedBlocks`)
+Containers build their reactive state and default action bundle through the `container-state/` primitives, then override only the methods that need kind-specific behavior.
+
+- `createBlockListState(node)` — reactive `innerBlockIds` / `innerBlockRefs` plus a `commitChildrenEdit` helper for atomic triple-splice operations on children, ids, and refs.
+- `createStandardNestedActions(state, deps)` — generates a complete `{ blockEdit, focus, containerEdit }` bundle from the state bundle plus a `rebuildRaw` callback. Methods in the bundle handle the split/merge/delete/updateContent/replaceBlock ceremony uniformly; containers override specific methods (e.g., blockquote U2, list U1/M1, list-item Enter behavior) by capturing the factory method and chaining.
+- `dispatchFocusByPath` / `dispatchFocusAtColumn` — the pure dispatchers a container's `focusByPath` / `focusAtColumn` exports delegate to.
+- `setNestedActionsContexts(bundle)` — the three-setContext helper that publishes the bundle to nested descendants.
+
+A trivial container (future admonition block, collapsible section, etc.) calls the factory, sets contexts, and is done. A non-trivial container (list, blockquote) calls the factory and then overrides the specific methods that carry kind-specific behavior — always by capturing the factory method first and chaining to it for the non-custom branches, so the default merge-eligibility and commit logic isn't reinvented.
+
+Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root directly.
+
+Containers rebuild their `raw` from their inner children after every structural mutation. The `rebuildRaw` callback passed to `createStandardNestedActions` is the kind-specific rebuild helper (`rebuildBlockquoteRaw`, `rebuildListRaw`, etc.).
 
 ## Testing
 

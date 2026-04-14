@@ -30,15 +30,12 @@ Each node carries `start`/`end` byte offsets into the parent block's `raw`, cove
 
 The inline parser operates on the content range within a block's `raw` — after block-level markers (e.g., after `## ` for headings). Returned nodes carry offsets relative to the full `raw`.
 
-### Parsing pipeline (priority order)
+### Parsing pipeline
 
-1. **Backtick spans** (inline code) — match backtick sequences, content is literal
-2. **Angle-bracket autolinks** — `<url>`, literal content
-3. **Hard line breaks** — trailing `\` or two spaces before `\n`
-4. **Delimiter runs** — classify `*`/`_`/`~~` using flanking rules, match via CommonMark algorithm, recurse for nesting
-5. **Link/image brackets** — `[text](url)` and `![alt](url)`, recurse into bracket content
-6. **Bare autolinks** — GFM bare URL detection
-7. **Remaining text** — unmatched content becomes `text` nodes
+1. **Backtick code spans** — match balanced backtick sequences; content is literal
+2. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
+3. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
+4. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
 
 ### Separation from block parser
 
