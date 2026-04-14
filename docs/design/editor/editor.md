@@ -194,8 +194,6 @@ Backspace at offset 0 of a container's first child triggers an unwrap operation:
 
 No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
 
-Unit tests codify the preserve-absolute-indent worked examples for Rule M1 as the ground truth for the expected child reshuffling.
-
 **Delete** — remove the node from the children array.
 
 **Reorder** — move the node within the children array. IDs don't change.
