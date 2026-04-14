@@ -97,7 +97,14 @@ test.describe('keyboard navigation', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		expect(source).toContain('AboveB');
+		// Sticky column: ArrowUp carries the source X across the blockquote
+		// boundary. Column 0 inside `> Quote content` renders at the blockquote
+		// indent offset, so B lands inside "Above" at the offset nearest that
+		// X (not at the end). Test intent is "ArrowUp exits the container" —
+		// verify B is in a non-blockquote line. Exact offset depends on the
+		// cross-indent pixel mapping and is covered by dedicated sticky-column
+		// E2E tests (Tasks 15–17).
+		expect(source).toMatch(/^[^>].*B/m);
 	});
 
 	test('ArrowDown on empty block moves to the next block', async () => {
