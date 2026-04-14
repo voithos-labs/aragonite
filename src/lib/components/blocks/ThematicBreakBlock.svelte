@@ -6,7 +6,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { displayLength } from '../../core/text-utils';
+	import { displayLength } from '../../raw-text';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 

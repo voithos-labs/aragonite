@@ -13,7 +13,7 @@
 	} from '../editor-types';
 	import { createStickyColumnState } from '../sticky-column';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
-	import { displayLength, trimTrailingLineEnding } from '../core/text-utils';
+	import { displayLength, trimTrailingLineEnding } from '../raw-text';
 	import {
 		splitNode as performSplit,
 		mergeWithNext as performMergeNext,

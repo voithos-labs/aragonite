@@ -16,7 +16,7 @@
 	} from '../../editor-types';
 	import type { StickyColumnState } from '../../sticky-column';
 	import { assignIds, generateBlockId } from '../../mutable-tree';
-	import { displayLength } from '../../core/text-utils';
+	import { displayLength } from '../../raw-text';
 	import {
 		deleteNode as performDelete,
 		unwrapFirstItemFromList,
