@@ -13,14 +13,14 @@
 	import { displayLength, trimTrailingLineEnding } from '../core/text-utils';
 	import {
 		splitNode as performSplit,
-		mergeWithPrevious as performMerge,
 		mergeWithNext as performMergeNext,
 		deleteNode as performDelete,
 		updateNodeContent as performUpdate,
-		ensureEditableContainers
+		ensureEditableContainers,
+		rebuildAncestryRaw
 	} from '../tree-operations';
 	import { createUndoManager } from '../undo-manager';
-	import { isMergeEligible, isBlockEditable } from '../merge-rules';
+	import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
 	import { parse } from '../core/parser';
 	import { parseInline, getContentRange, isProseKind } from '../core/inline-parser';
 	import BlockList from './BlockList.svelte';
@@ -302,8 +302,10 @@
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
 			if (blockIndex <= 0) return;
 
-			const prevKind = doc.children[blockIndex - 1].kind;
-			const currKind = doc.children[blockIndex].kind;
+			const prev = doc.children[blockIndex - 1];
+			const curr = doc.children[blockIndex];
+			const prevKind = prev.kind;
+			const currKind = curr.kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
 				if (!isBlockEditable(prevKind)) {
@@ -331,25 +333,68 @@
 				return;
 			}
 
-			// Mergeable — proceed with merge
-			const mergeOffset = displayLength(doc.children[blockIndex - 1].raw);
+			// Eligible — resolve the actual merge target. For prose/prose-absorber
+			// prev this is prev itself (empty path). For container prev this is
+			// the deepest prose leaf inside prev (non-empty path).
+			const mergeTarget = findMergeTarget(prev);
+			if (!mergeTarget) {
+				// Walker couldn't find a prose leaf (e.g. container's deepest leaf
+				// is opaque). Same fallback as ineligible — move focus.
+				blockRefs[blockIndex - 1]?.focus(CURSOR_END);
+				return;
+			}
 
+			// Mutate the target's raw and track the join offset for cursor placement.
 			if (undoDebounceTimer) {
 				clearTimeout(undoDebounceTimer);
 				undoDebounceTimer = null;
 			}
 			pushUndoSnapshot(blockIndex, 0);
 			needsUndoCheckpoint = true;
+
+			const target = mergeTarget.target;
+			const targetRaw = target.raw ?? '';
+			const currRaw = curr.raw ?? '';
+			// Preserve the target's existing line ending style.
+			const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
+			const targetText = targetRaw.replace(/\r?\n$/, '');
+			const currText = currRaw.replace(/\r?\n$/, '');
+			const joinOffset = targetText.length;
+			target.raw = targetText + currText + lineEnding;
+
+			// Refresh the target's inline content cache. The per-input reactive
+			// pipeline doesn't fire here because the user was typing in curr, not
+			// in target — we must re-parse explicitly.
+			if (isProseKind(target.kind)) {
+				const range = getContentRange(target);
+				target.inlineContent = parseInline(target.raw, range.start, range.end);
+			}
+
+			// Delete curr from top-level children / ids / refs.
 			const childrenCopy = [...doc.children];
 			const idsCopy = [...blockIds];
 			const refsCopy = [...blockRefs];
-			performMerge({ children: childrenCopy }, idsCopy, blockIndex);
-			refsCopy.splice(blockIndex, 1); // Remove absorbed block's ref
+			performDelete({ children: childrenCopy }, idsCopy, blockIndex);
+			refsCopy.splice(blockIndex, 1);
 			doc.children = childrenCopy;
 			blockIds = idsCopy;
 			blockRefs = refsCopy;
+
+			// Rebuild ancestry raw for container-target merges. For top-level prose
+			// merges (empty path) there's no ancestry to rebuild — the target IS prev.
+			if (mergeTarget.path.length > 0) {
+				rebuildAncestryRaw(prev, mergeTarget.path);
+			}
+
 			await tick();
-			blockRefs[blockIndex - 1]?.focus(mergeOffset);
+
+			// Focus cascade: for flat (prev === target) merges, focus prev directly.
+			// For nested-target merges, use focusByPath to cascade down.
+			if (mergeTarget.path.length === 0) {
+				blockRefs[blockIndex - 1]?.focus(joinOffset);
+			} else {
+				blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
+			}
 		},
 
 		async mergeWithNext(blockIndex: number): Promise<void> {
