@@ -9,6 +9,10 @@
 		STICKY_COLUMN_KEY,
 		CURSOR_END,
 		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
+		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
 		type CstNode,
@@ -31,7 +35,10 @@
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
-	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
+	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
@@ -133,7 +140,7 @@
 
 	function finalizeContainerEdit(): void {
 		rebuildBlockquoteRaw(node);
-		parentActions.endContainerEdit?.();
+		parentContainerEdit?.endContainerEdit();
 	}
 
 	/**
@@ -164,9 +171,9 @@
 		innerBlockRefs = refsCopy;
 	}
 
-	// ── Nested EditorActions ─────────────────────────────────────────────
+	// ── Nested action bundles ────────────────────────────────────────────
 
-	const nestedActions: EditorActions = {
+	const nestedBlockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
 
@@ -177,22 +184,22 @@
 			if (isLastChild && isEmpty) {
 				if (node.children.length <= 1) {
 					// Only child is empty — replace blockquote with a new paragraph
-					parentActions.splitBlock(index, displayLength(node.raw));
+					parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				} else {
 					// Remove the empty child, rebuild, then focus block after
-					parentActions.beginContainerEdit?.(index, 0);
+					parentContainerEdit?.beginContainerEdit(index, 0);
 					commitChildrenEdit((children, ids, refs) => {
 						performDelete({ children }, ids, innerIndex);
 						refs.splice(innerIndex, 1);
 					});
 					finalizeContainerEdit();
 					await tick();
-					parentActions.moveFocus(index + 1, 'start');
+					parentFocus.moveFocus(index + 1, 'start');
 				}
 				return;
 			}
 
-			parentActions.beginContainerEdit?.(index, offset);
+			parentContainerEdit?.beginContainerEdit(index, offset);
 			commitChildrenEdit((children, ids, refs) => {
 				performSplit({ children }, ids, innerIndex, offset);
 				// New child inserted at innerIndex+1. Splice an undefined slot so
@@ -212,7 +219,7 @@
 				// Rule U2 — unwrap first child out of the blockquote.
 				const replacement = unwrapFirstChildFromBlockquote(node);
 				if (replacement.length === 0) return;
-				await parentActions.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
+				await parentBlockEdit.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
 				return;
 			}
 
@@ -222,7 +229,7 @@
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				commitChildrenEdit((children, ids, refs) => {
 					performMerge({ children }, ids, innerIndex);
 					refs.splice(innerIndex, 1);
@@ -231,7 +238,7 @@
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				commitChildrenEdit((children, ids, refs) => {
 					performDelete({ children }, ids, innerIndex - 1);
 					refs.splice(innerIndex - 1, 1);
@@ -249,7 +256,7 @@
 
 			if (innerIndex >= node.children.length - 1) {
 				// At last child — cross boundary downward
-				parentActions.mergeWithNext(index);
+				parentBlockEdit.mergeWithNext(index);
 				return;
 			}
 
@@ -259,7 +266,7 @@
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				commitChildrenEdit((children, ids, refs) => {
 					performMergeNext({ children }, ids, innerIndex);
 					refs.splice(innerIndex + 1, 1);
@@ -268,7 +275,7 @@
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				commitChildrenEdit((children, ids, refs) => {
 					performDelete({ children }, ids, innerIndex + 1);
 					refs.splice(innerIndex + 1, 1);
@@ -286,11 +293,11 @@
 
 			if (node.children.length <= 1) {
 				// Last child — delete entire blockquote
-				parentActions.deleteBlock(index);
+				parentBlockEdit.deleteBlock(index);
 				return;
 			}
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 			commitChildrenEdit((children, ids, refs) => {
 				performDelete({ children }, ids, innerIndex);
 				refs.splice(innerIndex, 1);
@@ -301,46 +308,12 @@
 			innerBlockRefs[focusIdx]?.focus(0);
 		},
 
-		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			if (!node.children) return;
-
-			if (innerIndex < 0) {
-				// Before first child — move before blockquote
-				parentActions.moveFocus(index - 1, position);
-				return;
-			}
-			if (innerIndex >= node.children.length) {
-				// After last child — move after blockquote
-				parentActions.moveFocus(index + 1, position);
-				return;
-			}
-
-			const block = innerBlockRefs[innerIndex];
-			if (!block?.focusable) return;
-
-			// Sticky-column variant: use focusAtColumn if available, else fall back
-			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
-				const x = stickyColumn.get();
-				const from = position.stickyColumnFrom;
-				if (x !== null && block.focusAtColumn) {
-					block.focusAtColumn(x, from);
-					return;
-				}
-				block.focus(from === 'above' ? 0 : CURSOR_END);
-				return;
-			}
-
-			if (typeof position === 'number') block.focus(position);
-			else if (position === 'start') block.focus(0);
-			else block.focus(CURSOR_END);
-		},
-
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
-			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
+			parentContainerEdit?.beginContainerEditDebounced(index, preEditOffset ?? 0);
 			const result = performUpdate(asNodeParent(), innerIndex, text);
 			rebuildBlockquoteRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			if (result.kindChanged) {
 				// Force re-mount of the in-place kind-swapped child by re-spreading
 				// node.children. Child count is unchanged, so innerBlockIds stays put.
@@ -361,7 +334,7 @@
 		): Promise<void> {
 			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 
 			commitChildrenEdit((children, ids, refs) => {
 				if (replacement.length === 0) {
@@ -385,7 +358,7 @@
 			});
 
 			rebuildBlockquoteRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 
 			await tick();
 
@@ -393,36 +366,79 @@
 				const targetIdx = innerIndex + focus.replacementIndex;
 				innerBlockRefs[targetIdx]?.focus(focus.offset);
 			}
-		},
+		}
+	};
 
-		requestUndo(): void | Promise<void> {
-			return parentActions.requestUndo();
-		},
+	const nestedFocus: FocusActions = {
+		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
+			if (!node.children) return;
 
-		requestRedo(): void | Promise<void> {
-			return parentActions.requestRedo();
-		},
+			if (innerIndex < 0) {
+				// Before first child — move before blockquote
+				parentFocus.moveFocus(index - 1, position);
+				return;
+			}
+			if (innerIndex >= node.children.length) {
+				// After last child — move after blockquote
+				parentFocus.moveFocus(index + 1, position);
+				return;
+			}
 
+			const block = innerBlockRefs[innerIndex];
+			if (!block?.focusable) return;
+
+			// Sticky-column variant: use focusAtColumn if available, else fall back
+			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+				const x = stickyColumn.get();
+				const from = position.stickyColumnFrom;
+				if (x !== null && block.focusAtColumn) {
+					block.focusAtColumn(x, from);
+					return;
+				}
+				block.focus(from === 'above' ? 0 : CURSOR_END);
+				return;
+			}
+
+			if (typeof position === 'number') block.focus(position);
+			else if (position === 'start') block.focus(0);
+			else block.focus(CURSOR_END);
+		}
+	};
+
+	const nestedContainerEdit: ContainerEditActions = {
 		// Propagate container support for deeply nested containers
 		beginContainerEdit(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEdit?.(index, offset);
+			parentContainerEdit?.beginContainerEdit(index, offset);
 		},
 
 		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEditDebounced?.(index, offset);
+			parentContainerEdit?.beginContainerEditDebounced(index, offset);
 		},
 
 		endContainerEdit(): void {
 			rebuildBlockquoteRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 		}
 	};
 
-	setContext(EDITOR_ACTIONS_KEY, nestedActions);
-	setContext(BLOCK_EDIT_KEY, nestedActions);
-	setContext(FOCUS_KEY, nestedActions);
-	setContext(HISTORY_KEY, nestedActions);
-	setContext(CONTAINER_EDIT_KEY, nestedActions);
+	setContext(BLOCK_EDIT_KEY, nestedBlockEdit);
+	setContext(FOCUS_KEY, nestedFocus);
+	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
+
+	// Legacy bridge: unmigrated containers (ListBlock) still read EDITOR_ACTIONS_KEY.
+	// Removed in Task 10 once all containers have migrated to sub-interface keys.
+	const nestedActionsBridge: EditorActions = {
+		...nestedBlockEdit,
+		...nestedFocus,
+		requestUndo(): void | Promise<void> {
+			return parentHistory.requestUndo();
+		},
+		requestRedo(): void | Promise<void> {
+			return parentHistory.requestRedo();
+		},
+		...nestedContainerEdit
+	};
+	setContext(EDITOR_ACTIONS_KEY, nestedActionsBridge);
 </script>
 
 <div class="blockquote-block">
