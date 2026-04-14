@@ -4,6 +4,7 @@
  */
 
 import type { CstNode, Document } from './core/nodes';
+import type { StickyColumnState } from './sticky-column';
 
 // Re-export CstNode and Document so consumers can import from here
 export type { CstNode, Document } from './core/nodes';
@@ -23,6 +24,7 @@ export const FOCUS_LAST_START = -1;
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
+export const STICKY_COLUMN_KEY = Symbol('sticky-column');
 
 // ── List Context (list item → list block communication via Svelte context) ──
 
@@ -47,12 +49,21 @@ export interface ListContext {
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────
 
+/**
+ * Focus position for moveFocus. The sticky-column variant tells the target
+ * block to position the cursor at the offset nearest to the current sticky X
+ * on its first (stickyColumnFrom: 'above') or last (stickyColumnFrom: 'below')
+ * visual line. Falls back to focus(0) / focus(CURSOR_END) if the target does
+ * not implement focusAtColumn?.
+ */
+export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: 'above' | 'below' };
+
 export interface EditorActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
-	moveFocus(blockIndex: number, position: 'start' | 'end' | number): void | Promise<void>;
+	moveFocus(blockIndex: number, position: FocusPosition): void | Promise<void>;
 	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
 	requestUndo(): void | Promise<void>;
 	requestRedo(): void | Promise<void>;
@@ -89,6 +100,14 @@ export interface BlockComponent {
 	getCursorOffset(): number | null;
 	getSelectedText?(): string;
 	setSelection?(start: number, end: number): void;
+	/**
+	 * Position the cursor at the offset nearest to editor-relative pixel X
+	 * on the block's first visual line (direction='from-above') or last
+	 * visual line (direction='from-below'). Optional — blocks that don't
+	 * participate in sticky column (code block, thematic break) omit this
+	 * method, and callers fall back to focus(0) / focus(CURSOR_END).
+	 */
+	focusAtColumn?(x: number, direction: 'from-above' | 'from-below'): void;
 	/**
 	 * Cascade focus down a path of child indices to reach a leaf at the
 	 * given cursor offset. Implemented by container blocks (ListBlock,
