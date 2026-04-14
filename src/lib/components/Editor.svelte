@@ -175,9 +175,10 @@
 			if (rawBefore.length > 0) {
 				const beforeRaw = rawBefore + lineEnding;
 				const beforeDoc = parse(beforeRaw);
-				const beforeNode = beforeDoc.children.length > 0
-					? beforeDoc.children[0]
-					: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
+				const beforeNode =
+					beforeDoc.children.length > 0
+						? beforeDoc.children[0]
+						: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
 				beforeNode.leadingTrivia = currentNode.leadingTrivia;
 				ensureEditableContainers(beforeNode);
 				newNodes.push(beforeNode);
@@ -197,9 +198,10 @@
 			const lastPasted = blocks[blocks.length - 1];
 			const mergedLastRaw = trimTrailingLineEnding(lastPasted.raw) + rawAfter + lineEnding;
 			const lastDoc = parse(mergedLastRaw);
-			const lastNode = lastDoc.children.length > 0
-				? lastDoc.children[0]
-				: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
+			const lastNode =
+				lastDoc.children.length > 0
+					? lastDoc.children[0]
+					: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
 			if (newNodes.length === 0) {
 				lastNode.leadingTrivia = currentNode.leadingTrivia;
 			} else {
@@ -224,7 +226,9 @@
 			idsCopy.splice(blockIndex + 1, 0, ...newIds);
 
 			// Sync refs: replace one slot with N undefined slots
-			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(undefined);
+			const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
+				undefined
+			);
 			newRefSlots[0] = refsCopy[blockIndex]; // keep existing ref for first node
 			refsCopy.splice(blockIndex, 1, ...newRefSlots);
 
@@ -283,7 +287,9 @@
 				idsCopy.splice(blockIndex, 1, ...newIds);
 
 				// Refs: new undefined slots for each replacement block.
-				const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+				const newRefSlots: (BlockComponent | undefined)[] = new Array(
+					normalizedReplacement.length
+				).fill(undefined);
 				refsCopy.splice(blockIndex, 1, ...newRefSlots);
 			}
 

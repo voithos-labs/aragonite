@@ -135,7 +135,6 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toMatch(/^> 1Z$/m);
 	});
-
 });
 
 test.describe('blockquote navigation — after Backspace (delete empty middle paragraph)', () => {
