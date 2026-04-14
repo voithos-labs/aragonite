@@ -67,7 +67,24 @@
 		}
 		return null;
 	}
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	/**
+	 * Cascade focus down a path of child indices inside this blockquote.
+	 * Mirrors ListBlock.focusByPath — peel off path[0], delegate to the child
+	 * at that index (or call focus(offset) if the path ends here).
+	 */
+	export function focusByPath(path: number[], offset: number): void {
+		if (path.length === 0 || !node.children) return;
+		const [first, ...rest] = path;
+		const child = innerBlockRefs[first];
+		if (!child) return;
+		if (rest.length === 0) {
+			child.focus(offset);
+		} else {
+			child.focusByPath?.(rest, offset);
+		}
+	}
+
+	void ({ editable, focusable, focus, getCursorOffset, focusByPath } satisfies BlockComponent);
 
 	// ── Helpers ──────────────────────────────────────────────────────────
 
