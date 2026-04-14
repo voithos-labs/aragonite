@@ -16,7 +16,7 @@ The primary design principles:
 ### Component Hierarchy
 
 ```
-Editor (shell — owns CST, undo stack, EditorActions context)
+Editor (shell — owns CST, undo stack, editor-actions contexts)
   └─ BlockList (keyed {#each} over CST children)
        ├─ BlockHost (resolves component by node.kind)
        │    ├─ TextEditableBlock (paragraph, heading, setextHeading, raw-editable)
@@ -27,17 +27,17 @@ Editor (shell — owns CST, undo stack, EditorActions context)
        └─ ...
 ```
 
-- **Editor** — top-level shell. Owns the CST `Document`, the undo stack, and the `EditorActions` context. Manages focus after structural operations using `await tick()`.
+- **Editor** — top-level shell. Owns the CST `Document`, the undo stack, and the editor-actions contexts. Manages focus after structural operations using `await tick()`.
 - **BlockList** — renders the CST children array via a keyed `{#each}`.
 - **BlockHost** — given a CST node, resolves which block component to render by `node.kind`. Thin wrapper.
 - **TextEditableBlock** — shared contenteditable surface for paragraphs, headings, and raw-editable block types, parameterized by CSS class.
-- **Container block components** — `BlockquoteBlock` and `ListBlock`/`ListItemBlock` each host a nested `BlockList` with their own `EditorActions` context.
+- **Container block components** — `BlockquoteBlock` and `ListBlock`/`ListItemBlock` each host a nested `BlockList` with their own scoped editor-actions contexts.
 
 ### Data Flow
 
 ```
 Block detects boundary event (Enter, Backspace at pos 0, arrow at edge)
-  → Calls EditorActions context function
+  → Calls editor-actions context function
   → Editor shell mutates the CST document tree
   → Svelte reactivity re-renders affected blocks
   → Editor calls focus() on the target block after await tick()
@@ -45,12 +45,12 @@ Block detects boundary event (Enter, Backspace at pos 0, arrow at edge)
 
 Four communication channels:
 
-| Direction      | Mechanism                           | What Flows                                        |
-| -------------- | ----------------------------------- | ------------------------------------------------- |
-| Block → Editor | Context callbacks (`EditorActions`) | Boundary events: split, merge, delete, move focus |
-| Editor → CST   | Direct tree mutation                | Structural changes to the document tree           |
-| CST → Blocks   | Svelte reactivity                   | Blocks re-render from new tree state              |
-| Editor → Block | Component refs (`bind:this`)        | `focus(offset)` for focus management              |
+| Direction      | Mechanism                                | What Flows                                        |
+| -------------- | ---------------------------------------- | ------------------------------------------------- |
+| Block → Editor | Context callbacks (editor-actions sub-interfaces) | Boundary events: split, merge, delete, move focus |
+| Editor → CST   | Direct tree mutation                     | Structural changes to the document tree           |
+| CST → Blocks   | Svelte reactivity                        | Blocks re-render from new tree state              |
+| Editor → Block | Component refs (`bind:this`)             | `focus(offset)` for focus management              |
 
 ## The Editing Surface
 
@@ -143,7 +143,7 @@ The CST is always up-to-date (updated on every input event). The DOM is only pat
 
 Blocks call typed context functions for structural operations: split, merge, delete, move focus, update content, undo, redo. Each takes a block index relative to the local children array. Structural operations use `await tick()` for post-render focus management.
 
-Container blocks have additional context methods for coordinating undo snapshots between nested and parent editors.
+Block–editor communication is divided across four focused sub-interfaces (block editing, focus, history, and container editing), each provided via its own Svelte context key. Containers set only the sub-interfaces they override; history and non-overridden concerns are resolved by walking up the Svelte context tree to the nearest ancestor that provides them. Pass-through delegation boilerplate is eliminated.
 
 No signal dispatcher, no string matching, no performer registry. Blocks call typed functions directly.
 
@@ -245,16 +245,16 @@ Container blocks are handled through **recursive composition**: a container bloc
 
 - A `BlockquoteBlock` component renders a `BlockList` for its inner children
 - A `ListBlock` renders `ListItemBlock` children, each of which renders its own nested `BlockList`
-- Each nested `BlockList` provides its own `EditorActions` context scoped to that nesting level
+- Each nested `BlockList` provides its own editor-actions contexts scoped to that nesting level
 - Boundary events from inner blocks bubble up through nesting levels
 
 This aligns with the principle that "adding a block type is an additive operation." A `BlockquoteBlock` is just another block component — it happens to contain a recursive `BlockList` inside it.
 
 ### Addressing
 
-`EditorActions` uses `blockIndex` relative to the **local** children array at each nesting level. When a `ParagraphBlock` inside a blockquote calls `splitBlock(1, offset)`, it operates on index 1 of the blockquote's inner children, not the document's top-level children.
+Context functions use `blockIndex` relative to the **local** children array at each nesting level. When a `ParagraphBlock` inside a blockquote calls `splitBlock(1, offset)`, it operates on index 1 of the blockquote's inner children, not the document's top-level children.
 
-The nested `BlockList` inside a container block creates its own `EditorActions` context that wraps the parent's context. It handles local operations (split, merge, focus traversal within the container) directly, and delegates to the parent context for operations that cross the container boundary (e.g., Backspace at the start of the first child should merge with or exit the container).
+The nested `BlockList` inside a container block provides its own scoped editor-actions contexts. It handles local operations (split, merge, focus traversal within the container) directly, and delegates to the parent context for operations that cross the container boundary (e.g., Backspace at the start of the first child should merge with or exit the container).
 
 ### Focus Traversal Through Containers
 
