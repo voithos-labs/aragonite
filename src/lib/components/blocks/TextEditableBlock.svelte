@@ -540,7 +540,7 @@
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
 			if (isAtFirstVisualLine()) {
 				e.preventDefault();
-				actions.moveFocus(index - 1, 'end');
+				actions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return;
 			}
 		}
@@ -549,7 +549,7 @@
 		if (e.key === 'ArrowDown' && !e.shiftKey) {
 			if (isAtLastVisualLine()) {
 				e.preventDefault();
-				actions.moveFocus(index + 1, 'start');
+				actions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return;
 			}
 		}
