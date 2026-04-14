@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
-import { joinRaw } from '../parser';
+import { joinRaw, isBlankLine } from '../parser';
 
 export function matchIndentedCode(text: string): boolean {
 	return /^(?: {4}|\t)/.test(text);
@@ -42,8 +42,4 @@ export function parseIndentedCode(
 		node: { kind: 'indentedCode', leadingTrivia, raw },
 		nextIndex: i
 	};
-}
-
-function isBlankLine(text: string): boolean {
-	return text.trim().length === 0;
 }
