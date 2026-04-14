@@ -24,6 +24,7 @@ export const FOCUS_LAST_START = -1;
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
+/** Svelte context key for the editor's sticky-column state. @see StickyColumnState in `./sticky-column` for the value provided under this key. */
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
 
 // ── List Context (list item → list block communication via Svelte context) ──
@@ -50,13 +51,24 @@ export interface ListContext {
 // ── Editor Actions (block → editor communication via Svelte context) ────────
 
 /**
+ * Origin direction for sticky-column cross-block focus moves.
+ * - `'above'` — cursor is entering this block from the block above (a downward move).
+ * - `'below'` — cursor is entering this block from the block below (an upward move).
+ *
+ * Used by both `FocusPosition.stickyColumnFrom` (moveFocus variant) and
+ * `BlockComponent.focusAtColumn?`'s `from` parameter, so container blocks
+ * can forward the value without translation.
+ */
+export type StickyColumnDirection = 'above' | 'below';
+
+/**
  * Focus position for moveFocus. The sticky-column variant tells the target
  * block to position the cursor at the offset nearest to the current sticky X
  * on its first (stickyColumnFrom: 'above') or last (stickyColumnFrom: 'below')
  * visual line. Falls back to focus(0) / focus(CURSOR_END) if the target does
  * not implement focusAtColumn?.
  */
-export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: 'above' | 'below' };
+export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
 export interface EditorActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
@@ -102,12 +114,12 @@ export interface BlockComponent {
 	setSelection?(start: number, end: number): void;
 	/**
 	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * on the block's first visual line (direction='from-above') or last
-	 * visual line (direction='from-below'). Optional — blocks that don't
-	 * participate in sticky column (code block, thematic break) omit this
-	 * method, and callers fall back to focus(0) / focus(CURSOR_END).
+	 * on the block's first visual line (`from === 'above'`) or last visual
+	 * line (`from === 'below'`). Optional — blocks that don't participate in
+	 * sticky column (code block, thematic break) omit this method, and
+	 * callers fall back to focus(0) / focus(CURSOR_END).
 	 */
-	focusAtColumn?(x: number, direction: 'from-above' | 'from-below'): void;
+	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/**
 	 * Cascade focus down a path of child indices to reach a leaf at the
 	 * given cursor offset. Implemented by container blocks (ListBlock,
