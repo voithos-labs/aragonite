@@ -326,17 +326,7 @@ test.describe('focus traversal after block insertion', () => {
 		// Layout: blockquote → following paragraph → fenced code → final paragraph.
 		// Merge the paragraph into the blockquote, then navigate from blockquote
 		// content down through the code block into the final paragraph.
-		const content = [
-			'> quote line',
-			'text',
-			'',
-			'```',
-			'code',
-			'```',
-			'',
-			'Final.',
-			''
-		].join('\n');
+		const content = ['> quote line', 'text', '', '```', 'code', '```', '', 'Final.', ''].join('\n');
 
 		await editor.loadContent(content);
 

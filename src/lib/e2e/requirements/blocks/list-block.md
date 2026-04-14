@@ -39,13 +39,13 @@ Covers ordered and unordered lists — flat items, nested items, and all keyboar
 
 ### M1 worked examples (preserve absolute indent)
 
-| Input | Backspace at | Result | Rule applied |
-|---|---|---|---|
-| `- A`<br>`- B` | start of B | `- AB` | flat merge |
-| `- A`<br>`- B`<br>`  - C` | start of B | `- AB`<br>`  - C` | C nests under AB (target A at depth 0) |
-| `- A`<br>`  - AA`<br>`- B`<br>`  - C` | start of B | `- A`<br>`  - AAB`<br>`  - C` | C becomes sibling of AA (target AA at depth 1, preserving C's absolute depth 1) |
-| `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2 |
-| `- A`<br>`- B`<br>_blank line_<br>`  extra` | start of B | `- AB`<br>_blank line_<br>`  extra` | extra paragraph absorbed into target item's children |
+| Input                                             | Backspace at | Result                                    | Rule applied                                                                    |
+| ------------------------------------------------- | ------------ | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| `- A`<br>`- B`                                    | start of B   | `- AB`                                    | flat merge                                                                      |
+| `- A`<br>`- B`<br>`  - C`                         | start of B   | `- AB`<br>`  - C`                         | C nests under AB (target A at depth 0)                                          |
+| `- A`<br>`  - AA`<br>`- B`<br>`  - C`             | start of B   | `- A`<br>`  - AAB`<br>`  - C`             | C becomes sibling of AA (target AA at depth 1, preserving C's absolute depth 1) |
+| `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D   | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2         |
+| `- A`<br>`- B`<br>_blank line_<br>`  extra`       | start of B   | `- AB`<br>_blank line_<br>`  extra`       | extra paragraph absorbed into target item's children                            |
 
 See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.md` for full semantic rules.
 

@@ -25,12 +25,7 @@ import type { BlockKind, CstNode } from './core/nodes';
  * by `Editor.mergeWithPrevious`, so the eligibility check `isMergeEligible
  * ('listItem', ...)` is never reached in production.
  */
-export type MergeRole =
-	| 'prose'
-	| 'prose-absorber'
-	| 'container'
-	| 'self-merge'
-	| 'opaque';
+export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'opaque';
 
 export const MERGE_ROLE: Record<BlockKind, MergeRole> = {
 	paragraph: 'prose',

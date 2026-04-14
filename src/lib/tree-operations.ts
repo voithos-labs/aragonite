@@ -98,11 +98,7 @@ export function mergeWithPrevious(
  * The combined raw text is re-parsed. The current block's ID is kept.
  * No-op if blockIndex is the last block.
  */
-export function mergeWithNext(
-	parent: NodeParent,
-	blockIds: string[],
-	blockIndex: number
-): void {
+export function mergeWithNext(parent: NodeParent, blockIds: string[], blockIndex: number): void {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return;
 
 	const curr = parent.children[blockIndex];
@@ -244,7 +240,8 @@ export function renumberOrderedList(list: CstNode, fromIndex = 0): void {
  * sequence numbers.
  */
 export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
-	const parentOrdered = (parentList.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const parentOrdered =
+		(parentList.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	const meta = item.metadata as { marker: string };
 	const itemOrdered = /^\d/.test(meta.marker);
 	if (itemOrdered === parentOrdered) return;
@@ -486,14 +483,21 @@ export function mergeListItemIntoPrevious(
 	list: CstNode,
 	currentIndex: number
 ): { mergePoint: { targetPath: number[]; offset: number } } {
-	if (list.kind !== 'list' || !list.children || currentIndex <= 0 || currentIndex >= list.children.length) {
+	if (
+		list.kind !== 'list' ||
+		!list.children ||
+		currentIndex <= 0 ||
+		currentIndex >= list.children.length
+	) {
 		throw new Error(`mergeListItemIntoPrevious: invalid currentIndex ${currentIndex}`);
 	}
 
 	const previousIndex = currentIndex - 1;
 	const targetPath = findDeepestVisibleTextTarget(list, previousIndex);
 	if (!targetPath) {
-		throw new Error('mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf');
+		throw new Error(
+			'mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf'
+		);
 	}
 
 	// Walk the uniform path from list down to the target paragraph, stopping one
@@ -505,7 +509,11 @@ export function mergeListItemIntoPrevious(
 	// After this loop, targetItem is the listItem directly containing the
 	// target paragraph at targetPath[targetPath.length - 1].
 
-	if (!targetItem.children || targetItem.children.length === 0 || targetItem.children[0].kind !== 'paragraph') {
+	if (
+		!targetItem.children ||
+		targetItem.children.length === 0 ||
+		targetItem.children[0].kind !== 'paragraph'
+	) {
 		throw new Error('mergeListItemIntoPrevious: target item does not start with a paragraph');
 	}
 
@@ -514,7 +522,11 @@ export function mergeListItemIntoPrevious(
 	const mergeOffset = targetOriginalText.length;
 
 	const currentItem = list.children[currentIndex];
-	if (!currentItem.children || currentItem.children.length === 0 || currentItem.children[0].kind !== 'paragraph') {
+	if (
+		!currentItem.children ||
+		currentItem.children.length === 0 ||
+		currentItem.children[0].kind !== 'paragraph'
+	) {
 		throw new Error('mergeListItemIntoPrevious: current item does not start with a paragraph');
 	}
 
@@ -550,7 +562,8 @@ export function mergeListItemIntoPrevious(
 		if (child.kind === 'list' && child.children) {
 			// child is a nested list whose items are at depth 1 (relative to currentItem's depth 0)
 			// Find the container at depth 1 along target's ancestry.
-			if (targetPath.length >= 4) { // depth ≥ 1: a nested-list container exists along the target's ancestry
+			if (targetPath.length >= 4) {
+				// depth ≥ 1: a nested-list container exists along the target's ancestry
 				// Target is at depth >= 1. The depth-1 container is the last nested list
 				// inside list.children[targetPath[0]].
 				const depthOneParent = list.children[targetPath[0]];
@@ -616,7 +629,11 @@ export function mergeListItemIntoPrevious(
  * (omits the inlineContent rendering cache).
  */
 export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
-	if (blockquote.kind !== 'blockquote' || !blockquote.children || blockquote.children.length === 0) {
+	if (
+		blockquote.kind !== 'blockquote' ||
+		!blockquote.children ||
+		blockquote.children.length === 0
+	) {
 		return [];
 	}
 
