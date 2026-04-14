@@ -206,4 +206,23 @@ export class EditorPage {
 	async screenshot(name: string) {
 		await this.page.screenshot({ path: `test-results/${name}.png` });
 	}
+
+	/**
+	 * Returns the viewport-absolute pixel X of the current selection's caret.
+	 * Returns NaN if no range is present. Used for sticky column proximity
+	 * assertions in E2E tests — tests accept the cursor landing at a nearby
+	 * offset (tolerance ~5 px) rather than a pixel-exact match, because
+	 * proportional fonts mean the target offset's pixel X may not exactly
+	 * equal the source X.
+	 */
+	async getCaretPixelX(): Promise<number> {
+		return this.page.evaluate(() => {
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return NaN;
+			const range = sel.getRangeAt(0);
+			const rects = range.getClientRects();
+			if (rects.length > 0) return rects[0].left;
+			return range.getBoundingClientRect().left;
+		});
+	}
 }
