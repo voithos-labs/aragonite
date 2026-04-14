@@ -18,6 +18,21 @@
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../raw-text';
+	import {
+		createRangeFromOffsets,
+		setCursorOffset as setCursorOffsetHelper,
+		getCursorOffset as getCursorOffsetHelper,
+		getSelectionOffsets as getSelectionOffsetsHelper,
+		hasSelection as hasSelectionHelper
+	} from '../../text-surface/cursor-utils';
+	import {
+		isAtFirstVisualLine,
+		isAtLastVisualLine
+	} from '../../text-surface/visual-lines';
+	import {
+		getCurrentCursorEditorRelativeX,
+		findOffsetNearestX
+	} from '../../text-surface/sticky-measure';
 
 	let {
 		node,
@@ -83,8 +98,7 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		// FOCUS_LAST_START (-1) cascades through containers; at the leaf level it means offset 0
-		setCursorOffset(Math.max(0, offset));
+		setCursorOffsetHelper(el, Math.max(0, offset));
 	}
 
 	/**
@@ -96,18 +110,12 @@
 		if (!el) return;
 		el.focus();
 		const targetOffset = findOffsetNearestX(el, x, from);
-		setCursorOffset(targetOffset);
+		setCursorOffsetHelper(el, targetOffset);
 	}
 
 	export function getCursorOffset(): number | null {
-		if (!el || document.activeElement !== el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return null;
-		const range = sel.getRangeAt(0);
-		const preRange = document.createRange();
-		preRange.selectNodeContents(el);
-		preRange.setEnd(range.startContainer, range.startOffset);
-		return preRange.toString().length;
+		if (!el) return null;
+		return getCursorOffsetHelper(el);
 	}
 
 	export function getSelectedText(): string {
@@ -125,162 +133,8 @@
 		sel?.removeAllRanges();
 		sel?.addRange(range);
 	}
+
 	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
-
-	// ── Cursor utilities ────────────────────────────────────────────────
-
-	/**
-	 * Get the current cursor's editor-relative pixel X. Viewport X minus the
-	 * editor container's viewport-left offset, so the value is invariant to
-	 * vertical scrolling within the editor. Returns null if no usable rect
-	 * can be obtained.
-	 */
-	function getCurrentCursorEditorRelativeX(): number | null {
-		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return null;
-		const range = sel.getRangeAt(0);
-
-		let viewportX: number | null = null;
-		const rects = range.getClientRects();
-		if (rects.length > 0 && (rects[0].width >= 0 || rects[0].height > 0)) {
-			viewportX = rects[0].left;
-		}
-		if (viewportX === null) {
-			const br = range.getBoundingClientRect();
-			if (br.height > 0 || br.width > 0) viewportX = br.left;
-		}
-		if (viewportX === null) {
-			// Final fallback: block's own left edge
-			viewportX = el.getBoundingClientRect().left;
-		}
-
-		const editor = el.closest('.editor') as HTMLElement | null;
-		const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-		return viewportX - editorLeft;
-	}
-
-	/**
-	 * Get the DOMRect of a collapsed range at a specific character offset
-	 * inside the container. Uses the existing createRangeFromOffsets helper
-	 * for consistent offset-to-range resolution.
-	 */
-	function getOffsetRect(container: HTMLElement, offset: number): DOMRect | null {
-		const range = createRangeFromOffsets(container, offset, offset);
-		if (!range) return null;
-		const rects = range.getClientRects();
-		if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
-		const br = range.getBoundingClientRect();
-		if (br.height > 0 || br.width > 0) return br;
-		return null;
-	}
-
-	/**
-	 * Scan character offsets in the target visual line (first or last) and
-	 * return the offset whose Range left coordinate is closest to the target
-	 * viewport X. Linear scan for BiDi correctness (binary search is invalid
-	 * on BiDi lines where getClientRects() left values are non-monotonic
-	 * along logical offsets).
-	 *
-	 * Cross-indentation note: `editorRelativeX` is measured against the editor
-	 * container's left edge, NOT any container's content edge. This is
-	 * intentional — preserving editor-relative X means the cursor stays under
-	 * the same VISUAL column on screen when crossing container boundaries,
-	 * at the cost of landing at a different CHARACTER offset within
-	 * differently-indented targets (e.g., column 5 of a top-level paragraph
-	 * vs column 5 of a blockquote's inner paragraph sit at different char
-	 * offsets but the same pixel X on screen). This matches the user-intent
-	 * "keep the cursor under the same pixel column" rather than char parity.
-	 */
-	function findOffsetNearestX(
-		container: HTMLElement,
-		editorRelativeX: number,
-		from: StickyColumnDirection
-	): number {
-		const text = container.textContent ?? '';
-		const textLen = text.length;
-		if (textLen === 0) return 0;
-
-		// Convert editor-relative X back to viewport X for comparison with getClientRects.
-		const editor = container.closest('.editor') as HTMLElement | null;
-		const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-		const targetViewportX = editorRelativeX + editorLeft;
-
-		// Probe the first or last offset to establish the target visual line's Y range.
-		const probeOffset = from === 'above' ? 0 : textLen;
-		const probeRect = getOffsetRect(container, probeOffset);
-		if (!probeRect) return probeOffset;
-
-		const lineTop = probeRect.top;
-		const lineBottom = probeRect.bottom;
-		const lineHeight = Math.max(1, lineBottom - lineTop);
-		const tolerance = lineHeight * 0.5;
-
-		let bestOffset = probeOffset;
-		let bestDelta = Math.abs(probeRect.left - targetViewportX);
-
-		for (let offset = 0; offset <= textLen; offset++) {
-			const rect = getOffsetRect(container, offset);
-			if (!rect) continue;
-			// Only consider offsets whose Y range overlaps the target visual line.
-			if (rect.top > lineBottom + tolerance) continue;
-			if (rect.bottom < lineTop - tolerance) continue;
-			const delta = Math.abs(rect.left - targetViewportX);
-			if (delta < bestDelta) {
-				bestDelta = delta;
-				bestOffset = offset;
-			}
-		}
-
-		return bestOffset;
-	}
-
-	function setCursorOffset(offset: number): void {
-		if (!el) return;
-		const range = createRangeFromOffsets(el, offset, offset);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
-	}
-
-	function createRangeFromOffsets(
-		container: HTMLElement,
-		start: number,
-		end: number
-	): Range | null {
-		const range = document.createRange();
-		let charCount = 0;
-		let startSet = false;
-
-		function walk(node: Node): boolean {
-			if (node.nodeType === Node.TEXT_NODE) {
-				const len = node.textContent?.length ?? 0;
-				if (!startSet && charCount + len >= start) {
-					range.setStart(node, start - charCount);
-					startSet = true;
-				}
-				if (startSet && charCount + len >= end) {
-					range.setEnd(node, end - charCount);
-					return true;
-				}
-				charCount += len;
-			} else {
-				for (const child of node.childNodes) {
-					if (walk(child)) return true;
-				}
-			}
-			return false;
-		}
-
-		walk(container);
-		if (!startSet) {
-			// Offset beyond content — put cursor at end
-			range.selectNodeContents(container);
-			range.collapse(false);
-		}
-		return range;
-	}
 
 	// ── Content sync ──────────────────────────────────────────────────────
 
@@ -329,183 +183,13 @@
 		}
 	}
 
-	// ── Visual-line detection ───────────────────────────────────────────
-
-	/**
-	 * Get the vertical position (top) of the cursor.
-	 * For collapsed ranges, getClientRects() may return an empty list or
-	 * zero-height rects. We try getClientRects first, then getBoundingClientRect,
-	 * and return null if neither produces a usable value.
-	 */
-	function getRangeTop(range: Range): number | null {
-		const rects = range.getClientRects();
-		if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
-		const br = range.getBoundingClientRect();
-		if (br.height > 0) return br.top;
-		return null;
-	}
-
-	/**
-	 * Find the first descendant text node with non-empty content. Used by
-	 * isAtFirstVisualLine to measure the top of the block's first visual
-	 * line reliably — a collapsed range on the block (e.g., selectNodeContents
-	 * + collapse(true)) can return null rects during transient layout states
-	 * and is especially unreliable when firstChild is a non-text element like
-	 * a dimmed marker span. A non-collapsed range around an actual character
-	 * always returns a valid rect once there's text to measure.
-	 */
-	function findFirstTextNode(node: Node): Text | null {
-		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-			return node as Text;
-		}
-		for (let i = 0; i < node.childNodes.length; i++) {
-			const found = findFirstTextNode(node.childNodes[i]);
-			if (found) return found;
-		}
-		return null;
-	}
-
-	/**
-	 * Find the last descendant text node with non-empty content. Symmetric
-	 * counterpart to findFirstTextNode; used by isAtLastVisualLine.
-	 */
-	function findLastTextNode(node: Node): Text | null {
-		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-			return node as Text;
-		}
-		for (let i = node.childNodes.length - 1; i >= 0; i--) {
-			const found = findLastTextNode(node.childNodes[i]);
-			if (found) return found;
-		}
-		return null;
-	}
-
-	/**
-	 * Get the vertical position of a non-collapsed range around a character.
-	 * Non-collapsed ranges reliably return rects, unlike collapsed ones.
-	 */
-	function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
-		if (!el) return null;
-		try {
-			const range = document.createRange();
-			if (atEnd) {
-				// Range covering the last character
-				range.setStart(container, Math.max(0, offset - 1));
-				range.setEnd(container, offset);
-			} else {
-				// Range covering the first character
-				range.setStart(container, offset);
-				range.setEnd(container, offset + 1);
-			}
-			const rects = range.getClientRects();
-			if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
-			const br = range.getBoundingClientRect();
-			if (br.height > 0) return br.top;
-		} catch {
-			// offset out of bounds — ignore
-		}
-		return null;
-	}
-
-	function isAtFirstVisualLine(): boolean {
-		if (!el) return true;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return true;
-		if ((el.textContent ?? '').length === 0) return true;
-
-		const cursorRange = sel.getRangeAt(0);
-		let cursorTop = getRangeTop(cursorRange);
-
-		// For collapsed cursor, try measuring the character at cursor position
-		if (cursorTop === null && cursorRange.collapsed) {
-			const offset = getCursorOffset() ?? 0;
-			// If at offset 0, we're definitely at first visual line
-			if (offset === 0) return true;
-			// Otherwise fall back to offset check
-			return false;
-		}
-		if (cursorTop === null) return true;
-
-		// Get the vertical position of the start of the element. We walk the
-		// DOM to find the first *text node* with content rather than using
-		// `el.firstChild` directly, because inline markers are rendered as
-		// dimmed spans — for a heading like `## Heading` or a paragraph
-		// starting with `**bold**`, `firstChild` is a span (non-text), which
-		// would force us through an unreliable collapsed-range path.
-		// getCharRangeTop on a real text node always returns a valid rect.
-		const firstText = findFirstTextNode(el);
-		let startTop: number | null = null;
-		if (firstText) {
-			startTop = getCharRangeTop(firstText, 0, false);
-		}
-		if (startTop === null) {
-			// Fallback: collapsed range at the start of the element. Kept
-			// only as a last resort; see findFirstTextNode for why the
-			// walk-based path is preferred.
-			const startRange = document.createRange();
-			startRange.selectNodeContents(el);
-			startRange.collapse(true);
-			startTop = getRangeTop(startRange);
-		}
-		if (startTop === null) {
-			// Can't determine geometry — fall back to offset-based
-			return (getCursorOffset() ?? 0) === 0;
-		}
-
-		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
-		return Math.abs(cursorTop - startTop) < lineHeight * 0.8;
-	}
-
-	function isAtLastVisualLine(): boolean {
-		if (!el) return true;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return true;
-		const textLen = (el.textContent ?? '').length;
-		if (textLen === 0) return true;
-
-		const cursorRange = sel.getRangeAt(0);
-		let cursorTop = getRangeTop(cursorRange);
-
-		// For collapsed cursor at end of text, we're at last visual line
-		if (cursorTop === null && cursorRange.collapsed) {
-			const offset = getCursorOffset() ?? 0;
-			if (offset === textLen) return true;
-			return false;
-		}
-		if (cursorTop === null) return true;
-
-		// Get the vertical position of the end of the element. Symmetric to
-		// isAtFirstVisualLine: walk the DOM to find the LAST text node with
-		// content, because the last child may be a dimmed marker span (e.g.
-		// a paragraph ending in `**bold**`).
-		const lastText = findLastTextNode(el);
-		let endTop: number | null = null;
-		if (lastText) {
-			const len = lastText.textContent!.length;
-			endTop = getCharRangeTop(lastText, len, true);
-		}
-		if (endTop === null) {
-			// Fallback: collapsed range at the end of the element.
-			const endRange = document.createRange();
-			endRange.selectNodeContents(el);
-			endRange.collapse(false);
-			endTop = getRangeTop(endRange);
-		}
-		if (endTop === null) {
-			return (getCursorOffset() ?? 0) === textLen;
-		}
-
-		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
-		return Math.abs(cursorTop - endTop) < lineHeight * 0.8;
-	}
-
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
 		stickyColumn.reset();
 		if (composing || !el) return;
 		const text = el.textContent ?? '';
-		const savedOffset = getCursorOffset() ?? 0;
+		const savedOffset = getCursorOffsetHelper(el) ?? 0;
 		blockEdit.updateBlockContent(index, text + '\n', savedOffset);
 
 		// Signal the $effect to restore cursor after it rebuilds the DOM.
@@ -527,14 +211,14 @@
 		if (composing) return;
 
 		// Save cursor position before the browser modifies the DOM
-		preEditOffset = getCursorOffset() ?? 0;
+		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
 		// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
 		// Horizontal arrows, Home, End, Escape, and typable characters all land in
 		// the else branch and reset sticky — PRESERVE_KEYS_NON_ARROW's JSDoc lists
 		// every key that intentionally does nothing to sticky state.
 		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-			const x = getCurrentCursorEditorRelativeX();
+			const x = getCurrentCursorEditorRelativeX(el!);
 			if (x !== null) stickyColumn.capture(x);
 			// Fall through to the existing vertical-arrow branches below
 		} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
@@ -570,7 +254,7 @@
 
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			const offset = getCursorOffset() ?? 0;
+			const offset = getCursorOffsetHelper(el!) ?? 0;
 			if (splitOnEnter) {
 				blockEdit.splitBlock(index, offset);
 			} else {
@@ -584,8 +268,8 @@
 		}
 
 		if (e.key === 'Backspace') {
-			const offset = getCursorOffset();
-			if (offset === 0 && !hasSelection()) {
+			const offset = getCursorOffsetHelper(el!);
+			if (offset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithPrevious(index);
 				return;
@@ -593,9 +277,9 @@
 		}
 
 		if (e.key === 'Delete') {
-			const offset = getCursorOffset();
+			const offset = getCursorOffsetHelper(el!);
 			const textLen = (el?.textContent ?? '').length;
-			if (offset === textLen && !hasSelection()) {
+			if (offset === textLen && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithNext(index);
 				return;
@@ -604,7 +288,8 @@
 
 		// ArrowUp — geometry-based: cross block boundary when cursor is on first visual line.
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
-			if (isAtFirstVisualLine()) {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			if (isAtFirstVisualLine(el!, offset)) {
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return;
@@ -613,7 +298,9 @@
 
 		// ArrowDown — geometry-based: cross block boundary when cursor is on last visual line.
 		if (e.key === 'ArrowDown' && !e.shiftKey) {
-			if (isAtLastVisualLine()) {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const textLen = (el?.textContent ?? '').length;
+			if (isAtLastVisualLine(el!, offset, textLen)) {
 				e.preventDefault();
 				focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return;
@@ -622,7 +309,7 @@
 
 		// ArrowLeft at offset 0 → move to end of previous block
 		if (e.key === 'ArrowLeft' && !e.shiftKey) {
-			const offset = getCursorOffset();
+			const offset = getCursorOffsetHelper(el!);
 			if (offset === 0) {
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
@@ -633,7 +320,7 @@
 		// ArrowRight at end of content → move to start of next block
 		if (e.key === 'ArrowRight' && !e.shiftKey) {
 			const textLen = (el?.textContent ?? '').length;
-			const offset = getCursorOffset();
+			const offset = getCursorOffsetHelper(el!);
 			if (offset === textLen) {
 				e.preventDefault();
 				focusActions.moveFocus(index + 1, 'start');
@@ -671,7 +358,7 @@
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
 
-		const selOffsets = getSelectionOffsets();
+		const selOffsets = getSelectionOffsetsHelper(el!);
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
@@ -687,9 +374,9 @@
 		const text = e.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
 
-		const offset = getCursorOffset() ?? 0;
+		const offset = getCursorOffsetHelper(el!) ?? 0;
 		const displayText = getDisplayText();
-		const selOffsets = getSelectionOffsets();
+		const selOffsets = getSelectionOffsetsHelper(el!);
 		const start = selOffsets?.start ?? offset;
 		const end = selOffsets?.end ?? offset;
 
@@ -726,7 +413,7 @@
 	function toggleFormat(format: 'strong' | 'emphasis'): void {
 		if (!el) return;
 
-		const offsets = getSelectionOffsets();
+		const offsets = getSelectionOffsetsHelper(el);
 		if (!offsets) return;
 
 		const displayText = getDisplayText();
@@ -773,25 +460,8 @@
 
 	// ── Helpers ─────────────────────────────────────────────────────────
 
-	function hasSelection(): boolean {
-		const sel = window.getSelection();
-		return Boolean(sel && !sel.isCollapsed);
-	}
-
-	function getSelectionOffsets(): { start: number; end: number } | null {
-		const sel = window.getSelection();
-		if (!sel || sel.isCollapsed || !el) return null;
-		const range = sel.getRangeAt(0);
-		const preRange = document.createRange();
-		preRange.selectNodeContents(el);
-		preRange.setEnd(range.startContainer, range.startOffset);
-		const start = preRange.toString().length;
-		const end = start + sel.toString().length;
-		return { start, end };
-	}
-
 	function getSelectedTextFromRaw(): string {
-		const offsets = getSelectionOffsets();
+		const offsets = getSelectionOffsetsHelper(el!);
 		if (!offsets) return '';
 		return node.raw.slice(offsets.start, offsets.end);
 	}
