@@ -4,9 +4,7 @@
 
 Prettier handles all formatting. Run `npm run format` before committing.
 
-See `.prettierrc` for the full config.
-
-Also, note, indentations should be tab (four spaces)!
+See `.prettierrc` for the full config. Indentation is tabs (four spaces wide).
 
 ## File Structure
 
