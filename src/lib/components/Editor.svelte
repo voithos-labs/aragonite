@@ -61,6 +61,7 @@
 	let doc = $state<Document>(initDocument(source));
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
+	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
 
@@ -73,7 +74,38 @@
 			blockIds = assignIds(doc.children);
 			blockRefs = [];
 			undoManager.clear();
+			stickyColumn.reset();
 		}
+	});
+
+	$effect(() => {
+		const handleFocusOut = (e: FocusEvent) => {
+			// focusout bubbles; reset only if focus is leaving the editor entirely.
+			// If the relatedTarget is inside editorEl, the focus is just moving
+			// between blocks and we should not reset.
+			if (!editorEl) return;
+			const next = e.relatedTarget as Node | null;
+			if (next && editorEl.contains(next)) return;
+			stickyColumn.reset();
+		};
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'hidden') {
+				stickyColumn.reset();
+			}
+		};
+
+		if (editorEl) {
+			editorEl.addEventListener('focusout', handleFocusOut);
+		}
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			if (editorEl) {
+				editorEl.removeEventListener('focusout', handleFocusOut);
+			}
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	});
 
 	// ── Undo snapshot helpers ───────────────────────────────────────────
@@ -600,7 +632,7 @@
 	}
 </script>
 
-<div class="editor">
+<div class="editor" bind:this={editorEl}>
 	<BlockList children={doc.children} {blockIds} bind:blockRefs />
 </div>
 
