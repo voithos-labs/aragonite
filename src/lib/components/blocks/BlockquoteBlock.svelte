@@ -2,6 +2,9 @@
 	import { getContext, setContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
 		CURSOR_END,
 		type EditorActions,
@@ -415,6 +418,9 @@
 	};
 
 	setContext(EDITOR_ACTIONS_KEY, nestedActions);
+	setContext(BLOCK_EDIT_KEY, nestedActions);
+	setContext(FOCUS_KEY, nestedActions);
+	setContext(HISTORY_KEY, nestedActions);
 </script>
 
 <div class="blockquote-block">
