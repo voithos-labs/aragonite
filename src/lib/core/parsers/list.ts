@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
-import { joinRaw, parseBlocks } from '../parser';
+import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 
 /**
  * Match an ordered or unordered list item on `text`. Returns marker + indent
@@ -151,8 +151,4 @@ function stripListItemLines(
 		offset += raw.length;
 		return strippedLine;
 	});
-}
-
-function isBlankLine(text: string): boolean {
-	return text.trim().length === 0;
 }
