@@ -15,6 +15,9 @@ import { parseInline } from './index';
  * Scan text regions (not occupied by code spans) for links, images, and autolinks.
  * Returns an updated node list where link/image/autolink nodes are spliced in
  * and the surrounding text nodes are trimmed accordingly.
+ *
+ * Occupied ranges (code spans + found links/images/autolinks) are used to ensure
+ * Stage 2 treats their ranges as non-text.
  */
 export function scanLinksAndAutolinks(
 	raw: string,
@@ -75,6 +78,7 @@ export function scanLinksAndAutolinks(
 /**
  * Attempt to parse a link/image destination `(url "title")` starting at pos.
  * pos must point at the `(` character.
+ * Returns { url, title, end } on success (end is past the closing `)`), or null.
  */
 function parseDestination(
 	raw: string,
