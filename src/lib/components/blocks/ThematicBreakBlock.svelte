@@ -54,13 +54,25 @@
 			return;
 		}
 
-		if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+		if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			actions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+			return;
+		}
+
+		if (e.key === 'ArrowLeft') {
 			e.preventDefault();
 			actions.moveFocus(index - 1, 'end');
 			return;
 		}
 
-		if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			actions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+			return;
+		}
+
+		if (e.key === 'ArrowRight') {
 			e.preventDefault();
 			actions.moveFocus(index + 1, 'start');
 			return;
