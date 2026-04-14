@@ -28,7 +28,7 @@ See the "Inline Node Types" section below for the full type definitions.
 
 Phase 3 proposed an ownership flip: the inline tree would become authoritative, `raw` derived from it. Block-level structured fields would decompose `raw` into semantic fields. This would have enabled tree-based semantic editing and optional syntax hiding (Obsidian-style markers hidden on unfocus).
 
-**Decision: Phase 2 is the permanent architecture.** Phase 3 was evaluated after the editor reached maturity (v0.3.1, ~4,300 lines of source) and rejected for these reasons:
+**Decision: Phase 2 is the permanent architecture.** Phase 3 was evaluated after the editing loop matured and rejected for these reasons:
 
 - **Round-trip fidelity.** Phase 2's `serialize(parse(source)) === source` is trivially maintained because serialization concatenates `raw`. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`), making round-trip fragile.
 - **Partial syntax during typing.** `**bold` mid-typing is just a string in raw-as-truth. In tree-as-truth, it's an invalid tree state that every keystroke must handle.
