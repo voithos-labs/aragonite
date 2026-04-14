@@ -21,7 +21,6 @@ export const FOCUS_LAST_START = -1;
 
 // ── Context Keys ────────────────────────────────────────────────────────────
 
-export const EDITOR_ACTIONS_KEY = Symbol('editor-actions'); // legacy — deleted in Task 10
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 /** Svelte context key for the editor's sticky-column state. @see StickyColumnState in `./sticky-column` for the value provided under this key. */
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
@@ -127,17 +126,6 @@ export interface ContainerEditActions {
 	/** Trigger top-level Svelte reactivity after a container mutation. */
 	endContainerEdit(): void;
 }
-
-/**
- * Transitional aggregate type for consumers still reading from
- * EDITOR_ACTIONS_KEY during the migration. Deleted in Task 10 once every
- * consumer has moved to the sub-interface keys.
- */
-export interface EditorActions
-	extends BlockEditActions,
-		FocusActions,
-		HistoryActions,
-		Partial<ContainerEditActions> {}
 
 // ── Block Component Interface (what each block exposes to the editor) ───────
 

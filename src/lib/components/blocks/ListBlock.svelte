@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { getContext, setContext, tick } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
-		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
-		type EditorActions,
 		type BlockEditActions,
 		type FocusActions,
-		type HistoryActions,
 		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
@@ -38,7 +34,6 @@
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));
@@ -377,23 +372,6 @@
 	setContext(BLOCK_EDIT_KEY, listBlockEdit);
 	setContext(FOCUS_KEY, listFocus);
 	setContext(CONTAINER_EDIT_KEY, listContainerEdit);
-
-	// Bridge object: spread the 3 bundles into a single EditorActions-shaped
-	// object for setContext(EDITOR_ACTIONS_KEY, ...). Needed because child
-	// components (ListItemBlock, nested ListBlock) may still read EDITOR_ACTIONS_KEY.
-	// Removed in Task 10 once all containers have migrated to sub-interface keys.
-	const listActionsBridge: EditorActions = {
-		...listBlockEdit,
-		...listFocus,
-		requestUndo(): void | Promise<void> {
-			return parentHistory.requestUndo();
-		},
-		requestRedo(): void | Promise<void> {
-			return parentHistory.requestRedo();
-		},
-		...listContainerEdit
-	};
-	setContext(EDITOR_ACTIONS_KEY, listActionsBridge);
 
 	// ── List Context ────────────────────────────────────────────────────
 	// Provides list-specific operations to child ListItemBlock components.
