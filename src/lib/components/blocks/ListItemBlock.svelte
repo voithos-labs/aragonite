@@ -8,7 +8,6 @@
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
-		LIST_PARENT_ITEM_INDEX_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type EditorActions,
@@ -43,6 +42,19 @@
 	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
+
+	// Wrap parent's ListContext with a getContainingItemIndex that returns
+	// this item's index. A nested ListBlock rendered inside this item reads
+	// the wrapped version, so its call to getContainingItemIndex() returns
+	// *this* item's position in the outer list — what promoteNestedItem
+	// needs as the parentItemIndex coordinate.
+	const wrappedListContext: ListContext = {
+		...listContext,
+		getContainingItemIndex: () => index
+	};
+
+	setContext(LIST_CONTEXT_KEY, wrappedListContext);
+
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
@@ -451,10 +463,7 @@
 		}
 	}
 
-	// Expose this item's index so nested ListBlocks can find their parent item
-	// position in the outer list (needed for unindent). Wrapped in a getter
-	// because the index prop is reactive and may change after initialization.
-	setContext(LIST_PARENT_ITEM_INDEX_KEY, () => index);
+
 </script>
 
 <div class="list-item-block">
