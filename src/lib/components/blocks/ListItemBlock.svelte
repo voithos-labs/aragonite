@@ -12,6 +12,10 @@
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
+		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
 		type ListContext,
@@ -34,7 +38,10 @@
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
-	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
+	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let innerBlockIds = $state<string[]>(assignIds(node.children ?? []));
@@ -128,7 +135,7 @@
 
 	function finalizeContainerEdit(): void {
 		rebuildListItemRaw(node);
-		parentActions.endContainerEdit?.();
+		parentContainerEdit?.endContainerEdit();
 	}
 
 	function triggerInnerReactivity(): void {
@@ -173,7 +180,9 @@
 		triggerInnerReactivity();
 	}
 
-	const nestedActions: EditorActions = {
+	// ── Nested action bundles ────────────────────────────────────────────
+
+	const nestedBlockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!node.children) return;
 
@@ -193,16 +202,16 @@
 			const isAtEnd = innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
 
 			if (isAtEnd) {
-				parentActions.beginContainerEdit?.(index, offset);
+				parentContainerEdit?.beginContainerEdit(index, offset);
 				listContext.insertItemAfter(index);
-				parentActions.endContainerEdit?.();
+				parentContainerEdit?.endContainerEdit();
 				return;
 			}
 
 			// In middle — split content across two items
-			parentActions.beginContainerEdit?.(index, offset);
+			parentContainerEdit?.beginContainerEdit(index, offset);
 			await splitItemAtOffset(innerIndex, offset);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
@@ -211,7 +220,7 @@
 			if (innerIndex <= 0) {
 				// At start of first child in this list item
 				// Signal to list-level parent to handle (merge with previous item or exit list)
-				parentActions.mergeWithPrevious(index);
+				parentBlockEdit.mergeWithPrevious(index);
 				return;
 			}
 
@@ -221,7 +230,7 @@
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
 
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				performMerge(asNodeParent(), innerBlockIds, innerIndex);
 				innerBlockRefs.splice(innerIndex, 1);
 				finalizeContainerEdit();
@@ -229,7 +238,7 @@
 				await tick();
 				innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 			} else if (!isBlockEditable(prevKind)) {
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				performDelete(asNodeParent(), innerBlockIds, innerIndex - 1);
 				innerBlockRefs.splice(innerIndex - 1, 1);
 				finalizeContainerEdit();
@@ -246,7 +255,7 @@
 
 			if (innerIndex >= node.children.length - 1) {
 				// At last child in this list item — delegate to parent
-				parentActions.mergeWithNext(index);
+				parentBlockEdit.mergeWithNext(index);
 				return;
 			}
 
@@ -256,7 +265,7 @@
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(node.children[innerIndex].raw);
 
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				performMergeNext(asNodeParent(), innerBlockIds, innerIndex);
 				innerBlockRefs.splice(innerIndex + 1, 1);
 				finalizeContainerEdit();
@@ -264,7 +273,7 @@
 				await tick();
 				innerBlockRefs[innerIndex]?.focus(mergeOffset);
 			} else if (!isBlockEditable(nextKind)) {
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				performDelete(asNodeParent(), innerBlockIds, innerIndex + 1);
 				innerBlockRefs.splice(innerIndex + 1, 1);
 				finalizeContainerEdit();
@@ -280,11 +289,11 @@
 			if (!node.children) return;
 
 			if (node.children.length <= 1) {
-				parentActions.deleteBlock(index);
+				parentBlockEdit.deleteBlock(index);
 				return;
 			}
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 			performDelete(asNodeParent(), innerBlockIds, innerIndex);
 			innerBlockRefs.splice(innerIndex, 1);
 			finalizeContainerEdit();
@@ -294,44 +303,12 @@
 			innerBlockRefs[focusIdx]?.focus(0);
 		},
 
-		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			if (!node.children) return;
-
-			if (innerIndex < 0) {
-				parentActions.moveFocus(index - 1, position);
-				return;
-			}
-			if (innerIndex >= node.children.length) {
-				parentActions.moveFocus(index + 1, position);
-				return;
-			}
-
-			const block = innerBlockRefs[innerIndex];
-			if (!block?.focusable) return;
-
-			// Sticky-column variant: use focusAtColumn if available, else fall back
-			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
-				const x = stickyColumn.get();
-				const from = position.stickyColumnFrom;
-				if (x !== null && block.focusAtColumn) {
-					block.focusAtColumn(x, from);
-					return;
-				}
-				block.focus(from === 'above' ? 0 : CURSOR_END);
-				return;
-			}
-
-			if (typeof position === 'number') block.focus(position);
-			else if (position === 'start') block.focus(0);
-			else block.focus(CURSOR_END);
-		},
-
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
 			if (!node.children) return;
-			parentActions.beginContainerEditDebounced?.(index, preEditOffset ?? 0);
+			parentContainerEdit?.beginContainerEditDebounced(index, preEditOffset ?? 0);
 			const result = performUpdate(asNodeParent(), innerIndex, text);
 			rebuildListItemRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			if (result.kindChanged) {
 				triggerInnerReactivity();
 				tick().then(() => {
@@ -350,7 +327,7 @@
 		): Promise<void> {
 			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 
 			// Work on plain copies to prevent $state proxy splice cascades.
 			const childrenCopy = [...node.children];
@@ -380,7 +357,7 @@
 			innerBlockRefs = refsCopy;
 
 			rebuildListItemRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerInnerReactivity();
 
 			await tick();
@@ -389,29 +366,80 @@
 				const targetIdx = innerIndex + focus.replacementIndex;
 				innerBlockRefs[targetIdx]?.focus(focus.offset);
 			}
-		},
+		}
+	};
 
-		requestUndo(): void | Promise<void> {
-			return parentActions.requestUndo();
-		},
+	const nestedFocus: FocusActions = {
+		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
+			if (!node.children) return;
 
-		requestRedo(): void | Promise<void> {
-			return parentActions.requestRedo();
-		},
+			if (innerIndex < 0) {
+				parentFocus.moveFocus(index - 1, position);
+				return;
+			}
+			if (innerIndex >= node.children.length) {
+				parentFocus.moveFocus(index + 1, position);
+				return;
+			}
 
+			const block = innerBlockRefs[innerIndex];
+			if (!block?.focusable) return;
+
+			// Sticky-column variant: use focusAtColumn if available, else fall back
+			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+				const x = stickyColumn.get();
+				const from = position.stickyColumnFrom;
+				if (x !== null && block.focusAtColumn) {
+					block.focusAtColumn(x, from);
+					return;
+				}
+				block.focus(from === 'above' ? 0 : CURSOR_END);
+				return;
+			}
+
+			if (typeof position === 'number') block.focus(position);
+			else if (position === 'start') block.focus(0);
+			else block.focus(CURSOR_END);
+		}
+	};
+
+	const nestedContainerEdit: ContainerEditActions = {
+		// Propagate container support for deeply nested containers
 		beginContainerEdit(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEdit?.(index, offset);
+			parentContainerEdit?.beginContainerEdit(index, offset);
 		},
 
 		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEditDebounced?.(index, offset);
+			parentContainerEdit?.beginContainerEditDebounced(index, offset);
 		},
 
 		endContainerEdit(): void {
 			rebuildListItemRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 		}
 	};
+
+	setContext(BLOCK_EDIT_KEY, nestedBlockEdit);
+	setContext(FOCUS_KEY, nestedFocus);
+	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
+
+	// Transitional bridge object: spread the 3 new bundles into a single
+	// EditorActions-shaped object for setContext(EDITOR_ACTIONS_KEY, ...).
+	// Needed because ListBlock (Task 8) is not yet migrated and still reads
+	// parentActions via EDITOR_ACTIONS_KEY when nested inside a list item.
+	// Removed in Task 10.
+	const nestedActionsBridge: EditorActions = {
+		...nestedBlockEdit,
+		...nestedFocus,
+		requestUndo(): void | Promise<void> {
+			return parentHistory.requestUndo();
+		},
+		requestRedo(): void | Promise<void> {
+			return parentHistory.requestRedo();
+		},
+		...nestedContainerEdit
+	};
+	setContext(EDITOR_ACTIONS_KEY, nestedActionsBridge);
 
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
@@ -424,11 +452,6 @@
 		}
 	}
 
-	setContext(EDITOR_ACTIONS_KEY, nestedActions);
-	setContext(BLOCK_EDIT_KEY, nestedActions);
-	setContext(FOCUS_KEY, nestedActions);
-	setContext(HISTORY_KEY, nestedActions);
-	setContext(CONTAINER_EDIT_KEY, nestedActions);
 	// Expose this item's index so nested ListBlocks can find their parent item
 	// position in the outer list (needed for unindent). Wrapped in a getter
 	// because the index prop is reactive and may change after initialization.
