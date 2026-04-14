@@ -530,8 +530,11 @@ export function mergeListItemIntoPrevious(
 	// were originally at depth 1. They should be placed at depth 1 in the target's
 	// ancestry, which means: in the container at depth 1 along target's path.
 	//
-	// targetPath is a uniform path: [topItemIdx, ...]. Its length is always odd + 1
-	// (one index per node level). The target listItem is at depth (targetPath.length-1)/2.
+	// targetPath is a uniform path: [topItemIdx, nestedListIdx, innerItemIdx,
+	// ..., paragraphIdx]. Length is always even — each nesting level adds two
+	// indices (listItem + its nested list) and the trailing paragraph adds one
+	// more, offset by the one-index "top item" base. Depth-0 target: length 2
+	// (flat list). Depth-1 target: length 4. Depth-N target: length 2(N+1).
 	//
 	// If target is at depth 0 (targetPath.length === 2: [itemIdx, 0]), the container at
 	// depth 1 along target's ancestry doesn't exist — fall through to absorb children
@@ -547,7 +550,7 @@ export function mergeListItemIntoPrevious(
 		if (child.kind === 'list' && child.children) {
 			// child is a nested list whose items are at depth 1 (relative to currentItem's depth 0)
 			// Find the container at depth 1 along target's ancestry.
-			if (targetPath.length >= 4) {
+			if (targetPath.length >= 4) { // depth ≥ 1: a nested-list container exists along the target's ancestry
 				// Target is at depth >= 1. The depth-1 container is the last nested list
 				// inside list.children[targetPath[0]].
 				const depthOneParent = list.children[targetPath[0]];
@@ -595,6 +598,11 @@ export function mergeListItemIntoPrevious(
 	// targetPath before returning, so the returned targetPath ends at the target
 	// listItem. ListBlock.svelte appends a 0 itself when cascading focus via
 	// focusByPath, so stripping it here keeps the caller's convention intact.
+	// targetPath ends at the paragraph leaf — required for the resolver loop
+	// above and for rebuildAncestryRaw, both of which need the full path. Strip
+	// the trailing paragraph index before returning, so ListBlock.svelte's
+	// focusByPath cascade can re-append 0 via its existing [...restPath, 0]
+	// convention.
 	return { mergePoint: { targetPath: targetPath.slice(0, -1), offset: mergeOffset } };
 }
 
