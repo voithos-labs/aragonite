@@ -1,10 +1,30 @@
 /**
  * Single-pass, line-oriented GFM block parser.
  * Produces a recursive CST where serialize(parse(source)) === source.
+ * Per-kind match and parse functions live in core/parsers/; this file
+ * retains only the top-level dispatch, shared utilities, and the public
+ * entry points (parse, parseBlocks).
  */
 
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
+import { matchFenceOpen, parseFencedCode } from './parsers/fenced-code';
+import { matchHeading } from './parsers/heading';
+import { matchThematicBreak } from './parsers/thematic-break';
+import { matchBlockquote, parseBlockquote } from './parsers/blockquote';
+import { matchListItem, parseList } from './parsers/list';
+import { matchIndentedCode, parseIndentedCode } from './parsers/indented-code';
+import { matchHtmlBlock, parseHtmlBlock } from './parsers/html-block';
+import { matchLinkReferenceDefinition } from './parsers/link-reference';
+import { parseParagraph } from './parsers/paragraph';
+
+// Re-export public matcher helpers so existing external callers
+// (`from '../core/parser'` import sites in tests and e2e helpers)
+// continue to resolve unchanged after the kind-split.
+export { matchThematicBreak } from './parsers/thematic-break';
+export { matchListItem } from './parsers/list';
+
+// ── Public entry point ──────────────────────────────────────────────────
 
 /** Parse a markdown source string into a Document CST. */
 export function parse(source: string): Document {
@@ -24,7 +44,11 @@ interface ParseBlocksResult {
 	suffix: string;
 }
 
-export function parseBlocks(lines: ParsedLine[], start: number, end: number): ParseBlocksResult {
+export function parseBlocks(
+	lines: ParsedLine[],
+	start: number,
+	end: number
+): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
 	let pendingTrivia = '';
@@ -60,6 +84,8 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 	return { prefix, children, suffix: pendingTrivia };
 }
 
+// ── Dispatch ────────────────────────────────────────────────────────────
+
 function parseNextBlock(
 	lines: ParsedLine[],
 	startIndex: number,
@@ -84,7 +110,7 @@ function parseNextBlock(
 		};
 	}
 
-	// Thematic break — setext detection in parseParagraph handles the ---/=== ambiguity
+	// Thematic break — setext detection inside parseParagraph handles the ---/=== ambiguity
 	const thematic = matchThematicBreak(line.text);
 	if (thematic) {
 		return {
@@ -104,7 +130,9 @@ function parseNextBlock(
 		return parseList(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	// Indented code block — cannot interrupt a paragraph (GFM spec 4.4)
+	// Indented code block — cannot interrupt a paragraph (GFM spec 4.4). The
+	// interruption rule is a dispatch-time context check, not a line-level
+	// match; hence it lives here rather than inside the matcher.
 	if (matchIndentedCode(line.text) && (leadingTrivia.length > 0 || isFirstBlock)) {
 		return parseIndentedCode(lines, startIndex, endIndex, leadingTrivia);
 	}
@@ -128,438 +156,18 @@ function parseNextBlock(
 		};
 	}
 
-	// Fallback: paragraph — consume continuation lines (also detects setext headings and tables)
+	// Fallback: paragraph (also detects setext headings and tables)
 	return parseParagraph(lines, startIndex, endIndex, leadingTrivia);
 }
 
-function parseFencedCode(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	fence: { marker: '`' | '~'; length: number; info: string }
-): { node: CstNode; nextIndex: number } {
-	let i = startIndex + 1;
-	let closed = false;
+// ── Shared utilities ────────────────────────────────────────────────────
 
-	while (i < endIndex) {
-		if (matchFenceClose(lines[i].text, fence.marker, fence.length)) {
-			i++;
-			closed = true;
-			break;
-		}
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: {
-			kind: 'fencedCode',
-			leadingTrivia,
-			raw,
-			metadata: {
-				fenceMarker: fence.marker,
-				fenceLength: fence.length,
-				info: fence.info,
-				closed
-			}
-		},
-		nextIndex: i
-	};
-}
-
-function parseParagraph(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
-	// Check for table: first line has a pipe and second line is a delimiter row
-	if (startIndex + 1 < endIndex) {
-		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
-		if (delimiter && lines[startIndex].text.includes('|')) {
-			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter.columnCount);
-		}
-	}
-
-	let i = startIndex + 1;
-
-	while (i < endIndex && !isBlankLine(lines[i].text) && !startsNewBlock(lines[i].text)) {
-		// Check if this line is a setext underline for the paragraph above
-		const setext = matchSetextUnderline(lines[i].text);
-		if (setext) {
-			const raw = joinRaw(lines, startIndex, i + 1);
-			return {
-				node: { kind: 'setextHeading', leadingTrivia, raw, metadata: { level: setext.level } },
-				nextIndex: i + 1
-			};
-		}
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: { kind: 'paragraph', leadingTrivia, raw },
-		nextIndex: i
-	};
-}
-
-function parseIndentedCode(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
-	let i = startIndex;
-
-	while (i < endIndex) {
-		if (matchIndentedCode(lines[i].text)) {
-			i++;
-		} else if (isBlankLine(lines[i].text)) {
-			// Blank lines inside indented code are kept if followed by more indented lines
-			let j = i + 1;
-			while (j < endIndex && isBlankLine(lines[j].text)) j++;
-			if (j < endIndex && matchIndentedCode(lines[j].text)) {
-				i = j;
-			} else {
-				break;
-			}
-		} else {
-			break;
-		}
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: { kind: 'indentedCode', leadingTrivia, raw },
-		nextIndex: i
-	};
-}
-
-function parseHtmlBlock(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
-	let i = startIndex + 1;
-
-	// Simplified: HTML blocks continue until a blank line
-	while (i < endIndex && !isBlankLine(lines[i].text)) {
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: { kind: 'htmlBlock', leadingTrivia, raw },
-		nextIndex: i
-	};
-}
-
-function parseTable(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	columnCount: number
-): { node: CstNode; nextIndex: number } {
-	// Header row + delimiter row already confirmed, consume data rows
-	let i = startIndex + 2;
-
-	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: { kind: 'table', leadingTrivia, raw, metadata: { columnCount } },
-		nextIndex: i
-	};
-}
-
-function parseBlockquote(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
-	// Collect continuation lines
-	let i = startIndex;
-	while (i < endIndex && matchBlockquote(lines[i].text)) {
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-
-	// Strip `> ` prefix from each line for recursive parse
-	let offset = 0;
-	const strippedLines = lines.slice(startIndex, i).map((line) => {
-		const stripped = line.text.replace(/^ {0,3}>[ \t]?/, '');
-		const lineEnding = line.lineEnding;
-		const raw = stripped + lineEnding;
-		const strippedLine: ParsedLine = {
-			raw,
-			text: stripped,
-			lineEnding,
-			start: offset,
-			end: offset + raw.length
-		};
-		offset += raw.length;
-		return strippedLine;
-	});
-
-	const inner = parseBlocks(strippedLines, 0, strippedLines.length);
-
-	// Count max quote depth
-	const quoteDepth =
-		lines[startIndex].text
-			.match(/^ {0,3}(>[ \t]?)+/)?.[0]
-			.split('')
-			.filter((c) => c === '>').length ?? 1;
-
-	return {
-		node: {
-			kind: 'blockquote',
-			leadingTrivia,
-			raw,
-			metadata: { quoteDepth },
-			innerPrefix: inner.prefix,
-			children: inner.children,
-			innerSuffix: inner.suffix
-		},
-		nextIndex: i
-	};
-}
-
-function parseList(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
-	const firstMatch = matchListItem(lines[startIndex].text)!;
-	const ordered = firstMatch.ordered;
-	const items: CstNode[] = [];
-	let i = startIndex;
-
-	while (i < endIndex) {
-		const itemMatch = matchListItem(lines[i].text);
-		if (!itemMatch || itemMatch.ordered !== ordered) break;
-
-		const contentIndent = itemMatch.indent;
-		const itemStartIndex = i;
-		i++;
-
-		// Collect continuation lines: indented by at least contentIndent spaces.
-		// Blank lines are included if followed by indented content (multi-paragraph items).
-		while (i < endIndex) {
-			if (isBlankLine(lines[i].text)) {
-				let j = i;
-				while (j < endIndex && isBlankLine(lines[j].text)) j++;
-				if (j < endIndex && getIndent(lines[j].text) >= contentIndent) {
-					i = j + 1;
-				} else {
-					break;
-				}
-			} else if (getIndent(lines[i].text) >= contentIndent) {
-				i++;
-			} else {
-				break;
-			}
-		}
-
-		// Lines [itemStartIndex, i) belong to this item
-		const itemRaw = joinRaw(lines, itemStartIndex, i);
-		const strippedLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
-
-		// Detect task checkbox from first stripped line
-		const firstStrippedText = strippedLines.length > 0 ? strippedLines[0].text : '';
-		const task = matchTaskCheckbox(firstStrippedText);
-
-		// Parse inner content recursively
-		const inner = parseBlocks(strippedLines, 0, strippedLines.length);
-
-		items.push({
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: itemRaw,
-			metadata: {
-				marker: itemMatch.marker,
-				taskItem: task !== null,
-				taskChecked: task?.checked ?? false
-			},
-			innerPrefix: inner.prefix,
-			children: inner.children,
-			innerSuffix: inner.suffix
-		});
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-
-	return {
-		node: {
-			kind: 'list',
-			leadingTrivia,
-			raw,
-			metadata: { ordered },
-			innerPrefix: '',
-			children: items,
-			innerSuffix: ''
-		},
-		nextIndex: i
-	};
-}
-
-// ── Matchers ────────────────────────────────────────────────────────────────
-
-function matchHeading(text: string): { level: number } | null {
-	const m = text.match(/^ {0,3}(#{1,6})(?:\s|$)/);
-	return m ? { level: m[1].length } : null;
-}
-
-function matchFenceOpen(text: string): { marker: '`' | '~'; length: number; info: string } | null {
-	const m = text.match(/^ {0,3}(`{3,})([^`]*)$|^ {0,3}(~{3,})(.*)$/);
-	if (!m) return null;
-
-	if (m[1]) {
-		return { marker: '`', length: m[1].length, info: m[2].trim() };
-	}
-	return { marker: '~', length: m[3].length, info: m[4].trim() };
-}
-
-function matchFenceClose(text: string, marker: '`' | '~', minLength: number): boolean {
-	const pattern = marker === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
-	const m = text.match(pattern);
-	return Boolean(m && m[1].length >= minLength);
-}
-
-function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
-	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
-	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
-	return null;
-}
-
-export function matchThematicBreak(text: string): string | null {
-	const trimmed = text.trim();
-	if (/^(\*[ \t]*){3,}$/.test(trimmed)) return '*';
-	if (/^(-[ \t]*){3,}$/.test(trimmed)) return '-';
-	if (/^(_[ \t]*){3,}$/.test(trimmed)) return '_';
-	return null;
-}
-
-const HTML_BLOCK_OPEN =
-	/^ {0,3}(?:<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|pre|script|section|source|style|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)[\s/>]|<!--|<\?|<![A-Z]|<!\[CDATA\[)/i;
-
-function matchHtmlBlock(text: string): boolean {
-	return HTML_BLOCK_OPEN.test(text);
-}
-
-function matchLinkReferenceDefinition(text: string): { label: string } | null {
-	const m = text.match(/^ {0,3}\[([^\]]+)\]:\s+/);
-	if (!m || m[1].startsWith('^')) return null;
-	return { label: m[1] };
-}
-
-function matchTableDelimiterRow(text: string): { columnCount: number } | null {
-	const trimmed = text.trim();
-	if (!trimmed.includes('|')) return null;
-
-	const inner = trimmed.replace(/^\||\|$/g, '');
-	const cells = inner.split('|');
-
-	for (const cell of cells) {
-		if (!/^\s*:?-+:?\s*$/.test(cell)) return null;
-	}
-
-	return { columnCount: cells.length };
-}
-
-function matchIndentedCode(text: string): boolean {
-	return /^(?: {4}|\t)/.test(text);
-}
-
-function matchBlockquote(text: string): boolean {
-	return /^ {0,3}>/.test(text);
-}
-
-export function matchListItem(
-	text: string
-): { marker: string; ordered: boolean; indent: number } | null {
-	const m = text.match(/^( {0,3})([-*+]\s+)/);
-	if (m) {
-		return {
-			marker: m[2],
-			ordered: false,
-			indent: m[0].length
-		};
-	}
-
-	const om = text.match(/^( {0,3})(\d{1,9}[.)]\s+)/);
-	if (om) {
-		return {
-			marker: om[2],
-			ordered: true,
-			indent: om[0].length
-		};
-	}
-
-	return null;
-}
-
-function matchTaskCheckbox(text: string): { checked: boolean } | null {
-	const m = text.match(/^\[( |x|X)\]\s+/);
-	return m ? { checked: m[1].toLowerCase() === 'x' } : null;
-}
-
-function getIndent(text: string): number {
-	const m = text.match(/^( *)/);
-	return m ? m[1].length : 0;
-}
-
-function stripListItemLines(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	contentIndent: number
-): ParsedLine[] {
-	let offset = 0;
-	return lines.slice(startIndex, endIndex).map((line, i) => {
-		// First line: strip the full marker prefix
-		// Other lines: strip up to contentIndent spaces of indentation
-		const stripCount =
-			i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
-		const stripped = line.text.slice(stripCount);
-		const lineEnding = line.lineEnding;
-		const raw = stripped + lineEnding;
-		const strippedLine: ParsedLine = {
-			raw,
-			text: stripped,
-			lineEnding,
-			start: offset,
-			end: offset + raw.length
-		};
-		offset += raw.length;
-		return strippedLine;
-	});
-}
-
-function startsNewBlock(text: string): boolean {
-	// Thematic breaks are deliberately excluded here. A `---` line does NOT
-	// interrupt a paragraph from inside the continuation scan — it only gets
-	// recognized at the top level of parseNextBlock (with the blank-line guard).
-	// This prevents setext heading underlines from being split off as thematic breaks.
-	return Boolean(
-		matchFenceOpen(text) || matchHeading(text) || matchBlockquote(text) || matchListItem(text)
-	);
-}
-
-// ── Utilities ───────────────────────────────────────────────────────────────
-
-function isBlankLine(text: string): boolean {
+export function isBlankLine(text: string): boolean {
 	return text.trim().length === 0;
 }
 
-function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {
+/** Concatenate `raw` across a line range. Shared with core/parsers/*.ts. */
+export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {
 	let result = '';
 	for (let i = startIndex; i < endIndex; i++) {
 		result += lines[i].raw;
