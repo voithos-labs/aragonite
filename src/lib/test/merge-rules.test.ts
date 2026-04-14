@@ -1,6 +1,8 @@
 // src/lib/editor/test/merge-rules.test.ts
 import { describe, it, expect } from 'vitest';
-import { isMergeEligible, isBlockEditable } from '../merge-rules';
+import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
+import { parse } from '../core/parser';
+import type { CstNode } from '../core/nodes';
 
 describe('isMergeEligible', () => {
 	const eligible: [string, string][] = [
@@ -45,5 +47,146 @@ describe('isBlockEditable', () => {
 
 	it('thematicBreak is NOT editable', () => {
 		expect(isBlockEditable('thematicBreak')).toBe(false);
+	});
+});
+
+describe('findMergeTarget', () => {
+	function parseBlock(src: string): CstNode {
+		const doc = parse(src);
+		return doc.children[0];
+	}
+
+	it('prose prev (paragraph) returns prev itself with empty path', () => {
+		const prev = parseBlock('hello\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect(result!.target).toBe(prev);
+		expect(result!.path).toEqual([]);
+	});
+
+	it('prose-absorber prev (heading) returns prev itself with empty path', () => {
+		const prev = parseBlock('# Heading\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect(result!.target).toBe(prev);
+		expect(result!.path).toEqual([]);
+	});
+
+	it('single-paragraph blockquote returns inner paragraph with path [0]', () => {
+		const prev = parseBlock('> hello\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect(result!.target.kind).toBe('paragraph');
+		expect((result!.target.raw ?? '').trim()).toBe('hello');
+		expect(result!.path).toEqual([0]);
+	});
+
+	it('multi-paragraph blockquote returns last inner paragraph', () => {
+		const prev = parseBlock('> first\n>\n> second\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect((result!.target.raw ?? '').trim()).toBe('second');
+		expect(result!.path).toEqual([1]);
+	});
+
+	it('nested blockquote returns deepest paragraph with length-2 path', () => {
+		const prev = parseBlock('> > deep\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect(result!.target.kind).toBe('paragraph');
+		expect((result!.target.raw ?? '').trim()).toBe('deep');
+		expect(result!.path.length).toBe(2);
+	});
+
+	it('flat unordered list returns last item last paragraph', () => {
+		const prev = parseBlock('- first\n- second\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect(result!.target.kind).toBe('paragraph');
+		expect((result!.target.raw ?? '').trim()).toBe('second');
+		// path: [listItemIndex, paragraphIndexInListItem] = [1, 0]
+		expect(result!.path).toEqual([1, 0]);
+	});
+
+	it('list with nested sub-list returns deepest nested paragraph', () => {
+		const prev = parseBlock('- a\n  - b\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).not.toBeNull();
+		expect((result!.target.raw ?? '').trim()).toBe('b');
+		// path walks: top list → item 0 (a) → nested list (last child of item a) → item 0 (b) → paragraph (item 0 of b)
+		expect(result!.path.length).toBeGreaterThanOrEqual(3);
+	});
+
+	it('blockquote with opaque deepest leaf (fenced code) returns null', () => {
+		const prev = parseBlock('> before\n>\n> ```\n> code\n> ```\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).toBeNull();
+	});
+
+	it('thematic break as prev returns null (opaque)', () => {
+		const prev = parseBlock('---\n');
+		const result = findMergeTarget(prev, 'paragraph');
+		expect(result).toBeNull();
+	});
+});
+
+describe('isMergeEligible — role-pair coverage', () => {
+	// Two representative kinds per role, exercising the cross-role boundaries
+	// without the full N² combinatorial expansion.
+	const PROSE = 'paragraph' as const;
+	const PROSE_ABSORBER = 'heading' as const;
+	const CONTAINER = 'blockquote' as const;
+	const SELF_MERGE = 'unrecognized' as const;
+	const OPAQUE = 'fencedCode' as const;
+
+	it('prose + prose → eligible', () => {
+		expect(isMergeEligible(PROSE, PROSE)).toBe(true);
+	});
+
+	it('prose-absorber + prose → eligible', () => {
+		expect(isMergeEligible(PROSE_ABSORBER, PROSE)).toBe(true);
+	});
+
+	// NOTE: container + prose eligibility is deferred to Task 8 per the plan.
+	// Task 1 intentionally leaves it disabled, so this test asserts false here
+	// and will be flipped to true in Task 8 alongside the Editor rewrite.
+	it('container + prose → NOT eligible yet (deferred to Task 8)', () => {
+		expect(isMergeEligible(CONTAINER, PROSE)).toBe(false);
+	});
+
+	it('self-merge + self-merge → eligible', () => {
+		expect(isMergeEligible(SELF_MERGE, SELF_MERGE)).toBe(true);
+	});
+
+	it('prose + prose-absorber → not eligible (headings are not absorbed into paragraphs)', () => {
+		expect(isMergeEligible(PROSE, PROSE_ABSORBER)).toBe(false);
+	});
+
+	it('prose + container → not eligible (paragraph into container as curr is out of scope)', () => {
+		expect(isMergeEligible(PROSE, CONTAINER)).toBe(false);
+	});
+
+	it('container + container → not eligible', () => {
+		expect(isMergeEligible(CONTAINER, CONTAINER)).toBe(false);
+	});
+
+	it('container + prose-absorber → not eligible (heading-into-blockquote out of scope)', () => {
+		expect(isMergeEligible(CONTAINER, PROSE_ABSORBER)).toBe(false);
+	});
+
+	it('opaque + prose → not eligible', () => {
+		expect(isMergeEligible(OPAQUE, PROSE)).toBe(false);
+	});
+
+	it('prose + opaque → not eligible', () => {
+		expect(isMergeEligible(PROSE, OPAQUE)).toBe(false);
+	});
+
+	it('self-merge + prose → not eligible (mixing roles)', () => {
+		expect(isMergeEligible(SELF_MERGE, PROSE)).toBe(false);
+	});
+
+	it('prose + self-merge → not eligible (mixing roles)', () => {
+		expect(isMergeEligible(PROSE, SELF_MERGE)).toBe(false);
 	});
 });
