@@ -58,12 +58,9 @@ export const MERGE_ROLE: Record<BlockKind, MergeRole> = {
  * Eligibility is derived from role pairs, not an enumerated pair set:
  *   prose           + prose          → eligible (concat text)
  *   prose-absorber  + prose          → eligible (prev stays its kind)
+ *   container       + prose          → eligible (merge into deepest prose leaf)
  *   self-merge      + self-merge     → eligible
  *   anything else                    → not eligible
- *
- * Note: `container + prose` is intentionally not enabled here yet — that
- * cross-container merge path is wired in a later task once the walker
- * helpers (walkToDeepestMergeLeaf, findMergeTarget) are in place.
  */
 export function isMergeEligible(prevKind: BlockKind, currKind: BlockKind): boolean {
 	const prev = MERGE_ROLE[prevKind];
@@ -71,6 +68,7 @@ export function isMergeEligible(prevKind: BlockKind, currKind: BlockKind): boole
 
 	if (prev === 'prose' && curr === 'prose') return true;
 	if (prev === 'prose-absorber' && curr === 'prose') return true;
+	if (prev === 'container' && curr === 'prose') return true;
 	if (prev === 'self-merge' && curr === 'self-merge') return true;
 
 	return false;
