@@ -2,15 +2,18 @@
 	import { getContext } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		STICKY_COLUMN_KEY,
 		type EditorActions,
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
+	import type { StickyColumnState } from '../../sticky-column';
 	import { trimTrailingLineEnding } from '../../core/text-utils';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let userIsTyping = false;
 	let preEditOffset = 0;
@@ -69,6 +72,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
+		stickyColumn.reset();
 		if (!textarea) return;
 		userIsTyping = true;
 		actions.updateBlockContent(index, textarea.value + '\n', preEditOffset);
@@ -76,7 +80,24 @@
 		autoResize();
 	}
 
+	function onCompositionStart(): void {
+		stickyColumn.reset();
+	}
+
+	function onPointerDown(_e: PointerEvent): void {
+		stickyColumn.reset();
+	}
+
 	function onKeyDown(e: KeyboardEvent): void {
+		// Sticky column: reset on any non-arrow interaction inside the code block.
+		// Arrows stay preserve-keys because the code block cannot capture its own
+		// sticky X (no pixel API on textarea) — passing through without resetting
+		// keeps a pre-existing sticky X valid for whatever the user does next.
+		const PRESERVE_KEYS_NON_ARROW = ['PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta'];
+		if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && !PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
+			stickyColumn.reset();
+		}
+
 		preEditOffset = textarea?.selectionStart ?? 0;
 
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
@@ -138,6 +159,7 @@
 
 	// Clipboard — intercept to source from node.raw
 	function onCopy(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		if (!textarea) return;
 		e.preventDefault();
 		const text = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
@@ -145,6 +167,7 @@
 	}
 
 	function onCut(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		if (!textarea) return;
 		e.preventDefault();
 		const start = textarea.selectionStart;
@@ -160,6 +183,7 @@
 	}
 
 	function onPaste(e: ClipboardEvent): void {
+		stickyColumn.reset();
 		if (!textarea) return;
 		e.preventDefault();
 		const text = e.clipboardData?.getData('text/plain') ?? '';
@@ -184,6 +208,8 @@
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}
+	onpointerdown={onPointerDown}
+	oncompositionstart={onCompositionStart}
 	spellcheck={false}
 ></textarea>
 
