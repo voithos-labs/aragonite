@@ -5,6 +5,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
@@ -375,6 +376,7 @@
 	setContext(BLOCK_EDIT_KEY, listActions);
 	setContext(FOCUS_KEY, listActions);
 	setContext(HISTORY_KEY, listActions);
+	setContext(CONTAINER_EDIT_KEY, listActions);
 
 	// ── List Context ────────────────────────────────────────────────────
 	// Provides list-specific operations to child ListItemBlock components.
