@@ -1,6 +1,5 @@
 /**
  * Sticky column — cross-block caret column memory.
- * Requirements: docs/superpowers/specs/2026-04-12-sticky-column-design.md
  *
  * Assertions use a small pixel tolerance because proportional fonts mean the
  * target offset's pixel X may not exactly equal the source X — we accept the
@@ -307,7 +306,8 @@ test.describe('sticky column: preserve triggers', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		// Shift+ArrowDown extends selection inside the first block (no cross-block)
-		// but should NOT reset sticky column per Rule S3 preserve list
+		// but should NOT reset sticky column — Shift+Arrow is in the preserve list,
+		// matching standard editor behavior (VS Code, Google Docs, Word).
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.waitForTimeout(50);
 
