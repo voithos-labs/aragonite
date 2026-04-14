@@ -21,11 +21,17 @@ export const FOCUS_LAST_START = -1;
 
 // ── Context Keys ────────────────────────────────────────────────────────────
 
-export const EDITOR_ACTIONS_KEY = Symbol('editor-actions');
+export const EDITOR_ACTIONS_KEY = Symbol('editor-actions'); // legacy — deleted in Task 10
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
 /** Svelte context key for the editor's sticky-column state. @see StickyColumnState in `./sticky-column` for the value provided under this key. */
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
+
+// Decomposed action sub-interface context keys (cluster A).
+export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
+export const FOCUS_KEY = Symbol('focus-actions');
+export const HISTORY_KEY = Symbol('history-actions');
+export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
 // ── List Context (list item → list block communication via Svelte context) ──
 
@@ -70,15 +76,14 @@ export type StickyColumnDirection = 'above' | 'below';
  */
 export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
-export interface EditorActions {
+// ── Action Sub-Interfaces (block → editor communication, split by concern) ──
+
+export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
-	moveFocus(blockIndex: number, position: FocusPosition): void | Promise<void>;
 	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
-	requestUndo(): void | Promise<void>;
-	requestRedo(): void | Promise<void>;
 	/** Insert parsed blocks at a split point, replacing the current block with spliced content. */
 	insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): void | Promise<void>;
 	/**
@@ -97,13 +102,36 @@ export interface EditorActions {
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number }
 	): void | Promise<void>;
-	/** Push a document-level undo snapshot. Called by container blocks before structural mutations. */
-	beginContainerEdit?(blockIndex: number, offset: number): void;
-	/** Push a debounced undo snapshot. Called by container blocks for text input. */
-	beginContainerEditDebounced?(blockIndex: number, offset: number): void;
-	/** Trigger top-level Svelte reactivity after a container mutation. */
-	endContainerEdit?(): void;
 }
+
+export interface FocusActions {
+	moveFocus(blockIndex: number, position: FocusPosition): void | Promise<void>;
+}
+
+export interface HistoryActions {
+	requestUndo(): void | Promise<void>;
+	requestRedo(): void | Promise<void>;
+}
+
+export interface ContainerEditActions {
+	/** Push a document-level undo snapshot. Called by container blocks before structural mutations. */
+	beginContainerEdit(blockIndex: number, offset: number): void;
+	/** Push a debounced undo snapshot. Called by container blocks for text input. */
+	beginContainerEditDebounced(blockIndex: number, offset: number): void;
+	/** Trigger top-level Svelte reactivity after a container mutation. */
+	endContainerEdit(): void;
+}
+
+/**
+ * Transitional aggregate type for consumers still reading from
+ * EDITOR_ACTIONS_KEY during the migration. Deleted in Task 10 once every
+ * consumer has moved to the sub-interface keys.
+ */
+export interface EditorActions
+	extends BlockEditActions,
+		FocusActions,
+		HistoryActions,
+		Partial<ContainerEditActions> {}
 
 // ── Block Component Interface (what each block exposes to the editor) ───────
 
