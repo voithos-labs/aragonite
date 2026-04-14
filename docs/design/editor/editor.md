@@ -159,13 +159,23 @@ All structural operations are CST tree mutations performed by the editor shell. 
 
 **Merge** — take two adjacent CST nodes, concatenate their `raw` text, replace both with one node, re-parse to determine the merged block's type. The surviving block keeps its ID.
 
-Merge eligibility: merge is only attempted between compatible block types. Rules:
+Merge eligibility is derived from per-kind **merge roles** rather than an enumerated pair set. Each block kind is assigned one of five roles in `src/lib/editor/merge-rules.ts`:
 
-- Two paragraphs: always mergeable (concatenate raw text)
-- Paragraph following a heading: mergeable (heading absorbs paragraph text, stays a heading)
-- Two headings: not mergeable (Backspace at start of second heading moves focus to end of previous heading instead)
-- Any block following a non-editable block (thematic break, image): not mergeable (Backspace deletes the non-editable block)
-- Fenced code, tables, HTML blocks: not mergeable (Backspace at start moves focus to end of previous block)
+- `prose` — leaf text block (paragraph)
+- `prose-absorber` — prose leaf that keeps its kind when absorbing prose (heading, setextHeading)
+- `container` — block whose merge target is its deepest reachable prose leaf (blockquote, list, listItem)
+- `self-merge` — merges only with another block of the same role (unrecognized)
+- `opaque` — not mergeable; Backspace either deletes (if non-editable) or moves focus (fencedCode, indentedCode, htmlBlock, linkReferenceDefinition, table, thematicBreak)
+
+The role-pair switch for eligibility:
+
+- `prose + prose` → eligible, concatenate text
+- `prose-absorber + prose` → eligible, target keeps its kind and absorbs text
+- `container + prose` → eligible, walk into the container's subtree to find the deepest prose leaf (generalizes M1's "deepest visible text above" rule across container boundaries)
+- `self-merge + self-merge` → eligible, concatenate raw
+- everything else → not eligible
+
+When `container + prose` is eligible but the walker cannot find a prose leaf (the container's deepest leaf is opaque, or the container is empty), the caller falls back to the same behavior as an ineligible pair: move focus to the end of the deepest reachable block.
 
 When merge is not eligible, Backspace at the start of a block has three possible outcomes depending on context:
 
