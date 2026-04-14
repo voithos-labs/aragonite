@@ -28,8 +28,8 @@
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
 	// Re-sync inner block IDs when children count changes externally (undo/redo).
-	// Internal operations (split/merge) update innerBlockIds directly via
-	// triggerInnerReactivity(), so the effect is a no-op for those.
+	// Internal structural ops set innerBlockIds directly via commitChildrenEdit,
+	// so this effect is a no-op for those paths.
 	$effect(() => {
 		const childCount = (node.children ?? []).length;
 		if (childCount !== innerBlockIds.length) {
@@ -98,11 +98,6 @@
 	function finalizeContainerEdit(): void {
 		rebuildBlockquoteRaw(node);
 		parentActions.endContainerEdit?.();
-	}
-
-	function triggerInnerReactivity(): void {
-		node.children = [...(node.children ?? [])];
-		innerBlockIds = [...innerBlockIds];
 	}
 
 	/**
@@ -295,7 +290,9 @@
 			rebuildBlockquoteRaw(node);
 			parentActions.endContainerEdit?.();
 			if (result.kindChanged) {
-				triggerInnerReactivity();
+				// Force re-mount of the in-place kind-swapped child by re-spreading
+				// node.children. Child count is unchanged, so innerBlockIds stays put.
+				node.children = [...(node.children ?? [])];
 				tick().then(() => {
 					innerBlockRefs[innerIndex]?.focus(text.length > 0 ? text.length - 1 : 0);
 				});
@@ -314,36 +311,27 @@
 
 			parentActions.beginContainerEdit?.(index, 0);
 
-			// Work on plain copies to prevent $state proxy splice cascades.
-			const childrenCopy = [...node.children];
-			const idsCopy = [...innerBlockIds];
-			const refsCopy = [...innerBlockRefs];
-
-			if (replacement.length === 0) {
-				childrenCopy.splice(innerIndex, 1);
-				idsCopy.splice(innerIndex, 1);
-				refsCopy.splice(innerIndex, 1);
-			} else {
-				const originalTrivia = node.children[innerIndex].leadingTrivia ?? '';
-				const normalizedReplacement = replacement.map((replacementNode, i) => {
-					const copy = { ...replacementNode };
-					copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-					return copy;
-				});
-				childrenCopy.splice(innerIndex, 1, ...normalizedReplacement);
-				const newIds = normalizedReplacement.map(() => generateBlockId());
-				idsCopy.splice(innerIndex, 1, ...newIds);
-				const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
-				refsCopy.splice(innerIndex, 1, ...newRefSlots);
-			}
-
-			node.children = childrenCopy;
-			innerBlockIds = idsCopy;
-			innerBlockRefs = refsCopy;
+			commitChildrenEdit((children, ids, refs) => {
+				if (replacement.length === 0) {
+					children.splice(innerIndex, 1);
+					ids.splice(innerIndex, 1);
+					refs.splice(innerIndex, 1);
+				} else {
+					const originalTrivia = node.children![innerIndex].leadingTrivia ?? '';
+					const normalizedReplacement = replacement.map((replacementNode, i) => {
+						const copy = { ...replacementNode };
+						copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+						return copy;
+					});
+					children.splice(innerIndex, 1, ...normalizedReplacement);
+					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
+					const newRefSlots: (BlockComponent | undefined)[] = new Array(normalizedReplacement.length).fill(undefined);
+					refs.splice(innerIndex, 1, ...newRefSlots);
+				}
+			});
 
 			rebuildBlockquoteRaw(node);
 			parentActions.endContainerEdit?.();
-			triggerInnerReactivity();
 
 			await tick();
 
