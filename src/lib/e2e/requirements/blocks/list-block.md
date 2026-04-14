@@ -47,7 +47,7 @@ Covers ordered and unordered lists — flat items, nested items, and all keyboar
 | `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D   | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2         |
 | `- A`<br>`- B`<br>_blank line_<br>`  extra`       | start of B   | `- AB`<br>_blank line_<br>`  extra`       | extra paragraph absorbed into target item's children                            |
 
-See `docs/superpowers/specs/2026-04-12-container-backspace-unwrap-merge-design.md` for full semantic rules.
+The worked examples above are the ground truth for the expected reshuffling; see `src/lib/editor/test/tree-operations-unwrap.test.ts` for the matching unit-test coverage.
 
 ### Ordered list numbering on Backspace
 
