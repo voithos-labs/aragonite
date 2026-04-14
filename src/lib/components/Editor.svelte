@@ -357,8 +357,8 @@
 			const currRaw = curr.raw ?? '';
 			// Preserve the target's existing line ending style.
 			const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
-			const targetText = targetRaw.replace(/\r?\n$/, '');
-			const currText = currRaw.replace(/\r?\n$/, '');
+			const targetText = trimTrailingLineEnding(targetRaw);
+			const currText = trimTrailingLineEnding(currRaw);
 			const joinOffset = targetText.length;
 			target.raw = targetText + currText + lineEnding;
 
