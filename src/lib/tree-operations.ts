@@ -263,6 +263,65 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 	rebuildListItemRaw(item);
 }
 
+// ── Ancestry raw rebuild ────────────────────────────────────────────────────
+
+/**
+ * Rebuild `raw` for every container along a path, from innermost to outermost.
+ *
+ * Given a root container node and a path (sequence of child-array indices
+ * from root down to a target leaf), walks each container along the path and
+ * calls the kind-appropriate rebuild helper. The leaf itself (the last node
+ * pointed at by the path) is NOT rebuilt — the caller is expected to have
+ * already mutated the leaf's raw before calling this.
+ *
+ * Used by cross-container merge (Editor.mergeWithPrevious) and by M1's
+ * mergeListItemIntoPrevious (via the refactor in Task 4).
+ */
+export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
+	if (path.length === 0) {
+		// No ancestry — root IS the leaf (or the caller has a bug). Rebuild root
+		// defensively as the container-rebuild equivalent of a no-op for leaves.
+		rebuildContainerRaw(root);
+		return;
+	}
+
+	// Collect containers along the path, from outermost-inside-root to innermost.
+	// path.length - 1 stops before the leaf index (we don't descend into the leaf).
+	const containers: CstNode[] = [];
+	let current = root;
+	for (let i = 0; i < path.length - 1; i++) {
+		current = current.children![path[i]];
+		containers.push(current);
+	}
+
+	// Rebuild innermost first (end of the array), then walk outward.
+	for (let i = containers.length - 1; i >= 0; i--) {
+		rebuildContainerRaw(containers[i]);
+	}
+	// Finally rebuild root itself.
+	rebuildContainerRaw(root);
+}
+
+/**
+ * Dispatch to the correct per-kind rebuild helper. Private — only used by
+ * rebuildAncestryRaw and future callers that need kind-dispatched rebuilding.
+ */
+function rebuildContainerRaw(node: CstNode): void {
+	switch (node.kind) {
+		case 'blockquote':
+			rebuildBlockquoteRaw(node);
+			return;
+		case 'list':
+			rebuildListRaw(node);
+			return;
+		case 'listItem':
+			rebuildListItemRaw(node);
+			return;
+		// Any other kind is a programming error — rebuildAncestryRaw should
+		// only ever traverse containers.
+	}
+}
+
 // ── Container Unwrap ────────────────────────────────────────────────────────
 
 /**
