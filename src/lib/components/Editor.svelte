@@ -64,14 +64,25 @@
 		return d;
 	}
 
+	// Initialize from the `source` prop. doc/blockIds are mutable state
+	// that structural operations write through directly, so they cannot be
+	// $derived — we take a one-time snapshot at mount and re-sync via
+	// $effect below when the prop changes.
+	// svelte-ignore state_referenced_locally
 	let doc = $state<Document>(initDocument(source));
+	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
 	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
 
-	// Re-initialize when source prop changes (e.g., async document load)
+	// Re-initialize when source prop changes (e.g., async document load).
+	// The `source !== lastSource` check is load-bearing: after the first
+	// re-init reads `doc.children` (via assignIds), doc.children becomes
+	// a tracked dependency of this effect, so subsequent user edits would
+	// retrigger the effect and wipe their work without this guard.
+	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {
 		if (source !== lastSource) {
