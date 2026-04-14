@@ -23,7 +23,6 @@ export const FOCUS_LAST_START = -1;
 
 export const EDITOR_ACTIONS_KEY = Symbol('editor-actions'); // legacy — deleted in Task 10
 export const LIST_CONTEXT_KEY = Symbol('list-context');
-export const LIST_PARENT_ITEM_INDEX_KEY = Symbol('list-parent-item-index');
 /** Svelte context key for the editor's sticky-column state. @see StickyColumnState in `./sticky-column` for the value provided under this key. */
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
 
@@ -52,6 +51,13 @@ export interface ListContext {
 		nestedListNode: CstNode,
 		nestedItemIndex: number
 	): Promise<void>;
+	/**
+	 * For a nested list inside a list item, returns the item's index in its
+	 * containing list. Used by nested lists to call promoteNestedItem with
+	 * the correct parent-item coordinate. Provided by the immediately
+	 * enclosing ListItemBlock wrapping its parent list's context.
+	 */
+	getContainingItemIndex(): number;
 }
 
 // ── Editor Actions (block → editor communication via Svelte context) ────────
