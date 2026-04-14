@@ -68,12 +68,13 @@ export function createStandardNestedActions(
 	state: BlockListState,
 	deps: NestedActionsDeps
 ): NestedActionsBundle {
-	// Note: `index` is intentionally NOT destructured. Containers pass
-	// `{ get index() { return index; } }` so that factory closures always
-	// read the current reactive prop value rather than the value captured
-	// at factory-call time (which would be stale after a parent splitBlock
-	// shifts the container's position).
-	const { node, rebuildRaw, stickyColumn, parent } = deps;
+	// Note: `index` and `node` are intentionally NOT destructured. Containers
+	// pass both via getter properties (`get index()` / `get node()`) so that
+	// factory closures always read the current reactive prop values. Passing
+	// by value would capture stale snapshots: `index` after a parent structural
+	// op shifts the container's position, and `node` after undo/redo replaces
+	// the document tree with a cloned snapshot.
+	const { rebuildRaw, stickyColumn, parent } = deps;
 
 	function finalizeContainerEdit(): void {
 		rebuildRaw();
@@ -82,7 +83,7 @@ export function createStandardNestedActions(
 
 	const blockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
-			if (!node.children) return;
+			if (!deps.node.children) return;
 			parent.containerEdit?.beginContainerEdit(deps.index, offset);
 			state.commitChildrenEdit((children, ids, refs) => {
 				performSplit({ children }, ids, innerIndex, offset);
@@ -94,7 +95,7 @@ export function createStandardNestedActions(
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
-			if (!node.children) return;
+			if (!deps.node.children) return;
 
 			// At innerIndex === 0, default behavior is to delegate upward
 			// (merge the container with its previous sibling). Containers
@@ -105,11 +106,11 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			const prevKind = node.children[innerIndex - 1].kind;
-			const currKind = node.children[innerIndex].kind;
+			const prevKind = deps.node.children[innerIndex - 1].kind;
+			const currKind = deps.node.children[innerIndex].kind;
 
 			if (isMergeEligible(prevKind, currKind)) {
-				const mergeOffset = displayLength(node.children[innerIndex - 1].raw);
+				const mergeOffset = displayLength(deps.node.children[innerIndex - 1].raw);
 				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performMerge({ children }, ids, innerIndex);
@@ -133,18 +134,18 @@ export function createStandardNestedActions(
 		},
 
 		async mergeWithNext(innerIndex: number): Promise<void> {
-			if (!node.children) return;
+			if (!deps.node.children) return;
 
-			if (innerIndex >= node.children.length - 1) {
+			if (innerIndex >= deps.node.children.length - 1) {
 				parent.blockEdit.mergeWithNext(deps.index);
 				return;
 			}
 
-			const currKind = node.children[innerIndex].kind;
-			const nextKind = node.children[innerIndex + 1].kind;
+			const currKind = deps.node.children[innerIndex].kind;
+			const nextKind = deps.node.children[innerIndex + 1].kind;
 
 			if (isMergeEligible(currKind, nextKind)) {
-				const mergeOffset = displayLength(node.children[innerIndex].raw);
+				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
 				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 				state.commitChildrenEdit((children, ids, refs) => {
 					performMergeNext({ children }, ids, innerIndex);
@@ -168,9 +169,9 @@ export function createStandardNestedActions(
 		},
 
 		async deleteBlock(innerIndex: number): Promise<void> {
-			if (!node.children) return;
+			if (!deps.node.children) return;
 
-			if (node.children.length <= 1) {
+			if (deps.node.children.length <= 1) {
 				parent.blockEdit.deleteBlock(deps.index);
 				return;
 			}
@@ -182,14 +183,14 @@ export function createStandardNestedActions(
 			});
 			finalizeContainerEdit();
 			await tick();
-			const focusIdx = Math.min(innerIndex, node.children.length - 1);
+			const focusIdx = Math.min(innerIndex, deps.node.children.length - 1);
 			state.innerBlockRefs[focusIdx]?.focus(0);
 		},
 
 		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
-			if (!node.children) return;
+			if (!deps.node.children) return;
 			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
-			const result = performUpdate({ children: node.children }, innerIndex, text);
+			const result = performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
 			parent.containerEdit?.endContainerEdit();
 			if (result.kindChanged) {
@@ -210,7 +211,7 @@ export function createStandardNestedActions(
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number }
 		): Promise<void> {
-			if (!node.children || innerIndex < 0 || innerIndex >= node.children.length) return;
+			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
 			parent.containerEdit?.beginContainerEdit(deps.index, 0);
 
