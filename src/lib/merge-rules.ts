@@ -4,7 +4,7 @@
  * See docs/design/editor/editor.md — Structural Operations, Merge Eligibility.
  */
 
-import type { BlockKind } from './core/nodes';
+import type { BlockKind, CstNode } from './core/nodes';
 
 // ── Merge Roles ─────────────────────────────────────────────────────────────
 
@@ -74,6 +74,69 @@ export function isMergeEligible(prevKind: BlockKind, currKind: BlockKind): boole
 	if (prev === 'self-merge' && curr === 'self-merge') return true;
 
 	return false;
+}
+
+// ── Merge Target Resolution ─────────────────────────────────────────────────
+
+/**
+ * The result of resolving where a merge should land.
+ *
+ * `target` is the leaf CstNode whose `raw` will be mutated to receive the
+ * merged text. `path` is a sequence of child-array indices walking from the
+ * caller's `prev` block down to `target`. An empty path means `target === prev`
+ * — no walking was needed because prev was itself a prose leaf.
+ */
+export interface MergeTarget {
+	target: CstNode;
+	path: number[];
+}
+
+/**
+ * Recursive walker: from `node`, descend into the last child at every step
+ * until we land on a prose / prose-absorber leaf (return it) or hit an
+ * opaque leaf / empty container (return null).
+ *
+ * `path` accumulates the child indices we descended through. At the top call
+ * the caller passes `path = []`.
+ *
+ * Uniform descent (always `children[last]`) works because blockquote children,
+ * list children (list items), and list-item children (inner blocks) all share
+ * the convention that the last child is visually last in the source.
+ */
+function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
+	const role = MERGE_ROLE[node.kind];
+	if (role === 'prose' || role === 'prose-absorber') {
+		return { target: node, path };
+	}
+	if (!node.children || node.children.length === 0) {
+		return null;
+	}
+	const lastIndex = node.children.length - 1;
+	return walkToDeepestMergeLeaf(node.children[lastIndex], [...path, lastIndex]);
+}
+
+/**
+ * Given a `prev` block, find the leaf that should receive the merged text
+ * from the current block being backspaced.
+ *
+ * - prose / prose-absorber prev → returns prev itself, empty path
+ * - container prev → walks into the subtree to find the deepest prose leaf
+ * - self-merge prev → returns prev itself, empty path
+ * - opaque prev → returns null (caller falls back to move-focus)
+ *
+ * `currKind` is currently unused by this function, but kept in the signature
+ * so the caller's intent is explicit and future eligibility rules can branch
+ * on the merging block's kind.
+ */
+export function findMergeTarget(prev: CstNode, _currKind: BlockKind): MergeTarget | null {
+	const role = MERGE_ROLE[prev.kind];
+	if (role === 'prose' || role === 'prose-absorber' || role === 'self-merge') {
+		return { target: prev, path: [] };
+	}
+	if (role === 'container') {
+		return walkToDeepestMergeLeaf(prev, []);
+	}
+	return null; // opaque
 }
 
 // ── Block Editability ───────────────────────────────────────────────────────
