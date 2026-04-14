@@ -5,6 +5,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		LIST_PARENT_ITEM_INDEX_KEY,
@@ -427,6 +428,7 @@
 	setContext(BLOCK_EDIT_KEY, nestedActions);
 	setContext(FOCUS_KEY, nestedActions);
 	setContext(HISTORY_KEY, nestedActions);
+	setContext(CONTAINER_EDIT_KEY, nestedActions);
 	// Expose this item's index so nested ListBlocks can find their parent item
 	// position in the outer list (needed for unindent). Wrapped in a getter
 	// because the index prop is reactive and may change after initialization.
