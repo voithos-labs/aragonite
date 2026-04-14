@@ -339,9 +339,9 @@ describe('mergeListItemIntoPrevious', () => {
         expect(
             (depth1List?.children?.[1]?.children?.[0]?.raw ?? '').trim()
         ).toBe('E');
-        // Uniform path: [0 (A), 1 (nestedList in A), 0 (B), 1 (nestedList in B), 0 (C)]
-        // Trailing paragraph index is stripped before returning, so length is 5.
-        expect(mergePoint.targetPath.length).toBe(5);
+        // Uniform path with trailing paragraph index stripped before return:
+        // [0 (A) → 1 (nestedList in A) → 0 (B) → 1 (nestedList in B) → 0 (C)]
+        expect(mergePoint.targetPath).toEqual([0, 1, 0, 1, 0]);
         expect(mergePoint.offset).toBe('C'.length);
     });
 
