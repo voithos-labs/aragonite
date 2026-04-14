@@ -595,27 +595,27 @@ export function mergeListItemIntoPrevious(
 	// 3. Delete current item from the list
 	list.children.splice(currentIndex, 1);
 
-	// 4. Rebuild raw for all affected container nodes
-	// The target item may be deeply nested — rebuild it and all ancestors.
-	function rebuildFromPath(list: CstNode, path: number[]): void {
-		if (path.length === 0) {
-			rebuildListRaw(list);
-			return;
-		}
-		const item = resolveItemAtPath(list, path);
-		rebuildListItemRaw(item);
-		if (path.length > 1) {
-			const parentPath = path.slice(0, -1);
-			const parentItem = resolveItemAtPath(list, parentPath);
-			for (const child of parentItem.children ?? []) {
-				if (child.kind === 'list') rebuildListRaw(child);
-			}
-			rebuildFromPath(list, parentPath);
-		} else {
-			rebuildListRaw(list);
+	// 4. Rebuild raw for all affected container nodes along the target's ancestry.
+	// targetPath uses M1's compressed convention (one index per listItem level,
+	// with implicit descent through each listItem's last-child nested list).
+	// rebuildAncestryRaw expects a uniform path where every child-array index is
+	// explicit. Expand the compressed path by interleaving the actual nested-list
+	// child indices, then append a 0 (the paragraph leaf inside the target
+	// listItem) so rebuildAncestryRaw's loop rebuilds the target listItem itself.
+	const uniformPath: number[] = [];
+	let cur: CstNode = list;
+	for (let i = 0; i < targetPath.length; i++) {
+		uniformPath.push(targetPath[i]); // index of listItem within current list
+		cur = cur.children![targetPath[i]]; // advance to listItem
+		if (i < targetPath.length - 1) {
+			// Interleave the nested-list child index (always the last child of the listItem)
+			const nestedListIdx = cur.children!.length - 1;
+			uniformPath.push(nestedListIdx);
+			cur = cur.children![nestedListIdx]; // advance to nested list
 		}
 	}
-	rebuildFromPath(list, targetPath);
+	uniformPath.push(0); // paragraph is always index 0 inside the target listItem (the leaf)
+	rebuildAncestryRaw(list, uniformPath);
 
 	// 5. Renumber ordered markers at the top level
 	if ((list.metadata as { ordered?: boolean } | undefined)?.ordered) {
