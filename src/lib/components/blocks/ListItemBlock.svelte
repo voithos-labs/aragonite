@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { getContext, setContext, tick } from 'svelte';
 	import {
-		EDITOR_ACTIONS_KEY,
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
-		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
-		type EditorActions,
 		type BlockEditActions,
 		type FocusActions,
-		type HistoryActions,
 		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
@@ -39,7 +35,6 @@
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
@@ -159,7 +154,7 @@
 		return (node.metadata as { marker?: string })?.marker ?? '- ';
 	}
 
-	// ── Nested EditorActions ────────────────────────────────────────────
+	// ── Nested Actions ──────────────────────────────────────────────────
 	// Mirrors BlockquoteBlock's delegation pattern; uses rebuildListItemRaw.
 
 	/** Split the current item's content at offset, moving trailing children to a new sibling item. */
@@ -434,23 +429,6 @@
 	setContext(BLOCK_EDIT_KEY, nestedBlockEdit);
 	setContext(FOCUS_KEY, nestedFocus);
 	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
-
-	// Transitional bridge object: spread the 3 new bundles into a single
-	// EditorActions-shaped object for setContext(EDITOR_ACTIONS_KEY, ...).
-	// Kept until Task 10 removes EDITOR_ACTIONS_KEY reads from all containers.
-	// Removed in Task 10.
-	const nestedActionsBridge: EditorActions = {
-		...nestedBlockEdit,
-		...nestedFocus,
-		requestUndo(): void | Promise<void> {
-			return parentHistory.requestUndo();
-		},
-		requestRedo(): void | Promise<void> {
-			return parentHistory.requestRedo();
-		},
-		...nestedContainerEdit
-	};
-	setContext(EDITOR_ACTIONS_KEY, nestedActionsBridge);
 
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
