@@ -212,6 +212,22 @@ Arrow key navigation at block boundaries:
 - `moveFocus` skips non-focusable blocks. For non-editable but focusable blocks (thematic breaks), `position` is ignored — the block receives a whole-block focus highlight.
 - `focus(offset)` on non-editable blocks ignores the offset parameter. The block highlights itself as focused. Enter on a focused non-editable block creates a new paragraph below it. Backspace deletes it.
 
+#### Sticky column
+
+Cross-block caret column memory. When the user presses ArrowUp/ArrowDown, the editor captures the cursor's editor-relative pixel X and preserves it across multiple vertical arrow presses, so navigating through short intermediate lines doesn't lose the user's original column intent.
+
+**Key rules** (full spec: `docs/superpowers/specs/2026-04-12-sticky-column-design.md`):
+
+- **Scope**: only cross-block. Within a single block, browser-native sticky column handles vertical movement. We layer on top only at block boundaries where the native sticky resets.
+- **Capture**: idempotent on the first vertical arrow press after a reset. Captured value is editor-relative pixel X (viewport X minus editor container left), so vertical scroll within the editor doesn't affect it.
+- **Reset**: triggered by any user action other than plain or shifted vertical arrows — typing, click, horizontal arrows, structural ops, undo/redo, editor blur, document visibility hidden.
+- **Transparent blocks** (thematic break): pass through without capturing or resetting sticky X; the next cross-block move continues with the existing value.
+- **Opaque blocks** (code block, v0.3.3): reset on any interaction inside them; cursor lands at offset 0 / CURSOR_END on entry via the focusAtColumn fallback path. v0.3.5's code block rewrite will enable full participation.
+
+**State location**: `src/lib/editor/sticky-column.ts` exports `createStickyColumnState()`. Each `Editor.svelte` instance creates its own state and provides it via the `STICKY_COLUMN_KEY` Svelte context. Block components read the context to capture, reset, and query the sticky X.
+
+**Focus dispatch**: a new variant of `EditorActions.moveFocus` position parameter, `{ stickyColumnFrom: 'above' | 'below' }`, tells the target block to call `BlockComponent.focusAtColumn?(x, from)` — an optional method that positions the cursor at the offset whose pixel X is nearest to the sticky X on the first (`from === 'above'`) or last (`from === 'below'`) visual line. Blocks that don't implement `focusAtColumn?` fall back to `focus(0)` / `focus(CURSOR_END)`, which gracefully handles opaque blocks.
+
 ## Container Blocks (Recursive Nesting)
 
 The CST has container blocks — `Blockquote`, `List`, and `ListItem` — which hold nested children. A document like:
