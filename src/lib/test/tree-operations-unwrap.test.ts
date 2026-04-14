@@ -303,9 +303,10 @@ describe('mergeListItemIntoPrevious', () => {
         expect((nestedList?.children?.[0].children?.[0].raw ?? '').trim()).toBe('AAB');
         // Second nested item: "C" (moved from being B's child)
         expect((nestedList?.children?.[1].children?.[0].raw ?? '').trim()).toBe('C');
-        // Target "AA" lives in A's (index 0) nested list at index 0 → path [0, 0].
+        // Target "AA" lives in A (index 0) → nestedList (index 1) → item AA (index 0).
+        // Uniform path strips the trailing paragraph index: [0, 1, 0].
         // Offset is measured within AA's paragraph, before the appended text.
-        expect(mergePoint.targetPath).toEqual([0, 0]);
+        expect(mergePoint.targetPath).toEqual([0, 1, 0]);
         expect(mergePoint.offset).toBe('AA'.length);
     });
 
@@ -338,8 +339,9 @@ describe('mergeListItemIntoPrevious', () => {
         expect(
             (depth1List?.children?.[1]?.children?.[0]?.raw ?? '').trim()
         ).toBe('E');
-        // Target path should have 3 elements: [0 (A), 0 (B), 0 (C)]
-        expect(mergePoint.targetPath.length).toBe(3);
+        // Uniform path: [0 (A), 1 (nestedList in A), 0 (B), 1 (nestedList in B), 0 (C)]
+        // Trailing paragraph index is stripped before returning, so length is 5.
+        expect(mergePoint.targetPath.length).toBe(5);
         expect(mergePoint.offset).toBe('C'.length);
     });
 
