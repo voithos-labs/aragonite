@@ -1,7 +1,7 @@
 export { parse } from './core/parser';
 export { serialize } from './core/serializer';
-export { parseInline, getContentRange, isProseKind } from './core/inline-parser';
-export type { ContentRange } from './core/inline-parser';
+export { parseInline, getContentRange, isProseKind } from './core/inline';
+export type { ContentRange } from './core/inline';
 export type {
 	BlockKind,
 	LeafBlockKind,
