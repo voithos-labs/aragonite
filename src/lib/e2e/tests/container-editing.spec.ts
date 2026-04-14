@@ -161,3 +161,91 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		expect(source).not.toMatch(/^Hello/m);
 	});
 });
+
+test.describe('cross-container merge on Backspace (blockquote prev)', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('flat blockquote: Backspace at start of following paragraph merges into inner paragraph', async () => {
+		await editor.loadContent('> text\ntext2\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		// The outer paragraph is gone; blockquote's inner paragraph is now "texttext2"
+		const source = await editor.getSource();
+		expect(source).toMatch(/^> texttext2$/m);
+		expect(source).not.toMatch(/^text2$/m);
+	});
+
+	test('flat blockquote: caret lands at the join point after merge', async () => {
+		await editor.loadContent('> text\ntext2\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		// Typing Z should splice into the join point: texttext2 → textZtext2
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		expect(await editor.getSource()).toMatch(/^> textZtext2$/m);
+	});
+
+	test('multi-paragraph blockquote: only the last inner paragraph receives the merge', async () => {
+		await editor.loadContent('> first\n>\n> second\ntext\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^> first$/m);
+		expect(source).toMatch(/^> secondtext$/m);
+		expect(source).not.toMatch(/^text$/m);
+	});
+
+	test('nested blockquote: merge recurses into deepest inner paragraph', async () => {
+		await editor.loadContent('> > deep\ntext\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('> > deeptext');
+		expect(source).not.toMatch(/^text$/m);
+	});
+
+	test('blockquote with heading as last inner child: merge into heading raw', async () => {
+		await editor.loadContent('> # Heading\ntext\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^> # Headingtext$/m);
+		expect(source).not.toMatch(/^text$/m);
+	});
+
+	test('blockquote with opaque deepest leaf (fenced code): fall back to move-focus', async () => {
+		await editor.loadContent('> para\n>\n> ```\n> code\n> ```\ntext\n');
+		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
+		await para.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		// No merge happened — the blockquote and the following paragraph stay separate
+		const source = await editor.getSource();
+		expect(source).toMatch(/^> para$/m);
+		expect(source).toMatch(/^text$/m);
+		// The fenced code block is still there
+		expect(source).toContain('```');
+		expect(source).toContain('code');
+	});
+});
