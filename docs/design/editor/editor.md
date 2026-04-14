@@ -190,7 +190,7 @@ Backspace at offset 0 of a container's first child triggers an unwrap operation:
 - **Blockquote (Rule U2)**: the first child is lifted out of the blockquote into the parent at the blockquote's position. If the blockquote becomes empty, it is deleted. Each press lifts exactly one structural level.
 - **List, non-empty first item (Rule U1)**: the item's first paragraph becomes a plain paragraph before the list. Matching-type nested sub-list items promote to the shrunk parent list level; mismatched-type sub-lists become separate blocks. If removing the first item empties the list, the list is deleted.
 - **List, non-empty non-first item (Rule M1)**: the item merges into the "deepest visible text above" via rule B; remaining children are placed by preserve-absolute-indent. Ordered markers renumber.
-- **List, nested first item (any list that has a parent list)**: the item is promoted to the parent list level (Shift+Tab equivalent). Unchanged from pre-v0.3.3 behavior.
+- **List, nested first item (any list that has a parent list)**: the item is promoted to the parent list level (Shift+Tab equivalent).
 
 No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
 
@@ -222,7 +222,7 @@ Cross-block caret column memory. When the user presses ArrowUp/ArrowDown, the ed
 - **Capture**: idempotent on the first vertical arrow press after a reset. Captured value is editor-relative pixel X (viewport X minus editor container left), so vertical scroll within the editor doesn't affect it.
 - **Reset**: triggered by any user action other than plain or shifted vertical arrows — typing, click, horizontal arrows, structural ops, undo/redo, editor blur, document visibility hidden.
 - **Transparent blocks** (thematic break): pass through without capturing or resetting sticky X; the next cross-block move continues with the existing value.
-- **Opaque blocks** (code block, v0.3.3): reset on any interaction inside them; cursor lands at offset 0 / CURSOR_END on entry via the focusAtColumn fallback path. v0.3.5's code block rewrite will enable full participation.
+- **Opaque blocks** (code block): the textarea surface has no standard pixel-X API, so sticky column treats it as opaque — reset on any interaction inside, and cursor lands at offset 0 / CURSOR_END on entry via the focusAtColumn fallback path.
 
 **State location**: `src/lib/editor/sticky-column.ts` exports `createStickyColumnState()`. Each `Editor.svelte` instance creates its own state and provides it via the `STICKY_COLUMN_KEY` Svelte context. Block components read the context to capture, reset, and query the sticky X.
 
