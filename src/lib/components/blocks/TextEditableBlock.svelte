@@ -8,7 +8,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../editor-types';
-	import type { StickyColumnState } from '../../sticky-column';
+	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline-parser';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
@@ -175,6 +175,16 @@
 	 * viewport X. Linear scan for BiDi correctness (binary search is invalid
 	 * on BiDi lines where getClientRects() left values are non-monotonic
 	 * along logical offsets).
+	 *
+	 * Cross-indentation note: `editorRelativeX` is measured against the editor
+	 * container's left edge, NOT any container's content edge. This is
+	 * intentional — preserving editor-relative X means the cursor stays under
+	 * the same VISUAL column on screen when crossing container boundaries,
+	 * at the cost of landing at a different CHARACTER offset within
+	 * differently-indented targets (e.g., column 5 of a top-level paragraph
+	 * vs column 5 of a blockquote's inner paragraph sit at different char
+	 * offsets but the same pixel X on screen). This matches the user-intent
+	 * "keep the cursor under the same pixel column" rather than char parity.
 	 */
 	function findOffsetNearestX(
 		container: HTMLElement,
@@ -468,7 +478,9 @@
 		preEditOffset = getCursorOffset() ?? 0;
 
 		// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
-		const PRESERVE_KEYS_NON_ARROW = ['PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta'];
+		// Horizontal arrows, Home, End, Escape, and typable characters all land in
+		// the else branch and reset sticky — PRESERVE_KEYS_NON_ARROW's JSDoc lists
+		// every key that intentionally does nothing to sticky state.
 		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
 			const x = getCurrentCursorEditorRelativeX();
 			if (x !== null) stickyColumn.capture(x);
