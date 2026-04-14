@@ -425,7 +425,7 @@
 	setContext(FOCUS_KEY, nestedFocus);
 	setContext(CONTAINER_EDIT_KEY, nestedContainerEdit);
 
-	// Legacy bridge: unmigrated containers (ListBlock) still read EDITOR_ACTIONS_KEY.
+	// Legacy bridge: kept until Task 10 removes EDITOR_ACTIONS_KEY reads from all containers.
 	// Removed in Task 10 once all containers have migrated to sub-interface keys.
 	const nestedActionsBridge: EditorActions = {
 		...nestedBlockEdit,
