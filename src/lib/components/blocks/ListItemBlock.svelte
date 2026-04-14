@@ -425,8 +425,7 @@
 
 	// Transitional bridge object: spread the 3 new bundles into a single
 	// EditorActions-shaped object for setContext(EDITOR_ACTIONS_KEY, ...).
-	// Needed because ListBlock (Task 8) is not yet migrated and still reads
-	// parentActions via EDITOR_ACTIONS_KEY when nested inside a list item.
+	// Kept until Task 10 removes EDITOR_ACTIONS_KEY reads from all containers.
 	// Removed in Task 10.
 	const nestedActionsBridge: EditorActions = {
 		...nestedBlockEdit,

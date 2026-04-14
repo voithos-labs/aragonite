@@ -12,6 +12,10 @@
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type EditorActions,
+		type BlockEditActions,
+		type FocusActions,
+		type HistoryActions,
+		type ContainerEditActions,
 		type FocusPosition,
 		type StickyColumnDirection,
 		type ListContext,
@@ -33,7 +37,10 @@
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
-	const parentActions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
+	const parentHistory = getContext<HistoryActions>(HISTORY_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let itemBlockIds = $state<string[]>(assignIds(node.children ?? []));
 	let itemBlockRefs = $state<(BlockComponent | undefined)[]>([]);
@@ -130,7 +137,7 @@
 
 	function finalizeContainerEdit(): void {
 		rebuildListRaw(node);
-		parentActions.endContainerEdit?.();
+		parentContainerEdit?.endContainerEdit();
 	}
 
 	function triggerItemReactivity(): void {
@@ -157,10 +164,10 @@
 		return true;
 	}
 
-	// ── List-level EditorActions ────────────────────────────────────────
+	// ── List-level action bundles ───────────────────────────────────────
 	// Handles operations that cross list item boundaries.
 
-	const listActions: EditorActions = {
+	const listBlockEdit: BlockEditActions = {
 		// splitBlock at list level: not applicable (list items handle their own splits)
 		async splitBlock(): Promise<void> {},
 
@@ -180,24 +187,24 @@
 
 				if (firstChildEmpty && node.children.length > 1) {
 					// Empty first item with siblings — delete just the item
-					parentActions.beginContainerEdit?.(index, 0);
+					parentContainerEdit?.beginContainerEdit(index, 0);
 					performDelete({ children: node.children }, itemBlockIds, 0);
 					itemBlockRefs.splice(0, 1);
 					renumberOrderedList(node, 0);
 					rebuildListRaw(node);
-					parentActions.endContainerEdit?.();
+					parentContainerEdit?.endContainerEdit();
 					triggerItemReactivity();
 					await tick();
 					itemBlockRefs[0]?.focus(0);
 				} else if (firstChildEmpty && node.children.length === 1) {
 					// Empty only item — delete the entire list, focus block before it
-					await parentActions.deleteBlock(index);
-					parentActions.moveFocus(index - 1, 'end');
+					await parentBlockEdit.deleteBlock(index);
+					parentFocus.moveFocus(index - 1, 'end');
 				} else {
 					// Non-empty first item — Rule U1: unwrap the item out of the list
 					const replacement = unwrapFirstItemFromList(node);
 					if (replacement.length === 0) return;
-					await parentActions.replaceBlock(
+					await parentBlockEdit.replaceBlock(
 						index,
 						replacement,
 						{ replacementIndex: 0, offset: 0 }
@@ -210,12 +217,12 @@
 			const item = node.children[itemIndex];
 			const isEmptyItem = isItemEmpty(item);
 			if (isEmptyItem) {
-				parentActions.beginContainerEdit?.(index, 0);
+				parentContainerEdit?.beginContainerEdit(index, 0);
 				performDelete({ children: node.children }, itemBlockIds, itemIndex);
 				itemBlockRefs.splice(itemIndex, 1);
 				renumberOrderedList(node, itemIndex);
 				rebuildListRaw(node);
-				parentActions.endContainerEdit?.();
+				parentContainerEdit?.endContainerEdit();
 				triggerItemReactivity();
 				await tick();
 				itemBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
@@ -224,11 +231,11 @@
 
 			// Non-empty item — Rule M1: merge into deepest visible text above (rule B)
 			// with preserve-absolute-indent child placement.
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 			// mergeListItemIntoPrevious mutates `node` in place and internally rebuilds
 			// raw for all affected containers (including `node` itself). No outer rebuildListRaw needed.
 			const { mergePoint } = mergeListItemIntoPrevious(node, itemIndex);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerItemReactivity();
 			await tick();
 			// Cascade focus down the target path via focusByPath.
@@ -245,11 +252,11 @@
 
 			if (node.children.length <= 1) {
 				// Last item — delete entire list
-				parentActions.deleteBlock(index);
+				parentBlockEdit.deleteBlock(index);
 				return;
 			}
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
 			itemBlockRefs.splice(itemIndex, 1);
 			finalizeContainerEdit();
@@ -257,40 +264,6 @@
 			await tick();
 			const focusIdx = Math.min(itemIndex, node.children.length - 1);
 			itemBlockRefs[focusIdx]?.focus(0);
-		},
-
-		async moveFocus(itemIndex: number, position: FocusPosition): Promise<void> {
-			if (!node.children) return;
-
-			if (itemIndex < 0) {
-				// Before first item — move before the list
-				parentActions.moveFocus(index - 1, position);
-				return;
-			}
-			if (itemIndex >= node.children.length) {
-				// After last item — move after the list
-				parentActions.moveFocus(index + 1, position);
-				return;
-			}
-
-			const item = itemBlockRefs[itemIndex];
-			if (!item?.focusable) return;
-
-			// Sticky-column variant: use focusAtColumn if available, else fall back
-			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
-				const x = stickyColumn.get();
-				const from = position.stickyColumnFrom;
-				if (x !== null && item.focusAtColumn) {
-					item.focusAtColumn(x, from);
-					return;
-				}
-				item.focus(from === 'above' ? 0 : CURSOR_END);
-				return;
-			}
-
-			if (typeof position === 'number') item.focus(position);
-			else if (position === 'start') item.focus(0);
-			else item.focus(CURSOR_END);
 		},
 
 		// list items handle their own merges / updates / paste
@@ -303,13 +276,13 @@
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number }
 		): Promise<void> {
-			// Note: ListBlock.listActions.replaceBlock is called when a caller wants
+			// Note: ListBlock.listBlockEdit.replaceBlock is called when a caller wants
 			// to splice list items. In practice, this happens rarely — U1 and U2
 			// typically call replaceBlock on a parent that contains the list, not
 			// on the list itself. But a future feature could replace list items.
 			if (!node.children || itemIndex < 0 || itemIndex >= node.children.length) return;
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 
 			// Work on plain copies to prevent $state proxy splice cascades.
 			const childrenCopy = [...node.children];
@@ -339,7 +312,7 @@
 			itemBlockRefs = refsCopy;
 
 			rebuildListRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerItemReactivity();
 
 			await tick();
@@ -348,35 +321,80 @@
 				const targetIdx = itemIndex + focus.replacementIndex;
 				itemBlockRefs[targetIdx]?.focus(focus.offset);
 			}
-		},
+		}
+	};
 
-		requestUndo(): void | Promise<void> {
-			return parentActions.requestUndo();
-		},
+	const listFocus: FocusActions = {
+		async moveFocus(itemIndex: number, position: FocusPosition): Promise<void> {
+			if (!node.children) return;
 
-		requestRedo(): void | Promise<void> {
-			return parentActions.requestRedo();
-		},
+			if (itemIndex < 0) {
+				// Before first item — move before the list
+				parentFocus.moveFocus(index - 1, position);
+				return;
+			}
+			if (itemIndex >= node.children.length) {
+				// After last item — move after the list
+				parentFocus.moveFocus(index + 1, position);
+				return;
+			}
 
+			const item = itemBlockRefs[itemIndex];
+			if (!item?.focusable) return;
+
+			// Sticky-column variant: use focusAtColumn if available, else fall back
+			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+				const x = stickyColumn.get();
+				const from = position.stickyColumnFrom;
+				if (x !== null && item.focusAtColumn) {
+					item.focusAtColumn(x, from);
+					return;
+				}
+				item.focus(from === 'above' ? 0 : CURSOR_END);
+				return;
+			}
+
+			if (typeof position === 'number') item.focus(position);
+			else if (position === 'start') item.focus(0);
+			else item.focus(CURSOR_END);
+		}
+	};
+
+	const listContainerEdit: ContainerEditActions = {
 		beginContainerEdit(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEdit?.(index, offset);
+			parentContainerEdit?.beginContainerEdit(index, offset);
 		},
 
 		beginContainerEditDebounced(_blockIndex: number, offset: number): void {
-			parentActions.beginContainerEditDebounced?.(index, offset);
+			parentContainerEdit?.beginContainerEditDebounced(index, offset);
 		},
 
 		endContainerEdit(): void {
 			rebuildListRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 		}
 	};
 
-	setContext(EDITOR_ACTIONS_KEY, listActions);
-	setContext(BLOCK_EDIT_KEY, listActions);
-	setContext(FOCUS_KEY, listActions);
-	setContext(HISTORY_KEY, listActions);
-	setContext(CONTAINER_EDIT_KEY, listActions);
+	setContext(BLOCK_EDIT_KEY, listBlockEdit);
+	setContext(FOCUS_KEY, listFocus);
+	setContext(CONTAINER_EDIT_KEY, listContainerEdit);
+
+	// Bridge object: spread the 3 bundles into a single EditorActions-shaped
+	// object for setContext(EDITOR_ACTIONS_KEY, ...). Needed because child
+	// components (ListItemBlock, nested ListBlock) may still read EDITOR_ACTIONS_KEY.
+	// Removed in Task 10 once all containers have migrated to sub-interface keys.
+	const listActionsBridge: EditorActions = {
+		...listBlockEdit,
+		...listFocus,
+		requestUndo(): void | Promise<void> {
+			return parentHistory.requestUndo();
+		},
+		requestRedo(): void | Promise<void> {
+			return parentHistory.requestRedo();
+		},
+		...listContainerEdit
+	};
+	setContext(EDITOR_ACTIONS_KEY, listActionsBridge);
 
 	// ── List Context ────────────────────────────────────────────────────
 	// Provides list-specific operations to child ListItemBlock components.
@@ -393,7 +411,7 @@
 			const prevItem = node.children[itemIndex - 1];
 			if (!prevItem.children) return;
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 
 			// Remove current item from this list
 			node.children.splice(itemIndex, 1);
@@ -429,7 +447,7 @@
 			rebuildListItemRaw(prevItem);
 			renumberOrderedList(node, itemIndex);
 			rebuildListRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerItemReactivity();
 			await tick();
 
@@ -485,7 +503,7 @@
 			const parentItem = node.children[parentItemIdx];
 			if (!parentItem?.children) return;
 
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 
 			const item = nestedListNode.children[nestedItemIdx];
 
@@ -514,7 +532,7 @@
 			renumberOrderedList(node, parentItemIdx + 1);
 			rebuildListRaw(node);
 
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerItemReactivity();
 			await tick();
 			itemBlockRefs[parentItemIdx + 1]?.focus(0);
@@ -526,26 +544,26 @@
 			if (node.children.length <= 1) {
 				// Only item — replace the list with an empty paragraph via split.
 				// Splitting at the end of raw creates a new empty block after.
-				parentActions.splitBlock(index, displayLength(node.raw));
+				parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				return;
 			}
 
 			// Remove the empty item, rebuild list, then create a paragraph
-			parentActions.beginContainerEdit?.(index, 0);
+			parentContainerEdit?.beginContainerEdit(index, 0);
 			performDelete({ children: node.children }, itemBlockIds, itemIndex);
 			itemBlockRefs.splice(itemIndex, 1);
 			rebuildListRaw(node);
-			parentActions.endContainerEdit?.();
+			parentContainerEdit?.endContainerEdit();
 			triggerItemReactivity();
 
 			if (itemIndex === 0) {
 				// Empty item was at the start — create paragraph before the list
-				await parentActions.splitBlock(index, 0);
+				await parentBlockEdit.splitBlock(index, 0);
 				// splitBlock focused the list (index+1), redirect to the paragraph (index)
-				parentActions.moveFocus(index, 'start');
+				parentFocus.moveFocus(index, 'start');
 			} else if (itemIndex >= node.children.length) {
 				// Empty item was at the end — create paragraph after the list
-				parentActions.splitBlock(index, displayLength(node.raw));
+				parentBlockEdit.splitBlock(index, displayLength(node.raw));
 			} else {
 				// Empty item was in the middle — split the list at the deletion point.
 				// Compute offset: sum of raw for items before the gap.
@@ -553,11 +571,11 @@
 				for (let j = 0; j < itemIndex; j++) {
 					splitOffset += (node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
 				}
-				await parentActions.splitBlock(index, splitOffset);
+				await parentBlockEdit.splitBlock(index, splitOffset);
 				// After split: [first-list at index, second-list at index+1].
 				// Split second list at offset 0 to insert a paragraph between them.
-				await parentActions.splitBlock(index + 1, 0);
-				parentActions.moveFocus(index + 1, 'start');
+				await parentBlockEdit.splitBlock(index + 1, 0);
+				parentFocus.moveFocus(index + 1, 'start');
 			}
 		}
 	};
