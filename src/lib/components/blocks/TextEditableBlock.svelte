@@ -2,10 +2,13 @@
 	import { getContext, tick } from 'svelte';
 	import {
 		EDITOR_ACTIONS_KEY,
+		STICKY_COLUMN_KEY,
 		type EditorActions,
 		type CstNode,
-		type BlockComponent
+		type BlockComponent,
+		type StickyColumnDirection
 	} from '../../editor-types';
+	import type { StickyColumnState } from '../../sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline-parser';
 	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
@@ -20,6 +23,7 @@
 	}: { node: CstNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
 
 	const actions = getContext<EditorActions>(EDITOR_ACTIONS_KEY);
+	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -77,6 +81,18 @@
 		setCursorOffset(Math.max(0, offset));
 	}
 
+	/**
+	 * Position the cursor at the offset nearest to editor-relative pixel X
+	 * on this block's first or last visual line (depending on `from`).
+	 * Implementation of the BlockComponent.focusAtColumn? contract.
+	 */
+	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		if (!el) return;
+		el.focus();
+		const targetOffset = findOffsetNearestX(el, x, from);
+		setCursorOffset(targetOffset);
+	}
+
 	export function getCursorOffset(): number | null {
 		if (!el || document.activeElement !== el) return null;
 		const sel = window.getSelection();
@@ -103,9 +119,105 @@
 		sel?.removeAllRanges();
 		sel?.addRange(range);
 	}
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
 
 	// ── Cursor utilities ────────────────────────────────────────────────
+
+	/**
+	 * Get the current cursor's editor-relative pixel X. Viewport X minus the
+	 * editor container's viewport-left offset, so the value is invariant to
+	 * vertical scrolling within the editor. Returns null if no usable rect
+	 * can be obtained.
+	 */
+	function getCurrentCursorEditorRelativeX(): number | null {
+		if (!el) return null;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return null;
+		const range = sel.getRangeAt(0);
+
+		let viewportX: number | null = null;
+		const rects = range.getClientRects();
+		if (rects.length > 0 && (rects[0].width >= 0 || rects[0].height > 0)) {
+			viewportX = rects[0].left;
+		}
+		if (viewportX === null) {
+			const br = range.getBoundingClientRect();
+			if (br.height > 0 || br.width > 0) viewportX = br.left;
+		}
+		if (viewportX === null) {
+			// Final fallback: block's own left edge
+			viewportX = el.getBoundingClientRect().left;
+		}
+
+		const editor = el.closest('.editor') as HTMLElement | null;
+		const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
+		return viewportX - editorLeft;
+	}
+
+	/**
+	 * Get the DOMRect of a collapsed range at a specific character offset
+	 * inside the container. Uses the existing createRangeFromOffsets helper
+	 * for consistent offset-to-range resolution.
+	 */
+	function getOffsetRect(container: HTMLElement, offset: number): DOMRect | null {
+		const range = createRangeFromOffsets(container, offset, offset);
+		if (!range) return null;
+		const rects = range.getClientRects();
+		if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
+		const br = range.getBoundingClientRect();
+		if (br.height > 0 || br.width > 0) return br;
+		return null;
+	}
+
+	/**
+	 * Scan character offsets in the target visual line (first or last) and
+	 * return the offset whose Range left coordinate is closest to the target
+	 * viewport X. Linear scan for BiDi correctness (binary search is invalid
+	 * on BiDi lines where getClientRects() left values are non-monotonic
+	 * along logical offsets).
+	 */
+	function findOffsetNearestX(
+		container: HTMLElement,
+		editorRelativeX: number,
+		from: StickyColumnDirection
+	): number {
+		const text = container.textContent ?? '';
+		const textLen = text.length;
+		if (textLen === 0) return 0;
+
+		// Convert editor-relative X back to viewport X for comparison with getClientRects.
+		const editor = container.closest('.editor') as HTMLElement | null;
+		const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
+		const targetViewportX = editorRelativeX + editorLeft;
+
+		// Probe the first or last offset to establish the target visual line's Y range.
+		const probeOffset = from === 'above' ? 0 : textLen;
+		const probeRect = getOffsetRect(container, probeOffset);
+		if (!probeRect) return probeOffset;
+
+		const lineTop = probeRect.top;
+		const lineBottom = probeRect.bottom;
+		const lineHeight = Math.max(1, lineBottom - lineTop);
+		const tolerance = lineHeight * 0.5;
+
+		let bestOffset = probeOffset;
+		let bestDelta = Math.abs(probeRect.left - targetViewportX);
+
+		for (let offset = 0; offset <= textLen; offset++) {
+			const rect = getOffsetRect(container, offset);
+			if (!rect) continue;
+			// Only consider offsets whose Y range overlaps the target visual line.
+			if (rect.top > lineBottom + tolerance) continue;
+			if (rect.bottom < lineTop - tolerance) continue;
+			const delta = Math.abs(rect.left - targetViewportX);
+			if (delta < bestDelta) {
+				bestDelta = delta;
+				bestOffset = offset;
+			}
+		}
+
+		return bestOffset;
+	}
 
 	function setCursorOffset(offset: number): void {
 		if (!el) return;
