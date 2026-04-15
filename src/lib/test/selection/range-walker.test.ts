@@ -18,7 +18,7 @@ function blockquote(children: CstNode[]): CstNode {
 }
 
 function doc(children: CstNode[]): Document {
-	return { kind: 'document', leadingTrivia: '', raw: '', children, prefix: '', suffix: '' };
+	return { kind: 'document', prefix: '', children, suffix: '' };
 }
 
 describe('walkBetween', () => {
