@@ -7,6 +7,8 @@
  */
 
 import type { CstNode, FencedCodeMetadata } from '../core/nodes';
+import hljs from 'highlight.js/lib/core';
+import { getLanguageGrammar } from './code-languages';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -115,6 +117,40 @@ export function walkHljsNodes(source: Node, target: DocumentFragment | HTMLEleme
 			target.appendChild(span);
 		}
 	}
+}
+
+// ── Body tokenization ─────────────────────────────────────────────────────
+
+const registeredWithHljs = new Set<string>();
+
+/**
+ * Tokenize a code-block body via highlight.js. Returns a single-text-node
+ * fragment for empty/unknown languages. Uses `ignoreIllegals` so mid-typing
+ * invalid syntax does not throw.
+ */
+export function tokenizeBody(body: string, infoString: string): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	if (body.length === 0) return frag;
+
+	const grammar = getLanguageGrammar(infoString);
+	if (!grammar) {
+		frag.appendChild(document.createTextNode(body));
+		return frag;
+	}
+
+	if (!registeredWithHljs.has(grammar.name)) {
+		hljs.registerLanguage(grammar.name, grammar.definition);
+		registeredWithHljs.add(grammar.name);
+	}
+
+	const result = hljs.highlight(body, {
+		language: grammar.name,
+		ignoreIllegals: true
+	});
+	const template = document.createElement('template');
+	template.innerHTML = result.value;
+	walkHljsNodes(template.content, frag);
+	return frag;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
