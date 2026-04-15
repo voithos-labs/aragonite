@@ -20,17 +20,26 @@
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../text-surface/cursor-utils';
-	import {
-		isAtFirstVisualLine,
-		isAtLastVisualLine
-	} from '../../text-surface/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../text-surface/visual-lines';
 	import {
 		getCurrentCursorEditorRelativeX,
 		findOffsetNearestX
 	} from '../../text-surface/sticky-measure';
-	import { renderCodeBlock, scanLongestFenceRun } from '../../code-surface/code-renderer';
+	import { renderCodeBlock } from '../../code-surface/code-renderer';
+	import {
+		getLineLeadingWhitespace,
+		getCloserFor,
+		shouldAutoClose,
+		shouldSkipClose,
+		isBetweenEmptyPair,
+		isBetweenEmptyBracketPair
+	} from '../../code-surface/code-editing';
+	import { indentLines, dedentLines, type IndentResult } from '../../code-surface/code-indent';
+	import { computeCodePaste } from '../../code-surface/code-paste';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../raw-text';
+
+	const ELECTRIC_INDENT_UNIT = '\t';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
 
@@ -91,7 +100,8 @@
 
 	$effect(() => {
 		if (!el) return;
-		if (node.raw === lastRenderedRaw && pendingCursorOffset === null && pendingSelection === null) return;
+		if (node.raw === lastRenderedRaw && pendingCursorOffset === null && pendingSelection === null)
+			return;
 
 		el.replaceChildren(renderCodeBlock(node));
 		lastRenderedRaw = node.raw;
@@ -136,10 +146,14 @@
 		if (e.inputType === 'historyUndo') {
 			e.preventDefault();
 			history.requestUndo();
-		} else if (e.inputType === 'historyRedo') {
+			return;
+		}
+		if (e.inputType === 'historyRedo') {
 			e.preventDefault();
 			history.requestRedo();
-		} else if (e.inputType === 'insertLineBreak') {
+			return;
+		}
+		if (e.inputType === 'insertLineBreak') {
 			// Shift+Enter: insert a literal \n text node rather than letting the
 			// browser produce a <br> or <div>. A text node keeps el.textContent
 			// well-formed so onInput → updateBlockContent sees a flat string.
@@ -155,6 +169,52 @@
 			sel.removeAllRanges();
 			sel.addRange(range);
 			onInput();
+			return;
+		}
+		if (composing || e.inputType !== 'insertText' || !el) return;
+		const data = e.data;
+		if (!data || data.length !== 1) return;
+
+		const text = getDisplayText();
+		const selOffsets = getSelectionOffsetsHelper(el);
+		const offset = getCursorOffsetHelper(el) ?? 0;
+
+		const closer = getCloserFor(data);
+
+		// Wrap a non-empty selection in a typed opener's pair. The selection
+		// is preserved inside the pair so the user can keep typing to replace
+		// the wrapped content.
+		if (selOffsets && closer !== null) {
+			e.preventDefault();
+			const wrapped =
+				text.slice(0, selOffsets.start) +
+				data +
+				text.slice(selOffsets.start, selOffsets.end) +
+				closer +
+				text.slice(selOffsets.end);
+			blockEdit.updateBlockContent(index, wrapped + '\n', preEditOffset);
+			pendingSelection = { start: selOffsets.start + 1, end: selOffsets.end + 1 };
+			return;
+		}
+
+		if (selOffsets) return; // Non-opener input with a selection — let the browser handle it.
+
+		// Skip-over: typed closer already sits at the cursor. Move past it
+		// without inserting a duplicate — the CST does not change, so we
+		// bypass the render cycle and just advance the caret.
+		if (shouldSkipClose(text, offset, data)) {
+			e.preventDefault();
+			setCursorOffsetHelper(el, offset + 1);
+			return;
+		}
+
+		// Auto-pair: typed opener with a collapsed cursor inserts the closer too.
+		if (closer !== null && shouldAutoClose(text, offset, data)) {
+			e.preventDefault();
+			const newText = text.slice(0, offset) + data + closer + text.slice(offset);
+			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			pendingCursorOffset = offset + 1;
+			return;
 		}
 	}
 
@@ -170,7 +230,10 @@
 			stickyColumn.reset();
 		}
 
-		if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')) {
+		if (
+			(e.ctrlKey || e.metaKey) &&
+			(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
+		) {
 			e.preventDefault();
 			return;
 		}
@@ -194,6 +257,19 @@
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
 				return;
+			}
+
+			// Pair-delete: cursor sitting between a matching empty pair removes
+			// both halves so the auto-closed companion does not get stranded.
+			if (!hasSelectionHelper()) {
+				const text = getDisplayText();
+				if (isBetweenEmptyPair(text, offset)) {
+					e.preventDefault();
+					const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
+					blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+					pendingCursorOffset = offset - 1;
+					return;
+				}
 			}
 		}
 
@@ -239,10 +315,24 @@
 				}
 			}
 
-			// Default: insert a newline at the cursor.
-			const newText = text.slice(0, offset) + '\n' + text.slice(offset);
+			// Default: insert a newline at the cursor, copying the current line's
+			// leading whitespace. When the cursor sits between an empty bracket
+			// pair, expand into three lines with one extra indent level on the
+			// middle line — the "electric indent" pattern every modern code
+			// editor ships. Quote pairs stay inline.
+			const indent = getLineLeadingWhitespace(text, offset);
+
+			if (isBetweenEmptyBracketPair(text, offset)) {
+				const inner = indent + ELECTRIC_INDENT_UNIT;
+				const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
+				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+				pendingCursorOffset = offset + 1 + inner.length;
+				return;
+			}
+
+			const newText = text.slice(0, offset) + '\n' + indent + text.slice(offset);
 			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-			pendingCursorOffset = offset + 1;
+			pendingCursorOffset = offset + 1 + indent.length;
 			return;
 		}
 
@@ -295,118 +385,35 @@
 		}
 	}
 
-	function indentSelection(): void {
-		if (!el) return;
-
-		const offsets = getSelectionOffsetsHelper(el);
-
-		if (!offsets) {
-			const ok = document.execCommand('insertText', false, '\t');
-			if (ok) return;
-			// Fallback: manual Text-node insert + onInput flush
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0) return;
-			const range = sel.getRangeAt(0);
-			range.deleteContents();
-			const tn = document.createTextNode('\t');
-			range.insertNode(tn);
-			range.setStartAfter(tn);
-			range.collapse(true);
-			sel.removeAllRanges();
-			sel.addRange(range);
-			const text = el.textContent ?? '';
-			const savedOffset = getCursorOffsetHelper(el) ?? 0;
-			blockEdit.updateBlockContent(index, text + '\n', savedOffset);
-			pendingCursorOffset = savedOffset;
-			return;
-		}
-
-		// Multi-line selection — insert \t at every line start the selection touches
-		const display = el.textContent ?? '';
-		const lineStarts: number[] = [];
-		const firstLineStart = display.lastIndexOf('\n', offsets.start - 1) + 1;
-		lineStarts.push(firstLineStart);
-		let pos = firstLineStart;
-		while (pos < offsets.end) {
-			const next = display.indexOf('\n', pos);
-			if (next === -1 || next >= offsets.end) break;
-			lineStarts.push(next + 1);
-			pos = next + 1;
-		}
-
-		// Right-to-left to avoid offset drift during mutation
-		let newText = display;
-		for (let i = lineStarts.length - 1; i >= 0; i--) {
-			const idx = lineStarts[i];
-			newText = newText.slice(0, idx) + '\t' + newText.slice(idx);
-		}
-
-		const newStart = offsets.start + 1;
-		const newEnd = offsets.end + lineStarts.length;
-
-		blockEdit.updateBlockContent(index, newText + '\n', newStart);
-		pendingSelection = { start: newStart, end: newEnd };
+	/** Collapse the contenteditable's current selection to a `{start,end}` range. */
+	function currentRange(): { start: number; end: number } {
+		const sel = getSelectionOffsetsHelper(el!);
+		if (sel) return sel;
+		const cursor = getCursorOffsetHelper(el!) ?? 0;
+		return { start: cursor, end: cursor };
 	}
 
-	/** Returns 1 for leading `\t`, up to 4 for leading spaces, 0 otherwise. */
-	function computeDedentCount(text: string, lineStart: number): number {
-		if (text[lineStart] === '\t') return 1;
-		let spaces = 0;
-		while (spaces < 4 && text[lineStart + spaces] === ' ') spaces++;
-		return spaces;
+	/** Flush an IndentResult through the CST + cursor-restore pipeline. */
+	function applyIndentResult(result: IndentResult): void {
+		blockEdit.updateBlockContent(index, result.text + '\n', result.selection.start);
+		if (result.selection.start === result.selection.end) {
+			pendingCursorOffset = result.selection.start;
+		} else {
+			pendingSelection = result.selection;
+		}
+	}
+
+	function indentSelection(): void {
+		if (!el) return;
+		applyIndentResult(indentLines(el.textContent ?? '', currentRange()));
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
-
-		const offsets = getSelectionOffsetsHelper(el);
-		const cursorOffset = getCursorOffsetHelper(el) ?? 0;
-
-		if (!offsets) {
-			const display = el.textContent ?? '';
-			const lineStart = display.lastIndexOf('\n', cursorOffset - 1) + 1;
-			const removed = computeDedentCount(display, lineStart);
-			if (removed === 0) return;
-			const newText = display.slice(0, lineStart) + display.slice(lineStart + removed);
-			const newCursor = Math.max(lineStart, cursorOffset - removed);
-			blockEdit.updateBlockContent(index, newText + '\n', newCursor);
-			pendingCursorOffset = newCursor;
-			return;
-		}
-
-		// Multi-line selection: dedent every line the selection touches
-		const display = el.textContent ?? '';
-		const lineStarts: number[] = [];
-		const firstLineStart = display.lastIndexOf('\n', offsets.start - 1) + 1;
-		lineStarts.push(firstLineStart);
-		let pos = firstLineStart;
-		while (pos < offsets.end) {
-			const next = display.indexOf('\n', pos);
-			if (next === -1 || next >= offsets.end) break;
-			lineStarts.push(next + 1);
-			pos = next + 1;
-		}
-
-		// Right-to-left to avoid offset drift during mutation
-		let newText = display;
-		let removedBeforeStart = 0;
-		let removedWithin = 0;
-		let removedOnFirstLine = 0;
-		for (let i = lineStarts.length - 1; i >= 0; i--) {
-			const idx = lineStarts[i];
-			const removed = computeDedentCount(newText, idx);
-			if (removed === 0) continue;
-			newText = newText.slice(0, idx) + newText.slice(idx + removed);
-			if (i === 0) removedOnFirstLine = removed;
-			if (idx < offsets.start) removedBeforeStart += removed;
-			else removedWithin += removed;
-		}
-
-		const newStart = Math.max(firstLineStart, offsets.start - removedOnFirstLine);
-		const newEnd = offsets.end - (removedBeforeStart + removedWithin);
-
-		blockEdit.updateBlockContent(index, newText + '\n', newStart);
-		pendingSelection = { start: newStart, end: newEnd };
+		const text = el.textContent ?? '';
+		const result = dedentLines(text, currentRange());
+		if (result.text === text) return; // no-op: nothing to dedent
+		applyIndentResult(result);
 	}
 
 	function onPointerDown(_e: PointerEvent): void {
@@ -438,55 +445,21 @@
 		stickyColumn.reset();
 		if (!el) return;
 		e.preventDefault();
-		const text = e.clipboardData?.getData('text/plain') ?? '';
-		if (!text) return;
-
-		const offsets = getSelectionOffsetsHelper(el);
-		const cursorOffset = getCursorOffsetHelper(el) ?? 0;
-		const start = offsets?.start ?? cursorOffset;
-		const end = offsets?.end ?? cursorOffset;
+		const pasted = e.clipboardData?.getData('text/plain') ?? '';
+		if (!pasted) return;
 
 		const meta = node.metadata as FencedCodeMetadata;
-		const currentFenceLen = meta.fenceLength;
-		const maxRunInPaste = scanLongestFenceRun(text, meta.fenceMarker);
-		const needsBump = maxRunInPaste >= currentFenceLen;
+		const result = computeCodePaste({
+			display: el.textContent ?? '',
+			selection: currentRange(),
+			pasted,
+			fenceMarker: meta.fenceMarker,
+			fenceLength: meta.fenceLength,
+			closed: meta.closed
+		});
 
-		if (!needsBump) {
-			const display = el.textContent ?? '';
-			const newDisplay = display.slice(0, start) + text + display.slice(end);
-			const newCursor = start + text.length;
-			blockEdit.updateBlockContent(index, newDisplay + '\n', newCursor);
-			pendingCursorOffset = newCursor;
-			return;
-		}
-
-		const newFenceLen = Math.max(currentFenceLen, maxRunInPaste + 1);
-		const newFence = meta.fenceMarker.repeat(newFenceLen);
-		const oldFence = meta.fenceMarker.repeat(currentFenceLen);
-
-		const display = el.textContent ?? '';
-		const spliced = display.slice(0, start) + text + display.slice(end);
-		const lines = spliced.split('\n');
-		lines[0] = lines[0].replace(new RegExp('^' + escapeForRegex(oldFence)), newFence);
-		if (meta.closed) {
-			for (let i = lines.length - 1; i >= 0; i--) {
-				if (lines[i].trim().length === 0) continue;
-				lines[i] = lines[i].replace(new RegExp('^\\s*' + escapeForRegex(oldFence)), newFence);
-				break;
-			}
-		}
-		const bumpedDisplay = lines.join('\n');
-
-		// cursor shifts by the bumped fence's length delta
-		const fenceDelta = newFenceLen - currentFenceLen;
-		const newCursor = start + fenceDelta + text.length;
-
-		blockEdit.updateBlockContent(index, bumpedDisplay + '\n', newCursor);
-		pendingCursorOffset = newCursor;
-	}
-
-	function escapeForRegex(s: string): string {
-		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		blockEdit.updateBlockContent(index, result.text + '\n', result.cursor);
+		pendingCursorOffset = result.cursor;
 	}
 </script>
 
