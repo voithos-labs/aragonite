@@ -1,88 +1,6 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { sliceFencedCode, mapHljsClass } from '../../code-surface/code-renderer';
-import type { CstNode } from '../../core/nodes';
-
-function makeFencedCodeNode(
-	raw: string,
-	info = '',
-	closed = true,
-	fenceMarker: '`' | '~' = '`',
-	fenceLength = 3
-): CstNode {
-	return {
-		kind: 'fencedCode',
-		leadingTrivia: '',
-		raw,
-		metadata: { fenceMarker, fenceLength, info, closed }
-	};
-}
-
-describe('sliceFencedCode', () => {
-	it('slices a closed fenced block with info string', () => {
-		const node = makeFencedCodeNode('```python\nprint("hi")\n```\n', 'python');
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('```python\n');
-		expect(result.body).toBe('print("hi")\n');
-		expect(result.closerLine).toBe('```\n');
-		expect(result.infoString).toBe('python');
-	});
-
-	it('slices a closed fenced block with no info string', () => {
-		const node = makeFencedCodeNode('```\nhello\n```\n');
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('```\n');
-		expect(result.body).toBe('hello\n');
-		expect(result.closerLine).toBe('```\n');
-		expect(result.infoString).toBe('');
-	});
-
-	it('handles an unclosed fence (body runs to EOF)', () => {
-		const node = makeFencedCodeNode('```js\nconst x = 1\n', 'js', false);
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('```js\n');
-		expect(result.body).toBe('const x = 1\n');
-		expect(result.closerLine).toBe('');
-		expect(result.infoString).toBe('js');
-	});
-
-	it('handles an empty body', () => {
-		const node = makeFencedCodeNode('```\n```\n');
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('```\n');
-		expect(result.body).toBe('');
-		expect(result.closerLine).toBe('```\n');
-	});
-
-	it('handles tilde fences', () => {
-		const node = makeFencedCodeNode('~~~yaml\nkey: value\n~~~\n', 'yaml', true, '~');
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('~~~yaml\n');
-		expect(result.body).toBe('key: value\n');
-		expect(result.closerLine).toBe('~~~\n');
-	});
-
-	it('preserves info string with trailing attributes', () => {
-		const node = makeFencedCodeNode('```js {1-3}\nconst x\n```\n', 'js {1-3}');
-		const result = sliceFencedCode(node);
-		expect(result.infoString).toBe('js {1-3}');
-	});
-
-	it('handles a four-backtick fence', () => {
-		const node = makeFencedCodeNode('````python\ncode with ``` inside\n````\n', 'python', true, '`', 4);
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('````python\n');
-		expect(result.body).toBe('code with ``` inside\n');
-		expect(result.closerLine).toBe('````\n');
-	});
-
-	it('handles a degenerate opener-only raw', () => {
-		const node = makeFencedCodeNode('```\n', '', false);
-		const result = sliceFencedCode(node);
-		expect(result.openerLine).toBe('```\n');
-		expect(result.body).toBe('');
-		expect(result.closerLine).toBe('');
-	});
-});
+import { mapHljsClass, walkHljsNodes } from '../../code-surface/code-renderer';
 
 describe('mapHljsClass', () => {
 	it('maps core hljs classes to code-tok classes', () => {
@@ -122,5 +40,63 @@ describe('mapHljsClass', () => {
 	it('returns code-tok-unknown for non-hljs class names', () => {
 		expect(mapHljsClass('random-class')).toBe('code-tok-unknown');
 		expect(mapHljsClass('')).toBe('code-tok-unknown');
+	});
+});
+
+describe('walkHljsNodes', () => {
+	function parseHljsHtml(html: string): DocumentFragment {
+		const template = document.createElement('template');
+		template.innerHTML = html;
+		return template.content;
+	}
+
+	function walk(html: string): DocumentFragment {
+		const target = document.createDocumentFragment();
+		walkHljsNodes(parseHljsHtml(html), target);
+		return target;
+	}
+
+	it('passes through plain text unchanged', () => {
+		const frag = walk('hello world');
+		expect(frag.textContent).toBe('hello world');
+		expect(frag.childNodes.length).toBe(1);
+		expect(frag.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+	});
+
+	it('wraps a single hljs-* span', () => {
+		const frag = walk('<span class="hljs-keyword">const</span>');
+		expect(frag.textContent).toBe('const');
+		const span = frag.firstChild as HTMLElement;
+		expect(span.nodeType).toBe(Node.ELEMENT_NODE);
+		expect(span.className).toBe('code-tok-keyword');
+		expect(span.textContent).toBe('const');
+	});
+
+	it('preserves nested spans recursively', () => {
+		const frag = walk(
+			'<span class="hljs-string">"outer <span class="hljs-subst">inner</span> more"</span>'
+		);
+		expect(frag.textContent).toBe('"outer inner more"');
+		const outer = frag.firstChild as HTMLElement;
+		expect(outer.className).toBe('code-tok-string');
+		expect(outer.querySelector('.code-tok-subst')?.textContent).toBe('inner');
+	});
+
+	it('preserves newlines as text nodes, not <br>', () => {
+		const frag = walk('line1\nline2');
+		expect(frag.textContent).toBe('line1\nline2');
+		expect(frag.querySelector('br')).toBeNull();
+	});
+
+	it('preserves the textContent invariant across mixed text and spans', () => {
+		const input = '<span class="hljs-keyword">const</span> x = <span class="hljs-number">42</span>;';
+		const frag = walk(input);
+		expect(frag.textContent).toBe('const x = 42;');
+	});
+
+	it('handles empty input', () => {
+		const frag = walk('');
+		expect(frag.textContent).toBe('');
+		expect(frag.childNodes.length).toBe(0);
 	});
 });
