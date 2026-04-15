@@ -195,8 +195,11 @@ export function createStandardNestedActions(
 			parent.containerEdit?.endContainerEdit();
 			if (result.kindChanged) {
 				state.triggerReactivity();
+				// Use preEditOffset (cursor just before the kind-changing keystroke)
+				// so the cursor stays near the edit point. Parity with Editor.svelte's
+				// top-level updateBlockContent handler.
 				tick().then(() => {
-					state.innerBlockRefs[innerIndex]?.focus(text.length > 0 ? text.length - 1 : 0);
+					state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
 				});
 			}
 		},

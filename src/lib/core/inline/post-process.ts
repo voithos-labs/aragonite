@@ -67,9 +67,12 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 			continue;
 		}
 
-		// Check for two-or-more spaces before \n
+		// Check for two-or-more spaces before \n.
+		// Skip the '\r' in a CRLF sequence first so trailing spaces before
+		// \r\n still count as a hard break.
 		let spaceCount = 0;
 		let j = nlIdx - 1;
+		if (j >= 0 && text[j] === '\r') j--;
 		while (j >= 0 && text[j] === ' ') {
 			spaceCount++;
 			j--;

@@ -25,7 +25,8 @@
 		unwrapFirstItemFromList,
 		mergeListItemIntoPrevious,
 		renumberOrderedList,
-		normalizeItemMarkerToList
+		normalizeItemMarkerToList,
+		isItemUserEmpty
 	} from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
 	import { createBlockListState } from '../../container-state/block-list-state.svelte';
@@ -54,24 +55,9 @@
 		parentContainerEdit?.endContainerEdit();
 	}
 
-	/**
-	 * An item is "empty" only when every leaf descendant's raw is blank.
-	 * Strictly stronger than "first child is an empty paragraph" — the old
-	 * check dropped trailing content like extra paragraphs or nested lists
-	 * when the first paragraph happened to be empty.
-	 */
-	function isItemEmpty(item: CstNode): boolean {
-		if (!item.children || item.children.length === 0) return true;
-		for (const child of item.children) {
-			if (child.children && child.children.length > 0) {
-				// Recurse into container children (nested lists, blockquotes).
-				if (!isItemEmpty(child)) return false;
-			} else if ((child.raw ?? '').trim() !== '') {
-				return false;
-			}
-		}
-		return true;
-	}
+	// The "item is user-empty" helper lives in tree-operations/list-ops.ts
+	// and is shared with ListItemBlock.splitBlock so Enter and Backspace
+	// use the same recursive emptiness check.
 
 	const bundle = createStandardNestedActions(state, {
 		get index() {
@@ -120,7 +106,7 @@
 
 			// Top-level list: check if first item is empty
 			const item = node.children[0];
-			const firstChildEmpty = isItemEmpty(item);
+			const firstChildEmpty = isItemUserEmpty(item);
 
 			if (firstChildEmpty && node.children.length > 1) {
 				// Empty first item with siblings — delete just the item
@@ -154,7 +140,7 @@
 
 		// Check if current item is empty — if so, delete it
 		const item = node.children[itemIndex];
-		const isEmptyItem = isItemEmpty(item);
+		const isEmptyItem = isItemUserEmpty(item);
 		if (isEmptyItem) {
 			parentContainerEdit?.beginContainerEdit(index, 0);
 			state.commitChildrenEdit((children, ids, refs) => {
