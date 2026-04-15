@@ -22,3 +22,6 @@ Typing and navigation inside fenced code blocks (textarea-based editing surface)
 - info string rendered with .md-lang class: opener line's language name has `.md-lang` class for distinct styling
 - unknown language falls through to plain text: a `klingon` info string produces no `.code-tok-*` spans in the body
 - alias resolution produces same tokens: `js` and `javascript` info strings tokenize identically
+
+## Keyboard — beyond parity
+- Ctrl+B and Ctrl+I are no-ops inside a code block: no `<b>`/`<i>`/`<strong>`/`<em>` elements appear in the DOM, source is unchanged

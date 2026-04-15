@@ -144,6 +144,11 @@
 			stickyColumn.reset();
 		}
 
+		if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')) {
+			e.preventDefault();
+			return;
+		}
+
 		// Ctrl+Z / Ctrl+Y — catch here because Ctrl+Y doesn't fire beforeinput
 		// historyRedo in Chromium/WebView2.
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
