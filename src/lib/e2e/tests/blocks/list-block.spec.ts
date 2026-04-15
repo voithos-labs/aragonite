@@ -185,6 +185,29 @@ test.describe('list Enter', () => {
 		const unique = new Set(numbers);
 		expect(unique.size).toBe(numbers.length);
 	});
+
+	// Regression: Enter inside an empty first item of an ordered list must
+	// (a) exit the list by creating a paragraph before it and (b) renumber
+	// the remaining items starting at 1. exitListAtItem deletes the item
+	// but must also call renumberOrderedList.
+	test('ordered: Enter on empty first item renumbers remaining list', async () => {
+		await editor.loadContent('1. First\n2. Second\n');
+		// Blank the first item in place so the caret sits in an empty "1. " item
+		// without creating an extra item via Enter.
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
+		await first.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+End');
+		await editor.page.keyboard.press('Delete');
+		await editor.page.waitForTimeout(200);
+		// Press Enter on the now-empty first item — should exit the list.
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// "Second" remains but is now the sole item and must be renumbered to 1.
+		expect(source).toMatch(/^1\. Second$/m);
+		expect(source).not.toMatch(/^2\. Second$/m);
+	});
 });
 
 // ── Backspace ───────────────────────────────────────────────────────
@@ -654,6 +677,34 @@ test.describe('list Shift+Tab', () => {
 		expect(source).not.toMatch(/^- N1$/m);
 		// Parent B renumbered from 2 to 3.
 		expect(source).toMatch(/^3\. P B$/m);
+	});
+
+	// Regression: after Shift+Tab promotes a nested item to the outer list,
+	// ArrowUp from the promoted item must move focus into the previous
+	// (outer-list) item. A stale-refs bug in promoteNestedItem could leave
+	// the outer list's ref/id state out of sync, making ArrowUp a no-op.
+	test('ordered: ArrowUp after Shift+Tab moves caret into previous outer item', async () => {
+		await editor.loadContent('1. one\n   1. two\n2. three\n');
+		const two = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
+		await two.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.page.waitForTimeout(300);
+		// Sanity: promote renumbered the outer list.
+		const afterPromote = await editor.getSource();
+		expect(afterPromote).toMatch(/^1\. one$/m);
+		expect(afterPromote).toMatch(/^2\. two$/m);
+		expect(afterPromote).toMatch(/^3\. three$/m);
+		// Now ArrowUp from promoted "two" should land in "one".
+		// Type marker Z at the landing position and assert it appears inside
+		// the "one" item, not inside "two".
+		await editor.pressArrowUp();
+		await editor.page.waitForTimeout(100);
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. .*Z.*one|^1\. oneZ/m);
+		expect(source).not.toMatch(/^2\. .*Z.*two|^2\. Ztwo/m);
 	});
 });
 
