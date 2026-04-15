@@ -27,3 +27,4 @@ Typing and navigation inside fenced code blocks (textarea-based editing surface)
 - Ctrl+B and Ctrl+I are no-ops inside a code block: no `<b>`/`<i>`/`<strong>`/`<em>` elements appear in the DOM, source is unchanged
 - ArrowLeft at offset 0 moves focus to end of previous block
 - ArrowRight at end of content moves focus to start of next block
+- vertical arrow sticky column preserved through code block: cursor at column 20 in a paragraph above a code block, after ArrowDown through the code block and into a paragraph below, still lands near column 20
