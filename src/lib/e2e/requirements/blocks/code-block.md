@@ -25,3 +25,5 @@ Typing and navigation inside fenced code blocks (textarea-based editing surface)
 
 ## Keyboard — beyond parity
 - Ctrl+B and Ctrl+I are no-ops inside a code block: no `<b>`/`<i>`/`<strong>`/`<em>` elements appear in the DOM, source is unchanged
+- ArrowLeft at offset 0 moves focus to end of previous block
+- ArrowRight at end of content moves focus to start of next block

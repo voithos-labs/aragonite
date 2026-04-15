@@ -201,6 +201,25 @@
 				return;
 			}
 		}
+
+		if (e.key === 'ArrowLeft' && !e.shiftKey && el) {
+			const offset = getCursorOffsetHelper(el);
+			if (offset === 0) {
+				e.preventDefault();
+				focusActions.moveFocus(index - 1, 'end');
+				return;
+			}
+		}
+
+		if (e.key === 'ArrowRight' && !e.shiftKey && el) {
+			const textLen = (el.textContent ?? '').length;
+			const offset = getCursorOffsetHelper(el);
+			if (offset === textLen) {
+				e.preventDefault();
+				focusActions.moveFocus(index + 1, 'start');
+				return;
+			}
+		}
 	}
 
 	function onPointerDown(_e: PointerEvent): void {
