@@ -28,7 +28,6 @@ export function cascadeCleanupEmptyAncestors(
 		const node = nodeAt(doc, currentPath);
 		if (!node || !('children' in node) || !node.children) break;
 		if (node.children.length > 0) break;
-		// Container is empty — remove it from its parent and ascend.
 		const parentPath = currentPath.slice(0, -1);
 		const parent = nodeAt(doc, parentPath);
 		if (!parent || !('children' in parent) || !parent.children) break;

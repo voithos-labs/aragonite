@@ -30,8 +30,12 @@ describe('cascadeCleanupEmptyAncestors', () => {
 	});
 
 	it('leaves a non-empty blockquote alone', () => {
-		const d = doc([bq([para('a\n')]), para('x\n')]);
-		cascadeCleanupEmptyAncestors(d, [0, 1], []);
+		// Blockquote originally had two paragraphs; child at [0, 0] was
+		// deleted externally, leaving [0, 1] which is now [0, 0]. Cleanup
+		// walks from the deleted path's parent ([0]) and sees a non-empty
+		// container — no removal.
+		const d = doc([bq([para('b\n')]), para('x\n')]);
+		cascadeCleanupEmptyAncestors(d, [0, 0], []);
 		expect(d.children).toHaveLength(2);
 		expect(d.children[0].children).toHaveLength(1);
 	});
