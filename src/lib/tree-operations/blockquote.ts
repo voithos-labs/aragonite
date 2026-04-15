@@ -5,7 +5,7 @@
 
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from '../mutable-tree';
-import { rebuildBlockquoteRaw } from '../container-raw';
+import { rebuildBlockquoteRaw } from './container-raw';
 
 /**
  * Compute the result of unwrapping a blockquote's first child.

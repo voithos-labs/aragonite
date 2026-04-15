@@ -28,7 +28,7 @@
 		normalizeItemMarkerToList,
 		isItemUserEmpty
 	} from '../../tree-operations';
-	import { rebuildListRaw, rebuildListItemRaw } from '../../container-raw';
+	import { rebuildListRaw, rebuildListItemRaw } from '../../tree-operations/container-raw';
 	import { createBlockListState } from '../../container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
@@ -83,8 +83,18 @@
 	// splitBlock at list level: not applicable (list items handle their own splits)
 	bundle.blockEdit.splitBlock = async (): Promise<void> => {};
 
-	// mergeWithNext at list level: not applicable
-	bundle.blockEdit.mergeWithNext = async (): Promise<void> => {};
+	// mergeWithNext at list level: for an inner item, forward-delete at end
+	// of content is a no-op — list items are structural peers and don't
+	// concat their raws. For the LAST item, delegate upward so the editor's
+	// cross-container merge handler can merge the following block into the
+	// list's deepest prose leaf (symmetric with Backspace from the block
+	// after the list).
+	bundle.blockEdit.mergeWithNext = async (itemIndex: number): Promise<void> => {
+		if (!node.children) return;
+		if (itemIndex >= node.children.length - 1) {
+			await parentBlockEdit.mergeWithNext(index);
+		}
+	};
 
 	// updateBlockContent at list level: not applicable
 	bundle.blockEdit.updateBlockContent = (): void => {};
@@ -291,27 +301,33 @@
 		async indentItem(itemIndex: number): Promise<void> {
 			if (!node.children || itemIndex === 0) return;
 
-			const item = node.children[itemIndex];
 			const prevItem = node.children[itemIndex - 1];
 			if (!prevItem.children) return;
 
 			parentContainerEdit?.beginContainerEdit(index, 0);
 
-			// Remove current item from this list
-			node.children.splice(itemIndex, 1);
-			state.innerBlockIds.splice(itemIndex, 1);
-
-			// Append to prevItem's existing same-type nested list, or create one.
+			// Pre-compute the destination list (existing nested list of the
+			// matching type, or a new one to append).
 			const ordered = (node.metadata as { ordered: boolean }).ordered;
 			const existingNestedList = prevItem.children.find(
-				(c) =>
-					c.kind === 'list' &&
-					(c.metadata as { ordered: boolean }).ordered === ordered
+				(c) => c.kind === 'list' && (c.metadata as { ordered: boolean }).ordered === ordered
 			);
+
+			// Atomic splice of children/ids/refs via commitChildrenEdit. We
+			// take ownership of the item from the outer list FIRST so we have
+			// a clean reference, then append it to the destination list
+			// inside prevItem (which is still shared with the committed
+			// children array — prevItem is the same object either way).
+			let movedItem!: CstNode;
+			state.commitChildrenEdit((children, ids, refs) => {
+				[movedItem] = children.splice(itemIndex, 1);
+				ids.splice(itemIndex, 1);
+				refs.splice(itemIndex, 1);
+			});
 
 			let destList: CstNode;
 			if (existingNestedList && existingNestedList.children) {
-				existingNestedList.children.push(item);
+				existingNestedList.children.push(movedItem);
 				destList = existingNestedList;
 			} else {
 				destList = {
@@ -319,7 +335,7 @@
 					leadingTrivia: '',
 					raw: '',
 					metadata: { ordered },
-					children: [item]
+					children: [movedItem]
 				};
 				prevItem.children.push(destList);
 			}
@@ -368,11 +384,15 @@
 				rebuildListItemRaw(newItem);
 			}
 
-			node.children.splice(itemIndex + 1, 0, newItem);
-			state.innerBlockIds.splice(itemIndex + 1, 0, generateBlockId());
+			// Atomic splice of children/ids/refs via commitChildrenEdit so
+			// that bind:this doesn't leave a stale ref at the shifted index.
+			state.commitChildrenEdit((children, ids, refs) => {
+				children.splice(itemIndex + 1, 0, newItem!);
+				ids.splice(itemIndex + 1, 0, generateBlockId());
+				refs.splice(itemIndex + 1, 0, undefined);
+			});
 			renumberOrderedList(node, itemIndex + 1);
 			rebuildListRaw(node);
-			state.triggerReactivity();
 			await tick();
 			state.innerBlockRefs[itemIndex + 1]?.focus(0);
 		},
@@ -392,7 +412,10 @@
 			const item = nestedListNode.children[nestedItemIdx];
 
 			// 1. Remove item from nested list; renumber and rebuild the remainder,
-			// or delete the nested list if it's now empty.
+			// or delete the nested list if it's now empty. These mutations touch
+			// parentItem's inner children (via $state proxy) — the parentItem's
+			// own BlockListState $effect will catch the childCount drift and
+			// resync its refs on the next render flush.
 			nestedListNode.children.splice(nestedItemIdx, 1);
 			if (nestedListNode.children.length === 0) {
 				const nestedIdx = parentItem.children.indexOf(nestedListNode);
@@ -408,16 +431,17 @@
 			// pass can read a well-formed marker suffix.
 			normalizeItemMarkerToList(item, node);
 
-			// 3. Insert into this list after the parent item and renumber from
-			// the insertion point so both the new item and everything after it
-			// pick up correct sequential numbers.
-			node.children.splice(parentItemIdx + 1, 0, item);
-			state.innerBlockIds.splice(parentItemIdx + 1, 0, generateBlockId());
+			// 3. Insert into the outer list via atomic commitChildrenEdit so
+			// children/ids/refs stay aligned (prevents stale trailing refs).
+			state.commitChildrenEdit((children, ids, refs) => {
+				children.splice(parentItemIdx + 1, 0, item);
+				ids.splice(parentItemIdx + 1, 0, generateBlockId());
+				refs.splice(parentItemIdx + 1, 0, undefined);
+			});
 			renumberOrderedList(node, parentItemIdx + 1);
 			rebuildListRaw(node);
 
 			parentContainerEdit?.endContainerEdit();
-			state.triggerReactivity();
 			await tick();
 			state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
 		},

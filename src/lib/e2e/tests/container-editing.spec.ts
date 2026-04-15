@@ -249,3 +249,37 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		expect(source).toContain('code');
 	});
 });
+
+// Positive regression for the factory mergeWithPrevious container+prose path.
+// When an inner container block (blockquote or list) sits before a paragraph
+// inside a BlockList, Backspace at the start of that paragraph triggers the
+// factory's mergeWithPrevious with an eligible container+prose pair. The
+// factory calls performMerge(trimmed prev raw + curr raw) and re-parses — and
+// the re-parser naturally extends the container's last prose leaf with the
+// trailing text, producing the same result a walker-based approach would.
+// Originally flagged as a potential data-corruption bug during the forge-review
+// audit; verified via this test that the concat+reparse approach works
+// correctly for every nested scenario examined (see docs/code-review-findings).
+test.describe('inner container+paragraph merge inside a blockquote', () => {
+	let editor: EditorPage;
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Backspace in trailing paragraph inside blockquote merges into deepest prose leaf of preceding nested blockquote', async () => {
+		// Outer blockquote children = [paragraph "one", nested-blockquote "nested", paragraph "three"]
+		await editor.loadContent('> one\n>\n> > nested\n>\n> three\n');
+		const three = editor.page.locator('[contenteditable="true"]', { hasText: /^three$/ });
+		await three.click();
+		await editor.pressKey('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		// "three" is merged into "nested" (deepest reachable prose leaf inside the preceding nested blockquote)
+		expect(source).toMatch(/nestedthree/);
+		expect(source).toMatch(/^> one$/m);
+		expect(source).not.toMatch(/^three$/m);
+		expect(source).not.toMatch(/^> three$/m);
+	});
+});

@@ -9,7 +9,7 @@ import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { generateBlockId } from '../mutable-tree';
 import { trimTrailingLineEnding } from '../raw-text';
-import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from '../container-raw';
+import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
 
 // ── Types ──
 
