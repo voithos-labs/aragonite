@@ -197,16 +197,53 @@
 			}
 		}
 
-		// Enter without Shift: if the last line is already empty, exit the code block.
+		// Plain Enter: always handle manually. The browser's default `insertParagraph`
+		// adds <div>/<br> elements that contribute zero characters to textContent,
+		// which leaves the CST unchanged and the $effect wipes the browser's insertion
+		// on re-render — making Enter appear to do nothing.
 		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
 			const offset = getCursorOffsetHelper(el!) ?? 0;
 			const text = getDisplayText();
-			if (offset === text.length && text.endsWith('\n')) {
-				e.preventDefault();
-				blockEdit.updateBlockContent(index, text.slice(0, -1) + '\n', preEditOffset);
-				focusActions.moveFocus(index + 1, 'start');
-				return;
+			const meta = node.metadata as FencedCodeMetadata;
+
+			if (meta.closed) {
+				const fenceChars = meta.fenceMarker.repeat(meta.fenceLength);
+
+				// Cursor past the closer (e.g. from Ctrl+End) → exit immediately.
+				if (offset === text.length) {
+					focusActions.moveFocus(index + 1, 'start');
+					return;
+				}
+
+				// Cursor on an empty body line immediately before the closer → exit,
+				// stripping the empty line so the block doesn't gain a trailing blank.
+				const onEmptyLineBeforeCloser =
+					offset >= 1 &&
+					text[offset - 1] === '\n' &&
+					text[offset] === '\n' &&
+					text.slice(offset + 1, offset + 1 + fenceChars.length) === fenceChars;
+				if (onEmptyLineBeforeCloser) {
+					const newText = text.slice(0, offset) + text.slice(offset + 1);
+					blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+					focusActions.moveFocus(index + 1, 'start');
+					return;
+				}
+			} else {
+				// Unclosed fence: exit when cursor is at the end of content AND the
+				// content already ends with a blank line (the earlier Enter added it).
+				if (offset === text.length && text.endsWith('\n')) {
+					blockEdit.updateBlockContent(index, text.slice(0, -1) + '\n', preEditOffset);
+					focusActions.moveFocus(index + 1, 'start');
+					return;
+				}
 			}
+
+			// Default: insert a newline at the cursor.
+			const newText = text.slice(0, offset) + '\n' + text.slice(offset);
+			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			pendingCursorOffset = offset + 1;
+			return;
 		}
 
 		if (e.key === 'ArrowUp' && !e.shiftKey) {

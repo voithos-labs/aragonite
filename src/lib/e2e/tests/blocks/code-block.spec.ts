@@ -25,9 +25,77 @@ test.describe('code block editing — happy paths', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
+		await editor.typeText('line two');
 		await editor.page.waitForTimeout(200);
+		// Block must not split
 		expect(await editor.getBlockCount()).toBe(1);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		// Enter must have actually produced a newline — 'line two' lands on its own line.
+		const source = await editor.getSource();
+		expect(source).toContain('line one\nline two');
+	});
+
+	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
+		// Regression for a bug where plain Enter fell through to the browser's
+		// default `insertParagraph` handler, which produced <div>/<br> that added
+		// zero characters to textContent — making Enter appear to do nothing.
+		await editor.loadContent('```\nabc\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// textContent = "```\nabc\n```": positions 0-2 ```, 3 \n, 4 a, 5 b, 6 c, 7 \n, 8-10 ```
+		// Walk to position 5 (between 'a' and 'b')
+		for (let i = 0; i < 5; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toBe('```\na\nbc\n```\n');
+	});
+
+	test('plain Enter at end of body line inserts a blank line before the closer', async ({
+		page
+	}) => {
+		await editor.loadContent('```\nfoo\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// Walk to position 7 (end of "foo" line, just before its terminating \n)
+		for (let i = 0; i < 7; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toBe('```\nfoo\n\n```\n');
+	});
+
+	test('Enter twice from end of body line exits via blank-line path', async ({ page }) => {
+		// The canonical "press Enter twice to exit a code block" UX for closed fences:
+		// first Enter creates a trailing blank line, second Enter on that blank line
+		// strips the line and exits to the next block.
+		await editor.loadContent('```\nsome code\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// Walk to end of "some code" body line (position 13: after 'e' of "some code")
+		for (let i = 0; i < 13; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Body now has a trailing blank line
+		let source = await editor.getSource();
+		expect(source).toContain('some code\n\n```');
+		// Second Enter exits — strips the blank line, moves focus below
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		await editor.typeText('after code');
+		await editor.page.waitForTimeout(200);
+		source = await editor.getSource();
+		// Exit path stripped the trailing blank line — body is just "some code" again
+		expect(source).toContain('```\nsome code\n```');
+		expect(source).not.toContain('some code\n\n```');
+		// Typed text lands outside the code block
+		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
 
 	test('code block content round-trips through source', async () => {
