@@ -456,6 +456,13 @@
 				performDelete({ children }, ids, itemIndex);
 				refs.splice(itemIndex, 1);
 			});
+			// Removing an item can shift ordered markers (e.g. deleting the
+			// empty first item must renumber the survivors from 1). Skip for
+			// the middle-item branch below, which splits the list and
+			// renumbers via re-parse.
+			if (itemIndex === 0 || itemIndex >= node.children.length) {
+				renumberOrderedList(node, 0);
+			}
 			rebuildListRaw(node);
 			parentContainerEdit?.endContainerEdit();
 			state.triggerReactivity();
