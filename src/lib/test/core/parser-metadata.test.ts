@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
+import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 
 describe('metadata: headings', () => {
 	for (let level = 1; level <= 6; level++) {
@@ -104,6 +105,53 @@ describe('metadata: blockquotes', () => {
 		const node = doc.children[0];
 		expect(node.children.length).toBeGreaterThan(0);
 		expect(node.children[0].kind).toBe('heading');
+	});
+
+	// CommonMark §5.1: a blockquote paragraph may continue onto a line
+	// without `>` as long as the line is not itself a new block opener
+	// and the blockquote's current inner block is an open paragraph.
+	it('absorbs a lazy continuation line into an open paragraph', () => {
+		const doc = parse('> First line\nlazy continuation\n');
+		expect(doc.children).toHaveLength(1);
+		const bq = doc.children[0];
+		expect(bq.kind).toBe('blockquote');
+		expect(bq.children).toHaveLength(1);
+		const para = bq.children![0];
+		expect(para.kind).toBe('paragraph');
+		expect(para.raw).toContain('First line');
+		expect(para.raw).toContain('lazy continuation');
+	});
+
+	it('lazy continuation absorbs multiple consecutive non-> lines', () => {
+		const doc = parse('> A\nB\nC\n');
+		const bq = doc.children[0];
+		expect(bq.kind).toBe('blockquote');
+		expect(bq.children).toHaveLength(1);
+		expect(bq.children![0].kind).toBe('paragraph');
+		expect(bq.children![0].raw).toBe('A\nB\nC\n');
+	});
+
+	it('lazy continuation stops at a blank line', () => {
+		const doc = parse('> inside\nlazy\n\nafter\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('blockquote');
+		expect(doc.children[1].kind).toBe('paragraph');
+		expect(doc.children[1].raw).toBe('after\n');
+	});
+
+	it('lazy continuation does not absorb a new block opener', () => {
+		// `# heading` is a block opener, so it ends the blockquote rather
+		// than lazy-continuing the paragraph.
+		const doc = parse('> quoted\n# heading\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('blockquote');
+		expect(doc.children[1].kind).toBe('heading');
+	});
+
+	it('lazy continuation preserves round-trip', () => {
+		const source = '> First line\nlazy continuation\n';
+		const doc = parse(source);
+		expect(serialize(doc)).toBe(source);
 	});
 });
 

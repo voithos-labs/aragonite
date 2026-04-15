@@ -64,4 +64,4 @@ Scenarios above map 1:1 to `test.describe` groups in `tests/sticky-column.spec.t
 - edge cases
 - rapid cross-block navigation (timing)
 
-When the spec file is split (per `code-review-findings.md` H2), each group becomes its own file with a matching requirement file.
+When the spec file is split, each group becomes its own file with a matching requirement file.

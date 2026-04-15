@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { serializeMutable } from '../mutable-tree';
-import { splitNode } from '../tree-operations';
+import { parse } from '../../core/parser';
+import { serializeMutable } from '../../mutable-tree';
+import { splitNode } from '../../tree-operations';
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {

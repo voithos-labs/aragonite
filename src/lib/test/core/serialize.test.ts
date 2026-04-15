@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '../core/serializer';
+import { serialize } from '../../core/serializer';
 
 describe('serialize', () => {
 	it('serializes an empty document', () => {

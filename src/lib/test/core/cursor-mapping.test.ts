@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { findNodeAtOffset } from '../inline-renderer';
-import type { InlineNode } from '../core/nodes';
+import { findNodeAtOffset } from '../../inline-renderer';
+import type { InlineNode } from '../../core/nodes';
 
 describe('findNodeAtOffset', () => {
 	it('finds text node containing offset', () => {

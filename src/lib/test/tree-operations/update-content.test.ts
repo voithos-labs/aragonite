@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { deleteNode, updateNodeContent } from '../tree-operations';
+import { parse } from '../../core/parser';
+import { deleteNode, updateNodeContent } from '../../tree-operations';
 
 describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {

@@ -13,7 +13,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.loadContent('```javascript\nconst x = 42;\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.type('\nconst y = 99;');
+		await editor.typeText('\nconst y = 99;');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('const x = 42;');
@@ -34,7 +34,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.loadContent('```python\ndef hello():\n    pass\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.type('\n    return 42');
+		await editor.typeText('\n    return 42');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toMatch(/```python/);
@@ -62,7 +62,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		// Type to prove focus exited the code block
-		await editor.page.keyboard.type('after code');
+		await editor.typeText('after code');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('after code');
@@ -78,7 +78,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.pressArrowUp();
 		await editor.page.waitForTimeout(200);
-		await editor.page.keyboard.type(' appended');
+		await editor.typeText(' appended');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('Above paragraph appended');
 	});
@@ -89,7 +89,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(200);
-		await editor.page.keyboard.type('prepended ');
+		await editor.typeText('prepended ');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('prepended');
 	});
@@ -117,11 +117,11 @@ test.describe('code block editing — user interactions', () => {
 	test('type multi-line code then navigate out via ArrowDown', async () => {
 		await editor.loadContent('```\n\n```\n\nTarget\n');
 		await editor.getBlock(0).click();
-		await editor.page.keyboard.type('line 1\nline 2\nline 3');
+		await editor.typeText('line 1\nline 2\nline 3');
 		await editor.page.waitForTimeout(200);
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(200);
-		await editor.page.keyboard.type('typed below');
+		await editor.typeText('typed below');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('line 1');
@@ -133,7 +133,7 @@ test.describe('code block editing — user interactions', () => {
 		await editor.loadContent('```\noriginal\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.type(' added');
+		await editor.typeText(' added');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('original added');
 		await editor.undo();
