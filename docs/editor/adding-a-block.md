@@ -49,6 +49,25 @@ Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root dir
 
 Containers rebuild their `raw` from their inner children after every structural mutation. The `rebuildRaw` callback passed to `createStandardNestedActions` is the kind-specific rebuild helper (`rebuildBlockquoteRaw`, `rebuildListRaw`, etc.).
 
+## Sticky column participation
+
+Every editable block (prose or code) participates in the pixel-X sticky column system. When adding a new block type with its own editing surface:
+
+1. **Capture on vertical arrows.** In `onKeyDown`, when the key is `ArrowUp` or `ArrowDown`, call `stickyColumn.capture(getCurrentCursorEditorRelativeX(el))`. The capture is idempotent — it only records if sticky is currently null.
+2. **Reset on non-preserve keys.** In the same handler, for any key not in `PRESERVE_KEYS_NON_ARROW` and not a vertical arrow, call `stickyColumn.reset()`. Also reset on `onPointerDown`, `onCompositionStart`, `onCopy`, `onCut`, and `onPaste`.
+3. **Implement `focusAtColumn`.** Expose a `focusAtColumn(x, from)` method that uses `findOffsetNearestX(el, x, from)` from `text-surface/sticky-measure.ts` to position the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line.
+
+`TextEditableBlock.svelte` and `CodeBlock.svelte` share the same implementation shape — reference either one.
+
+## Adding a code-block language
+
+To register a new code-block language for syntax highlighting, edit `src/lib/editor/code-surface/code-bootstrap.ts`:
+
+1. `import <name> from 'highlight.js/lib/languages/<name>';` at the top.
+2. Call `registerLanguage('<name>', <name>, ['alias1', 'alias2']);` inside `bootstrapCodeLanguages()`.
+
+No other file needs to change. The new language is available immediately on the next editor mount.
+
 ## Testing
 
 Complex blocks (lists, tables) get a dedicated spec in `src/lib/editor/e2e/requirements/blocks/` and test file in `src/lib/editor/e2e/tests/blocks/`. Simple blocks are covered by the feature-level test suites.
