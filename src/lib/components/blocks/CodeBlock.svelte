@@ -12,6 +12,18 @@
 		type BlockComponent
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
+	import {
+		createRangeFromOffsets,
+		setCursorOffset as setCursorOffsetHelper,
+		getCursorOffset as getCursorOffsetHelper,
+		getSelectionOffsets as getSelectionOffsetsHelper,
+		hasSelection as hasSelectionHelper
+	} from '../../text-surface/cursor-utils';
+	import {
+		isAtFirstVisualLine,
+		isAtLastVisualLine
+	} from '../../text-surface/visual-lines';
+	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import { trimTrailingLineEnding } from '../../raw-text';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
@@ -20,8 +32,10 @@
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	let textarea: HTMLTextAreaElement | undefined = $state();
-	let userIsTyping = false;
+	let el: HTMLDivElement | undefined = $state();
+	let composing = $state(false);
+	let pendingCursorOffset = $state<number | null>(null);
+	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -30,83 +44,108 @@
 	export const focusable = true;
 
 	export function focus(offset: number): void {
-		if (!textarea) return;
-		textarea.focus();
-		const maxOffset = textarea.value.length;
-		const clamped = Math.min(Math.max(0, offset), maxOffset);
-		textarea.selectionStart = textarea.selectionEnd = clamped;
+		if (!el) return;
+		el.focus();
+		setCursorOffsetHelper(el, Math.max(0, offset));
 	}
 
 	export function getCursorOffset(): number | null {
-		if (!textarea || document.activeElement !== textarea) return null;
-		return textarea.selectionStart;
+		if (!el) return null;
+		return getCursorOffsetHelper(el);
 	}
 
 	export function getSelectedText(): string {
-		if (!textarea) return '';
-		return textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+		return window.getSelection()?.toString() ?? '';
 	}
 
 	export function setSelection(start: number, end: number): void {
-		if (!textarea) return;
-		textarea.selectionStart = start;
-		textarea.selectionEnd = end;
+		if (!el) return;
+		const range = createRangeFromOffsets(el, start, end);
+		if (!range) return;
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
 	}
+
 	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
 
-	// ── Content sync ────────────────────────────────────────────────────
+	// ── Render pipeline ───────────────────────────────────────────────────────
 
 	function getDisplayText(): string {
 		return trimTrailingLineEnding(node.raw);
 	}
 
 	$effect(() => {
-		const display = getDisplayText();
-		if (!textarea || userIsTyping) return;
-		if (textarea.value !== display) {
-			textarea.value = display;
+		if (!el) return;
+		if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
+
+		el.replaceChildren(renderCodeBlock(node));
+		lastRenderedRaw = node.raw;
+
+		if (pendingCursorOffset !== null) {
+			setCursorOffsetHelper(el, pendingCursorOffset);
+			pendingCursorOffset = null;
 		}
-		autoResize();
 	});
 
-	function autoResize(): void {
-		if (!textarea) return;
-		textarea.style.height = 'auto';
-		textarea.style.height = textarea.scrollHeight + 'px';
-	}
-
-	// ── Event Handlers ──────────────────────────────────────────────────
+	// ── Event handlers ────────────────────────────────────────────────────────
 
 	function onInput(): void {
 		stickyColumn.reset();
-		if (!textarea) return;
-		userIsTyping = true;
-		blockEdit.updateBlockContent(index, textarea.value + '\n', preEditOffset);
-		userIsTyping = false;
-		autoResize();
+		if (composing || !el) return;
+		const text = el.textContent ?? '';
+		const savedOffset = getCursorOffsetHelper(el) ?? 0;
+		blockEdit.updateBlockContent(index, text + '\n', preEditOffset);
+		pendingCursorOffset = savedOffset;
 	}
 
 	function onCompositionStart(): void {
 		stickyColumn.reset();
+		composing = true;
 	}
 
-	function onPointerDown(_e: PointerEvent): void {
-		stickyColumn.reset();
+	function onCompositionEnd(): void {
+		composing = false;
+		onInput();
+	}
+
+	function onBeforeInput(e: InputEvent): void {
+		if (e.inputType === 'historyUndo') {
+			e.preventDefault();
+			history.requestUndo();
+		} else if (e.inputType === 'historyRedo') {
+			e.preventDefault();
+			history.requestRedo();
+		} else if (e.inputType === 'insertLineBreak') {
+			// Shift+Enter: insert a literal \n text node rather than letting the
+			// browser produce a <br> or <div>. A text node keeps el.textContent
+			// well-formed so onInput → updateBlockContent sees a flat string.
+			e.preventDefault();
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0 || !el) return;
+			const range = sel.getRangeAt(0);
+			range.deleteContents();
+			const newline = document.createTextNode('\n');
+			range.insertNode(newline);
+			range.setStartAfter(newline);
+			range.collapse(true);
+			sel.removeAllRanges();
+			sel.addRange(range);
+			onInput();
+		}
 	}
 
 	function onKeyDown(e: KeyboardEvent): void {
-		// Sticky column: reset on any non-arrow interaction inside the code block.
-		// Arrows stay preserve-keys because the code block cannot capture its own
-		// sticky X (no pixel API on textarea) — passing through without resetting
-		// keeps a pre-existing sticky X valid for whatever the user does next.
-		// PRESERVE_KEYS_NON_ARROW is shared with TextEditableBlock; see its JSDoc
-		// in sticky-column.ts for the full preserve/reset policy.
+		if (composing) return;
+
+		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
+
 		if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && !PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
 			stickyColumn.reset();
 		}
 
-		preEditOffset = textarea?.selectionStart ?? 0;
-
+		// Ctrl+Z / Ctrl+Y — catch here because Ctrl+Y doesn't fire beforeinput
+		// historyRedo in Chromium/WebView2.
 		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 			e.preventDefault();
 			history.requestUndo();
@@ -118,107 +157,108 @@
 			return;
 		}
 
-		if (e.key === 'Backspace' && textarea) {
-			if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
+		if (e.key === 'Backspace') {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			if (offset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
 
-		if (e.key === 'ArrowUp' && !e.shiftKey && textarea) {
-			// No newline before cursor means we're on the first visual line.
-			const textBefore = textarea.value.slice(0, textarea.selectionStart);
-			if (!textBefore.includes('\n')) {
+		// Enter without Shift: if the last line is already empty, exit the code block.
+		if (e.key === 'Enter' && !e.shiftKey) {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const text = getDisplayText();
+			if (offset === text.length && text.endsWith('\n')) {
 				e.preventDefault();
-				focusActions.moveFocus(index - 1, 'end');
-				return;
-			}
-		}
-
-		if (e.key === 'ArrowDown' && !e.shiftKey && textarea) {
-			const textAfter = textarea.value.slice(textarea.selectionStart);
-			if (!textAfter.includes('\n')) {
-				e.preventDefault();
+				blockEdit.updateBlockContent(index, text.slice(0, -1) + '\n', preEditOffset);
 				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}
 
-		// Enter at end, when the last line is already empty, exits the code block.
-		if (e.key === 'Enter' && !e.shiftKey && textarea) {
-			const pos = textarea.selectionStart;
-			const val = textarea.value;
-			// Check: cursor is at the end, and the last line is empty
-			if (pos === val.length && val.endsWith('\n')) {
+		if (e.key === 'ArrowUp' && !e.shiftKey) {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			if (isAtFirstVisualLine(el!, offset)) {
 				e.preventDefault();
-				// Remove the trailing empty line from the code block
-				const trimmed = val.slice(0, -1);
-				blockEdit.updateBlockContent(index, trimmed + '\n', preEditOffset);
-				textarea.value = trimmed;
-				autoResize();
-				// Create a new block after the code block
-				focusActions.moveFocus(index + 1, 'start');
+				focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+				return;
+			}
+		}
+
+		if (e.key === 'ArrowDown' && !e.shiftKey) {
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const textLen = (el?.textContent ?? '').length;
+			if (isAtLastVisualLine(el!, offset, textLen)) {
+				e.preventDefault();
+				focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return;
 			}
 		}
 	}
 
-	// Clipboard — intercept to source from node.raw
+	function onPointerDown(_e: PointerEvent): void {
+		stickyColumn.reset();
+	}
+
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
-		if (!textarea) return;
 		e.preventDefault();
-		const text = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
-		e.clipboardData?.setData('text/plain', text);
+		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 	}
 
 	function onCut(e: ClipboardEvent): void {
 		stickyColumn.reset();
-		if (!textarea) return;
 		e.preventDefault();
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const text = textarea.value.slice(start, end);
-		e.clipboardData?.setData('text/plain', text);
+		const selected = window.getSelection()?.toString() ?? '';
+		e.clipboardData?.setData('text/plain', selected);
 
-		const newValue = textarea.value.slice(0, start) + textarea.value.slice(end);
-		blockEdit.updateBlockContent(index, newValue + '\n');
-		textarea.value = newValue;
-		textarea.selectionStart = textarea.selectionEnd = start;
-		autoResize();
+		const selOffsets = getSelectionOffsetsHelper(el!);
+		if (selOffsets) {
+			const display = getDisplayText();
+			const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
+			pendingCursorOffset = selOffsets.start;
+		}
 	}
 
 	function onPaste(e: ClipboardEvent): void {
 		stickyColumn.reset();
-		if (!textarea) return;
 		e.preventDefault();
 		const text = e.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
 
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const newValue = textarea.value.slice(0, start) + text + textarea.value.slice(end);
-		blockEdit.updateBlockContent(index, newValue + '\n');
-		textarea.value = newValue;
-		textarea.selectionStart = textarea.selectionEnd = start + text.length;
-		autoResize();
+		const display = getDisplayText();
+		const selOffsets = getSelectionOffsetsHelper(el!);
+		const cursorOffset = getCursorOffsetHelper(el!) ?? 0;
+		const start = selOffsets?.start ?? cursorOffset;
+		const end = selOffsets?.end ?? cursorOffset;
+
+		const newDisplay = display.slice(0, start) + text + display.slice(end);
+		const newCursor = start + text.length;
+		blockEdit.updateBlockContent(index, newDisplay + '\n', newCursor);
+		pendingCursorOffset = newCursor;
 	}
 </script>
 
-<textarea
-	bind:this={textarea}
+<div
+	bind:this={el}
+	tabindex="0"
 	class="code-block"
-	value={getDisplayText()}
+	contenteditable="true"
+	role="textbox"
+	spellcheck="false"
 	oninput={onInput}
 	onkeydown={onKeyDown}
+	onbeforeinput={onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}
 	onpointerdown={onPointerDown}
 	oncompositionstart={onCompositionStart}
-	spellcheck={false}
-></textarea>
+	oncompositionend={onCompositionEnd}
+></div>
 
 <style>
 	.code-block {
@@ -232,14 +272,24 @@
 		border: 1px solid var(--color-ui-muted, rgba(128, 128, 128, 0.25));
 		border-radius: 4px;
 		color: inherit;
-		resize: none;
-		overflow: hidden;
 		white-space: pre;
+		overflow-x: auto;
+		overflow-y: hidden;
 		tab-size: 4;
 		box-sizing: border-box;
+		min-height: 1.4em;
 	}
 
 	.code-block:focus {
 		border-color: var(--color-accent, #4a9eff);
+	}
+
+	.code-block :global(.md-marker) {
+		opacity: 0.4;
+	}
+
+	.code-block :global(.md-marker.md-lang) {
+		color: var(--color-accent, #4a9eff);
+		opacity: 0.7;
 	}
 </style>
