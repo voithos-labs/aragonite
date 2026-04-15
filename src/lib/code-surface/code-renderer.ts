@@ -50,6 +50,52 @@ export function sliceFencedCode(node: CstNode): FencedCodeSlice {
 	};
 }
 
+// ── hljs class → code-tok class mapping ───────────────────────────────────
+
+const HLJS_CLASS_MAP: Record<string, string> = {
+	'hljs-keyword': 'code-tok-keyword',
+	'hljs-string': 'code-tok-string',
+	'hljs-number': 'code-tok-number',
+	'hljs-comment': 'code-tok-comment',
+	'hljs-doctag': 'code-tok-comment',
+	'hljs-quote': 'code-tok-comment',
+	'hljs-type': 'code-tok-type',
+	'hljs-class': 'code-tok-type',
+	'hljs-name': 'code-tok-type',
+	'hljs-selector-tag': 'code-tok-type',
+	'hljs-built_in': 'code-tok-function',
+	'hljs-function': 'code-tok-function',
+	'hljs-title': 'code-tok-function',
+	'hljs-variable': 'code-tok-variable',
+	'hljs-params': 'code-tok-variable',
+	'hljs-template-variable': 'code-tok-variable',
+	'hljs-operator': 'code-tok-operator',
+	'hljs-punctuation': 'code-tok-punctuation',
+	'hljs-tag': 'code-tok-punctuation',
+	'hljs-bullet': 'code-tok-punctuation',
+	'hljs-meta': 'code-tok-meta',
+	'hljs-template-tag': 'code-tok-meta',
+	'hljs-literal': 'code-tok-literal',
+	'hljs-attr': 'code-tok-attr',
+	'hljs-attribute': 'code-tok-attr',
+	'hljs-selector-id': 'code-tok-attr',
+	'hljs-selector-class': 'code-tok-attr',
+	'hljs-selector-pseudo': 'code-tok-attr',
+	'hljs-addition': 'code-tok-added',
+	'hljs-deletion': 'code-tok-removed',
+	'hljs-section': 'code-tok-heading',
+	'hljs-link': 'code-tok-link',
+	'hljs-regexp': 'code-tok-regexp',
+	'hljs-symbol': 'code-tok-symbol',
+	'hljs-subst': 'code-tok-subst'
+};
+
+/** Unknown classes fall through to `code-tok-unknown` — preserves textContent with no color. */
+export function mapHljsClass(hljsClass: string): string {
+	const first = hljsClass.split(/\s+/)[0];
+	return HLJS_CLASS_MAP[first] ?? 'code-tok-unknown';
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 function findClosingFenceStart(
