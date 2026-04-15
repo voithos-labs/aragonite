@@ -4,6 +4,7 @@
  */
 
 import type { InlineNode } from './core/nodes';
+import { setCursorFromRawOffset as _setCursorFromRawOffset } from './text-surface/cursor-utils';
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
@@ -192,43 +193,5 @@ export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetRes
 	return null;
 }
 
-/**
- * Place a collapsed cursor inside `el` at the given character offset.
- * Walks DOM text nodes counting characters, mirroring createRangeFromOffsets
- * in TextEditableBlock.svelte.
- */
-export function setCursorFromRawOffset(el: HTMLElement, offset: number): void {
-	const range = document.createRange();
-	let charCount = 0;
-	let placed = false;
-
-	function walk(node: Node): boolean {
-		if (node.nodeType === Node.TEXT_NODE) {
-			const len = node.textContent?.length ?? 0;
-			if (charCount + len >= offset) {
-				range.setStart(node, offset - charCount);
-				range.collapse(true);
-				placed = true;
-				return true;
-			}
-			charCount += len;
-		} else {
-			for (const child of node.childNodes) {
-				if (walk(child)) return true;
-			}
-		}
-		return false;
-	}
-
-	walk(el);
-
-	if (!placed) {
-		// Offset beyond content — place cursor at end
-		range.selectNodeContents(el);
-		range.collapse(false);
-	}
-
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
-}
+/** @deprecated import from `text-surface/cursor-utils` instead */
+export const setCursorFromRawOffset = _setCursorFromRawOffset;
