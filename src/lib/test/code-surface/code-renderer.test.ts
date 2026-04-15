@@ -100,3 +100,4 @@ describe('walkHljsNodes', () => {
 		expect(frag.childNodes.length).toBe(0);
 	});
 });
+
