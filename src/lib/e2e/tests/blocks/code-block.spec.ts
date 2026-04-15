@@ -78,6 +78,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.pressArrowUp();
 		await editor.page.waitForTimeout(200);
+		await editor.page.keyboard.press('End');
 		await editor.typeText(' appended');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('Above paragraph appended');
@@ -196,6 +197,35 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.typeText('X');
 		const source = await editor.getSource();
 		expect(source).toMatch(/Xtext below/);
+	});
+
+	test('vertical arrow sticky column preserved through code block', async ({ page }) => {
+		await editor.loadContent(
+			'aaaaaaaaaaaaaaaaaaaaaaaaaaa\n\n```\nshort\nshort\n```\n\nbbbbbbbbbbbbbbbbbbbbbbbbbbb\n'
+		);
+
+		await editor.getBlock(0).click();
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 20; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+
+		await page.keyboard.press('ArrowDown');
+		await page.waitForTimeout(50);
+		await page.keyboard.press('ArrowDown');
+		await page.waitForTimeout(50);
+		await page.keyboard.press('ArrowDown');
+		await page.waitForTimeout(50);
+		await page.keyboard.press('ArrowDown');
+		await page.waitForTimeout(50);
+
+		await editor.typeText('X');
+		const source = await editor.getSource();
+		const lastParagraph = source.split('\n\n').pop() ?? '';
+
+		const xIndex = lastParagraph.indexOf('X');
+		expect(xIndex).toBeGreaterThanOrEqual(15);
+		expect(xIndex).toBeLessThanOrEqual(25);
 	});
 });
 
