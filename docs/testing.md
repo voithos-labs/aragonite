@@ -42,24 +42,9 @@ Editor.svelte (production component, unchanged)
 
 ### Test Suites
 
-Feature-level tests in `src/lib/editor/e2e/tests/`:
+Feature-level specs live in `src/lib/editor/e2e/tests/` and cover: test-harness smoke, text editing (typing / split / merge / kind change), keyboard navigation (arrow keys, container traversal, sticky column), undo/redo, inline editing (bold / italic / code / links), container editing (blockquotes, lists, nested structure, exit behavior), and selection + clipboard (cut / copy / paste / select-all).
 
-| Suite                          | Focus                                                       |
-| ------------------------------ | ----------------------------------------------------------- |
-| `smoke.spec.ts`                | Test harness, loadContent, empty documents                  |
-| `text-editing.spec.ts`         | Typing, Enter split, Backspace merge, kind change           |
-| `keyboard-navigation.spec.ts`  | Arrow keys across blocks, container traversal               |
-| `undo-redo.spec.ts`            | Undo/redo for splits, merges, typing, kind changes          |
-| `inline-editing.spec.ts`       | Bold, italic, code, links — editing and rendering           |
-| `container-editing.spec.ts`    | Blockquotes, lists, nested editing, exit behavior           |
-| `selection-clipboard.spec.ts`  | Cut, copy, paste, select-all, type-to-replace               |
-
-Block-specific tests in `src/lib/editor/e2e/tests/blocks/` with requirements in `src/lib/editor/e2e/requirements/blocks/`:
-
-| Suite                          | Focus                                                       |
-| ------------------------------ | ----------------------------------------------------------- |
-| `blocks/code-block.spec.ts`    | Code block typing, Enter, exit, navigation                  |
-| `blocks/list-block.spec.ts`    | List rendering, Enter, Backspace, Tab, Shift+Tab, navigation |
+Block-specific specs live in `src/lib/editor/e2e/tests/blocks/` with matching requirement files in `src/lib/editor/e2e/requirements/blocks/` — one requirement file per spec file, kept in lockstep. The filesystem is the authoritative list of what's covered.
 
 ### Writing New E2E Tests
 
@@ -97,7 +82,7 @@ test.describe('my feature', () => {
 
 **Use "type and check where it appeared" for focus assertions.** `getSource()` serializes the CST, which is always correct regardless of focus state. To verify where focus actually landed after a navigation operation, type a marker character and assert on its position in the source. `getSource()`-only assertions can't detect focus bugs.
 
-**Container edits need time to propagate.** Edits inside nested containers (list items, blockquotes) trigger debounced raw rebuilds up the chain. Use `waitForTimeout(200)` after edits before asserting on `getSource()`.
+**Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous in the 0.3.4 architecture — the wait is for reactivity and render flush, not for a debouncer.
 
 **Block selectors use `.block-list > *`.** The editor renders as `.editor > .block-list > [block elements]`. Individual blocks are children of `.block-list`, not `.editor`.
 

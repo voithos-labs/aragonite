@@ -1,3 +1,7 @@
+# GFM Reference
+
+Quick reference for the GitHub Flavored Markdown syntax Limestone's CST editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. The editor's current scope is Sections 1 and 2; Section 3 is roadmapped for v1.1.
+
 ### 1. Standard Markdown Essentials (Included in GFM)
 
 These are the core CommonMark features that GFM fully supports and builds upon.
@@ -137,9 +141,11 @@ Next line.
 **Setext Headings:**
 
 ```markdown
-# Heading Level 1
+Heading Level 1
+===============
 
-## Heading Level 2
+Heading Level 2
+---------------
 ```
 
 **Escaping Characters:**
