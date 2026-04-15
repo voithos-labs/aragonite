@@ -28,6 +28,7 @@ export function comparePaths(a: number[], b: number[]): number {
 
 // ── Point equality ──────────────────────────────────────────────────────────
 
+/** True if both points refer to the same path and offset (value equality, not reference). */
 export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
 	if (a.offset !== b.offset) return false;
 	if (a.path.length !== b.path.length) return false;

@@ -31,6 +31,11 @@ describe('comparePaths', () => {
 		expect(comparePaths([2], [2, 0])).toBe(-1);
 		expect(comparePaths([2, 0], [2])).toBe(1);
 	});
+
+	it('treats empty path (root) as earlier than any non-empty path', () => {
+		expect(comparePaths([], [0])).toBe(-1);
+		expect(comparePaths([0], [])).toBe(1);
+	});
 });
 
 describe('pointsEqual', () => {
@@ -65,6 +70,13 @@ describe('normalize', () => {
 		const anchor = P([1], 8);
 		const focus = P([1], 3);
 		expect(normalize({ anchor, focus })).toEqual({ start: focus, end: anchor });
+	});
+
+	it('leaves a collapsed same-block selection unchanged', () => {
+		const pt = P([1], 5);
+		const result = normalize({ anchor: pt, focus: pt });
+		expect(result.start).toEqual(pt);
+		expect(result.end).toEqual(pt);
 	});
 });
 
