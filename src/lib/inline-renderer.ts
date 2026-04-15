@@ -4,6 +4,7 @@
  */
 
 import type { InlineNode } from './core/nodes';
+
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
 function markerSpan(text: string): HTMLSpanElement {
