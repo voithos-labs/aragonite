@@ -4,7 +4,7 @@
  * to keep serialization consistent.
  */
 
-import type { CstNode } from './core/nodes';
+import type { CstNode } from '../core/nodes';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 

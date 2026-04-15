@@ -346,11 +346,11 @@ export function mergeListItemIntoPrevious(
 				}
 			}
 			// No depth-1 container along target ancestry — absorb into targetItem's children
-			targetItem.children.push(child);
+			targetItem.children!.push(child);
 		} else {
 			// Non-list child (paragraph, heading, etc.) — absorb into targetItem's children
 			child.leadingTrivia = '';
-			targetItem.children.push(child);
+			targetItem.children!.push(child);
 		}
 	}
 
