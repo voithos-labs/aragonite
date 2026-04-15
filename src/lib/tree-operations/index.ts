@@ -21,7 +21,8 @@ export {
 	unwrapFirstItemFromList,
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
-	normalizeItemMarkerToList
+	normalizeItemMarkerToList,
+	isItemUserEmpty
 } from './list-ops';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';

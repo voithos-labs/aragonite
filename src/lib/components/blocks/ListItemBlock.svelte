@@ -114,12 +114,17 @@
 	bundle.blockEdit.splitBlock = async (innerIndex: number, offset: number): Promise<void> => {
 		if (!node.children) return;
 
-		// Empty item — exit list. An item is "user-empty" if its first child
-		// is an empty paragraph, even if trailing structural children exist.
+		// Empty item — exit list. An item is "user-empty" (for Enter's
+		// purposes) if its first child is an empty paragraph, even when
+		// trailing structural children exist. Per the requirements spec,
+		// those trailing children should be relocated to adjacent items
+		// by exitListAtItem — a fix tracked in docs/issues.md. The
+		// shallower check here is the correct Enter-path intent; the
+		// deeper recursive walker (isItemUserEmpty) is Backspace semantics.
 		const firstChild = node.children[0];
 		const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 		if (isEmptyItem) {
-			listContext.exitListAtItem(index);
+			await listContext.exitListAtItem(index);
 			return;
 		}
 
@@ -130,7 +135,7 @@
 
 		if (isAtEnd) {
 			parentContainerEdit?.beginContainerEdit(index, offset);
-			listContext.insertItemAfter(index);
+			await listContext.insertItemAfter(index);
 			parentContainerEdit?.endContainerEdit();
 			return;
 		}
