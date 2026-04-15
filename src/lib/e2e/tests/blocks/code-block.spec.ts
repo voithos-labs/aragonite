@@ -175,6 +175,28 @@ test.describe('code block keyboard — beyond parity', () => {
 		expect(await editor.getBlock(0).locator('i').count()).toBe(0);
 		expect(await editor.getBlock(0).locator('em').count()).toBe(0);
 	});
+
+	test('ArrowLeft at offset 0 moves focus to previous block', async ({ page }) => {
+		await editor.loadContent('text above\n\n```\ncode\n```\n');
+		await editor.getBlock(1).click();
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('ArrowLeft');
+		await page.waitForTimeout(50);
+		await editor.typeText('X');
+		const source = await editor.getSource();
+		expect(source.split('\n')[0]).toContain('X');
+	});
+
+	test('ArrowRight at end of content moves focus to next block', async ({ page }) => {
+		await editor.loadContent('```\ncode\n```\n\ntext below\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('ArrowRight');
+		await page.waitForTimeout(50);
+		await editor.typeText('X');
+		const source = await editor.getSource();
+		expect(source).toMatch(/Xtext below/);
+	});
 });
 
 test.describe('code block highlighting', () => {
