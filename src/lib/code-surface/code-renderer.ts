@@ -96,6 +96,27 @@ export function mapHljsClass(hljsClass: string): string {
 	return HLJS_CLASS_MAP[first] ?? 'code-tok-unknown';
 }
 
+// ── hljs output walker ────────────────────────────────────────────────────
+
+/**
+ * Walk parsed hljs HTML, emitting `.code-tok-*` spans. Text nodes pass
+ * through; element nodes are renamed via `mapHljsClass`. Recursive for
+ * nested spans (e.g. template literal interpolations).
+ */
+export function walkHljsNodes(source: Node, target: DocumentFragment | HTMLElement): void {
+	for (const child of source.childNodes) {
+		if (child.nodeType === Node.TEXT_NODE) {
+			target.appendChild(document.createTextNode(child.textContent ?? ''));
+		} else if (child.nodeType === Node.ELEMENT_NODE) {
+			const el = child as HTMLElement;
+			const span = document.createElement('span');
+			span.className = mapHljsClass(el.className);
+			walkHljsNodes(el, span);
+			target.appendChild(span);
+		}
+	}
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 function findClosingFenceStart(
