@@ -29,3 +29,7 @@ Typing and navigation inside fenced code blocks (textarea-based editing surface)
 - ArrowRight at end of content moves focus to start of next block
 - vertical arrow sticky column preserved through code block: cursor at column 20 in a paragraph above a code block, after ArrowDown through the code block and into a paragraph below, still lands near column 20
 - Shift+Enter inserts a newline text node (not a `<br>`): pressing Shift+Enter inside a code block produces no `<br>` elements
+
+## Paste
+- paste containing triple backticks into a backtick-fenced code block bumps the outer fence to 4+ backticks, preserving the pasted content as literal body
+- paste of multi-block markdown into a code block stays literal (no block splitting, no kind change)
