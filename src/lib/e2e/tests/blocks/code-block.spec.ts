@@ -287,3 +287,65 @@ test.describe('code block highlighting', () => {
 		expect(jsKeyword).toBe('const');
 	});
 });
+
+test.describe('code block paste — fence bumping', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('paste containing ``` into a code block bumps outer fence to ````', async ({ page }) => {
+		await editor.loadContent('```\nfirst\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockEnd(0);
+
+		await page.evaluate(() => {
+			const el = document.querySelector('.code-block') as HTMLElement;
+			if (!el) return;
+			el.focus();
+			const dt = new DataTransfer();
+			dt.setData('text/plain', '\n```pasted code```\n');
+			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			el.dispatchEvent(ev);
+		});
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		// Outer fence bumped to at least 4 backticks
+		expect(source).toMatch(/^````/m);
+		// Pasted ``` stays as literal body content
+		expect(source).toContain('```pasted code```');
+		// Still a single fenced code block
+		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+	});
+
+	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
+		await editor.loadContent('```\ncontent\n```\n');
+		await editor.getBlock(0).click();
+		// Place cursor at end of "content" line (offset 4 = after "```\n")
+		await editor.focusBlock(0, 11);
+
+		await page.evaluate(() => {
+			const el = document.querySelector('.code-block') as HTMLElement;
+			if (!el) return;
+			el.focus();
+			const dt = new DataTransfer();
+			dt.setData('text/plain', '\n# Heading\n\n- list item\n\nparagraph\n');
+			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			el.dispatchEvent(ev);
+		});
+		await page.waitForTimeout(100);
+
+		// Still one block, still a code block
+		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		// Heading / list / paragraph become literal content
+		const source = await editor.getSource();
+		expect(source).toContain('# Heading');
+		expect(source).toContain('- list item');
+		expect(source).toContain('paragraph');
+	});
+});
