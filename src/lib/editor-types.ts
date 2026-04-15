@@ -9,6 +9,13 @@ import type { StickyColumnState } from './sticky-column';
 // Re-export CstNode and Document so consumers can import from here
 export type { CstNode, Document } from './core/nodes';
 
+// Re-export selection types so consumers can import from a single place.
+export type {
+	SelectionPoint,
+	EditorSelection,
+	SelectionDragStart
+} from './selection/selection-types';
+
 /** Sentinel offset meaning "place cursor at end of content". focus() clamps to content length. */
 export const CURSOR_END = 999999;
 
@@ -30,6 +37,9 @@ export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
 export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
+
+/** Svelte context key for the editor's cross-block SelectionState. See `selection/selection-state.svelte.ts`. */
+export const SELECTION_KEY = Symbol('selection');
 
 // ── List Context (list item → list block communication via Svelte context) ──
 
