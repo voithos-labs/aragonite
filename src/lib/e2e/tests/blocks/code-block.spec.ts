@@ -422,4 +422,100 @@ test.describe('code block tab / indent', () => {
 		// line3 was NOT in selection — should not be indented
 		expect(source).toMatch(/^line3$/m);
 	});
+
+	test('Shift+Tab removes leading tab from current line', async ({ page }) => {
+		await editor.loadContent('```\n\tindented\n```\n');
+		await editor.getBlock(0).click();
+		// Position cursor inside "indented" (opener = 4 chars, then \t = 1, then 'i' = 1)
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 6; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('indented');
+		expect(source).not.toContain('\tindented');
+	});
+
+	test('Shift+Tab removes up to 4 leading spaces', async ({ page }) => {
+		await editor.loadContent('```\n    spaced\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// Opener 4 + 4 spaces + 1 ('s')
+		for (let i = 0; i < 9; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('spaced');
+		expect(source).not.toContain('    spaced');
+	});
+
+	test('Shift+Tab is a no-op on a line with no leading whitespace', async ({ page }) => {
+		await editor.loadContent('```\nline\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 6; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		const sourceBefore = await editor.getSource();
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const sourceAfter = await editor.getSource();
+		expect(sourceAfter).toBe(sourceBefore);
+	});
+
+	test('Shift+Tab with multi-line selection dedents every covered line', async ({ page }) => {
+		await editor.loadContent('```\n\tline1\n\tline2\nline3\n```\n');
+		await editor.getBlock(0).click();
+
+		// textContent: "```\n\tline1\n\tline2\nline3\n```"
+		// Offsets: ``` (0-2), \n (3), \t (4), line1 (5-9), \n (10), \t (11), line2 (12-16), \n (17), line3 (18-22), \n (23), ``` (24-26)
+		// Select from offset 4 (the \t of line1) to 22 (end of line3)
+		await page.evaluate(() => {
+			const el = document.querySelector('.code-block') as HTMLElement;
+			el.focus();
+			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+			let startNode: Text | null = null;
+			let startOff = 0;
+			let endNode: Text | null = null;
+			let endOff = 0;
+			let chars = 0;
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				const len = (node as Text).textContent?.length ?? 0;
+				if (startNode === null && chars + len >= 4) {
+					startNode = node as Text;
+					startOff = 4 - chars;
+				}
+				if (chars + len >= 22) {
+					endNode = node as Text;
+					endOff = 22 - chars;
+					break;
+				}
+				chars += len;
+			}
+			if (!startNode || !endNode) return;
+			const range = document.createRange();
+			range.setStart(startNode, startOff);
+			range.setEnd(endNode, endOff);
+			const sel = window.getSelection();
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+		});
+
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		// line1 and line2 dedented
+		expect(source).toContain('line1');
+		expect(source).toContain('line2');
+		expect(source).not.toContain('\tline1');
+		expect(source).not.toContain('\tline2');
+		// line3 had no leading whitespace — unchanged
+		expect(source).toContain('line3');
+	});
 });

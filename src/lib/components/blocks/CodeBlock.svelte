@@ -250,10 +250,10 @@
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			if (e.shiftKey) {
-				// Shift+Tab dedent — lands in T31/T32. No-op for now.
-				return;
+				dedentSelection();
+			} else {
+				indentSelection();
 			}
-			indentSelection();
 			return;
 		}
 	}
@@ -306,6 +306,67 @@
 
 		const newStart = offsets.start + 1;
 		const newEnd = offsets.end + lineStarts.length;
+
+		blockEdit.updateBlockContent(index, newText + '\n', newStart);
+		pendingSelection = { start: newStart, end: newEnd };
+	}
+
+	/** Returns 1 for leading `\t`, up to 4 for leading spaces, 0 otherwise. */
+	function computeDedentCount(text: string, lineStart: number): number {
+		if (text[lineStart] === '\t') return 1;
+		let spaces = 0;
+		while (spaces < 4 && text[lineStart + spaces] === ' ') spaces++;
+		return spaces;
+	}
+
+	function dedentSelection(): void {
+		if (!el) return;
+
+		const offsets = getSelectionOffsetsHelper(el);
+		const cursorOffset = getCursorOffsetHelper(el) ?? 0;
+
+		if (!offsets) {
+			const display = el.textContent ?? '';
+			const lineStart = display.lastIndexOf('\n', cursorOffset - 1) + 1;
+			const removed = computeDedentCount(display, lineStart);
+			if (removed === 0) return;
+			const newText = display.slice(0, lineStart) + display.slice(lineStart + removed);
+			const newCursor = Math.max(lineStart, cursorOffset - removed);
+			blockEdit.updateBlockContent(index, newText + '\n', newCursor);
+			pendingCursorOffset = newCursor;
+			return;
+		}
+
+		// Multi-line selection: dedent every line the selection touches
+		const display = el.textContent ?? '';
+		const lineStarts: number[] = [];
+		const firstLineStart = display.lastIndexOf('\n', offsets.start - 1) + 1;
+		lineStarts.push(firstLineStart);
+		let pos = firstLineStart;
+		while (pos < offsets.end) {
+			const next = display.indexOf('\n', pos);
+			if (next === -1 || next >= offsets.end) break;
+			lineStarts.push(next + 1);
+			pos = next + 1;
+		}
+
+		// Right-to-left to avoid offset drift during mutation
+		let newText = display;
+		let removedBeforeStart = 0;
+		let removedWithin = 0;
+		let removedOnFirstLine = 0;
+		for (let i = lineStarts.length - 1; i >= 0; i--) {
+			const idx = lineStarts[i];
+			const removed = computeDedentCount(newText, idx);
+			if (removed === 0) continue;
+			newText = newText.slice(0, idx) + newText.slice(idx + removed);
+			if (i === 0) removedOnFirstLine = removed;
+			if (idx < offsets.start) removedBeforeStart += removed;
+			else removedWithin += removed;
+		}
+
+		const newStart = Math.max(firstLineStart, offsets.start - removedOnFirstLine);
+		const newEnd = offsets.end - (removedBeforeStart + removedWithin);
 
 		blockEdit.updateBlockContent(index, newText + '\n', newStart);
 		pendingSelection = { start: newStart, end: newEnd };
