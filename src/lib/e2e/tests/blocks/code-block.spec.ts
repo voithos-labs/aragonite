@@ -349,3 +349,77 @@ test.describe('code block paste — fence bumping', () => {
 		expect(source).toContain('paragraph');
 	});
 });
+
+test.describe('code block tab / indent', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Tab with no selection inserts a literal tab', async ({ page }) => {
+		await editor.loadContent('```\nhello\n```\n');
+		await editor.getBlock(0).click();
+		// Position cursor inside "hel|lo"
+		await editor.focusBlockStart(0);
+		// Walk past opener (```\n = 4 chars) then 3 chars into "hel"
+		for (let i = 0; i < 7; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('hel\tlo');
+	});
+
+	test('Tab with multi-line selection indents every covered line', async ({ page }) => {
+		await editor.loadContent('```\nline1\nline2\nline3\n```\n');
+		await editor.getBlock(0).click();
+
+		// Select from start of "line1" to end of "line2" via a manual Range
+		await page.evaluate(() => {
+			const el = document.querySelector('.code-block') as HTMLElement;
+			el.focus();
+			// textContent: "```\nline1\nline2\nline3\n```"
+			// Offsets: ``` (0-2), \n (3), line1 (4-8), \n (9), line2 (10-14), \n (15), line3 (16-20), \n (21), ``` (22-24)
+			// Select from offset 4 (start of line1) to 15 (end of line2, before \n)
+			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+			let startNode: Text | null = null;
+			let startOff = 0;
+			let endNode: Text | null = null;
+			let endOff = 0;
+			let chars = 0;
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				const len = (node as Text).textContent?.length ?? 0;
+				if (startNode === null && chars + len >= 4) {
+					startNode = node as Text;
+					startOff = 4 - chars;
+				}
+				if (chars + len >= 15) {
+					endNode = node as Text;
+					endOff = 15 - chars;
+					break;
+				}
+				chars += len;
+			}
+			if (!startNode || !endNode) return;
+			const range = document.createRange();
+			range.setStart(startNode, startOff);
+			range.setEnd(endNode, endOff);
+			const sel = window.getSelection();
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+		});
+
+		await page.keyboard.press('Tab');
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		expect(source).toContain('\tline1');
+		expect(source).toContain('\tline2');
+		// line3 was NOT in selection — should not be indented
+		expect(source).toMatch(/^line3$/m);
+	});
+});
