@@ -44,7 +44,7 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('json', json);
 	registerLanguage('yaml', yaml, ['yml']);
 	registerLanguage('sql', sql);
-	registerLanguage('html', xml, ['htm']);
+	registerLanguage('html', xml, ['htm']); // hljs 'xml' grammar handles HTML
 	registerLanguage('css', css);
 
 	// Tier 2
