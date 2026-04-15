@@ -14,7 +14,7 @@
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
-	import { renderInlineNodes, setCursorFromRawOffset } from '../../inline-renderer';
+	import { renderInlineNodes } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../raw-text';
@@ -171,7 +171,7 @@
 
 		// Restore cursor if a handler requested it
 		if (pendingCursorOffset !== null) {
-			setCursorFromRawOffset(el, pendingCursorOffset);
+			setCursorOffsetHelper(el, pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});
