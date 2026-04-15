@@ -1,6 +1,7 @@
 /**
- * Sticky column — container traversal, opaque/transparent blocks, and edge cases.
- * See e2e/requirements/sticky-column.md.
+ * Sticky column — container traversal, transparent blocks, and edge cases.
+ * See e2e/requirements/sticky-column.md. Code-block entry symmetry lives in
+ * sticky-column-code-block-entry.spec.ts.
  */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
@@ -70,7 +71,7 @@ test.describe('sticky column: container traversal', () => {
 	});
 });
 
-test.describe('sticky column: opaque and transparent blocks', () => {
+test.describe('sticky column: transparent blocks', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -101,29 +102,13 @@ test.describe('sticky column: opaque and transparent blocks', () => {
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
 	});
-
-	test('code block is opaque — cursor lands at left edge on entry', async () => {
-		await editor.loadContent(
-			'Long paragraph with plenty of text to start at a high column.\n\n```\ncode content\n```\n\nAnother long paragraph after.\n'
-		);
-
-		const first = editor.page.locator('[contenteditable="true"]').nth(0);
-		await first.click();
-		await editor.page.keyboard.press('Home');
-		for (let i = 0; i < 25; i++) await editor.page.keyboard.press('ArrowRight');
-
-		const sourceX = await editor.getCaretPixelX();
-
-		// ArrowDown into code block
-		await editor.pressArrowDown();
-		await editor.page.waitForTimeout(100);
-
-		// The code block is opaque — cursor lands at textarea offset 0, NOT at sticky X.
-		// Verify the cursor is on the left side of the code block, not at the original column.
-		const insideX = await editor.getCaretPixelX();
-		expect(insideX).toBeLessThan(sourceX - 20);
-	});
 });
+
+// Code block entry behavior is pinned by sticky-column-code-block-entry.spec.ts.
+// The pre-0.3.5 "code block is opaque" test that used to live here asserted the
+// cursor landed at the left edge on entry — a claim that happened to stay true
+// only because short opener/closer fence lines clamp any high sticky X. The
+// participating-block semantics are exercised more precisely there.
 
 test.describe('sticky column: edge cases', () => {
 	let editor: EditorPage;
