@@ -233,6 +233,28 @@ export function renderCodeBlock(node: CstNode): DocumentFragment {
 	return frag;
 }
 
+// ── Fence-bump helper (used by CodeBlock paste handler) ──────────────────────
+
+/**
+ * Scan `text` for the longest consecutive run of `fenceChar` and return
+ * its length. Returns 0 if `fenceChar` does not appear. The CodeBlock paste
+ * handler uses this to decide whether the outer fence needs to be bumped
+ * in length to keep pasted content from prematurely terminating the block.
+ */
+export function scanLongestFenceRun(text: string, fenceChar: '`' | '~'): number {
+	let longest = 0;
+	let current = 0;
+	for (let i = 0; i < text.length; i++) {
+		if (text[i] === fenceChar) {
+			current++;
+			if (current > longest) longest = current;
+		} else {
+			current = 0;
+		}
+	}
+	return longest;
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 function findClosingFenceStart(
