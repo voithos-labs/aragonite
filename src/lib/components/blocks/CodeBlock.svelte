@@ -28,7 +28,8 @@
 		getCurrentCursorEditorRelativeX,
 		findOffsetNearestX
 	} from '../../text-surface/sticky-measure';
-	import { renderCodeBlock } from '../../code-surface/code-renderer';
+	import { renderCodeBlock, scanLongestFenceRun } from '../../code-surface/code-renderer';
+	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../raw-text';
 
 	let { node, index }: { node: CstNode; index: number } = $props();
@@ -264,20 +265,57 @@
 
 	function onPaste(e: ClipboardEvent): void {
 		stickyColumn.reset();
+		if (!el) return;
 		e.preventDefault();
 		const text = e.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
 
-		const display = getDisplayText();
-		const selOffsets = getSelectionOffsetsHelper(el!);
-		const cursorOffset = getCursorOffsetHelper(el!) ?? 0;
-		const start = selOffsets?.start ?? cursorOffset;
-		const end = selOffsets?.end ?? cursorOffset;
+		const offsets = getSelectionOffsetsHelper(el);
+		const cursorOffset = getCursorOffsetHelper(el) ?? 0;
+		const start = offsets?.start ?? cursorOffset;
+		const end = offsets?.end ?? cursorOffset;
 
-		const newDisplay = display.slice(0, start) + text + display.slice(end);
-		const newCursor = start + text.length;
-		blockEdit.updateBlockContent(index, newDisplay + '\n', newCursor);
+		const meta = node.metadata as FencedCodeMetadata;
+		const currentFenceLen = meta.fenceLength;
+		const maxRunInPaste = scanLongestFenceRun(text, meta.fenceMarker);
+		const needsBump = maxRunInPaste >= currentFenceLen;
+
+		if (!needsBump) {
+			const display = el.textContent ?? '';
+			const newDisplay = display.slice(0, start) + text + display.slice(end);
+			const newCursor = start + text.length;
+			blockEdit.updateBlockContent(index, newDisplay + '\n', newCursor);
+			pendingCursorOffset = newCursor;
+			return;
+		}
+
+		const newFenceLen = Math.max(currentFenceLen, maxRunInPaste + 1);
+		const newFence = meta.fenceMarker.repeat(newFenceLen);
+		const oldFence = meta.fenceMarker.repeat(currentFenceLen);
+
+		const display = el.textContent ?? '';
+		const spliced = display.slice(0, start) + text + display.slice(end);
+		const lines = spliced.split('\n');
+		lines[0] = lines[0].replace(new RegExp('^' + escapeForRegex(oldFence)), newFence);
+		if (meta.closed) {
+			for (let i = lines.length - 1; i >= 0; i--) {
+				if (lines[i].trim().length === 0) continue;
+				lines[i] = lines[i].replace(new RegExp('^\\s*' + escapeForRegex(oldFence)), newFence);
+				break;
+			}
+		}
+		const bumpedDisplay = lines.join('\n');
+
+		// cursor shifts by the bumped fence's length delta
+		const fenceDelta = newFenceLen - currentFenceLen;
+		const newCursor = start + fenceDelta + text.length;
+
+		blockEdit.updateBlockContent(index, bumpedDisplay + '\n', newCursor);
 		pendingCursorOffset = newCursor;
+	}
+
+	function escapeForRegex(s: string): string {
+		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 </script>
 
