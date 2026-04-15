@@ -18,6 +18,7 @@
 		type UndoEntry
 	} from '../editor-types';
 	import { createStickyColumnState } from '../sticky-column';
+	import { bootstrapCodeLanguages } from '../code-surface/code-bootstrap';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import { displayLength, trimTrailingLineEnding } from '../raw-text';
 	import {
@@ -33,6 +34,8 @@
 	import { parse } from '../core/parser';
 	import { parseInline, getContentRange, isProseKind } from '../core/inline';
 	import BlockList from './BlockList.svelte';
+
+	bootstrapCodeLanguages();
 
 	let { source = '' }: { source?: string } = $props();
 
