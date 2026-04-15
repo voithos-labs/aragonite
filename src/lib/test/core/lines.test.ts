@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitLines } from '../core/lines';
+import { splitLines } from '../../core/lines';
 
 describe('splitLines', () => {
 	it('splits LF lines and preserves endings', () => {

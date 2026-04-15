@@ -1,9 +1,9 @@
 // src/lib/editor/test/container-raw.test.ts
 import { describe, it, expect } from 'vitest';
-import { rebuildBlockquoteRaw, rebuildListItemRaw, rebuildListRaw } from '../tree-operations/container-raw';
-import type { CstNode } from '../core/nodes';
-import { parse } from '../core/parser';
-import { serialize } from '../core/serializer';
+import { rebuildBlockquoteRaw, rebuildListItemRaw, rebuildListRaw } from '../../tree-operations/container-raw';
+import type { CstNode } from '../../core/nodes';
+import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 
 describe('rebuildBlockquoteRaw', () => {
 	it('rebuilds single paragraph blockquote', () => {

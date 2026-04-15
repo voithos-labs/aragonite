@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { serialize } from '../core/serializer';
+import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 
 describe('non-GFM syntax round-trips without loss', () => {
 	const cases: { name: string; source: string }[] = [
