@@ -19,7 +19,7 @@
 	import type { StickyColumnState } from '../../sticky-column';
 	import { displayLength } from '../../raw-text';
 	import { splitNode as performSplit } from '../../tree-operations';
-	import { rebuildListItemRaw } from '../../container-raw';
+	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
 	import { createBlockListState } from '../../container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
