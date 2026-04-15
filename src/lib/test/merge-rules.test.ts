@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
 import { parse } from '../core/parser';
-import type { CstNode } from '../core/nodes';
+import type { BlockKind, CstNode } from '../core/nodes';
 import { rebuildAncestryRaw } from '../tree-operations';
 import { serializeMutable } from '../mutable-tree';
 
@@ -41,7 +41,7 @@ describe('isMergeEligible', () => {
 
 	for (const [a, b] of eligible) {
 		it(`${a} + ${b} are mergeable`, () => {
-			expect(isMergeEligible(a, b)).toBe(true);
+			expect(isMergeEligible(a as BlockKind, b as BlockKind)).toBe(true);
 		});
 	}
 
@@ -90,7 +90,7 @@ describe('isMergeEligible', () => {
 
 	for (const [a, b] of ineligible) {
 		it(`${a} + ${b} are NOT mergeable`, () => {
-			expect(isMergeEligible(a, b)).toBe(false);
+			expect(isMergeEligible(a as BlockKind, b as BlockKind)).toBe(false);
 		});
 	}
 });
@@ -100,7 +100,7 @@ describe('isBlockEditable', () => {
 
 	for (const kind of editable) {
 		it(`${kind} is editable`, () => {
-			expect(isBlockEditable(kind)).toBe(true);
+			expect(isBlockEditable(kind as BlockKind)).toBe(true);
 		});
 	}
 
