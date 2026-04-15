@@ -7,24 +7,25 @@
 import type { LanguageFn } from 'highlight.js';
 
 export interface LanguageGrammar {
+	/** Lowercased canonical name — always the first-registration form. */
 	readonly name: string;
 	readonly definition: LanguageFn;
 }
 
-const grammarsByName = new Map<string, LanguageGrammar>();
-const aliasToName = new Map<string, string>();
+const grammars = new Map<string, LanguageGrammar>();
+const aliases = new Map<string, string>();
 
 /** Idempotent — calls after the first with the same name are no-ops. */
 export function registerLanguage(
 	name: string,
 	definition: LanguageFn,
-	aliases: readonly string[] = []
+	aliasList: readonly string[] = []
 ): void {
 	const key = name.toLowerCase();
-	if (grammarsByName.has(key)) return;
-	grammarsByName.set(key, { name: key, definition });
-	for (const alias of aliases) {
-		aliasToName.set(alias.toLowerCase(), key);
+	if (grammars.has(key)) return;
+	grammars.set(key, { name: key, definition });
+	for (const alias of aliasList) {
+		aliases.set(alias.toLowerCase(), key);
 	}
 }
 
@@ -34,12 +35,12 @@ export function getLanguageGrammar(infoString: string): LanguageGrammar | null {
 	if (trimmed.length === 0) return null;
 
 	const firstToken = trimmed.split(/\s+/)[0].toLowerCase();
-	const resolvedName = aliasToName.get(firstToken) ?? firstToken;
-	return grammarsByName.get(resolvedName) ?? null;
+	const resolvedName = aliases.get(firstToken) ?? firstToken;
+	return grammars.get(resolvedName) ?? null;
 }
 
 /** Test-only: clear all registered languages. */
 export function __resetRegistryForTests(): void {
-	grammarsByName.clear();
-	aliasToName.clear();
+	grammars.clear();
+	aliases.clear();
 }
