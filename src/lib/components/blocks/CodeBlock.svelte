@@ -41,6 +41,7 @@
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
+	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
@@ -90,12 +91,21 @@
 
 	$effect(() => {
 		if (!el) return;
-		if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
+		if (node.raw === lastRenderedRaw && pendingCursorOffset === null && pendingSelection === null) return;
 
 		el.replaceChildren(renderCodeBlock(node));
 		lastRenderedRaw = node.raw;
 
-		if (pendingCursorOffset !== null) {
+		if (pendingSelection !== null) {
+			const range = createRangeFromOffsets(el, pendingSelection.start, pendingSelection.end);
+			if (range) {
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(range);
+			}
+			pendingSelection = null;
+			pendingCursorOffset = null;
+		} else if (pendingCursorOffset !== null) {
 			setCursorOffsetHelper(el, pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
@@ -236,6 +246,69 @@
 				return;
 			}
 		}
+
+		if (e.key === 'Tab') {
+			e.preventDefault();
+			if (e.shiftKey) {
+				// Shift+Tab dedent — lands in T31/T32. No-op for now.
+				return;
+			}
+			indentSelection();
+			return;
+		}
+	}
+
+	function indentSelection(): void {
+		if (!el) return;
+
+		const offsets = getSelectionOffsetsHelper(el);
+
+		if (!offsets) {
+			const ok = document.execCommand('insertText', false, '\t');
+			if (ok) return;
+			// Fallback: manual Text-node insert + onInput flush
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return;
+			const range = sel.getRangeAt(0);
+			range.deleteContents();
+			const tn = document.createTextNode('\t');
+			range.insertNode(tn);
+			range.setStartAfter(tn);
+			range.collapse(true);
+			sel.removeAllRanges();
+			sel.addRange(range);
+			const text = el.textContent ?? '';
+			const savedOffset = getCursorOffsetHelper(el) ?? 0;
+			blockEdit.updateBlockContent(index, text + '\n', savedOffset);
+			pendingCursorOffset = savedOffset;
+			return;
+		}
+
+		// Multi-line selection — insert \t at every line start the selection touches
+		const display = el.textContent ?? '';
+		const lineStarts: number[] = [];
+		const firstLineStart = display.lastIndexOf('\n', offsets.start - 1) + 1;
+		lineStarts.push(firstLineStart);
+		let pos = firstLineStart;
+		while (pos < offsets.end) {
+			const next = display.indexOf('\n', pos);
+			if (next === -1 || next >= offsets.end) break;
+			lineStarts.push(next + 1);
+			pos = next + 1;
+		}
+
+		// Right-to-left to avoid offset drift during mutation
+		let newText = display;
+		for (let i = lineStarts.length - 1; i >= 0; i--) {
+			const idx = lineStarts[i];
+			newText = newText.slice(0, idx) + '\t' + newText.slice(idx);
+		}
+
+		const newStart = offsets.start + 1;
+		const newEnd = offsets.end + lineStarts.length;
+
+		blockEdit.updateBlockContent(index, newText + '\n', newStart);
+		pendingSelection = { start: newStart, end: newEnd };
 	}
 
 	function onPointerDown(_e: PointerEvent): void {
