@@ -26,3 +26,5 @@ export {
 } from './list-ops';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';
+
+export { cascadeCleanupEmptyAncestors } from './cleanup';
