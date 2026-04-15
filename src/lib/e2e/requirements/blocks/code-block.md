@@ -16,3 +16,9 @@ Typing and navigation inside fenced code blocks (textarea-based editing surface)
 ## User interactions
 - type multi-line code then navigate out: type several lines, ArrowDown past last line, type in the block below
 - edit code then undo: type in code block, undo reverts the typed text
+
+## Highlighting
+- tokenization renders spans for known languages: a `js` code block containing `const x = 42;` has at least one `.code-tok-keyword` span
+- info string rendered with .md-lang class: opener line's language name has `.md-lang` class for distinct styling
+- unknown language falls through to plain text: a `klingon` info string produces no `.code-tok-*` spans in the body
+- alias resolution produces same tokens: `js` and `javascript` info strings tokenize identically
