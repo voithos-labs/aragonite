@@ -9,7 +9,8 @@
 		type FocusActions,
 		type HistoryActions,
 		type CstNode,
-		type BlockComponent
+		type BlockComponent,
+		type StickyColumnDirection
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
 	import {
@@ -23,6 +24,10 @@
 		isAtFirstVisualLine,
 		isAtLastVisualLine
 	} from '../../text-surface/visual-lines';
+	import {
+		getCurrentCursorEditorRelativeX,
+		findOffsetNearestX
+	} from '../../text-surface/sticky-measure';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import { trimTrailingLineEnding } from '../../raw-text';
 
@@ -49,6 +54,13 @@
 		setCursorOffsetHelper(el, Math.max(0, offset));
 	}
 
+	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		if (!el) return;
+		el.focus();
+		const targetOffset = findOffsetNearestX(el, x, from);
+		setCursorOffsetHelper(el, targetOffset);
+	}
+
 	export function getCursorOffset(): number | null {
 		if (!el) return null;
 		return getCursorOffsetHelper(el);
@@ -67,7 +79,7 @@
 		sel?.addRange(range);
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
 
 	// ── Render pipeline ───────────────────────────────────────────────────────
 
@@ -140,7 +152,10 @@
 
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
-		if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && !PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
+		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+			const x = getCurrentCursorEditorRelativeX(el!);
+			if (x !== null) stickyColumn.capture(x);
+		} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
 			stickyColumn.reset();
 		}
 
