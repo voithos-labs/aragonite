@@ -4,8 +4,6 @@
  */
 
 import type { InlineNode } from './core/nodes';
-import { setCursorFromRawOffset as _setCursorFromRawOffset } from './text-surface/cursor-utils';
-
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
 function markerSpan(text: string): HTMLSpanElement {
@@ -193,5 +191,3 @@ export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetRes
 	return null;
 }
 
-/** @deprecated import from `text-surface/cursor-utils` instead */
-export const setCursorFromRawOffset = _setCursorFromRawOffset;
