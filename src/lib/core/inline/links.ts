@@ -91,7 +91,11 @@ function parseDestination(
 	// Skip optional leading whitespace
 	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
 
-	// Read URL — stop at whitespace, '"', "'", ')', or '<'
+	// Read URL — stop at whitespace, '"', "'", or ')'.
+	// Angle-bracket URLs (`<url>`) are not specially decoded here: the opening '<'
+	// and closing '>' are treated as part of the URL text. The url field is a
+	// rendering cache and never re-serialized, so the brackets surviving in it
+	// is cosmetic, not a round-trip concern.
 	const urlStart = pos;
 	while (
 		pos < limit &&

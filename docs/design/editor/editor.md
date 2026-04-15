@@ -273,6 +273,8 @@ Block identity (`blockIds`) is maintained per `BlockList` — each nesting level
 
 ## Selection
 
+> **Status:** single-block selection is implemented. Cross-block selection and the clipboard section below describe the planned design for milestone 0.4; those sections are the spec the implementation will target, not a description of current behavior.
+
 ### Single-Block Selection
 
 Native browser selection within the block's contenteditable. No custom handling for rendering. Copy/cut are intercepted (see Clipboard section) but selection highlighting is native.
@@ -356,14 +358,16 @@ Undo restores the previous snapshot, pushes the current state onto the redo stac
 
 ### Relationship to Persistent History
 
-The undo stack is session-scoped — lives in memory, cleared when the document is closed. Persistent version history (Automerge) operates at the save boundary. When the document saves, the current CST state is serialized and written through the persistence layer.
+The undo stack is session-scoped — it lives in memory and clears when the document is closed. A future persistent version history layer is expected to operate at a different boundary (the save write), and the two systems are designed not to interact: the editor produces a serialized document on save, and whatever storage layer handles cross-session history does so independently.
+
+The persistent-history mechanism itself — Automerge, Yjs, a custom CRDT, or a simpler linear log — is a roadmap decision that has not been made. Treat the section below as a working assumption about *shape*, not *technology*.
 
 ```
 Ctrl+Z / Ctrl+Y  →  Undo stack (CST snapshots, in memory, session-scoped)
-Version history   →  Automerge (persistent, cross-session, operates on save)
+Version history   →  TBD persistence layer (cross-session, operates on save)
 ```
 
-The two systems do not interact. The editor produces a serialized document on save; the storage layer handles Automerge. This boundary allows both systems to be developed independently.
+This boundary allows the in-memory undo work and the durable history work to be developed independently.
 
 ## Block Identity
 
@@ -386,7 +390,7 @@ The ID array is updated atomically with every children array mutation:
 
 ## Node Type Coverage
 
-The CST defines 14 node types. The editor must handle all of them. Node types not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior.
+The CST defines one document root plus 13 block kinds the editor must handle. Block kinds not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior. The `document` row below is included for completeness but is the tree root, not a rendered block.
 
 | Node Type               | Kind                      | Editor Behavior                                                                                                                                                                                                                         |
 | ----------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
