@@ -144,6 +144,39 @@ test.describe('code block editing — user interactions', () => {
 	});
 });
 
+test.describe('code block keyboard — beyond parity', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Ctrl+B inside a code block is a no-op', async ({ page }) => {
+		await editor.loadContent('```js\nconst x = 42;\n```\n');
+		await editor.getBlock(0).click();
+		const sourceBefore = await editor.getSource();
+		await page.keyboard.press('Control+b');
+		await page.waitForTimeout(50);
+		const sourceAfter = await editor.getSource();
+		expect(sourceAfter).toBe(sourceBefore);
+		expect(await editor.getBlock(0).locator('b').count()).toBe(0);
+		expect(await editor.getBlock(0).locator('strong').count()).toBe(0);
+	});
+
+	test('Ctrl+I inside a code block is a no-op', async ({ page }) => {
+		await editor.loadContent('```js\nconst x = 42;\n```\n');
+		await editor.getBlock(0).click();
+		const sourceBefore = await editor.getSource();
+		await page.keyboard.press('Control+i');
+		await page.waitForTimeout(50);
+		const sourceAfter = await editor.getSource();
+		expect(sourceAfter).toBe(sourceBefore);
+		expect(await editor.getBlock(0).locator('i').count()).toBe(0);
+		expect(await editor.getBlock(0).locator('em').count()).toBe(0);
+	});
+});
+
 test.describe('code block highlighting', () => {
 	let editor: EditorPage;
 
