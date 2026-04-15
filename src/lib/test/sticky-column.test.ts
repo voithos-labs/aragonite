@@ -37,22 +37,15 @@ describe('createStickyColumnState', () => {
 		expect(s.get()).toBe(150);
 	});
 
-	it('reset clears the value', () => {
+	it('reset clears the value and is idempotent on null state', () => {
 		const s = createStickyColumnState();
+		// baseline null
+		expect(s.get()).toBe(null);
+		// reset after capture clears
 		s.capture(150);
 		s.reset();
 		expect(s.get()).toBe(null);
-	});
-
-	it('reset is idempotent', () => {
-		const s = createStickyColumnState();
-		s.reset();
-		s.reset();
-		expect(s.get()).toBe(null);
-	});
-
-	it('reset on already-null state stays null', () => {
-		const s = createStickyColumnState();
+		// calling reset again on null is a no-op
 		s.reset();
 		expect(s.get()).toBe(null);
 	});

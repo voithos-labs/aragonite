@@ -10,6 +10,28 @@ import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
 import { walkToDeepestMergeLeaf } from '../merge-rules';
 import { rebuildAncestryRaw } from './generic';
 
+// ── Emptiness check ──
+
+/**
+ * A list item is "user-empty" when every leaf descendant's raw is blank.
+ * Strictly stronger than "first child is an empty paragraph" — the shallow
+ * check dropped trailing content (extra paragraphs, nested lists) when the
+ * first paragraph happened to be empty. Used by both the Backspace path
+ * (ListBlock.mergeWithPrevious) and the Enter path (ListItemBlock.splitBlock)
+ * to guard the exit-list-via-empty-item branch.
+ */
+export function isItemUserEmpty(item: CstNode): boolean {
+	if (!item.children || item.children.length === 0) return true;
+	for (const child of item.children) {
+		if (child.children && child.children.length > 0) {
+			if (!isItemUserEmpty(child)) return false;
+		} else if ((child.raw ?? '').trim() !== '') {
+			return false;
+		}
+	}
+	return true;
+}
+
 // ── Ordered-list numbering helpers ──
 
 /**
@@ -247,17 +269,17 @@ export function mergeListItemIntoPrevious(
 		targetItem = targetItem.children![targetPath[i]];
 	}
 	// After this loop, targetItem is the listItem directly containing the
-	// target paragraph at targetPath[targetPath.length - 1].
-
-	if (
-		!targetItem.children ||
-		targetItem.children.length === 0 ||
-		targetItem.children[0].kind !== 'paragraph'
-	) {
-		throw new Error('mergeListItemIntoPrevious: target item does not start with a paragraph');
+	// target paragraph. The walker picked the LAST child at every descent
+	// step, so the target paragraph's index within targetItem is the last
+	// element of targetPath — NOT always 0. For a loose list item whose
+	// children are [para "first", para "second"], the walker returns
+	// path ending in 1, and reading children[0] would silently mutate
+	// the wrong paragraph.
+	const targetParagraphIndex = targetPath[targetPath.length - 1];
+	const targetParagraph = targetItem.children?.[targetParagraphIndex];
+	if (!targetParagraph || targetParagraph.kind !== 'paragraph') {
+		throw new Error('mergeListItemIntoPrevious: target path does not end at a paragraph');
 	}
-
-	const targetParagraph = targetItem.children[0];
 	const targetOriginalText = (targetParagraph.raw ?? '').replace(/\r?\n$/, '');
 	const mergeOffset = targetOriginalText.length;
 

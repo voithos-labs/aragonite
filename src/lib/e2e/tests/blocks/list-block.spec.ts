@@ -208,6 +208,28 @@ test.describe('list Enter', () => {
 		expect(source).toMatch(/^1\. Second$/m);
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
+
+	// Forge-review H5: the requirements file specifies "Empty last item:
+	// deleted, paragraph created after the list" but no test exercised it.
+	test('Enter on empty last item creates paragraph after the list', async () => {
+		await editor.loadContent('- First\n- Last\n');
+		const last = editor.page.locator('[contenteditable="true"]', { hasText: 'Last' });
+		await last.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+End');
+		await editor.page.keyboard.press('Delete');
+		await editor.page.waitForTimeout(200);
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		await editor.typeText('After');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		// First is still a list item; "After" is a plain paragraph following the list
+		expect(source).toMatch(/^- First$/m);
+		expect(source).not.toMatch(/^- Last/m);
+		expect(source).toContain('After');
+		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
+	});
 });
 
 // ── Backspace ───────────────────────────────────────────────────────
@@ -500,6 +522,7 @@ test.describe('list Backspace', () => {
 		expect(source).toMatch(/2\.\s*Second/);
 		expect(source).toMatch(/3\.\s*Third/);
 	});
+
 });
 
 // ── Tab (indent) ────────────────────────────────────────────────────
