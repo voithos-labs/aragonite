@@ -506,6 +506,21 @@ test.describe('list Backspace', () => {
 		expect(source).toContain('After');
 	});
 
+	// Forge-review H6: the requirements file specifies "Delete at end of
+	// last child within an item: delegates to parent (same as paragraph
+	// behavior)". Symmetric with cross-container merge via Backspace.
+	test('Delete at end of last item merges following paragraph into the last item', async () => {
+		await editor.loadContent('- first\n- last item\n\nAfter\n');
+		const last = editor.page.locator('[contenteditable="true"]', { hasText: 'last item' });
+		await last.click();
+		await editor.page.keyboard.press('End');
+		await editor.pressKey('Delete');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^- last itemAfter$/m);
+		expect(source).not.toMatch(/^After$/m);
+	});
+
 	test('ordered: deleting item renumbers subsequent', async () => {
 		await editor.loadContent('1. First\n2. Second\n3. Third\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Second' });
