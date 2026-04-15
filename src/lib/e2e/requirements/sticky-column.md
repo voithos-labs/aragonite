@@ -34,8 +34,8 @@ A short list of actions specifically does NOT reset the sticky column:
 When a vertical arrow crosses a block boundary, the target block receives the sticky column X and should land the cursor at the offset nearest that X on its first (from-above) or last (from-below) visual line.
 
 - **Editable prose blocks** participate fully: they measure pixel X via `focusAtColumn` and land the cursor at the nearest offset.
+- **Code blocks** participate fully as of 0.3.5. They share the same `focusAtColumn` implementation as prose blocks — entry from above probes the first visual line (the opener fence line, which may also carry a language info string), entry from below probes the last visual line (the closer fence line), and the cursor lands at the offset whose rect is nearest the sticky X on that line. Interior body lines are reached by subsequent within-block vertical arrows, which rely on the browser's native sticky column.
 - **Transparent blocks** (thematic break): pass the sticky value through without capturing or resetting. The caret traverses the block as a unit; the next cross-block move continues with the existing column value.
-- **Opaque blocks** (code block): reset on any interaction inside. The textarea surface has no standard pixel-X API, so entry from above lands at start-of-block and entry from below lands at end-of-block. Any keystroke inside resets the sticky column.
 
 ## Container traversal
 
@@ -51,17 +51,22 @@ Rapid successive vertical arrow presses across multiple blocks must all consult 
 - Empty blocks: sticky column capture and comparison must treat empty content as "on the only visual line" (both first and last).
 - Multi-line paragraphs that wrap: sticky column survives wrapping within a block and is only consulted at cross-block boundaries.
 
+## Code block entry symmetry
+
+When the same sticky X is captured from a block above and a block below a code block, entering via ArrowDown and ArrowUp respectively must land the cursor at the same pixel X (and the same body offset) inside the code block. This isolates regressions in `findOffsetNearestX` / `CodeBlock.focusAtColumn`.
+
+- **Single-line body**: both entries land at the same visual-line position.
+- **Multi-line body (same first/last body line width)**: landing is symmetric regardless of interior content.
+- **Info string opener** (e.g. ```` ```javascript ````): the opener visual line is wider than the closer, but landing given matched sticky X is still symmetric.
+- **highlight.js token spans**: the body line is fragmented into many adjacent token spans; rect lookup across span boundaries must not introduce direction-dependent drift.
+- **Real document regression** (`DEFAULT_CONTENT` from the `/test/editor` harness): the multi-block `javascript` code block in the canonical test document serves as the lived-in regression case.
+
 ## Test file layout
 
-Scenarios above map 1:1 to `test.describe` groups in `tests/sticky-column.spec.ts`:
+The sticky-column spec has been split across five files. Scenarios above map to `test.describe` groups across these files:
 
-- basic capture and cross-block
-- survive intermediate clamping
-- reset triggers
-- preserve triggers
-- container traversal
-- opaque and transparent blocks
-- edge cases
-- rapid cross-block navigation (timing)
-
-When the spec file is split, each group becomes its own file with a matching requirement file.
+- `sticky-column-capture.spec.ts` — basic capture and cross-block; survive intermediate clamping
+- `sticky-column-triggers.spec.ts` — reset triggers; preserve triggers
+- `sticky-column-containers.spec.ts` — container traversal; transparent blocks; edge cases
+- `sticky-column-timing.spec.ts` — rapid cross-block navigation
+- `sticky-column-code-block-entry.spec.ts` — code block entry symmetry
