@@ -92,19 +92,25 @@ test.describe('list Enter', () => {
 		expect(source.indexOf('Z')).toBeLessThan(source.indexOf('Third'));
 	});
 
-	test('Enter on empty item with nested content exits the list', async () => {
+	test('Enter on empty item with nested content promotes nested items instead of dropping them', async () => {
 		await editor.loadContent('- Item\n  - Nested\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
 		await item.click();
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
-		// New item has empty paragraph + nested list. Press Enter.
+		// New item has empty paragraph + nested list. Press Enter — the
+		// nested list items must be promoted to sibling level rather than
+		// silently dropped by the exit-list path.
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
-		const itemCount = (source.match(/^- /gm) || []).length;
-		expect(itemCount).toBeLessThanOrEqual(2);
+		expect(source).toContain('Item');
+		expect(source).toContain('Nested');
+		// Nested must now sit at the outer-list indent.
+		expect(source).toMatch(/^- Nested$/m);
+		// And it must NOT be at the nested indent anymore.
+		expect(source).not.toMatch(/^ {2,}- Nested$/m);
 	});
 
 	test('ordered: new item gets next number and subsequent renumber', async () => {
@@ -162,8 +168,9 @@ test.describe('list Enter', () => {
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
 
-	// Forge-review H5: the requirements file specifies "Empty last item:
-	// deleted, paragraph created after the list" but no test exercised it.
+	// Covers the requirement "Empty last item: deleted, paragraph created
+	// after the list" — pressing Enter on an empty final list item removes
+	// that item and drops a plain paragraph below the list.
 	test('Enter on empty last item creates paragraph after the list', async () => {
 		await editor.loadContent('- First\n- Last\n');
 		const last = editor.page.locator('[contenteditable="true"]', { hasText: 'Last' });

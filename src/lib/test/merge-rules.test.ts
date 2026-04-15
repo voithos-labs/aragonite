@@ -7,13 +7,36 @@ import { rebuildAncestryRaw } from '../tree-operations';
 import { serializeMutable } from '../mutable-tree';
 
 describe('isMergeEligible', () => {
+	// Full role-pair matrix. Representatives of each role:
+	//   prose           → paragraph
+	//   prose-absorber  → heading, setextHeading
+	//   container       → blockquote, list, listItem
+	//   opaque          → fencedCode, thematicBreak, indentedCode, htmlBlock,
+	//                     linkReferenceDefinition, table
+	//   self-merge      → unrecognized
+	//
+	// Eligibility rules (see merge-rules.ts):
+	//   prose           + prose          → eligible
+	//   prose-absorber  + prose          → eligible
+	//   container       + prose          → eligible
+	//   self-merge      + self-merge     → eligible
+	//   everything else                  → not eligible
+	//
+	// The matrix below covers the cross product of every role category as
+	// both prev and curr, so any future narrowing of a rule is caught.
+
 	const eligible: [string, string][] = [
+		// prose + prose
 		['paragraph', 'paragraph'],
+		// prose-absorber + prose
 		['heading', 'paragraph'],
 		['setextHeading', 'paragraph'],
-		['unrecognized', 'unrecognized'],
+		// container + prose
 		['blockquote', 'paragraph'],
-		['list', 'paragraph']
+		['list', 'paragraph'],
+		['listItem', 'paragraph'],
+		// self-merge + self-merge
+		['unrecognized', 'unrecognized']
 	];
 
 	for (const [a, b] of eligible) {
@@ -23,12 +46,46 @@ describe('isMergeEligible', () => {
 	}
 
 	const ineligible: [string, string][] = [
-		['heading', 'heading'],
+		// prose + prose-absorber (asymmetric: only prose-absorber-as-prev merges)
 		['paragraph', 'heading'],
+		['paragraph', 'setextHeading'],
+		// prose-absorber + prose-absorber (headings don't absorb each other)
+		['heading', 'heading'],
+		['heading', 'setextHeading'],
+		['setextHeading', 'heading'],
+		// prose + container (containers as curr aren't eligible)
+		['paragraph', 'blockquote'],
+		['paragraph', 'list'],
+		['heading', 'blockquote'],
+		// container + container (even same kind)
+		['blockquote', 'blockquote'],
+		['blockquote', 'list'],
+		['list', 'list'],
+		['list', 'blockquote'],
+		['list', 'listItem'],
+		// container + prose-absorber (only prose, not heading/setextHeading)
+		['blockquote', 'heading'],
+		['list', 'heading'],
+		['list', 'setextHeading'],
+		// opaque + anything
 		['fencedCode', 'paragraph'],
-		['paragraph', 'fencedCode'],
+		['fencedCode', 'fencedCode'],
 		['thematicBreak', 'paragraph'],
-		['table', 'paragraph']
+		['indentedCode', 'paragraph'],
+		['htmlBlock', 'paragraph'],
+		['linkReferenceDefinition', 'paragraph'],
+		['table', 'paragraph'],
+		// anything + opaque
+		['paragraph', 'fencedCode'],
+		['paragraph', 'thematicBreak'],
+		['paragraph', 'table'],
+		['heading', 'fencedCode'],
+		['blockquote', 'fencedCode'],
+		// self-merge + non-self-merge
+		['unrecognized', 'paragraph'],
+		['paragraph', 'unrecognized'],
+		['unrecognized', 'heading'],
+		['unrecognized', 'blockquote']
 	];
 
 	for (const [a, b] of ineligible) {

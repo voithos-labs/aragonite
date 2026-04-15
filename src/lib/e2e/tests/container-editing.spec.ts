@@ -171,7 +171,10 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 	});
 
 	test('flat blockquote: Backspace at start of following paragraph merges into inner paragraph', async () => {
-		await editor.loadContent('> text\ntext2\n');
+		// Blank-line separator is required now that CommonMark §5.1 lazy
+		// continuation is implemented — without the blank line, "text2"
+		// would be absorbed into the blockquote's paragraph at parse time.
+		await editor.loadContent('> text\n\ntext2\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
 		await para.click();
 		await editor.pressKey('Home');
@@ -184,7 +187,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 	});
 
 	test('flat blockquote: caret lands at the join point after merge', async () => {
-		await editor.loadContent('> text\ntext2\n');
+		await editor.loadContent('> text\n\ntext2\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
 		await para.click();
 		await editor.pressKey('Home');
@@ -197,7 +200,9 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 	});
 
 	test('multi-paragraph blockquote: only the last inner paragraph receives the merge', async () => {
-		await editor.loadContent('> first\n>\n> second\ntext\n');
+		// Blank-line separator required to keep "text" as a separate top-level
+		// paragraph after the lazy-continuation fix.
+		await editor.loadContent('> first\n>\n> second\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
 		await editor.pressKey('Home');
@@ -250,16 +255,15 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 	});
 });
 
-// Positive regression for the factory mergeWithPrevious container+prose path.
-// When an inner container block (blockquote or list) sits before a paragraph
-// inside a BlockList, Backspace at the start of that paragraph triggers the
-// factory's mergeWithPrevious with an eligible container+prose pair. The
-// factory calls performMerge(trimmed prev raw + curr raw) and re-parses — and
-// the re-parser naturally extends the container's last prose leaf with the
-// trailing text, producing the same result a walker-based approach would.
-// Originally flagged as a potential data-corruption bug during the forge-review
-// audit; verified via this test that the concat+reparse approach works
-// correctly for every nested scenario examined (see docs/code-review-findings).
+// Covers the factory mergeWithPrevious container+prose path. When an inner
+// container block (blockquote or list) sits before a paragraph inside a
+// BlockList, Backspace at the start of that paragraph triggers the factory's
+// mergeWithPrevious with an eligible container+prose pair. The factory calls
+// performMerge(trimmed prev raw + curr raw) and re-parses — the re-parser
+// naturally extends the container's last prose leaf with the trailing text,
+// producing the same result a walker-based approach would. This test pins
+// that the concat+reparse approach merges trailing text into the deepest
+// reachable prose leaf for every nested scenario exercised below.
 test.describe('inner container+paragraph merge inside a blockquote', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {

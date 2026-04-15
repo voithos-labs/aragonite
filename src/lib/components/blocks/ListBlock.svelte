@@ -453,44 +453,99 @@
 		async exitListAtItem(itemIndex: number): Promise<void> {
 			if (!node.children) return;
 
-			if (node.children.length <= 1) {
-				// Only item — replace the list with an empty paragraph via split.
-				// Splitting at the end of raw creates a new empty block after.
+			// Before deleting the empty item, redistribute any trailing
+			// children (children[1..]): matching-type nested list items
+			// get promoted to siblings in the current list, so the user's
+			// Enter doesn't silently drop structural content they built
+			// via an earlier split. Per requirements: "nested lists from a
+			// previous split move to adjacent items."
+			const item = node.children[itemIndex];
+			const parentOrdered =
+				(node.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+			const promotedItems: CstNode[] = [];
+			if (item.children && item.children.length > 1) {
+				for (const child of item.children.slice(1)) {
+					if (child.kind === 'list' && child.children) {
+						const childOrdered =
+							(child.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+						if (childOrdered === parentOrdered) {
+							for (const nestedItem of child.children) {
+								nestedItem.leadingTrivia = '';
+								promotedItems.push(nestedItem);
+							}
+							continue;
+						}
+					}
+					// Mismatched-type nested lists and non-list trailing
+					// children still fall through (deleted with the item).
+					// Tracked as a known limitation in docs/issues.md.
+				}
+			}
+
+			// Only-item case: delegate to top-level splitBlock which replaces
+			// the list with a paragraph. If there was promoted content, the
+			// promoted items need to survive; splice them in BEFORE the split
+			// so splitBlock sees a populated list.
+			if (node.children.length <= 1 && promotedItems.length === 0) {
 				parentBlockEdit.splitBlock(index, displayLength(node.raw));
 				return;
 			}
 
-			// Remove the empty item, rebuild list, then create a paragraph
+			const wasFirstItem = itemIndex === 0;
+			const wasLastItem = itemIndex === node.children.length - 1;
+
+			// Splice the empty item out and replace with promotedItems in
+			// place. If promotedItems is empty, this is equivalent to
+			// performDelete.
 			parentContainerEdit?.beginContainerEdit(index, 0);
 			state.commitChildrenEdit((children, ids, refs) => {
-				performDelete({ children }, ids, itemIndex);
-				refs.splice(itemIndex, 1);
+				children.splice(itemIndex, 1, ...promotedItems);
+				const newIds = promotedItems.map(() => generateBlockId());
+				ids.splice(itemIndex, 1, ...newIds);
+				const newRefs: (BlockComponent | undefined)[] = new Array(promotedItems.length).fill(
+					undefined
+				);
+				refs.splice(itemIndex, 1, ...newRefs);
 			});
-			// Removing an item can shift ordered markers (e.g. deleting the
-			// empty first item must renumber the survivors from 1). Skip for
-			// the middle-item branch below, which splits the list and
-			// renumbers via re-parse.
-			if (itemIndex === 0 || itemIndex >= node.children.length) {
-				renumberOrderedList(node, 0);
-			}
+			// Renumber the whole list — promoted items' markers may need
+			// re-sequencing, and the itemIndex-0 removal shifts all subsequent
+			// markers anyway.
+			renumberOrderedList(node, 0);
 			rebuildListRaw(node);
 			parentContainerEdit?.endContainerEdit();
 			state.triggerReactivity();
 
-			if (itemIndex === 0) {
-				// Empty item was at the start — create paragraph before the list
+			// If after the splice the list is entirely empty (no promoted
+			// items and the item was the last survivor), delete it outright
+			// and create a paragraph. Mirrors the original only-item path.
+			if (node.children.length === 0) {
+				await parentBlockEdit.deleteBlock(index);
+				parentFocus.moveFocus(index, 'end');
+				return;
+			}
+
+			if (wasFirstItem) {
+				// Empty item was at the start — create paragraph before the list.
+				// Promoted items (if any) are now the new first items of the list;
+				// the exit paragraph still goes BEFORE them per the original
+				// first-item branch.
 				await parentBlockEdit.splitBlock(index, 0);
 				// splitBlock focused the list (index+1), redirect to the paragraph (index)
 				parentFocus.moveFocus(index, 'start');
-			} else if (itemIndex >= node.children.length) {
-				// Empty item was at the end — create paragraph after the list
+			} else if (wasLastItem) {
+				// Empty item was at the end — create paragraph after the list.
+				// Promoted items (if any) are now the new last items of the list;
+				// the exit paragraph still goes AFTER them.
 				parentBlockEdit.splitBlock(index, displayLength(node.raw));
 			} else {
-				// Empty item was in the middle — split the list at the deletion point.
-				// Compute offset: sum of raw for items before the gap.
+				// Empty item was in the middle — split the list at the effective
+				// insertion point (after any promoted items), insert paragraph
+				// between the two halves.
+				const effectiveSplitIndex = itemIndex + promotedItems.length;
 				let splitOffset = (node.innerPrefix ?? '').length;
-				for (let j = 0; j < itemIndex; j++) {
-					splitOffset += (node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
+				for (let j = 0; j < effectiveSplitIndex; j++) {
+					splitOffset +=
+						(node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
 				}
 				await parentBlockEdit.splitBlock(index, splitOffset);
 				// After split: [first-list at index, second-list at index+1].

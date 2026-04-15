@@ -277,9 +277,28 @@ test.describe('list Backspace', () => {
 		expect(source).toContain('After');
 	});
 
-	// Forge-review H6: the requirements file specifies "Delete at end of
-	// last child within an item: delegates to parent (same as paragraph
-	// behavior)". Symmetric with cross-container merge via Backspace.
+	// Contract: forward-delete at the end of a non-last list item is a
+	// silent no-op. List items are structural peers, not prose continuations,
+	// so pressing Delete at the end of one item does not concat text with
+	// the next item. This is symmetric with the cross-container Backspace
+	// merge behavior and pins the current contract; a future requirement
+	// change would need to explicitly update this test.
+	test('Delete at end of non-last item is a no-op (list items do not concat via forward delete)', async () => {
+		await editor.loadContent('- first\n- middle\n- last\n');
+		const middle = editor.page.locator('[contenteditable="true"]', { hasText: 'middle' });
+		await middle.click();
+		await editor.page.keyboard.press('End');
+		await editor.pressKey('Delete');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		// Unchanged — three separate items, no concatenation
+		expect(source).toMatch(/^- first$/m);
+		expect(source).toMatch(/^- middle$/m);
+		expect(source).toMatch(/^- last$/m);
+		// Explicitly NOT middle+last concatenated
+		expect(source).not.toMatch(/middlelast/);
+	});
+
 	test('Delete at end of last item merges following paragraph into the last item', async () => {
 		await editor.loadContent('- first\n- last item\n\nAfter\n');
 		const last = editor.page.locator('[contenteditable="true"]', { hasText: 'last item' });

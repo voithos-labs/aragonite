@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { serializeMutable } from '../mutable-tree';
+import { parse } from '../../core/parser';
+import { serializeMutable } from '../../mutable-tree';
 import {
 	unwrapFirstChildFromBlockquote,
 	unwrapFirstItemFromList,
 	mergeListItemIntoPrevious
-} from '../tree-operations';
-import type { CstNode } from '../core/nodes';
+} from '../../tree-operations';
+import type { CstNode } from '../../core/nodes';
 
 // ── unwrapFirstChildFromBlockquote ─────────────────────────────────────────
 

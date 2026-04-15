@@ -12,7 +12,7 @@ import {
 	getCursorOffset,
 	getSelectionOffsets,
 	hasSelection
-} from '../text-surface/cursor-utils';
+} from '../../text-surface/cursor-utils';
 
 describe('cursor-utils', () => {
 	let container: HTMLElement;

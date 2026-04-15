@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getContentRange, parseInline } from '../core/inline';
-import type { CstNode, InlineNode } from '../core/nodes';
+import { getContentRange, parseInline } from '../../core/inline';
+import type { CstNode, InlineNode } from '../../core/nodes';
 
 function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);

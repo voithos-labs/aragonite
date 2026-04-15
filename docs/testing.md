@@ -20,6 +20,8 @@ npm run test:e2e       # E2E tests (auto-starts dev server)
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
+Unit tests live under `src/lib/editor/test/`. Layer-specific tests are grouped into subdirectories that mirror the source layer structure (`test/container-state/`, `test/text-surface/`, `test/tree-operations/`, `test/core/`), so editing a file in `container-state/` makes its test findable under `test/container-state/` without inflating the source directory listing. Cross-cutting tests (`round-trip`, `round-trip-complex`, `merge-rules`, `mutable-tree`, `undo-manager`, `sticky-column`) stay at `test/` root because they exercise multiple layers or top-level editor files. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
+
 ## E2E Tests (Playwright)
 
 Tests the editor component in a real Chromium browser. No Tauri backend needed — the editor is self-contained.

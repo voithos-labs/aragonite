@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { mergeWithPrevious, mergeWithNext } from '../tree-operations';
+import { parse } from '../../core/parser';
+import { mergeWithPrevious, mergeWithNext } from '../../tree-operations';
 
 describe('mergeWithPrevious', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
