@@ -158,7 +158,7 @@ describe('thematic break split', () => {
 describe('splitNode on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello World\n' }]
+			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }]
 		};
 		const ids = ['id-1'];
 		splitNode(parent, ids, 0, 5);
