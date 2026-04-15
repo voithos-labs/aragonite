@@ -153,6 +153,86 @@ export function tokenizeBody(body: string, infoString: string): DocumentFragment
 	return frag;
 }
 
+// ── Fence marker rendering ────────────────────────────────────────────────
+
+function makeMarkerSpan(text: string, extraClass?: string): HTMLSpanElement {
+	const span = document.createElement('span');
+	span.className = extraClass ? `md-marker ${extraClass}` : 'md-marker';
+	span.textContent = text;
+	return span;
+}
+
+function renderOpenerLine(
+	slice: FencedCodeSlice,
+	fenceMarker: '`' | '~',
+	fenceLength: number
+): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	if (slice.openerLine.length === 0) return frag;
+
+	const fenceChars = fenceMarker.repeat(fenceLength);
+	const openerWithoutNewline = slice.openerLine.replace(/\n$/, '');
+	const hasTrailingNewline = slice.openerLine.endsWith('\n');
+
+	frag.appendChild(makeMarkerSpan(fenceChars, 'md-fence'));
+
+	const afterFence = openerWithoutNewline.slice(fenceChars.length);
+	if (afterFence.length > 0) {
+		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
+	}
+
+	if (hasTrailingNewline) {
+		frag.appendChild(makeMarkerSpan('\n'));
+	}
+
+	return frag;
+}
+
+function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	if (slice.closerLine.length === 0) return frag;
+	frag.appendChild(makeMarkerSpan(slice.closerLine, 'md-fence'));
+	return frag;
+}
+
+// ── Top-level render ─────────────────────────────────────────────────────
+
+/**
+ * Render a fencedCode CST node into a DocumentFragment. Holds the invariant
+ * `fragment.textContent === trimTrailingLineEnding(node.raw)`.
+ */
+export function renderCodeBlock(node: CstNode): DocumentFragment {
+	const slice = sliceFencedCode(node);
+	const meta = node.metadata as FencedCodeMetadata;
+	const frag = document.createDocumentFragment();
+
+	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
+
+	const bodyFrag = tokenizeBody(slice.body, slice.infoString);
+	const closerFrag = renderCloserLine(slice);
+
+	// Preserve textContent === trimTrailingLineEnding(raw): if raw ends with \n,
+	// strip exactly one trailing \n from whichever fragment carries the tail.
+	if (node.raw.endsWith('\n')) {
+		if (closerFrag.childNodes.length > 0) {
+			const lastSpan = closerFrag.lastChild as HTMLSpanElement;
+			if (lastSpan.textContent?.endsWith('\n')) {
+				lastSpan.textContent = lastSpan.textContent.slice(0, -1);
+			}
+		} else {
+			const last = bodyFrag.lastChild;
+			if (last != null && last.textContent?.endsWith('\n')) {
+				last.textContent = last.textContent.slice(0, -1);
+			}
+		}
+	}
+
+	frag.appendChild(bodyFrag);
+	frag.appendChild(closerFrag);
+
+	return frag;
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 function findClosingFenceStart(
