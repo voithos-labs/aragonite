@@ -1,6 +1,22 @@
 /**
- * Line splitting with preserved endings and offsets for the parser.
+ * Line splitting with preserved endings and offsets for the parser,
+ * plus the trailing-line-ending helpers shared between the parser and
+ * the editor layer. These live in core/ because "what is the display
+ * length of a raw string?" is a parser-level concept about the raw/text
+ * distinction, not an editor-layer concern.
  */
+
+/** Length of `raw` excluding any trailing line ending (LF or CRLF). */
+export function displayLength(raw: string): number {
+	if (raw.endsWith('\r\n')) return raw.length - 2;
+	if (raw.endsWith('\n')) return raw.length - 1;
+	return raw.length;
+}
+
+/** Return `raw` with any trailing line ending (LF or CRLF) removed. */
+export function trimTrailingLineEnding(raw: string): string {
+	return raw.slice(0, displayLength(raw));
+}
 
 export interface ParsedLine {
 	raw: string;

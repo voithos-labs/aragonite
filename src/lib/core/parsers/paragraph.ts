@@ -13,6 +13,7 @@ import { matchFenceOpen } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchBlockquote } from './blockquote';
 import { matchListItem } from './list';
+import { matchThematicBreak } from './thematic-break';
 
 export function parseParagraph(
 	lines: ParsedLine[],
@@ -93,14 +94,20 @@ function parseTable(
 
 /**
  * Continuation-scan interruption check. A paragraph stops absorbing lines
- * when the next line starts a new block. Thematic breaks are deliberately
- * excluded here — a `---` line does NOT interrupt a paragraph from inside
- * the continuation scan; it only gets recognized at the top level of
- * parseNextBlock, with its blank-line guard, so setext heading underlines
- * are not split off as thematic breaks.
+ * when the next line starts a new block.
+ *
+ * Thematic breaks here are restricted to `***` and `___` — `---` is
+ * deliberately excluded because it is ambiguous with a setext level-2
+ * underline, and the setext check in the paragraph-continuation loop has
+ * first claim on it. `***` and `___` have no such ambiguity and must
+ * interrupt per CommonMark §4.8.
  */
 export function startsNewBlock(text: string): boolean {
-	return Boolean(
-		matchFenceOpen(text) || matchHeading(text) || matchBlockquote(text) || matchListItem(text)
-	);
+	if (matchFenceOpen(text)) return true;
+	if (matchHeading(text)) return true;
+	if (matchBlockquote(text)) return true;
+	if (matchListItem(text)) return true;
+	const tb = matchThematicBreak(text);
+	if (tb === '*' || tb === '_') return true;
+	return false;
 }

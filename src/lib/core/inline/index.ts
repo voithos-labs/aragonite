@@ -10,6 +10,7 @@
  */
 
 import type { CstNode, InlineNode } from '../nodes';
+import { displayLength } from '../lines';
 import { scanBacktickSpans } from './backticks';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
@@ -28,15 +29,7 @@ export interface ContentRange {
  */
 export function getContentRange(node: CstNode): ContentRange {
 	const raw = node.raw;
-
-	// Inlined displayLength (trailing line-ending strip). core/text-utils.ts
-	// moves to raw-text.ts at the editor root in Task 7; inlining here keeps
-	// the core/ layer from importing upward into the editor layer.
-	const displayEnd = raw.endsWith('\r\n')
-		? raw.length - 2
-		: raw.endsWith('\n')
-			? raw.length - 1
-			: raw.length;
+	const displayEnd = displayLength(raw);
 
 	if (node.kind === 'heading') {
 		let i = 0;
