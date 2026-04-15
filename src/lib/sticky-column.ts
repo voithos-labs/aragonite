@@ -9,6 +9,11 @@
  * in `TextEditableBlock`, `CodeBlock`, and `Editor.svelte`'s structural
  * actions for the full reset-trigger policy.
  *
+ * Both `TextEditableBlock` and `CodeBlock` are participating blocks — they
+ * capture sticky X on vertical arrow presses and implement `focusAtColumn`.
+ * The only non-participating leaf block is `ThematicBreakBlock`, which is
+ * transparent (passes sticky X through without capturing or resetting).
+ *
  * This module is intentionally pure: no Svelte, no DOM, no framework
  * coupling. Each `Editor.svelte` instance creates its own state via
  * `createStickyColumnState()` and provides it via the STICKY_COLUMN_KEY
@@ -59,8 +64,8 @@ export function createStickyColumnState(): StickyColumnState {
  * horizontal arrows, Home/End, and Escape clear sticky without each one
  * needing its own dedicated handler.
  *
- * Exported so TextEditableBlock and CodeBlock share one source of truth —
- * preventing drift if the list is updated in one file but not the other.
+ * Exported so every editing block shares one source of truth — preventing
+ * drift if the list is updated in one file but not another.
  */
 export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 	'PageUp',
