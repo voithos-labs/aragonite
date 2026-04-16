@@ -15,6 +15,7 @@
 - Cross-block delete spanning three blocks leaves only the merged result
 - Type-replace inserts the character at the correct offset in the merged block
 - Cross-block copy of a list with nested items does not duplicate content (container+leaf regression)
+- Cross-block copy of an ordered list preserves all item markers (start/end boundary promotion regression)
 
 ## User interactions
 - Select across two paragraphs via Shift+ArrowDown, Ctrl+C, collapse, paste: duplicates text
