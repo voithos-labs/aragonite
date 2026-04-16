@@ -617,7 +617,7 @@
 	void ({ editable, focusable, focus, getCursorOffset, focusByPath, focusAtColumn } satisfies BlockComponent);
 </script>
 
-<div class="list-block">
+<div class="list-block" data-block-path={JSON.stringify(myPath)}>
 	{#each node.children ?? [] as item, i (state.innerBlockIds[i])}
 		<ListItemBlock
 			node={item}
