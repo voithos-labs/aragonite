@@ -159,6 +159,14 @@ export interface BlockComponent {
 	 * cursor at the merge point in a potentially deeply-nested target.
 	 */
 	focusByPath?(path: number[], offset: number): void;
+	/**
+	 * Report viewport-space client rects covering the character range
+	 * [startOffset, endOffset) inside this block's visible text.
+	 * Implemented by text/code leaves that can appear as an endpoint of a
+	 * cross-block selection; SelectionOverlay converts the rects into
+	 * wrapper-local coordinates when painting the partial highlight.
+	 */
+	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
 	readonly editable: boolean;
 	readonly focusable: boolean;
 }
