@@ -9,6 +9,7 @@
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		DOC_KEY,
+		EDITOR_ROOT_KEY,
 		CURSOR_END,
 		type BlockEditActions,
 		type BlockElLookup,
@@ -689,6 +690,7 @@
 	setContext(SELECTION_KEY, selectionState);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
+	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
@@ -706,6 +708,10 @@
 
 	export function getSource(): string {
 		return serializeMutable(doc);
+	}
+
+	export function getSelectionState() {
+		return selectionState;
 	}
 </script>
 
