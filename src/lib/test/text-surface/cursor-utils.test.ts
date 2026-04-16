@@ -47,6 +47,15 @@ describe('cursor-utils', () => {
 			expect(range).not.toBeNull();
 			expect(range!.collapsed).toBe(true);
 		});
+
+		it('clamps end offset beyond content length to end of content', () => {
+			container.textContent = 'hello world';
+			const range = createRangeFromOffsets(container, 6, Number.MAX_SAFE_INTEGER);
+			expect(range).not.toBeNull();
+			// Start at offset 6 inside the text node, end clamped to container end.
+			expect(range!.startOffset).toBe(6);
+			expect(range!.collapsed).toBe(false);
+		});
 	});
 
 	describe('setCursorOffset / getCursorOffset round-trip', () => {
