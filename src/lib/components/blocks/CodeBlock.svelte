@@ -25,6 +25,7 @@
 		getCurrentCursorEditorRelativeX,
 		findOffsetNearestX
 	} from '../../text-surface/sticky-measure';
+	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -92,6 +93,11 @@
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
 		sel?.addRange(range);
+	}
+
+	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
+		if (!el) return [];
+		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
 	}
 
 	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
