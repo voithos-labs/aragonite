@@ -6,11 +6,11 @@ import type { UndoEntry } from '../editor-types';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	const snapshot = parse(source);
+	const point = { path: [blockIndex], offset };
 	return {
 		snapshot,
 		blockIds: assignIds(snapshot.children),
-		focusBlockIndex: blockIndex,
-		focusOffset: offset
+		selection: { anchor: point, focus: point }
 	};
 }
 
@@ -82,8 +82,10 @@ describe('UndoManager', () => {
 		const manager = createUndoManager();
 		manager.push(makeEntry('Hello\n', 2, 15));
 		const restored = manager.undo(CURRENT);
-		expect(restored!.focusBlockIndex).toBe(2);
-		expect(restored!.focusOffset).toBe(15);
+		expect(restored!.selection.anchor.path).toEqual([2]);
+		expect(restored!.selection.anchor.offset).toBe(15);
+		expect(restored!.selection.focus.path).toEqual([2]);
+		expect(restored!.selection.focus.offset).toBe(15);
 	});
 
 	it('full undo-redo-undo cycle', () => {
