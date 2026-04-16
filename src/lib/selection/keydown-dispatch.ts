@@ -260,7 +260,7 @@ export function collectCrossBlockText(
 	let effectiveStartPath = start.path;
 	let startTail: string;
 	if (start.offset === 0 && start.path.length > 1) {
-		const promoted = promoteToContainer(doc, start.path, end.path);
+		const promoted = promoteToContainer(doc, start.path, end.path, 'start');
 		if (promoted) {
 			effectiveStartPath = promoted.path;
 			startTail = promoted.raw;
@@ -274,7 +274,7 @@ export function collectCrossBlockText(
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if (end.offset === displayLength(endRaw) && end.path.length > 1) {
-		const promoted = promoteToContainer(doc, end.path, start.path);
+		const promoted = promoteToContainer(doc, end.path, start.path, 'end');
 		if (promoted) {
 			effectiveEndPath = promoted.path;
 			endHead = promoted.raw;
@@ -313,26 +313,39 @@ export function collectCrossBlockText(
 }
 
 /**
- * Find the deepest ancestor of `leafPath` that is NOT a shared ancestor with
- * `otherPath`. Returns that ancestor's raw text and path, or null if the leaf
- * has no non-shared container ancestor (i.e. it's a top-level block).
+ * Walk up from a leaf endpoint, promoting to the deepest container ancestor
+ * whose content is entirely within the selection scope. For the start side,
+ * promotion is safe only while the child at each level is the first child
+ * (no earlier siblings to accidentally include). For the end side, only while
+ * the child is the last.
  */
 function promoteToContainer(
 	doc: Document,
 	leafPath: number[],
-	otherPath: number[]
+	otherPath: number[],
+	side: 'start' | 'end'
 ): { path: number[]; raw: string } | null {
-	// Find the LCA depth: the first index where the paths diverge
 	const lcaDepth = sharedPrefixLength(leafPath, otherPath);
 
-	// The deepest non-shared ancestor is at depth lcaDepth + 1
-	// (one level below the LCA, on the leaf's side)
-	if (lcaDepth + 1 >= leafPath.length) return null;
+	let bestPath: number[] | null = null;
 
-	const candidatePath = leafPath.slice(0, lcaDepth + 1);
-	const candidate = nodeAt(doc, candidatePath);
-	if (!candidate || !('raw' in candidate)) return null;
-	return { path: candidatePath, raw: (candidate as CstNode).raw };
+	for (let depth = leafPath.length - 1; depth > lcaDepth; depth--) {
+		const parentPath = leafPath.slice(0, depth);
+		const parent = nodeAt(doc, parentPath);
+		if (!parent || !parent.children) break;
+
+		const childIndex = leafPath[depth];
+
+		if (side === 'start' && childIndex !== 0) break;
+		if (side === 'end' && childIndex !== parent.children.length - 1) break;
+
+		bestPath = parentPath;
+	}
+
+	if (!bestPath || bestPath.length <= lcaDepth) return null;
+	const node = nodeAt(doc, bestPath);
+	if (!node || !('raw' in node)) return null;
+	return { path: bestPath, raw: (node as CstNode).raw };
 }
 
 /** Number of shared leading indices between two paths. */

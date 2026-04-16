@@ -370,3 +370,38 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 		expect(nestedCount).toBe(2);
 	});
 });
+
+test.describe('cross-block clipboard: partial list promotion regression', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('selecting last list item + content below copies only that item, not entire list', async () => {
+		await editor.loadContent('1. First\n2. Second\n3. Third\n\n```\ncode\n```\n\nFinal paragraph\n');
+
+		// CST: list [0] → items [0,0]..[0,2] → paragraph leaves;
+		//       code block [1]; paragraph [2]
+		// Select from start of "Third" (path [0,2,0]) to end of document
+		await editor.focusBlockAtPath([0, 2, 0], 0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+
+		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());
+
+		// Only the third item should be included — not the first two
+		expect(clipText).toContain('Third');
+		expect(clipText).not.toContain('First');
+		expect(clipText).not.toContain('Second');
+
+		// The code block and final paragraph should also be copied
+		expect(clipText).toContain('code');
+		expect(clipText).toContain('Final paragraph');
+	});
+});
