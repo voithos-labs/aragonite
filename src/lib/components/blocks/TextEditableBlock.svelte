@@ -480,7 +480,6 @@
 	class="text-editable-block {blockClass}"
 	contenteditable="true"
 	role="textbox"
-	data-block-path={JSON.stringify(myPath)}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}

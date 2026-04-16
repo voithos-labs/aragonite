@@ -5,6 +5,7 @@
 	import CodeBlock from './blocks/CodeBlock.svelte';
 	import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 	import ListBlock from './blocks/ListBlock.svelte';
+	import SelectionOverlay from '../selection/SelectionOverlay.svelte';
 
 	let {
 		node,
@@ -20,26 +21,37 @@
 
 	let myPath = $derived([...parentPath, index]);
 
+	let hostEl: HTMLElement | null = $state(null);
+
 	function headingClass(): string {
 		const level = (node.metadata as { level?: number })?.level ?? 1;
 		return `heading-${level}`;
 	}
 </script>
 
-{#if node.kind === 'paragraph'}
-	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="paragraph-block" />
-{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
-	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass={headingClass()} />
-{:else if node.kind === 'thematicBreak'}
-	<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
-{:else if node.kind === 'fencedCode'}
-	<CodeBlock {node} {index} {myPath} bind:this={ref} />
-{:else if node.kind === 'blockquote'}
-	<BlockquoteBlock {node} {index} {myPath} bind:this={ref} />
-{:else if node.kind === 'list'}
-	<ListBlock {node} {index} {myPath} bind:this={ref} />
-{:else}
-	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
-		 linkReferenceDefinition, table, unrecognized) -->
-	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
-{/if}
+<div class="block-host" data-block-path={JSON.stringify(myPath)} bind:this={hostEl}>
+	{#if node.kind === 'paragraph'}
+		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="paragraph-block" />
+	{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
+		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass={headingClass()} />
+	{:else if node.kind === 'thematicBreak'}
+		<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
+	{:else if node.kind === 'fencedCode'}
+		<CodeBlock {node} {index} {myPath} bind:this={ref} />
+	{:else if node.kind === 'blockquote'}
+		<BlockquoteBlock {node} {index} {myPath} bind:this={ref} />
+	{:else if node.kind === 'list'}
+		<ListBlock {node} {index} {myPath} bind:this={ref} />
+	{:else}
+		<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
+			 linkReferenceDefinition, table, unrecognized) -->
+		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
+	{/if}
+	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} />
+</div>
+
+<style>
+	.block-host {
+		position: relative;
+	}
+</style>

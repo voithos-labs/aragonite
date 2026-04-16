@@ -86,6 +86,6 @@ test.describe('my feature', () => {
 
 **Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous in the 0.3.4 architecture — the wait is for reactivity and render flush, not for a debouncer.
 
-**Block selectors use `.block-list > *`.** The editor renders as `.editor > .block-list > [block elements]`. Individual blocks are children of `.block-list`, not `.editor`.
+**Block selectors drill through the `.block-host` wrapper.** The editor renders as `.editor > .block-list > .block-host > [block element + selection overlay]`. Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling. Helpers resolve the actual block with `.block-list > .block-host > :not(.selection-overlay)`.
 
 **Heading contenteditables include the `## ` prefix.** The block marker is rendered as a dimmed `.md-marker` span inside the contenteditable. `getBlockText(i)` returns the full text including the marker prefix.

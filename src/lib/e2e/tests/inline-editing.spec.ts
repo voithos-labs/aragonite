@@ -216,7 +216,9 @@ test.describe('inline editing', () => {
 		await editor.focusBlockStart(0);
 		// Move cursor to offset 7 via selection
 		await editor.page.evaluate(() => {
-			const block = document.querySelector('.block-list > *') as HTMLElement;
+			const block = document.querySelector(
+				'.block-list > .block-host > :not(.selection-overlay)'
+			) as HTMLElement;
 			if (!block) return;
 			const range = document.createRange();
 			let charCount = 0;
