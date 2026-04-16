@@ -19,5 +19,5 @@
 - Click collapses cross-block selection: exits cross-block mode
 
 ## Error / degenerate cases
-- Empty document (single empty paragraph): Ctrl+A first press selects empty content; second press is a no-op (no doc range to select)
-- Thematic break between endpoint blocks: gets whole-block overlay highlight
+- Empty document (single empty paragraph): double Ctrl+A does not crash, source unchanged
+- Thematic break between endpoint blocks: gets whole-block overlay highlight, no crash

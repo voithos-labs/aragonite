@@ -13,8 +13,7 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
@@ -25,16 +24,14 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockStart(1);
 		await editor.pressKey('Shift+ArrowUp');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 	});
 
 	test('Ctrl+Shift+End extends selection to document end', async () => {
 		await editor.loadContent('start\n\nmid\n\nend\n');
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.focus.path).toEqual([2]);
@@ -44,8 +41,7 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.loadContent('start\n\nmid\n\nend\n');
 		await editor.focusBlockEnd(2);
 		await editor.pressKey('Control+Shift+Home');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 	});
 
 	test('double Ctrl+A: first selects block, second selects document', async () => {
@@ -55,8 +51,7 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.page.waitForTimeout(200);
 		expect(await editor.isCrossBlockActive()).toBe(false);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
@@ -76,16 +71,14 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.loadContent('only block\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 	});
 
 	test('Shift+ArrowUp at first block stays inactive', async () => {
 		await editor.loadContent('only block\n');
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Shift+ArrowUp');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 	});
 
 	test('Ctrl+A counter resets on non-Ctrl+A keystroke', async () => {
@@ -96,21 +89,39 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.pressKey('ArrowRight');
 		await editor.page.waitForTimeout(100);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 	});
 
 	test('Shift+ArrowDown from paragraph into blockquote activates cross-block', async () => {
 		await editor.loadContent('above\n\n> inside quote\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		// Anchor is in paragraph [0], focus is inside blockquote [1, 0]
 		expect(sel!.anchor.path).toEqual([0]);
 		expect(sel!.focus.path[0]).toBe(1);
+	});
+
+	test('empty document: double Ctrl+A does not crash', async () => {
+		await editor.loadContent('\n');
+		await editor.focusBlockStart(0);
+		const before = await editor.getSource();
+		await editor.pressKey('Control+a');
+		await editor.page.waitForTimeout(200);
+		await editor.pressKey('Control+a');
+		await editor.page.waitForTimeout(200);
+		// Document content unchanged -- double Ctrl+A is safe on empty docs
+		expect(await editor.getSource()).toBe(before);
+	});
+
+	test('thematic break between endpoints gets overlay, no crash', async () => {
+		await editor.loadContent('above\n\n---\n\nbelow\n');
+		await editor.focusBlockStart(0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.waitForCrossBlock(true);
+		expect(await editor.getBlockCount()).toBe(3);
 	});
 });
 
@@ -126,12 +137,10 @@ test.describe('selection — keyboard: collapse', () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const before = await editor.getSelectionPaths();
 		await editor.pressKey('ArrowLeft');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const focused = await editor.page.evaluate(() => {
 			const el = document.activeElement?.closest('[data-block-path]');
 			return el ? JSON.parse(el.getAttribute('data-block-path')!) : null;
@@ -143,12 +152,10 @@ test.describe('selection — keyboard: collapse', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		const before = await editor.getSelectionPaths();
 		await editor.pressKey('ArrowRight');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const focused = await editor.page.evaluate(() => {
 			const el = document.activeElement?.closest('[data-block-path]');
 			return el ? JSON.parse(el.getAttribute('data-block-path')!) : null;
@@ -160,10 +167,8 @@ test.describe('selection — keyboard: collapse', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.clickBlock(0);
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 	});
 });

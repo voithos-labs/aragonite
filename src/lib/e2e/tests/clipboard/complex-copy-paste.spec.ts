@@ -21,8 +21,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		// Anchor at start of block 3, extend selection past end of block 4
 		await editor.focusBlockStart(3);
 		await editor.shiftClickBlock([4], 67); // full link paragraph
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -38,8 +37,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		// Anchor at start of "### Heading 3", extend to end of block 3
 		await editor.focusBlockStart(2);
 		await editor.shiftClickBlock([3], 70); // near end of formatted paragraph
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -62,8 +60,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		// Anchor at "Item three" [7,2,0], extend to "First" [8,0,0]
 		await editor.focusBlockAtPath([7, 2, 0], 0);
 		await editor.shiftClickBlock([8, 0, 0], 5); // end of "First"
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -80,8 +77,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		// Start inside blockquote [6,1], Ctrl+Shift+End to select through end
 		await editor.focusBlockAtPath([6, 1], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -97,7 +93,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		// "Third" = [8,2,0]
 		await editor.focusBlockAtPath([8, 2, 0], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -135,8 +131,7 @@ test.describe('clipboard — code block boundary and direction', () => {
 	test('bottom-to-top selection copies the block above', async () => {
 		await editor.focusBlockStart(1);
 		await editor.pressKey('Shift+ArrowUp');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -162,8 +157,7 @@ test.describe('clipboard — cut three blocks then undo', () => {
 		// Select from "# Heading 1" start to "### Heading 3" end via shift-click
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([2], 13); // end of "### Heading 3"
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(300);
