@@ -52,6 +52,7 @@
 	import { findBlockPathForElement } from '../../selection/path-lookup';
 	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
 	import { installDragListener } from '../../selection/drag-pointer';
+	import { parse } from '../../core/parser';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -285,7 +286,7 @@
 		}
 	}
 
-	function onKeyDown(e: KeyboardEvent): void {
+	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
 
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
@@ -302,7 +303,7 @@
 
 		// Cross-block dispatch: extend/collapse/select-all while cross-block.
 		if (selection.isCrossBlock) {
-			if (handleCrossBlockKeydown(e)) return;
+			if (await handleCrossBlockKeydown(e)) return;
 		}
 
 		// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
@@ -506,13 +507,13 @@
 	 * components (not Editor.svelte) so each block's existing arrow-key
 	 * geometry stays colocated with the shift-aware branch.
 	 */
-	function handleCrossBlockKeydown(e: KeyboardEvent): boolean {
+	async function handleCrossBlockKeydown(e: KeyboardEvent): Promise<boolean> {
 		if (!el) return false;
 		const doc = getDoc();
 
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
-			performCrossBlockDelete(crossBlockCtx, () => tick());
+			await performCrossBlockDelete(crossBlockCtx, async () => { await tick(); });
 			return true;
 		}
 
@@ -682,8 +683,8 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+		if (selection.isCrossBlock) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
 			e.clipboardData?.setData('text/plain', text);
 			return;
 		}
@@ -693,8 +694,8 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+		if (selection.isCrossBlock) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
 			e.clipboardData?.setData('text/plain', text);
 			await performCrossBlockDelete(crossBlockCtx, () => tick());
 			return;
@@ -718,20 +719,26 @@
 		const pasted = e.clipboardData?.getData('text/plain') ?? '';
 		if (!pasted) return;
 
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+		if (selection.isCrossBlock) {
 			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
 			if (!caret) return;
-			// After cross-block delete, insert pasted text at the collapsed caret.
 			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
 			if (!targetNode || !('raw' in targetNode)) return;
 			const targetDisplay = trimTrailingLineEnding(targetNode.raw);
-			const newDisplay = targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset);
-			blockEdit.updateBlockContent(
-				caret.path[caret.path.length - 1],
-				newDisplay + '\n',
-				caret.offset + pasted.length
-			);
-			pendingCursorOffset = caret.offset + pasted.length;
+			const parsed = parse(pasted);
+
+			if (parsed.children.length <= 1) {
+				const newDisplay = targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset);
+				blockEdit.updateBlockContent(
+					caret.path[caret.path.length - 1],
+					newDisplay + '\n',
+					caret.offset + pasted.length
+				);
+				pendingCursorOffset = caret.offset + pasted.length;
+			} else {
+				const targetIndex = caret.path[caret.path.length - 1];
+				blockEdit.insertParsedBlocks(targetIndex, caret.offset, parsed.children);
+			}
 			return;
 		}
 

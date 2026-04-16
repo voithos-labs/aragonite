@@ -3,7 +3,7 @@
  * See e2e/requirements/sticky-column.md.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../editor-page';
+import { EditorPage } from '../../editor-page';
 
 test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 	let editor: EditorPage;

@@ -261,7 +261,7 @@
 		onInput();
 	}
 
-	function onKeyDown(e: KeyboardEvent): void {
+	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
 
 		// Save cursor position before the browser modifies the DOM
@@ -281,7 +281,7 @@
 		// collapse/extend/select-all branches run first and short-circuit the
 		// rest of the single-block handler.
 		if (selection.isCrossBlock) {
-			if (handleCrossBlockKeydown(e)) return;
+			if (await handleCrossBlockKeydown(e)) return;
 		}
 
 		// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
@@ -449,13 +449,13 @@
 	 * block that first captured the anchor. Unshifted arrow collapses back
 	 * to single-block mode.
 	 */
-	function handleCrossBlockKeydown(e: KeyboardEvent): boolean {
+	async function handleCrossBlockKeydown(e: KeyboardEvent): Promise<boolean> {
 		if (!el) return false;
 		const doc = getDoc();
 
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
-			performCrossBlockDelete(crossBlockCtx, () => tick());
+			await performCrossBlockDelete(crossBlockCtx, async () => { await tick(); });
 			return true;
 		}
 
@@ -589,8 +589,8 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+		if (selection.isCrossBlock) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
 			e.clipboardData?.setData('text/plain', text);
 			return;
 		}
@@ -601,8 +601,8 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+		if (selection.isCrossBlock) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
 			e.clipboardData?.setData('text/plain', text);
 			await performCrossBlockDelete(crossBlockCtx, () => tick());
 			return;
@@ -626,11 +626,9 @@
 		const pastedText = e.clipboardData?.getData('text/plain') ?? '';
 		if (!pastedText) return;
 
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+		if (selection.isCrossBlock) {
 			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
 			if (!caret) return;
-			// After deletion the caret block is rendered and focused. Delegate to
-			// the single-block paste path by inserting at the collapsed position.
 			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
 			if (!targetNode || !('raw' in targetNode)) return;
 			const targetDisplay = trimTrailingLineEnding(targetNode.raw);

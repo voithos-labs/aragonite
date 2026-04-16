@@ -3,7 +3,7 @@
  * See e2e/requirements/sticky-column.md.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../editor-page';
+import { EditorPage } from '../../editor-page';
 
 const PIXEL_TOLERANCE = 5;
 

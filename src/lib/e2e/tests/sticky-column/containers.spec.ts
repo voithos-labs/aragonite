@@ -1,10 +1,10 @@
 /**
  * Sticky column — container traversal, transparent blocks, and edge cases.
  * See e2e/requirements/sticky-column.md. Code-block entry symmetry lives in
- * sticky-column-code-block-entry.spec.ts.
+ * code-block-entry.spec.ts.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../editor-page';
+import { EditorPage } from '../../editor-page';
 
 const PIXEL_TOLERANCE = 5;
 
@@ -104,7 +104,7 @@ test.describe('sticky column: transparent blocks', () => {
 	});
 });
 
-// Code block entry behavior is pinned by sticky-column-code-block-entry.spec.ts.
+// Code block entry behavior is pinned by code-block-entry.spec.ts.
 // The pre-0.3.5 "code block is opaque" test that used to live here asserted the
 // cursor landed at the left edge on entry — a claim that happened to stay true
 // only because short opener/closer fence lines clamp any high sticky X. The
