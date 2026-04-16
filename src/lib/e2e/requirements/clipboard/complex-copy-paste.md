@@ -12,7 +12,7 @@ Real-world copy-paste against the full DEFAULT_CONTENT document structure.
 - Copy from blockquote second paragraph to document end: list markers and code block present
 - Copy from ordered list last item across code block to final paragraph: only selected content
 - Select inside code block across its boundary into paragraph: code content + paragraph text
-- Bottom-to-top cross-block copy: both blocks present in clipboard (BUG: currently produces empty text)
+- Bottom-to-top (reverse) cross-block copy: block above anchor is present, anchor block excluded when anchor offset is 0
 
 ## User interactions
 - Cut three headings then undo: exact restoration of all blocks

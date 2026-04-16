@@ -120,13 +120,20 @@ export function extendFocusToNextBlock(
 /**
  * Extend cross-block focus to the previous leaf block in document order.
  * Called on Shift+ArrowUp / Shift+ArrowLeft leaving the current block.
- * Places focus at the end of the target leaf's raw content.
+ *
+ * `side` controls where the focus lands within the target leaf:
+ *   - `'end'` (default): offset at the end of the leaf's display content.
+ *     Correct for Shift+ArrowLeft, which crosses the boundary by one
+ *     character.
+ *   - `'start'`: offset 0. Correct for Shift+ArrowUp, which selects the
+ *     entire previous line (matching native multi-line selection behavior).
  */
 export function extendFocusToPreviousBlock(
 	selection: SelectionState,
 	doc: Document,
 	currentBlockEl: HTMLElement,
-	currentBlockPath: number[]
+	currentBlockPath: number[],
+	side: 'start' | 'end' = 'end'
 ): boolean {
 	const target = previousPath(doc, currentBlockPath);
 	if (!target) return false;
@@ -136,7 +143,8 @@ export function extendFocusToPreviousBlock(
 	if (!selection.isCrossBlock) {
 		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
-	selection.extendFocus({ path: leafTarget, offset: leafOffsetEnd(doc, leafTarget) });
+	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
+	selection.extendFocus({ path: leafTarget, offset });
 	return true;
 }
 
