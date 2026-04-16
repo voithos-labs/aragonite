@@ -229,6 +229,12 @@ export function handleShiftClick(
  * Collect the plain-text content spanning a cross-block selection. Includes
  * the tail of the start block's raw, the full leadingTrivia + raw of every
  * middle block, and the head of the end block's raw.
+ *
+ * walkBetween yields ALL paths (containers AND their children). A container's
+ * raw already includes its children's text, so collecting both would duplicate
+ * content. We skip descendants of already-collected containers, and also skip
+ * ancestors of the start/end paths (those are handled by the partial
+ * tail/head slicing).
  */
 export function collectCrossBlockText(
 	doc: Document,
@@ -245,14 +251,37 @@ export function collectCrossBlockText(
 
 	const startTail = startRaw.slice(start.offset);
 	let middle = '';
+	const collectedContainers: number[][] = [];
+
 	for (const path of walkBetween(doc, start.path, end.path)) {
+		// Ancestors of start/end — partial text handled by startTail / endHead
+		if (isStrictAncestorOf(path, start.path)) continue;
+		if (isStrictAncestorOf(path, end.path)) continue;
+
+		// Descendants of an already-collected container — text already included
+		if (collectedContainers.some((cp) => isStrictAncestorOf(cp, path))) continue;
+
 		const node = nodeAt(doc, path);
 		if (!node || !('raw' in node)) continue;
 		const lead = 'leadingTrivia' in node ? (node as CstNode).leadingTrivia : '';
 		middle += lead + (node as CstNode).raw;
+
+		// Record containers so their descendants are skipped
+		if (node.children && node.children.length > 0) {
+			collectedContainers.push(path);
+		}
 	}
 	const endHead = endRaw.slice(0, end.offset);
 	return startTail + middle + endHead;
+}
+
+/** True if `ancestor` is a strict prefix of `descendant`'s path. */
+function isStrictAncestorOf(ancestor: number[], descendant: number[]): boolean {
+	if (ancestor.length >= descendant.length) return false;
+	for (let i = 0; i < ancestor.length; i++) {
+		if (ancestor[i] !== descendant[i]) return false;
+	}
+	return true;
 }
 
 /** Everything a cross-block mutation needs from the calling block component. */

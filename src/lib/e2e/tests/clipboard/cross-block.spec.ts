@@ -294,3 +294,47 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		expect(source).toContain('Second');
 	});
 });
+
+test.describe('cross-block clipboard: list duplication regression', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('cross-block copy of a list does not duplicate nested content', async () => {
+		await editor.loadContent('before\n\n- Item one\n- Item two\n  - Nested item\n- Item three\n\nafter\n');
+
+		// path [0]="before", [1]=list, [2]="after"
+		// Focus the start of "before" paragraph via its CST path
+		await editor.focusBlockAtPath([0], 0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		// Copy
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+
+		// Collapse and focus end of "after" paragraph via CST path [2]
+		await editor.pressKey('ArrowRight');
+		await editor.page.waitForTimeout(100);
+		await editor.focusBlockAtPath([2], 5); // "after" has 5 chars
+		await editor.page.waitForTimeout(100);
+
+		// Paste
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+
+		// "Item two" should appear exactly twice (original + paste).
+		// The bug produced 3+ copies due to container + leaf duplication.
+		const itemTwoCount = source.split('Item two').length - 1;
+		expect(itemTwoCount).toBe(2);
+
+		const nestedCount = source.split('Nested item').length - 1;
+		expect(nestedCount).toBe(2);
+	});
+});
