@@ -71,7 +71,7 @@ export function clearNativeSelection(): void {
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
-	blockRefs: { getCursorOffset(): number | null }[],
+	blockRefs: ({ getCursorOffset(): number | null } | undefined)[],
 	buildCollapsed: (blockIndex: number, offset: number) => EditorSelection
 ): EditorSelection {
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
@@ -82,7 +82,7 @@ export function readCurrentSelection(
 	}
 	const focusedIndex = Math.max(
 		0,
-		blockRefs.findIndex((b) => b?.getCursorOffset() !== null)
+		blockRefs.findIndex((b) => b !== undefined && b.getCursorOffset() !== null)
 	);
 	const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset() ?? 0;
 	return buildCollapsed(focusedIndex, focusedOffset);
