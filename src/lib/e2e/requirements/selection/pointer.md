@@ -8,6 +8,7 @@
 ## Edge cases
 - Click-drag that stays inside one block: no cross-block mode entered
 - Click without shift while cross-block active: collapses selection
+- Click collapse restores native caret in the clicked block: typing inserts at click point
 
 ## User interactions
 - Drag across a blockquote boundary: cross-container selection works
