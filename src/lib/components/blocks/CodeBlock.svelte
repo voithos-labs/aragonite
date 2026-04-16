@@ -35,26 +35,13 @@
 	} from '../../text-surface/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import {
-		performCrossBlockDelete,
-		performCrossBlockDeleteSync,
-		type CrossBlockMutationContext
-	} from '../../selection/cross-block-ops';
-	import {
-		collapseCrossBlock,
 		extendFocusToNextBlock,
 		extendFocusToPreviousBlock,
-		extendFocusToDocEdge,
-		selectWholeDocument,
-		handleShiftClick,
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
 	import { nodeAt } from '../../selection/path-lookup';
-	import { findBlockPathForElement } from '../../selection/path-lookup';
-	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
-	import { installDragListener } from '../../selection/drag-pointer';
-	import { parse } from '../../core/parser';
+	import { createCrossBlockHandlers } from '../../selection/cross-block-surface';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -93,13 +80,33 @@
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
-	const crossBlockCtx: CrossBlockMutationContext = {
+	const crossBlock = createCrossBlockHandlers({
+		getEl: () => el ?? null,
+		getMyPath: () => myPath,
+		getIndex: () => index,
 		selection,
 		getDoc,
 		getBlockElByPath,
-		pushUndoSnapshot: () => containerEdit.beginContainerEdit(index, getCursorOffsetHelper(el!) ?? 0),
-		notifyDocMutated: () => containerEdit.endContainerEdit()
-	};
+		getEditorRoot,
+		stickyColumn,
+		containerEdit,
+		blockEdit,
+		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
+		afterReactivity: () => tick(),
+		setPendingCursor: (offset) => { pendingCursorOffset = offset; },
+		onTypeReplace: (caret, typed) => {
+			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
+			if (!targetNode || !('raw' in targetNode)) return;
+			const raw = targetNode.raw;
+			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
+			blockEdit.updateBlockContent(
+				caret.path[caret.path.length - 1],
+				newRaw,
+				caret.offset + typed.length
+			);
+			pendingCursorOffset = caret.offset + typed.length;
+		}
+	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -185,10 +192,7 @@
 	}
 
 	function onCompositionStart(): void {
-		stickyColumn.reset();
-		if (selection.isCrossBlock) {
-			performCrossBlockDeleteSync(crossBlockCtx);
-		}
+		crossBlock.handleCompositionStart();
 		composing = true;
 	}
 
@@ -223,24 +227,7 @@
 			onInput();
 			return;
 		}
-		// Cross-block type-replace: delete the range, then insert the typed char.
-		if (selection.isCrossBlock && e.inputType === 'insertText') {
-			e.preventDefault();
-			const typed = e.data ?? '';
-			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
-			if (!caret || !typed) return;
-			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
-			if (!targetNode || !('raw' in targetNode)) return;
-			const raw = targetNode.raw;
-			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
-			blockEdit.updateBlockContent(
-				caret.path[caret.path.length - 1],
-				newRaw,
-				caret.offset + typed.length
-			);
-			pendingCursorOffset = caret.offset + typed.length;
-			return;
-		}
+		if (await crossBlock.handleBeforeInput(e)) return;
 		if (composing || e.inputType !== 'insertText' || !el) return;
 		const data = e.data;
 		if (!data || data.length !== 1) return;
@@ -303,13 +290,7 @@
 			selection.resetSelectAllCount();
 		}
 
-		// Cross-block dispatch: extend/collapse/select-all while cross-block.
-		if (selection.isCrossBlock) {
-			if (await handleCrossBlockKeydown(e)) return;
-		}
-
-		// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
-		if (handleCrossBlockEntryKeydown(e)) return;
+		if (await crossBlock.handleKeyDown(e)) return;
 
 		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
 			const x = getCurrentCursorEditorRelativeX(el!);
@@ -501,131 +482,6 @@
 		}
 	}
 
-	// ── Cross-block dispatch helpers ────────────────────────────────────
-
-	/**
-	 * Handle a keystroke while cross-block mode is active. Mirrors the
-	 * TextEditableBlock implementation — the handlers live in block
-	 * components (not Editor.svelte) so each block's existing arrow-key
-	 * geometry stays colocated with the shift-aware branch.
-	 */
-	async function handleCrossBlockKeydown(e: KeyboardEvent): Promise<boolean> {
-		if (!el) return false;
-		const doc = getDoc();
-
-		// Cross-block Copy — handle at keydown level because the browser
-		// suppresses `copy` events when the native selection is cleared.
-		if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
-			e.preventDefault();
-			const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
-			await navigator.clipboard.writeText(text);
-			return true;
-		}
-
-		// Cross-block Cut — same browser limitation as Copy.
-		if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey) {
-			e.preventDefault();
-			const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
-			await navigator.clipboard.writeText(text);
-			await performCrossBlockDelete(crossBlockCtx, () => tick());
-			return true;
-		}
-
-		if (e.key === 'Backspace' || e.key === 'Delete') {
-			e.preventDefault();
-			await performCrossBlockDelete(crossBlockCtx, async () => { await tick(); });
-			return true;
-		}
-
-		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
-			e.preventDefault();
-			extendFocusToDocEdge(selection, doc, el, myPath, 'end');
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
-			e.preventDefault();
-			extendFocusToDocEdge(selection, doc, el, myPath, 'start');
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-
-		if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
-			e.preventDefault();
-			const focusPath = selection.focus?.path ?? myPath;
-			extendFocusToNextBlock(selection, doc, el, focusPath);
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-		if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
-			e.preventDefault();
-			const focusPath = selection.focus?.path ?? myPath;
-			const side = e.key === 'ArrowUp' ? 'start' as const : 'end' as const;
-			extendFocusToPreviousBlock(selection, doc, el, focusPath, side);
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-
-		if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
-			e.preventDefault();
-			collapseCrossBlock(selection, 'start', getBlockElByPath);
-			return true;
-		}
-		if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
-			e.preventDefault();
-			collapseCrossBlock(selection, 'end', getBlockElByPath);
-			return true;
-		}
-
-		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
-			e.preventDefault();
-			selectWholeDocument(selection, doc);
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Handle single-block-to-cross-block entry points that don't need a
-	 * boundary geometry check: Ctrl+Shift+Home/End and the first or second
-	 * press of Ctrl+A. Shift+Arrow at the block boundary is handled inline
-	 * in the existing arrow-key branches below.
-	 */
-	function handleCrossBlockEntryKeydown(e: KeyboardEvent): boolean {
-		if (!el) return false;
-
-		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
-			e.preventDefault();
-			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'end');
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
-			e.preventDefault();
-			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'start');
-			scrollFocusBlockIntoView(selection, getBlockElByPath);
-			return true;
-		}
-
-		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
-			e.preventDefault();
-			selection.incrementSelectAllCount();
-			if (selection.selectAllCount === 1) {
-				const range = document.createRange();
-				range.selectNodeContents(el);
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(range);
-				return true;
-			}
-			selectWholeDocument(selection, getDoc());
-			return true;
-		}
-
-		return false;
-	}
-
 	/** Collapse the contenteditable's current selection to a `{start,end}` range. */
 	function currentRange(): { start: number; end: number } {
 		const sel = getSelectionOffsetsHelper(el!);
@@ -658,47 +514,7 @@
 	}
 
 	function onPointerDown(e: PointerEvent): void {
-		stickyColumn.reset();
-		selection.resetSelectAllCount();
-
-		if (e.shiftKey && el) {
-			const prevActive = document.activeElement;
-			const prevFocusEl =
-				prevActive instanceof HTMLElement && prevActive !== el
-					? (prevActive.closest('[contenteditable]') as HTMLElement | null)
-					: null;
-			const prevFocusPath = findBlockPathForElement(prevActive);
-			const handled = handleShiftClick(
-				selection,
-				el,
-				myPath,
-				e.clientX,
-				e.clientY,
-				prevFocusEl,
-				prevFocusPath
-			);
-			if (handled) {
-				e.preventDefault();
-				return;
-			}
-		}
-
-		if (selection.isCrossBlock && !e.shiftKey) {
-			selection.clear();
-			clearNativeSelection();
-		}
-
-		// Install drag listener for potential cross-block drag selection.
-		if (!e.shiftKey && el) {
-			const root = getEditorRoot();
-			if (!root) return;
-			const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
-			if (offset === null) return;
-			installDragListener(
-				{ editorRoot: root, scrollContainer: root, selection },
-				{ path: myPath.slice(), offset }
-			);
-		}
+		if (crossBlock.handlePointerDown(e)) return;
 	}
 
 	function onCopy(e: ClipboardEvent): void {
@@ -723,34 +539,13 @@
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (await crossBlock.handlePaste(e)) return;
+
 		stickyColumn.reset();
 		if (!el) return;
 		e.preventDefault();
 		const pasted = e.clipboardData?.getData('text/plain') ?? '';
 		if (!pasted) return;
-
-		if (selection.isCrossBlock) {
-			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
-			if (!caret) return;
-			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
-			if (!targetNode || !('raw' in targetNode)) return;
-			const targetDisplay = trimTrailingLineEnding(targetNode.raw);
-			const parsed = parse(pasted);
-
-			if (parsed.children.length <= 1) {
-				const newDisplay = targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset);
-				blockEdit.updateBlockContent(
-					caret.path[caret.path.length - 1],
-					newDisplay + '\n',
-					caret.offset + pasted.length
-				);
-				pendingCursorOffset = caret.offset + pasted.length;
-			} else {
-				const targetIndex = caret.path[caret.path.length - 1];
-				blockEdit.insertParsedBlocks(targetIndex, caret.offset, parsed.children);
-			}
-			return;
-		}
 
 		const meta = node.metadata as FencedCodeMetadata;
 		const result = computeCodePaste({
