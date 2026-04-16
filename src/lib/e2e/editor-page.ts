@@ -48,12 +48,16 @@ export class EditorPage {
 
 	/** Get the nth top-level block element in the editor. */
 	getBlock(index: number): Locator {
-		return this.page.locator('.block-list > *').nth(index);
+		return this.page
+			.locator('.block-list > .block-host')
+			.nth(index)
+			.locator(':scope > *:not(.selection-overlay)')
+			.first();
 	}
 
 	/** Get all top-level block elements. */
 	getBlocks(): Locator {
-		return this.page.locator('.block-list > *');
+		return this.page.locator('.block-list > .block-host > *:not(.selection-overlay)');
 	}
 
 	/** Get the text content of the nth block from the DOM. */
@@ -71,7 +75,9 @@ export class EditorPage {
 	/** Focus a block and place the cursor at the end of its content. */
 	async focusBlockEnd(index: number) {
 		await this.page.evaluate((idx) => {
-			const blocks = document.querySelectorAll('.block-list > *');
+			const blocks = document.querySelectorAll(
+				'.block-list > .block-host > :not(.selection-overlay)'
+			);
 			const block = blocks[idx] as HTMLElement;
 			if (!block) return;
 			block.focus();
@@ -88,7 +94,9 @@ export class EditorPage {
 	async focusBlock(index: number, offset: number) {
 		await this.page.evaluate(
 			({ idx, off }) => {
-				const blocks = document.querySelectorAll('.block-list > *');
+				const blocks = document.querySelectorAll(
+					'.block-list > .block-host > :not(.selection-overlay)'
+				);
 				const block = blocks[idx] as HTMLElement;
 				if (!block) return;
 				block.focus();
@@ -129,7 +137,9 @@ export class EditorPage {
 	/** Focus a block and place the cursor at the start of its content. */
 	async focusBlockStart(index: number) {
 		await this.page.evaluate((idx) => {
-			const blocks = document.querySelectorAll('.block-list > *');
+			const blocks = document.querySelectorAll(
+				'.block-list > .block-host > :not(.selection-overlay)'
+			);
 			const block = blocks[idx] as HTMLElement;
 			if (!block) return;
 			block.focus();
