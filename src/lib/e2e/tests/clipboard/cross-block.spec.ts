@@ -202,3 +202,53 @@ test.describe('cross-block clipboard: paste', () => {
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
 });
+
+test.describe('cross-block clipboard: multi-block paste at single caret', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('pasting two paragraphs creates multiple blocks', async () => {
+		await editor.loadContent('Hello\n');
+		await editor.focusBlockEnd(0);
+		await editor.page.evaluate(() => {
+			const el = document.activeElement;
+			if (!el) return;
+			const dt = new DataTransfer();
+			dt.setData('text/plain', '# Heading\n\nNew paragraph\n');
+			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			el.dispatchEvent(event);
+		});
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toContain('# Heading');
+		expect(source).toContain('New paragraph');
+		expect(await editor.getBlockCount()).toBeGreaterThan(1);
+	});
+
+	test('multi-block paste replaces selected text', async () => {
+		await editor.loadContent('Hello World\n');
+		await editor.focusBlock(0, 6);
+		for (let i = 0; i < 5; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.evaluate(() => {
+			const el = document.activeElement;
+			if (!el) return;
+			const dt = new DataTransfer();
+			dt.setData('text/plain', 'First\n\nSecond');
+			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			el.dispatchEvent(event);
+		});
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).not.toContain('World');
+		expect(source).toContain('Hello ');
+		expect(source).toContain('First');
+		expect(source).toContain('Second');
+	});
+});
