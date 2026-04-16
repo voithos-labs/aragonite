@@ -42,6 +42,9 @@ export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 /** Svelte context key for the editor's cross-block SelectionState. See `selection/selection-state.svelte.ts`. */
 export const SELECTION_KEY = Symbol('selection');
 
+/** Svelte context key for a lazy getter returning the editor's root DOM element. */
+export const EDITOR_ROOT_KEY = Symbol('editor-root');
+
 /**
  * Svelte context key for a `BlockElLookup` callback that resolves a block
  * path to its DOM element. Block components call this to find the focus or
