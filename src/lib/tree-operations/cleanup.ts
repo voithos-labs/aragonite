@@ -3,7 +3,8 @@
  * Used by range-delete and any future operation that removes blocks.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
+import { nodeAt } from './generic';
 
 /**
  * Walk from `deletedPath`'s parent up toward the document root, removing
@@ -35,13 +36,4 @@ export function cascadeCleanupEmptyAncestors(
 		parent.children.splice(idx, 1);
 		currentPath = parentPath;
 	}
-}
-
-function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
-	let cur: CstNode | Document = doc;
-	for (const idx of path) {
-		if (!cur.children || idx >= cur.children.length) return null;
-		cur = cur.children[idx];
-	}
-	return cur;
 }

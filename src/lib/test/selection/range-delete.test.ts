@@ -60,7 +60,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 			{ path: [0, 0], offset: 7 },
 			{ path: [1], offset: 6 }
 		);
-		expect(source).toContain('> inside paragraph');
+		expect(source).toBe('> inside paragraph\n');
 		expect(caret).toEqual({ path: [0, 0], offset: 7 });
 	});
 

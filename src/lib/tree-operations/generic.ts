@@ -1,11 +1,11 @@
 /**
- * Kind-agnostic tree mutations: split, merge, delete, update, and ancestry
- * raw-rebuild dispatch. These operate on any NodeParent regardless of the
- * children's block kinds. Kind-specific unwrap and merge logic lives in
+ * Kind-agnostic tree mutations: path resolution, split, merge, delete, update,
+ * and ancestry raw-rebuild dispatch. These operate on any NodeParent regardless
+ * of the children's block kinds. Kind-specific unwrap and merge logic lives in
  * sibling files (`list.ts`, `blockquote.ts`).
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { generateBlockId } from '../mutable-tree';
 import { trimTrailingLineEnding } from '../raw-text';
@@ -14,6 +14,21 @@ import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './cont
 // ── Types ──
 
 export type NodeParent = { children: CstNode[] };
+
+// ── Path resolution ──
+
+/**
+ * Resolve a node by walking a path of child indices from the document root.
+ * Returns null if the path does not correspond to an existing node.
+ */
+export function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
+	let cur: CstNode | Document = doc;
+	for (const idx of path) {
+		if (!cur.children || idx >= cur.children.length) return null;
+		cur = cur.children[idx];
+	}
+	return cur;
+}
 
 // ── Split ──
 
@@ -225,7 +240,7 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 		// Rebuild just the root container. Valid when the caller wants to
 		// refresh `root.raw` without having mutated anything deeper — e.g.,
 		// after a top-level child was replaced directly. If `root` is not a
-		// container, `rebuildContainerRaw` throws (enforced in Fix 1).
+		// container, `rebuildContainerRaw` throws.
 		rebuildContainerRaw(root);
 		return;
 	}
@@ -248,10 +263,11 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 }
 
 /**
- * Dispatch to the correct per-kind rebuild helper. Private — only used by
- * rebuildAncestryRaw and future callers that need kind-dispatched rebuilding.
+ * Dispatch to the correct per-kind rebuild helper. Throws when `node` isn't a
+ * container — callers that walk ancestry chains and may encounter leaves should
+ * use {@link rebuildContainerRawIfContainer} instead.
  */
-function rebuildContainerRaw(node: CstNode): void {
+export function rebuildContainerRaw(node: CstNode): void {
 	switch (node.kind) {
 		case 'blockquote':
 			rebuildBlockquoteRaw(node);
@@ -272,5 +288,22 @@ function rebuildContainerRaw(node: CstNode): void {
 			throw new Error(
 				`rebuildContainerRaw: unexpected kind "${node.kind}" — only container kinds (blockquote, list, listItem) are valid`
 			);
+	}
+}
+
+/**
+ * Rebuild `raw` when `node` is a container kind; no-op on leaves. Used by
+ * callers that walk an ancestry chain where some ancestors may be leaf blocks
+ * (e.g., the path points at a paragraph inside a top-level list item).
+ */
+export function rebuildContainerRawIfContainer(node: CstNode): void {
+	switch (node.kind) {
+		case 'blockquote':
+		case 'list':
+		case 'listItem':
+			rebuildContainerRaw(node);
+			return;
+		default:
+			return;
 	}
 }
