@@ -5,7 +5,12 @@
 		FOCUS_KEY,
 		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
+		SELECTION_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		DOC_KEY,
 		type BlockEditActions,
+		type BlockElLookup,
+		type DocumentGetter,
 		type FocusActions,
 		type HistoryActions,
 		type CstNode,
@@ -26,6 +31,18 @@
 		findOffsetNearestX
 	} from '../../text-surface/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
+	import type { SelectionState } from '../../selection/selection-state.svelte';
+	import {
+		collapseCrossBlock,
+		extendFocusToNextBlock,
+		extendFocusToPreviousBlock,
+		extendFocusToDocEdge,
+		selectWholeDocument,
+		handleShiftClick,
+		scrollFocusBlockIntoView
+	} from '../../selection/keydown-dispatch';
+	import { findBlockPathForElement } from '../../selection/path-lookup';
+	import { clearNativeSelection } from '../../selection/native-bridge';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -52,6 +69,9 @@
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -233,6 +253,19 @@
 
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
+		// Reset Ctrl+A doubling counter on any non-Ctrl+A keystroke.
+		if (!((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey)) {
+			selection.resetSelectAllCount();
+		}
+
+		// Cross-block dispatch: extend/collapse/select-all while cross-block.
+		if (selection.isCrossBlock) {
+			if (handleCrossBlockKeydown(e)) return;
+		}
+
+		// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
+		if (handleCrossBlockEntryKeydown(e)) return;
+
 		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
 			const x = getCurrentCursorEditorRelativeX(el!);
 			if (x !== null) stickyColumn.capture(x);
@@ -346,38 +379,66 @@
 			return;
 		}
 
-		if (e.key === 'ArrowUp' && !e.shiftKey) {
+		if (e.key === 'ArrowUp') {
 			const offset = getCursorOffsetHelper(el!) ?? 0;
 			if (isAtFirstVisualLine(el!, offset)) {
-				e.preventDefault();
-				focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-				return;
+				if (e.shiftKey && offset === 0) {
+					e.preventDefault();
+					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
+				if (!e.shiftKey) {
+					e.preventDefault();
+					focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+					return;
+				}
 			}
 		}
 
-		if (e.key === 'ArrowDown' && !e.shiftKey) {
+		if (e.key === 'ArrowDown') {
 			const offset = getCursorOffsetHelper(el!) ?? 0;
 			const textLen = (el?.textContent ?? '').length;
 			if (isAtLastVisualLine(el!, offset, textLen)) {
-				e.preventDefault();
-				focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-				return;
+				if (e.shiftKey && offset === textLen) {
+					e.preventDefault();
+					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
+				if (!e.shiftKey) {
+					e.preventDefault();
+					focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+					return;
+				}
 			}
 		}
 
-		if (e.key === 'ArrowLeft' && !e.shiftKey && el) {
+		if (e.key === 'ArrowLeft' && el) {
 			const offset = getCursorOffsetHelper(el);
 			if (offset === 0) {
+				if (e.shiftKey) {
+					e.preventDefault();
+					extendFocusToPreviousBlock(selection, getDoc(), el, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 		}
 
-		if (e.key === 'ArrowRight' && !e.shiftKey && el) {
+		if (e.key === 'ArrowRight' && el) {
 			const textLen = (el.textContent ?? '').length;
 			const offset = getCursorOffsetHelper(el);
 			if (offset === textLen) {
+				if (e.shiftKey) {
+					e.preventDefault();
+					extendFocusToNextBlock(selection, getDoc(), el, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
 				e.preventDefault();
 				focusActions.moveFocus(index + 1, 'start');
 				return;
@@ -393,6 +454,100 @@
 			}
 			return;
 		}
+	}
+
+	// ── Cross-block dispatch helpers ────────────────────────────────────
+
+	/**
+	 * Handle a keystroke while cross-block mode is active. Mirrors the
+	 * TextEditableBlock implementation — the handlers live in block
+	 * components (not Editor.svelte) so each block's existing arrow-key
+	 * geometry stays colocated with the shift-aware branch.
+	 */
+	function handleCrossBlockKeydown(e: KeyboardEvent): boolean {
+		if (!el) return false;
+		const doc = getDoc();
+
+		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, doc, el, myPath, 'end');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, doc, el, myPath, 'start');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+			e.preventDefault();
+			const focusPath = selection.focus?.path ?? myPath;
+			extendFocusToNextBlock(selection, doc, el, focusPath);
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+			e.preventDefault();
+			const focusPath = selection.focus?.path ?? myPath;
+			extendFocusToPreviousBlock(selection, doc, el, focusPath);
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+			e.preventDefault();
+			collapseCrossBlock(selection, 'start', getBlockElByPath);
+			return true;
+		}
+		if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+			e.preventDefault();
+			collapseCrossBlock(selection, 'end', getBlockElByPath);
+			return true;
+		}
+
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+			e.preventDefault();
+			selectWholeDocument(selection, doc);
+			return true;
+		}
+
+		return false;
+	}
+
+	function handleCrossBlockEntryKeydown(e: KeyboardEvent): boolean {
+		if (!el) return false;
+
+		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'end');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'start');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+			e.preventDefault();
+			selection.incrementSelectAllCount();
+			if (selection.selectAllCount === 1) {
+				const range = document.createRange();
+				range.selectNodeContents(el);
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(range);
+				return true;
+			}
+			selectWholeDocument(selection, getDoc());
+			return true;
+		}
+
+		return false;
 	}
 
 	/** Collapse the contenteditable's current selection to a `{start,end}` range. */
@@ -426,8 +581,36 @@
 		applyIndentResult(result);
 	}
 
-	function onPointerDown(_e: PointerEvent): void {
+	function onPointerDown(e: PointerEvent): void {
 		stickyColumn.reset();
+		selection.resetSelectAllCount();
+
+		if (e.shiftKey && el) {
+			const prevActive = document.activeElement;
+			const prevFocusEl =
+				prevActive instanceof HTMLElement && prevActive !== el
+					? (prevActive.closest('[contenteditable]') as HTMLElement | null)
+					: null;
+			const prevFocusPath = findBlockPathForElement(prevActive);
+			const handled = handleShiftClick(
+				selection,
+				el,
+				myPath,
+				e.clientX,
+				e.clientY,
+				prevFocusEl,
+				prevFocusPath
+			);
+			if (handled) {
+				e.preventDefault();
+				return;
+			}
+		}
+
+		if (selection.isCrossBlock && !e.shiftKey) {
+			selection.clear();
+			clearNativeSelection();
+		}
 	}
 
 	function onCopy(e: ClipboardEvent): void {

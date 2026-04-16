@@ -7,8 +7,12 @@
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		DOC_KEY,
 		CURSOR_END,
 		type BlockEditActions,
+		type BlockElLookup,
+		type DocumentGetter,
 		type FocusActions,
 		type HistoryActions,
 		type ContainerEditActions,
@@ -659,12 +663,32 @@
 		}
 	};
 
+	// Block path → DOM lookup. Walks from the editor root to the .block-host
+	// wrapper carrying the matching data-block-path, then returns the wrapper's
+	// first non-overlay child (the block component's outermost element, used
+	// as the measurement surface for cross-block caret math). Container blocks
+	// have their own nested BlockList, so the element returned for a container
+	// path is the container's root, not any child leaf.
+	const getBlockElByPath: BlockElLookup = (path) => {
+		if (!editorEl) return null;
+		const attr = JSON.stringify(path);
+		const wrapper = editorEl.querySelector(`[data-block-path='${attr}']`);
+		if (!wrapper) return null;
+		return wrapper.querySelector(':scope > :not(.selection-overlay)') as HTMLElement | null;
+	};
+
+	// Reactive getter: block components call this at keystroke time to read
+	// the latest doc, not the snapshot captured when they mounted.
+	const getDoc: DocumentGetter = () => doc;
+
 	setContext(BLOCK_EDIT_KEY, blockEditActions);
 	setContext(FOCUS_KEY, focusActions);
 	setContext(HISTORY_KEY, historyActions);
 	setContext(CONTAINER_EDIT_KEY, containerEditActions);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
+	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
+	setContext(DOC_KEY, getDoc);
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native

@@ -5,7 +5,12 @@
 		FOCUS_KEY,
 		HISTORY_KEY,
 		STICKY_COLUMN_KEY,
+		SELECTION_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		DOC_KEY,
 		type BlockEditActions,
+		type BlockElLookup,
+		type DocumentGetter,
 		type FocusActions,
 		type HistoryActions,
 		type CstNode,
@@ -34,6 +39,18 @@
 		findOffsetNearestX
 	} from '../../text-surface/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
+	import type { SelectionState } from '../../selection/selection-state.svelte';
+	import {
+		collapseCrossBlock,
+		extendFocusToNextBlock,
+		extendFocusToPreviousBlock,
+		extendFocusToDocEdge,
+		selectWholeDocument,
+		handleShiftClick,
+		scrollFocusBlockIntoView
+	} from '../../selection/keydown-dispatch';
+	import { findBlockPathForElement } from '../../selection/path-lookup';
+	import { clearNativeSelection } from '../../selection/native-bridge';
 
 	let {
 		node,
@@ -53,6 +70,9 @@
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -226,6 +246,24 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
+		// Reset Ctrl+A doubling counter on any non-Ctrl+A keystroke.
+		if (!((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey)) {
+			selection.resetSelectAllCount();
+		}
+
+		// Cross-block dispatch: while cross-block mode is active, the
+		// collapse/extend/select-all branches run first and short-circuit the
+		// rest of the single-block handler.
+		if (selection.isCrossBlock) {
+			if (handleCrossBlockKeydown(e)) return;
+		}
+
+		// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
+		// Shift+Arrow entry is handled inline in the existing arrow branches
+		// below so the boundary geometry check stays colocated with unshifted
+		// navigation.
+		if (handleCrossBlockEntryKeydown(e)) return;
+
 		// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
 		// Horizontal arrows, Home, End, Escape, and typable characters all land in
 		// the else branch and reset sticky — PRESERVE_KEYS_NON_ARROW's JSDoc lists
@@ -300,30 +338,58 @@
 		}
 
 		// ArrowUp — geometry-based: cross block boundary when cursor is on first visual line.
-		if (e.key === 'ArrowUp' && !e.shiftKey) {
+		if (e.key === 'ArrowUp') {
 			const offset = getCursorOffsetHelper(el!) ?? 0;
 			if (isAtFirstVisualLine(el!, offset)) {
-				e.preventDefault();
-				focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-				return;
+				// Shift+ArrowUp: native first extends to start of block content.
+				// Only cross the block boundary when the selection can't grow
+				// further within this block (cursor/anchor already at offset 0).
+				if (e.shiftKey && offset === 0) {
+					e.preventDefault();
+					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
+				if (!e.shiftKey) {
+					e.preventDefault();
+					focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+					return;
+				}
 			}
 		}
 
 		// ArrowDown — geometry-based: cross block boundary when cursor is on last visual line.
-		if (e.key === 'ArrowDown' && !e.shiftKey) {
+		if (e.key === 'ArrowDown') {
 			const offset = getCursorOffsetHelper(el!) ?? 0;
 			const textLen = (el?.textContent ?? '').length;
 			if (isAtLastVisualLine(el!, offset, textLen)) {
-				e.preventDefault();
-				focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-				return;
+				// Shift+ArrowDown: native first extends to end of block content.
+				// Only cross the block boundary when the cursor/anchor is already
+				// at the end, so native extension has nowhere left to go.
+				if (e.shiftKey && offset === textLen) {
+					e.preventDefault();
+					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
+				if (!e.shiftKey) {
+					e.preventDefault();
+					focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+					return;
+				}
 			}
 		}
 
 		// ArrowLeft at offset 0 → move to end of previous block
-		if (e.key === 'ArrowLeft' && !e.shiftKey) {
+		if (e.key === 'ArrowLeft') {
 			const offset = getCursorOffsetHelper(el!);
 			if (offset === 0) {
+				if (e.shiftKey) {
+					e.preventDefault();
+					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
 				return;
@@ -331,15 +397,125 @@
 		}
 
 		// ArrowRight at end of content → move to start of next block
-		if (e.key === 'ArrowRight' && !e.shiftKey) {
+		if (e.key === 'ArrowRight') {
 			const textLen = (el?.textContent ?? '').length;
 			const offset = getCursorOffsetHelper(el!);
 			if (offset === textLen) {
+				if (e.shiftKey) {
+					e.preventDefault();
+					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
+					scrollFocusBlockIntoView(selection, getBlockElByPath);
+					return;
+				}
 				e.preventDefault();
 				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}
+	}
+
+	// ── Cross-block dispatch helpers ────────────────────────────────────
+
+	/**
+	 * Handle a keystroke while cross-block mode is active. Shift+Arrow
+	 * extends focus via path arithmetic on `selection.focus`, not on the
+	 * block's own path, so an extended selection can keep growing past the
+	 * block that first captured the anchor. Unshifted arrow collapses back
+	 * to single-block mode.
+	 */
+	function handleCrossBlockKeydown(e: KeyboardEvent): boolean {
+		if (!el) return false;
+		const doc = getDoc();
+
+		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, doc, el, myPath, 'end');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, doc, el, myPath, 'start');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+			e.preventDefault();
+			const focusPath = selection.focus?.path ?? myPath;
+			extendFocusToNextBlock(selection, doc, el, focusPath);
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+			e.preventDefault();
+			const focusPath = selection.focus?.path ?? myPath;
+			extendFocusToPreviousBlock(selection, doc, el, focusPath);
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+			e.preventDefault();
+			collapseCrossBlock(selection, 'start', getBlockElByPath);
+			return true;
+		}
+		if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+			e.preventDefault();
+			collapseCrossBlock(selection, 'end', getBlockElByPath);
+			return true;
+		}
+
+		// Ctrl+A while already cross-block: select the whole document.
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+			e.preventDefault();
+			selectWholeDocument(selection, doc);
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Handle single-block-to-cross-block entry points that don't need a
+	 * boundary geometry check: Ctrl+Shift+Home/End and the first or second
+	 * press of Ctrl+A. Shift+Arrow at the block boundary is handled inline
+	 * in the existing arrow-key branches below.
+	 */
+	function handleCrossBlockEntryKeydown(e: KeyboardEvent): boolean {
+		if (!el) return false;
+
+		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'end');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+		if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
+			e.preventDefault();
+			extendFocusToDocEdge(selection, getDoc(), el, myPath, 'start');
+			scrollFocusBlockIntoView(selection, getBlockElByPath);
+			return true;
+		}
+
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+			e.preventDefault();
+			selection.incrementSelectAllCount();
+			if (selection.selectAllCount === 1) {
+				// First press: native select-all within this block.
+				const range = document.createRange();
+				range.selectNodeContents(el);
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(range);
+				return true;
+			}
+			// Second press: cross-block whole-document select.
+			selectWholeDocument(selection, getDoc());
+			return true;
+		}
+
+		return false;
 	}
 
 	function onBeforeInput(e: InputEvent): void {
@@ -417,8 +593,43 @@
 		}
 	}
 
-	function onPointerDown(_e: PointerEvent): void {
+	function onPointerDown(e: PointerEvent): void {
 		stickyColumn.reset();
+		selection.resetSelectAllCount();
+
+		if (e.shiftKey && el) {
+			// Shift+click: extend any live cross-block selection to this point,
+			// or enter cross-block mode with the previously focused block's
+			// caret as the anchor. Same-block shift+click falls through to the
+			// browser's native range extension.
+			const prevActive = document.activeElement;
+			const prevFocusEl =
+				prevActive instanceof HTMLElement && prevActive !== el
+					? (prevActive.closest('[contenteditable]') as HTMLElement | null)
+					: null;
+			const prevFocusPath = findBlockPathForElement(prevActive);
+			const handled = handleShiftClick(
+				selection,
+				el,
+				myPath,
+				e.clientX,
+				e.clientY,
+				prevFocusEl,
+				prevFocusPath
+			);
+			if (handled) {
+				e.preventDefault();
+				return;
+			}
+		}
+
+		// Collapse a live cross-block selection back to single-block at the
+		// click point — any unshifted pointerdown should exit cross-block
+		// mode, matching the "click anywhere collapses" requirement.
+		if (selection.isCrossBlock && !e.shiftKey) {
+			selection.clear();
+			clearNativeSelection();
+		}
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
