@@ -295,6 +295,38 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 	});
 });
 
+test.describe('cross-block clipboard: list marker preservation', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('ordered list copy preserves all item markers', async () => {
+		await editor.loadContent('1. hey\n2. hey\n3. hey\n');
+
+		// CST: list [0] → listItem [0,0] → paragraph [0,0,0]
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+
+		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());
+
+		// All three markers must be present
+		expect(clipText).toContain('1.');
+		expect(clipText).toContain('2.');
+		expect(clipText).toContain('3.');
+
+		// No duplication — "hey" appears exactly 3 times
+		const heyCount = clipText.split('hey').length - 1;
+		expect(heyCount).toBe(3);
+	});
+});
+
 test.describe('cross-block clipboard: list duplication regression', () => {
 	let editor: EditorPage;
 
