@@ -22,18 +22,22 @@
 	let {
 		path,
 		blockRef,
-		blockEl
+		blockEl,
+		isContainer = false
 	}: {
 		path: number[];
 		/** Ref to the block component, used for partial-rect measurement. */
 		blockRef: BlockComponent | undefined;
 		/** The block's DOM element, used to translate viewport rects to wrapper-local. */
 		blockEl: HTMLElement | null | undefined;
+		/** Container blocks (blockquote, list, listItem) skip overlays — children handle it. */
+		isContainer?: boolean;
 	} = $props();
 
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 
 	const classification = $derived.by<BlockSelectionClass>(() => {
+		if (isContainer) return 'outside';
 		if (!selection?.isCrossBlock || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}
