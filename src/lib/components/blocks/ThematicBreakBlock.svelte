@@ -95,6 +95,7 @@
 	tabindex="0"
 	class="thematic-break-block"
 	role="separator"
+	data-block-path={JSON.stringify(myPath)}
 	onkeydown={onKeyDown}
 >
 	<hr />

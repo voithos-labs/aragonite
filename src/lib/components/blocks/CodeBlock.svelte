@@ -474,6 +474,7 @@
 	contenteditable="true"
 	role="textbox"
 	spellcheck="false"
+	data-block-path={JSON.stringify(myPath)}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
