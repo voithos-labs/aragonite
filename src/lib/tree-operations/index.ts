@@ -14,7 +14,10 @@ export {
 	deleteNode,
 	updateNodeContent,
 	ensureEditableContainers,
-	rebuildAncestryRaw
+	rebuildAncestryRaw,
+	rebuildContainerRaw,
+	rebuildContainerRawIfContainer,
+	nodeAt
 } from './generic';
 
 export {
