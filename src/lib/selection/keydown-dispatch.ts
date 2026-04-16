@@ -235,6 +235,12 @@ export function handleShiftClick(
  * content. We skip descendants of already-collected containers, and also skip
  * ancestors of the start/end paths (those are handled by the partial
  * tail/head slicing).
+ *
+ * When an endpoint is a leaf inside a container (e.g. a paragraph inside a
+ * list item) and the selection includes the full leaf boundary (offset 0 for
+ * start, displayLength for end), we promote to the deepest non-shared
+ * container ancestor so that structural formatting (list markers, blockquote
+ * prefixes) is preserved in the clipboard text.
  */
 export function collectCrossBlockText(
 	doc: Document,
@@ -249,16 +255,49 @@ export function collectCrossBlockText(
 	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
 	const endRaw = 'raw' in endNode ? (endNode as CstNode).raw : '';
 
-	const startTail = startRaw.slice(start.offset);
+	// Promote start/end to container ancestors when at full-boundary offsets,
+	// so structural formatting (list markers, blockquote prefixes) is included.
+	let effectiveStartPath = start.path;
+	let startTail: string;
+	if (start.offset === 0 && start.path.length > 1) {
+		const promoted = promoteToContainer(doc, start.path, end.path);
+		if (promoted) {
+			effectiveStartPath = promoted.path;
+			startTail = promoted.raw;
+		} else {
+			startTail = startRaw.slice(start.offset);
+		}
+	} else {
+		startTail = startRaw.slice(start.offset);
+	}
+
+	let effectiveEndPath = end.path;
+	let endHead: string;
+	if (end.offset === displayLength(endRaw) && end.path.length > 1) {
+		const promoted = promoteToContainer(doc, end.path, start.path);
+		if (promoted) {
+			effectiveEndPath = promoted.path;
+			endHead = promoted.raw;
+		} else {
+			endHead = endRaw.slice(0, end.offset);
+		}
+	} else {
+		endHead = endRaw.slice(0, end.offset);
+	}
+
 	let middle = '';
 	const collectedContainers: number[][] = [];
 
-	for (const path of walkBetween(doc, start.path, end.path)) {
-		// Ancestors of start/end — partial text handled by startTail / endHead
-		if (isStrictAncestorOf(path, start.path)) continue;
-		if (isStrictAncestorOf(path, end.path)) continue;
+	for (const path of walkBetween(doc, effectiveStartPath, effectiveEndPath)) {
+		// Skip ancestors of either endpoint
+		if (isStrictAncestorOf(path, effectiveStartPath)) continue;
+		if (isStrictAncestorOf(path, effectiveEndPath)) continue;
 
-		// Descendants of an already-collected container — text already included
+		// Skip descendants of promoted endpoints — their text is already in
+		// startTail / endHead via the container's raw
+		if (isStrictAncestorOf(effectiveStartPath, path)) continue;
+		if (isStrictAncestorOf(effectiveEndPath, path)) continue;
+
 		if (collectedContainers.some((cp) => isStrictAncestorOf(cp, path))) continue;
 
 		const node = nodeAt(doc, path);
@@ -266,13 +305,43 @@ export function collectCrossBlockText(
 		const lead = 'leadingTrivia' in node ? (node as CstNode).leadingTrivia : '';
 		middle += lead + (node as CstNode).raw;
 
-		// Record containers so their descendants are skipped
 		if (node.children && node.children.length > 0) {
 			collectedContainers.push(path);
 		}
 	}
-	const endHead = endRaw.slice(0, end.offset);
 	return startTail + middle + endHead;
+}
+
+/**
+ * Find the deepest ancestor of `leafPath` that is NOT a shared ancestor with
+ * `otherPath`. Returns that ancestor's raw text and path, or null if the leaf
+ * has no non-shared container ancestor (i.e. it's a top-level block).
+ */
+function promoteToContainer(
+	doc: Document,
+	leafPath: number[],
+	otherPath: number[]
+): { path: number[]; raw: string } | null {
+	// Find the LCA depth: the first index where the paths diverge
+	const lcaDepth = sharedPrefixLength(leafPath, otherPath);
+
+	// The deepest non-shared ancestor is at depth lcaDepth + 1
+	// (one level below the LCA, on the leaf's side)
+	if (lcaDepth + 1 >= leafPath.length) return null;
+
+	const candidatePath = leafPath.slice(0, lcaDepth + 1);
+	const candidate = nodeAt(doc, candidatePath);
+	if (!candidate || !('raw' in candidate)) return null;
+	return { path: candidatePath, raw: (candidate as CstNode).raw };
+}
+
+/** Number of shared leading indices between two paths. */
+function sharedPrefixLength(a: number[], b: number[]): number {
+	const len = Math.min(a.length, b.length);
+	for (let i = 0; i < len; i++) {
+		if (a[i] !== b[i]) return i;
+	}
+	return len;
 }
 
 /** True if `ancestor` is a strict prefix of `descendant`'s path. */
