@@ -453,6 +453,24 @@
 		if (!el) return false;
 		const doc = getDoc();
 
+		// Cross-block Copy — handle at keydown level because the browser
+		// suppresses `copy` events when the native selection is cleared.
+		if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
+			e.preventDefault();
+			const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
+			await navigator.clipboard.writeText(text);
+			return true;
+		}
+
+		// Cross-block Cut — same browser limitation as Copy.
+		if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey) {
+			e.preventDefault();
+			const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
+			await navigator.clipboard.writeText(text);
+			await performCrossBlockDelete(crossBlockCtx, () => tick());
+			return true;
+		}
+
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
 			await performCrossBlockDelete(crossBlockCtx, async () => { await tick(); });
@@ -589,11 +607,6 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
-			e.clipboardData?.setData('text/plain', text);
-			return;
-		}
 		const text = getSelectedTextFromRaw();
 		e.clipboardData?.setData('text/plain', text);
 	}
@@ -601,12 +614,6 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock) {
-			const text = collectCrossBlockText(getDoc(), selection.anchor!, selection.focus!);
-			e.clipboardData?.setData('text/plain', text);
-			await performCrossBlockDelete(crossBlockCtx, () => tick());
-			return;
-		}
 		const selectedText = getSelectedTextFromRaw();
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);

@@ -41,6 +41,48 @@ test.describe('cross-block clipboard: copy', () => {
 		// The copied text should contain the tail of "first" + leading trivia + head of "second"
 		expect(source).toContain('third');
 	});
+
+	test('cross-block copy then paste into another block', async () => {
+		await editor.loadContent('first block\n\nsecond block\n\nthird block\n');
+		const beforeSource = await editor.getSource();
+
+		// Select from middle of block 0 through to block 1 via
+		// Ctrl+Shift+End (enters cross-block, extends to doc end).
+		await editor.focusBlock(0, 0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		// Copy
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+
+		// Collapse selection and move to end of block 2
+		await editor.clickBlock(2);
+		await editor.page.waitForTimeout(200);
+		await editor.pressKey('End');
+		await editor.page.waitForTimeout(100);
+
+		// Paste
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const afterSource = await editor.getSource();
+
+		// The original three blocks must survive unchanged
+		expect(afterSource).toContain('first block');
+		expect(afterSource).toContain('second block');
+		expect(afterSource).toContain('third block');
+
+		// The pasted content must make the source strictly longer
+		expect(afterSource.length).toBeGreaterThan(beforeSource.length);
+
+		// "first block" or "second block" should appear more than once,
+		// proving the cross-block copied text was pasted.
+		const firstCount = afterSource.split('first block').length - 1;
+		const secondCount = afterSource.split('second block').length - 1;
+		expect(firstCount + secondCount).toBeGreaterThanOrEqual(3);
+	});
 });
 
 test.describe('cross-block clipboard: cut', () => {
