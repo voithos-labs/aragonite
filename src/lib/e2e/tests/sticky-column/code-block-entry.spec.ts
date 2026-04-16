@@ -10,8 +10,8 @@
  * a future regression in findOffsetNearestX / CodeBlock.focusAtColumn.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../editor-page';
-import { DEFAULT_CONTENT } from '../test-content';
+import { EditorPage } from '../../editor-page';
+import { DEFAULT_CONTENT } from '../../test-content';
 
 const PIXEL_TOLERANCE = 2;
 
