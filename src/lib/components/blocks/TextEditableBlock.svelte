@@ -37,9 +37,16 @@
 	let {
 		node,
 		index,
+		myPath = [],
 		blockClass = 'paragraph-block',
 		splitOnEnter = true
-	}: { node: CstNode; index: number; blockClass?: string; splitOnEnter?: boolean } = $props();
+	}: {
+		node: CstNode;
+		index: number;
+		myPath?: number[];
+		blockClass?: string;
+		splitOnEnter?: boolean;
+	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);

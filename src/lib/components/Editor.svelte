@@ -652,7 +652,7 @@
 </script>
 
 <div class="editor" bind:this={editorEl}>
-	<BlockList children={doc.children} {blockIds} bind:blockRefs />
+	<BlockList children={doc.children} {blockIds} bind:blockRefs parentPath={[]} />
 </div>
 
 <style>
