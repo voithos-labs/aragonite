@@ -15,6 +15,8 @@
 		type BlockComponent,
 		type CstNode,
 		type Document,
+		type EditorSelection,
+		type SelectionPoint,
 		type UndoEntry
 	} from '../editor-types';
 	import { createStickyColumnState } from '../sticky-column';
@@ -135,12 +137,22 @@
 	// When true, the next keystroke should capture a "before" snapshot
 	let needsUndoCheckpoint = true;
 
+	/**
+	 * Build a collapsed EditorSelection from a flat top-level block index and
+	 * offset. Phase 2 shape migration: path is a single-element `[blockIndex]`,
+	 * matching the legacy focusBlockIndex semantics. Phase 4 will populate real
+	 * nested paths from SelectionState.
+	 */
+	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
+		const point: SelectionPoint = { path: [blockIndex], offset };
+		return { anchor: point, focus: point };
+	}
+
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		undoManager.push({
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
-			focusBlockIndex: blockIndex,
-			focusOffset: offset
+			selection: collapsedSelectionAt(blockIndex, offset)
 		});
 	}
 
@@ -213,8 +225,7 @@
 		return {
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
-			focusBlockIndex: focusedIndex,
-			focusOffset: focusedOffset
+			selection: collapsedSelectionAt(focusedIndex, focusedOffset)
 		};
 	}
 
@@ -602,7 +613,12 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			blockRefs[entry.focusBlockIndex]?.focus(entry.focusOffset);
+			// Phase 2 shape migration: treat selection as collapsed, reading the
+			// flat top-level index from path[0]. Phase 4 will rewrite this to
+			// classify and route full cross-block selections.
+			const targetIndex = entry.selection.anchor.path[0] ?? 0;
+			const targetOffset = entry.selection.anchor.offset;
+			blockRefs[targetIndex]?.focus(targetOffset);
 		},
 
 		async requestRedo(): Promise<void> {
@@ -613,7 +629,9 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			blockRefs[entry.focusBlockIndex]?.focus(entry.focusOffset);
+			const targetIndex = entry.selection.anchor.path[0] ?? 0;
+			const targetOffset = entry.selection.anchor.offset;
+			blockRefs[targetIndex]?.focus(targetOffset);
 		}
 	};
 
