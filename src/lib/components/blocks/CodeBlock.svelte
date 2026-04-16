@@ -427,7 +427,7 @@
 			if (isAtFirstVisualLine(el!, offset)) {
 				if (e.shiftKey && offset === 0) {
 					e.preventDefault();
-					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath);
+					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath, 'start');
 					scrollFocusBlockIntoView(selection, getBlockElByPath);
 					return;
 				}
@@ -558,7 +558,8 @@
 		if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
 			e.preventDefault();
 			const focusPath = selection.focus?.path ?? myPath;
-			extendFocusToPreviousBlock(selection, doc, el, focusPath);
+			const side = e.key === 'ArrowUp' ? 'start' as const : 'end' as const;
+			extendFocusToPreviousBlock(selection, doc, el, focusPath, side);
 			scrollFocusBlockIntoView(selection, getBlockElByPath);
 			return true;
 		}
