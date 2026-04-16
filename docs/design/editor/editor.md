@@ -275,40 +275,38 @@ Block identity (`blockIds`) is maintained per `BlockList` — each nesting level
 
 ## Selection
 
-> **Status:** single-block selection is implemented. Cross-block selection and the clipboard section below describe the planned design for milestone 0.4; those sections are the spec the implementation will target, not a description of current behavior.
-
 ### Single-Block Selection
 
-Native browser selection within the block's contenteditable. No custom handling for rendering. Copy/cut are intercepted (see Clipboard section) but selection highlighting is native.
+Native browser selection within the block's contenteditable. The native caret is hidden via CSS; focus stays on the focused block's contenteditable. Copy/cut are intercepted (see Clipboard section) but selection highlighting is native.
 
 ### Cross-Block Selection Model
 
-The selection model tracks two endpoints — anchor and focus — each identified by a block index and a character offset within that block. When both endpoints share the same block index, it is a single-block selection and the browser handles it natively. When they differ, the editor takes over all selection rendering.
+The selection model tracks two endpoints — anchor and focus — each identified by a `path: number[]` (child indices from document root to leaf block) and a character offset within that block's `raw`. When both endpoints share the same path, it is a single-block selection and the browser handles it natively. When the paths differ, the editor manages all selection rendering.
+
+The selection state is lazy: fields are null in single-block mode and become non-null only when the selection crosses block boundaries. A `start`/`end` normalized pair (document order) is derived from anchor/focus.
 
 ### Entering Cross-Block Selection
 
-1. User starts a drag within block A — native selection within the contenteditable
-2. Pointer crosses into block B — the editor detects this via pointer events on block containers
-3. Editor records the anchor position, clears the native selection, switches to custom rendering
-4. As the pointer moves, `EditorSelection.focus` updates
-
-Also triggered by Shift+click in a different block, or Shift+ArrowDown from the end of a block.
+- **Pointer drag**: drag within block A starts native selection; when the pointer crosses into block B, the editor captures the anchor position, clears native selection, and switches to custom rendering. Updates are rAF-throttled with autoscroll at viewport edges.
+- **Shift+Arrow**: Shift+ArrowDown from the end of a block (or Shift+ArrowUp from the start) extends into the neighboring block. Ctrl+Shift+Home/End extends to document boundaries.
+- **Shift+click**: click in a different block from the anchor extends the selection to that point.
+- **Double Ctrl+A**: first press selects all text within the focused block (native); second press selects the entire document (cross-block, anchor at start of first block, focus at end of last block).
 
 ### Cross-Block Selection Rendering
 
-All rendering is custom — no native browser selection is used during cross-block selection:
+Each `BlockHost` wraps its content in a `.block-host` div and mounts a `SelectionOverlay` component. The overlay classifies its block as start, end, middle, or outside the selection range and renders accordingly:
 
-- **Partially-selected blocks** (first and last): Use `Range` + `getClientRects()` to measure the text positions within the contenteditable, then render positioned highlight overlay elements matching those rects. Handles text wrapping correctly (multiple rects for multiple visual lines).
-- **Fully-selected middle blocks**: A simple CSS overlay covering the entire block element.
-- **Non-text blocks** (thematic break, image) in the selected range: Full-block highlight overlay.
+- **Endpoint blocks** (first and last): partial rects measured via an optional `measurePartialRects` method on the block component, producing positioned highlight overlays that handle text wrapping across visual lines.
+- **Middle blocks**: a CSS overlay covering the entire block element.
+- **Non-text blocks** in the range: full-block highlight overlay.
 
 ### Exiting Cross-Block Selection
 
-User clicks anywhere (collapsing the selection) or presses an arrow key without Shift. Clear all overlays, return to native single-block selection.
+Click (collapsing the selection) or an unshifted arrow key clears cross-block state and returns to native single-block selection. Typing, Backspace, Delete, Cut, and Paste all collapse and exit after their respective operations.
 
-### Select All
+### Cross-Container Semantics
 
-First Ctrl+A: select all text within the focused block (native). Second Ctrl+A: select the entire document (cross-block, anchor at start of first block, focus at end of last block).
+When a selection spans container boundaries (e.g. from inside a blockquote to a top-level paragraph), the "start wins" rule applies: the start endpoint's container context determines the merge/cleanup behavior after a destructive operation.
 
 ## Clipboard
 
@@ -316,37 +314,27 @@ Clipboard content is always plain markdown text, sourced from the CST. No HTML c
 
 ### Copy (Ctrl+C)
 
-**Single-block**: Get the selection range from the focused block. Slice the CST node's `raw` at those offsets. Write to clipboard via `navigator.clipboard.writeText()`.
+**Single-block**: slice the focused block's `raw` at the selection offsets and write to clipboard.
 
-**Cross-block**: Read the selection state from `EditorSelection`. For the anchor block, extract text from offset to end of `raw`. For middle blocks, take `leadingTrivia + raw` (leading trivia is included deliberately to preserve inter-block spacing — blank lines between blocks are part of the document structure and should be preserved in the clipboard). For the focus block, extract text from start of `raw` to offset. Concatenate and write to clipboard.
+**Cross-block**: walk the selection range from anchor to focus, collecting the tail of the anchor block, full raw (with leading trivia) of middle blocks, and the head of the focus block. Concatenate and write to clipboard. The selection stays active after copy.
 
 ### Cut (Ctrl+X)
 
-Copy (as above), then delete the selected range:
-
-1. Truncate the anchor block's CST node at the anchor offset
-2. Remove all fully-selected middle blocks from the CST
-3. Truncate the focus block's CST node at the focus offset
-4. Merge the remaining anchor and focus nodes into one, re-parse to determine block type
-5. Push undo snapshot, re-render
+Copy the selected range, then delete it. For cross-block: truncate the anchor and focus blocks at their respective offsets, remove fully-selected middle blocks, merge the remaining endpoints into one block (re-parsed to determine block type), and clean up empty containers. Push an undo entry; cross-block state collapses.
 
 ### Paste (Ctrl+V)
 
-Always intercepted:
+Always intercepted. If there is a selection (single or cross-block), delete the selected range first. Parse the pasted text through the CST parser. If the result is a single inline-compatible block, insert the text at the cursor position. If multiple blocks, split the current block at the cursor, splice in the parsed blocks, and merge boundaries where block types are merge-eligible. Push an undo entry, restore focus at the end of the pasted content.
 
-1. `preventDefault`
-2. Read `clipboardData.getData('text/plain')`
-3. If there is a selection (single or cross-block), delete the selected range first
-4. Parse the pasted text through the CST parser — produces a mini `Document` with block nodes
-5. If the paste produces a single block with no structural markers: insert the text inline at the cursor position within the current block's `raw`
-6. If the paste produces multiple blocks: split the current block at the cursor, insert the parsed blocks between the two halves, merge the boundaries if the block types are merge-eligible (see merge eligibility rules in Structural Operations)
-7. Push undo snapshot, re-render, set focus at the end of the pasted content
+### Delete / Backspace / Type-Replace
+
+When a cross-block selection is active, Backspace, Delete, and typing all delete the selected range first (same path as Cut without the clipboard write), then perform their normal single-block action at the collapsed cursor. IME composition events follow the same delete-then-compose path.
 
 ## Undo/Redo
 
 ### Model
 
-Single unified undo stack; browser contenteditable undo is disabled. Each entry captures a full CST document snapshot, the block ID array (for stable keyed rendering), and the focus position for cursor restoration. Entries are cloned CST trees — cheap to snapshot. The stack is capped to prevent unbounded growth.
+Single unified undo stack; browser contenteditable undo is disabled. Each entry captures a full CST document snapshot, the block ID array (for stable keyed rendering), and a uniform `selection` field (an anchor/focus pair using path-based addressing) for cursor and selection restoration. Collapsed, single-block, and cross-block selections all use the same representation. Entries are cloned CST trees — cheap to snapshot. The stack is capped to prevent unbounded growth.
 
 ### Snapshot Triggers
 
@@ -356,7 +344,7 @@ Single unified undo stack; browser contenteditable undo is disabled. Each entry 
 
 ### Behavior
 
-Undo restores the previous snapshot, pushes the current state onto the redo stack, and restores focus. Redo is the inverse. The redo stack clears on any new edit.
+Undo restores the previous snapshot, pushes the current state onto the redo stack, and restores the saved selection (including cross-block state if the original operation had one). Redo is the inverse. The redo stack clears on any new edit.
 
 ### Relationship to Persistent History
 
