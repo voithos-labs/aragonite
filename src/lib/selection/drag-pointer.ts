@@ -19,7 +19,6 @@ export interface DragContext {
 	editorRoot: HTMLElement;
 	scrollContainer: HTMLElement;
 	selection: SelectionState;
-	getBlockElByPath(path: number[]): HTMLElement | null;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
@@ -44,7 +43,7 @@ export function installDragListener(
 			rafId = null;
 			if (!pendingMove) return;
 			processMove(pendingMove.clientX, pendingMove.clientY);
-			maybeAutoScroll(pendingMove.clientY);
+			maybeAutoScroll();
 		});
 	}
 
@@ -68,34 +67,37 @@ export function installDragListener(
 		}
 	}
 
-	function maybeAutoScroll(clientY: number): void {
-		const rect = ctx.scrollContainer.getBoundingClientRect();
-		const threshold = 30;
-		let delta = 0;
+	const threshold = 30;
 
-		if (clientY < rect.top + threshold) {
-			delta = -((rect.top + threshold - clientY) / 2);
-		} else if (clientY > rect.bottom - threshold) {
-			delta = (clientY - (rect.bottom - threshold)) / 2;
-		}
-
-		if (delta === 0) {
-			if (autoScrollRafId !== null) {
-				cancelAnimationFrame(autoScrollRafId);
-				autoScrollRafId = null;
-			}
+	const step = () => {
+		if (!pendingMove) {
+			autoScrollRafId = null;
 			return;
 		}
+		const rect = ctx.scrollContainer.getBoundingClientRect();
+		let d = 0;
+		if (pendingMove.clientY < rect.top + threshold) {
+			d = -((rect.top + threshold - pendingMove.clientY) / 2);
+		} else if (pendingMove.clientY > rect.bottom - threshold) {
+			d = (pendingMove.clientY - (rect.bottom - threshold)) / 2;
+		}
+		if (d === 0) {
+			autoScrollRafId = null;
+			return;
+		}
+		ctx.scrollContainer.scrollTop += d;
+		autoScrollRafId = requestAnimationFrame(step);
+		// Re-process the current pointer so selection follows the scroll.
+		processMove(pendingMove.clientX, pendingMove.clientY);
+	};
 
-		// Already scrolling — let the existing loop update the delta next frame.
+	function maybeAutoScroll(): void {
 		if (autoScrollRafId !== null) return;
-
-		const step = () => {
-			ctx.scrollContainer.scrollTop += delta;
-			autoScrollRafId = requestAnimationFrame(step);
-			// Re-process the same pointer coordinate so selection follows the scroll.
-			if (pendingMove) processMove(pendingMove.clientX, pendingMove.clientY);
-		};
+		if (!pendingMove) return;
+		const rect = ctx.scrollContainer.getBoundingClientRect();
+		const inThreshold = pendingMove.clientY < rect.top + threshold ||
+			pendingMove.clientY > rect.bottom - threshold;
+		if (!inThreshold) return;
 		autoScrollRafId = requestAnimationFrame(step);
 	}
 
