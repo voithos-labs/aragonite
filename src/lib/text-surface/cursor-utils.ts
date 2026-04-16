@@ -38,10 +38,13 @@ export function createRangeFromOffsets(
 		return false;
 	}
 
-	walk(container);
+	const endFound = walk(container);
 	if (!startSet) {
 		range.selectNodeContents(container);
 		range.collapse(false);
+	} else if (!endFound) {
+		// End offset beyond content length — clamp to end of container.
+		range.setEndAfter(container);
 	}
 	return range;
 }
