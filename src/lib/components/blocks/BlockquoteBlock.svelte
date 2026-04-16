@@ -156,7 +156,7 @@
 	} satisfies BlockComponent);
 </script>
 
-<div class="blockquote-block">
+<div class="blockquote-block" data-block-path={JSON.stringify(myPath)}>
 	<BlockList
 		children={node.children ?? []}
 		blockIds={state.innerBlockIds}

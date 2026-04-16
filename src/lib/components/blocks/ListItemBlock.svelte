@@ -224,7 +224,7 @@
 	}
 </script>
 
-<div class="list-item-block">
+<div class="list-item-block" data-block-path={JSON.stringify(myPath)}>
 	<span class="list-item-marker">{marker()}</span>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="list-item-content" onkeydown={handleKeydown}>

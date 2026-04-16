@@ -26,22 +26,20 @@
 	}
 </script>
 
-<div data-block-path={JSON.stringify(myPath)}>
-	{#if node.kind === 'paragraph'}
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="paragraph-block" />
-	{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass={headingClass()} />
-	{:else if node.kind === 'thematicBreak'}
-		<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'fencedCode'}
-		<CodeBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'blockquote'}
-		<BlockquoteBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'list'}
-		<ListBlock {node} {index} {myPath} bind:this={ref} />
-	{:else}
-		<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
-			 linkReferenceDefinition, table, unrecognized) -->
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
-	{/if}
-</div>
+{#if node.kind === 'paragraph'}
+	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="paragraph-block" />
+{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
+	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass={headingClass()} />
+{:else if node.kind === 'thematicBreak'}
+	<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
+{:else if node.kind === 'fencedCode'}
+	<CodeBlock {node} {index} {myPath} bind:this={ref} />
+{:else if node.kind === 'blockquote'}
+	<BlockquoteBlock {node} {index} {myPath} bind:this={ref} />
+{:else if node.kind === 'list'}
+	<ListBlock {node} {index} {myPath} bind:this={ref} />
+{:else}
+	<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
+		 linkReferenceDefinition, table, unrecognized) -->
+	<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
+{/if}
