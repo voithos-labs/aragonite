@@ -54,6 +54,30 @@
 		height: number;
 	}
 
+	/** Merge rects on the same visual line into a single rect to prevent double-highlight. */
+	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
+		if (rects.length <= 1) return rects;
+		const sorted = [...rects].sort((a, b) => a.top - b.top);
+		const merged: LocalRect[] = [];
+		let current = { ...sorted[0] };
+
+		for (let i = 1; i < sorted.length; i++) {
+			const r = sorted[i];
+			if (Math.abs(r.top - current.top) < 2) {
+				const left = Math.min(current.left, r.left);
+				const right = Math.max(current.left + current.width, r.left + r.width);
+				const top = Math.min(current.top, r.top);
+				const bottom = Math.max(current.top + current.height, r.top + r.height);
+				current = { left, top, width: right - left, height: bottom - top };
+			} else {
+				merged.push(current);
+				current = { ...r };
+			}
+		}
+		merged.push(current);
+		return merged;
+	}
+
 	let endpointRects: LocalRect[] = $state([]);
 
 	$effect(() => {
@@ -76,12 +100,14 @@
 
 		const viewportRects: DOMRect[] = blockRef.measurePartialRects(startOffset, endOffset);
 		const blockRect = blockEl.getBoundingClientRect();
-		endpointRects = viewportRects.map((r) => ({
-			left: r.left - blockRect.left,
-			top: r.top - blockRect.top,
-			width: r.width,
-			height: r.height
-		}));
+		endpointRects = mergeRectsPerLine(
+			viewportRects.map((r) => ({
+				left: r.left - blockRect.left,
+				top: r.top - blockRect.top,
+				width: r.width,
+				height: r.height
+			}))
+		);
 	});
 </script>
 
