@@ -8,6 +8,7 @@
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		DOC_KEY,
+		EDITOR_ROOT_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
 		type DocumentGetter,
@@ -50,7 +51,8 @@
 		scrollFocusBlockIntoView
 	} from '../../selection/keydown-dispatch';
 	import { findBlockPathForElement } from '../../selection/path-lookup';
-	import { clearNativeSelection } from '../../selection/native-bridge';
+	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
+	import { installDragListener } from '../../selection/drag-pointer';
 
 	let {
 		node,
@@ -73,6 +75,7 @@
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -631,6 +634,18 @@
 		if (selection.isCrossBlock && !e.shiftKey) {
 			selection.clear();
 			clearNativeSelection();
+		}
+
+		// Install drag listener for potential cross-block drag selection.
+		if (!e.shiftKey && el) {
+			const root = getEditorRoot();
+			if (!root) return;
+			const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
+			if (offset === null) return;
+			installDragListener(
+				{ editorRoot: root, scrollContainer: root, selection, getBlockElByPath },
+				{ path: myPath.slice(), offset }
+			);
 		}
 	}
 

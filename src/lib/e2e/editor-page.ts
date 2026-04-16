@@ -240,6 +240,83 @@ export class EditorPage {
 		await this.page.screenshot({ path: `test-results/${name}.png` });
 	}
 
+	// ── Drag & Shift+Click Helpers ─────────────────────────────────────
+
+	/**
+	 * Simulate a pointer drag from one block offset to another. Uses
+	 * mouse.down / mouse.move / mouse.up for a realistic drag sequence.
+	 */
+	async dragFromTo(
+		startPath: number[],
+		startOffset: number,
+		endPath: number[],
+		endOffset: number
+	): Promise<void> {
+		const start = await this.pointForOffset(startPath, startOffset);
+		const end = await this.pointForOffset(endPath, endOffset);
+		if (!start || !end) throw new Error('dragFromTo: could not resolve block offsets');
+
+		await this.page.mouse.move(start.x, start.y);
+		await this.page.mouse.down();
+		const steps = 10;
+		for (let i = 1; i <= steps; i++) {
+			const t = i / steps;
+			await this.page.mouse.move(
+				start.x + (end.x - start.x) * t,
+				start.y + (end.y - start.y) * t
+			);
+		}
+		await this.page.mouse.up();
+		await this.page.waitForTimeout(100);
+	}
+
+	async shiftClickBlock(path: number[], offset: number): Promise<void> {
+		const point = await this.pointForOffset(path, offset);
+		if (!point) throw new Error('shiftClickBlock: could not resolve point');
+		await this.page.keyboard.down('Shift');
+		await this.page.mouse.click(point.x, point.y);
+		await this.page.keyboard.up('Shift');
+		await this.page.waitForTimeout(100);
+	}
+
+	/**
+	 * Resolve a block path + character offset to viewport coordinates via
+	 * Range measurement inside the browser. Returns null if the block or
+	 * offset can't be found.
+	 */
+	private async pointForOffset(
+		path: number[],
+		offset: number
+	): Promise<{ x: number; y: number } | null> {
+		return this.page.evaluate(
+			({ path, offset }) => {
+				const wrapper = document.querySelector(
+					`[data-block-path='${JSON.stringify(path)}']`
+				);
+				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
+				if (!editable) return null;
+				const range = document.createRange();
+				let remaining = offset;
+				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+				let node: Node | null;
+				while ((node = walker.nextNode())) {
+					const len = node.textContent?.length ?? 0;
+					if (remaining <= len) {
+						range.setStart(node, remaining);
+						range.setEnd(node, remaining);
+						const rect = range.getBoundingClientRect();
+						return { x: rect.left + 1, y: rect.top + rect.height / 2 };
+					}
+					remaining -= len;
+				}
+				// Offset beyond content — place at end.
+				const rect = editable.getBoundingClientRect();
+				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
+			},
+			{ path, offset }
+		);
+	}
+
 	/**
 	 * Returns the viewport-absolute pixel X of the current selection's caret.
 	 * Returns NaN if no range is present. Used for sticky column proximity

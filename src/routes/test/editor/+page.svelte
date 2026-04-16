@@ -30,6 +30,14 @@
 			},
 			isCrossBlockActive: () => {
 				return document.querySelector('[data-cross-block]') !== null;
+			},
+			getSelectionPaths: () => {
+				const state = editor.getSelectionState();
+				if (!state || !state.anchor || !state.focus) return null;
+				return {
+					anchor: { path: state.anchor.path, offset: state.anchor.offset },
+					focus: { path: state.focus.path, offset: state.focus.offset }
+				};
 			}
 		};
 	});
