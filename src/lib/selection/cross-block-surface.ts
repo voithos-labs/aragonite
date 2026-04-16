@@ -55,12 +55,12 @@ export interface CrossBlockSurfaceContext {
 	setPendingCursor: (offset: number) => void;
 
 	/**
-	 * Called after cross-block type-replace inserts a character at the
-	 * collapsed caret. TextEditableBlock mutates raw directly and reparses
-	 * inline content; CodeBlock routes through updateBlockContent. The
-	 * factory calls this instead of inlining either strategy.
+	 * Optional post-mutation hook for cross-block type-replace. Called after
+	 * the factory splices the typed character into the target node's raw.
+	 * TextEditableBlock uses this to reparse inline content; CodeBlock
+	 * needs no post-processing.
 	 */
-	onTypeReplace: (caret: SelectionPoint, typed: string) => void;
+	afterRawMutated?: (node: CstNode) => void;
 }
 
 export interface CrossBlockHandlers {
@@ -145,18 +145,8 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	if (e.ctrlKey && e.shiftKey && e.key === 'End') {
-		e.preventDefault();
-		extendFocusToDocEdge(selection, doc, el, myPath, 'end');
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
-		return true;
-	}
-	if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
-		e.preventDefault();
-		extendFocusToDocEdge(selection, doc, el, myPath, 'start');
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
-		return true;
-	}
+	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
+	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
 
 	if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
 		e.preventDefault();
@@ -202,21 +192,10 @@ function handleCrossBlockEntry(
 ): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
-	const { selection, getDoc, getBlockElByPath } = ctx;
-	const myPath = ctx.getMyPath();
+	const { selection, getDoc } = ctx;
 
-	if (e.ctrlKey && e.shiftKey && e.key === 'End') {
-		e.preventDefault();
-		extendFocusToDocEdge(selection, getDoc(), el, myPath, 'end');
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
-		return true;
-	}
-	if (e.ctrlKey && e.shiftKey && e.key === 'Home') {
-		e.preventDefault();
-		extendFocusToDocEdge(selection, getDoc(), el, myPath, 'start');
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
-		return true;
-	}
+	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
+	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
 
 	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
 		e.preventDefault();
@@ -234,6 +213,18 @@ function handleCrossBlockEntry(
 	}
 
 	return false;
+}
+
+// ── Keydown Helpers ───────────────────────────────────────────────────────
+
+/** Shared handler for Ctrl+Shift+Home / Ctrl+Shift+End in both active and entry paths. */
+function handleDocEdgeExtend(ctx: CrossBlockSurfaceContext, e: KeyboardEvent, direction: 'start' | 'end'): boolean {
+	const el = ctx.getEl();
+	if (!el) return false;
+	e.preventDefault();
+	extendFocusToDocEdge(ctx.selection, ctx.getDoc(), el, ctx.getMyPath(), direction);
+	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+	return true;
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────
@@ -346,7 +337,12 @@ async function handleBeforeInput(
 	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
 	if (!caret || !typed) return true;
 
-	ctx.onTypeReplace(caret, typed);
+	const targetNode = nodeAt(ctx.getDoc(), caret.path) as CstNode | null;
+	if (!targetNode || !('raw' in targetNode)) return true;
+	targetNode.raw = targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
+	ctx.afterRawMutated?.(targetNode);
+	ctx.containerEdit.endContainerEdit();
+	ctx.setPendingCursor(caret.offset + typed.length);
 	return true;
 }
 
