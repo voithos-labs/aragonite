@@ -175,6 +175,43 @@ export class EditorPage {
 		}, index);
 	}
 
+	/** Focus a block by its CST path and place the cursor at a character offset. */
+	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
+		await this.page.evaluate(
+			({ path, offset }) => {
+				const attr = JSON.stringify(path);
+				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
+				if (!wrapper) return;
+				const block = wrapper.querySelector(':scope > :not(.selection-overlay)') as HTMLElement | null;
+				if (!block) return;
+				block.focus();
+
+				const range = document.createRange();
+				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+				let remaining = offset;
+				let node: Node | null;
+				while ((node = walker.nextNode())) {
+					const len = node.textContent?.length ?? 0;
+					if (remaining <= len) {
+						range.setStart(node, remaining);
+						range.setEnd(node, remaining);
+						const sel = window.getSelection();
+						sel?.removeAllRanges();
+						sel?.addRange(range);
+						return;
+					}
+					remaining -= len;
+				}
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				range.selectNodeContents(block);
+				range.collapse(false);
+				sel?.addRange(range);
+			},
+			{ path, offset }
+		);
+	}
+
 	// ── User Actions ────────────────────────────────────────────────────
 
 	async clickBlock(index: number) {

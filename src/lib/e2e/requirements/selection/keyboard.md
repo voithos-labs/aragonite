@@ -16,3 +16,7 @@
 - Unshifted ArrowLeft collapses cross-block selection to range start: exits cross-block mode
 - Unshifted ArrowRight collapses cross-block selection to range end: exits cross-block mode
 - Click collapses cross-block selection: exits cross-block mode
+
+## Error / degenerate cases
+- Empty document (single empty paragraph): Ctrl+A first press selects empty content; second press is a no-op (no doc range to select)
+- Thematic break between endpoint blocks: gets whole-block overlay highlight

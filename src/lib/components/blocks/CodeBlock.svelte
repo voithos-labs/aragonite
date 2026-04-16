@@ -260,7 +260,8 @@
 		// modifier keys (Control, Shift, Alt, Meta) don't reset — pressing
 		// Control before 'a' is part of the Ctrl+A chord, not a separate action.
 		const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
-		const isBareModifier = e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' || e.key === 'Meta';
+		const isBareModifier = e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' ||
+			e.key === 'Meta' || e.key === 'AltGraph' || e.key === 'CapsLock';
 		if (!isCtrlA && !isBareModifier) {
 			selection.resetSelectAllCount();
 		}
