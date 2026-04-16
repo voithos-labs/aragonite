@@ -31,7 +31,11 @@
 	} from '../../container-state/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let {
+		node,
+		index,
+		myPath = []
+	}: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -228,6 +232,7 @@
 			children={node.children ?? []}
 			blockIds={state.innerBlockIds}
 			bind:blockRefs={state.innerBlockRefs}
+			parentPath={myPath}
 		/>
 	</div>
 </div>

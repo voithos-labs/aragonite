@@ -12,7 +12,11 @@
 	} from '../../editor-types';
 	import { displayLength } from '../../raw-text';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let {
+		node,
+		index,
+		myPath = []
+	}: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
