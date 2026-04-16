@@ -154,7 +154,7 @@
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		const selection = selectionState.isCrossBlock
-			? readCurrentSelection(selectionState, blockRefs as any[], collapsedSelectionAt)
+			? readCurrentSelection(selectionState, blockRefs, collapsedSelectionAt)
 			: collapsedSelectionAt(blockIndex, offset);
 		undoManager.push({
 			snapshot: cloneDocument(doc),
@@ -227,7 +227,7 @@
 		return {
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
-			selection: readCurrentSelection(selectionState, blockRefs as any[], collapsedSelectionAt)
+			selection: readCurrentSelection(selectionState, blockRefs, collapsedSelectionAt)
 		};
 	}
 
