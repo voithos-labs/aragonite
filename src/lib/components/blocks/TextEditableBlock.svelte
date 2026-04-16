@@ -644,7 +644,7 @@
 			const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 			if (offset === null) return;
 			installDragListener(
-				{ editorRoot: root, scrollContainer: root, selection, getBlockElByPath },
+				{ editorRoot: root, scrollContainer: root, selection },
 				{ path: myPath.slice(), offset }
 			);
 		}
