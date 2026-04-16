@@ -5,18 +5,8 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-
-// ── Public API ──────────────────────────────────────────────────────────────
-
-/** Return the node at `path`, or null if the path is invalid. */
-export function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
-	let cur: CstNode | Document = doc;
-	for (const idx of path) {
-		if (!cur.children || idx >= cur.children.length) return null;
-		cur = cur.children[idx];
-	}
-	return cur;
-}
+export { nodeAt } from '../tree-operations/generic';
+import { nodeAt } from '../tree-operations/generic';
 
 /**
  * Return the path of the block immediately after `path` in document order,
