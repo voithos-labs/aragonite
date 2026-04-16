@@ -42,6 +42,26 @@ export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 /** Svelte context key for the editor's cross-block SelectionState. See `selection/selection-state.svelte.ts`. */
 export const SELECTION_KEY = Symbol('selection');
 
+/**
+ * Svelte context key for a `BlockElLookup` callback that resolves a block
+ * path to its DOM element. Block components call this to find the focus or
+ * anchor block during cross-block keyboard extension.
+ */
+export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
+
+/** Resolves a block path to its DOM element, or null if the path is unknown. */
+export type BlockElLookup = (path: number[]) => HTMLElement | null;
+
+/**
+ * Svelte context key for a `DocumentGetter` that returns the current
+ * reactive Document. Wrapped in a getter so block components always read
+ * the latest value rather than capturing a stale snapshot at mount.
+ */
+export const DOC_KEY = Symbol('editor-doc');
+
+/** Returns the editor's current Document. */
+export type DocumentGetter = () => Document;
+
 // ── List Context (list item → list block communication via Svelte context) ──
 
 export interface ListContext {
