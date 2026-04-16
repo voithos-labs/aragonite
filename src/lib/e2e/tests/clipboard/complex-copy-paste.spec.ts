@@ -132,11 +132,7 @@ test.describe('clipboard — code block boundary and direction', () => {
 		expect(clip).toContain('A final paragraph');
 	});
 
-	test('bottom-to-top selection copies both blocks', async () => {
-		// BUG: reverse-direction cross-block copy produces empty clipboard.
-		// This test documents the correct behavior and will pass once fixed.
-		test.fail();
-
+	test('bottom-to-top selection copies the block above', async () => {
 		await editor.focusBlockStart(1);
 		await editor.pressKey('Shift+ArrowUp');
 		await editor.page.waitForTimeout(100);
@@ -145,9 +141,10 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
 
+		// Anchor is at offset 0 of block 1, so only block 0 content is selected.
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Heading 1');
-		expect(clip).toContain('Heading 2');
+		expect(clip).not.toContain('Heading 2');
 	});
 });
 
