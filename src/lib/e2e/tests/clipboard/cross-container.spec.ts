@@ -80,4 +80,54 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		expect(await editor.getSource()).toContain('> quote');
 		expect(await editor.isCrossBlockActive()).toBe(true);
 	});
+
+	test('copy from inside blockquote to paragraph then paste reproduces text', async () => {
+		await editor.loadContent('> quoted text\n\noutside\n\ndestination\n');
+		// Focus inside blockquote at path [0, 0]
+		await editor.focusBlockAtPath([0, 0], 0);
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		// Copy
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+
+		// Collapse and paste into "destination"
+		await editor.pressKey('ArrowRight');
+		await editor.page.waitForTimeout(100);
+		await editor.focusBlockEnd(2);
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		// "quoted text" and "outside" should each appear at least twice
+		const quotedCount = source.split('quoted text').length - 1;
+		const outsideCount = source.split('outside').length - 1;
+		expect(quotedCount).toBeGreaterThanOrEqual(2);
+		expect(outsideCount).toBeGreaterThanOrEqual(2);
+	});
+
+	test('cut from paragraph across blockquote then undo restores both', async () => {
+		await editor.loadContent('top paragraph\n\n> blockquote text\n\nbottom\n');
+		const before = await editor.getSource();
+
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		await editor.pressKey('Control+x');
+		await editor.page.waitForTimeout(300);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+
+		const afterCut = await editor.getSource();
+		expect(afterCut.length).toBeLessThan(before.length);
+
+		// Undo restores the original doc including the blockquote structure
+		await editor.undo();
+		await editor.page.waitForTimeout(300);
+		expect(await editor.getSource()).toBe(before);
+	});
 });

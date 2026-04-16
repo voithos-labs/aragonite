@@ -99,6 +99,19 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.page.waitForTimeout(100);
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
+
+	test('Shift+ArrowDown from paragraph into blockquote activates cross-block', async () => {
+		await editor.loadContent('above\n\n> inside quote\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		const sel = await editor.getSelectionPaths();
+		expect(sel).not.toBeNull();
+		// Anchor is in paragraph [0], focus is inside blockquote [1, 0]
+		expect(sel!.anchor.path).toEqual([0]);
+		expect(sel!.focus.path[0]).toBe(1);
+	});
 });
 
 test.describe('selection — keyboard: collapse', () => {
