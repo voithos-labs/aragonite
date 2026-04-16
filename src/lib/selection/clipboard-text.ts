@@ -70,6 +70,8 @@ export function collectCrossBlockText(
 		} else {
 			endHead = endRaw.slice(0, end.offset);
 		}
+	} else if (end.offset > 0 && end.offset < displayLength(endRaw) && end.path.length > 1) {
+		endHead = endPartialWithContainerMarker(doc, end, endRaw) ?? endRaw.slice(0, end.offset);
 	} else {
 		endHead = endRaw.slice(0, end.offset);
 	}
@@ -102,6 +104,39 @@ export function collectCrossBlockText(
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * For a partial end endpoint inside a simple container (listItem or
+ * blockquote holding one child), prepend the container's marker/prefix
+ * to the partial leaf text so the clipboard retains structural formatting
+ * (e.g. "3. thi" rather than "thi" for a partial last-item selection).
+ *
+ * Returns null if the container isn't eligible — multi-child containers,
+ * non-listItem/blockquote parents, leaves that aren't the first child, or
+ * cases where the prefix can't be recovered from the parent's raw (so the
+ * caller falls back to the plain leaf slice).
+ */
+function endPartialWithContainerMarker(
+	doc: Document,
+	end: SelectionPoint,
+	endRaw: string
+): string | null {
+	const parentPath = end.path.slice(0, -1);
+	const parent = nodeAt(doc, parentPath);
+	if (!parent || !('children' in parent) || !parent.children) return null;
+	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
+
+	// Prefix recovery only works when the leaf is the container's sole child —
+	// otherwise earlier siblings' text sits between the marker and the leaf's raw.
+	if (parent.children.length !== 1) return null;
+	if (end.path[end.path.length - 1] !== 0) return null;
+
+	const parentRaw = (parent as CstNode).raw;
+	if (!parentRaw.endsWith(endRaw)) return null;
+
+	const prefix = parentRaw.slice(0, parentRaw.length - endRaw.length);
+	return prefix + endRaw.slice(0, end.offset);
+}
 
 /**
  * Walk up from a leaf endpoint, promoting to the deepest container ancestor
