@@ -14,6 +14,10 @@ Undo and redo for structural and text operations.
 - redo stack cleared on new edit: split, undo, type new text, redo does nothing (stack cleared)
 - undo on empty stack: Ctrl+Z when nothing to undo does not crash or corrupt state
 
+## Cross-block (covered in selection/undo.md)
+- Undo after cross-block cut restores document AND cross-block selection
+- Undo after type-replace restores selection and removes typed chars in one step
+
 ## User interactions
 - undo via Ctrl+Z keyboard shortcut: verify it uses real keyboard, not programmatic
 - redo via Ctrl+Shift+Z keyboard shortcut: same
