@@ -5,17 +5,19 @@
 	let {
 		children,
 		blockIds,
-		blockRefs = $bindable([])
+		blockRefs = $bindable([]),
+		parentPath = []
 	}: {
 		children: CstNode[];
 		blockIds: string[];
 		blockRefs?: (BlockComponent | undefined)[];
+		parentPath?: number[];
 	} = $props();
 </script>
 
 <div class="block-list">
 	{#each children as node, i (blockIds[i])}
-		<BlockHost {node} index={i} bind:ref={blockRefs[i]} />
+		<BlockHost {node} index={i} {parentPath} bind:ref={blockRefs[i]} />
 	{/each}
 </div>
 

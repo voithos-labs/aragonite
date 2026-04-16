@@ -40,7 +40,11 @@
 	} from '../../container-state/focus-dispatch';
 	import ListItemBlock from './ListItemBlock.svelte';
 
-	let { node, index }: { node: CstNode; index: number } = $props();
+	let {
+		node,
+		index,
+		myPath = []
+	}: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -615,7 +619,12 @@
 
 <div class="list-block">
 	{#each node.children ?? [] as item, i (state.innerBlockIds[i])}
-		<ListItemBlock node={item} index={i} bind:this={state.innerBlockRefs[i]} />
+		<ListItemBlock
+			node={item}
+			index={i}
+			myPath={[...myPath, i]}
+			bind:this={state.innerBlockRefs[i]}
+		/>
 	{/each}
 </div>
 
