@@ -4,6 +4,7 @@
  */
 
 import type { CstNode, Document } from './core/nodes';
+import type { EditorSelection } from './selection/selection-types';
 import type { StickyColumnState } from './sticky-column';
 
 // Re-export CstNode and Document so consumers can import from here
@@ -167,8 +168,14 @@ export interface BlockComponent {
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
-	focusBlockIndex: number;
-	focusOffset: number;
+	/**
+	 * The effective selection at the moment of push. Collapsed selection
+	 * (anchor === focus) represents a single caret; same-path with different
+	 * offsets is a single-block range; different paths is a cross-block
+	 * range. See docs/superpowers/specs/2026-04-15-v0.4-selection-clipboard-design.md
+	 * Undo / Redo Integration section.
+	 */
+	selection: EditorSelection;
 }
 
 export interface UndoManager {
