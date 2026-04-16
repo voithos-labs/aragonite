@@ -27,6 +27,7 @@
 	} from '../editor-types';
 	import { createStickyColumnState } from '../sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
+	import { readCurrentSelection, applySelectionToDom } from '../selection/native-bridge';
 	import { bootstrapCodeLanguages } from '../code-surface/code-bootstrap';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import { displayLength, trimTrailingLineEnding } from '../raw-text';
@@ -145,22 +146,20 @@
 	// When true, the next keystroke should capture a "before" snapshot
 	let needsUndoCheckpoint = true;
 
-	/**
-	 * Build a collapsed EditorSelection from a flat top-level block index and
-	 * offset. Phase 2 shape migration: path is a single-element `[blockIndex]`,
-	 * matching the legacy focusBlockIndex semantics. Phase 4 will populate real
-	 * nested paths from SelectionState.
-	 */
+	/** Build a collapsed EditorSelection from a top-level block index and offset. */
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
 		const point: SelectionPoint = { path: [blockIndex], offset };
 		return { anchor: point, focus: point };
 	}
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
+		const selection = selectionState.isCrossBlock
+			? readCurrentSelection(selectionState, blockRefs as any[], collapsedSelectionAt)
+			: collapsedSelectionAt(blockIndex, offset);
 		undoManager.push({
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
-			selection: collapsedSelectionAt(blockIndex, offset)
+			selection
 		});
 	}
 
@@ -225,15 +224,10 @@
 	}
 
 	function captureCurrentState(): UndoEntry {
-		const focusedIndex = Math.max(
-			0,
-			blockRefs.findIndex((b) => b?.getCursorOffset() !== null)
-		);
-		const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset() ?? 0;
 		return {
 			snapshot: cloneDocument(doc),
 			blockIds: [...blockIds],
-			selection: collapsedSelectionAt(focusedIndex, focusedOffset)
+			selection: readCurrentSelection(selectionState, blockRefs as any[], collapsedSelectionAt)
 		};
 	}
 
@@ -621,12 +615,7 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			// Phase 2 shape migration: treat selection as collapsed, reading the
-			// flat top-level index from path[0]. Phase 4 will rewrite this to
-			// classify and route full cross-block selections.
-			const targetIndex = entry.selection.anchor.path[0] ?? 0;
-			const targetOffset = entry.selection.anchor.offset;
-			blockRefs[targetIndex]?.focus(targetOffset);
+			applySelectionToDom(entry.selection, selectionState, getBlockElByPath);
 		},
 
 		async requestRedo(): Promise<void> {
@@ -637,9 +626,7 @@
 			parseAllInlineContent(doc.children);
 			blockIds = entry.blockIds;
 			await tick();
-			const targetIndex = entry.selection.anchor.path[0] ?? 0;
-			const targetOffset = entry.selection.anchor.offset;
-			blockRefs[targetIndex]?.focus(targetOffset);
+			applySelectionToDom(entry.selection, selectionState, getBlockElByPath);
 		}
 	};
 
