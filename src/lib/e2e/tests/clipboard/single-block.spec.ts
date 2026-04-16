@@ -148,14 +148,8 @@ test.describe('single-block clipboard: edge cases', () => {
 	test('pasting single line stays inline', async () => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlock(0, 6);
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', 'world');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
+		await editor.page.evaluate(() => navigator.clipboard.writeText('world'));
+		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('Hello world');

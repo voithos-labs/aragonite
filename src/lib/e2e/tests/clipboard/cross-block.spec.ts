@@ -178,18 +178,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		// Type a character to replace the selection via beforeinput
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const e = new InputEvent('beforeinput', {
-				inputType: 'insertText',
-				data: 'X',
-				bubbles: true,
-				cancelable: true
-			});
-			el.dispatchEvent(e);
-		});
+		await editor.page.keyboard.press('X');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		// "start" tail was selected, so the merged result is "startX" + rest of "end"
@@ -211,19 +200,9 @@ test.describe('cross-block clipboard: paste', () => {
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		// Dispatch paste event with known text
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', 'PASTED');
-			const event = new ClipboardEvent('paste', {
-				clipboardData: dt,
-				bubbles: true,
-				cancelable: true
-			});
-			el.dispatchEvent(event);
-		});
+		// Write to clipboard and paste via real shortcut
+		await editor.page.evaluate(() => navigator.clipboard.writeText('PASTED'));
+		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		expect(source).toContain('PASTED');
@@ -243,14 +222,8 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 	test('pasting two paragraphs creates multiple blocks', async () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', '# Heading\n\nNew paragraph\n');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
+		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\nNew paragraph\n'));
+		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		expect(source).toContain('# Heading');
@@ -264,14 +237,8 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		for (let i = 0; i < 5; i++) {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', 'First\n\nSecond');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
+		await editor.page.evaluate(() => navigator.clipboard.writeText('First\n\nSecond'));
+		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 
 		const source = await editor.getSource();
