@@ -6,6 +6,7 @@
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
+		SELECTION_KEY,
 		CURSOR_END,
 		type BlockEditActions,
 		type FocusActions,
@@ -20,6 +21,7 @@
 		type UndoEntry
 	} from '../editor-types';
 	import { createStickyColumnState } from '../sticky-column';
+	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { bootstrapCodeLanguages } from '../code-surface/code-bootstrap';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import { displayLength, trimTrailingLineEnding } from '../raw-text';
@@ -81,6 +83,7 @@
 	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
+	const selectionState = createSelectionState();
 
 	// Re-initialize when source prop changes (e.g., async document load).
 	// The `source !== lastSource` check is load-bearing: after the first
@@ -661,6 +664,19 @@
 	setContext(HISTORY_KEY, historyActions);
 	setContext(CONTAINER_EDIT_KEY, containerEditActions);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
+	setContext(SELECTION_KEY, selectionState);
+
+	// Mirror SelectionState.isCrossBlock onto the editor root as
+	// `data-cross-block`. CSS uses this to hide the native caret / native
+	// selection highlight while the overlay paints the cross-block range.
+	$effect(() => {
+		if (!editorEl) return;
+		if (selectionState.isCrossBlock) {
+			editorEl.setAttribute('data-cross-block', '');
+		} else {
+			editorEl.removeAttribute('data-cross-block');
+		}
+	});
 
 	// ── Public API ──────────────────────────────────────────────────────
 
