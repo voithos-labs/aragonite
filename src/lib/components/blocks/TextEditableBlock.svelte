@@ -48,7 +48,6 @@
 		extendFocusToPreviousBlock,
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
-	import { nodeAt } from '../../selection/path-lookup';
 	import { createCrossBlockHandlers, type CrossBlockSurfaceContext } from '../../selection/cross-block-surface';
 
 	let {
@@ -97,17 +96,11 @@
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => { pendingCursorOffset = offset; },
-		onTypeReplace: (caret, typed) => {
-			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
-			if (!targetNode || !('raw' in targetNode)) return;
-			const raw = targetNode.raw;
-			targetNode.raw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
+		afterRawMutated: (targetNode) => {
 			if (isProseKind(targetNode.kind)) {
 				const range = getContentRange(targetNode);
 				targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
 			}
-			containerEdit.endContainerEdit();
-			pendingCursorOffset = caret.offset + typed.length;
 		}
 	});
 

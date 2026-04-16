@@ -12,6 +12,7 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './selection-types';
 import { offsetFromViewportPoint, clearNativeSelection } from './native-bridge';
+import { comparePaths } from './selection-point';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ export function installDragListener(
 		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
 		if (!hit) return;
 
-		if (pathsEqual(hit.path, anchorPoint.path)) {
+		if (comparePaths(hit.path, anchorPoint.path) === 0) {
 			// Still in the anchor block — let the browser handle native selection.
 			return;
 		}
@@ -160,10 +161,4 @@ function blockAtPoint(
 		el = el.parentElement;
 	}
 	return null;
-}
-
-function pathsEqual(a: number[], b: number[]): boolean {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-	return true;
 }

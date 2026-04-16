@@ -40,7 +40,6 @@
 		extendFocusToPreviousBlock,
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
-	import { nodeAt } from '../../selection/path-lookup';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-surface';
 	import { renderCodeBlock } from '../../code-surface/code-renderer';
 	import {
@@ -93,19 +92,7 @@
 		blockEdit,
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => { pendingCursorOffset = offset; },
-		onTypeReplace: (caret, typed) => {
-			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
-			if (!targetNode || !('raw' in targetNode)) return;
-			const raw = targetNode.raw;
-			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
-			blockEdit.updateBlockContent(
-				caret.path[caret.path.length - 1],
-				newRaw,
-				caret.offset + typed.length
-			);
-			pendingCursorOffset = caret.offset + typed.length;
-		}
+		setPendingCursor: (offset) => { pendingCursorOffset = offset; }
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

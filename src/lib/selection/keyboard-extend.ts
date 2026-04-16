@@ -15,6 +15,7 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
+import { comparePaths } from './selection-point';
 import { displayLength } from '../raw-text';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -214,7 +215,7 @@ export function handleShiftClick(
 
 	// Same-block shift-click — native selection already produced a single-block
 	// range, so leave cross-block mode inactive.
-	if (pathsEqual(anchor.path, focusPoint.path)) return false;
+	if (comparePaths(anchor.path, focusPoint.path) === 0) return false;
 
 	selection.enterCrossBlock(anchor, focusPoint);
 	clearNativeSelection();
@@ -254,10 +255,4 @@ function leafOffsetEnd(doc: Document, path: number[]): number {
 	// raw includes a trailing newline (CST invariant); the cursor system
 	// works in display space, so use displayLength to strip it.
 	return displayLength(node.raw);
-}
-
-function pathsEqual(a: number[], b: number[]): boolean {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-	return true;
 }
