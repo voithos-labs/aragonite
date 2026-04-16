@@ -22,6 +22,7 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
+import { displayLength } from '../raw-text';
 
 // ── Enter / collapse / scroll (Batch A) ─────────────────────────────────────
 
@@ -249,7 +250,9 @@ function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 function leafOffsetEnd(doc: Document, path: number[]): number {
 	const node = nodeAt(doc, path);
 	if (!node || !('raw' in node) || typeof node.raw !== 'string') return 0;
-	return node.raw.length;
+	// raw includes a trailing newline (CST invariant); the cursor system
+	// works in display space, so use displayLength to strip it.
+	return displayLength(node.raw);
 }
 
 function pathsEqual(a: number[], b: number[]): boolean {
