@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import {
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -11,6 +12,7 @@
 		EDITOR_ROOT_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
+		type ContainerEditActions,
 		type DocumentGetter,
 		type FocusActions,
 		type HistoryActions,
@@ -40,8 +42,13 @@
 		extendFocusToDocEdge,
 		selectWholeDocument,
 		handleShiftClick,
-		scrollFocusBlockIntoView
+		scrollFocusBlockIntoView,
+		collectCrossBlockText,
+		performCrossBlockDelete,
+		performCrossBlockDeleteSync,
+		type CrossBlockMutationContext
 	} from '../../selection/keydown-dispatch';
+	import { nodeAt } from '../../selection/path-lookup';
 	import { findBlockPathForElement } from '../../selection/path-lookup';
 	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
 	import { installDragListener } from '../../selection/drag-pointer';
@@ -70,6 +77,7 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
@@ -81,6 +89,14 @@
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
+
+	const crossBlockCtx: CrossBlockMutationContext = {
+		selection,
+		getDoc,
+		getBlockElByPath,
+		pushUndoSnapshot: () => containerEdit.beginContainerEdit(index, getCursorOffsetHelper(el!) ?? 0),
+		notifyDocMutated: () => containerEdit.endContainerEdit()
+	};
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -167,6 +183,9 @@
 
 	function onCompositionStart(): void {
 		stickyColumn.reset();
+		if (selection.isCrossBlock) {
+			performCrossBlockDeleteSync(crossBlockCtx);
+		}
 		composing = true;
 	}
 
@@ -175,7 +194,7 @@
 		onInput();
 	}
 
-	function onBeforeInput(e: InputEvent): void {
+	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (e.inputType === 'historyUndo') {
 			e.preventDefault();
 			history.requestUndo();
@@ -187,9 +206,6 @@
 			return;
 		}
 		if (e.inputType === 'insertLineBreak') {
-			// Shift+Enter: insert a literal \n text node rather than letting the
-			// browser produce a <br> or <div>. A text node keeps el.textContent
-			// well-formed so onInput → updateBlockContent sees a flat string.
 			e.preventDefault();
 			const sel = window.getSelection();
 			if (!sel || sel.rangeCount === 0 || !el) return;
@@ -202,6 +218,24 @@
 			sel.removeAllRanges();
 			sel.addRange(range);
 			onInput();
+			return;
+		}
+		// Cross-block type-replace: delete the range, then insert the typed char.
+		if (selection.isCrossBlock && e.inputType === 'insertText') {
+			e.preventDefault();
+			const typed = e.data ?? '';
+			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
+			if (!caret || !typed) return;
+			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
+			if (!targetNode || !('raw' in targetNode)) return;
+			const raw = targetNode.raw;
+			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
+			blockEdit.updateBlockContent(
+				caret.path[caret.path.length - 1],
+				newRaw,
+				caret.offset + typed.length
+			);
+			pendingCursorOffset = caret.offset + typed.length;
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -476,6 +510,12 @@
 		if (!el) return false;
 		const doc = getDoc();
 
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			e.preventDefault();
+			performCrossBlockDelete(crossBlockCtx, () => tick());
+			return true;
+		}
+
 		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
 			e.preventDefault();
 			extendFocusToDocEdge(selection, doc, el, myPath, 'end');
@@ -642,12 +682,23 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+			e.clipboardData?.setData('text/plain', text);
+			return;
+		}
 		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 	}
 
-	function onCut(e: ClipboardEvent): void {
+	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+			e.clipboardData?.setData('text/plain', text);
+			await performCrossBlockDelete(crossBlockCtx, () => tick());
+			return;
+		}
 		const selected = window.getSelection()?.toString() ?? '';
 		e.clipboardData?.setData('text/plain', selected);
 
@@ -660,12 +711,29 @@
 		}
 	}
 
-	function onPaste(e: ClipboardEvent): void {
+	async function onPaste(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		if (!el) return;
 		e.preventDefault();
 		const pasted = e.clipboardData?.getData('text/plain') ?? '';
 		if (!pasted) return;
+
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
+			if (!caret) return;
+			// After cross-block delete, insert pasted text at the collapsed caret.
+			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
+			if (!targetNode || !('raw' in targetNode)) return;
+			const targetDisplay = trimTrailingLineEnding(targetNode.raw);
+			const newDisplay = targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset);
+			blockEdit.updateBlockContent(
+				caret.path[caret.path.length - 1],
+				newDisplay + '\n',
+				caret.offset + pasted.length
+			);
+			pendingCursorOffset = caret.offset + pasted.length;
+			return;
+		}
 
 		const meta = node.metadata as FencedCodeMetadata;
 		const result = computeCodePaste({

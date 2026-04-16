@@ -14,7 +14,7 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './selection-types';
-import type { Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
@@ -22,6 +22,9 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
+import { walkBetween } from './range-walker';
+import { normalize } from './selection-point';
+import { rangeDelete } from './range-delete';
 import { displayLength } from '../raw-text';
 
 // ── Enter / collapse / scroll (Batch A) ─────────────────────────────────────
@@ -218,6 +221,96 @@ export function handleShiftClick(
 	selection.enterCrossBlock(anchor, focusPoint);
 	clearNativeSelection();
 	return true;
+}
+
+// ── Cross-block clipboard helpers ──────────────────────────────────────────
+
+/**
+ * Collect the plain-text content spanning a cross-block selection. Includes
+ * the tail of the start block's raw, the full leadingTrivia + raw of every
+ * middle block, and the head of the end block's raw.
+ */
+export function collectCrossBlockText(
+	doc: Document,
+	anchor: SelectionPoint,
+	focus: SelectionPoint
+): string {
+	const { start, end } = normalize({ anchor, focus });
+	const startNode = nodeAt(doc, start.path);
+	const endNode = nodeAt(doc, end.path);
+	if (!startNode || !endNode) return '';
+
+	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
+	const endRaw = 'raw' in endNode ? (endNode as CstNode).raw : '';
+
+	const startTail = startRaw.slice(start.offset);
+	let middle = '';
+	for (const path of walkBetween(doc, start.path, end.path)) {
+		const node = nodeAt(doc, path);
+		if (!node || !('raw' in node)) continue;
+		const lead = 'leadingTrivia' in node ? (node as CstNode).leadingTrivia : '';
+		middle += lead + (node as CstNode).raw;
+	}
+	const endHead = endRaw.slice(0, end.offset);
+	return startTail + middle + endHead;
+}
+
+/** Everything a cross-block mutation needs from the calling block component. */
+export interface CrossBlockMutationContext {
+	selection: SelectionState;
+	getDoc: () => Document;
+	getBlockElByPath: (path: number[]) => HTMLElement | null;
+	pushUndoSnapshot: () => void;
+	notifyDocMutated: () => void;
+}
+
+/**
+ * Run rangeDelete on the current cross-block selection, push undo, collapse,
+ * and restore the native caret in the merged block. Returns the collapsed
+ * caret position, or null if the selection wasn't cross-block.
+ */
+export async function performCrossBlockDelete(
+	ctx: CrossBlockMutationContext,
+	afterReactivity: () => Promise<void>
+): Promise<SelectionPoint | null> {
+	const { start, end } = resolveStartEnd(ctx.selection);
+	if (!start || !end) return null;
+
+	ctx.pushUndoSnapshot();
+	const { collapsedCaret } = rangeDelete(ctx.getDoc(), start, end);
+	ctx.selection.collapse();
+	ctx.notifyDocMutated();
+
+	await afterReactivity();
+
+	const blockEl = ctx.getBlockElByPath(collapsedCaret.path);
+	if (blockEl) {
+		applyCollapsedCaret(blockEl, collapsedCaret);
+		blockEl.focus();
+	}
+	return collapsedCaret;
+}
+
+/**
+ * Synchronous variant for compositionstart — no await, no caret restore.
+ * Returns the collapsed caret position or null.
+ */
+export function performCrossBlockDeleteSync(
+	ctx: CrossBlockMutationContext
+): SelectionPoint | null {
+	const { start, end } = resolveStartEnd(ctx.selection);
+	if (!start || !end) return null;
+
+	ctx.pushUndoSnapshot();
+	const { collapsedCaret } = rangeDelete(ctx.getDoc(), start, end);
+	ctx.selection.collapse();
+	ctx.notifyDocMutated();
+	return collapsedCaret;
+}
+
+function resolveStartEnd(selection: SelectionState): { start: SelectionPoint | null; end: SelectionPoint | null } {
+	if (!selection.isCrossBlock) return { start: null, end: null };
+	return { start: selection.start, end: selection.end };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
