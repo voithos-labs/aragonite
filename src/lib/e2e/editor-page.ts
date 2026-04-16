@@ -30,6 +30,29 @@ export class EditorPage {
 		await this.editorContainer.waitFor({ state: 'visible' });
 	}
 
+	// ── Cross-Block Selection Queries ───────────────────────────────────
+
+	async isCrossBlockActive(): Promise<boolean> {
+		return this.page.evaluate(() => {
+			if ((window as any).__test?.isCrossBlockActive) {
+				return (window as any).__test.isCrossBlockActive();
+			}
+			return document.querySelector('[data-cross-block]') !== null;
+		});
+	}
+
+	async getSelectionPaths(): Promise<{
+		anchor: { path: number[]; offset: number };
+		focus: { path: number[]; offset: number };
+	} | null> {
+		return this.page.evaluate(() => {
+			if ((window as any).__test?.getSelectionPaths) {
+				return (window as any).__test.getSelectionPaths();
+			}
+			return null;
+		});
+	}
+
 	// ── State Queries (via test bridge) ─────────────────────────────────
 
 	async getSource(): Promise<string> {

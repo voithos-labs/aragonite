@@ -27,6 +27,9 @@
 			getBlockKind: (index: number) => {
 				const doc = parse(editor.getSource());
 				return doc.children[index]?.kind ?? '';
+			},
+			isCrossBlockActive: () => {
+				return document.querySelector('[data-cross-block]') !== null;
 			}
 		};
 	});
