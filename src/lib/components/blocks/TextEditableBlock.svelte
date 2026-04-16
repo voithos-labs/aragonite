@@ -564,6 +564,9 @@
 			return;
 		}
 		// Cross-block type-replace: delete the range, then insert the typed char.
+		// performCrossBlockDelete already pushed the undo snapshot (with the
+		// cross-block selection), so we mutate raw directly and notify — no
+		// second undo push — so undo reverts both delete and insert in one step.
 		if (selection.isCrossBlock && e.inputType === 'insertText') {
 			e.preventDefault();
 			const typed = e.data ?? '';
@@ -572,12 +575,12 @@
 			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
 			if (!targetNode || !('raw' in targetNode)) return;
 			const raw = targetNode.raw;
-			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
-			blockEdit.updateBlockContent(
-				caret.path[caret.path.length - 1],
-				newRaw,
-				caret.offset + typed.length
-			);
+			targetNode.raw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
+			if (isProseKind(targetNode.kind)) {
+				const range = getContentRange(targetNode);
+				targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
+			}
+			containerEdit.endContainerEdit();
 			pendingCursorOffset = caret.offset + typed.length;
 			return;
 		}
