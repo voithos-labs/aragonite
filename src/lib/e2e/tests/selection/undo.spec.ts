@@ -18,8 +18,7 @@ test.describe('selection undo — cross-block restore', () => {
 		// Select across blocks 0-1 via keyboard
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Cut
 		await editor.pressKey('Control+x');
@@ -44,8 +43,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
@@ -63,7 +61,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(200);
@@ -87,8 +85,7 @@ test.describe('selection undo — cross-block restore', () => {
 		// Cross-block select from end of block 0 into block 1
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Type replacement text
 		await editor.typeText('xyz');
@@ -116,13 +113,13 @@ test.describe('selection undo — cross-block restore', () => {
 
 		// Now do selection-only operations (no mutation)
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		// Collapse
 		await editor.pressKey('ArrowLeft');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 
 		// Undo should revert the typed "!" — selection changes shouldn't
 		// have pushed extra entries

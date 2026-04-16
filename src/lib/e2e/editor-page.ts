@@ -32,6 +32,15 @@ export class EditorPage {
 
 	// ── Cross-Block Selection Queries ───────────────────────────────────
 
+	/** Wait for cross-block mode to become active or inactive. */
+	async waitForCrossBlock(active: boolean): Promise<void> {
+		if (active) {
+			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
+		} else {
+			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
+		}
+	}
+
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => {
 			if ((window as any).__test?.isCrossBlockActive) {

@@ -17,8 +17,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Copy
 		await editor.pressKey('Control+c');
@@ -26,9 +25,8 @@ test.describe('select-all clipboard round-trip', () => {
 
 		// Collapse selection and move to end of last block
 		await editor.pressKey('ArrowRight');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
-		await editor.page.waitForTimeout(100);
 
 		// Paste
 		await editor.pressKey('Control+v');
@@ -53,18 +51,16 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Cut
 		await editor.pressKey('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.waitForCrossBlock(false);
 
 		const source = await editor.getSource();
 		expect(source).not.toContain('alpha');
 		expect(source).not.toContain('beta');
 		expect(source).not.toContain('gamma');
-		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
 
 	test('select-all cut then paste replaces with clipboard', async () => {
@@ -75,7 +71,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(300);
 
