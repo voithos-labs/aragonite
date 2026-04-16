@@ -209,6 +209,37 @@ test.describe('cross-block clipboard: paste', () => {
 		expect(source).toContain('aaa');
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
+
+	test('paste into cross-block selection covering entire list replaces it', async () => {
+		await editor.loadContent('Before list\n\n- Item one\n- Item two\n- Item three\n\nAfter list\n');
+
+		// Put "REPLACEMENT" on clipboard
+		await editor.page.evaluate(() => navigator.clipboard.writeText('REPLACEMENT'));
+		await editor.page.waitForTimeout(100);
+
+		// Select the entire list (start of first item to end of last item)
+		// Blocks: [0] "Before list", [1] list, [1,0,0] "Item one",
+		//         [1,1,0] "Item two", [1,2,0] "Item three", [2] "After list"
+		await editor.focusBlockAtPath([1, 0, 0], 0); // Start of "Item one"
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.pressKey('Shift+End');
+		await editor.waitForCrossBlock(true);
+
+		// Paste
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+
+		// The list should be gone, replaced by "REPLACEMENT"
+		expect(source).toContain('Before list');
+		expect(source).toContain('REPLACEMENT');
+		expect(source).toContain('After list');
+		expect(source).not.toContain('Item one');
+		expect(source).not.toContain('Item two');
+		expect(source).not.toContain('Item three');
+	});
 });
 
 test.describe('cross-block clipboard: multi-block paste at single caret', () => {
@@ -320,6 +351,36 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 
 		const nestedCount = source.split('Nested item').length - 1;
 		expect(nestedCount).toBe(2);
+	});
+});
+
+test.describe('cross-block clipboard: partial end list marker', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('partial last-item selection preserves list marker in clipboard', async () => {
+		await editor.loadContent('1. first\n2. second\n3. third\n');
+
+		// Anchor at start of "first" (path [0,0,0]); focus at offset 3 in
+		// "third" (path [0,2,0]) — "thi" of "third".
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 2, 0], 3);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(200);
+
+		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+
+		// All three markers must be present — the third item is partially
+		// selected but its "3. " marker should still lead the partial text.
+		expect(clip).toContain('1. first');
+		expect(clip).toContain('2. second');
+		expect(clip).toContain('3. thi');
 	});
 });
 
