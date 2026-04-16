@@ -21,6 +21,10 @@
 
 	let myPath = $derived([...parentPath, index]);
 
+	let isContainer = $derived(
+		node.kind === 'blockquote' || node.kind === 'list' || node.kind === 'listItem'
+	);
+
 	let hostEl: HTMLElement | null = $state(null);
 
 	function headingClass(): string {
@@ -50,7 +54,7 @@
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
-	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} />
+	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
 </div>
 
 <style>
