@@ -16,11 +16,7 @@ import { parse } from '../core/parser';
 import { walkBetween } from './range-walker';
 import { comparePaths } from './selection-point';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import {
-	rebuildBlockquoteRaw,
-	rebuildListRaw,
-	rebuildListItemRaw
-} from '../tree-operations/container-raw';
+import { nodeAt, rebuildContainerRawIfContainer } from '../tree-operations/generic';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -53,20 +49,9 @@ export function rangeDelete(
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-
-	// 1. Truncate and merge raw text.
 	const startRaw = (startBlock as CstNode).raw;
 	const endRaw = (endBlock as CstNode).raw;
-	const startHead = startRaw.slice(0, start.offset);
-	const endTail = endRaw.slice(end.offset);
-	const mergedRaw = startHead + endTail;
-
-	// 2. Re-parse merged raw. May produce 0, 1, or more blocks.
-	const reparsed = parse(mergedRaw || '\n');
-	const replacement: CstNode[] =
-		reparsed.children.length > 0
-			? reparsed.children
-			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
+	const mergedRaw = startRaw.slice(0, start.offset) + endRaw.slice(end.offset);
 
 	if (sameBlock) {
 		// Same-block: overwrite raw directly. No deletion, no cascade cleanup.
@@ -81,45 +66,48 @@ export function rangeDelete(
 		};
 	}
 
-	// 3. Collect deletion targets: every path strictly between start and end,
-	//    plus end.path itself. We don't delete start.path — its node is replaced
-	//    by the merged block(s) below.
+	// Cross-block: re-parse the merged raw. May produce 0, 1, or more blocks;
+	// an empty parse result is replaced with a blank paragraph so the slot
+	// vacated by startBlock always receives at least one node.
+	const reparsed = parse(mergedRaw || '\n');
+	const replacement: CstNode[] =
+		reparsed.children.length > 0
+			? reparsed.children
+			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
+
+	// Deletion targets: every path strictly between start and end, plus
+	// end.path itself. start.path is not deleted — its node is replaced by
+	// the merged block(s) below.
 	const betweenPaths = walkBetween(doc, start.path, end.path);
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
 
-	// 4. Find the lowest common ancestor of start and end. Cascade cleanup
-	//    will not walk above this path.
+	// Cascade cleanup must not walk above the LCA of start/end — containers
+	// at or above still hold the merged replacement and can't be empty.
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// 5. Apply deletions in REVERSE document order (deepest/latest first) so
-	//    earlier paths are not invalidated mid-iteration.
+	// Apply in REVERSE document order so earlier paths aren't invalidated mid-iteration.
 	const reverseSortedDeletions = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
 	for (const path of reverseSortedDeletions) {
 		deleteAtPath(doc, path);
 	}
 
-	// 6. Replace startBlock with the re-parsed replacement blocks.
 	replaceAtPath(doc, start.path, replacement);
 
-	// 7. Cascade cleanup. For each deleted path, walk from its parent up
-	//    toward the LCA, removing containers that became empty.
 	for (const path of deletionPaths) {
 		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
-	// 8. Rebuild container raws along every mutated chain. Start-path ancestors
-	//    need it because the replacement block changed the container's raw;
-	//    deleted-path ancestors need it because their children arrays shrank
-	//    (and cascade-cleanup may have removed intermediate containers).
+	// Rebuild along both chains: start-path ancestors because the replacement
+	// changed their contents, deleted-path ancestors because their children
+	// arrays shrank (cascade-cleanup may also have removed intermediates).
 	rebuildAncestryContainerRaw(doc, start.path);
 	for (const path of deletionPaths) {
 		rebuildAncestryContainerRaw(doc, path);
 	}
 
-	// 9. Compute the caret position. For replacement.length === 1, the caret
-	//    is at start.offset of the merged block at start.path. For N > 1
-	//    (rare), caret lands in the first replacement block — still at
-	//    start.path with start.offset, since replacement[0] takes that slot.
+	// For replacement.length === 1 the caret lands inside the merged block at
+	// start.path/start.offset. For N > 1 (rare) the caret still lands there
+	// because replacement[0] occupies the original slot.
 	const collapsedCaret: SelectionPoint = {
 		path: start.path.slice(),
 		offset: start.offset
@@ -128,15 +116,6 @@ export function rangeDelete(
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────
-
-function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
-	let cur: CstNode | Document = doc;
-	for (const idx of path) {
-		if (!cur.children || idx >= cur.children.length) return null;
-		cur = cur.children[idx];
-	}
-	return cur;
-}
 
 function deleteAtPath(doc: Document, path: number[]): void {
 	if (path.length === 0) return; // Can't delete the root.
@@ -179,23 +158,6 @@ function rebuildAncestryContainerRaw(doc: Document, leafPath: number[]): void {
 		const ancestorPath = leafPath.slice(0, depth);
 		const ancestor = nodeAt(doc, ancestorPath);
 		if (!ancestor || !('kind' in ancestor)) break;
-		rebuildIfContainer(ancestor as CstNode);
-	}
-}
-
-function rebuildIfContainer(node: CstNode): void {
-	switch (node.kind) {
-		case 'blockquote':
-			rebuildBlockquoteRaw(node);
-			return;
-		case 'list':
-			rebuildListRaw(node);
-			return;
-		case 'listItem':
-			rebuildListItemRaw(node);
-			return;
-		default:
-			// Leaf or unknown — nothing to rebuild.
-			return;
+		rebuildContainerRawIfContainer(ancestor as CstNode);
 	}
 }
