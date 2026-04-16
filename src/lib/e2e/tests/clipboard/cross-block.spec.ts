@@ -14,12 +14,10 @@ test.describe('cross-block clipboard: copy', () => {
 		const before = await editor.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
 		expect(await editor.getSource()).toBe(before);
-		// Selection stays active after copy
 		expect(await editor.isCrossBlockActive()).toBe(true);
 	});
 
@@ -50,8 +48,7 @@ test.describe('cross-block clipboard: copy', () => {
 		// Ctrl+Shift+End (enters cross-block, extends to doc end).
 		await editor.focusBlock(0, 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Copy
 		await editor.pressKey('Control+c');
@@ -59,9 +56,8 @@ test.describe('cross-block clipboard: copy', () => {
 
 		// Collapse selection and move to end of block 2
 		await editor.clickBlock(2);
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
 		await editor.pressKey('End');
-		await editor.page.waitForTimeout(100);
 
 		// Paste
 		await editor.pressKey('Control+v');
@@ -99,11 +95,9 @@ test.describe('cross-block clipboard: cut', () => {
 		// Select from end of block 0 through all of block 1
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
 		// "bbb" was fully selected and should be gone
 		expect(source).not.toContain('bbb');
@@ -115,7 +109,7 @@ test.describe('cross-block clipboard: cut', () => {
 		const before = await editor.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(300);
 		expect(await editor.getSource()).not.toBe(before);
@@ -138,11 +132,9 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.focusBlockEnd(0);
 		// Enter cross-block mode
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressBackspace();
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
 		expect(source).toContain('hello');
 		expect(await editor.getBlockCount()).toBe(1);
@@ -152,11 +144,9 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.loadContent('abc\n\ndef\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Delete');
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		expect(await editor.getBlockCount()).toBe(1);
 	});
 
@@ -165,8 +155,7 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.focusBlock(0, 1); // "A|AA"
 		// Select through to offset 1 in block 2
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
@@ -188,8 +177,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		await editor.loadContent('start\n\nend\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		// Type a character to replace the selection via beforeinput
 		await editor.page.evaluate(() => {
 			const el = document.activeElement;
@@ -222,8 +210,7 @@ test.describe('cross-block clipboard: paste', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		// Dispatch paste event with known text
 		await editor.page.evaluate(() => {
 			const el = document.activeElement;
@@ -309,7 +296,7 @@ test.describe('cross-block clipboard: list marker preservation', () => {
 		// CST: list [0] → listItem [0,0] → paragraph [0,0,0]
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -342,8 +329,7 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 		// Focus the start of "before" paragraph via its CST path
 		await editor.focusBlockAtPath([0], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Copy
 		await editor.pressKey('Control+c');
@@ -351,9 +337,8 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 
 		// Collapse and focus end of "after" paragraph via CST path [2]
 		await editor.pressKey('ArrowRight');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([2], 5); // "after" has 5 chars
-		await editor.page.waitForTimeout(100);
 
 		// Paste
 		await editor.pressKey('Control+v');
@@ -387,8 +372,7 @@ test.describe('cross-block clipboard: partial list promotion regression', () => 
 		// Select from start of "Third" (path [0,2,0]) to end of document
 		await editor.focusBlockAtPath([0, 2, 0], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);

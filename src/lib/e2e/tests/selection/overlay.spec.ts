@@ -15,7 +15,7 @@ test.describe('selection — overlay: happy paths', () => {
 		// ensuring block [1] is strictly between start [0] and end [2].
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		const middle = await editor.page.$(
 			"[data-block-path='[1]'] .selection-overlay-middle"
 		);
@@ -27,7 +27,7 @@ test.describe('selection — overlay: happy paths', () => {
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Shift+ArrowRight');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 		const overlays = await editor.page.$$('.selection-overlay');
 		expect(overlays.length).toBe(0);
 	});
@@ -36,11 +36,11 @@ test.describe('selection — overlay: happy paths', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		const before = await editor.page.$$('.selection-overlay');
 		expect(before.length).toBeGreaterThan(0);
 		await editor.pressKey('ArrowLeft');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 		const after = await editor.page.$$('.selection-overlay');
 		expect(after.length).toBe(0);
 	});
@@ -58,7 +58,7 @@ test.describe('selection — overlay: edge cases', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		const pointerEvents = await editor.page.evaluate(() => {
 			const el = document.querySelector('.selection-overlay');
 			if (!el) return null;
@@ -84,7 +84,7 @@ test.describe('selection — overlay: edge cases', () => {
 		await editor.loadContent('before\n\n> quote line 1\n> quote line 2\n\nafter\n');
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 
 		// Container's .block-host should NOT have a direct .selection-overlay-middle
 		// (containers skip overlay rendering to prevent double-layering).

@@ -14,11 +14,9 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		// Focus inside the blockquote at end of its content
 		await editor.focusBlockAtPath([0, 0], 11); // end of "quoted line"
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
 		// "start wins": the blockquote context should survive
 		expect(source).toContain('>');
@@ -29,11 +27,9 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockEnd(0);
 		// Extend down into blockquote
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
 		// "start wins": the paragraph context should survive
 		expect(source).toContain('before');
@@ -44,8 +40,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockEnd(0);
 		// Extend selection into the blockquote
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
@@ -58,7 +53,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		const before = await editor.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(300);
 		expect(await editor.getSource()).not.toBe(before);
@@ -71,8 +66,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.loadContent('para\n\n> quote\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
 		// Document should be unchanged after copy
@@ -86,8 +80,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		// Focus inside blockquote at path [0, 0]
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.pressKey('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		// Copy
 		await editor.pressKey('Control+c');
@@ -95,9 +88,8 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 
 		// Collapse and paste into "destination"
 		await editor.pressKey('ArrowRight');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
-		await editor.page.waitForTimeout(100);
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 
@@ -115,12 +107,10 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+x');
-		await editor.page.waitForTimeout(300);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		await editor.waitForCrossBlock(false);
 
 		const afterCut = await editor.getSource();
 		expect(afterCut.length).toBeLessThan(before.length);
