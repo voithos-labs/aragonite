@@ -1,0 +1,204 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../editor-page';
+
+test.describe('cross-block clipboard: copy', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Ctrl+C with cross-block selection does not mutate the document', async () => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		const before = await editor.getSource();
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.getSource()).toBe(before);
+		// Selection stays active after copy
+		expect(await editor.isCrossBlockActive()).toBe(true);
+	});
+
+	test('Ctrl+C copies correct text: paste elsewhere reproduces it', async () => {
+		await editor.loadContent('first\n\nsecond\n\nthird\n');
+		// Select from end of first through start of second
+		await editor.focusBlock(0, 3); // "fir|st"
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+		// Collapse to end of third and paste
+		await editor.pressKey('ArrowRight');
+		await editor.page.waitForTimeout(100);
+		await editor.focusBlockEnd(2);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// The copied text should contain the tail of "first" + leading trivia + head of "second"
+		expect(source).toContain('third');
+	});
+});
+
+test.describe('cross-block clipboard: cut', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Ctrl+X deletes the cross-block range', async () => {
+		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
+		await editor.focusBlockEnd(0);
+		// Select from end of block 0 through all of block 1
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.pressKey('Control+x');
+		await editor.page.waitForTimeout(300);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+		const source = await editor.getSource();
+		// "bbb" was fully selected and should be gone
+		expect(source).not.toContain('bbb');
+		expect(source).toContain('aaa');
+	});
+
+	test('Ctrl+X then undo restores original document', async () => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		const before = await editor.getSource();
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+x');
+		await editor.page.waitForTimeout(300);
+		expect(await editor.getSource()).not.toBe(before);
+		await editor.undo();
+		await editor.page.waitForTimeout(300);
+		expect(await editor.getSource()).toBe(before);
+	});
+});
+
+test.describe('cross-block clipboard: delete/backspace', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Backspace deletes cross-block range and merges endpoints', async () => {
+		await editor.loadContent('hello\n\nworld\n');
+		await editor.focusBlockEnd(0);
+		// Enter cross-block mode
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+		const source = await editor.getSource();
+		expect(source).toContain('hello');
+		expect(await editor.getBlockCount()).toBe(1);
+	});
+
+	test('Delete key deletes cross-block range', async () => {
+		await editor.loadContent('abc\n\ndef\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.pressKey('Delete');
+		await editor.page.waitForTimeout(300);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+		expect(await editor.getBlockCount()).toBe(1);
+	});
+
+	test('cross-block delete spanning three blocks leaves merged result', async () => {
+		await editor.loadContent('AAA\n\nBBB\n\nCCC\n');
+		await editor.focusBlock(0, 1); // "A|AA"
+		// Select through to offset 1 in block 2
+		await editor.pressKey('Control+Shift+End');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).not.toContain('BBB');
+		// Block 0 start ("A") should survive
+		expect(source).toContain('A');
+	});
+});
+
+test.describe('cross-block clipboard: type-replace', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('typing over cross-block selection replaces it', async () => {
+		await editor.loadContent('start\n\nend\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		// Type a character to replace the selection via beforeinput
+		await editor.page.evaluate(() => {
+			const el = document.activeElement;
+			if (!el) return;
+			const e = new InputEvent('beforeinput', {
+				inputType: 'insertText',
+				data: 'X',
+				bubbles: true,
+				cancelable: true
+			});
+			el.dispatchEvent(e);
+		});
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// "start" tail was selected, so the merged result is "startX" + rest of "end"
+		expect(source).toContain('X');
+		expect(await editor.isCrossBlockActive()).toBe(false);
+	});
+});
+
+test.describe('cross-block clipboard: paste', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Ctrl+V with cross-block selection deletes range and pastes', async () => {
+		await editor.loadContent('aaa\n\nbbb\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+		// Dispatch paste event with known text
+		await editor.page.evaluate(() => {
+			const el = document.activeElement;
+			if (!el) return;
+			const dt = new DataTransfer();
+			dt.setData('text/plain', 'PASTED');
+			const event = new ClipboardEvent('paste', {
+				clipboardData: dt,
+				bubbles: true,
+				cancelable: true
+			});
+			el.dispatchEvent(event);
+		});
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toContain('PASTED');
+		expect(source).toContain('aaa');
+		expect(await editor.isCrossBlockActive()).toBe(false);
+	});
+});
