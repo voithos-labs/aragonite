@@ -35,6 +35,12 @@
 	} from '../../text-surface/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
+	import { collectCrossBlockText } from '../../selection/clipboard-text';
+	import {
+		performCrossBlockDelete,
+		performCrossBlockDeleteSync,
+		type CrossBlockMutationContext
+	} from '../../selection/cross-block-ops';
 	import {
 		collapseCrossBlock,
 		extendFocusToNextBlock,
@@ -42,12 +48,8 @@
 		extendFocusToDocEdge,
 		selectWholeDocument,
 		handleShiftClick,
-		scrollFocusBlockIntoView,
-		collectCrossBlockText,
-		performCrossBlockDelete,
-		performCrossBlockDeleteSync,
-		type CrossBlockMutationContext
-	} from '../../selection/keydown-dispatch';
+		scrollFocusBlockIntoView
+	} from '../../selection/keyboard-extend';
 	import { nodeAt } from '../../selection/path-lookup';
 	import { findBlockPathForElement } from '../../selection/path-lookup';
 	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
