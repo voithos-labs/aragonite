@@ -502,7 +502,6 @@
 			e.preventDefault();
 			selection.incrementSelectAllCount();
 			if (selection.selectAllCount === 1) {
-				// First press: native select-all within this block.
 				const range = document.createRange();
 				range.selectNodeContents(el);
 				const sel = window.getSelection();
@@ -510,7 +509,6 @@
 				sel?.addRange(range);
 				return true;
 			}
-			// Second press: cross-block whole-document select.
 			selectWholeDocument(selection, getDoc());
 			return true;
 		}

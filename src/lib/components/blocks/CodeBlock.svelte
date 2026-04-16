@@ -516,6 +516,12 @@
 		return false;
 	}
 
+	/**
+	 * Handle single-block-to-cross-block entry points that don't need a
+	 * boundary geometry check: Ctrl+Shift+Home/End and the first or second
+	 * press of Ctrl+A. Shift+Arrow at the block boundary is handled inline
+	 * in the existing arrow-key branches below.
+	 */
 	function handleCrossBlockEntryKeydown(e: KeyboardEvent): boolean {
 		if (!el) return false;
 
