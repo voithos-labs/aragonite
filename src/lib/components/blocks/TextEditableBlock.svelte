@@ -4,6 +4,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -11,6 +12,7 @@
 		EDITOR_ROOT_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
+		type ContainerEditActions,
 		type DocumentGetter,
 		type FocusActions,
 		type HistoryActions,
@@ -48,9 +50,13 @@
 		extendFocusToDocEdge,
 		selectWholeDocument,
 		handleShiftClick,
-		scrollFocusBlockIntoView
+		scrollFocusBlockIntoView,
+		collectCrossBlockText,
+		performCrossBlockDelete,
+		performCrossBlockDeleteSync,
+		type CrossBlockMutationContext
 	} from '../../selection/keydown-dispatch';
-	import { findBlockPathForElement } from '../../selection/path-lookup';
+	import { findBlockPathForElement, nodeAt } from '../../selection/path-lookup';
 	import { clearNativeSelection, offsetFromViewportPoint } from '../../selection/native-bridge';
 	import { installDragListener } from '../../selection/drag-pointer';
 
@@ -71,6 +77,7 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
@@ -84,6 +91,14 @@
 	let lastRenderedRaw = '';
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
+
+	const crossBlockCtx: CrossBlockMutationContext = {
+		selection,
+		getDoc,
+		getBlockElByPath,
+		pushUndoSnapshot: () => containerEdit.beginContainerEdit(index, getCursorOffsetHelper(el!) ?? 0),
+		notifyDocMutated: () => containerEdit.endContainerEdit()
+	};
 
 	function refreshInlineContent(): void {
 		if (!isProseKind(node.kind)) return;
@@ -235,6 +250,9 @@
 
 	function onCompositionStart(): void {
 		stickyColumn.reset();
+		if (selection.isCrossBlock) {
+			performCrossBlockDeleteSync(crossBlockCtx);
+		}
 		composing = true;
 	}
 
@@ -435,6 +453,12 @@
 		if (!el) return false;
 		const doc = getDoc();
 
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			e.preventDefault();
+			performCrossBlockDelete(crossBlockCtx, () => tick());
+			return true;
+		}
+
 		if (e.ctrlKey && e.shiftKey && e.key === 'End') {
 			e.preventDefault();
 			extendFocusToDocEdge(selection, doc, el, myPath, 'end');
@@ -524,31 +548,62 @@
 		return false;
 	}
 
-	function onBeforeInput(e: InputEvent): void {
+	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (e.inputType === 'historyUndo') {
 			e.preventDefault();
 			history.requestUndo();
-		} else if (e.inputType === 'historyRedo') {
+			return;
+		}
+		if (e.inputType === 'historyRedo') {
 			e.preventDefault();
 			history.requestRedo();
-		} else if (e.inputType === 'insertLineBreak') {
-			// Shift+Enter: prevent browser from inserting \n into contenteditable.
-			// A bare \n in textContent would cause onInput → updateBlockContent →
-			// reparseAsNode to produce two blocks, silently dropping content after the \n.
+			return;
+		}
+		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
+			return;
+		}
+		// Cross-block type-replace: delete the range, then insert the typed char.
+		if (selection.isCrossBlock && e.inputType === 'insertText') {
+			e.preventDefault();
+			const typed = e.data ?? '';
+			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
+			if (!caret || !typed) return;
+			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
+			if (!targetNode || !('raw' in targetNode)) return;
+			const raw = targetNode.raw;
+			const newRaw = raw.slice(0, caret.offset) + typed + raw.slice(caret.offset);
+			blockEdit.updateBlockContent(
+				caret.path[caret.path.length - 1],
+				newRaw,
+				caret.offset + typed.length
+			);
+			pendingCursorOffset = caret.offset + typed.length;
+			return;
 		}
 	}
 
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+			e.clipboardData?.setData('text/plain', text);
+			return;
+		}
 		const text = getSelectedTextFromRaw();
 		e.clipboardData?.setData('text/plain', text);
 	}
 
-	function onCut(e: ClipboardEvent): void {
+	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const text = collectCrossBlockText(getDoc(), selection.anchor, selection.focus);
+			e.clipboardData?.setData('text/plain', text);
+			await performCrossBlockDelete(crossBlockCtx, () => tick());
+			return;
+		}
 		const selectedText = getSelectedTextFromRaw();
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
@@ -558,16 +613,36 @@
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
-			// $effect handles inline re-render — no refreshInlineContent needed
 			pendingCursorOffset = selOffsets.start;
 		}
 	}
 
-	function onPaste(e: ClipboardEvent): void {
+	async function onPaste(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		const text = e.clipboardData?.getData('text/plain') ?? '';
-		if (!text) return;
+		const pastedText = e.clipboardData?.getData('text/plain') ?? '';
+		if (!pastedText) return;
+
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			const caret = await performCrossBlockDelete(crossBlockCtx, () => tick());
+			if (!caret) return;
+			// After deletion the caret block is rendered and focused. Delegate to
+			// the single-block paste path by inserting at the collapsed position.
+			const targetNode = nodeAt(getDoc(), caret.path) as CstNode | null;
+			if (!targetNode || !('raw' in targetNode)) return;
+			const targetDisplay = trimTrailingLineEnding(targetNode.raw);
+			const parsed = parse(pastedText);
+
+			if (parsed.children.length <= 1) {
+				const newDisplay = targetDisplay.slice(0, caret.offset) + pastedText + targetDisplay.slice(caret.offset);
+				blockEdit.updateBlockContent(caret.path[caret.path.length - 1], newDisplay + '\n', caret.offset + pastedText.length);
+				pendingCursorOffset = caret.offset + pastedText.length;
+			} else {
+				const targetIndex = caret.path[caret.path.length - 1];
+				blockEdit.insertParsedBlocks(targetIndex, caret.offset, parsed.children);
+			}
+			return;
+		}
 
 		const offset = getCursorOffsetHelper(el!) ?? 0;
 		const displayText = getDisplayText();
@@ -575,23 +650,16 @@
 		const start = selOffsets?.start ?? offset;
 		const end = selOffsets?.end ?? offset;
 
-		// Delete selected text first if there's a selection
 		const effectiveDisplay = displayText.slice(0, start) + displayText.slice(end);
 		const effectiveOffset = start;
 
-		// Parse the pasted text to check if it produces multiple blocks
-		const parsed = parse(text);
+		const parsed = parse(pastedText);
 
 		if (parsed.children.length <= 1) {
-			// Single block or empty — inline paste (existing behavior)
-			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + text.length);
-			// $effect handles inline re-render — no refreshInlineContent needed
-			pendingCursorOffset = effectiveOffset + text.length;
+			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + pastedText + effectiveDisplay.slice(effectiveOffset);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + pastedText.length);
+			pendingCursorOffset = effectiveOffset + pastedText.length;
 		} else {
-			// Multi-block paste — splice parsed blocks into document.
-			// First, update the block's raw to remove selected text so that
-			// insertParsedBlocks (which reads currentNode.raw) sees the correct content.
 			if (selOffsets) {
 				blockEdit.updateBlockContent(index, effectiveDisplay + '\n', effectiveOffset);
 			}
