@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../editor-page';
+import { EditorPage } from '../../editor-page';
 
-test.describe('selection & clipboard — happy paths', () => {
+test.describe('single-block clipboard: happy paths', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('selection & clipboard — happy paths', () => {
 	});
 });
 
-test.describe('selection & clipboard — edge cases', () => {
+test.describe('single-block clipboard: edge cases', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('selection & clipboard — edge cases', () => {
 
 	test('paste at end of block appends text', async () => {
 		await editor.loadContent('Start\n');
-		// First, put known text on clipboard: select all, copy, then restore
+		// Put known text on clipboard: select all, copy
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+c');
@@ -144,9 +144,26 @@ test.describe('selection & clipboard — edge cases', () => {
 		const sourceAfter = await editor.getSource();
 		expect(sourceAfter).toBe(sourceBefore);
 	});
+
+	test('pasting single line stays inline', async () => {
+		await editor.loadContent('Hello \n');
+		await editor.focusBlock(0, 6);
+		await editor.page.evaluate(() => {
+			const el = document.activeElement;
+			if (!el) return;
+			const dt = new DataTransfer();
+			dt.setData('text/plain', 'world');
+			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			el.dispatchEvent(event);
+		});
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello world');
+		expect(await editor.getBlockCount()).toBe(1);
+	});
 });
 
-test.describe('selection & clipboard — user interactions', () => {
+test.describe('single-block clipboard: user interactions', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -182,79 +199,5 @@ test.describe('selection & clipboard — user interactions', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('Brand new');
 		expect(source).not.toContain('Replace this entirely');
-	});
-});
-
-test.describe('multi-block paste', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
-	test('pasting two paragraphs creates multiple blocks', async () => {
-		await editor.loadContent('Hello\n');
-		await editor.focusBlockEnd(0);
-		// Dispatch a paste event with multi-block markdown content
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', '# Heading\n\nNew paragraph\n');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
-		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
-		expect(source).toContain('# Heading');
-		expect(source).toContain('New paragraph');
-		expect(await editor.getBlockCount()).toBeGreaterThan(1);
-	});
-
-	test('multi-block paste replaces selected text', async () => {
-		await editor.loadContent('Hello World\n');
-		await editor.focusBlock(0, 6);
-		// Select "World" (5 characters)
-		for (let i = 0; i < 5; i++) {
-			await editor.page.keyboard.press('Shift+ArrowRight');
-		}
-		// Paste multi-block content replacing "World"
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', 'First\n\nSecond');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
-		await editor.page.waitForTimeout(300);
-
-		const source = await editor.getSource();
-		// "World" must be gone — replaced by the pasted content
-		expect(source).not.toContain('World');
-		// The text before the selection should survive
-		expect(source).toContain('Hello ');
-		// Both pasted blocks should be present
-		expect(source).toContain('First');
-		expect(source).toContain('Second');
-	});
-
-	test('pasting single line stays inline', async () => {
-		await editor.loadContent('Hello \n');
-		await editor.focusBlock(0, 6);
-		// Dispatch a paste event with single-line content
-		await editor.page.evaluate(() => {
-			const el = document.activeElement;
-			if (!el) return;
-			const dt = new DataTransfer();
-			dt.setData('text/plain', 'world');
-			const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			el.dispatchEvent(event);
-		});
-		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
-		expect(source).toContain('Hello world');
-		expect(await editor.getBlockCount()).toBe(1);
 	});
 });
