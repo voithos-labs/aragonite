@@ -61,6 +61,28 @@ test.describe('selection — pointer: edge cases', () => {
 		await editor.page.waitForTimeout(100);
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
+
+	test('click collapse restores native caret in the clicked block', async () => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(true);
+
+		// Click into the second block (beta)
+		await editor.clickBlock(1);
+		await editor.page.waitForTimeout(200);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+
+		// Typing should insert into "beta", proving the native caret was restored
+		await editor.typeText('X');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('beta');
+		// "X" should be in the same block as "beta"
+		const betaBlock = source.split('\n\n').find((s) => s.includes('beta'));
+		expect(betaBlock).toContain('X');
+	});
 });
 
 test.describe('selection — pointer: cross-container', () => {

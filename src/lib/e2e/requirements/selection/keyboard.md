@@ -11,6 +11,7 @@
 - Shift+ArrowDown at last block: no-op, cross-block stays inactive
 - Shift+ArrowUp at first block: no-op, cross-block stays inactive
 - Ctrl+A doubling counter resets on non-Ctrl+A keystroke: pressing Ctrl+A after typing starts fresh
+- Shift+ArrowDown from paragraph into blockquote: activates cross-block, focus lands inside blockquote
 
 ## User interactions
 - Unshifted ArrowLeft collapses cross-block selection to range start: exits cross-block mode
