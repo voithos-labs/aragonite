@@ -11,3 +11,7 @@
 
 ## User interactions
 - Drag across a blockquote boundary: cross-container selection works
+
+## Error / degenerate cases
+- pointerup during drag in the same block as pointerdown: selection stays single-block (native)
+- Drag to a non-editable block (thematic break): thematic break gets middle-block overlay, not an endpoint
