@@ -47,6 +47,9 @@
 			 linkReferenceDefinition, table, unrecognized) -->
 		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
 	{/if}
+	<!-- hostEl is null until mount; safe because SelectionState is only
+		 populated by user gesture, never synchronously during structural
+		 mount. The overlay's $effect guards on !blockEl. -->
 	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} />
 </div>
 
