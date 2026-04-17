@@ -17,7 +17,7 @@
 		type BlockComponent
 	} from '../../editor-types';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
-	import { displayLength } from '../../raw-text';
+	import { displayLength } from '../../core/lines';
 	import { splitNode as performSplit } from '../../tree-operations';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
 	import { createBlockListState } from '../../container-state/block-list-state.svelte';

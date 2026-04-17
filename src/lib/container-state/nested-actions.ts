@@ -31,7 +31,7 @@ import {
 } from '../tree-operations';
 import { generateBlockId } from '../mutable-tree';
 import { isMergeEligible, isBlockEditable } from '../merge-rules';
-import { displayLength } from '../raw-text';
+import { displayLength } from '../core/lines';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;

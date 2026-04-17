@@ -8,7 +8,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { generateBlockId } from '../mutable-tree';
-import { trimTrailingLineEnding } from '../raw-text';
+import { trimTrailingLineEnding } from '../core/lines';
 import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
 
 // ── Types ──

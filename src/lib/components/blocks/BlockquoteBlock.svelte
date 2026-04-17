@@ -16,7 +16,7 @@
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
 	import { unwrapFirstChildFromBlockquote, deleteNode as performDelete } from '../../tree-operations';
-	import { displayLength } from '../../raw-text';
+	import { displayLength } from '../../core/lines';
 	import { tick } from 'svelte';
 	import { createBlockListState } from '../../container-state/block-list-state.svelte';
 	import {
