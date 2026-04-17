@@ -7,7 +7,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import { generateBlockId } from '../mutable-tree';
+import { generateBlockId } from './block-id';
 import { trimTrailingLineEnding } from '../core/lines';
 import { rebuildBlockquoteRaw, rebuildListRaw, rebuildListItemRaw } from './container-raw';
 

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
-import { serializeMutable } from '../../mutable-tree';
+import { serialize } from '../../core/serializer';
 
 function run(source: string, start: { path: number[]; offset: number }, end: { path: number[]; offset: number }) {
 	const doc = parse(source);
 	const result = rangeDelete(doc, start, end);
-	return { source: serializeMutable(result.newDoc), caret: result.collapsedCaret };
+	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
 describe('rangeDelete — same-container cases', () => {
