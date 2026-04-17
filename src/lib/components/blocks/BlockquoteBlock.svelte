@@ -12,7 +12,7 @@
 		type StickyColumnDirection,
 		type CstNode,
 		type BlockComponent
-	} from '../../editor-types';
+	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
 	import { unwrapFirstChildFromBlockquote, deleteNode as performDelete } from '../../tree-operations';

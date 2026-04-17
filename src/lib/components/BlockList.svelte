@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent } from '../editor-types';
+	import type { CstNode, BlockComponent } from '../contracts';
 	import BlockHost from './BlockHost.svelte';
 
 	let {
