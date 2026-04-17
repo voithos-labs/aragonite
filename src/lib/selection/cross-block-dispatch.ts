@@ -1,10 +1,10 @@
 /**
- * Shared cross-block event handling extracted from TextEditableBlock and
- * CodeBlock. Both block types need identical logic for cross-block
- * keyboard dispatch, pointer events, clipboard, and composition — the
- * only differences are single-block handling (kept in each component).
+ * Cross-block event dispatch shared by TextEditableBlock and CodeBlock.
+ * Both block types need identical logic for cross-block keyboard
+ * handling, pointer events, clipboard, and composition — the only
+ * differences are single-block handling (kept in each component).
  *
- * The factory takes a surface context describing the block's state and
+ * The factory takes a dispatch context describing the block's state and
  * editor dependencies, and returns handler functions that each component
  * calls at the top of its own event handlers.
  */
@@ -35,7 +35,7 @@ import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export interface CrossBlockSurfaceContext {
+export interface CrossBlockDispatchContext {
 	getEl: () => HTMLElement | null;
 	getMyPath: () => number[];
 	getIndex: () => number;
@@ -73,7 +73,7 @@ export interface CrossBlockHandlers {
 	handleCompositionStart(): boolean;
 }
 
-export function createCrossBlockHandlers(ctx: CrossBlockSurfaceContext): CrossBlockHandlers {
+export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
 	const mutationCtx: CrossBlockMutationContext = {
 		selection: ctx.selection,
 		getDoc: ctx.getDoc,
@@ -95,7 +95,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockSurfaceContext): CrossBl
 // ── Keydown ────────────────────────────────────────────────────────────────
 
 async function handleKeyDown(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
 	e: KeyboardEvent
 ): Promise<boolean> {
@@ -113,7 +113,7 @@ async function handleKeyDown(
 
 /** Keystroke dispatch while cross-block mode is already active. */
 async function handleCrossBlockActive(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
 	e: KeyboardEvent
 ): Promise<boolean> {
@@ -188,7 +188,7 @@ async function handleCrossBlockActive(
 
 /** Single-block entry points that don't need boundary geometry checks. */
 function handleCrossBlockEntry(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent
 ): boolean {
 	const el = ctx.getEl();
@@ -219,7 +219,7 @@ function handleCrossBlockEntry(
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
 /** Shared handler for Ctrl+Shift+Home / Ctrl+Shift+End in both active and entry paths. */
-function handleDocEdgeExtend(ctx: CrossBlockSurfaceContext, e: KeyboardEvent, direction: 'start' | 'end'): boolean {
+function handleDocEdgeExtend(ctx: CrossBlockDispatchContext, e: KeyboardEvent, direction: 'start' | 'end'): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
@@ -231,7 +231,7 @@ function handleDocEdgeExtend(ctx: CrossBlockSurfaceContext, e: KeyboardEvent, di
 // ── Pointer ────────────────────────────────────────────────────────────────
 
 function handlePointerDown(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	e: PointerEvent
 ): boolean {
 	const el = ctx.getEl();
@@ -291,7 +291,7 @@ function handlePointerDown(
 // ── Paste ──────────────────────────────────────────────────────────────────
 
 async function handlePaste(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
 	e: ClipboardEvent
 ): Promise<boolean> {
@@ -351,7 +351,7 @@ function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 // ── BeforeInput ────────────────────────────────────────────────────────────
 
 async function handleBeforeInput(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
 	e: InputEvent
 ): Promise<boolean> {
@@ -374,7 +374,7 @@ async function handleBeforeInput(
 // ── CompositionStart ───────────────────────────────────────────────────────
 
 function handleCompositionStart(
-	ctx: CrossBlockSurfaceContext,
+	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext
 ): boolean {
 	ctx.stickyColumn.reset();
