@@ -17,7 +17,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import type { StickyColumnState } from '../../sticky-column';
+	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { generateBlockId } from '../../mutable-tree';
 	import { displayLength } from '../../raw-text';
 	import {

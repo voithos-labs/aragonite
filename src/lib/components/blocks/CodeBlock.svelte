@@ -20,7 +20,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../editor-types';
-	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../sticky-column';
+	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
