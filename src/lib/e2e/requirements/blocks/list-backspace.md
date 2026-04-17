@@ -26,6 +26,7 @@ The worked examples above are the ground truth for the expected reshuffling; see
 ### Ordered list numbering on Backspace
 
 - Deleting an item renumbers subsequent items
+- U1 unwrap of the first item in a list that follows a blank-separated prior list preserves the unwrapped list's original starting number on the remaining items (Google Docs semantics: the two visual lists read as one continuous sequence, with the lifted paragraph acting as a description between them — not Obsidian's restart-at-1)
 
 ## Delete (forward delete)
 

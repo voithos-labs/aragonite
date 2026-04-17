@@ -168,11 +168,12 @@ test.describe('list Enter', () => {
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
 
-	// Regression (user report): Enter on an empty middle item of an ordered list
-	// must preserve the surviving second half's original markers. The pre-fix
-	// behavior renumbered the whole list BEFORE the split, so "4. four" became
-	// "3. four" in the second half — surprising and undesired.
-	test('ordered: Enter on empty middle item preserves second-half numbering', async () => {
+	// Enter on an empty middle item exits the list and renumbers the second
+	// half so the sequence continues uninterrupted from the first half —
+	// Google Docs / Obsidian semantics, where the exit paragraph is treated
+	// as a description that doesn't consume a marker number. Reverses the
+	// earlier "preserve second-half markers" direction (commit 17727fd).
+	test('ordered: Enter on empty middle item renumbers second half continuously', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n4. four\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
 		await third.click();
@@ -186,9 +187,34 @@ test.describe('list Enter', () => {
 		// First half preserved.
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
-		// Second half retains its ORIGINAL marker ("4. four"), NOT renumbered to "3.".
-		expect(source).toMatch(/^4\. four$/m);
-		expect(source).not.toMatch(/^3\. four$/m);
+		// Second half continues the sequence — "four" becomes "3." (skipping
+		// only the exited item's slot), not "4." (pre-exit marker) and not
+		// "1." (fresh restart).
+		expect(source).toMatch(/^3\. four$/m);
+		expect(source).not.toMatch(/^4\. four$/m);
+		expect(source).not.toMatch(/^1\. four$/m);
+	});
+
+	// Case 1 from the paste/list-numbering design discussion: Enter-Enter from
+	// the end of a middle item (produces an empty middle item, then exits it)
+	// must leave the trailing item renumbered as if the exited slot never
+	// existed.
+	test('ordered: double-Enter at end of middle item exits with continuous numbering', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
+		await second.click();
+		await editor.page.keyboard.press('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. one$/m);
+		expect(source).toMatch(/^2\. two$/m);
+		// "three" returns to "3." — the inserted-then-exited empty item
+		// doesn't advance the sequence.
+		expect(source).toMatch(/^3\. three$/m);
+		expect(source).not.toMatch(/^4\. three$/m);
 	});
 
 	// Covers the requirement "Empty last item: deleted, paragraph created
@@ -212,5 +238,24 @@ test.describe('list Enter', () => {
 		expect(source).not.toMatch(/^- Last/m);
 		expect(source).toContain('After');
 		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
+	});
+
+	// Loose list (blank line between items) still treats Enter at the end of
+	// the last item as an append — the blank line is descriptive trivia, not
+	// a list terminator — so the new item continues the sequence.
+	test('ordered: Enter at end of last item in loose list appends continuing item', async () => {
+		await editor.loadContent('1. one\n2. two\n\n3. three\n');
+		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
+		await third.click();
+		await editor.page.keyboard.press('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		await editor.typeText('new');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. one$/m);
+		expect(source).toMatch(/^2\. two$/m);
+		expect(source).toMatch(/^3\. three$/m);
+		expect(source).toMatch(/^4\. new$/m);
 	});
 });
