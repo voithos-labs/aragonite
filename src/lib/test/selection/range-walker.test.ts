@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { walkBetween } from '../../selection/range-walker';
+import { walkBetween } from '../../selection/primitives';
 import type { CstNode, Document } from '../../core/nodes';
 
 function para(raw: string): CstNode {

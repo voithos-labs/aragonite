@@ -6,7 +6,7 @@
  */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './selection-types';
+import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import {
 	readNativeCaretInBlock,
@@ -15,7 +15,7 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
-import { comparePaths } from './selection-point';
+import { comparePaths } from './primitives';
 import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────

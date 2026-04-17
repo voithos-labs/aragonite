@@ -12,9 +12,9 @@
  * element and its path.
  */
 
-import type { SelectionPoint, EditorSelection } from './selection-types';
+import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
-import { comparePaths } from './selection-point';
+import { comparePaths } from './primitives';
 import { createRangeFromOffsets, getCursorOffset } from '../contenteditable/cursor-utils';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────

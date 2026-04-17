@@ -4,7 +4,7 @@
  */
 
 import type { CstNode, Document } from './core/nodes';
-import type { EditorSelection } from './selection/selection-types';
+import type { EditorSelection } from './selection/primitives';
 import type { StickyColumnDirection } from './context-keys';
 
 // Re-export everything from context-keys so existing consumers don't break.
@@ -18,7 +18,7 @@ export type {
 	SelectionPoint,
 	EditorSelection,
 	SelectionDragStart
-} from './selection/selection-types';
+} from './selection/primitives';
 
 /** Sentinel offset meaning "place cursor at end of content". focus() clamps to content length. */
 export const CURSOR_END = 999999;

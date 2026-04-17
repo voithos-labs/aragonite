@@ -8,8 +8,8 @@
  * Selection Model section for the state machine and transition rules.
  */
 
-import type { SelectionPoint, SelectionDragStart } from './selection-types';
-import { normalize } from './selection-point';
+import type { SelectionPoint, SelectionDragStart } from './primitives';
+import { normalize } from './primitives';
 
 // ── Public factory ──────────────────────────────────────────────────────────
 
