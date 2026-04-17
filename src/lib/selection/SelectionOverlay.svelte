@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_KEY, type BlockComponent } from '../editor-types';
+	import { SELECTION_KEY, type BlockComponent } from '../contracts';
 	import type { SelectionState } from './selection-state.svelte';
 	import { normalize, classifyBlockForSelection, type BlockSelectionClass } from './primitives';
 

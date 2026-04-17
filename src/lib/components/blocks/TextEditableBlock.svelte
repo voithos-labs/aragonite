@@ -19,7 +19,7 @@
 		type CstNode,
 		type BlockComponent,
 		type StickyColumnDirection
-	} from '../../editor-types';
+	} from '../../contracts';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';

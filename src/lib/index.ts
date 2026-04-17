@@ -26,13 +26,13 @@ export type {
 
 export {
 	LIST_CONTEXT_KEY
-} from './editor-types';
+} from './contracts';
 export type {
 	BlockComponent,
 	UndoManager,
 	UndoEntry,
 	ListContext
-} from './editor-types';
+} from './contracts';
 export { cloneDocument } from './tree-operations/clone';
 export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';

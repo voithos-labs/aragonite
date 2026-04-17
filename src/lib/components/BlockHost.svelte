@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent } from '../editor-types';
+	import type { CstNode, BlockComponent } from '../contracts';
 	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
 	import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
 	import CodeBlock from './blocks/CodeBlock.svelte';
