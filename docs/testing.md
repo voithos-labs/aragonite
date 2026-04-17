@@ -20,7 +20,7 @@ npm run test:e2e       # E2E tests (auto-starts dev server)
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`. Layer-specific tests are grouped into subdirectories that mirror the source layer structure (`test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`), so editing a file in `container-state/` makes its test findable under `test/container-state/` without inflating the source directory listing. Cross-cutting tests (`round-trip`, `round-trip-complex`, `merge-rules`, `mutable-tree`, `undo-manager`, `sticky-column`) stay at `test/` root because they exercise multiple layers or top-level editor files. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
+Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/code-block/` — keyed to the source area it covers (some mirror source paths exactly; `container-state` and `code-block` are flat for naming clarity). Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
 
 ## E2E Tests (Playwright)
 

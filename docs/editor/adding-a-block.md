@@ -4,7 +4,7 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Pure container state and focus helpers live in `src/lib/editor/container-state/`. Pure contenteditable DOM helpers live in `src/lib/editor/contenteditable/`.
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Container state and focus helpers live in `src/lib/editor/components/blocks/container-state/` (co-located with the container block components that consume them). Pure contenteditable DOM helpers live in `src/lib/editor/contenteditable/`.
 
 ## Two Categories
 

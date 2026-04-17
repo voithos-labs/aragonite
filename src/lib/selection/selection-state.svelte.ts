@@ -4,8 +4,8 @@
  * mode (the browser's native selection handles single-block editing). These
  * fields become non-null only when the selection crosses block boundaries.
  *
- * See docs/superpowers/specs/2026-04-15-v0.4-selection-clipboard-design.md
- * Selection Model section for the state machine and transition rules.
+ * See docs/design/editor/editor.md — Selection section for the state
+ * machine and transition rules.
  */
 
 import type { SelectionPoint, SelectionDragStart } from './primitives';
