@@ -16,7 +16,7 @@
 
 import type { CstNode } from '../core/nodes';
 import type { BlockComponent } from '../editor-types';
-import { assignIds } from '../mutable-tree';
+import { assignIds } from '../tree-operations/block-id';
 
 export interface BlockListState {
 	/** Reactive IDs for keyed {#each} rendering. */

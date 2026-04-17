@@ -33,6 +33,7 @@ export type {
 	UndoEntry,
 	ListContext
 } from './editor-types';
-export { cloneDocument, serializeMutable, assignIds, generateBlockId } from './mutable-tree';
+export { cloneDocument } from './tree-operations/clone';
+export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
 export { createUndoManager } from './undo-manager';

@@ -4,7 +4,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import { cloneNode } from '../mutable-tree';
+import { cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from './container-raw';
 
 /**

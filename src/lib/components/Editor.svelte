@@ -29,7 +29,9 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { readCurrentSelection, applySelectionToDom } from '../selection/native-bridge';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
-	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
+	import { cloneDocument } from '../tree-operations/clone';
+	import { assignIds, generateBlockId } from '../tree-operations/block-id';
+	import { serialize } from '../core/serializer';
 	import { displayLength, trimTrailingLineEnding } from '../core/lines';
 	import {
 		splitNode as performSplit,
@@ -694,7 +696,7 @@
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
-		return serializeMutable(doc);
+		return serialize(doc);
 	}
 
 	export function getSelectionState() {

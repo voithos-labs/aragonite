@@ -18,7 +18,7 @@
 		type BlockComponent
 	} from '../../editor-types';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
-	import { generateBlockId } from '../../mutable-tree';
+	import { generateBlockId } from '../../tree-operations/block-id';
 	import { displayLength } from '../../core/lines';
 	import {
 		deleteNode as performDelete,

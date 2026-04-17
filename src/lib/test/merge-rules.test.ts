@@ -4,7 +4,7 @@ import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rule
 import { parse } from '../core/parser';
 import type { BlockKind, CstNode } from '../core/nodes';
 import { rebuildAncestryRaw } from '../tree-operations';
-import { serializeMutable } from '../mutable-tree';
+import { serialize } from '../core/serializer';
 
 describe('isMergeEligible', () => {
 	// Full role-pair matrix. Representatives of each role:
@@ -265,7 +265,7 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 		if (result.path.length > 0) {
 			rebuildAncestryRaw(prev, result.path);
 		}
-		return serializeMutable({ children: [prev], prefix: '', suffix: '' });
+		return serialize({ children: [prev], prefix: '', suffix: '' });
 	}
 
 	it('flat blockquote: serialize returns the expected post-merge source', () => {

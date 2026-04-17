@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { serializeMutable } from '../../mutable-tree';
+import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 
 describe('splitNode', () => {
@@ -80,7 +80,7 @@ describe('splitNode', () => {
 		const doc = parse(source);
 		const ids = ['id-1'];
 		splitNode(doc, ids, 0, 5);
-		const result = serializeMutable(doc);
+		const result = serialize(doc);
 		expect(result).toBe('Hello\n World\n');
 	});
 
@@ -101,7 +101,7 @@ describe('splitNode edge cases', () => {
 		const ids = ['id-1'];
 		splitNode(doc, ids, 0, 5);
 		expect(doc.children).toHaveLength(2);
-		expect(serializeMutable(doc)).toBe('Hello\n World\n');
+		expect(serialize(doc)).toBe('Hello\n World\n');
 	});
 
 	it('split at offset beyond raw length produces empty second block', () => {

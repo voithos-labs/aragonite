@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
-import { serializeMutable, assignIds } from '../mutable-tree';
+import { serialize } from '../core/serializer';
+import { assignIds } from '../tree-operations/block-id';
 import { createUndoManager } from '../undo-manager';
 import type { UndoEntry } from '../editor-types';
 
@@ -30,7 +31,7 @@ describe('UndoManager', () => {
 		expect(manager.canUndo).toBe(true);
 		const restored = manager.undo(CURRENT);
 		expect(restored).not.toBeNull();
-		expect(serializeMutable(restored!.snapshot)).toBe('Hello\n');
+		expect(serialize(restored!.snapshot)).toBe('Hello\n');
 	});
 
 	it('undo returns entries in reverse order', () => {
@@ -39,11 +40,11 @@ describe('UndoManager', () => {
 		manager.push(makeEntry('Second\n'));
 		manager.push(makeEntry('Third\n'));
 		const third = manager.undo(CURRENT);
-		expect(serializeMutable(third!.snapshot)).toBe('Third\n');
+		expect(serialize(third!.snapshot)).toBe('Third\n');
 		const second = manager.undo(makeEntry('after-third\n'));
-		expect(serializeMutable(second!.snapshot)).toBe('Second\n');
+		expect(serialize(second!.snapshot)).toBe('Second\n');
 		const first = manager.undo(makeEntry('after-second\n'));
-		expect(serializeMutable(first!.snapshot)).toBe('First\n');
+		expect(serialize(first!.snapshot)).toBe('First\n');
 		expect(manager.undo(CURRENT)).toBeNull();
 	});
 
@@ -55,7 +56,7 @@ describe('UndoManager', () => {
 		expect(manager.canRedo).toBe(true);
 		// Redo should give back "After\n" (the state we were at when we undid)
 		const redone = manager.redo(makeEntry('Before\n'));
-		expect(serializeMutable(redone!.snapshot)).toBe('After\n');
+		expect(serialize(redone!.snapshot)).toBe('After\n');
 	});
 
 	it('new push after undo clears the redo stack', () => {
@@ -95,15 +96,15 @@ describe('UndoManager', () => {
 		manager.push(makeEntry('A\n')); // checkpoint: "A"
 		// Current state is "AB". Undo should restore "A".
 		const undone1 = manager.undo(makeEntry('AB\n'));
-		expect(serializeMutable(undone1!.snapshot)).toBe('A\n');
+		expect(serialize(undone1!.snapshot)).toBe('A\n');
 		// Redo should restore "AB"
 		const redone = manager.redo(makeEntry('A\n'));
-		expect(serializeMutable(redone!.snapshot)).toBe('AB\n');
+		expect(serialize(redone!.snapshot)).toBe('AB\n');
 		// Undo again should restore "A"
 		const undone2 = manager.undo(makeEntry('AB\n'));
-		expect(serializeMutable(undone2!.snapshot)).toBe('A\n');
+		expect(serialize(undone2!.snapshot)).toBe('A\n');
 		// Undo again should restore empty
 		const undone3 = manager.undo(makeEntry('A\n'));
-		expect(serializeMutable(undone3!.snapshot)).toBe('\n');
+		expect(serialize(undone3!.snapshot)).toBe('\n');
 	});
 });
