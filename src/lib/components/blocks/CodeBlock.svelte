@@ -504,17 +504,60 @@
 		if (crossBlock.handlePointerDown(e)) return;
 	}
 
+	/**
+	 * A code block stores opener + body + closer as one flat `raw`, and the
+	 * displayed text is that `raw` minus the trailing newline. A native single-
+	 * block selection therefore captures fence markers at the boundaries when
+	 * the user's selection crosses them. Pasting a lone opener elsewhere makes
+	 * the parser absorb everything to EOF as an unclosed fence; a lone closer
+	 * parses as a spurious empty code block.
+	 *
+	 * Strategy: full-content selection (Ctrl+A, offsets span the entire
+	 * display) round-trips the whole block verbatim — fences and all — so the
+	 * user gets a complete code block on paste. Any partial selection strips
+	 * fence-only lines from the start and end so the clipboard holds pure code
+	 * content. Pasting that elsewhere produces a paragraph, not broken markdown.
+	 */
+	function getCopyPayload(): string {
+		const selected = window.getSelection()?.toString() ?? '';
+		if (!el) return selected;
+
+		const selOffsets = getSelectionOffsetsHelper(el);
+		const displayLen = (el.textContent ?? '').length;
+		const isFullSelection =
+			selOffsets !== null && selOffsets.start === 0 && selOffsets.end === displayLen;
+		if (isFullSelection) return selected;
+
+		return stripFenceBoundaries(selected);
+	}
+
+	/** Drop fence-only lines from the leading and trailing edges of `text`. */
+	function stripFenceBoundaries(text: string): string {
+		const lines = text.split('\n');
+		while (lines.length > 0 && isFenceLine(lines[0])) lines.shift();
+		while (lines.length > 0 && isFenceLine(lines[lines.length - 1])) lines.pop();
+		return lines.join('\n');
+	}
+
+	/**
+	 * A fence-only line is three-or-more backticks (or tildes) followed by an
+	 * optional info string and nothing else. The opening fence may carry an
+	 * info string (```javascript); the closing fence is just the run.
+	 */
+	function isFenceLine(line: string): boolean {
+		return /^(?:`{3,}|~{3,})[^\n`~]*$/.test(line.trim());
+	}
+
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+		e.clipboardData?.setData('text/plain', getCopyPayload());
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		const selected = window.getSelection()?.toString() ?? '';
-		e.clipboardData?.setData('text/plain', selected);
+		e.clipboardData?.setData('text/plain', getCopyPayload());
 
 		const selOffsets = getSelectionOffsetsHelper(el!);
 		if (selOffsets) {
