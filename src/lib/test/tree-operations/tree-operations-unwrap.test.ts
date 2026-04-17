@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { serializeMutable } from '../../mutable-tree';
+import { serialize } from '../../core/serializer';
 import {
 	unwrapFirstChildFromBlockquote,
 	unwrapFirstItemFromList,
@@ -71,7 +71,7 @@ describe('unwrapFirstChildFromBlockquote', () => {
 
 	it('input blockquote is not mutated', () => {
 		const bq = parseBlockquote('> First\n>\n> Second\n');
-		const before = serializeMutable({
+		const before = serialize({
 			children: [bq],
 			prefix: '',
 			suffix: ''
@@ -79,7 +79,7 @@ describe('unwrapFirstChildFromBlockquote', () => {
 
 		unwrapFirstChildFromBlockquote(bq);
 
-		const after = serializeMutable({
+		const after = serialize({
 			children: [bq],
 			prefix: '',
 			suffix: ''
@@ -224,7 +224,7 @@ describe('unwrapFirstItemFromList', () => {
 
 	it('input list is not mutated', () => {
 		const list = parseList('- First\n  - Nested\n- Second\n');
-		const before = serializeMutable({
+		const before = serialize({
 			children: [list],
 			prefix: '',
 			suffix: ''
@@ -232,7 +232,7 @@ describe('unwrapFirstItemFromList', () => {
 
 		unwrapFirstItemFromList(list);
 
-		const after = serializeMutable({
+		const after = serialize({
 			children: [list],
 			prefix: '',
 			suffix: ''

@@ -29,7 +29,7 @@ import {
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate
 } from '../tree-operations';
-import { generateBlockId } from '../mutable-tree';
+import { generateBlockId } from '../tree-operations/block-id';
 import { isMergeEligible, isBlockEditable } from '../merge-rules';
 import { displayLength } from '../core/lines';
 

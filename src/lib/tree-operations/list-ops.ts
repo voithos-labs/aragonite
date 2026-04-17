@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import { cloneNode } from '../mutable-tree';
+import { cloneNode } from './clone';
 import { rebuildListRaw, rebuildListItemRaw } from './container-raw';
 import { walkToDeepestMergeLeaf } from '../merge-rules';
 import { rebuildAncestryRaw } from './generic';
