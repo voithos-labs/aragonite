@@ -19,16 +19,15 @@
 	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { generateBlockId } from '../../tree-operations/block-id';
-	import { displayLength } from '../../core/lines';
 	import {
 		deleteNode as performDelete,
 		unwrapFirstItemFromList,
 		mergeListItemIntoPrevious,
 		renumberOrderedList,
-		normalizeItemMarkerToList,
 		isItemUserEmpty
 	} from '../../tree-operations';
-	import { rebuildListRaw, rebuildListItemRaw } from '../../tree-operations/container-raw';
+	import { rebuildListRaw } from '../../tree-operations/container-raw';
+	import { createListContext } from '../../tree-operations/list-context';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
@@ -301,264 +300,19 @@
 	// this returns the outer list's context; for top-level lists it is undefined.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
-	const listContext: ListContext = {
-		async indentItem(itemIndex: number): Promise<void> {
-			if (!node.children || itemIndex === 0) return;
-
-			const prevItem = node.children[itemIndex - 1];
-			if (!prevItem.children) return;
-
-			parentContainerEdit?.beginContainerEdit(index, 0);
-
-			// Pre-compute the destination list (existing nested list of the
-			// matching type, or a new one to append).
-			const ordered = (node.metadata as { ordered: boolean }).ordered;
-			const existingNestedList = prevItem.children.find(
-				(c) => c.kind === 'list' && (c.metadata as { ordered: boolean }).ordered === ordered
-			);
-
-			// Atomic splice of children/ids/refs via commitChildrenEdit. We
-			// take ownership of the item from the outer list FIRST so we have
-			// a clean reference, then append it to the destination list
-			// inside prevItem (which is still shared with the committed
-			// children array — prevItem is the same object either way).
-			let movedItem!: CstNode;
-			state.commitChildrenEdit((children, ids, refs) => {
-				[movedItem] = children.splice(itemIndex, 1);
-				ids.splice(itemIndex, 1);
-				refs.splice(itemIndex, 1);
-			});
-
-			let destList: CstNode;
-			if (existingNestedList && existingNestedList.children) {
-				existingNestedList.children.push(movedItem);
-				destList = existingNestedList;
-			} else {
-				destList = {
-					kind: 'list',
-					leadingTrivia: '',
-					raw: '',
-					metadata: { ordered },
-					children: [movedItem]
-				};
-				prevItem.children.push(destList);
-			}
-
-			// Renumber the destination list (so the appended item slots into the
-			// right position in the sequence) and the now-shrunk parent list.
-			renumberOrderedList(destList);
-			rebuildListRaw(destList);
-			rebuildListItemRaw(prevItem);
-			renumberOrderedList(node, itemIndex);
-			rebuildListRaw(node);
-			parentContainerEdit?.endContainerEdit();
-			state.triggerReactivity();
-			await tick();
-
-			// Focus the indented item — it's now the last child of the previous
-			// item's nested list. FOCUS_LAST_START cascades through containers
-			// choosing the last child at each level, placing cursor at offset 0.
-			state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
+	const listContext = createListContext({
+		get index() {
+			return index;
 		},
-
-		async unindentItem(itemIndex: number): Promise<void> {
-			if (!parentListContext || !node.children) return;
-			// Delegate the full operation to the parent list, which has direct
-			// access to its own children array and the parent item node.
-			await parentListContext.promoteNestedItem(parentListContext.getContainingItemIndex(), node, itemIndex);
+		get node() {
+			return node;
 		},
-
-		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
-			if (!node.children) return;
-
-			if (!newItem) {
-				const prevMarker =
-					(node.children[itemIndex]?.metadata as { marker?: string })?.marker ?? '- ';
-				// For ordered lists, increment the number (e.g. "1. " → "2. ")
-				const marker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
-				newItem = {
-					kind: 'listItem',
-					leadingTrivia: '',
-					raw: '',
-					metadata: { marker, taskItem: false, taskChecked: false },
-					innerPrefix: '',
-					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
-					innerSuffix: ''
-				};
-				rebuildListItemRaw(newItem);
-			}
-
-			// Atomic splice of children/ids/refs via commitChildrenEdit so
-			// that bind:this doesn't leave a stale ref at the shifted index.
-			state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(itemIndex + 1, 0, newItem!);
-				ids.splice(itemIndex + 1, 0, generateBlockId());
-				refs.splice(itemIndex + 1, 0, undefined);
-			});
-			renumberOrderedList(node, itemIndex + 1);
-			rebuildListRaw(node);
-			await tick();
-			state.innerBlockRefs[itemIndex + 1]?.focus(0);
-		},
-
-		async promoteNestedItem(
-			parentItemIdx: number,
-			nestedListNode: CstNode,
-			nestedItemIdx: number
-		): Promise<void> {
-			if (!node.children || !nestedListNode.children) return;
-
-			const parentItem = node.children[parentItemIdx];
-			if (!parentItem?.children) return;
-
-			parentContainerEdit?.beginContainerEdit(index, 0);
-
-			const item = nestedListNode.children[nestedItemIdx];
-
-			// 1. Remove item from nested list; renumber and rebuild the remainder,
-			// or delete the nested list if it's now empty. These mutations touch
-			// parentItem's inner children (via $state proxy) — the parentItem's
-			// own BlockListState $effect will catch the childCount drift and
-			// resync its refs on the next render flush.
-			nestedListNode.children.splice(nestedItemIdx, 1);
-			if (nestedListNode.children.length === 0) {
-				const nestedIdx = parentItem.children.indexOf(nestedListNode);
-				if (nestedIdx !== -1) parentItem.children.splice(nestedIdx, 1);
-			} else {
-				renumberOrderedList(nestedListNode);
-				rebuildListRaw(nestedListNode);
-			}
-			rebuildListItemRaw(parentItem);
-
-			// 2. Normalize the promoted item's marker style to this list's type
-			// (ordered ↔ unordered) before inserting, so the subsequent renumber
-			// pass can read a well-formed marker suffix.
-			normalizeItemMarkerToList(item, node);
-
-			// 3. Insert into the outer list via atomic commitChildrenEdit so
-			// children/ids/refs stay aligned (prevents stale trailing refs).
-			state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(parentItemIdx + 1, 0, item);
-				ids.splice(parentItemIdx + 1, 0, generateBlockId());
-				refs.splice(parentItemIdx + 1, 0, undefined);
-			});
-			renumberOrderedList(node, parentItemIdx + 1);
-			rebuildListRaw(node);
-
-			parentContainerEdit?.endContainerEdit();
-			await tick();
-			state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
-		},
-
-		getContainingItemIndex(): number {
-			return -1; // top-level list; never read because unindentItem guards on parentListContext.
-		},
-
-		async exitListAtItem(itemIndex: number): Promise<void> {
-			if (!node.children) return;
-
-			// Before deleting the empty item, redistribute any trailing
-			// children (children[1..]): matching-type nested list items
-			// get promoted to siblings in the current list, so the user's
-			// Enter doesn't silently drop structural content they built
-			// via an earlier split. Per requirements: "nested lists from a
-			// previous split move to adjacent items."
-			const item = node.children[itemIndex];
-			const parentOrdered =
-				(node.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-			const promotedItems: CstNode[] = [];
-			if (item.children && item.children.length > 1) {
-				for (const child of item.children.slice(1)) {
-					if (child.kind === 'list' && child.children) {
-						const childOrdered =
-							(child.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-						if (childOrdered === parentOrdered) {
-							for (const nestedItem of child.children) {
-								nestedItem.leadingTrivia = '';
-								promotedItems.push(nestedItem);
-							}
-							continue;
-						}
-					}
-					// Mismatched-type nested lists and non-list trailing
-					// children still fall through (deleted with the item).
-					// Tracked as a known limitation in docs/issues.md.
-				}
-			}
-
-			// Only-item case: delegate to top-level splitBlock which replaces
-			// the list with a paragraph. If there was promoted content, the
-			// promoted items need to survive; splice them in BEFORE the split
-			// so splitBlock sees a populated list.
-			if (node.children.length <= 1 && promotedItems.length === 0) {
-				parentBlockEdit.splitBlock(index, displayLength(node.raw));
-				return;
-			}
-
-			const wasFirstItem = itemIndex === 0;
-			const wasLastItem = itemIndex === node.children.length - 1;
-
-			// Splice the empty item out and replace with promotedItems in
-			// place. If promotedItems is empty, this is equivalent to
-			// performDelete.
-			parentContainerEdit?.beginContainerEdit(index, 0);
-			state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(itemIndex, 1, ...promotedItems);
-				const newIds = promotedItems.map(() => generateBlockId());
-				ids.splice(itemIndex, 1, ...newIds);
-				const newRefs: (BlockComponent | undefined)[] = new Array(promotedItems.length).fill(
-					undefined
-				);
-				refs.splice(itemIndex, 1, ...newRefs);
-			});
-			// Renumber the whole list — promoted items' markers may need
-			// re-sequencing, and the itemIndex-0 removal shifts all subsequent
-			// markers anyway.
-			renumberOrderedList(node, 0);
-			rebuildListRaw(node);
-			parentContainerEdit?.endContainerEdit();
-			state.triggerReactivity();
-
-			// If after the splice the list is entirely empty (no promoted
-			// items and the item was the last survivor), delete it outright
-			// and create a paragraph. Mirrors the original only-item path.
-			if (node.children.length === 0) {
-				await parentBlockEdit.deleteBlock(index);
-				parentFocus.moveFocus(index, 'end');
-				return;
-			}
-
-			if (wasFirstItem) {
-				// Empty item was at the start — create paragraph before the list.
-				// Promoted items (if any) are now the new first items of the list;
-				// the exit paragraph still goes BEFORE them per the original
-				// first-item branch.
-				await parentBlockEdit.splitBlock(index, 0);
-				// splitBlock focused the list (index+1), redirect to the paragraph (index)
-				parentFocus.moveFocus(index, 'start');
-			} else if (wasLastItem) {
-				// Empty item was at the end — create paragraph after the list.
-				// Promoted items (if any) are now the new last items of the list;
-				// the exit paragraph still goes AFTER them.
-				parentBlockEdit.splitBlock(index, displayLength(node.raw));
-			} else {
-				// Empty item was in the middle — split the list at the effective
-				// insertion point (after any promoted items), insert paragraph
-				// between the two halves.
-				const effectiveSplitIndex = itemIndex + promotedItems.length;
-				let splitOffset = (node.innerPrefix ?? '').length;
-				for (let j = 0; j < effectiveSplitIndex; j++) {
-					splitOffset +=
-						(node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
-				}
-				await parentBlockEdit.splitBlock(index, splitOffset);
-				// After split: [first-list at index, second-list at index+1].
-				// Split second list at offset 0 to insert a paragraph between them.
-				await parentBlockEdit.splitBlock(index + 1, 0);
-				parentFocus.moveFocus(index + 1, 'start');
-			}
-		}
-	};
+		state,
+		parentBlockEdit,
+		parentFocus,
+		parentContainerEdit,
+		parentListContext
+	});
 
 	setContext(LIST_CONTEXT_KEY, listContext);
 
