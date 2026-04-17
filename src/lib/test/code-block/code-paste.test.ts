@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodePaste, scanLongestFenceRun } from '../../code-surface/code-paste';
+import { computeCodePaste, scanLongestFenceRun } from '../../components/blocks/code/code-paste';
 
 // ── computeCodePaste: no fence bump ─────────────────────────────────────────
 

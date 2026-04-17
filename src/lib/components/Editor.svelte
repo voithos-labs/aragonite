@@ -28,7 +28,7 @@
 	import { createStickyColumnState } from '../sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { readCurrentSelection, applySelectionToDom } from '../selection/native-bridge';
-	import { bootstrapCodeLanguages } from '../code-surface/code-bootstrap';
+	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
 	import { displayLength, trimTrailingLineEnding } from '../raw-text';
 	import {
