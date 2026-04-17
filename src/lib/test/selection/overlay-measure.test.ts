@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyBlockForSelection } from '../../selection/overlay-measure';
-import type { EditorSelection } from '../../selection/selection-types';
+import { classifyBlockForSelection, type EditorSelection } from '../../selection/primitives';
 
 function sel(
 	anchor: { path: number[]; offset: number },

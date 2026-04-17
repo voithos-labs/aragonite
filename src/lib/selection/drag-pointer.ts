@@ -10,9 +10,9 @@
  */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './selection-types';
+import type { SelectionPoint } from './primitives';
 import { offsetFromViewportPoint, clearNativeSelection } from './native-bridge';
-import { comparePaths } from './selection-point';
+import { comparePaths } from './primitives';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

@@ -11,10 +11,9 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { SelectionPoint } from './selection-types';
+import type { SelectionPoint } from './primitives';
 import { parse } from '../core/parser';
-import { walkBetween } from './range-walker';
-import { comparePaths } from './selection-point';
+import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
@@ -35,7 +34,7 @@ export interface RangeDeleteResult {
  * object) and the collapsed caret position inside the merged block.
  *
  * Caller must ensure `start` and `end` are normalized (start <= end in doc
- * order) via `selection-point.normalize`. Caller must also ensure neither
+ * order) via `primitives.normalize`. Caller must also ensure neither
  * endpoint lands on a non-focusable block.
  */
 export function rangeDelete(
