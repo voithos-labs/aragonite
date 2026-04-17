@@ -10,7 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from './path-lookup';
 import { walkBetween } from './range-walker';
 import { normalize } from './selection-point';
-import { displayLength } from '../raw-text';
+import { displayLength } from '../core/lines';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

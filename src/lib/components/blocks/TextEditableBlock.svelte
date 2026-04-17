@@ -25,7 +25,7 @@
 	import { renderInlineNodes } from '../../inline-renderer';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../raw-text';
+	import { trimTrailingLineEnding } from '../../core/lines';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,

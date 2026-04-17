@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
 import { bootstrapCodeLanguages, __resetBootForTests } from '../../components/blocks/code/code-bootstrap';
 import { __resetRegistryForTests } from '../../components/blocks/code/code-languages';
-import { trimTrailingLineEnding } from '../../raw-text';
+import { trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 
 function makeFencedCodeNode(

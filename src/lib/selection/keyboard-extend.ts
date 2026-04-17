@@ -16,7 +16,7 @@ import {
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
 import { comparePaths } from './selection-point';
-import { displayLength } from '../raw-text';
+import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
 
