@@ -15,7 +15,7 @@
 import type { SelectionPoint, EditorSelection } from './selection-types';
 import type { SelectionState } from './selection-state.svelte';
 import { comparePaths } from './selection-point';
-import { createRangeFromOffsets, getCursorOffset } from '../text-surface/cursor-utils';
+import { createRangeFromOffsets, getCursorOffset } from '../contenteditable/cursor-utils';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 

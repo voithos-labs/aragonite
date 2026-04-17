@@ -5,7 +5,7 @@
 // cross-block selection e2e specs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
+import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
 
 describe('measurePartialRectsInContentEditable', () => {
 	let el: HTMLDivElement;
