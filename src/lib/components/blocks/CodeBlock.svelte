@@ -53,7 +53,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
 	import { computeCodePaste } from './code/code-paste';
 	import type { FencedCodeMetadata } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../raw-text';
+	import { trimTrailingLineEnding } from '../../core/lines';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 

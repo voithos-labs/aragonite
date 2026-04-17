@@ -30,7 +30,7 @@ import { findBlockPathForElement, nodeAt } from './path-lookup';
 import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
 import { installDragListener } from './drag-pointer';
 import { parse } from '../core/parser';
-import { trimTrailingLineEnding } from '../raw-text';
+import { trimTrailingLineEnding } from '../core/lines';
 import { rebuildContainerRawIfContainer } from '../tree-operations/generic';
 
 // ── Public API ─────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import { displayLength } from '../../raw-text';
+	import { displayLength } from '../../core/lines';
 
 	let {
 		node,

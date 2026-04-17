@@ -30,7 +30,7 @@
 	import { readCurrentSelection, applySelectionToDom } from '../selection/native-bridge';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { cloneDocument, serializeMutable, assignIds, generateBlockId } from '../mutable-tree';
-	import { displayLength, trimTrailingLineEnding } from '../raw-text';
+	import { displayLength, trimTrailingLineEnding } from '../core/lines';
 	import {
 		splitNode as performSplit,
 		mergeWithNext as performMergeNext,
