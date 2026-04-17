@@ -11,7 +11,12 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { BlockElLookup, BlockEditActions, ContainerEditActions, DocumentGetter } from '../contracts';
+import type {
+	BlockElLookup,
+	BlockEditActions,
+	ContainerEditActions,
+	DocumentGetter
+} from '../contracts';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
@@ -27,11 +32,16 @@ import {
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
 import { findBlockPathForElement, nodeAt } from './path-lookup';
-import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
+import {
+	applyCollapsedCaret,
+	clearNativeSelection,
+	offsetFromViewportPoint
+} from './native-bridge';
 import { installDragListener } from './drag-pointer';
 import { parse } from '../core/parser';
-import { trimTrailingLineEnding } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
+import { buildPastedReplacement } from '../tree-operations/paste-replacement';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -159,7 +169,7 @@ async function handleCrossBlockActive(
 	if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
 		e.preventDefault();
 		const focusPath = selection.focus?.path ?? myPath;
-		const side = e.key === 'ArrowUp' ? 'start' as const : 'end' as const;
+		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
 		extendFocusToPreviousBlock(selection, doc, el, focusPath, side);
 		scrollFocusBlockIntoView(selection, getBlockElByPath);
 		return true;
@@ -179,7 +189,7 @@ async function handleCrossBlockActive(
 	// Ctrl+A while already cross-block: select the whole document.
 	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
 		e.preventDefault();
-		selectWholeDocument(selection, doc);
+		selectWholeDocument(selection, doc, getBlockElByPath);
 		return true;
 	}
 
@@ -187,10 +197,7 @@ async function handleCrossBlockActive(
 }
 
 /** Single-block entry points that don't need boundary geometry checks. */
-function handleCrossBlockEntry(
-	ctx: CrossBlockDispatchContext,
-	e: KeyboardEvent
-): boolean {
+function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
@@ -209,7 +216,7 @@ function handleCrossBlockEntry(
 			sel?.addRange(range);
 			return true;
 		}
-		selectWholeDocument(selection, getDoc());
+		selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
 		return true;
 	}
 
@@ -219,7 +226,11 @@ function handleCrossBlockEntry(
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
 /** Shared handler for Ctrl+Shift+Home / Ctrl+Shift+End in both active and entry paths. */
-function handleDocEdgeExtend(ctx: CrossBlockDispatchContext, e: KeyboardEvent, direction: 'start' | 'end'): boolean {
+function handleDocEdgeExtend(
+	ctx: CrossBlockDispatchContext,
+	e: KeyboardEvent,
+	direction: 'start' | 'end'
+): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
@@ -230,10 +241,7 @@ function handleDocEdgeExtend(ctx: CrossBlockDispatchContext, e: KeyboardEvent, d
 
 // ── Pointer ────────────────────────────────────────────────────────────────
 
-function handlePointerDown(
-	ctx: CrossBlockDispatchContext,
-	e: PointerEvent
-): boolean {
+function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
 	const { selection } = ctx;
@@ -277,7 +285,12 @@ function handlePointerDown(
 		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
 		installDragListener(
-			{ editorRoot: root, scrollContainer: root, selection },
+			{
+				editorRoot: root,
+				scrollContainer: root,
+				selection,
+				getBlockElByPath: ctx.getBlockElByPath
+			},
 			{ path: myPath.slice(), offset }
 		);
 	}
@@ -309,13 +322,32 @@ async function handlePaste(
 	if (!targetNode || !('raw' in targetNode)) return true;
 	const parsed = parse(pasted);
 
-	// Multi-block paste: only safe via the top-level blockEdit, which expects
-	// a FLAT top-level index. Paths deeper than [idx] would break the splice
-	// (the nested container's blockEdit no-ops insertParsedBlocks). Skip the
-	// complex case until a path-aware API lands.
+	// Multi-block paste. Top-level carets dispatch via the root blockEdit
+	// (always live). Nested carets can't use `ctx.blockEdit` — that bundle is
+	// the bundle of the block that originally received the paste event, and
+	// `performCrossBlockDelete` above may have removed that block's
+	// container from the tree, leaving the bundle pointing at an orphaned
+	// node. Splice directly into the caret's parent container's children;
+	// BlockListState's auto-sync `$effect` regenerates ids/refs when the
+	// children-array length changes.
 	if (parsed.children.length > 1) {
-		if (caret.path.length !== 1) return true;
-		ctx.blockEdit.insertParsedBlocks(caret.path[0], caret.offset, parsed.children);
+		if (caret.path.length === 1) {
+			ctx.blockEdit.insertParsedBlocks(caret.path[0], caret.offset, parsed.children);
+			return true;
+		}
+		const parentPath = caret.path.slice(0, -1);
+		const parent = nodeAt(doc, parentPath) as CstNode | null;
+		const innerIndex = caret.path[caret.path.length - 1];
+		if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) {
+			return true;
+		}
+		const leaf = parent.children[innerIndex];
+		const replacement = buildPastedReplacement(leaf, caret.offset, parsed.children);
+		parent.children.splice(innerIndex, 1, ...replacement);
+		rebuildAncestryForLeaf(doc, [...parentPath, innerIndex]);
+		ctx.containerEdit.endContainerEdit();
+		await ctx.afterReactivity();
+		focusLastInsertedBlock(ctx, [...parentPath, innerIndex + replacement.length - 1]);
 		return true;
 	}
 
@@ -332,6 +364,22 @@ async function handlePaste(
 	ctx.containerEdit.endContainerEdit();
 	ctx.setPendingCursor(caret.offset + pasted.length);
 	return true;
+}
+
+/**
+ * After a nested multi-block paste, land the caret at the end of the last
+ * inserted block using DOM-level focus — the block component instance (and
+ * its BlockComponent.focus method) isn't reachable from the root dispatch
+ * context, but applyCollapsedCaret + el.focus() achieves the same result.
+ */
+function focusLastInsertedBlock(ctx: CrossBlockDispatchContext, lastPath: number[]): void {
+	const blockEl = ctx.getBlockElByPath(lastPath);
+	if (!blockEl) return;
+	const doc = ctx.getDoc();
+	const lastNode = nodeAt(doc, lastPath) as CstNode | null;
+	const offset = lastNode?.raw ? displayLength(lastNode.raw) : 0;
+	applyCollapsedCaret(blockEl, { path: lastPath, offset });
+	blockEl.focus();
 }
 
 /**
@@ -364,7 +412,8 @@ async function handleBeforeInput(
 
 	const targetNode = nodeAt(ctx.getDoc(), caret.path) as CstNode | null;
 	if (!targetNode || !('raw' in targetNode)) return true;
-	targetNode.raw = targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
+	targetNode.raw =
+		targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
 	ctx.afterRawMutated?.(targetNode);
 	ctx.containerEdit.endContainerEdit();
 	ctx.setPendingCursor(caret.offset + typed.length);

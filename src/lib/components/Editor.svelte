@@ -23,7 +23,7 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { parseInline, getContentRange, isProseKind } from '../core/inline';
+	import { parseAllInlineContent } from '../core/inline';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorActions } from './editor-actions';
 	import BlockList from './BlockList.svelte';
@@ -33,18 +33,6 @@
 	let { source = '' }: { source?: string } = $props();
 
 	// ── State ───────────────────────────────────────────────────────────
-
-	function parseAllInlineContent(children: CstNode[]): void {
-		for (const child of children) {
-			if (isProseKind(child.kind)) {
-				const range = getContentRange(child);
-				child.inlineContent = parseInline(child.raw, range.start, range.end);
-			}
-			if (child.children) {
-				parseAllInlineContent(child.children);
-			}
-		}
-	}
 
 	function initDocument(src: string): Document {
 		const d = parse(src);

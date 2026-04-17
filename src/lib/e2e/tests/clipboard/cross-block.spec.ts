@@ -40,6 +40,33 @@ test.describe('cross-block clipboard: copy', () => {
 		expect(source).toContain('third');
 	});
 
+	// Regression: buildPastedReplacement used to hardcode the last node's
+	// leadingTrivia to '', dropping the blank-line separator that the parser
+	// places on the second of two source blocks. Round-trip "one\n\ntwo"
+	// collapsed to "one\ntwo" on paste.
+	test('copy two blank-separated paragraphs, paste elsewhere preserves the blank line', async () => {
+		await editor.loadContent('one\n\ntwo\n\ntarget\n');
+
+		// Select the "one\n\ntwo" span: start of block 0 through end of block 1.
+		await editor.focusBlockAtPath([0], 0);
+		await editor.shiftClickBlock([1], 3);
+		await editor.waitForCrossBlock(true);
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(150);
+
+		// Paste at end of "target".
+		await editor.clickBlock(2);
+		await editor.waitForCrossBlock(false);
+		await editor.pressKey('End');
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		// The pasted region must keep a blank line between the two paragraphs —
+		// not collapse into a single soft-break paragraph.
+		expect(source).toMatch(/one\n\s*\n\s*two/);
+	});
+
 	test('cross-block copy then paste into another block', async () => {
 		await editor.loadContent('first block\n\nsecond block\n\nthird block\n');
 		const beforeSource = await editor.getSource();
@@ -277,14 +304,14 @@ test.describe('cross-block clipboard: paste', () => {
 		expect(source).not.toContain('three');
 	});
 
-	// Known limitation (docs/issues.md): multi-block paste into a cross-block
-	// selection whose collapsed caret lands inside a container (list item,
-	// blockquote) is silently skipped because handlePaste has a deliberate
-	// `caret.path.length !== 1` guard — nested containers' blockEdit.insertParsedBlocks
-	// is a no-op by design and there's no path-aware insertion API yet.
-	// When the dispatch can safely route to a container-aware splice, flip
-	// this test.fixme → test.
-	test.fixme('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
+	// Regression (docs/issues.md — "Multi-block paste into a cross-block
+	// selection with a nested collapsed caret is silently skipped"):
+	// nested containers used to no-op `insertParsedBlocks`, so the handlePaste
+	// multi-block branch had a `caret.path.length !== 1` guard that silently
+	// dropped the paste. The selection was deleted but nothing landed. Now
+	// nested `insertParsedBlocks` delegates to `replaceBlock`, so pasted
+	// blocks become siblings of the leaf inside the container.
+	test('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
@@ -300,6 +327,63 @@ test.describe('cross-block clipboard: paste', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('alpha');
 		expect(source).toContain('beta');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	// Regression for the real-world scenario uncovered during debugging:
+	// cross-block copy preserves container markers (list numbers, blockquote
+	// prefixes), so "ne\n2. tw" from selecting across two list items parses
+	// as two blocks. Pasting back into a cross-list-item selection used to
+	// hit the nested-caret guard and silently drop the paste. A full round
+	// trip — copy across items, paste across items — now retains content.
+	test('copy across list items, paste across list items reinserts content', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		// Select across items 1 and 2, copy.
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 1, 0], 2);
+		await editor.waitForCrossBlock(true);
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(200);
+
+		// Collapse, then re-select items 2 and 3.
+		await editor.clickBlock(2);
+		await editor.page.waitForTimeout(100);
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.shiftClickBlock([0, 2, 0], 5);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		// Copied slice was "ne" (from "one") and "tw" (from "two"). Both must
+		// survive the round trip somewhere in the document.
+		expect(source).toContain('ne');
+		expect(source).toContain('tw');
+		// The first list item is untouched by the paste.
+		expect(source).toContain('one');
+	});
+
+	// Regression: drag selection leaves the native selection empty (no click
+	// default to re-plant a caret like shift-click has), so Chromium used to
+	// dispatch paste to <body> instead of any block — the paste handler
+	// silently never ran. Fixed by parking a collapsed caret in the focus
+	// block when entering cross-block, regardless of entry gesture.
+	test('drag selection across list items: paste single-block text lands', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+		await editor.page.evaluate(() => navigator.clipboard.writeText('text'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('text');
 		expect(source).not.toContain('one');
 		expect(source).not.toContain('two');
 	});
@@ -439,7 +523,9 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 	});
 
 	test('cross-block copy of a list does not duplicate nested content', async () => {
-		await editor.loadContent('before\n\n- Item one\n- Item two\n  - Nested item\n- Item three\n\nafter\n');
+		await editor.loadContent(
+			'before\n\n- Item one\n- Item two\n  - Nested item\n- Item three\n\nafter\n'
+		);
 
 		// path [0]="before", [1]=list, [2]="after"
 		// Focus the start of "before" paragraph via its CST path
@@ -511,7 +597,9 @@ test.describe('cross-block clipboard: partial list promotion regression', () => 
 	});
 
 	test('selecting last list item + content below copies only that item, not entire list', async () => {
-		await editor.loadContent('1. First\n2. Second\n3. Third\n\n```\ncode\n```\n\nFinal paragraph\n');
+		await editor.loadContent(
+			'1. First\n2. Second\n3. Third\n\n```\ncode\n```\n\nFinal paragraph\n'
+		);
 
 		// CST: list [0] → items [0,0]..[0,2] → paragraph leaves;
 		//       code block [1]; paragraph [2]

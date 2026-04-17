@@ -19,11 +19,15 @@ import {
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
-	rebuildAncestryRaw
+	rebuildAncestryRaw,
+	buildPastedReplacement
 } from '../../tree-operations';
 import { generateBlockId } from '../../tree-operations/block-id';
-import { isMergeEligible, isBlockEditable, findMergeTarget } from '../../tree-operations/merge-rules';
-import { parse } from '../../core/parser';
+import {
+	isMergeEligible,
+	isBlockEditable,
+	findMergeTarget
+} from '../../tree-operations/merge-rules';
 import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -218,57 +222,7 @@ export function createBlockEditActions(
 			if (blocks.length === 0) return;
 
 			const currentNode = deps.doc.children[blockIndex];
-			const rawText = currentNode.raw;
-			const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
-
-			// Split the current block's raw at offset into before/after
-			const rawBefore = rawText.slice(0, offset);
-			const rawAfter = trimTrailingLineEnding(rawText.slice(offset));
-
-			const newNodes: CstNode[] = [];
-
-			// If there's text before the cursor, it becomes the first block
-			if (rawBefore.length > 0) {
-				const beforeRaw = rawBefore + lineEnding;
-				const beforeDoc = parse(beforeRaw);
-				const beforeNode =
-					beforeDoc.children.length > 0
-						? beforeDoc.children[0]
-						: { kind: 'paragraph' as const, leadingTrivia: '', raw: beforeRaw };
-				beforeNode.leadingTrivia = currentNode.leadingTrivia;
-				ensureEditableContainers(beforeNode);
-				newNodes.push(beforeNode);
-			}
-
-			// Add all pasted blocks except the last
-			for (let i = 0; i < blocks.length - 1; i++) {
-				const node = { ...blocks[i] };
-				if (newNodes.length === 0) {
-					node.leadingTrivia = currentNode.leadingTrivia;
-				}
-				ensureEditableContainers(node);
-				newNodes.push(node);
-			}
-
-			// Last pasted block gets rawAfter appended
-			const lastPasted = blocks[blocks.length - 1];
-			const mergedLastRaw = trimTrailingLineEnding(lastPasted.raw) + rawAfter + lineEnding;
-			const lastDoc = parse(mergedLastRaw);
-			const lastNode =
-				lastDoc.children.length > 0
-					? lastDoc.children[0]
-					: { kind: 'paragraph' as const, leadingTrivia: '', raw: mergedLastRaw };
-			if (newNodes.length === 0) {
-				lastNode.leadingTrivia = currentNode.leadingTrivia;
-			} else {
-				lastNode.leadingTrivia = '';
-			}
-			ensureEditableContainers(lastNode);
-			newNodes.push(lastNode);
-
-			// Parse inline content for all new nodes
-			deps.parseAllInlineContent(newNodes);
-
+			const newNodes = buildPastedReplacement(currentNode, offset, blocks);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
 			// Work on plain copies to prevent proxy splice cascades
