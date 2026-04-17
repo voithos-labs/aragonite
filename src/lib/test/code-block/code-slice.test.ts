@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sliceFencedCode } from '../../code-surface/code-renderer';
+import { sliceFencedCode } from '../../components/blocks/code/code-renderer';
 import type { CstNode } from '../../core/nodes';
 
 function makeFencedCodeNode(
