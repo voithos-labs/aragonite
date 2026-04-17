@@ -34,6 +34,8 @@ export { unwrapFirstChildFromBlockquote } from './blockquote';
 
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
+export { buildPastedReplacement } from './paste-replacement';
+
 export { cloneDocument, cloneNode } from './clone';
 
 export { generateBlockId, assignIds } from './block-id';

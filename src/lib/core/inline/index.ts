@@ -57,6 +57,23 @@ export function isProseKind(kind: string): boolean {
 	return kind === 'paragraph' || kind === 'heading' || kind === 'setextHeading';
 }
 
+/**
+ * Refresh `inlineContent` on every prose node in the tree, recursing into
+ * container children. Use after structural operations that produce or
+ * mutate prose nodes outside the per-input reactive pipeline.
+ */
+export function parseAllInlineContent(nodes: CstNode[]): void {
+	for (const node of nodes) {
+		if (isProseKind(node.kind)) {
+			const range = getContentRange(node);
+			node.inlineContent = parseInline(node.raw, range.start, range.end);
+		}
+		if (node.children) {
+			parseAllInlineContent(node.children);
+		}
+	}
+}
+
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**

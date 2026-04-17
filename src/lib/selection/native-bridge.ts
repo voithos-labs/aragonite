@@ -122,11 +122,17 @@ export function applySelectionToDom(
 		return;
 	}
 
-	// Cross-block: populate SelectionState and clear native selection
+	// Cross-block: populate SelectionState and park a collapsed caret in the
+	// focus block as a paste-dispatch anchor. Without it, Chromium routes
+	// paste events to <body>.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
-	clearNativeSelection();
 	const focusBlockEl = getBlockElByPath(selection.focus.path);
-	focusBlockEl?.focus();
+	if (focusBlockEl) {
+		applyCollapsedCaret(focusBlockEl, selection.focus);
+		focusBlockEl.focus();
+	} else {
+		clearNativeSelection();
+	}
 }
 
 // ── Viewport point → block offset ───────────────────────────────────────────
