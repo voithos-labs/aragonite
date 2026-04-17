@@ -40,7 +40,7 @@
 		extendFocusToPreviousBlock,
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
-	import { createCrossBlockHandlers } from '../../selection/cross-block-surface';
+	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,

@@ -48,7 +48,7 @@
 		extendFocusToPreviousBlock,
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
-	import { createCrossBlockHandlers, type CrossBlockSurfaceContext } from '../../selection/cross-block-surface';
+	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 
 	let {
 		node,
