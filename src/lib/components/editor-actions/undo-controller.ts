@@ -1,0 +1,128 @@
+/**
+ * Undo/snapshot controller for the editor. Owns the keystroke-debounce
+ * timer and the "needs new checkpoint" flag, exposes snapshot pushers,
+ * and wraps structural mutations with the full undo + commit ceremony.
+ */
+
+import { tick } from 'svelte';
+import type {
+	BlockComponent,
+	CstNode,
+	EditorSelection,
+	SelectionPoint,
+	UndoEntry
+} from '../../contracts';
+import { cloneDocument } from '../../tree-operations/clone';
+import { readCurrentSelection } from '../../selection/native-bridge';
+import type { EditorActionsDeps, UndoController } from './deps';
+
+const UNDO_DEBOUNCE_MS = 500;
+
+export function createUndoController(deps: EditorActionsDeps): UndoController {
+	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let lastUndoBlockIndex = -1;
+	// When true, the next keystroke should capture a "before" snapshot
+	let needsUndoCheckpoint = true;
+
+	/** Build a collapsed EditorSelection from a top-level block index and offset. */
+	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
+		const point: SelectionPoint = { path: [blockIndex], offset };
+		return { anchor: point, focus: point };
+	}
+
+	function pushUndoSnapshot(blockIndex: number, offset: number): void {
+		const selection = deps.selectionState.isCrossBlock
+			? readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
+			: collapsedSelectionAt(blockIndex, offset);
+		deps.undoManager.push({
+			snapshot: cloneDocument(deps.doc),
+			blockIds: [...deps.blockIds],
+			selection
+		});
+	}
+
+	/**
+	 * Called before each edit. Captures a "before" snapshot on the first
+	 * keystroke of a new batch. Subsequent keystrokes in the same batch
+	 * just reset the debounce timer. When the timer fires (user paused),
+	 * the next keystroke starts a new batch.
+	 */
+	function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
+		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
+			pushUndoSnapshot(blockIndex, offset);
+			lastUndoBlockIndex = blockIndex;
+			needsUndoCheckpoint = false;
+		}
+
+		// Reset debounce — when it fires, the next keystroke starts a new batch
+		if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+		undoDebounceTimer = setTimeout(() => {
+			needsUndoCheckpoint = true;
+			undoDebounceTimer = null;
+		}, UNDO_DEBOUNCE_MS);
+	}
+
+	/**
+	 * Wrap a structural mutation with the full ceremony: clear pending undo
+	 * debounce timer, push a snapshot, reset the checkpoint flag, apply the
+	 * mutation on plain array copies, publish in one atomic write, tick,
+	 * and invoke the optional post-tick callback (typically a focus call).
+	 *
+	 * Every structural action method begins with this sequence; extracting
+	 * it here removes ~8 lines of duplication from each action.
+	 */
+	async function commitStructural(
+		snapshotBlockIndex: number,
+		snapshotOffset: number,
+		mutate: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void,
+		afterTick?: () => void
+	): Promise<void> {
+		deps.stickyColumn.reset();
+		if (undoDebounceTimer) {
+			clearTimeout(undoDebounceTimer);
+			undoDebounceTimer = null;
+		}
+		pushUndoSnapshot(snapshotBlockIndex, snapshotOffset);
+		needsUndoCheckpoint = true;
+
+		const childrenCopy = [...deps.doc.children];
+		const idsCopy = [...deps.blockIds];
+		const refsCopy = [...deps.blockRefs];
+		mutate(childrenCopy, idsCopy, refsCopy);
+		deps.setDocChildren(childrenCopy);
+		deps.setBlockIds(idsCopy);
+		deps.setBlockRefs(refsCopy);
+
+		await tick();
+		afterTick?.();
+	}
+
+	function captureCurrentState(): UndoEntry {
+		return {
+			snapshot: cloneDocument(deps.doc),
+			blockIds: [...deps.blockIds],
+			selection: readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
+		};
+	}
+
+	function clearDebouncedCheckpoint(): void {
+		if (undoDebounceTimer) {
+			clearTimeout(undoDebounceTimer);
+			undoDebounceTimer = null;
+		}
+		needsUndoCheckpoint = true;
+	}
+
+	return {
+		pushUndoSnapshot,
+		pushUndoSnapshotDebounced,
+		commitStructural,
+		captureCurrentState,
+		collapsedSelectionAt,
+		clearDebouncedCheckpoint
+	};
+}
