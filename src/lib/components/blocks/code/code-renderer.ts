@@ -6,7 +6,7 @@
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
-import type { CstNode, FencedCodeMetadata } from '../core/nodes';
+import type { CstNode, FencedCodeMetadata } from '../../../core/nodes';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
 

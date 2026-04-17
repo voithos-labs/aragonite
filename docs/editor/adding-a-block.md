@@ -61,7 +61,7 @@ Every editable block (prose or code) participates in the pixel-X sticky column s
 
 ## Adding a code-block language
 
-To register a new code-block language for syntax highlighting, edit `src/lib/editor/code-surface/code-bootstrap.ts`:
+To register a new code-block language for syntax highlighting, edit `src/lib/editor/components/blocks/code/code-bootstrap.ts`:
 
 1. `import <name> from 'highlight.js/lib/languages/<name>';` at the top.
 2. Call `registerLanguage('<name>', <name>, ['alias1', 'alias2']);` inside `bootstrapCodeLanguages()`.

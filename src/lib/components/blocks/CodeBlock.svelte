@@ -41,7 +41,7 @@
 		scrollFocusBlockIntoView
 	} from '../../selection/keyboard-extend';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-surface';
-	import { renderCodeBlock } from '../../code-surface/code-renderer';
+	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,
 		getCloserFor,
@@ -49,9 +49,9 @@
 		shouldSkipClose,
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
-	} from '../../code-surface/code-editing';
-	import { indentLines, dedentLines, type IndentResult } from '../../code-surface/code-indent';
-	import { computeCodePaste } from '../../code-surface/code-paste';
+	} from './code/code-editing';
+	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
+	import { computeCodePaste } from './code/code-paste';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../raw-text';
 

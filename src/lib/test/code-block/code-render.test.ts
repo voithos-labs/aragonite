@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderCodeBlock } from '../../code-surface/code-renderer';
-import { bootstrapCodeLanguages, __resetBootForTests } from '../../code-surface/code-bootstrap';
-import { __resetRegistryForTests } from '../../code-surface/code-languages';
+import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
+import { bootstrapCodeLanguages, __resetBootForTests } from '../../components/blocks/code/code-bootstrap';
+import { __resetRegistryForTests } from '../../components/blocks/code/code-languages';
 import { trimTrailingLineEnding } from '../../raw-text';
 import type { CstNode } from '../../core/nodes';
 

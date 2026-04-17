@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { tokenizeBody } from '../../code-surface/code-renderer';
-import { bootstrapCodeLanguages, __resetBootForTests } from '../../code-surface/code-bootstrap';
-import { __resetRegistryForTests } from '../../code-surface/code-languages';
+import { tokenizeBody } from '../../components/blocks/code/code-renderer';
+import { bootstrapCodeLanguages, __resetBootForTests } from '../../components/blocks/code/code-bootstrap';
+import { __resetRegistryForTests } from '../../components/blocks/code/code-languages';
 
 describe('tokenizeBody', () => {
 	beforeEach(() => {
