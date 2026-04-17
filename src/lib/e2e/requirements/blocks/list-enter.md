@@ -19,3 +19,5 @@ Covers list behavior when Enter creates a new item, splits content, or exits the
 - New item gets the next sequential number after the previous item
 - Subsequent items are renumbered (e.g., inserting between 1 and 2 produces 1, 2, 3)
 - Enter at start of first item: the new empty first item gets the original first number, original item renumbers
+- Enter on empty first item renumbers remaining items from 1 (e.g., `1. empty / 2. x` → `1. x`)
+- Enter on empty middle item preserves the surviving second half's original markers (e.g., `1. a / 2. b / 3. empty / 4. c` → first list `1. a / 2. b`, second list `4. c`). Renumbering across the split would misrepresent the user's source numbering.
