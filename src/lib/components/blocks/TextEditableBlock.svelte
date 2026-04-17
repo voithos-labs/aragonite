@@ -32,16 +32,16 @@
 		getCursorOffset as getCursorOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
-	} from '../../text-surface/cursor-utils';
+	} from '../../contenteditable/cursor-utils';
 	import {
 		isAtFirstVisualLine,
 		isAtLastVisualLine
-	} from '../../text-surface/visual-lines';
+	} from '../../contenteditable/visual-lines';
 	import {
 		getCurrentCursorEditorRelativeX,
 		findOffsetNearestX
-	} from '../../text-surface/sticky-measure';
-	import { measurePartialRectsInContentEditable } from '../../text-surface/selection-measure';
+	} from '../../contenteditable/sticky-measure';
+	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import {
 		extendFocusToNextBlock,

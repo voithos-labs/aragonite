@@ -4,7 +4,7 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Pure container state and focus helpers live in `src/lib/editor/container-state/`. Pure contenteditable DOM helpers live in `src/lib/editor/text-surface/`.
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Pure container state and focus helpers live in `src/lib/editor/container-state/`. Pure contenteditable DOM helpers live in `src/lib/editor/contenteditable/`.
 
 ## Two Categories
 
@@ -55,7 +55,7 @@ Every editable block (prose or code) participates in the pixel-X sticky column s
 
 1. **Capture on vertical arrows.** In `onKeyDown`, when the key is `ArrowUp` or `ArrowDown`, call `stickyColumn.capture(getCurrentCursorEditorRelativeX(el))`. The capture is idempotent — it only records if sticky is currently null.
 2. **Reset on non-preserve keys.** In the same handler, for any key not in `PRESERVE_KEYS_NON_ARROW` and not a vertical arrow, call `stickyColumn.reset()`. Also reset on `onPointerDown`, `onCompositionStart`, `onCopy`, `onCut`, and `onPaste`.
-3. **Implement `focusAtColumn`.** Expose a `focusAtColumn(x, from)` method that uses `findOffsetNearestX(el, x, from)` from `text-surface/sticky-measure.ts` to position the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line.
+3. **Implement `focusAtColumn`.** Expose a `focusAtColumn(x, from)` method that uses `findOffsetNearestX(el, x, from)` from `contenteditable/sticky-measure.ts` to position the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line.
 
 `TextEditableBlock.svelte` and `CodeBlock.svelte` share the same implementation shape — reference either one.
 
