@@ -217,13 +217,12 @@ test.describe('cross-block clipboard: paste', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('REPLACEMENT'));
 		await editor.page.waitForTimeout(100);
 
-		// Select the entire list (start of first item to end of last item)
-		// Blocks: [0] "Before list", [1] list, [1,0,0] "Item one",
-		//         [1,1,0] "Item two", [1,2,0] "Item three", [2] "After list"
-		await editor.focusBlockAtPath([1, 0, 0], 0); // Start of "Item one"
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.pressKey('Shift+End');
+		// Select the entire list via shift-click from the start of the first
+		// item to the end of the last item. CST: [0] "Before list",
+		// [1] list, [1,0,0] "Item one", [1,1,0] "Item two",
+		// [1,2,0] "Item three", [2] "After list".
+		await editor.focusBlockAtPath([1, 0, 0], 0);
+		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
 		await editor.waitForCrossBlock(true);
 
 		// Paste
@@ -232,7 +231,13 @@ test.describe('cross-block clipboard: paste', () => {
 
 		const source = await editor.getSource();
 
-		// The list should be gone, replaced by "REPLACEMENT"
+		// All three original items must be gone and REPLACEMENT present.
+		// Before the fix, handlePaste routed via blockEdit.updateBlockContent
+		// with caret.path[caret.path.length - 1] — for caret [1,0,0] that's
+		// the index 0 in the listItem's children, an accidental match that
+		// masked the underlying bug. The new direct-mutation path resolves
+		// the target via nodeAt(doc, caret.path) regardless of depth and
+		// rebuilds the container ancestry.
 		expect(source).toContain('Before list');
 		expect(source).toContain('REPLACEMENT');
 		expect(source).toContain('After list');

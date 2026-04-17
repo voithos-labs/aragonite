@@ -31,6 +31,7 @@ import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
 import { installDragListener } from './drag-pointer';
 import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../raw-text';
+import { rebuildContainerRawIfContainer } from '../tree-operations/generic';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -301,26 +302,50 @@ async function handlePaste(
 	const pasted = e.clipboardData?.getData('text/plain') ?? '';
 	if (!pasted) return true;
 
+	const doc = ctx.getDoc();
 	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
 	if (!caret) return true;
-	const targetNode = nodeAt(ctx.getDoc(), caret.path) as CstNode | null;
+	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
 	if (!targetNode || !('raw' in targetNode)) return true;
-	const targetDisplay = trimTrailingLineEnding(targetNode.raw);
 	const parsed = parse(pasted);
 
-	if (parsed.children.length <= 1) {
-		const newDisplay = targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset);
-		ctx.blockEdit.updateBlockContent(
-			caret.path[caret.path.length - 1],
-			newDisplay + '\n',
-			caret.offset + pasted.length
-		);
-		ctx.setPendingCursor(caret.offset + pasted.length);
-	} else {
-		const targetIndex = caret.path[caret.path.length - 1];
-		ctx.blockEdit.insertParsedBlocks(targetIndex, caret.offset, parsed.children);
+	// Multi-block paste: only safe via the top-level blockEdit, which expects
+	// a FLAT top-level index. Paths deeper than [idx] would break the splice
+	// (the nested container's blockEdit no-ops insertParsedBlocks). Skip the
+	// complex case until a path-aware API lands.
+	if (parsed.children.length > 1) {
+		if (caret.path.length !== 1) return true;
+		ctx.blockEdit.insertParsedBlocks(caret.path[0], caret.offset, parsed.children);
+		return true;
 	}
+
+	// Single-block paste: splice pasted text into the target node's raw and
+	// rebuild any container ancestors so their serialized form reflects the
+	// mutated leaf. Mirrors handleBeforeInput's type-replace path, which
+	// correctly handles carets arbitrarily deep in container chains.
+	const targetDisplay = trimTrailingLineEnding(targetNode.raw);
+	const lineEnding = targetNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	targetNode.raw =
+		targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset) + lineEnding;
+	ctx.afterRawMutated?.(targetNode);
+	rebuildAncestryForLeaf(doc, caret.path);
+	ctx.containerEdit.endContainerEdit();
+	ctx.setPendingCursor(caret.offset + pasted.length);
 	return true;
+}
+
+/**
+ * Rebuild container raw for every ancestor of a leaf path, innermost-first.
+ * Stops before the document root — serialization reads top-level children
+ * directly, so the document itself never needs rebuild. Mirrors the local
+ * walker in rangeDelete and keeps paste/type-replace ancestries fresh.
+ */
+function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
+	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
+		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
+		if (!ancestor || !('kind' in ancestor)) break;
+		rebuildContainerRawIfContainer(ancestor as CstNode);
+	}
 }
 
 // ── BeforeInput ────────────────────────────────────────────────────────────
