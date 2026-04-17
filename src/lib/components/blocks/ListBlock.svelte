@@ -29,15 +29,15 @@
 		isItemUserEmpty
 	} from '../../tree-operations';
 	import { rebuildListRaw, rebuildListItemRaw } from '../../tree-operations/container-raw';
-	import { createBlockListState } from '../../container-state/block-list-state.svelte';
+	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../container-state/nested-actions';
+	} from './container-state/nested-actions';
 	import {
 		dispatchFocusByPath,
 		dispatchFocusAtColumn
-	} from '../../container-state/focus-dispatch';
+	} from './container-state/focus-dispatch';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let {

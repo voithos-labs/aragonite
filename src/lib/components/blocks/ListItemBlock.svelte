@@ -20,15 +20,15 @@
 	import { displayLength } from '../../core/lines';
 	import { splitNode as performSplit } from '../../tree-operations';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
-	import { createBlockListState } from '../../container-state/block-list-state.svelte';
+	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../container-state/nested-actions';
+	} from './container-state/nested-actions';
 	import {
 		dispatchFocusByPath,
 		dispatchFocusAtColumn
-	} from '../../container-state/focus-dispatch';
+	} from './container-state/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
 	let {
