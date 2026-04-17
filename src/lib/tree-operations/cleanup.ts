@@ -4,7 +4,7 @@
  */
 
 import type { Document } from '../core/nodes';
-import { nodeAt } from './generic';
+import { nodeAt } from './node-ops';
 
 /**
  * Walk from `deletedPath`'s parent up toward the document root, removing

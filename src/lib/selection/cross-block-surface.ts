@@ -31,7 +31,7 @@ import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
 import { installDragListener } from './drag-pointer';
 import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
-import { rebuildContainerRawIfContainer } from '../tree-operations/generic';
+import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
