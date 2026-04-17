@@ -252,10 +252,19 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				);
 				refs.splice(itemIndex, 1, ...newRefs);
 			});
-			// Renumber the whole list — promoted items' markers may need
-			// re-sequencing, and the itemIndex-0 removal shifts all subsequent
-			// markers anyway.
-			renumberOrderedList(node, 0);
+			// Renumber only when the surviving list is a single list whose
+			// markers need resequencing:
+			//   - wasFirstItem: the deleted marker was "1." (or similar) and
+			//     callers expect the remaining items to shift down to 1, 2, ….
+			//   - promoted items: pulled in from a different list, so their
+			//     original markers won't fit the destination sequence.
+			// In the middle-item branch with no promoted items, we split the
+			// list into two halves — renumbering here would rewrite the
+			// second half's markers (e.g. "4. four" → "3. four") and defeat
+			// the user's source-preserved numbering. Skip it.
+			if (wasFirstItem || promotedItems.length > 0) {
+				renumberOrderedList(node, 0);
+			}
 			rebuildListRaw(node);
 			deps.parentContainerEdit?.endContainerEdit();
 			deps.state.triggerReactivity();
