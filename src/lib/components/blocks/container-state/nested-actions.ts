@@ -17,9 +17,9 @@ import type {
 	ContainerEditActions,
 	FocusPosition,
 	CstNode
-} from '../editor-types';
-import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../editor-types';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+} from '../../../editor-types';
+import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../../../editor-types';
+import type { StickyColumnState } from '../../../contenteditable/sticky-column';
 import type { BlockListState } from './block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import {
@@ -28,10 +28,10 @@ import {
 	mergeWithNext as performMergeNext,
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate
-} from '../tree-operations';
-import { generateBlockId } from '../tree-operations/block-id';
-import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
-import { displayLength } from '../core/lines';
+} from '../../../tree-operations';
+import { generateBlockId } from '../../../tree-operations/block-id';
+import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
+import { displayLength } from '../../../core/lines';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
