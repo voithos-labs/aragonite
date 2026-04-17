@@ -219,7 +219,7 @@ Cross-block caret column memory. Vertical arrow presses capture the cursor's edi
 - **Capture**: idempotent on the first vertical arrow press after a reset. The captured value is editor-relative (scroll-invariant).
 - **Reset**: any user action other than plain or shifted vertical arrows — typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden.
 - **Transparent blocks** (thematic break): pass through without capturing or resetting; the next cross-block move continues with the existing value.
-- **Participating blocks** (text-editable blocks, code blocks): capture sticky X on vertical arrow presses and implement `focusAtColumn(x, from)`. The only difference between prose and code blocks is the rendered content — both share the `text-surface/` helpers and the same capture/reset policy.
+- **Participating blocks** (text-editable blocks, code blocks): capture sticky X on vertical arrow presses and implement `focusAtColumn(x, from)`. The only difference between prose and code blocks is the rendered content — both share the `contenteditable/` helpers and the same capture/reset policy.
 
 > **"Opaque" disambiguation.** The term "opaque" also appears in `merge-rules.ts` to mean "not mergeable via Backspace." That is a completely separate concept from sticky-column behavior. A block can be `MergeRole.opaque` (like `fencedCode`) and still be a participating sticky-column block. Do not conflate the two.
 
