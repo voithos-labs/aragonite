@@ -20,4 +20,5 @@ Covers list behavior when Enter creates a new item, splits content, or exits the
 - Subsequent items are renumbered (e.g., inserting between 1 and 2 produces 1, 2, 3)
 - Enter at start of first item: the new empty first item gets the original first number, original item renumbers
 - Enter on empty first item renumbers remaining items from 1 (e.g., `1. empty / 2. x` → `1. x`)
-- Enter on empty middle item preserves the surviving second half's original markers (e.g., `1. a / 2. b / 3. empty / 4. c` → first list `1. a / 2. b`, second list `4. c`). Renumbering across the split would misrepresent the user's source numbering.
+- Enter on empty middle item renumbers the surviving second half to continue the sequence uninterrupted across the exit gap (e.g., `1. a / 2. b / 3. empty / 4. c` → first list `1. a / 2. b`, paragraph, second list `3. c`). The exit paragraph is treated as a description between items, not as a numbered slot — matches Google Docs / Obsidian behavior.
+- Enter at the end of the last item in a loose list (blank line between siblings) appends a new item continuing the sequence (e.g., `1. a / 2. b / [blank] / 3. c` + Enter at end of c → a new `4.` item). The blank line is descriptive trivia and doesn't terminate numbering.
