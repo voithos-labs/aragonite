@@ -8,9 +8,9 @@
  * as parameters. Pure logic, unit-testable in isolation.
  */
 
-import type { BlockComponent, FocusActions, FocusPosition, StickyColumnDirection } from '../editor-types';
-import { CURSOR_END } from '../editor-types';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { BlockComponent, FocusActions, FocusPosition, StickyColumnDirection } from '../../../editor-types';
+import { CURSOR_END } from '../../../editor-types';
+import type { StickyColumnState } from '../../../contenteditable/sticky-column';
 
 /**
  * Move focus within a container's inner children, or delegate upward to
