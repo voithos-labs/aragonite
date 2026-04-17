@@ -205,8 +205,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// via an earlier split. Per requirements: "nested lists from a
 			// previous split move to adjacent items."
 			const item = node.children[itemIndex];
-			const parentOrdered =
-				(node.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+			const parentOrdered = (node.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 			const promotedItems: CstNode[] = [];
 			if (item.children && item.children.length > 1) {
 				for (const child of item.children.slice(1)) {
@@ -252,19 +251,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				);
 				refs.splice(itemIndex, 1, ...newRefs);
 			});
-			// Renumber only when the surviving list is a single list whose
-			// markers need resequencing:
-			//   - wasFirstItem: the deleted marker was "1." (or similar) and
-			//     callers expect the remaining items to shift down to 1, 2, ….
-			//   - promoted items: pulled in from a different list, so their
-			//     original markers won't fit the destination sequence.
-			// In the middle-item branch with no promoted items, we split the
-			// list into two halves — renumbering here would rewrite the
-			// second half's markers (e.g. "4. four" → "3. four") and defeat
-			// the user's source-preserved numbering. Skip it.
-			if (wasFirstItem || promotedItems.length > 0) {
-				renumberOrderedList(node, 0);
-			}
+			// Renumber from the splice point so the surviving items behave as
+			// if the exited slot never consumed a number. At itemIndex=0 the
+			// helper seeds from 0 and restarts at 1 (wasFirstItem case); at
+			// itemIndex>0 it seeds from the preceding item's marker and
+			// continues the sequence, so `1. one, 2. two, [exit], 4. three`
+			// becomes `1. one, 2. two, [paragraph], 3. three`. Matches the
+			// "exit = description between items" mental model.
+			renumberOrderedList(node, itemIndex);
 			rebuildListRaw(node);
 			deps.parentContainerEdit?.endContainerEdit();
 			deps.state.triggerReactivity();

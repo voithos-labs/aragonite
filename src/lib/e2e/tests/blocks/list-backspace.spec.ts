@@ -328,4 +328,22 @@ test.describe('list Backspace', () => {
 		expect(source).toMatch(/3\.\s*Third/);
 	});
 
+	// Backspace at the start of the first item of a list that follows a
+	// blank-separated prior list promotes that item to a plain paragraph and
+	// the remaining items continue the visual sequence uninterrupted (Google
+	// Docs semantics, not Obsidian-style restart).
+	test('ordered: Backspace on post-blank item promotes to paragraph and continues numbering', async () => {
+		await editor.loadContent('1. one\n2. two\n\n3. three\n4. four\n');
+		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
+		await third.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).not.toMatch(/^\d+\. three$/m);
+		expect(source).toMatch(/^three$/m);
+		expect(source).toMatch(/^3\. four$/m);
+		expect(source).not.toMatch(/^4\. four$/m);
+		expect(source).not.toMatch(/^1\. four$/m);
+	});
 });
