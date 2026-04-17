@@ -34,3 +34,12 @@ export { cascadeCleanupEmptyAncestors } from './cleanup';
 export { cloneDocument, cloneNode } from './clone';
 
 export { generateBlockId, assignIds } from './block-id';
+
+export type { MergeRole, MergeTarget } from './merge-rules';
+export {
+	MERGE_ROLE,
+	isMergeEligible,
+	isBlockEditable,
+	findMergeTarget,
+	walkToDeepestMergeLeaf
+} from './merge-rules';

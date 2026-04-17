@@ -1,10 +1,10 @@
-// src/lib/editor/test/merge-rules.test.ts
+// src/lib/editor/test/tree-operations/merge-rules.test.ts
 import { describe, it, expect } from 'vitest';
-import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
-import { parse } from '../core/parser';
-import type { BlockKind, CstNode } from '../core/nodes';
-import { rebuildAncestryRaw } from '../tree-operations';
-import { serialize } from '../core/serializer';
+import { isMergeEligible, isBlockEditable, findMergeTarget } from '../../tree-operations/merge-rules';
+import { parse } from '../../core/parser';
+import type { BlockKind, CstNode } from '../../core/nodes';
+import { rebuildAncestryRaw } from '../../tree-operations';
+import { serialize } from '../../core/serializer';
 
 describe('isMergeEligible', () => {
 	// Full role-pair matrix. Representatives of each role:

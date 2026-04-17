@@ -4,7 +4,7 @@
  * See docs/design/editor/editor.md — Structural Operations, Merge Eligibility.
  */
 
-import type { BlockKind, CstNode } from './core/nodes';
+import type { BlockKind, CstNode } from '../core/nodes';
 
 // ── Merge Roles ─────────────────────────────────────────────────────────────
 
