@@ -27,10 +27,12 @@ import {
 	mergeWithPrevious as performMerge,
 	mergeWithNext as performMergeNext,
 	deleteNode as performDelete,
-	updateNodeContent as performUpdate
+	updateNodeContent as performUpdate,
+	buildPastedReplacement
 } from '../../../tree-operations';
 import { generateBlockId } from '../../../tree-operations/block-id';
 import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
+import { parseAllInlineContent } from '../../../core/inline';
 import { displayLength } from '../../../core/lines';
 
 export interface NestedActionsBundle {
@@ -204,9 +206,16 @@ export function createStandardNestedActions(
 			}
 		},
 
-		async insertParsedBlocks(): Promise<void> {
-			// Not supported inside containers by default. Plugin containers
-			// that need multi-block paste override this method.
+		async insertParsedBlocks(innerIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+			if (!deps.node.children || blocks.length === 0) return;
+			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
+
+			const currentNode = deps.node.children[innerIndex];
+			const replacement = buildPastedReplacement(currentNode, offset, blocks);
+			await blockEdit.replaceBlock(innerIndex, replacement, {
+				replacementIndex: replacement.length - 1,
+				offset: CURSOR_END
+			});
 		},
 
 		async replaceBlock(
@@ -230,6 +239,10 @@ export function createStandardNestedActions(
 						copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
 						return copy;
 					});
+					// Prose nodes arrive from parsers/tree-ops without their inline cache
+					// populated; the top-level path refreshes it via the editor's
+					// parseAllInlineContent dep, and the nested path must match.
+					parseAllInlineContent(normalizedReplacement);
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
 					refs.splice(innerIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));

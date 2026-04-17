@@ -11,7 +11,8 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import { offsetFromViewportPoint, clearNativeSelection } from './native-bridge';
+import type { BlockElLookup } from '../contracts';
+import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ export interface DragContext {
 	editorRoot: HTMLElement;
 	scrollContainer: HTMLElement;
 	selection: SelectionState;
+	getBlockElByPath: BlockElLookup;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
@@ -105,7 +107,7 @@ export function installDragListener(
 	function onPointerUp(): void {
 		dispose();
 		if (ctx.selection.isCrossBlock) {
-			clearNativeSelection();
+			parkCaretInFocusBlock(ctx);
 		}
 	}
 
@@ -127,6 +129,21 @@ export function installDragListener(
 	document.addEventListener('pointerup', onPointerUp);
 
 	return { dispose };
+}
+
+/**
+ * Plant a collapsed native caret in the focus block's contenteditable while
+ * cross-block mode is active. Keeps the browser's paste / key-dispatch
+ * pipeline pointed at an editable — without this, the native selection is
+ * empty and Chromium delivers paste events to <body> instead of any block.
+ * The SelectionOverlay still paints the visual cross-block highlight; this
+ * caret is a dispatch anchor, not a rendered one.
+ */
+function parkCaretInFocusBlock(ctx: DragContext): void {
+	if (!ctx.selection.focus) return;
+	const blockEl = ctx.getBlockElByPath(ctx.selection.focus.path);
+	if (!blockEl) return;
+	applyCollapsedCaret(blockEl, ctx.selection.focus);
 }
 
 // ── Hit test ───────────────────────────────────────────────────────────────

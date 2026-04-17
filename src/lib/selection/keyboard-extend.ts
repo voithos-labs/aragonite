@@ -42,7 +42,11 @@ export function enterCrossBlockFromKeyboard(
 		path: anchorPoint.path.slice(),
 		offset: anchorPoint.offset
 	});
-	clearNativeSelection();
+	// Collapse (not clear) the native selection so the focus block retains a
+	// caret. Chromium dispatches paste to the element containing the caret;
+	// with no caret anywhere, paste fires on <body> and the block's onPaste
+	// never sees it. See the "paste dispatch anchor" note on drag-pointer.ts.
+	applyCollapsedCaret(currentBlockEl, anchorPoint);
 	return true;
 }
 
@@ -168,15 +172,21 @@ export function extendFocusToDocEdge(
  * press of Ctrl+A. Anchors at the first leaf's start and focuses at the
  * last leaf's end.
  */
-export function selectWholeDocument(selection: SelectionState, doc: Document): boolean {
+export function selectWholeDocument(
+	selection: SelectionState,
+	doc: Document,
+	getBlockElByPath?: (path: number[]) => HTMLElement | null
+): boolean {
 	const first = firstPath(doc);
 	const last = lastPath(doc);
 	if (!first || !last) return false;
-	selection.enterCrossBlock(
-		{ path: first, offset: 0 },
-		{ path: last, offset: leafOffsetEnd(doc, last) }
-	);
-	clearNativeSelection();
+	const focusPoint = { path: last, offset: leafOffsetEnd(doc, last) };
+	selection.enterCrossBlock({ path: first, offset: 0 }, focusPoint);
+	// Caret on the last leaf serves as the paste-dispatch anchor. See
+	// enterCrossBlockFromKeyboard.
+	const focusBlockEl = getBlockElByPath?.(last);
+	if (focusBlockEl) applyCollapsedCaret(focusBlockEl, focusPoint);
+	else clearNativeSelection();
 	return true;
 }
 
@@ -218,7 +228,10 @@ export function handleShiftClick(
 	if (comparePaths(anchor.path, focusPoint.path) === 0) return false;
 
 	selection.enterCrossBlock(anchor, focusPoint);
-	clearNativeSelection();
+	// Keep a caret on the shift-clicked block as a paste-dispatch anchor (see
+	// enterCrossBlockFromKeyboard). A shift-click's click default already
+	// plants one, but being explicit avoids relying on that quirk.
+	applyCollapsedCaret(clickedBlockEl, focusPoint);
 	return true;
 }
 
