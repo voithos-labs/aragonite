@@ -42,7 +42,7 @@
 		rebuildAncestryRaw
 	} from '../tree-operations';
 	import { createUndoManager } from '../undo-manager';
-	import { isMergeEligible, isBlockEditable, findMergeTarget } from '../merge-rules';
+	import { isMergeEligible, isBlockEditable, findMergeTarget } from '../tree-operations/merge-rules';
 	import { parse } from '../core/parser';
 	import { parseInline, getContentRange, isProseKind } from '../core/inline';
 	import BlockList from './BlockList.svelte';

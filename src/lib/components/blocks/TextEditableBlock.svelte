@@ -22,7 +22,7 @@
 	} from '../../editor-types';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
-	import { renderInlineNodes } from '../../inline-renderer';
+	import { renderInlineNodes } from '../../core/inline-render';
 	import { parse } from '../../core/parser';
 	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
