@@ -10,7 +10,7 @@
  * arrow keypress.
  */
 
-import type { StickyColumnDirection } from '../editor-types';
+import type { StickyColumnDirection } from '../contracts';
 import { createRangeFromOffsets } from './cursor-utils';
 
 /**

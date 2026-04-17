@@ -11,7 +11,7 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { BlockElLookup, BlockEditActions, ContainerEditActions, DocumentGetter } from '../context-keys';
+import type { BlockElLookup, BlockEditActions, ContainerEditActions, DocumentGetter } from '../contracts';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';

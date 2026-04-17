@@ -16,7 +16,7 @@
 		type ListContext,
 		type CstNode,
 		type BlockComponent
-	} from '../../editor-types';
+	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { generateBlockId } from '../../tree-operations/block-id';
 	import { displayLength } from '../../core/lines';

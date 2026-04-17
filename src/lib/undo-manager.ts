@@ -3,7 +3,7 @@
  * Stores deep clones of CST documents.
  */
 
-import type { UndoManager, UndoEntry } from './editor-types';
+import type { UndoManager, UndoEntry } from './contracts';
 
 const MAX_UNDO = 200;
 

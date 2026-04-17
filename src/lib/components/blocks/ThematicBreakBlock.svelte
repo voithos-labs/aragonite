@@ -9,7 +9,7 @@
 		type HistoryActions,
 		type CstNode,
 		type BlockComponent
-	} from '../../editor-types';
+	} from '../../contracts';
 	import { displayLength } from '../../core/lines';
 
 	let {

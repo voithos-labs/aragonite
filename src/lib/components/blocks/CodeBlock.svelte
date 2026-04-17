@@ -19,7 +19,7 @@
 		type CstNode,
 		type BlockComponent,
 		type StickyColumnDirection
-	} from '../../editor-types';
+	} from '../../contracts';
 	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		createRangeFromOffsets,
