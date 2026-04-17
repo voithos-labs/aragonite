@@ -25,7 +25,7 @@
 		type SelectionPoint,
 		type UndoEntry
 	} from '../editor-types';
-	import { createStickyColumnState } from '../sticky-column';
+	import { createStickyColumnState } from '../contenteditable/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { readCurrentSelection, applySelectionToDom } from '../selection/native-bridge';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';

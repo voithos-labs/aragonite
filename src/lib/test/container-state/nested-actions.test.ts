@@ -5,7 +5,7 @@ import {
 import { createBlockListState } from '../../container-state/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { BlockEditActions, FocusActions, ContainerEditActions } from '../../editor-types';
-import type { StickyColumnState } from '../../sticky-column';
+import type { StickyColumnState } from '../../contenteditable/sticky-column';
 
 function makeNode(children: CstNode[]): CstNode {
 	return {

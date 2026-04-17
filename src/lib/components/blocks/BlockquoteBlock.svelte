@@ -13,7 +13,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import type { StickyColumnState } from '../../sticky-column';
+	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
 	import { unwrapFirstChildFromBlockquote, deleteNode as performDelete } from '../../tree-operations';
 	import { displayLength } from '../../raw-text';

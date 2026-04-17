@@ -13,7 +13,7 @@ import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './selection-types';
 import type { BlockElLookup, BlockEditActions, ContainerEditActions, DocumentGetter } from '../context-keys';
 import type { CstNode, Document } from '../core/nodes';
-import type { StickyColumnState } from '../sticky-column';
+import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import { collectCrossBlockText } from './clipboard-text';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';

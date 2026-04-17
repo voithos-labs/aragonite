@@ -16,7 +16,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../editor-types';
-	import type { StickyColumnState } from '../../sticky-column';
+	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../raw-text';
 	import { splitNode as performSplit } from '../../tree-operations';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
