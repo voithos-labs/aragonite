@@ -20,7 +20,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../contracts';
-	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
 	import { parse } from '../../core/parser';
@@ -33,21 +33,10 @@
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../contenteditable/cursor-utils';
-	import {
-		isAtFirstVisualLine,
-		isAtLastVisualLine
-	} from '../../contenteditable/visual-lines';
-	import {
-		getCurrentCursorEditorRelativeX,
-		findOffsetNearestX
-	} from '../../contenteditable/sticky-measure';
+	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
+	import { handleSharedKeydown, type SharedKeydownContext } from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import {
-		extendFocusToNextBlock,
-		extendFocusToPreviousBlock,
-		scrollFocusBlockIntoView
-	} from '../../selection/keyboard-extend';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 
 	let {
@@ -103,6 +92,20 @@
 			}
 		}
 	});
+
+	const sharedCtx: SharedKeydownContext = {
+		getEl: () => el ?? null,
+		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
+		getMyPath: () => myPath,
+		getIndex: () => index,
+		crossBlock,
+		selection,
+		stickyColumn,
+		history,
+		focus: focusActions,
+		getDoc,
+		getBlockElByPath
+	};
 
 	function refreshInlineContent(): void {
 		if (!isProseKind(node.kind)) return;
@@ -268,30 +271,7 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
-		// Reset Ctrl+A doubling counter on any non-Ctrl+A keystroke. Bare
-		// modifier keys (Control, Shift, Alt, Meta) don't reset — pressing
-		// Control before 'a' is part of the Ctrl+A chord, not a separate action.
-		const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
-		const isBareModifier = e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' ||
-			e.key === 'Meta' || e.key === 'AltGraph' || e.key === 'CapsLock';
-		if (!isCtrlA && !isBareModifier) {
-			selection.resetSelectAllCount();
-		}
-
-		if (await crossBlock.handleKeyDown(e)) return;
-
-		// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
-		// Horizontal arrows, Home, End, Escape, and typable characters all land in
-		// the else branch and reset sticky — PRESERVE_KEYS_NON_ARROW's JSDoc lists
-		// every key that intentionally does nothing to sticky state.
-		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-			const x = getCurrentCursorEditorRelativeX(el!);
-			if (x !== null) stickyColumn.capture(x);
-			// Fall through to the existing vertical-arrow branches below
-		} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
-			stickyColumn.reset();
-			// Fall through — we still handle the key normally
-		}
+		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		// Ctrl+B / Ctrl+I — toggle bold / italic formatting on selection
 		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
@@ -303,19 +283,6 @@
 		if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
 			e.preventDefault();
 			toggleFormat('emphasis');
-			return;
-		}
-
-		// Ctrl+Z / Ctrl+Y — catch here because Ctrl+Y doesn't trigger
-		// beforeinput historyRedo in Chromium/WebView2
-		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-			e.preventDefault();
-			history.requestUndo();
-			return;
-		}
-		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-			e.preventDefault();
-			history.requestRedo();
 			return;
 		}
 
@@ -349,82 +316,6 @@
 			if (offset === textLen && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithNext(index);
-				return;
-			}
-		}
-
-		// ArrowUp — geometry-based: cross block boundary when cursor is on first visual line.
-		if (e.key === 'ArrowUp') {
-			const offset = getCursorOffsetHelper(el!) ?? 0;
-			if (isAtFirstVisualLine(el!, offset)) {
-				// Shift+ArrowUp: native first extends to start of block content.
-				// Only cross the block boundary when the selection can't grow
-				// further within this block (cursor/anchor already at offset 0).
-				if (e.shiftKey && offset === 0) {
-					e.preventDefault();
-					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath, 'start');
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				if (!e.shiftKey) {
-					e.preventDefault();
-					focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-					return;
-				}
-			}
-		}
-
-		// ArrowDown — geometry-based: cross block boundary when cursor is on last visual line.
-		if (e.key === 'ArrowDown') {
-			const offset = getCursorOffsetHelper(el!) ?? 0;
-			const textLen = (el?.textContent ?? '').length;
-			if (isAtLastVisualLine(el!, offset, textLen)) {
-				// Shift+ArrowDown: native first extends to end of block content.
-				// Only cross the block boundary when the cursor/anchor is already
-				// at the end, so native extension has nowhere left to go.
-				if (e.shiftKey && offset === textLen) {
-					e.preventDefault();
-					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				if (!e.shiftKey) {
-					e.preventDefault();
-					focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-					return;
-				}
-			}
-		}
-
-		// ArrowLeft at offset 0 → move to end of previous block
-		if (e.key === 'ArrowLeft') {
-			const offset = getCursorOffsetHelper(el!);
-			if (offset === 0) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				e.preventDefault();
-				focusActions.moveFocus(index - 1, 'end');
-				return;
-			}
-		}
-
-		// ArrowRight at end of content → move to start of next block
-		if (e.key === 'ArrowRight') {
-			const textLen = (el?.textContent ?? '').length;
-			const offset = getCursorOffsetHelper(el!);
-			if (offset === textLen) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				e.preventDefault();
-				focusActions.moveFocus(index + 1, 'start');
 				return;
 			}
 		}

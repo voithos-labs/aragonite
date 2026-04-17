@@ -20,7 +20,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../contracts';
-	import { PRESERVE_KEYS_NON_ARROW, type StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -28,18 +28,10 @@
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../contenteditable/cursor-utils';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../contenteditable/visual-lines';
-	import {
-		getCurrentCursorEditorRelativeX,
-		findOffsetNearestX
-	} from '../../contenteditable/sticky-measure';
+	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
+	import { handleSharedKeydown, type SharedKeydownContext } from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import {
-		extendFocusToNextBlock,
-		extendFocusToPreviousBlock,
-		scrollFocusBlockIntoView
-	} from '../../selection/keyboard-extend';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
@@ -94,6 +86,20 @@
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => { pendingCursorOffset = offset; }
 	});
+
+	const sharedCtx: SharedKeydownContext = {
+		getEl: () => el ?? null,
+		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
+		getMyPath: () => myPath,
+		getIndex: () => index,
+		crossBlock,
+		selection,
+		stickyColumn,
+		history,
+		focus: focusActions,
+		getDoc,
+		getBlockElByPath
+	};
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -274,43 +280,15 @@
 
 		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 
-		// Reset Ctrl+A doubling counter on any non-Ctrl+A keystroke. Bare
-		// modifier keys (Control, Shift, Alt, Meta) don't reset — pressing
-		// Control before 'a' is part of the Ctrl+A chord, not a separate action.
-		const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
-		const isBareModifier = e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' ||
-			e.key === 'Meta' || e.key === 'AltGraph' || e.key === 'CapsLock';
-		if (!isCtrlA && !isBareModifier) {
-			selection.resetSelectAllCount();
-		}
+		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		if (await crossBlock.handleKeyDown(e)) return;
-
-		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-			const x = getCurrentCursorEditorRelativeX(el!);
-			if (x !== null) stickyColumn.capture(x);
-		} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
-			stickyColumn.reset();
-		}
-
+		// Ctrl+B / Ctrl+I — swallow inside code so the browser doesn't toggle
+		// bold/italic on the contenteditable. Code blocks have no formatting.
 		if (
 			(e.ctrlKey || e.metaKey) &&
 			(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
 		) {
 			e.preventDefault();
-			return;
-		}
-
-		// Ctrl+Z / Ctrl+Y — catch here because Ctrl+Y doesn't fire beforeinput
-		// historyRedo in Chromium/WebView2.
-		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-			e.preventDefault();
-			history.requestUndo();
-			return;
-		}
-		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-			e.preventDefault();
-			history.requestRedo();
 			return;
 		}
 
@@ -419,72 +397,6 @@
 			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
 			pendingCursorOffset = offset + 1 + indent.length;
 			return;
-		}
-
-		if (e.key === 'ArrowUp') {
-			const offset = getCursorOffsetHelper(el!) ?? 0;
-			if (isAtFirstVisualLine(el!, offset)) {
-				if (e.shiftKey && offset === 0) {
-					e.preventDefault();
-					extendFocusToPreviousBlock(selection, getDoc(), el!, myPath, 'start');
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				if (!e.shiftKey) {
-					e.preventDefault();
-					focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-					return;
-				}
-			}
-		}
-
-		if (e.key === 'ArrowDown') {
-			const offset = getCursorOffsetHelper(el!) ?? 0;
-			const textLen = (el?.textContent ?? '').length;
-			if (isAtLastVisualLine(el!, offset, textLen)) {
-				if (e.shiftKey && offset === textLen) {
-					e.preventDefault();
-					extendFocusToNextBlock(selection, getDoc(), el!, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				if (!e.shiftKey) {
-					e.preventDefault();
-					focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-					return;
-				}
-			}
-		}
-
-		if (e.key === 'ArrowLeft' && el) {
-			const offset = getCursorOffsetHelper(el);
-			if (offset === 0) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					extendFocusToPreviousBlock(selection, getDoc(), el, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				e.preventDefault();
-				focusActions.moveFocus(index - 1, 'end');
-				return;
-			}
-		}
-
-		if (e.key === 'ArrowRight' && el) {
-			const textLen = (el.textContent ?? '').length;
-			const offset = getCursorOffsetHelper(el);
-			if (offset === textLen) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					extendFocusToNextBlock(selection, getDoc(), el, myPath);
-					scrollFocusBlockIntoView(selection, getBlockElByPath);
-					return;
-				}
-				e.preventDefault();
-				focusActions.moveFocus(index + 1, 'start');
-				return;
-			}
 		}
 
 		if (e.key === 'Tab') {
