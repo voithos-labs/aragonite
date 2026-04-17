@@ -1,7 +1,6 @@
 /**
- * Raw text reconstruction for container blocks.
- * After editing inner children, the container's `raw` must be rebuilt
- * to keep serialization consistent.
+ * Raw text reconstruction for container blocks, plus the kind-dispatch
+ * helpers that route ancestry walks to the right per-kind rebuilder.
  */
 
 import type { CstNode } from '../core/nodes';
@@ -80,4 +79,91 @@ function prefixLines(text: string, contentPrefix: string, blankPrefix: string): 
 			return contentPrefix + line;
 		})
 		.join('\n');
+}
+
+// ── Ancestry dispatch ────────────────────────────────────────────────────────
+
+/**
+ * Rebuild `raw` for every container along a path, from innermost to outermost.
+ *
+ * Given a root container node and a path (sequence of child-array indices
+ * from root down to a target leaf), walks each container along the path and
+ * calls the kind-appropriate rebuild helper. The leaf itself (the last node
+ * pointed at by the path) is NOT rebuilt — the caller is expected to have
+ * already mutated the leaf's raw before calling this.
+ *
+ * Used by cross-container merge (Editor.mergeWithPrevious) and by M1's
+ * mergeListItemIntoPrevious (via the refactor in Task 4).
+ */
+export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
+	if (path.length === 0) {
+		// Rebuild just the root container. Valid when the caller wants to
+		// refresh `root.raw` without having mutated anything deeper — e.g.,
+		// after a top-level child was replaced directly. If `root` is not a
+		// container, `rebuildContainerRaw` throws.
+		rebuildContainerRaw(root);
+		return;
+	}
+
+	// Collect containers along the path, from outermost-inside-root to innermost.
+	// path.length - 1 stops before the leaf index (we don't descend into the leaf).
+	const containers: CstNode[] = [];
+	let current = root;
+	for (let i = 0; i < path.length - 1; i++) {
+		current = current.children![path[i]];
+		containers.push(current);
+	}
+
+	// Rebuild innermost first (end of the array), then walk outward.
+	for (let i = containers.length - 1; i >= 0; i--) {
+		rebuildContainerRaw(containers[i]);
+	}
+	// Finally rebuild root itself.
+	rebuildContainerRaw(root);
+}
+
+/**
+ * Dispatch to the correct per-kind rebuild helper. Throws when `node` isn't a
+ * container — callers that walk ancestry chains and may encounter leaves should
+ * use {@link rebuildContainerRawIfContainer} instead.
+ */
+export function rebuildContainerRaw(node: CstNode): void {
+	switch (node.kind) {
+		case 'blockquote':
+			rebuildBlockquoteRaw(node);
+			return;
+		case 'list':
+			rebuildListRaw(node);
+			return;
+		case 'listItem':
+			rebuildListItemRaw(node);
+			return;
+		default:
+			// rebuildAncestryRaw should only ever traverse containers. Reaching
+			// this branch means either an off-by-one in the caller's path (the
+			// path included the leaf index instead of stopping before it) or a
+			// new container kind was added to BlockKind without updating this
+			// switch. Either way, silent no-op would produce corrupt serialized
+			// output — throw loudly instead.
+			throw new Error(
+				`rebuildContainerRaw: unexpected kind "${node.kind}" — only container kinds (blockquote, list, listItem) are valid`
+			);
+	}
+}
+
+/**
+ * Rebuild `raw` when `node` is a container kind; no-op on leaves. Used by
+ * callers that walk an ancestry chain where some ancestors may be leaf blocks
+ * (e.g., the path points at a paragraph inside a top-level list item).
+ */
+export function rebuildContainerRawIfContainer(node: CstNode): void {
+	switch (node.kind) {
+		case 'blockquote':
+		case 'list':
+		case 'listItem':
+			rebuildContainerRaw(node);
+			return;
+		default:
+			return;
+	}
 }

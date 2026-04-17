@@ -5,7 +5,7 @@
  * Internal callers may import directly from a sibling file for specificity.
  */
 
-export type { NodeParent } from './generic';
+export type { NodeParent } from './node-ops';
 export {
 	splitNode,
 	mergeWithPrevious,
@@ -13,11 +13,14 @@ export {
 	deleteNode,
 	updateNodeContent,
 	ensureEditableContainers,
+	nodeAt
+} from './node-ops';
+
+export {
 	rebuildAncestryRaw,
 	rebuildContainerRaw,
-	rebuildContainerRawIfContainer,
-	nodeAt
-} from './generic';
+	rebuildContainerRawIfContainer
+} from './container-raw';
 
 export {
 	unwrapFirstItemFromList,

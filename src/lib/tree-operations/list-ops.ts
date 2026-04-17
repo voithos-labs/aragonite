@@ -1,14 +1,13 @@
 /**
  * List-specific tree operations: first-item unwrap (Rule U1), non-first-item
  * merge (Rule M1), and ordered-list marker renumbering. Kind-agnostic
- * operations (split, merge, delete, update) live in `generic.ts`.
+ * operations (split, merge, delete, update) live in `node-ops.ts`.
  */
 
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from './clone';
-import { rebuildListRaw, rebuildListItemRaw } from './container-raw';
+import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from './container-raw';
 import { walkToDeepestMergeLeaf } from './merge-rules';
-import { rebuildAncestryRaw } from './generic';
 
 // ── Emptiness check ──
 

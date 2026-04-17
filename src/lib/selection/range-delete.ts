@@ -16,7 +16,8 @@ import { parse } from '../core/parser';
 import { walkBetween } from './range-walker';
 import { comparePaths } from './selection-point';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { nodeAt, rebuildContainerRawIfContainer } from '../tree-operations/generic';
+import { nodeAt } from '../tree-operations/node-ops';
+import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
