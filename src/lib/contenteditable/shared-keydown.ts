@@ -27,6 +27,7 @@ import {
 } from '../selection/keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from './sticky-measure';
 import { isAtFirstVisualLine, isAtLastVisualLine } from './visual-lines';
+import { getSelectionFocusOffset } from './cursor-utils';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -104,12 +105,20 @@ export async function handleSharedKeydown(
 	const index = ctx.getIndex();
 	const myPath = ctx.getMyPath();
 
+	// For Shift+Arrow boundary checks, use the selection's FOCUS offset
+	// rather than the range start (anchor). When the user has extended a
+	// selection forward — e.g., clicked at offset 5 then Shift+clicked at
+	// the block's end — the anchor stays at 5 while the focus sits at
+	// the boundary. Reading the anchor would leave the boundary check
+	// mid-block and silently fail to enter cross-block mode.
+	const shiftOffset = e.shiftKey ? getSelectionFocusOffset(el) : null;
+
 	if (e.key === 'ArrowUp') {
-		const offset = ctx.getCursorOffset() ?? 0;
+		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		if (isAtFirstVisualLine(el, offset)) {
 			// Shift+ArrowUp: native first extends to start of block content.
-			// Only cross the boundary when the cursor/anchor is already at
-			// offset 0, so native extension has nowhere left to go.
+			// Only cross the boundary when the focus is already at offset 0,
+			// so native extension has nowhere left to go.
 			if (e.shiftKey && offset === 0) {
 				e.preventDefault();
 				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
@@ -125,12 +134,12 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowDown') {
-		const offset = ctx.getCursorOffset() ?? 0;
+		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		const textLen = (el.textContent ?? '').length;
 		if (isAtLastVisualLine(el, offset, textLen)) {
 			// Shift+ArrowDown: native first extends to end of block content.
-			// Only cross the boundary when the cursor/anchor is already at
-			// the end, so native extension has nowhere left to go.
+			// Only cross the boundary when the focus is already at the end,
+			// so native extension has nowhere left to go.
 			if (e.shiftKey && offset === textLen) {
 				e.preventDefault();
 				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath);

@@ -61,6 +61,11 @@ export function setCursorOffset(container: HTMLElement, offset: number): void {
 /**
  * Read the current cursor's character offset inside `container`, or null
  * if the container is not the active element or no range exists.
+ *
+ * Returns the range START — the earlier endpoint of the selection in
+ * document order, which equals the anchor for forward selections.
+ * Callers that need the moving endpoint (e.g., Shift+Arrow boundary
+ * checks) should use `getSelectionFocusOffset` instead.
  */
 export function getCursorOffset(container: HTMLElement): number | null {
 	if (document.activeElement !== container) return null;
@@ -70,6 +75,31 @@ export function getCursorOffset(container: HTMLElement): number | null {
 	const preRange = document.createRange();
 	preRange.selectNodeContents(container);
 	preRange.setEnd(range.startContainer, range.startOffset);
+	return preRange.toString().length;
+}
+
+/**
+ * Read the current selection's FOCUS offset inside `container`, or null
+ * if `container` is not the active element or the focus is not inside it.
+ *
+ * The focus is where the caret is actively moving — distinct from the
+ * range start (anchor) when the user has extended a selection. Used by
+ * Shift+Arrow boundary checks to decide whether the next extension would
+ * cross a block boundary based on where the caret currently is, not
+ * where the selection originally started.
+ */
+export function getSelectionFocusOffset(container: HTMLElement): number | null {
+	if (document.activeElement !== container) return null;
+	const sel = window.getSelection();
+	if (!sel || sel.focusNode === null) return null;
+	if (!container.contains(sel.focusNode)) return null;
+	const preRange = document.createRange();
+	preRange.selectNodeContents(container);
+	try {
+		preRange.setEnd(sel.focusNode, sel.focusOffset);
+	} catch {
+		return null;
+	}
 	return preRange.toString().length;
 }
 
