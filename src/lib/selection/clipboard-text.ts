@@ -99,7 +99,31 @@ export function collectCrossBlockText(
 			collectedContainers.push(path);
 		}
 	}
-	return startTail + middle + endHead;
+
+	// Prepend the end node's leadingTrivia to endHead. This captures the
+	// separator (blank line or line ending) between the last-collected
+	// content and the end block — without it, blank lines between paragraphs
+	// get dropped from the clipboard and paste reparses as a single merged
+	// paragraph via soft line break. Skip when start and end resolved to the
+	// same effective path (degenerate same-container case; endHead already
+	// equals startTail).
+	let endLead = '';
+	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
+		const endNode = nodeAt(doc, effectiveEndPath);
+		if (endNode && 'leadingTrivia' in endNode) {
+			endLead = (endNode as CstNode).leadingTrivia;
+		}
+	}
+
+	return startTail + middle + endLead + endHead;
+}
+
+function pathsEqual(a: number[], b: number[]): boolean {
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
