@@ -6,8 +6,8 @@
  * chain. Caller must normalize the range before calling.
  *
  * Used by cross-block Cut, Paste, Backspace, Delete, and type-replace.
- * See docs/superpowers/specs/2026-04-15-v0.4-selection-clipboard-design.md
- * Range Mutations section for the full algorithm and "start wins" semantics.
+ * See docs/design/editor/editor.md — Clipboard / Cross-Container Semantics
+ * sections for the "start wins" rule that drives cleanup behavior.
  */
 
 import type { CstNode, Document } from '../core/nodes';

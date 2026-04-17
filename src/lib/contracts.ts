@@ -201,8 +201,7 @@ export interface UndoEntry {
 	 * The effective selection at the moment of push. Collapsed selection
 	 * (anchor === focus) represents a single caret; same-path with different
 	 * offsets is a single-block range; different paths is a cross-block
-	 * range. See docs/superpowers/specs/2026-04-15-v0.4-selection-clipboard-design.md
-	 * Undo / Redo Integration section.
+	 * range. See docs/design/editor/editor.md — Undo/Redo section.
 	 */
 	selection: EditorSelection;
 }
