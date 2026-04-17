@@ -30,7 +30,10 @@
 	} from '../../contenteditable/cursor-utils';
 	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
-	import { handleSharedKeydown, type SharedKeydownContext } from '../../contenteditable/shared-keydown';
+	import {
+		handleSharedKeydown,
+		type SharedKeydownContext
+	} from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { renderCodeBlock } from './code/code-renderer';
@@ -49,11 +52,7 @@
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
-	let {
-		node,
-		index,
-		myPath = []
-	}: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
@@ -84,7 +83,9 @@
 		blockEdit,
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => { pendingCursorOffset = offset; }
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		}
 	});
 
 	const sharedCtx: SharedKeydownContext = {
@@ -446,47 +447,17 @@
 	}
 
 	/**
-	 * A code block stores opener + body + closer as one flat `raw`, and the
-	 * displayed text is that `raw` minus the trailing newline. A native single-
-	 * block selection therefore captures fence markers at the boundaries when
-	 * the user's selection crosses them. Pasting a lone opener elsewhere makes
-	 * the parser absorb everything to EOF as an unclosed fence; a lone closer
-	 * parses as a spurious empty code block.
-	 *
-	 * Strategy: full-content selection (Ctrl+A, offsets span the entire
-	 * display) round-trips the whole block verbatim — fences and all — so the
-	 * user gets a complete code block on paste. Any partial selection strips
-	 * fence-only lines from the start and end so the clipboard holds pure code
-	 * content. Pasting that elsewhere produces a paragraph, not broken markdown.
+	 * Copy pulls the native selection verbatim — fences and all. The concern
+	 * that a lone fence on the clipboard makes pasting into a paragraph create
+	 * an unclosed code block is real, but the fix lives on the paste side:
+	 * when the target is a code block, `computeCodePaste` bumps the outer
+	 * fence to a longer run so any pasted fence stays literal body. Pasting
+	 * into a paragraph matches whatever the user selected, including orphan
+	 * fences — the trade-off accepted when we chose "clipboard is literal"
+	 * over silent content dropping.
 	 */
 	function getCopyPayload(): string {
-		const selected = window.getSelection()?.toString() ?? '';
-		if (!el) return selected;
-
-		const selOffsets = getSelectionOffsetsHelper(el);
-		const displayLen = (el.textContent ?? '').length;
-		const isFullSelection =
-			selOffsets !== null && selOffsets.start === 0 && selOffsets.end === displayLen;
-		if (isFullSelection) return selected;
-
-		return stripFenceBoundaries(selected);
-	}
-
-	/** Drop fence-only lines from the leading and trailing edges of `text`. */
-	function stripFenceBoundaries(text: string): string {
-		const lines = text.split('\n');
-		while (lines.length > 0 && isFenceLine(lines[0])) lines.shift();
-		while (lines.length > 0 && isFenceLine(lines[lines.length - 1])) lines.pop();
-		return lines.join('\n');
-	}
-
-	/**
-	 * A fence-only line is three-or-more backticks (or tildes) followed by an
-	 * optional info string and nothing else. The opening fence may carry an
-	 * info string (```javascript); the closing fence is just the run.
-	 */
-	function isFenceLine(line: string): boolean {
-		return /^(?:`{3,}|~{3,})[^\n`~]*$/.test(line.trim());
+		return window.getSelection()?.toString() ?? '';
 	}
 
 	function onCopy(e: ClipboardEvent): void {
