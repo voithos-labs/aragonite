@@ -253,7 +253,14 @@
 		}
 
 		// Auto-pair: typed opener with a collapsed cursor inserts the closer too.
-		if (closer !== null && shouldAutoClose(text, offset, data)) {
+		// Skip backtick pairing in an unclosed backtick fence — the user is
+		// almost certainly trying to close or extend the opening fence, not
+		// type literal backticks. Auto-pairing there produces a phantom closer.
+		const unclosedBacktickFence =
+			data === '`' &&
+			(node.metadata as FencedCodeMetadata).closed === false &&
+			(node.metadata as FencedCodeMetadata).fenceMarker === '`';
+		if (closer !== null && !unclosedBacktickFence && shouldAutoClose(text, offset, data)) {
 			e.preventDefault();
 			const newText = text.slice(0, offset) + data + closer + text.slice(offset);
 			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
@@ -384,6 +391,28 @@
 				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
 				pendingCursorOffset = offset + 1 + inner.length;
 				return;
+			}
+
+			// Unclosed fence: the rebuilt DOM after updateBlockContent ends with
+			// a trailing \n marker that Chromium with `white-space: pre`
+			// misreads — cursor placed at its end sees the next typed char
+			// land BEFORE the \n, on the opener line. Insert the newline at
+			// the DOM level and sync via onInput so the live selection stays
+			// anchored in a fresh text node Chromium treats as insertion-ready.
+			if (!meta.closed) {
+				const sel = window.getSelection();
+				if (sel && sel.rangeCount > 0 && el) {
+					const range = sel.getRangeAt(0);
+					range.deleteContents();
+					const inserted = document.createTextNode('\n' + indent);
+					range.insertNode(inserted);
+					range.setStart(inserted, inserted.length);
+					range.collapse(true);
+					sel.removeAllRanges();
+					sel.addRange(range);
+					onInput();
+					return;
+				}
 			}
 
 			const newText = text.slice(0, offset) + '\n' + indent + text.slice(offset);
