@@ -5,11 +5,10 @@
  * full-content edge so structural formatting is preserved.
  */
 
-import type { SelectionPoint } from './selection-types';
+import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from './path-lookup';
-import { walkBetween } from './range-walker';
-import { normalize } from './selection-point';
+import { walkBetween, normalize } from './primitives';
 import { displayLength } from '../core/lines';
 
 // ── Public API ─────────────────────────────────────────────────────────────

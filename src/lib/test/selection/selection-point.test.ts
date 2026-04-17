@@ -3,9 +3,9 @@ import {
 	comparePaths,
 	pointsEqual,
 	normalize,
-	isPathBetween
-} from '../../selection/selection-point';
-import type { SelectionPoint } from '../../selection/selection-types';
+	isPathBetween,
+	type SelectionPoint
+} from '../../selection/primitives';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

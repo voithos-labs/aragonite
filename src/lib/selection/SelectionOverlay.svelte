@@ -16,8 +16,7 @@
 	import { getContext } from 'svelte';
 	import { SELECTION_KEY, type BlockComponent } from '../editor-types';
 	import type { SelectionState } from './selection-state.svelte';
-	import { normalize } from './selection-point';
-	import { classifyBlockForSelection, type BlockSelectionClass } from './overlay-measure';
+	import { normalize, classifyBlockForSelection, type BlockSelectionClass } from './primitives';
 
 	let {
 		path,

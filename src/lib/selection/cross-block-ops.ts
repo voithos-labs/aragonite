@@ -4,7 +4,7 @@
  */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './selection-types';
+import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
