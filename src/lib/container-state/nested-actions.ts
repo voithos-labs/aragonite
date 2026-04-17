@@ -30,7 +30,7 @@ import {
 	updateNodeContent as performUpdate
 } from '../tree-operations';
 import { generateBlockId } from '../tree-operations/block-id';
-import { isMergeEligible, isBlockEditable } from '../merge-rules';
+import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
 import { displayLength } from '../core/lines';
 
 export interface NestedActionsBundle {

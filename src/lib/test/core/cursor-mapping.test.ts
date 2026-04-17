@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findNodeAtOffset } from '../../inline-renderer';
+import { findNodeAtOffset } from '../../core/inline-render';
 import type { InlineNode } from '../../core/nodes';
 
 describe('findNodeAtOffset', () => {

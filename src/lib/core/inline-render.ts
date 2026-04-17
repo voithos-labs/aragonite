@@ -3,7 +3,7 @@
  * Builds a DocumentFragment where textContent equals the raw content slice.
  */
 
-import type { InlineNode } from './core/nodes';
+import type { InlineNode } from './nodes';
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
