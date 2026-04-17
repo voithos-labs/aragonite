@@ -210,6 +210,119 @@ test.describe('cross-block clipboard: paste', () => {
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
 
+	// Regression (docs/issues.md — "Paste into cross-list-item selection does
+	// nothing"): a cross-block selection spanning two items of the same list,
+	// pressing Ctrl+V, must replace the selected range with the clipboard text.
+	// The pre-fix behavior silently did nothing — the rangeDelete happened but
+	// the follow-up raw mutation + ancestry rebuild lost the pasted content.
+	test('paste into cross-block selection spanning two items within a list', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		// CST: [0] list, [0,0,0] "one", [0,1,0] "two". Select from start of "one"
+		// to end of "two" via shift-click.
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	test('paste into cross-block selection covering two of three list items', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		// Select items 1 and 2, leave item 3 alone.
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+		expect(source).toContain('three');
+	});
+
+	test('paste into cross-block selection covering items 2 and 3 of a 3-item list', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('one');
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('two');
+		expect(source).not.toContain('three');
+	});
+
+	// Known limitation (docs/issues.md): multi-block paste into a cross-block
+	// selection whose collapsed caret lands inside a container (list item,
+	// blockquote) is silently skipped because handlePaste has a deliberate
+	// `caret.path.length !== 1` guard — nested containers' blockEdit.insertParsedBlocks
+	// is a no-op by design and there's no path-aware insertion API yet.
+	// When the dispatch can safely route to a container-aware splice, flip
+	// this test.fixme → test.
+	test.fixme('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('alpha');
+		expect(source).toContain('beta');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	test('paste into cross-block selection with mid-paragraph offsets in two list items', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		// Anchor mid-"one" (offset 1, after 'o'), focus mid-"two" (offset 2, after 'tw').
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 1, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		// "one" becomes "o" + pasted + "o" from "two"
+		expect(source).toMatch(/^1\. oHELLOo$/m);
+	});
+
 	test('paste into cross-block selection covering entire list replaces it', async () => {
 		await editor.loadContent('Before list\n\n- Item one\n- Item two\n- Item three\n\nAfter list\n');
 
