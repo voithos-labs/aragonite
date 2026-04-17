@@ -168,6 +168,29 @@ test.describe('list Enter', () => {
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
 
+	// Regression (user report): Enter on an empty middle item of an ordered list
+	// must preserve the surviving second half's original markers. The pre-fix
+	// behavior renumbered the whole list BEFORE the split, so "4. four" became
+	// "3. four" in the second half — surprising and undesired.
+	test('ordered: Enter on empty middle item preserves second-half numbering', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n4. four\n');
+		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
+		await third.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+End');
+		await editor.page.keyboard.press('Delete');
+		await editor.page.waitForTimeout(200);
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// First half preserved.
+		expect(source).toMatch(/^1\. one$/m);
+		expect(source).toMatch(/^2\. two$/m);
+		// Second half retains its ORIGINAL marker ("4. four"), NOT renumbered to "3.".
+		expect(source).toMatch(/^4\. four$/m);
+		expect(source).not.toMatch(/^3\. four$/m);
+	});
+
 	// Covers the requirement "Empty last item: deleted, paragraph created
 	// after the list" — pressing Enter on an empty final list item removes
 	// that item and drops a plain paragraph below the list.
