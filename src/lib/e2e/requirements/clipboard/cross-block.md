@@ -18,6 +18,7 @@
 - Cross-block copy of an ordered list preserves all item markers (start/end boundary promotion regression)
 - Selecting last list item + content below copies only that item, not entire list (over-promotion regression)
 - Partial selection ending inside a single-child list item preserves that item's marker (e.g. "3. thi")
+- Blank lines between blocks survive copy + paste: selecting across two paragraphs separated by a blank line and pasting reproduces the blank-line separator (not a soft break merging them into one paragraph)
 
 ## User interactions
 - Select across two paragraphs via Shift+ArrowDown, Ctrl+C, collapse, paste: duplicates text
