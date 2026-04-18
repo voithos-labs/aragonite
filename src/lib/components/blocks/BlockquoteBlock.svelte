@@ -15,7 +15,10 @@
 	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
-	import { unwrapFirstChildFromBlockquote, deleteNode as performDelete } from '../../tree-operations';
+	import {
+		unwrapFirstChildFromBlockquote,
+		deleteNode as performDelete
+	} from '../../tree-operations';
 	import { displayLength } from '../../core/lines';
 	import { tick } from 'svelte';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
@@ -23,17 +26,10 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from './container-state/nested-actions';
-	import {
-		dispatchFocusByPath,
-		dispatchFocusAtColumn
-	} from './container-state/focus-dispatch';
+	import { dispatchFocusByPath, dispatchFocusAtColumn } from './container-state/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
-	let {
-		node,
-		index,
-		myPath = []
-	}: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -42,76 +38,74 @@
 
 	const state = createBlockListState(() => node);
 
-	const bundle = createStandardNestedActions(state, {
-		// Pass reactive props via getters so factory closures always read
-		// the current values. Plain capture at factory-call time would be
-		// stale after a parent splitBlock shifts this container's index,
-		// or after undo/redo replaces the document tree with a fresh clone.
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		rebuildRaw: () => rebuildBlockquoteRaw(node),
-		stickyColumn,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
-			containerEdit: parentContainerEdit
-		}
-	});
-
-	// Override splitBlock for blockquote-specific Enter behavior: pressing Enter
-	// on the last child when it is an empty paragraph exits the blockquote instead
-	// of creating another empty inner paragraph. The factory's default splitBlock
-	// is correct for all other cases and is chained via factorySplitBlock.
-	const factorySplitBlock = bundle.blockEdit.splitBlock;
-	bundle.blockEdit.splitBlock = async (innerIndex: number, offset: number): Promise<void> => {
-		if (!node.children) return;
-
-		const child = node.children[innerIndex];
-		const isLastChild = innerIndex === node.children.length - 1;
-		const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
-		if (isLastChild && isEmpty) {
-			if (node.children.length <= 1) {
-				// Only child is empty — replace blockquote with a new paragraph
-				parentBlockEdit.splitBlock(index, displayLength(node.raw));
-			} else {
-				// Remove the empty trailing child, rebuild, then focus block after
-				parentContainerEdit?.beginContainerEdit(index, 0);
-				state.commitChildrenEdit((children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex);
-					refs.splice(innerIndex, 1);
-				});
-				rebuildBlockquoteRaw(node);
-				parentContainerEdit?.endContainerEdit();
-				await tick();
-				parentFocus.moveFocus(index + 1, 'start');
+	const bundle = createStandardNestedActions(
+		state,
+		{
+			// Pass reactive props via getters so factory closures always read
+			// the current values. Plain capture at factory-call time would be
+			// stale after a parent splitBlock shifts this container's index,
+			// or after undo/redo replaces the document tree with a fresh clone.
+			get index() {
+				return index;
+			},
+			get node() {
+				return node;
+			},
+			rebuildRaw: () => rebuildBlockquoteRaw(node),
+			stickyColumn,
+			parent: {
+				blockEdit: parentBlockEdit,
+				focus: parentFocus,
+				containerEdit: parentContainerEdit
 			}
-			return;
-		}
-
-		return factorySplitBlock(innerIndex, offset);
-	};
-
-	// Override mergeWithPrevious for Rule U2: at innerIndex === 0, unwrap the
-	// first child out of the blockquote. The default factory method delegates
-	// to parent.blockEdit.mergeWithPrevious at innerIndex === 0, which is the
-	// wrong behavior for blockquote — we want to lift the child out, not merge
-	// the whole blockquote with its previous sibling.
-	const factoryMergeWithPrevious = bundle.blockEdit.mergeWithPrevious;
-	bundle.blockEdit.mergeWithPrevious = async (innerIndex: number): Promise<void> => {
-		if (!node.children) return;
-		if (innerIndex <= 0) {
-			// Rule U2 — unwrap first child out of the blockquote.
-			const replacement = unwrapFirstChildFromBlockquote(node);
-			if (replacement.length === 0) return;
-			await parentBlockEdit.replaceBlock(index, replacement, { replacementIndex: 0, offset: 0 });
-			return;
-		}
-		return factoryMergeWithPrevious(innerIndex);
-	};
+		},
+		(defaults) => ({
+			blockEdit: {
+				// Pressing Enter on the last child when it is an empty paragraph
+				// exits the blockquote instead of creating another empty inner
+				// paragraph. All other cases chain to the default.
+				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
+					if (!node.children) return;
+					const child = node.children[innerIndex];
+					const isLastChild = innerIndex === node.children.length - 1;
+					const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
+					if (isLastChild && isEmpty) {
+						if (node.children.length <= 1) {
+							parentBlockEdit.splitBlock(index, displayLength(node.raw));
+						} else {
+							parentContainerEdit?.beginContainerEdit(index, 0);
+							state.commitChildrenEdit((children, ids, refs) => {
+								performDelete({ children }, ids, innerIndex);
+								refs.splice(innerIndex, 1);
+							});
+							rebuildBlockquoteRaw(node);
+							parentContainerEdit?.endContainerEdit();
+							await tick();
+							parentFocus.moveFocus(index + 1, 'start');
+						}
+						return;
+					}
+					return defaults.blockEdit.splitBlock(innerIndex, offset);
+				},
+				// Rule U2 — unwrap the first child out of the blockquote at
+				// innerIndex 0. The default delegates upward (would merge the
+				// whole blockquote with its previous sibling), which is wrong.
+				mergeWithPrevious: async (innerIndex: number): Promise<void> => {
+					if (!node.children) return;
+					if (innerIndex <= 0) {
+						const replacement = unwrapFirstChildFromBlockquote(node);
+						if (replacement.length === 0) return;
+						await parentBlockEdit.replaceBlock(index, replacement, {
+							replacementIndex: 0,
+							offset: 0
+						});
+						return;
+					}
+					return defaults.blockEdit.mergeWithPrevious(innerIndex);
+				}
+			}
+		})
+	);
 
 	setNestedActionsContexts(bundle);
 
