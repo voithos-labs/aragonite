@@ -45,12 +45,12 @@ Block detects boundary event (Enter, Backspace at pos 0, arrow at edge)
 
 Four communication channels:
 
-| Direction      | Mechanism                                | What Flows                                        |
-| -------------- | ---------------------------------------- | ------------------------------------------------- |
+| Direction      | Mechanism                                         | What Flows                                        |
+| -------------- | ------------------------------------------------- | ------------------------------------------------- |
 | Block → Editor | Context callbacks (editor-actions sub-interfaces) | Boundary events: split, merge, delete, move focus |
-| Editor → CST   | Direct tree mutation                     | Structural changes to the document tree           |
-| CST → Blocks   | Svelte reactivity                        | Blocks re-render from new tree state              |
-| Editor → Block | Component refs (`bind:this`)             | `focus(offset)` for focus management              |
+| Editor → CST   | Direct tree mutation                              | Structural changes to the document tree           |
+| CST → Blocks   | Svelte reactivity                                 | Blocks re-render from new tree state              |
+| Editor → Block | Component refs (`bind:this`)                      | `focus(offset)` for focus management              |
 
 ## The Editing Surface
 
@@ -300,6 +300,16 @@ Each `BlockHost` wraps its content in a `.block-host` div and mounts a `Selectio
 - **Middle blocks**: a CSS overlay covering the entire block element.
 - **Non-text blocks** in the range: full-block highlight overlay.
 
+#### `measurePartialRects` contract by surface type
+
+The hook's `(startOffset, endOffset)` shape is stable but its offset semantics depend on the block's surface. New block kinds with their own surfaces must pick one:
+
+- **Text contenteditable surfaces** (paragraph, heading, code block). Offset is a character index into `textContent`. The shared helper `measurePartialRectsInContentEditable` walks the DOM to produce wrapping-aware rects. Every contenteditable block reuses it — no per-block work.
+- **Cell-based surfaces** (tables, and anything with 2D grid layout). Offset is a cell index in row-major order. `measurePartialRects(start, end)` returns one rect per cell in `[start, end)`. Selection start/end offsets coming from the cross-block selection state must be cell indices under this convention — the surface is responsible for mapping click/drag positions to cell indices on entry.
+- **Opaque single-unit surfaces** (image block, thematic break, future embeds). Only offsets 0 and 1 are valid — 0 is "before the unit" and 1 is "after". Any non-empty range returns the surface's bounding rect as a single-element array. Callers that want finer granularity should use a different block kind.
+
+A block that doesn't implement `measurePartialRects` falls back to the full-block overlay — the SelectionOverlay covers the block's `.block-host` bounds. This is acceptable for middle blocks but loses the "selection ends mid-line" visual for endpoints. New endpoint-capable block kinds should implement one of the above contracts.
+
 ### Exiting Cross-Block Selection
 
 Click (collapsing the selection) or an unshifted arrow key clears cross-block state and returns to native single-block selection. Typing, Backspace, Delete, Cut, and Paste all collapse and exit after their respective operations.
@@ -350,7 +360,7 @@ Undo restores the previous snapshot, pushes the current state onto the redo stac
 
 The undo stack is session-scoped — it lives in memory and clears when the document is closed. A future persistent version history layer is expected to operate at a different boundary (the save write), and the two systems are designed not to interact: the editor produces a serialized document on save, and whatever storage layer handles cross-session history does so independently.
 
-The persistent-history mechanism itself — Automerge, Yjs, a custom CRDT, or a simpler linear log — is a roadmap decision that has not been made. Treat the section below as a working assumption about *shape*, not *technology*.
+The persistent-history mechanism itself — Automerge, Yjs, a custom CRDT, or a simpler linear log — is a roadmap decision that has not been made. Treat the section below as a working assumption about _shape_, not _technology_.
 
 ```
 Ctrl+Z / Ctrl+Y  →  Undo stack (CST snapshots, in memory, session-scoped)
@@ -382,22 +392,22 @@ The ID array is updated atomically with every children array mutation:
 
 The CST defines one document root plus 13 block kinds the editor must handle. Block kinds not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior. The `document` row below is included for completeness but is the tree root, not a rendered block.
 
-| Node Type               | Kind                      | Editor Behavior                                                                                                                                                                                                                         |
-| ----------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Document                | `document`                | Root — not rendered as a block                                                                                                                                                                                                          |
-| Paragraph               | `paragraph`               | Primary text block, contenteditable                                                                                                                                                                                                     |
-| Heading                 | `heading`                 | Styled heading, contenteditable                                                                                                                                                                                                         |
-| SetextHeading           | `setextHeading`           | Treated identically to Heading for editing purposes. The editor may normalize setext headings to ATX headings during editing (replacing the underline form with `##` form) since the user is editing styled source, not raw text layout |
+| Node Type               | Kind                      | Editor Behavior                                                                                                                                                                                                                                  |
+| ----------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Document                | `document`                | Root — not rendered as a block                                                                                                                                                                                                                   |
+| Paragraph               | `paragraph`               | Primary text block, contenteditable                                                                                                                                                                                                              |
+| Heading                 | `heading`                 | Styled heading, contenteditable                                                                                                                                                                                                                  |
+| SetextHeading           | `setextHeading`           | Treated identically to Heading for editing purposes. The editor may normalize setext headings to ATX headings during editing (replacing the underline form with `##` form) since the user is editing styled source, not raw text layout          |
 | FencedCode              | `fencedCode`              | Code editing surface (contenteditable with live `.code-tok-*` span rendering via `components/blocks/code/` + highlight.js). Participating sticky-column block. Fences rendered as dimmed `.md-marker` spans; info string styled with `.md-lang`. |
-| ThematicBreak           | `thematicBreak`           | Non-editable, focusable                                                                                                                                                                                                                 |
-| IndentedCode            | `indentedCode`            | Raw-editable block (until dedicated component built). Merge: not mergeable                                                                                                                                                              |
-| HtmlBlock               | `htmlBlock`               | Raw-editable block. Merge: not mergeable                                                                                                                                                                                                |
-| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Note: editing a link reference definition may affect reference-style links throughout the document — document-wide re-render may be needed when a definition's label changes. Merge: not mergeable                  |
-| Table                   | `table`                   | Grid editor (future). Raw-editable until then. Merge: not mergeable                                                                                                                                                                     |
-| UnrecognizedBlock       | `unrecognized`            | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks                                 |
-| Blockquote              | `blockquote`              | Container — recursive BlockList (see Container Blocks section)                                                                                                                                                                          |
-| List                    | `list`                    | Container — renders ListItem children                                                                                                                                                                                                   |
-| ListItem                | `listItem`                | Container — recursive BlockList for inner content                                                                                                                                                                                       |
+| ThematicBreak           | `thematicBreak`           | Non-editable, focusable                                                                                                                                                                                                                          |
+| IndentedCode            | `indentedCode`            | Raw-editable block (until dedicated component built). Merge: not mergeable                                                                                                                                                                       |
+| HtmlBlock               | `htmlBlock`               | Raw-editable block. Merge: not mergeable                                                                                                                                                                                                         |
+| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Note: editing a link reference definition may affect reference-style links throughout the document — document-wide re-render may be needed when a definition's label changes. Merge: not mergeable                           |
+| Table                   | `table`                   | Grid editor (future). Raw-editable until then. Merge: not mergeable                                                                                                                                                                              |
+| UnrecognizedBlock       | `unrecognized`            | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks                                          |
+| Blockquote              | `blockquote`              | Container — recursive BlockList (see Container Blocks section)                                                                                                                                                                                   |
+| List                    | `list`                    | Container — renders ListItem children                                                                                                                                                                                                            |
+| ListItem                | `listItem`                | Container — recursive BlockList for inner content                                                                                                                                                                                                |
 
 ## Lessons from Previous Failures
 

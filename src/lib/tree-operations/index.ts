@@ -13,6 +13,7 @@ export {
 	deleteNode,
 	updateNodeContent,
 	ensureEditableContainers,
+	normalizeReplacementTrivia,
 	nodeAt
 } from './node-ops';
 
@@ -31,6 +32,7 @@ export {
 } from './list-ops';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';
+export { createBlockquoteOverrides } from './blockquote-context';
 
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 

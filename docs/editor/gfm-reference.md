@@ -141,11 +141,9 @@ Next line.
 **Setext Headings:**
 
 ```markdown
-Heading Level 1
-===============
+# Heading Level 1
 
-Heading Level 2
----------------
+## Heading Level 2
 ```
 
 **Escaping Characters:**

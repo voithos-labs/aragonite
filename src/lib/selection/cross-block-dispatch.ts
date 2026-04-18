@@ -81,6 +81,12 @@ export interface CrossBlockHandlers {
 	handlePaste(e: ClipboardEvent): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
+	/**
+	 * Trigger a cross-block range delete without reading from a keyboard event.
+	 * Called by the block-local Cut handlers after they've synchronously
+	 * written the collected cross-block text to e.clipboardData.
+	 */
+	performCrossBlockDeleteFromEvent(): Promise<void>;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
@@ -98,7 +104,10 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handlePointerDown: (e) => handlePointerDown(ctx, e),
 		handlePaste: (e) => handlePaste(ctx, mutationCtx, e),
 		handleBeforeInput: (e) => handleBeforeInput(ctx, mutationCtx, e),
-		handleCompositionStart: () => handleCompositionStart(ctx, mutationCtx)
+		handleCompositionStart: () => handleCompositionStart(ctx, mutationCtx),
+		performCrossBlockDeleteFromEvent: async () => {
+			await performCrossBlockDelete(mutationCtx, ctx.afterReactivity);
+		}
 	};
 }
 
@@ -133,22 +142,12 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Cross-block Copy
-	if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
-		e.preventDefault();
-		const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
-		await navigator.clipboard.writeText(text);
-		return true;
-	}
-
-	// Cross-block Cut
-	if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey) {
-		e.preventDefault();
-		const text = collectCrossBlockText(doc, selection.anchor!, selection.focus!);
-		await navigator.clipboard.writeText(text);
-		await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
-		return true;
-	}
+	// Ctrl+C / Ctrl+X are NOT intercepted here — letting the keydown default
+	// fire produces a synthetic copy/cut event which the block's own
+	// onCopy/onCut handler receives. That handler, inside a user-gesture
+	// context, writes synchronously via e.clipboardData.setData — reliable
+	// in tauri's wry webview, which refuses navigator.clipboard.writeText in
+	// some contexts.
 
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
