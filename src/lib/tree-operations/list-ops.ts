@@ -379,3 +379,129 @@ export function mergeListItemIntoPrevious(
 	// convention.
 	return { mergePoint: { targetPath: targetPath.slice(0, -1), offset: mergeOffset } };
 }
+
+// ── Exit-list replacement builder ──
+
+/**
+ * Compute the parent-level replacement when a list item exits the list (Enter
+ * on an empty-first-paragraph item). The exited item dissolves into top-level
+ * blocks: matching-type nested list items rejoin the surviving list halves;
+ * everything else (paragraphs, fenced code, mismatched-type sub-lists) lifts
+ * out as separate top-level blocks preserving original document order.
+ *
+ * Layout (gaps for empty halves are skipped):
+ *   [firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]
+ *
+ * `paragraphIndex` is the position of the new exit paragraph in the returned
+ * array — callers pass it as the `replaceBlock` focus target so the cursor
+ * lands where the empty item used to be. Input is not mutated.
+ */
+export function buildExitReplacement(
+	list: CstNode,
+	itemIndex: number
+): { blocks: CstNode[]; paragraphIndex: number } {
+	const items = list.children ?? [];
+	const exitedItem = items[itemIndex];
+	const parentOrdered = (list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+
+	// Classify the exited item's trailing children (children[1..]). Matching-type
+	// nested lists flatten into `promotedItems` (re-merged into the surviving
+	// list halves below); everything else lifts as a top-level block. Cloning
+	// detaches the items so renumbering and re-rooting can mutate freely.
+	const promotedItems: CstNode[] = [];
+	const liftedBlocks: CstNode[] = [];
+	if (exitedItem?.children && exitedItem.children.length > 1) {
+		for (const child of exitedItem.children.slice(1)) {
+			if (child.kind === 'list' && child.children) {
+				const childOrdered =
+					(child.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+				if (childOrdered === parentOrdered) {
+					for (const nestedItem of child.children) {
+						const cloned = cloneNode(nestedItem);
+						cloned.leadingTrivia = '';
+						promotedItems.push(cloned);
+					}
+					continue;
+				}
+			}
+			const lifted = cloneNode(child);
+			lifted.leadingTrivia = '';
+			liftedBlocks.push(lifted);
+		}
+	}
+
+	const before = items.slice(0, itemIndex).map(cloneNode);
+	const after = items.slice(itemIndex + 1).map(cloneNode);
+
+	// Promotions slot into whichever surviving half they originally sat next
+	// to. wasFirstItem has no `before` half, so promotions slide into `after`;
+	// otherwise they extend `before`. Mirrors the pre-fix behavior preserved
+	// by the existing only-item-with-nested promotion test.
+	const wasFirstItem = itemIndex === 0;
+	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
+	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
+
+	const exitParagraph: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+
+	const blocks: CstNode[] = [];
+	if (firstHalfItems.length > 0) {
+		blocks.push(buildListHalf(list, firstHalfItems, 1));
+	}
+	const paragraphIndex = blocks.length;
+	blocks.push(exitParagraph);
+	for (const lifted of liftedBlocks) blocks.push(lifted);
+	if (secondHalfItems.length > 0) {
+		// Continue the sequence across the exit gap: secondHalf's first item
+		// picks up where firstHalf left off, so `1, 2, [exit], 3` — not
+		// `1, 2, [exit], 1` and not `1, 2, [exit], 4` (the exited slot doesn't
+		// burn a number). For wasFirstItem there's no firstHalf, so seed from
+		// the original list's base instead.
+		const secondHalfStart =
+			firstHalfItems.length > 0 ? firstHalfItems.length + 1 : orderedBaseOf(items[0]);
+		blocks.push(buildListHalf(list, secondHalfItems, secondHalfStart));
+	}
+
+	return { blocks, paragraphIndex };
+}
+
+/**
+ * Construct a list CST node carrying `items` as children, mirroring `template`'s
+ * metadata and inner-prefix/suffix. Renumbers ordered markers starting at
+ * `startNumber`, so callers can continue a sequence across split halves.
+ */
+function buildListHalf(template: CstNode, items: CstNode[], startNumber: number): CstNode {
+	const half: CstNode = {
+		kind: 'list',
+		leadingTrivia: '',
+		raw: '',
+		metadata: template.metadata ? { ...template.metadata } : { ordered: false },
+		children: items,
+		innerPrefix: template.innerPrefix ?? '',
+		innerSuffix: template.innerSuffix ?? ''
+	};
+	if (items[0]) items[0].leadingTrivia = '';
+	for (const item of items) rebuildListItemRaw(item);
+
+	// Ordered: seed items[0]'s marker with `startNumber` (preserving its
+	// suffix), then let renumberOrderedList carry the sequence forward from
+	// items[1]. The helper's default fromIndex=0 path always restarts at 1,
+	// so this two-step is the only way to renumber from an arbitrary base.
+	const ordered = (half.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	if (ordered && items.length > 0) {
+		const firstMeta = items[0].metadata as { marker: string };
+		const suffix = firstMeta.marker.replace(/^\d+/, '') || '. ';
+		firstMeta.marker = String(startNumber) + suffix;
+		rebuildListItemRaw(items[0]);
+		renumberOrderedList(half, 1);
+	}
+	rebuildListRaw(half);
+	return half;
+}
+
+/** Read an item's marker as an integer base, defaulting to 1 for non-numeric markers. */
+function orderedBaseOf(item: CstNode | undefined): number {
+	if (!item) return 1;
+	const marker = (item.metadata as { marker?: string } | undefined)?.marker ?? '';
+	const n = parseInt(marker, 10);
+	return Number.isFinite(n) && n > 0 ? n : 1;
+}

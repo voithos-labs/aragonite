@@ -615,6 +615,170 @@ test.describe('cross-block clipboard: partial end list marker', () => {
 	});
 });
 
+test.describe('cross-block clipboard: structural paste discriminator', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	// Regression: pasting a markdown list at a paragraph cursor took the
+	// inline path (parsed.children.length <= 1) and naively concatenated
+	// the list's raw into the paragraph's text. updateBlockContent then
+	// re-parsed and reparseAsNode kept only the first parsed block,
+	// silently dropping every list item after the first. The discriminator
+	// now keys off "single paragraph block" rather than "single child", so
+	// list pastes route through buildPastedReplacement.
+	test('pasting a list at end of paragraph creates list block, no content dropped', async () => {
+		await editor.loadContent('Hello\n');
+		await editor.focusBlockEnd(0);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// Both list items must survive — pre-fix only "foo" landed and "bar"
+		// was lost, or both rendered as plain text inside a paragraph.
+		expect(source).toContain('foo');
+		expect(source).toContain('bar');
+		// At least two top-level blocks: original paragraph + pasted list.
+		expect(await editor.getBlockCount()).toBeGreaterThanOrEqual(2);
+	});
+
+	// Regression for the user-reported "pasting list into list, look at the
+	// end result". Cursor inside a list item paragraph; paste a multi-item
+	// markdown list. Pre-fix the inline path produced corrupt CST whose
+	// re-parse silently dropped trailing items.
+	test('pasting a list inside a list item preserves all pasted items', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+		// CST: list [0] → listItem [0,0] → paragraph [0,0,0]
+		await editor.focusBlockAtPath([0, 0, 0], 'one'.length);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toContain('foo');
+		expect(source).toContain('bar');
+		// Original list items survive.
+		expect(source).toContain('two');
+		expect(source).toContain('three');
+	});
+
+	// Regression: pasting a heading at end of a paragraph used to take the
+	// inline path (single parsed child) and replace the paragraph's raw
+	// with "before## heading", which re-parsed kept only the first block.
+	test('pasting a heading at end of paragraph creates a heading block', async () => {
+		await editor.loadContent('Hello\n');
+		await editor.focusBlockEnd(0);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('## A heading\n'));
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		// Heading marker survives and is a top-level block.
+		expect(source).toContain('## A heading');
+		expect(await editor.getBlockCount()).toBeGreaterThanOrEqual(2);
+	});
+
+	// Regression for symptom #1 (user report): copying multi-line content
+	// and pasting across multiple list items used to delete the items but
+	// drop the pasted content. The cross-block paste path now routes
+	// structural clipboards through buildPastedReplacement and verifies
+	// the splice landed on the merged caret.
+	test('cross-block paste of multi-block content into list items lands content', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+		await editor.page.evaluate(() =>
+			navigator.clipboard.writeText('alpha\n\nbeta\n\ngamma\n')
+		);
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('alpha');
+		expect(source).toContain('beta');
+		expect(source).toContain('gamma');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+		expect(source).toContain('three');
+	});
+});
+
+test.describe('cross-block clipboard: single-undo paste guarantees', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	// Regression for symptom #2 (user report): "Undo doesn't work after
+	// pasting, especially after pasting across multiple lines". The
+	// top-level multi-block cross-block paste path called
+	// performCrossBlockDelete then insertParsedBlocks — both pushing their
+	// own snapshots — so a single Ctrl+Z left the document in an
+	// intermediate "selection-deleted but blocks-not-inserted" state. The
+	// dispatch now pushes one snapshot up front and threads skipSnapshot
+	// through both legs.
+	test('cross-block top-level paste of multi-block content is one undo unit', async () => {
+		await editor.loadContent('hello\n\nworld\n');
+		const before = await editor.getSource();
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
+		await editor.page.waitForTimeout(100);
+
+		// Cross-block selection across both top-level paragraphs.
+		await editor.focusBlockAtPath([0], 0);
+		await editor.shiftClickBlock([1], 'world'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const afterPaste = await editor.getSource();
+		expect(afterPaste).toContain('alpha');
+		expect(afterPaste).toContain('beta');
+		expect(afterPaste).not.toContain('hello');
+		expect(afterPaste).not.toContain('world');
+
+		// Single Ctrl+Z must restore the pre-paste document, not an
+		// intermediate "selection-deleted but blocks-not-inserted" state.
+		await editor.pressKey('Control+z');
+		await editor.page.waitForTimeout(300);
+		const afterUndo = await editor.getSource();
+		expect(afterUndo.trim()).toBe(before.trim());
+	});
+
+	test('cross-block paste across list items is one undo unit', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+		const before = await editor.getSource();
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const afterPaste = await editor.getSource();
+		expect(afterPaste).toContain('alpha');
+		expect(afterPaste).toContain('beta');
+
+		await editor.pressKey('Control+z');
+		await editor.page.waitForTimeout(300);
+		const afterUndo = await editor.getSource();
+		expect(afterUndo.trim()).toBe(before.trim());
+	});
+});
+
 test.describe('cross-block clipboard: partial list promotion regression', () => {
 	let editor: EditorPage;
 

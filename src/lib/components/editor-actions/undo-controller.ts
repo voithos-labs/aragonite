@@ -77,19 +77,26 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 *
 	 * Every structural action method begins with this sequence; extracting
 	 * it here removes ~8 lines of duplication from each action.
+	 *
+	 * `options.skipSnapshot` lets composite operations (cross-block delete +
+	 * paste) coalesce two structural mutations under a single undo entry —
+	 * the caller pushes one snapshot, then runs each leg with skipSnapshot.
 	 */
 	async function commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
-		afterTick?: () => void
+		afterTick?: () => void,
+		options?: { skipSnapshot?: boolean }
 	): Promise<void> {
 		deps.stickyColumn.reset();
 		if (undoDebounceTimer) {
 			clearTimeout(undoDebounceTimer);
 			undoDebounceTimer = null;
 		}
-		pushUndoSnapshot(snapshotBlockIndex, snapshotOffset);
+		if (!options?.skipSnapshot) {
+			pushUndoSnapshot(snapshotBlockIndex, snapshotOffset);
+		}
 		needsUndoCheckpoint = true;
 
 		const childrenCopy = [...deps.doc.children];
