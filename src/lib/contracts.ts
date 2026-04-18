@@ -128,8 +128,19 @@ export interface BlockEditActions {
 		text: string,
 		preEditOffset?: number
 	): void | Promise<void>;
-	/** Insert parsed blocks at a split point, replacing the current block with spliced content. */
-	insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): void | Promise<void>;
+	/**
+	 * Insert parsed blocks at a split point, replacing the current block with
+	 * spliced content. `preDelete`, when set, folds a pre-paste selection
+	 * deletion into the same undo entry as the block-splice — callers that
+	 * have a non-collapsed selection at paste time pass it so Ctrl+Z undoes
+	 * the entire paste in one step.
+	 */
+	insertParsedBlocks(
+		blockIndex: number,
+		offset: number,
+		blocks: CstNode[],
+		preDelete?: { start: number; end: number }
+	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
 	 * Handles undo snapshot, ID generation, blockRefs splice, and post-tick

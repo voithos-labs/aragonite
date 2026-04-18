@@ -176,4 +176,3 @@ All GFM block types are implemented and have their own node kinds:
 ### Custom Extensions
 
 New block types are additive — a kind string, optional metadata, and a parser matcher. Unrecognized syntax graduates to its own kind. The tree is agnostic to kind strings.
-

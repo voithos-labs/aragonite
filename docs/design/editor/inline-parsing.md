@@ -51,17 +51,17 @@ The renderer takes the inline node array and the block's `raw` string, producing
 
 Kind-to-DOM mapping:
 
-| Kind          | DOM output                                                                        |
-| ------------- | --------------------------------------------------------------------------------- |
-| text          | Text node                                                                         |
-| inlineCode    | marker spans (dim) + text node for content                                        |
-| emphasis      | marker spans (dim) + `<em>` wrapping recursive children                           |
-| strong        | marker spans (dim) + `<strong>` wrapping recursive children                       |
-| strikethrough | marker spans (dim) + `<s>` wrapping recursive children                            |
+| Kind          | DOM output                                                                       |
+| ------------- | -------------------------------------------------------------------------------- |
+| text          | Text node                                                                        |
+| inlineCode    | marker spans (dim) + text node for content                                       |
+| emphasis      | marker spans (dim) + `<em>` wrapping recursive children                          |
+| strong        | marker spans (dim) + `<strong>` wrapping recursive children                      |
+| strikethrough | marker spans (dim) + `<s>` wrapping recursive children                           |
 | link          | marker from `raw` slice for `[` and `](url)` + `<a>` wrapping recursive children |
-| image         | marker from `raw` slice for `![` and `](url)` + alt text                          |
-| autolink      | styled span for URL                                                               |
-| hardLineBreak | marker span for `\` or spaces + text node `\n` (not `<br>`)                       |
+| image         | marker from `raw` slice for `![` and `](url)` + alt text                         |
+| autolink      | styled span for URL                                                              |
+| hardLineBreak | marker span for `\` or spaces + text node `\n` (not `<br>`)                      |
 
 **Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. The contenteditable's `textContent` equals `raw` (minus trailing line ending), preserving the input → textContent → raw flow.
 
@@ -79,4 +79,3 @@ Cursor offsets map directly to `raw` positions because markers are visible text 
 On every input in a prose block: read textContent → update `raw` → re-parse inline tree → rebuild span tree → restore cursor.
 
 IME composition suppresses the re-render until composition ends. Non-prose blocks are unchanged.
-

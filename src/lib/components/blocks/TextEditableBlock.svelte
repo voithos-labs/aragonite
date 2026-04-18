@@ -39,10 +39,12 @@
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
 	import {
 		handleSharedKeydown,
+		handleSharedBeforeInput,
 		type SharedKeydownContext
 	} from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
+	import { collectCrossBlockText } from '../../selection/clipboard-text';
 
 	let {
 		node,
@@ -372,33 +374,50 @@
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (e.inputType === 'historyUndo') {
-			e.preventDefault();
-			history.requestUndo();
-			return;
-		}
-		if (e.inputType === 'historyRedo') {
-			e.preventDefault();
-			history.requestRedo();
-			return;
-		}
+		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		// insertLineBreak from a soft keyboard / IME path: Shift+Enter is the
+		// hard-break shortcut handled in onKeyDown, so just swallow any
+		// insertLineBreak that slipped through without a preceding keydown.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
 			return;
 		}
-		if (await crossBlock.handleBeforeInput(e)) return;
 	}
 
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		const text = getSelectedTextFromRaw();
-		e.clipboardData?.setData('text/plain', text);
+		// Cross-block copy: write the collected cross-block text synchronously
+		// via e.clipboardData. Previously used navigator.clipboard.writeText
+		// in the keydown handler — async, permission-gated, unreliable in
+		// tauri's wry webview.
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
+			);
+			return;
+		}
+		e.clipboardData?.setData('text/plain', getSelectedTextFromRaw());
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+
+		// Cross-block cut: write synchronously via clipboardData, then trigger
+		// the cross-block delete asynchronously. The sync write completes
+		// before the event returns, so the clipboard is populated even if the
+		// delete is interrupted.
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
+			);
+			await crossBlock.performCrossBlockDeleteFromEvent();
+			return;
+		}
+
 		const selectedText = getSelectedTextFromRaw();
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
@@ -439,10 +458,17 @@
 			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + pastedText.length);
 			pendingCursorOffset = effectiveOffset + pastedText.length;
 		} else {
-			if (selOffsets) {
-				blockEdit.updateBlockContent(index, effectiveDisplay + '\n', effectiveOffset);
-			}
-			blockEdit.insertParsedBlocks(index, effectiveOffset, parsed.children);
+			// Pass the pre-paste selection range to insertParsedBlocks so the
+			// selection-delete + splice land in one undo entry. Previously the
+			// block did updateBlockContent + insertParsedBlocks as two calls,
+			// producing two snapshots — Ctrl+Z stopped in a weird intermediate
+			// "selection gone, blocks not inserted" state. See docs/issues.md.
+			blockEdit.insertParsedBlocks(
+				index,
+				selOffsets ? start : effectiveOffset,
+				parsed.children,
+				selOffsets ? { start, end } : undefined
+			);
 		}
 	}
 

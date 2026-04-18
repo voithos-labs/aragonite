@@ -20,7 +20,8 @@ import {
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
 	rebuildAncestryRaw,
-	buildPastedReplacement
+	buildPastedReplacement,
+	normalizeReplacementTrivia
 } from '../../tree-operations';
 import { generateBlockId } from '../../tree-operations/block-id';
 import {
@@ -228,34 +229,48 @@ export function createBlockEditActions(
 			}
 		},
 
-		async insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+		async insertParsedBlocks(
+			blockIndex: number,
+			offset: number,
+			blocks: CstNode[],
+			preDelete?: { start: number; end: number }
+		): Promise<void> {
 			if (blocks.length === 0) return;
 
 			const currentNode = deps.doc.children[blockIndex];
-			const newNodes = buildPastedReplacement(currentNode, offset, blocks);
+
+			// Compute replacement once, outside commitStructural, based on the
+			// post-preDelete raw so a failing `buildPastedReplacement` doesn't
+			// corrupt the document. The actual raw mutation happens inside
+			// `mutate` below so the snapshot captured by commitStructural holds
+			// the pre-paste state, giving Ctrl+Z one-step undo for the entire
+			// paste (selection-delete + splice in one entry).
+			let effectiveRaw = currentNode.raw;
+			let effectiveOffset = offset;
+			if (preDelete && preDelete.start < preDelete.end) {
+				const display = trimTrailingLineEnding(currentNode.raw);
+				const lineEnd = currentNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
+				effectiveRaw = display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnd;
+				effectiveOffset = preDelete.start;
+			}
+			const synthLeaf: CstNode = { ...currentNode, raw: effectiveRaw };
+			const newNodes = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
-			// Work on plain copies to prevent proxy splice cascades
 			await controller.commitStructural(
 				blockIndex,
 				offset,
 				(children, ids, refs) => {
-					// Replace the original block with new nodes
 					children.splice(blockIndex, 1, ...newNodes);
-
-					// Update blockIds: keep original ID for first, generate new for the rest
 					const newIds = newNodes.slice(1).map(() => generateBlockId());
 					ids.splice(blockIndex + 1, 0, ...newIds);
-
-					// Sync refs: replace one slot with N undefined slots
 					const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
 						undefined
 					);
-					newRefSlots[0] = refs[blockIndex]; // keep existing ref for first node
+					newRefSlots[0] = refs[blockIndex];
 					refs.splice(blockIndex, 1, ...newRefSlots);
 				},
 				() => {
-					// Focus at end of last inserted node
 					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
 				}
 			);
@@ -268,22 +283,14 @@ export function createBlockEditActions(
 		): Promise<void> {
 			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 
-			// Preserve leading trivia of the original block on the first replacement.
-			const originalTrivia = deps.doc.children[blockIndex].leadingTrivia;
-
-			// Normalize replacement nodes before entering commitStructural so the
-			// mutation callback only handles the array splice.
+			// Normalize trivia + ensure editable containers + reparse inline, then
+			// the mutation callback only splices. Shared with nested replaceBlock
+			// and ListBlock's replaceBlock override via normalizeReplacementTrivia.
 			const normalizedReplacement =
 				replacement.length > 0
-					? replacement.map((node, i) => {
-							const copy = { ...node };
-							copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-							ensureEditableContainers(copy);
-							return copy;
-						})
+					? normalizeReplacementTrivia(deps.doc.children[blockIndex], replacement)
 					: [];
-
-			// Parse inline content for any prose-kind replacement blocks.
+			for (const node of normalizedReplacement) ensureEditableContainers(node);
 			if (normalizedReplacement.length > 0) {
 				parseAllInlineContent(normalizedReplacement);
 			}

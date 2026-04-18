@@ -366,6 +366,33 @@ test.describe('cross-block clipboard: paste', () => {
 		expect(source).toContain('one');
 	});
 
+	// Regression: multi-block paste with a pre-existing selection used to
+	// produce two undo entries — one press of Ctrl+Z left the document in an
+	// intermediate "selection-deleted but blocks-not-inserted" state. The
+	// selection-delete is now folded into `insertParsedBlocks` via the
+	// `preDelete` parameter, so the whole paste is one atomic undo unit.
+	test('multi-block paste with selection is one undo unit', async () => {
+		await editor.loadContent('hello world\n');
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
+		await editor.page.waitForTimeout(100);
+		// Select "world" inside the paragraph (offsets 6..11).
+		await editor.focusBlock(0, 6);
+		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+		const afterPaste = await editor.getSource();
+		expect(afterPaste).toContain('alpha');
+		expect(afterPaste).toContain('beta');
+		expect(afterPaste).not.toContain('world');
+
+		// Single Ctrl+Z returns to the pre-paste document, not an intermediate
+		// "world-deleted-but-blocks-not-inserted" state.
+		await editor.pressKey('Control+z');
+		await editor.page.waitForTimeout(200);
+		const afterUndo = await editor.getSource();
+		expect(afterUndo.trim()).toBe('hello world');
+	});
+
 	// Regression: drag selection leaves the native selection empty (no click
 	// default to re-plant a caret like shift-click has), so Chromium used to
 	// dispatch paste to <body> instead of any block — the paste handler

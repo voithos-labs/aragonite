@@ -28,7 +28,8 @@ import {
 	mergeWithNext as performMergeNext,
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
-	buildPastedReplacement
+	buildPastedReplacement,
+	normalizeReplacementTrivia
 } from '../../../tree-operations';
 import { generateBlockId } from '../../../tree-operations/block-id';
 import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
@@ -254,15 +255,10 @@ export function createStandardNestedActions(
 					ids.splice(innerIndex, 1);
 					refs.splice(innerIndex, 1);
 				} else {
-					const originalTrivia = children[innerIndex].leadingTrivia ?? '';
-					const normalizedReplacement = replacement.map((replacementNode, i) => {
-						const copy = { ...replacementNode };
-						copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-						return copy;
-					});
-					// Prose nodes arrive from parsers/tree-ops without their inline cache
-					// populated; the top-level path refreshes it via the editor's
-					// parseAllInlineContent dep, and the nested path must match.
+					const normalizedReplacement = normalizeReplacementTrivia(
+						children[innerIndex],
+						replacement
+					);
 					parseAllInlineContent(normalizedReplacement);
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));

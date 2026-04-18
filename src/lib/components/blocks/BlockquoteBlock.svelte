@@ -15,12 +15,7 @@
 	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
-	import {
-		unwrapFirstChildFromBlockquote,
-		deleteNode as performDelete
-	} from '../../tree-operations';
-	import { displayLength } from '../../core/lines';
-	import { tick } from 'svelte';
+	import { createBlockquoteOverrides } from '../../tree-operations/blockquote-context';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
@@ -41,10 +36,9 @@
 	const bundle = createStandardNestedActions(
 		state,
 		{
-			// Pass reactive props via getters so factory closures always read
-			// the current values. Plain capture at factory-call time would be
-			// stale after a parent splitBlock shifts this container's index,
-			// or after undo/redo replaces the document tree with a fresh clone.
+			// Reactive props via getters — factory closures always read the
+			// current values (resilient to parent splitBlock shifting index or
+			// undo/redo cloning the tree).
 			get index() {
 				return index;
 			},
@@ -59,51 +53,17 @@
 				containerEdit: parentContainerEdit
 			}
 		},
-		(defaults) => ({
-			blockEdit: {
-				// Pressing Enter on the last child when it is an empty paragraph
-				// exits the blockquote instead of creating another empty inner
-				// paragraph. All other cases chain to the default.
-				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
-					if (!node.children) return;
-					const child = node.children[innerIndex];
-					const isLastChild = innerIndex === node.children.length - 1;
-					const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
-					if (isLastChild && isEmpty) {
-						if (node.children.length <= 1) {
-							parentBlockEdit.splitBlock(index, displayLength(node.raw));
-						} else {
-							parentContainerEdit?.beginContainerEdit(index, 0);
-							state.commitChildrenEdit((children, ids, refs) => {
-								performDelete({ children }, ids, innerIndex);
-								refs.splice(innerIndex, 1);
-							});
-							rebuildBlockquoteRaw(node);
-							parentContainerEdit?.endContainerEdit();
-							await tick();
-							parentFocus.moveFocus(index + 1, 'start');
-						}
-						return;
-					}
-					return defaults.blockEdit.splitBlock(innerIndex, offset);
-				},
-				// Rule U2 — unwrap the first child out of the blockquote at
-				// innerIndex 0. The default delegates upward (would merge the
-				// whole blockquote with its previous sibling), which is wrong.
-				mergeWithPrevious: async (innerIndex: number): Promise<void> => {
-					if (!node.children) return;
-					if (innerIndex <= 0) {
-						const replacement = unwrapFirstChildFromBlockquote(node);
-						if (replacement.length === 0) return;
-						await parentBlockEdit.replaceBlock(index, replacement, {
-							replacementIndex: 0,
-							offset: 0
-						});
-						return;
-					}
-					return defaults.blockEdit.mergeWithPrevious(innerIndex);
-				}
-			}
+		createBlockquoteOverrides({
+			get index() {
+				return index;
+			},
+			get node() {
+				return node;
+			},
+			state,
+			parentBlockEdit,
+			parentFocus,
+			parentContainerEdit
 		})
 	);
 

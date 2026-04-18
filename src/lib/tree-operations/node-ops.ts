@@ -202,6 +202,29 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw };
 }
 
+// ── Replacement normalization ──
+
+/**
+ * Normalize the trivia of a replacement array produced for `replaceBlock`:
+ * the first replacement node inherits the original block's leadingTrivia (so
+ * the replacement takes over the original's position in its parent's
+ * children), and subsequent nodes keep their own trivia (which may carry
+ * blank-line separators). Pass-through on empty replacements.
+ *
+ * Shared by the top-level `BlockEditActions.replaceBlock`, the nested
+ * `replaceBlock` inside `createStandardNestedActions`, and the custom
+ * `ListBlock.replaceBlock` override — consolidating the identical three-way
+ * duplication from the original review.
+ */
+export function normalizeReplacementTrivia(original: CstNode, replacement: CstNode[]): CstNode[] {
+	const originalTrivia = original.leadingTrivia ?? '';
+	return replacement.map((node, i) => {
+		const copy = { ...node };
+		copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
+		return copy;
+	});
+}
+
 // ── Editable container backfill ──
 
 /**

@@ -24,8 +24,10 @@
 		unwrapFirstItemFromList,
 		mergeListItemIntoPrevious,
 		renumberOrderedList,
-		isItemUserEmpty
+		isItemUserEmpty,
+		normalizeReplacementTrivia
 	} from '../../tree-operations';
+	import { parseAllInlineContent } from '../../core/inline';
 	import { rebuildListRaw } from '../../tree-operations/container-raw';
 	import { createListContext } from '../../tree-operations/list-context';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
@@ -189,7 +191,9 @@
 
 				// Splice replacement items. U1 and U2 typically replace on a parent
 				// that contains the list, not on the list itself — this path is
-				// rare but kept for symmetry.
+				// rare but kept for symmetry. Uses normalizeReplacementTrivia +
+				// parseAllInlineContent so prose replacements don't drop their
+				// inline cache, matching the other two replaceBlock paths.
 				replaceBlock: async (
 					itemIndex: number,
 					replacement: CstNode[],
@@ -204,12 +208,11 @@
 							ids.splice(itemIndex, 1);
 							refs.splice(itemIndex, 1);
 						} else {
-							const originalTrivia = children[itemIndex].leadingTrivia ?? '';
-							const normalizedReplacement = replacement.map((replacementNode, i) => {
-								const copy = { ...replacementNode };
-								copy.leadingTrivia = i === 0 ? originalTrivia : (copy.leadingTrivia ?? '');
-								return copy;
-							});
+							const normalizedReplacement = normalizeReplacementTrivia(
+								children[itemIndex],
+								replacement
+							);
+							parseAllInlineContent(normalizedReplacement);
 							children.splice(itemIndex, 1, ...normalizedReplacement);
 							ids.splice(itemIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
 							refs.splice(itemIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));

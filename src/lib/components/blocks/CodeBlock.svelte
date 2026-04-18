@@ -32,10 +32,12 @@
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
 	import {
 		handleSharedKeydown,
+		handleSharedBeforeInput,
 		type SharedKeydownContext
 	} from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
+	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -196,16 +198,11 @@
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
-		if (e.inputType === 'historyUndo') {
-			e.preventDefault();
-			history.requestUndo();
-			return;
-		}
-		if (e.inputType === 'historyRedo') {
-			e.preventDefault();
-			history.requestRedo();
-			return;
-		}
+		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		// Code block's own Shift+Enter: insert a `\n` text node directly,
+		// then re-sync CST. Mobile/IME soft keyboards dispatch this without a
+		// keydown so we can't move it to onKeyDown. Acceptable DOM-first path
+		// — documented as a known exception in the v0.5 prep plan (B3).
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
 			const sel = window.getSelection();
@@ -221,7 +218,6 @@
 			onInput();
 			return;
 		}
-		if (await crossBlock.handleBeforeInput(e)) return;
 		if (composing || e.inputType !== 'insertText' || !el) return;
 		const data = e.data;
 		if (!data || data.length !== 1) return;
@@ -463,12 +459,27 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
+			);
+			return;
+		}
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
+			);
+			await crossBlock.performCrossBlockDeleteFromEvent();
+			return;
+		}
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 
 		const selOffsets = getSelectionOffsetsHelper(el!);

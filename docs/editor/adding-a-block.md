@@ -8,10 +8,10 @@ Block components live in `src/lib/editor/components/blocks/`. Orchestration comp
 
 ## Two Categories
 
-| Category | Editing surface | Reference |
-|----------|----------------|-----------|
-| **Leaf** | Own editing surface (contenteditable, textarea, static) | TextEditableBlock, CodeBlock, ThematicBreakBlock |
-| **Container** | Hosts a recursive BlockList of child blocks | BlockquoteBlock, ListBlock, ListItemBlock |
+| Category      | Editing surface                                         | Reference                                        |
+| ------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| **Leaf**      | Own editing surface (contenteditable, textarea, static) | TextEditableBlock, CodeBlock, ThematicBreakBlock |
+| **Container** | Hosts a recursive BlockList of child blocks             | BlockquoteBlock, ListBlock, ListItemBlock        |
 
 Pick the reference closest to your block. Read it fully before starting.
 
