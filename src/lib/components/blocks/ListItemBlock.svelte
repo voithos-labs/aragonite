@@ -25,17 +25,10 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from './container-state/nested-actions';
-	import {
-		dispatchFocusByPath,
-		dispatchFocusAtColumn
-	} from './container-state/focus-dispatch';
+	import { dispatchFocusByPath, dispatchFocusAtColumn } from './container-state/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
-	let {
-		node,
-		index,
-		myPath = []
-	}: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -94,65 +87,68 @@
 		await listContext.insertItemAfter(index, newItem);
 	}
 
-	const bundle = createStandardNestedActions(state, {
-		get index() {
-			return index;
+	const bundle = createStandardNestedActions(
+		state,
+		{
+			get index() {
+				return index;
+			},
+			get node() {
+				return node;
+			},
+			rebuildRaw: () => rebuildListItemRaw(node),
+			stickyColumn,
+			parent: {
+				blockEdit: parentBlockEdit,
+				focus: parentFocus,
+				containerEdit: parentContainerEdit
+			}
 		},
-		get node() {
-			return node;
-		},
-		rebuildRaw: () => rebuildListItemRaw(node),
-		stickyColumn,
-		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
-			containerEdit: parentContainerEdit
-		}
-	});
+		() => ({
+			blockEdit: {
+				// List-item Enter semantics:
+				// 1. Empty item — exit list via listContext.exitListAtItem.
+				// 2. At end of last child — insert new empty sibling item.
+				// 3. In middle — split content across two items via splitItemAtOffset.
+				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
+					if (!node.children) return;
 
-	// Override splitBlock for list-item-specific Enter behavior:
-	// 1. Empty item — exit list via listContext.exitListAtItem.
-	// 2. At end of last child — insert new empty sibling item.
-	// 3. In middle — split content across two items using splitItemAtOffset.
-	// (All 3 branches return — factory default is not used.)
-	bundle.blockEdit.splitBlock = async (innerIndex: number, offset: number): Promise<void> => {
-		if (!node.children) return;
+					// Empty item — exit list. An item is "user-empty" (for Enter's
+					// purposes) if its first child is an empty paragraph, even when
+					// trailing structural children exist. Per the requirements spec,
+					// those trailing children should be relocated to adjacent items
+					// by exitListAtItem — a fix tracked in docs/issues.md. The
+					// shallower check here is the correct Enter-path intent; the
+					// deeper recursive walker (isItemUserEmpty) is Backspace semantics.
+					const firstChild = node.children[0];
+					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
+					if (isEmptyItem) {
+						await listContext.exitListAtItem(index);
+						return;
+					}
 
-		// Empty item — exit list. An item is "user-empty" (for Enter's
-		// purposes) if its first child is an empty paragraph, even when
-		// trailing structural children exist. Per the requirements spec,
-		// those trailing children should be relocated to adjacent items
-		// by exitListAtItem — a fix tracked in docs/issues.md. The
-		// shallower check here is the correct Enter-path intent; the
-		// deeper recursive walker (isItemUserEmpty) is Backspace semantics.
-		const firstChild = node.children[0];
-		const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
-		if (isEmptyItem) {
-			await listContext.exitListAtItem(index);
-			return;
-		}
+					const lastChild = node.children[node.children.length - 1];
+					const isAtEnd =
+						innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
 
-		// At end of last child — insert new empty sibling item.
-		const lastChild = node.children[node.children.length - 1];
-		const isAtEnd =
-			innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
+					if (isAtEnd) {
+						parentContainerEdit?.beginContainerEdit(index, offset);
+						await listContext.insertItemAfter(index);
+						parentContainerEdit?.endContainerEdit();
+						return;
+					}
 
-		if (isAtEnd) {
-			parentContainerEdit?.beginContainerEdit(index, offset);
-			await listContext.insertItemAfter(index);
-			parentContainerEdit?.endContainerEdit();
-			return;
-		}
-
-		// In middle — split content across two items.
-		parentContainerEdit?.beginContainerEdit(index, offset);
-		await splitItemAtOffset(innerIndex, offset);
-		parentContainerEdit?.endContainerEdit();
-	};
-
-	// mergeWithPrevious at innerIndex <= 0 delegates to
-	// parentBlockEdit.mergeWithPrevious(index) — that is already the factory
-	// default, so no override is needed here.
+					// In middle — split content across two items.
+					parentContainerEdit?.beginContainerEdit(index, offset);
+					await splitItemAtOffset(innerIndex, offset);
+					parentContainerEdit?.endContainerEdit();
+				}
+				// mergeWithPrevious at innerIndex <= 0 delegates to
+				// parentBlockEdit.mergeWithPrevious(index) — that is already
+				// the factory default, so no override is needed.
+			}
+		})
+	);
 
 	setNestedActionsContexts(bundle);
 

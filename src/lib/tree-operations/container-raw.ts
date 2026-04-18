@@ -126,6 +126,14 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
  * Dispatch to the correct per-kind rebuild helper. Throws when `node` isn't a
  * container — callers that walk ancestry chains and may encounter leaves should
  * use {@link rebuildContainerRawIfContainer} instead.
+ *
+ * NOTE: the switch here intentionally does not dispatch via the
+ * `BlockKindDescriptor` registry. Plugging rebuildRaw into the descriptor
+ * creates a module cycle (the descriptor file would import the rebuild
+ * helpers from here, and this file would import the registry). The plugin-
+ * system primitive for "register a custom rebuildRaw" from the roadmap is a
+ * separable refactor; today's v0.5 block additions (table, image, etc.) are
+ * all leaves — they don't need this hook.
  */
 export function rebuildContainerRaw(node: CstNode): void {
 	switch (node.kind) {
@@ -139,12 +147,6 @@ export function rebuildContainerRaw(node: CstNode): void {
 			rebuildListItemRaw(node);
 			return;
 		default:
-			// rebuildAncestryRaw should only ever traverse containers. Reaching
-			// this branch means either an off-by-one in the caller's path (the
-			// path included the leaf index instead of stopping before it) or a
-			// new container kind was added to BlockKind without updating this
-			// switch. Either way, silent no-op would produce corrupt serialized
-			// output — throw loudly instead.
 			throw new Error(
 				`rebuildContainerRaw: unexpected kind "${node.kind}" — only container kinds (blockquote, list, listItem) are valid`
 			);
