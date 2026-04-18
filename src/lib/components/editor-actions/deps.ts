@@ -37,7 +37,8 @@ export interface UndoController {
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
-		afterTick?: () => void
+		afterTick?: () => void,
+		options?: { skipSnapshot?: boolean }
 	): Promise<void>;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;

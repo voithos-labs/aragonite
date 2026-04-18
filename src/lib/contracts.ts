@@ -134,12 +134,17 @@ export interface BlockEditActions {
 	 * deletion into the same undo entry as the block-splice — callers that
 	 * have a non-collapsed selection at paste time pass it so Ctrl+Z undoes
 	 * the entire paste in one step.
+	 *
+	 * `options.skipSnapshot` lets the cross-block paste path coalesce the
+	 * range-delete snapshot with the splice into a single undo entry. The
+	 * caller is responsible for having pushed exactly one snapshot already.
 	 */
 	insertParsedBlocks(
 		blockIndex: number,
 		offset: number,
 		blocks: CstNode[],
-		preDelete?: { start: number; end: number }
+		preDelete?: { start: number; end: number },
+		options?: { skipSnapshot?: boolean }
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.

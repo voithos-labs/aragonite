@@ -87,4 +87,15 @@ describe('renderCodeBlock', () => {
 		const frag = renderCodeBlock(node);
 		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 	});
+
+	it('preserves textContent invariant — fresh unclosed fence (opener only + trailing \\n)', () => {
+		// Reproduces the immediate state after typing ``` in a paragraph: raw
+		// is "```\n", body and closer are both empty. Earlier renderer left
+		// the opener's trailing \n unstripped — textContent was 4 chars when
+		// trimTrailingLineEnding(raw) is 3. Now the strip falls through to the
+		// opener's bare-newline text node.
+		const node = makeFencedCodeNode('```\n', '', false);
+		const frag = renderCodeBlock(node);
+		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
+	});
 });

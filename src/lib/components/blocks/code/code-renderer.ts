@@ -186,8 +186,14 @@ function renderOpenerLine(
 		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
 	}
 
+	// Trailing opener newline lives as a bare text node sibling, not inside a
+	// marker span. Chromium with `white-space: pre` mis-routes `insertText`
+	// when the caret sits at the end of a `\n` text node nested inside a
+	// styled span (the typed character lands BEFORE the \n). Hosting the \n
+	// at the contenteditable's top level keeps the caret in a position the
+	// browser can extend correctly.
 	if (hasTrailingNewline) {
-		frag.appendChild(makeMarkerSpan('\n'));
+		frag.appendChild(document.createTextNode('\n'));
 	}
 
 	return frag;
@@ -211,31 +217,44 @@ export function renderCodeBlock(node: CstNode): DocumentFragment {
 	const meta = node.metadata as FencedCodeMetadata;
 	const frag = document.createDocumentFragment();
 
-	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
-
+	const openerFrag = renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength);
 	const bodyFrag = tokenizeBody(slice.body, slice.infoString);
 	const closerFrag = renderCloserLine(slice);
 
-	// Preserve textContent === trimTrailingLineEnding(raw): if raw ends with \n,
-	// strip exactly one trailing \n from whichever fragment carries the tail.
+	// Preserve textContent === trimTrailingLineEnding(raw): if raw ends with
+	// \n, strip exactly one trailing \n from whichever fragment carries the
+	// tail. Closer wins; then body; then opener (its trailing-newline marker
+	// span) for the fresh-unclosed-fence case `"```\n"` where body and closer
+	// are both empty.
 	if (node.raw.endsWith('\n')) {
-		if (closerFrag.childNodes.length > 0) {
-			const lastSpan = closerFrag.lastChild as HTMLSpanElement;
-			if (lastSpan.textContent?.endsWith('\n')) {
-				lastSpan.textContent = lastSpan.textContent.slice(0, -1);
-			}
-		} else {
-			const last = bodyFrag.lastChild;
-			if (last != null && last.textContent?.endsWith('\n')) {
-				last.textContent = last.textContent.slice(0, -1);
-			}
-		}
+		stripTrailingNewline(closerFrag) ||
+			stripTrailingNewline(bodyFrag) ||
+			stripTrailingNewline(openerFrag);
 	}
 
+	frag.appendChild(openerFrag);
 	frag.appendChild(bodyFrag);
 	frag.appendChild(closerFrag);
 
 	return frag;
+}
+
+/**
+ * Strip one trailing `\n` from the last text-bearing child of `frag`. Returns
+ * true when a strip happened so callers can chain priorities. Removes empty
+ * text nodes after the strip so the cursor walker doesn't land in a zero-
+ * length node Chromium treats as a non-target.
+ */
+function stripTrailingNewline(frag: DocumentFragment): boolean {
+	const last = frag.lastChild;
+	if (last == null || !last.textContent?.endsWith('\n')) return false;
+	const trimmed = last.textContent.slice(0, -1);
+	if (trimmed.length === 0 && last.nodeType === Node.TEXT_NODE) {
+		frag.removeChild(last);
+	} else {
+		last.textContent = trimmed;
+	}
+	return true;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

@@ -12,13 +12,15 @@ import {
 	type BlockEditActions,
 	type FocusActions,
 	type ContainerEditActions,
-	type ListContext,
-	type BlockComponent
+	type ListContext
 } from '../contracts';
-import { displayLength } from '../core/lines';
 import { generateBlockId } from './block-id';
 import { rebuildListRaw, rebuildListItemRaw } from './container-raw';
-import { renumberOrderedList, normalizeItemMarkerToList } from './list-ops';
+import {
+	renumberOrderedList,
+	normalizeItemMarkerToList,
+	buildExitReplacement
+} from './list-ops';
 import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
 
 export interface ListContextDeps {
@@ -198,109 +200,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const node = deps.node;
 			if (!node.children) return;
 
-			// Before deleting the empty item, redistribute any trailing
-			// children (children[1..]): matching-type nested list items
-			// get promoted to siblings in the current list, so the user's
-			// Enter doesn't silently drop structural content they built
-			// via an earlier split. Per requirements: "nested lists from a
-			// previous split move to adjacent items."
-			const item = node.children[itemIndex];
-			const parentOrdered = (node.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-			const promotedItems: CstNode[] = [];
-			if (item.children && item.children.length > 1) {
-				for (const child of item.children.slice(1)) {
-					if (child.kind === 'list' && child.children) {
-						const childOrdered =
-							(child.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-						if (childOrdered === parentOrdered) {
-							for (const nestedItem of child.children) {
-								nestedItem.leadingTrivia = '';
-								promotedItems.push(nestedItem);
-							}
-							continue;
-						}
-					}
-					// Mismatched-type nested lists and non-list trailing
-					// children still fall through (deleted with the item).
-					// Tracked as a known limitation in docs/issues.md.
-				}
-			}
-
-			// Only-item case: delegate to top-level splitBlock which replaces
-			// the list with a paragraph. If there was promoted content, the
-			// promoted items need to survive; splice them in BEFORE the split
-			// so splitBlock sees a populated list.
-			if (node.children.length <= 1 && promotedItems.length === 0) {
-				deps.parentBlockEdit.splitBlock(deps.index, displayLength(node.raw));
-				return;
-			}
-
-			const wasFirstItem = itemIndex === 0;
-			const wasLastItem = itemIndex === node.children.length - 1;
-
-			// Splice the empty item out and replace with promotedItems in
-			// place. If promotedItems is empty, this is equivalent to
-			// performDelete.
-			deps.parentContainerEdit?.beginContainerEdit(deps.index, 0);
-			deps.state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(itemIndex, 1, ...promotedItems);
-				const newIds = promotedItems.map(() => generateBlockId());
-				ids.splice(itemIndex, 1, ...newIds);
-				const newRefs: (BlockComponent | undefined)[] = new Array(promotedItems.length).fill(
-					undefined
-				);
-				refs.splice(itemIndex, 1, ...newRefs);
+			const replacement = buildExitReplacement(node, itemIndex);
+			await deps.parentBlockEdit.replaceBlock(deps.index, replacement.blocks, {
+				replacementIndex: replacement.paragraphIndex,
+				offset: 0
 			});
-			// Renumber from the splice point so the surviving items behave as
-			// if the exited slot never consumed a number. At itemIndex=0 the
-			// helper seeds from 0 and restarts at 1 (wasFirstItem case); at
-			// itemIndex>0 it seeds from the preceding item's marker and
-			// continues the sequence, so `1. one, 2. two, [exit], 4. three`
-			// becomes `1. one, 2. two, [paragraph], 3. three`. Matches the
-			// "exit = description between items" mental model.
-			renumberOrderedList(node, itemIndex);
-			rebuildListRaw(node);
-			deps.parentContainerEdit?.endContainerEdit();
-			deps.state.triggerReactivity();
-
-			// If after the splice the list is entirely empty (no promoted
-			// items and the item was the last survivor), delete it outright
-			// and create a paragraph. Mirrors the original only-item path.
-			if (node.children.length === 0) {
-				await deps.parentBlockEdit.deleteBlock(deps.index);
-				deps.parentFocus.moveFocus(deps.index, 'end');
-				return;
-			}
-
-			if (wasFirstItem) {
-				// Empty item was at the start — create paragraph before the list.
-				// Promoted items (if any) are now the new first items of the list;
-				// the exit paragraph still goes BEFORE them per the original
-				// first-item branch.
-				await deps.parentBlockEdit.splitBlock(deps.index, 0);
-				// splitBlock focused the list (index+1), redirect to the paragraph (index)
-				deps.parentFocus.moveFocus(deps.index, 'start');
-			} else if (wasLastItem) {
-				// Empty item was at the end — create paragraph after the list.
-				// Promoted items (if any) are now the new last items of the list;
-				// the exit paragraph still goes AFTER them.
-				deps.parentBlockEdit.splitBlock(deps.index, displayLength(node.raw));
-			} else {
-				// Empty item was in the middle — split the list at the effective
-				// insertion point (after any promoted items), insert paragraph
-				// between the two halves.
-				const effectiveSplitIndex = itemIndex + promotedItems.length;
-				let splitOffset = (node.innerPrefix ?? '').length;
-				for (let j = 0; j < effectiveSplitIndex; j++) {
-					splitOffset +=
-						(node.children[j].leadingTrivia ?? '').length + node.children[j].raw.length;
-				}
-				await deps.parentBlockEdit.splitBlock(deps.index, splitOffset);
-				// After split: [first-list at index, second-list at index+1].
-				// Split second list at offset 0 to insert a paragraph between them.
-				await deps.parentBlockEdit.splitBlock(deps.index + 1, 0);
-				deps.parentFocus.moveFocus(deps.index + 1, 'start');
-			}
 		}
 	};
 }

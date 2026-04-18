@@ -240,6 +240,51 @@ test.describe('list Enter', () => {
 		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
 	});
 
+	// Regression: trailing nested list of a MISMATCHED type (e.g. ordered
+	// inside an unordered parent) used to vanish when the empty item exited.
+	// Now it lifts to top level as a separate block.
+	test('Enter on empty item with mismatched-type nested list lifts the sub-list', async () => {
+		await editor.loadContent('- Item\n  1. NestedOrdered\n');
+		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
+		await item.click();
+		await editor.page.keyboard.press('End');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		// Now on the new empty item carrying [empty paragraph, ordered sub-list].
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		const source = await editor.getSource();
+		expect(source).toContain('Item');
+		expect(source).toContain('NestedOrdered');
+		// Ordered sub-list must survive at top-level (no longer indented).
+		expect(source).toMatch(/^1\. NestedOrdered$/m);
+		expect(source).not.toMatch(/^ {2,}1\. NestedOrdered$/m);
+	});
+
+	// Regression: non-list trailing children (e.g. extra paragraphs in a loose
+	// list item) used to be dropped by exitListAtItem. They now lift.
+	test('Enter on emptied loose item lifts trailing paragraph as top-level block', async () => {
+		await editor.loadContent('- First\n\n  second\n');
+		// Blank "First" in place so the only item has [empty paragraph, paragraph "second"].
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
+		await first.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+End');
+		await editor.page.keyboard.press('Delete');
+		await editor.page.waitForTimeout(200);
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(300);
+		await editor.typeText('lead');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		// "second" must still exist, lifted to top-level (no list marker, no indent).
+		expect(source).toContain('second');
+		expect(source).not.toMatch(/^- second$/m);
+		expect(source).not.toMatch(/^ {2,}second$/m);
+		// The exit paragraph (where the user typed "lead") sits above "second".
+		expect(source.indexOf('lead')).toBeLessThan(source.indexOf('second'));
+	});
+
 	// Loose list (blank line between items) still treats Enter at the end of
 	// the last item as an append — the blank line is descriptive trivia, not
 	// a list terminator — so the new item continues the sequence.

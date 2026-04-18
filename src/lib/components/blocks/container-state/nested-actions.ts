@@ -34,7 +34,7 @@ import {
 import { generateBlockId } from '../../../tree-operations/block-id';
 import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
 import { parseAllInlineContent } from '../../../core/inline';
-import { displayLength } from '../../../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -228,12 +228,32 @@ export function createStandardNestedActions(
 			}
 		},
 
-		async insertParsedBlocks(innerIndex: number, offset: number, blocks: CstNode[]): Promise<void> {
+		async insertParsedBlocks(
+			innerIndex: number,
+			offset: number,
+			blocks: CstNode[],
+			preDelete?: { start: number; end: number }
+		): Promise<void> {
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
+			// Mirror the top-level insertParsedBlocks: when the leaf had a
+			// selection at paste time, fold the selection-delete into the
+			// buildPastedReplacement input by synthesizing a leaf whose raw
+			// has the selected range removed. The single replaceBlock call
+			// below produces one undo entry covering both delete and splice.
 			const currentNode = deps.node.children[innerIndex];
-			const replacement = buildPastedReplacement(currentNode, offset, blocks);
+			let synthLeaf = currentNode;
+			let effectiveOffset = offset;
+			if (preDelete && preDelete.start < preDelete.end) {
+				const display = trimTrailingLineEnding(currentNode.raw);
+				const lineEnd = currentNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
+				const effectiveRaw =
+					display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnd;
+				synthLeaf = { ...currentNode, raw: effectiveRaw };
+				effectiveOffset = preDelete.start;
+			}
+			const replacement = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 			await blockEdit.replaceBlock(innerIndex, replacement, {
 				replacementIndex: replacement.length - 1,
 				offset: CURSOR_END
