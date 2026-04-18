@@ -32,18 +32,21 @@ A block reads only the sub-interfaces it actually uses. Containers set only the 
 
 ## Registration
 
-Add a case to `BlockHost`'s `{#if}` chain. The block receives `node`, `index`, and binds `ref`.
+Two registration steps per new block kind:
+
+1. Add a case to `BlockHost`'s `{#if}` chain that mounts your component. The block receives `node`, `index`, and binds `ref`.
+2. Register the kind's descriptor in `tree-operations/block-kind-descriptor.ts` — one `registerBlockKind(kind, { mergeRole, editable, isContainer })` call. Consumers (merge-rules, BlockHost, SelectionOverlay) read from this registry rather than each maintaining a per-kind switch.
 
 ## Container Blocks
 
 Containers build their reactive state and default action bundle through the `container-state/` primitives, then override only the methods that need kind-specific behavior.
 
 - `createBlockListState(node)` — reactive `innerBlockIds` / `innerBlockRefs` plus a `commitChildrenEdit` helper for atomic triple-splice operations on children, ids, and refs.
-- `createStandardNestedActions(state, deps)` — generates a complete `{ blockEdit, focus, containerEdit }` bundle from the state bundle plus a `rebuildRaw` callback. Methods in the bundle handle the split/merge/delete/updateContent/replaceBlock ceremony uniformly; containers override specific methods (e.g., blockquote U2, list U1/M1, list-item Enter behavior) by capturing the factory method and chaining.
+- `createStandardNestedActions(state, deps, overrideFactory?)` — generates a complete `{ blockEdit, focus, containerEdit }` bundle from the state bundle plus a `rebuildRaw` callback. Methods in the bundle handle the split/merge/delete/updateContent/replaceBlock ceremony uniformly; containers with kind-specific behavior pass an optional `overrideFactory` as the third argument. The factory receives the fully-built default bundle and returns per-sub-interface partial overrides; overrides chain to the default by calling `defaults.blockEdit.splitBlock(...)` etc. directly.
 - `dispatchFocusByPath` / `dispatchFocusAtColumn` — the pure dispatchers a container's `focusByPath` / `focusAtColumn` exports delegate to.
 - `setNestedActionsContexts(bundle)` — the three-setContext helper that publishes the bundle to nested descendants.
 
-A trivial container (future admonition block, collapsible section, etc.) calls the factory, sets contexts, and is done. A non-trivial container (list, blockquote) calls the factory and then overrides the specific methods that carry kind-specific behavior — always by capturing the factory method first and chaining to it for the non-custom branches, so the default merge-eligibility and commit logic isn't reinvented.
+A trivial container (future admonition block, collapsible section, etc.) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial container (list, blockquote) passes an `overrideFactory` that returns only the methods it customizes — see `tree-operations/blockquote-context.ts` for the canonical extracted example. The override set is visible at the call site, type-checked against each sub-interface, and stable references to the defaults are captured in a closure the overrides control — no post-construction method reassignment.
 
 Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root directly.
 
