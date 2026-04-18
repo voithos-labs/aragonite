@@ -6,6 +6,7 @@
 	import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 	import ListBlock from './blocks/ListBlock.svelte';
 	import SelectionOverlay from '../selection/SelectionOverlay.svelte';
+	import { getBlockKindDescriptor } from '../tree-operations/block-kind-descriptor';
 
 	let {
 		node,
@@ -21,9 +22,7 @@
 
 	let myPath = $derived([...parentPath, index]);
 
-	let isContainer = $derived(
-		node.kind === 'blockquote' || node.kind === 'list' || node.kind === 'listItem'
-	);
+	let isContainer = $derived(getBlockKindDescriptor(node.kind).isContainer);
 
 	let hostEl: HTMLElement | null = $state(null);
 

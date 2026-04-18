@@ -42,9 +42,16 @@ export { generateBlockId, assignIds } from './block-id';
 
 export type { MergeRole, MergeTarget } from './merge-rules';
 export {
-	MERGE_ROLE,
 	isMergeEligible,
 	isBlockEditable,
 	findMergeTarget,
-	walkToDeepestMergeLeaf
+	walkToDeepestMergeLeaf,
+	getMergeRole
 } from './merge-rules';
+
+export type { BlockKindDescriptor } from './block-kind-descriptor';
+export {
+	registerBlockKind,
+	getBlockKindDescriptor,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';

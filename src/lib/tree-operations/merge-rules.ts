@@ -2,46 +2,18 @@
  * Merge eligibility rules for the block editor.
  * Determines what happens on Backspace at the start of a block.
  * See docs/design/editor/editor.md — Structural Operations, Merge Eligibility.
+ *
+ * The per-kind `MergeRole` assignment lives on the `BlockKindDescriptor`
+ * registry in `block-kind-descriptor.ts`. This file owns only the eligibility
+ * rules (role-pair semantics) and the target-finding walker.
  */
 
-import type { BlockKind, CstNode } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
+import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor';
 
-// ── Merge Roles ─────────────────────────────────────────────────────────────
-
-/**
- * A block's merge role classifies its behavior for Backspace-merge purposes.
- *
- *   prose           — leaf text block that can merge with or absorb other prose
- *   prose-absorber  — prose leaf that retains its kind when absorbing prose
- *                     (e.g. heading stays a heading)
- *   container       — block whose merge target is its deepest reachable prose leaf
- *   self-merge      — merges only with another block of the same role
- *   opaque          — not mergeable; Backspace either deletes (if non-editable)
- *                     or moves focus
- *
- * `listItem` is assigned `container` for walker correctness — the walker
- * descends through list items, and the recursion relies on each descent step
- * returning `container`. `listItem` is never seen as a top-level `prev` block
- * by `Editor.mergeWithPrevious`, so the eligibility check `isMergeEligible
- * ('listItem', ...)` is never reached in production.
- */
-export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'opaque';
-
-export const MERGE_ROLE: Record<BlockKind, MergeRole> = {
-	paragraph: 'prose',
-	heading: 'prose-absorber',
-	setextHeading: 'prose-absorber',
-	fencedCode: 'opaque',
-	thematicBreak: 'opaque',
-	indentedCode: 'opaque',
-	htmlBlock: 'opaque',
-	linkReferenceDefinition: 'opaque',
-	table: 'opaque',
-	unrecognized: 'self-merge',
-	blockquote: 'container',
-	list: 'container',
-	listItem: 'container'
-};
+// Re-exported so existing callers importing `MergeRole` from this module keep
+// working. New code should import from `block-kind-descriptor` directly.
+export type { MergeRole } from './block-kind-descriptor';
 
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
@@ -57,9 +29,9 @@ export const MERGE_ROLE: Record<BlockKind, MergeRole> = {
  *   self-merge      + self-merge     → eligible
  *   anything else                    → not eligible
  */
-export function isMergeEligible(prevKind: BlockKind, currKind: BlockKind): boolean {
-	const prev = MERGE_ROLE[prevKind];
-	const curr = MERGE_ROLE[currKind];
+export function isMergeEligible(prevKind: CstNode['kind'], currKind: CstNode['kind']): boolean {
+	const prev = getMergeRole(prevKind);
+	const curr = getMergeRole(currKind);
 
 	if (prev === 'prose' && curr === 'prose') return true;
 	if (prev === 'prose-absorber' && curr === 'prose') return true;
@@ -67,6 +39,10 @@ export function isMergeEligible(prevKind: BlockKind, currKind: BlockKind): boole
 	if (prev === 'self-merge' && curr === 'self-merge') return true;
 
 	return false;
+}
+
+export function getMergeRole(kind: CstNode['kind']): MergeRole {
+	return getBlockKindDescriptor(kind).mergeRole;
 }
 
 // ── Merge Target Resolution ─────────────────────────────────────────────────
@@ -97,7 +73,7 @@ export interface MergeTarget {
  * the convention that the last child is visually last in the source.
  */
 export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
-	const role = MERGE_ROLE[node.kind];
+	const role = getMergeRole(node.kind);
 	if (role === 'prose' || role === 'prose-absorber') {
 		return { target: node, path };
 	}
@@ -116,17 +92,9 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
  * - container prev → walks into the subtree to find the deepest prose leaf
  * - self-merge prev → returns prev itself, empty path
  * - opaque prev → returns null (caller falls back to move-focus)
- *
- * NOTE: for `self-merge` prev (currently only `unrecognized` blocks), the
- * caller receives `{ target: prev, path: [] }` and must handle the self-merge
- * splice itself — the existing `isMergeEligible('unrecognized','unrecognized')`
- * rule only fires when both prev and curr are unrecognized, and the correct
- * behavior is raw-text concatenation without inline content re-parsing.
- * This helper returns a target shape for symmetry but does not prescribe
- * how the caller should use it.
  */
 export function findMergeTarget(prev: CstNode): MergeTarget | null {
-	const role = MERGE_ROLE[prev.kind];
+	const role = getMergeRole(prev.kind);
 	if (role === 'prose' || role === 'prose-absorber' || role === 'self-merge') {
 		return { target: prev, path: [] };
 	}
@@ -138,12 +106,10 @@ export function findMergeTarget(prev: CstNode): MergeTarget | null {
 
 // ── Block Editability ───────────────────────────────────────────────────────
 
-const NON_EDITABLE_KINDS = new Set<BlockKind>(['thematicBreak']);
-
 /**
  * Can this block receive text input? Non-editable blocks (thematic break)
  * are deleted on Backspace from the following block.
  */
-export function isBlockEditable(kind: BlockKind): boolean {
-	return !NON_EDITABLE_KINDS.has(kind);
+export function isBlockEditable(kind: CstNode['kind']): boolean {
+	return getBlockKindDescriptor(kind).editable;
 }

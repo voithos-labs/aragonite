@@ -59,16 +59,34 @@ export interface NestedActionsDeps {
 }
 
 /**
- * Produce a default NestedActionsBundle. The state bundle's commitChildrenEdit
- * and reactive refs are captured in the closures.
+ * Override factory: receives the default bundle (stable references to the
+ * factory-provided methods) and returns per-sub-interface partial overrides.
+ * Overrides that want to chain to the default call `defaults.blockEdit.foo(...)`
+ * — the reference is stable and not subject to the stale-closure problem the
+ * previous `bundle.blockEdit.foo = ...; const factoryFoo = bundle.blockEdit.foo`
+ * pattern danced around.
+ */
+export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
+	blockEdit?: Partial<BlockEditActions>;
+	focus?: Partial<FocusActions>;
+	containerEdit?: Partial<ContainerEditActions>;
+};
+
+/**
+ * Produce a NestedActionsBundle. Callers that need custom behavior (list
+ * U1/M1, blockquote U2, blockquote empty-last-child Enter) pass an
+ * `overrideFactory` that returns per-method overrides. Overrides chain to
+ * the factory default via the `defaults` argument they receive.
  *
- * The returned bundle's method bodies match the current BlockquoteBlock
- * pattern. Containers that need custom behavior (list U1/M1, blockquote
- * U2) override specific methods after calling this factory.
+ * This replaces the earlier monkey-patching pattern (`bundle.blockEdit.splitBlock
+ * = async (...)` after factory return). The override set is now visible at
+ * the call site, type-checked against each sub-interface, and the default
+ * references are captured in a closure the overrides control.
  */
 export function createStandardNestedActions(
 	state: BlockListState,
-	deps: NestedActionsDeps
+	deps: NestedActionsDeps,
+	overrideFactory?: NestedActionsOverrideFactory
 ): NestedActionsBundle {
 	// Note: `index` and `node` are intentionally NOT destructured. Containers
 	// pass both via getter properties (`get index()` / `get node()`) so that
@@ -285,7 +303,15 @@ export function createStandardNestedActions(
 		}
 	};
 
-	return { blockEdit, focus, containerEdit };
+	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
+	if (!overrideFactory) return defaults;
+
+	const overrides = overrideFactory(defaults);
+	return {
+		blockEdit: { ...blockEdit, ...(overrides.blockEdit ?? {}) },
+		focus: { ...focus, ...(overrides.focus ?? {}) },
+		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
+	};
 }
 
 /**
