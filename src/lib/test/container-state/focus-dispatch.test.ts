@@ -65,39 +65,30 @@ describe('dispatchMoveFocus', () => {
 
 	it('sticky-column variant uses focusAtColumn when sticky X is set', async () => {
 		const child = fakeBlock({ focusAtColumn: vi.fn() });
-		await dispatchMoveFocus(
-			[child],
-			0,
-			{ stickyColumnFrom: 'above' },
-			fakeStickyColumn(42),
-			{ focus: { moveFocus: vi.fn() }, index: 0 }
-		);
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, fakeStickyColumn(42), {
+			focus: { moveFocus: vi.fn() },
+			index: 0
+		});
 		expect(child.focusAtColumn).toHaveBeenCalledWith(42, 'above');
 		expect(child.focus).not.toHaveBeenCalled();
 	});
 
 	it('sticky-column variant falls back to focus(0) when from=above and no sticky X', async () => {
 		const child = fakeBlock({ focusAtColumn: vi.fn() });
-		await dispatchMoveFocus(
-			[child],
-			0,
-			{ stickyColumnFrom: 'above' },
-			fakeStickyColumn(null),
-			{ focus: { moveFocus: vi.fn() }, index: 0 }
-		);
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, fakeStickyColumn(null), {
+			focus: { moveFocus: vi.fn() },
+			index: 0
+		});
 		expect(child.focusAtColumn).not.toHaveBeenCalled();
 		expect(child.focus).toHaveBeenCalledWith(0);
 	});
 
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
 		const child = fakeBlock();
-		await dispatchMoveFocus(
-			[child],
-			0,
-			{ stickyColumnFrom: 'below' },
-			fakeStickyColumn(42),
-			{ focus: { moveFocus: vi.fn() }, index: 0 }
-		);
+		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, fakeStickyColumn(42), {
+			focus: { moveFocus: vi.fn() },
+			index: 0
+		});
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 

@@ -10,11 +10,7 @@ import type { EditorSelection } from './selection/primitives';
 // ── Re-exported core types ─────────────────────────────────────────────────
 
 export type { CstNode, Document } from './core/nodes';
-export type {
-	SelectionPoint,
-	EditorSelection,
-	SelectionDragStart
-} from './selection/primitives';
+export type { SelectionPoint, EditorSelection, SelectionDragStart } from './selection/primitives';
 
 // ── Context key symbols ────────────────────────────────────────────────────
 
@@ -127,7 +123,11 @@ export interface BlockEditActions {
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
-	updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void;
+	updateBlockContent(
+		blockIndex: number,
+		text: string,
+		preEditOffset?: number
+	): void | Promise<void>;
 	/** Insert parsed blocks at a split point, replacing the current block with spliced content. */
 	insertParsedBlocks(blockIndex: number, offset: number, blocks: CstNode[]): void | Promise<void>;
 	/**

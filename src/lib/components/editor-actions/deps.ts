@@ -28,8 +28,6 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	// Pure helper (defined in Editor.svelte — used by some actions to reparse inline content).
-	parseAllInlineContent(children: CstNode[]): void;
 }
 
 export interface UndoController {
@@ -38,11 +36,7 @@ export interface UndoController {
 	commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void,
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void
 	): Promise<void>;
 	captureCurrentState(): UndoEntry;

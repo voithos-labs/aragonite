@@ -89,7 +89,8 @@ describe('walkHljsNodes', () => {
 	});
 
 	it('preserves the textContent invariant across mixed text and spans', () => {
-		const input = '<span class="hljs-keyword">const</span> x = <span class="hljs-number">42</span>;';
+		const input =
+			'<span class="hljs-keyword">const</span> x = <span class="hljs-number">42</span>;';
 		const frag = walk(input);
 		expect(frag.textContent).toBe('const x = 42;');
 	});
@@ -100,4 +101,3 @@ describe('walkHljsNodes', () => {
 		expect(frag.childNodes.length).toBe(0);
 	});
 });
-

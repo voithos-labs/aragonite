@@ -7,7 +7,9 @@ import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw } from '../parser';
 
-export function matchFenceOpen(text: string): { marker: '`' | '~'; length: number; info: string } | null {
+export function matchFenceOpen(
+	text: string
+): { marker: '`' | '~'; length: number; info: string } | null {
 	const m = text.match(/^ {0,3}(`{3,})([^`]*)$|^ {0,3}(~{3,})(.*)$/);
 	if (!m) return null;
 

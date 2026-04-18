@@ -8,7 +8,12 @@
  * as parameters. Pure logic, unit-testable in isolation.
  */
 
-import type { BlockComponent, FocusActions, FocusPosition, StickyColumnDirection } from '../../../contracts';
+import type {
+	BlockComponent,
+	FocusActions,
+	FocusPosition,
+	StickyColumnDirection
+} from '../../../contracts';
 import { CURSOR_END } from '../../../contracts';
 import type { StickyColumnState } from '../../../contenteditable/sticky-column';
 

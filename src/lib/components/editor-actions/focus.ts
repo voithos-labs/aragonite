@@ -5,12 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import {
-	CURSOR_END,
-	type FocusActions,
-	type FocusPosition,
-	type CstNode
-} from '../../contracts';
+import { CURSOR_END, type FocusActions, type FocusPosition, type CstNode } from '../../contracts';
 import { generateBlockId } from '../../tree-operations/block-id';
 import type { EditorActionsDeps } from './deps';
 

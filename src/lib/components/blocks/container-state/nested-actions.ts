@@ -207,7 +207,11 @@ export function createStandardNestedActions(
 			state.innerBlockRefs[focusIdx]?.focus(0);
 		},
 
-		updateBlockContent(innerIndex: number, text: string, preEditOffset?: number): void {
+		async updateBlockContent(
+			innerIndex: number,
+			text: string,
+			preEditOffset?: number
+		): Promise<void> {
 			if (!deps.node.children) return;
 			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
 			const result = performUpdate({ children: deps.node.children }, innerIndex, text);
@@ -218,9 +222,8 @@ export function createStandardNestedActions(
 				// Use preEditOffset (cursor just before the kind-changing keystroke)
 				// so the cursor stays near the edit point. Parity with Editor.svelte's
 				// top-level updateBlockContent handler.
-				tick().then(() => {
-					state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
-				});
+				await tick();
+				state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
 			}
 		},
 

@@ -338,7 +338,9 @@ test.describe('focus traversal after block insertion', () => {
 		// content down through the code block into the final paragraph.
 		// Blank-line separator between the blockquote and the following
 		// paragraph is required now that lazy continuation is implemented.
-		const content = ['> quote line', '', 'text', '', '```', 'code', '```', '', 'Final.', ''].join('\n');
+		const content = ['> quote line', '', 'text', '', '```', 'code', '```', '', 'Final.', ''].join(
+			'\n'
+		);
 
 		await editor.loadContent(content);
 
