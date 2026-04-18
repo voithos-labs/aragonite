@@ -267,7 +267,7 @@ The nested `BlockList` inside a container block provides its own scoped editor-a
 - **Splitting inside a container**: splits the inner child, not the container. The container's `raw` is reconstructed from its children.
 - **Deleting all children of a container**: removes the entire container from the parent.
 - **Backspace at start of first child**: unwraps (see "Container Unwrap" above). Rules U1 / U2 / M1 cover list first-item, blockquote first-child, and list non-first item respectively.
-- **Enter in a list item**: Creates a new sibling list item. Enter at the end of a list item's content inserts a new item below; Enter in the middle splits the content across two items. Enter in an empty list item exits the list.
+- **Enter in a list item**: Creates a new sibling list item. Enter at the end of a list item's content inserts a new item below; Enter in the middle splits the content across two items. Enter in an empty list item exits the list — matching-type nested sub-list items promote into the surviving list, while mismatched-type nested lists and any non-list trailing children lift out as top-level siblings rather than being dropped. Ordered markers renumber across the exit gap.
 
 ### Impact on Block Identity and Selection
 
@@ -334,7 +334,7 @@ Copy the selected range, then delete it. For cross-block: truncate the anchor an
 
 ### Paste (Ctrl+V)
 
-Always intercepted. If there is a selection (single or cross-block), delete the selected range first. Parse the pasted text through the CST parser. If the result is a single inline-compatible block, insert the text at the cursor position. If multiple blocks, split the current block at the cursor, splice in the parsed blocks, and merge boundaries where block types are merge-eligible. Push an undo entry, restore focus at the end of the pasted content.
+Always intercepted. If there is a selection (single or cross-block), delete the selected range first. Parse the pasted text through the CST parser. If the result is a single paragraph, insert the text at the cursor position. Anything else (multiple blocks, or a single non-paragraph block like a list, heading, code block, or blockquote) takes the structural path: split the current block at the cursor, splice in the parsed blocks as their own structural children with blank-line separators, and place the post-cursor remainder as a trailing paragraph. The full delete-then-paste collapses into a single undo entry; focus restores at the end of the pasted content.
 
 ### Delete / Backspace / Type-Replace
 
