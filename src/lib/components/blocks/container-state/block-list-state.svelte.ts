@@ -29,11 +29,7 @@ export interface BlockListState {
 	 * the factory writes the updates back.
 	 */
 	commitChildrenEdit(
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
 	): void;
 	/**
 	 * Re-spread `node.children` and `innerBlockIds` to trigger Svelte's
@@ -72,11 +68,7 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 	});
 
 	function commitChildrenEdit(
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
 	): void {
 		const node = getNode();
 		const childrenCopy = [...(node.children ?? [])];

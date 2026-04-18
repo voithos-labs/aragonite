@@ -98,8 +98,8 @@ export function installDragListener(
 		if (autoScrollRafId !== null) return;
 		if (!pendingMove) return;
 		const rect = ctx.scrollContainer.getBoundingClientRect();
-		const inThreshold = pendingMove.clientY < rect.top + threshold ||
-			pendingMove.clientY > rect.bottom - threshold;
+		const inThreshold =
+			pendingMove.clientY < rect.top + threshold || pendingMove.clientY > rect.bottom - threshold;
 		if (!inThreshold) return;
 		autoScrollRafId = requestAnimationFrame(step);
 	}

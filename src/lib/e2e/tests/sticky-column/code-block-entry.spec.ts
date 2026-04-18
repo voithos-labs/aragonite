@@ -80,9 +80,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 
 	test('multi-body-line code block: same landing X both directions', async () => {
 		const body = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccc\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-		await editor.loadContent(
-			`${PARAGRAPH_TEXT}\n\n\`\`\`\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
-		);
+		await editor.loadContent(`${PARAGRAPH_TEXT}\n\n\`\`\`\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`);
 
 		const fromAbove = await captureEntryFromAbove(editor, 1);
 		await resetStickyByClickingOutside(editor);

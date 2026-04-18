@@ -68,7 +68,6 @@ describe('round-trip: blockquotes', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: lists', () => {
@@ -98,7 +97,6 @@ describe('round-trip: lists', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: nested list edge cases', () => {
@@ -126,7 +124,7 @@ describe('round-trip: nested list edge cases', () => {
 		{
 			name: 'item with indented code block',
 			source: '- Item\n\n      code line\n'
-		},
+		}
 	];
 
 	for (const { name, source } of cases) {
@@ -157,7 +155,6 @@ describe('round-trip: setext headings', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: indented code blocks', () => {
@@ -177,7 +174,6 @@ describe('round-trip: indented code blocks', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: HTML blocks', () => {
@@ -197,7 +193,6 @@ describe('round-trip: HTML blocks', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: link reference definitions', () => {
@@ -217,7 +212,6 @@ describe('round-trip: link reference definitions', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });
 
 describe('round-trip: tables', () => {
@@ -239,5 +233,4 @@ describe('round-trip: tables', () => {
 			expect(serialize(doc)).toBe(source);
 		});
 	}
-
 });

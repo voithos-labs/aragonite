@@ -24,15 +24,8 @@ export type {
 
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
-export {
-	LIST_CONTEXT_KEY
-} from './contracts';
-export type {
-	BlockComponent,
-	UndoManager,
-	UndoEntry,
-	ListContext
-} from './contracts';
+export { LIST_CONTEXT_KEY } from './contracts';
+export type { BlockComponent, UndoManager, UndoEntry, ListContext } from './contracts';
 export { cloneDocument } from './tree-operations/clone';
 export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';

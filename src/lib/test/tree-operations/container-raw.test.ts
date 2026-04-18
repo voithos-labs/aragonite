@@ -1,6 +1,10 @@
 // src/lib/editor/test/container-raw.test.ts
 import { describe, it, expect } from 'vitest';
-import { rebuildBlockquoteRaw, rebuildListItemRaw, rebuildListRaw } from '../../tree-operations/container-raw';
+import {
+	rebuildBlockquoteRaw,
+	rebuildListItemRaw,
+	rebuildListRaw
+} from '../../tree-operations/container-raw';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -194,9 +198,7 @@ describe('rebuildListItemRaw: nested content', () => {
 			raw: '',
 			metadata: { marker: '- ', taskItem: false, taskChecked: false },
 			innerPrefix: '',
-			children: [
-				{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }
-			],
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
 			innerSuffix: ''
 		};
 		rebuildListItemRaw(item);

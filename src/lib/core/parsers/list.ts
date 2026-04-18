@@ -136,8 +136,7 @@ function stripListItemLines(
 	return lines.slice(startIndex, endIndex).map((line, i) => {
 		// First line: strip the full marker prefix
 		// Other lines: strip up to contentIndent spaces of indentation
-		const stripCount =
-			i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
+		const stripCount = i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
 		const stripped = line.text.slice(stripCount);
 		const lineEnding = line.lineEnding;
 		const raw = stripped + lineEnding;

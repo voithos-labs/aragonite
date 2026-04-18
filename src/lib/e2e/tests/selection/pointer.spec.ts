@@ -23,9 +23,7 @@ test.describe('selection — pointer: happy paths', () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
 		expect(await editor.isCrossBlockActive()).toBe(true);
-		const middleOverlay = await editor.page.$(
-			"[data-block-path='[1]'] .selection-overlay-middle"
-		);
+		const middleOverlay = await editor.page.$("[data-block-path='[1]'] .selection-overlay-middle");
 		expect(middleOverlay).not.toBeNull();
 	});
 

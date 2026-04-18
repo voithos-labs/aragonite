@@ -68,7 +68,13 @@ describe('sliceFencedCode', () => {
 	});
 
 	it('handles a four-backtick fence', () => {
-		const node = makeFencedCodeNode('````python\ncode with ``` inside\n````\n', 'python', true, '`', 4);
+		const node = makeFencedCodeNode(
+			'````python\ncode with ``` inside\n````\n',
+			'python',
+			true,
+			'`',
+			4
+		);
 		const result = sliceFencedCode(node);
 		expect(result.openerLine).toBe('````python\n');
 		expect(result.body).toBe('code with ``` inside\n');

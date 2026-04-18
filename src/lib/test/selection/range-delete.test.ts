@@ -3,7 +3,11 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 
-function run(source: string, start: { path: number[]; offset: number }, end: { path: number[]; offset: number }) {
+function run(
+	source: string,
+	start: { path: number[]; offset: number },
+	end: { path: number[]; offset: number }
+) {
 	const doc = parse(source);
 	const result = rangeDelete(doc, start, end);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
@@ -11,11 +15,7 @@ function run(source: string, start: { path: number[]; offset: number }, end: { p
 
 describe('rangeDelete — same-container cases', () => {
 	it('deletes a range within a single paragraph', () => {
-		const { source, caret } = run(
-			'abcdef\n',
-			{ path: [0], offset: 1 },
-			{ path: [0], offset: 4 }
-		);
+		const { source, caret } = run('abcdef\n', { path: [0], offset: 1 }, { path: [0], offset: 4 });
 		expect(source).toBe('aef\n');
 		expect(caret).toEqual({ path: [0], offset: 1 });
 	});
@@ -54,7 +54,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 		expect(caret).toEqual({ path: [0], offset: 7 });
 	});
 
-	it('start inside blockquote, end outside: merges at start\'s position, blockquote survives', () => {
+	it("start inside blockquote, end outside: merges at start's position, blockquote survives", () => {
 		const { source, caret } = run(
 			'> inside quote line 1\n> inside quote line 2\n\nafter paragraph\n',
 			{ path: [0, 0], offset: 7 },
@@ -64,7 +64,7 @@ describe('rangeDelete — cross-container start-wins', () => {
 		expect(caret).toEqual({ path: [0, 0], offset: 7 });
 	});
 
-	it('sibling-container collapse: two blockquotes merge into start\'s blockquote', () => {
+	it("sibling-container collapse: two blockquotes merge into start's blockquote", () => {
 		const { source } = run(
 			'> first bq\n\nmiddle\n\n> second bq\n',
 			{ path: [0, 0], offset: 6 },
@@ -86,11 +86,7 @@ describe('rangeDelete — boundary offsets', () => {
 	});
 
 	it('end.offset at end of endBlock yields startHead only', () => {
-		const { source } = run(
-			'keep\n\ndelete\n',
-			{ path: [0], offset: 4 },
-			{ path: [1], offset: 6 }
-		);
+		const { source } = run('keep\n\ndelete\n', { path: [0], offset: 4 }, { path: [1], offset: 6 });
 		expect(source).toBe('keep\n');
 	});
 });

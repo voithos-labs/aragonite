@@ -175,6 +175,14 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
+	// Escape collapses to the start — matches "get me out of this weird state"
+	// user expectation from Obsidian / VS Code / Notion.
+	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+		e.preventDefault();
+		collapseCrossBlock(selection, 'start', getBlockElByPath);
+		return true;
+	}
+
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
 		collapseCrossBlock(selection, 'start', getBlockElByPath);

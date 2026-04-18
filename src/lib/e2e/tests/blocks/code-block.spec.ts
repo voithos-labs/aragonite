@@ -375,7 +375,11 @@ test.describe('code block paste — fence bumping', () => {
 			el.focus();
 			const dt = new DataTransfer();
 			dt.setData('text/plain', '\n```pasted code```\n');
-			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			const ev = new ClipboardEvent('paste', {
+				clipboardData: dt,
+				bubbles: true,
+				cancelable: true
+			});
 			el.dispatchEvent(ev);
 		});
 		await page.waitForTimeout(100);
@@ -402,7 +406,11 @@ test.describe('code block paste — fence bumping', () => {
 			el.focus();
 			const dt = new DataTransfer();
 			dt.setData('text/plain', '\n# Heading\n\n- list item\n\nparagraph\n');
-			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			const ev = new ClipboardEvent('paste', {
+				clipboardData: dt,
+				bubbles: true,
+				cancelable: true
+			});
 			el.dispatchEvent(ev);
 		});
 		await page.waitForTimeout(100);

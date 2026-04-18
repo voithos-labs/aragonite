@@ -10,12 +10,7 @@
  * stays in each component because the behaviors genuinely differ.
  */
 
-import type {
-	BlockElLookup,
-	DocumentGetter,
-	FocusActions,
-	HistoryActions
-} from '../contracts';
+import type { BlockElLookup, DocumentGetter, FocusActions, HistoryActions } from '../contracts';
 import type { StickyColumnState } from './sticky-column';
 import { PRESERVE_KEYS_NON_ARROW } from './sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';

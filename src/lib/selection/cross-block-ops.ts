@@ -51,9 +51,7 @@ export async function performCrossBlockDelete(
  * Synchronous variant for compositionstart — no await, no caret restore.
  * Returns the collapsed caret position or null.
  */
-export function performCrossBlockDeleteSync(
-	ctx: CrossBlockMutationContext
-): SelectionPoint | null {
+export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): SelectionPoint | null {
 	const { start, end } = resolveStartEnd(ctx.selection);
 	if (!start || !end) return null;
 
@@ -66,7 +64,10 @@ export function performCrossBlockDeleteSync(
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-function resolveStartEnd(selection: SelectionState): { start: SelectionPoint | null; end: SelectionPoint | null } {
+function resolveStartEnd(selection: SelectionState): {
+	start: SelectionPoint | null;
+	end: SelectionPoint | null;
+} {
 	if (!selection.isCrossBlock) return { start: null, end: null };
 	return { start: selection.start, end: selection.end };
 }
