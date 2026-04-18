@@ -182,3 +182,31 @@ export async function handleSharedKeydown(
 
 	return false;
 }
+
+// ── Shared beforeinput prelude ─────────────────────────────────────────────
+
+/**
+ * Before-input handling shared by every contenteditable block:
+ * `historyUndo` / `historyRedo` are intercepted and routed through the undo
+ * controller, `insertLineBreak` is preventDefault'd (blocks own their own
+ * Shift+Enter semantics), and cross-block selection paste/type-replace is
+ * delegated to the cross-block dispatcher. Returns true when the caller
+ * should return early from its own `onBeforeInput`.
+ */
+export async function handleSharedBeforeInput(
+	e: InputEvent,
+	ctx: { history: HistoryActions; crossBlock: CrossBlockHandlers }
+): Promise<boolean> {
+	if (e.inputType === 'historyUndo') {
+		e.preventDefault();
+		ctx.history.requestUndo();
+		return true;
+	}
+	if (e.inputType === 'historyRedo') {
+		e.preventDefault();
+		ctx.history.requestRedo();
+		return true;
+	}
+	if (await ctx.crossBlock.handleBeforeInput(e)) return true;
+	return false;
+}
