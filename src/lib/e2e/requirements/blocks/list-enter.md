@@ -12,7 +12,11 @@ Covers list behavior when Enter creates a new item, splits content, or exits the
   - Empty first item: deleted, paragraph created before the list
   - Empty middle item: deleted, list splits into two lists with paragraph between
   - Empty last item: deleted, paragraph created after the list
-- Enter on item whose first paragraph is empty exits the list, even if the item has nested content (nested lists from a previous split move to adjacent items)
+- Enter on item whose first paragraph is empty exits the list, even if the item has nested content:
+  - Matching-type nested lists (same ordered/unordered) merge into the surviving list halves as siblings
+  - Mismatched-type nested lists (e.g. ordered inside unordered) lift out as a separate top-level block
+  - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks
+  - Order: lifted blocks appear immediately after the new exit paragraph, preserving the document order they had inside the exited item
 
 ### Ordered list numbering on Enter
 

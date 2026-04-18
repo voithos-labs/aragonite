@@ -322,54 +322,95 @@ async function handlePaste(
 	const pasted = e.clipboardData?.getData('text/plain') ?? '';
 	if (!pasted) return true;
 
+	// One snapshot covers the whole delete-then-paste — the cross-block
+	// delete and the paste mutation share a single undo entry. Pre-fix this
+	// path produced two snapshots for the top-level multi-block case (the
+	// implicit one inside performCrossBlockDelete plus another inside
+	// insertParsedBlocks), so a single Ctrl+Z left the document in an
+	// intermediate "selection-deleted but blocks-not-inserted" state.
+	mutCtx.pushUndoSnapshot();
+
 	const doc = ctx.getDoc();
-	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
+	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity, {
+		skipSnapshot: true,
+		skipCaretRestore: true
+	});
 	if (!caret) return true;
 	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
 	if (!targetNode || !('raw' in targetNode)) return true;
-	const parsed = parse(pasted);
 
-	// Multi-block paste. Top-level carets dispatch via the root blockEdit
-	// (always live). Nested carets can't use `ctx.blockEdit` — that bundle is
-	// the bundle of the block that originally received the paste event, and
-	// `performCrossBlockDelete` above may have removed that block's
-	// container from the tree, leaving the bundle pointing at an orphaned
-	// node. Splice directly into the caret's parent container's children;
-	// BlockListState's auto-sync `$effect` regenerates ids/refs when the
-	// children-array length changes.
-	if (parsed.children.length > 1) {
-		if (caret.path.length === 1) {
-			ctx.blockEdit.insertParsedBlocks(caret.path[0], caret.offset, parsed.children);
-			return true;
-		}
-		const parentPath = caret.path.slice(0, -1);
-		const parent = nodeAt(doc, parentPath) as CstNode | null;
-		const innerIndex = caret.path[caret.path.length - 1];
-		if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) {
-			return true;
-		}
-		const leaf = parent.children[innerIndex];
-		const replacement = buildPastedReplacement(leaf, caret.offset, parsed.children);
-		parent.children.splice(innerIndex, 1, ...replacement);
-		rebuildAncestryForLeaf(doc, [...parentPath, innerIndex]);
+	const parsed = parse(pasted);
+	const isInlinePaste = parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
+
+	// Inline paste: splice pasted text into the target node's raw and
+	// rebuild any container ancestors so their serialized form reflects
+	// the mutated leaf. Used only when the clipboard is a single plain
+	// paragraph — anything structural (lists, headings, code, multi-block
+	// content) takes the buildPastedReplacement path below so the pasted
+	// blocks land as actual structural children rather than as raw text
+	// inside the target paragraph (which would either be silently dropped
+	// by reparseAsNode taking only the first child, or rendered as plain
+	// text with stale block kind).
+	if (isInlinePaste) {
+		const targetDisplay = trimTrailingLineEnding(targetNode.raw);
+		const lineEnding = targetNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
+		targetNode.raw =
+			targetDisplay.slice(0, caret.offset) +
+			pasted +
+			targetDisplay.slice(caret.offset) +
+			lineEnding;
+		ctx.afterRawMutated?.(targetNode);
+		rebuildAncestryForLeaf(doc, caret.path);
 		ctx.containerEdit.endContainerEdit();
+		// Place the caret on the MERGED block via the DOM rather than
+		// pendingCursor — the originating block (the one whose handler
+		// fired this paste) may have been removed by the cross-block
+		// delete when the user extended selection upward, leaving its
+		// pendingCursor write addressed to an unmounted component.
 		await ctx.afterReactivity();
-		focusLastInsertedBlock(ctx, [...parentPath, innerIndex + replacement.length - 1]);
+		const inlineEl = ctx.getBlockElByPath(caret.path);
+		if (inlineEl) {
+			applyCollapsedCaret(inlineEl, {
+				path: caret.path,
+				offset: caret.offset + pasted.length
+			});
+			inlineEl.focus();
+		}
 		return true;
 	}
 
-	// Single-block paste: splice pasted text into the target node's raw and
-	// rebuild any container ancestors so their serialized form reflects the
-	// mutated leaf. Mirrors handleBeforeInput's type-replace path, which
-	// correctly handles carets arbitrarily deep in container chains.
-	const targetDisplay = trimTrailingLineEnding(targetNode.raw);
-	const lineEnding = targetNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
-	targetNode.raw =
-		targetDisplay.slice(0, caret.offset) + pasted + targetDisplay.slice(caret.offset) + lineEnding;
-	ctx.afterRawMutated?.(targetNode);
-	rebuildAncestryForLeaf(doc, caret.path);
+	// Structural paste. Top-level carets route through insertParsedBlocks
+	// with skipSnapshot so the splice joins the snapshot we already
+	// pushed above. Nested carets splice directly into the parent
+	// container's children — `ctx.blockEdit` is the bundle of the block
+	// that originally received the paste event, and the cross-block
+	// delete may have removed that block's container, leaving the bundle
+	// pointing at an orphaned node. BlockListState's auto-sync `$effect`
+	// regenerates ids/refs when the children-array length changes.
+	if (caret.path.length === 1) {
+		await ctx.blockEdit.insertParsedBlocks(
+			caret.path[0],
+			caret.offset,
+			parsed.children,
+			undefined,
+			{ skipSnapshot: true }
+		);
+		return true;
+	}
+
+	const parentPath = caret.path.slice(0, -1);
+	const parent = nodeAt(doc, parentPath) as CstNode | null;
+	const innerIndex = caret.path[caret.path.length - 1];
+	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) {
+		return true;
+	}
+	const leaf = parent.children[innerIndex];
+	const replacement = buildPastedReplacement(leaf, caret.offset, parsed.children);
+	parent.children.splice(innerIndex, 1, ...replacement);
+	rebuildAncestryForLeaf(doc, [...parentPath, innerIndex]);
 	ctx.containerEdit.endContainerEdit();
-	ctx.setPendingCursor(caret.offset + pasted.length);
+	await ctx.afterReactivity();
+	focusLastInsertedBlock(ctx, [...parentPath, innerIndex + replacement.length - 1]);
 	return true;
 }
 

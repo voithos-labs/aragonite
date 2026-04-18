@@ -49,6 +49,7 @@
 	} from './code/code-editing';
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
 	import { computeCodePaste } from './code/code-paste';
+	import { computeCodeEnter } from './code/code-enter';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
 
@@ -159,6 +160,7 @@
 			return;
 
 		el.replaceChildren(renderCodeBlock(node));
+		anchorTrailingNewlineForChromium(el);
 		lastRenderedRaw = node.raw;
 
 		if (pendingSelection !== null) {
@@ -175,6 +177,25 @@
 			pendingCursorOffset = null;
 		}
 	});
+
+	/**
+	 * Chromium with `white-space: pre` will not paint a caret on the line
+	 * after a trailing `\n` unless something follows it — and `insertText` at
+	 * that caret position routes the typed character BEFORE the `\n` instead
+	 * (the bug that originally forced a DOM-mutation Enter handler). A
+	 * `<br data-caret-anchor>` after the trailing newline gives the browser a
+	 * concrete line-break anchor: the caret holds on the new line and typed
+	 * text lands after the `\n` as expected. BR has empty textContent so the
+	 * `textContent === trimTrailingLineEnding(raw)` invariant still holds.
+	 * Re-added on every render because the renderer is the source of truth
+	 * for the contenteditable's children.
+	 */
+	function anchorTrailingNewlineForChromium(host: HTMLElement): void {
+		if (!host.textContent?.endsWith('\n')) return;
+		const br = document.createElement('br');
+		br.dataset.caretAnchor = '';
+		host.appendChild(br);
+	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
 
@@ -199,23 +220,19 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		// Code block's own Shift+Enter: insert a `\n` text node directly,
-		// then re-sync CST. Mobile/IME soft keyboards dispatch this without a
-		// keydown so we can't move it to onKeyDown. Acceptable DOM-first path
-		// — documented as a known exception in the v0.5 prep plan (B3).
-		if (e.inputType === 'insertLineBreak') {
+		// Shift+Enter on desktop — and the mobile/IME `insertLineBreak`
+		// without a preceding keydown — both arrive here. Insert a bare `\n`
+		// at the cursor and route through the CST so the source of truth
+		// stays single (this is the "soft break" mode of `computeCodeEnter`).
+		if (e.inputType === 'insertLineBreak' && el) {
 			e.preventDefault();
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0 || !el) return;
-			const range = sel.getRangeAt(0);
-			range.deleteContents();
-			const newline = document.createTextNode('\n');
-			range.insertNode(newline);
-			range.setStartAfter(newline);
-			range.collapse(true);
-			sel.removeAllRanges();
-			sel.addRange(range);
-			onInput();
+			const result = computeCodeEnter({
+				display: getDisplayText(),
+				selection: currentRange(),
+				mode: 'soft'
+			});
+			blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
+			pendingCursorOffset = result.newCursor;
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -358,9 +375,8 @@
 			// pair, expand into three lines with one extra indent level on the
 			// middle line — the "electric indent" pattern every modern code
 			// editor ships. Quote pairs stay inline.
-			const indent = getLineLeadingWhitespace(text, offset);
-
 			if (isBetweenEmptyBracketPair(text, offset)) {
+				const indent = getLineLeadingWhitespace(text, offset);
 				const inner = indent + ELECTRIC_INDENT_UNIT;
 				const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
 				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
@@ -368,31 +384,13 @@
 				return;
 			}
 
-			// Unclosed fence: the rebuilt DOM after updateBlockContent ends with
-			// a trailing \n marker that Chromium with `white-space: pre`
-			// misreads — cursor placed at its end sees the next typed char
-			// land BEFORE the \n, on the opener line. Insert the newline at
-			// the DOM level and sync via onInput so the live selection stays
-			// anchored in a fresh text node Chromium treats as insertion-ready.
-			if (!meta.closed) {
-				const sel = window.getSelection();
-				if (sel && sel.rangeCount > 0 && el) {
-					const range = sel.getRangeAt(0);
-					range.deleteContents();
-					const inserted = document.createTextNode('\n' + indent);
-					range.insertNode(inserted);
-					range.setStart(inserted, inserted.length);
-					range.collapse(true);
-					sel.removeAllRanges();
-					sel.addRange(range);
-					onInput();
-					return;
-				}
-			}
-
-			const newText = text.slice(0, offset) + '\n' + indent + text.slice(offset);
-			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-			pendingCursorOffset = offset + 1 + indent.length;
+			const enter = computeCodeEnter({
+				display: text,
+				selection: { start: offset, end: offset },
+				mode: 'normal'
+			});
+			blockEdit.updateBlockContent(index, enter.newText + '\n', preEditOffset);
+			pendingCursorOffset = enter.newCursor;
 			return;
 		}
 

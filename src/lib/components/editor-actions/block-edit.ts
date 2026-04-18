@@ -233,7 +233,8 @@ export function createBlockEditActions(
 			blockIndex: number,
 			offset: number,
 			blocks: CstNode[],
-			preDelete?: { start: number; end: number }
+			preDelete?: { start: number; end: number },
+			options?: { skipSnapshot?: boolean }
 		): Promise<void> {
 			if (blocks.length === 0) return;
 
@@ -272,7 +273,8 @@ export function createBlockEditActions(
 				},
 				() => {
 					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
-				}
+				},
+				options
 			);
 		},
 

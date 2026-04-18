@@ -450,7 +450,16 @@
 
 		const parsed = parse(pastedText);
 
-		if (parsed.children.length <= 1) {
+		// Inline path only when the clipboard parses to a single plain
+		// paragraph. A single non-paragraph block (list, heading, code,
+		// blockquote) needs the structural insertParsedBlocks path —
+		// updateBlockContent re-parses the new raw and reparseAsNode keeps
+		// only the first parsed child, so a list pasted into a paragraph
+		// would silently drop everything after the first item.
+		const isInlinePaste =
+			parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
+
+		if (isInlinePaste) {
 			const newDisplay =
 				effectiveDisplay.slice(0, effectiveOffset) +
 				pastedText +

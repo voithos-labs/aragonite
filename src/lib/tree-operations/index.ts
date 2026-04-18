@@ -28,7 +28,8 @@ export {
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	normalizeItemMarkerToList,
-	isItemUserEmpty
+	isItemUserEmpty,
+	buildExitReplacement
 } from './list-ops';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';

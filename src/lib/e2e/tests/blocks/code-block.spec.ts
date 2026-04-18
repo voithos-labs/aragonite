@@ -98,6 +98,69 @@ test.describe('code block editing — happy paths', () => {
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
 
+	test('Enter at end of a closed fence places the caret on the new line (typed text follows)', async ({
+		page
+	}) => {
+		// Caret-position regression for B3 (CST-first Enter). Pressing Enter at
+		// the end of the last body line puts the caret on the freshly-inserted
+		// blank line; subsequent typing must land on that line, not on the
+		// previous line or somewhere outside the body.
+		await editor.loadContent('```\nfoo\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// Walk to position 7 — end of "foo" body line, before its terminating \n.
+		for (let i = 0; i < 7; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(150);
+		await editor.typeText('bar');
+		await editor.page.waitForTimeout(150);
+		expect(await editor.getSource()).toBe('```\nfoo\nbar\n```\n');
+	});
+
+	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async ({
+		page
+	}) => {
+		// B3 regression — the original Chromium quirk: in an unclosed fence
+		// the cursor at the end of the rebuilt DOM (just past a trailing \n)
+		// would route the next typed character BEFORE the \n. The CST-first
+		// fix plus the trailing-newline caret anchor must keep the caret on
+		// the new body line.
+		await editor.loadContent('```js\nconst x = 1\n');
+		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		await editor.getBlock(0).click();
+		await editor.focusBlockEnd(0);
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(150);
+		await editor.typeText('const y = 2');
+		await editor.page.waitForTimeout(150);
+		const source = await editor.getSource();
+		expect(source).toContain('const x = 1\nconst y = 2');
+	});
+
+	test('Enter mid-line in a multi-line code block splits at the cursor', async ({ page }) => {
+		// Regression: Enter in the middle of a body line must split the line
+		// at the cursor, with the caret landing at the start of the new line.
+		// Typing immediately after Enter must extend that new line, not bleed
+		// into the surrounding content.
+		await editor.loadContent('```\naaaaa\nbbbbb\nccccc\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		// Walk to position 7 — between 'a' and 'a' of "bb|bbb": opener (4) + "bb" (2) = 6
+		// Actually: "```\n" (4) + "aaaaa\n" (6) + "bb" (2) = 12.
+		for (let i = 0; i < 12; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(150);
+		await editor.typeText('X');
+		await editor.page.waitForTimeout(150);
+		const source = await editor.getSource();
+		// Split at "bb|bbb" → "bb" then new line starting with "X" then "bbb"
+		expect(source).toBe('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
+	});
+
 	test('code block content round-trips through source', async () => {
 		await editor.loadContent('```python\ndef hello():\n    pass\n```\n');
 		await editor.getBlock(0).click();
