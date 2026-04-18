@@ -79,9 +79,10 @@ export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
  * document order. A same-path selection with focus before anchor also gets
  * normalized by offset.
  */
-export function normalize(
-	selection: EditorSelection
-): { start: SelectionPoint; end: SelectionPoint } {
+export function normalize(selection: EditorSelection): {
+	start: SelectionPoint;
+	end: SelectionPoint;
+} {
 	const { anchor, focus } = selection;
 	const cmp = comparePaths(anchor.path, focus.path);
 	if (cmp < 0) return { start: anchor, end: focus };
@@ -111,11 +112,7 @@ export function isPathBetween(path: number[], start: number[], end: number[]): b
  * Used by range-delete to collect deletion targets, and by cross-block copy
  * to collect middle blocks whose text contributes to the clipboard payload.
  */
-export function walkBetween(
-	doc: Document,
-	start: number[],
-	end: number[]
-): number[][] {
+export function walkBetween(doc: Document, start: number[], end: number[]): number[][] {
 	if (comparePaths(start, end) >= 0) return [];
 
 	const result: number[][] = [];

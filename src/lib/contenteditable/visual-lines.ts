@@ -31,11 +31,7 @@ export function getRangeTop(range: Range): number | null {
  * Non-collapsed ranges reliably return rects; this is the primary
  * measurement primitive for isAtFirstVisualLine / isAtLastVisualLine.
  */
-export function getCharRangeTop(
-	container: Node,
-	offset: number,
-	atEnd: boolean
-): number | null {
+export function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
 	try {
 		const range = document.createRange();
 		if (atEnd) {

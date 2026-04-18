@@ -33,19 +33,12 @@ describe('walkBetween', () => {
 	});
 
 	it('walks into a container between start and end', () => {
-		const d = doc([
-			para('a\n'),
-			blockquote([para('b1\n'), para('b2\n')]),
-			para('c\n')
-		]);
+		const d = doc([para('a\n'), blockquote([para('b1\n'), para('b2\n')]), para('c\n')]);
 		expect(walkBetween(d, [0], [2])).toEqual([[1], [1, 0], [1, 1]]);
 	});
 
 	it('yields paths from start inside a container to end outside', () => {
-		const d = doc([
-			blockquote([para('x\n'), para('y\n'), para('z\n')]),
-			para('after\n')
-		]);
+		const d = doc([blockquote([para('x\n'), para('y\n'), para('z\n')]), para('after\n')]);
 		// start = middle of blockquote child [0, 1], end = top-level [1]
 		// strictly between: [0, 2] (the third blockquote child) and the container
 		// close is not a yield
@@ -55,10 +48,7 @@ describe('walkBetween', () => {
 	it('yields paths across nested containers', () => {
 		const d = doc([
 			para('a\n'),
-			blockquote([
-				blockquote([para('i\n'), para('j\n')]),
-				para('k\n')
-			]),
+			blockquote([blockquote([para('i\n'), para('j\n')]), para('k\n')]),
 			para('b\n')
 		]);
 		// between [0] and [2] in doc order: [1], [1,0], [1,0,0], [1,0,1], [1,1]

@@ -44,11 +44,7 @@ interface ParseBlocksResult {
 	suffix: string;
 }
 
-export function parseBlocks(
-	lines: ParsedLine[],
-	start: number,
-	end: number
-): ParseBlocksResult {
+export function parseBlocks(lines: ParsedLine[], start: number, end: number): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
 	let pendingTrivia = '';

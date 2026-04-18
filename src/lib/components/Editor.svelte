@@ -151,8 +151,7 @@
 		undoManager,
 		stickyColumn,
 		selectionState,
-		getBlockElByPath,
-		parseAllInlineContent
+		getBlockElByPath
 	});
 
 	// Reactive getter: block components call this at keystroke time to read

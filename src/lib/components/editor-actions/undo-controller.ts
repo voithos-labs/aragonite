@@ -16,7 +16,14 @@ import { cloneDocument } from '../../tree-operations/clone';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
 
-const UNDO_DEBOUNCE_MS = 500;
+/**
+ * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
+ * produces 4–7 characters per window, so Ctrl+Z reverted entire half-words.
+ * 250 ms matches Obsidian's keystroke-batching more closely; VS Code /
+ * Google Docs use word-boundary detection instead of a fixed window, which
+ * is a potential further refinement (flush on space/punctuation).
+ */
+const UNDO_DEBOUNCE_MS = 250;
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -74,11 +81,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	async function commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void,
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void
 	): Promise<void> {
 		deps.stickyColumn.reset();

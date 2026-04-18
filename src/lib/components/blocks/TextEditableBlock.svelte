@@ -2,6 +2,7 @@
 	import { getContext, tick } from 'svelte';
 	import {
 		BLOCK_EDIT_KEY,
+		LIST_CONTEXT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
@@ -34,8 +35,12 @@
 		hasSelection as hasSelectionHelper
 	} from '../../contenteditable/cursor-utils';
 	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
+	import { toggleInlineFormat } from '../../contenteditable/format-toggle';
 	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
-	import { handleSharedKeydown, type SharedKeydownContext } from '../../contenteditable/shared-keydown';
+	import {
+		handleSharedKeydown,
+		type SharedKeydownContext
+	} from '../../contenteditable/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 
@@ -54,6 +59,9 @@
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	// Present when this paragraph sits inside a list item — used to skip
+	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
+	const listContext = getContext(LIST_CONTEXT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
@@ -84,7 +92,9 @@
 		blockEdit,
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => { pendingCursorOffset = offset; },
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		},
 		afterRawMutated: (targetNode) => {
 			if (isProseKind(targetNode.kind)) {
 				const range = getContentRange(targetNode);
@@ -286,6 +296,31 @@
 			return;
 		}
 
+		// Ctrl+1..6 — set heading level, or (Ctrl+0) convert back to paragraph.
+		// Replaces any existing `#` prefix run so repeated shortcuts cycle levels.
+		if ((e.ctrlKey || e.metaKey) && /^[0-6]$/.test(e.key) && !e.shiftKey && !e.altKey) {
+			e.preventDefault();
+			const level = parseInt(e.key, 10);
+			const displayText = getDisplayText();
+			const stripped = displayText.replace(/^#{1,6}\s?/, '');
+			const newDisplay = level === 0 ? stripped : '#'.repeat(level) + ' ' + stripped;
+			const cursor = (level === 0 ? 0 : level + 1) + (preEditOffset ?? 0);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', cursor);
+			pendingCursorOffset = cursor;
+			return;
+		}
+
+		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
+		if (e.key === 'Enter' && e.shiftKey) {
+			e.preventDefault();
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const displayText = getDisplayText();
+			const newDisplay = displayText.slice(0, offset) + '\\\n' + displayText.slice(offset);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
+			pendingCursorOffset = offset + 2;
+			return;
+		}
+
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			const offset = getCursorOffsetHelper(el!) ?? 0;
@@ -298,6 +333,21 @@
 				// $effect handles inline re-render — no refreshInlineContent needed
 				pendingCursorOffset = offset + 1;
 			}
+			return;
+		}
+
+		// Tab inserts a literal tab character at the cursor. Without this the
+		// browser's default moves focus out of the editor entirely. Shift+Tab
+		// stays as the browser default (reverse focus) since prose blocks have
+		// no block-level indent semantics today. Inside a list item this is
+		// skipped — the enclosing ListItemBlock handles Tab as indent/outdent.
+		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
+			e.preventDefault();
+			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const displayText = getDisplayText();
+			const newDisplay = displayText.slice(0, offset) + '\t' + displayText.slice(offset);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
+			pendingCursorOffset = offset + 1;
 			return;
 		}
 
@@ -382,7 +432,10 @@
 		const parsed = parse(pastedText);
 
 		if (parsed.children.length <= 1) {
-			const newDisplay = effectiveDisplay.slice(0, effectiveOffset) + pastedText + effectiveDisplay.slice(effectiveOffset);
+			const newDisplay =
+				effectiveDisplay.slice(0, effectiveOffset) +
+				pastedText +
+				effectiveDisplay.slice(effectiveOffset);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + pastedText.length);
 			pendingCursorOffset = effectiveOffset + pastedText.length;
 		} else {
@@ -401,44 +454,14 @@
 
 	function toggleFormat(format: 'strong' | 'emphasis'): void {
 		if (!el) return;
-
 		const offsets = getSelectionOffsetsHelper(el);
 		if (!offsets) return;
 
-		const displayText = getDisplayText();
-		const markers = format === 'strong' ? '**' : '*';
-		const mLen = markers.length;
-
-		const selectedSlice = displayText.slice(offsets.start, offsets.end);
-
-		// Check if selection is already wrapped with markers
-		const isFormatted =
-			selectedSlice.startsWith(markers) &&
-			selectedSlice.endsWith(markers) &&
-			selectedSlice.length > mLen * 2;
-
-		let newDisplay: string;
-		let newSelStart: number;
-		let newSelEnd: number;
-
-		if (isFormatted) {
-			// Remove markers
-			const unwrapped = selectedSlice.slice(mLen, -mLen);
-			newDisplay =
-				displayText.slice(0, offsets.start) + unwrapped + displayText.slice(offsets.end);
-			newSelStart = offsets.start;
-			newSelEnd = offsets.start + unwrapped.length;
-		} else {
-			// Add markers
-			newDisplay =
-				displayText.slice(0, offsets.start) +
-				markers +
-				selectedSlice +
-				markers +
-				displayText.slice(offsets.end);
-			newSelStart = offsets.start;
-			newSelEnd = offsets.start + selectedSlice.length + mLen * 2;
-		}
+		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
+			getDisplayText(),
+			offsets,
+			format
+		);
 
 		blockEdit.updateBlockContent(index, newDisplay + '\n', newSelStart);
 

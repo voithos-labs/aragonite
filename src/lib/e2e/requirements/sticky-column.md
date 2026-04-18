@@ -57,7 +57,7 @@ When the same sticky X is captured from a block above and a block below a code b
 
 - **Single-line body**: both entries land at the same visual-line position.
 - **Multi-line body (same first/last body line width)**: landing is symmetric regardless of interior content.
-- **Info string opener** (e.g. ```` ```javascript ````): the opener visual line is wider than the closer, but landing given matched sticky X is still symmetric.
+- **Info string opener** (e.g. ` ```javascript `): the opener visual line is wider than the closer, but landing given matched sticky X is still symmetric.
 - **highlight.js token spans**: the body line is fragmented into many adjacent token spans; rect lookup across span boundaries must not introduce direction-dependent drift.
 - **Real document regression** (`DEFAULT_CONTENT` from the `/test/editor` harness): the multi-block `javascript` code block in the canonical test document serves as the lived-in regression case.
 

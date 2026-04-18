@@ -28,7 +28,12 @@ import {
 	isBlockEditable,
 	findMergeTarget
 } from '../../tree-operations/merge-rules';
-import { parseInline, getContentRange, isProseKind } from '../../core/inline';
+import {
+	parseInline,
+	getContentRange,
+	isProseKind,
+	parseAllInlineContent
+} from '../../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
@@ -203,18 +208,23 @@ export function createBlockEditActions(
 			);
 		},
 
-		updateBlockContent(blockIndex: number, text: string, preEditOffset?: number): void {
+		async updateBlockContent(
+			blockIndex: number,
+			text: string,
+			preEditOffset?: number
+		): Promise<void> {
 			deps.stickyColumn.reset();
 			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
 			const result = performUpdate(deps.doc, blockIndex, text);
 			if (result.kindChanged) {
 				deps.setDocChildren([...deps.doc.children]);
-				// Re-focus after Svelte swaps the component type.
-				// Use preEditOffset (the cursor position before the edit) to restore
-				// the cursor approximately where it was.
-				tick().then(() => {
-					deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
-				});
+				// Re-focus after Svelte swaps the component type. Use
+				// preEditOffset (the cursor position before the edit) to restore
+				// the cursor approximately where it was. `await tick()` rather
+				// than `tick().then(...)` so callers that want to observe the
+				// post-swap state can `await updateBlockContent(...)` directly.
+				await tick();
+				deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
 			}
 		},
 
@@ -275,7 +285,7 @@ export function createBlockEditActions(
 
 			// Parse inline content for any prose-kind replacement blocks.
 			if (normalizedReplacement.length > 0) {
-				deps.parseAllInlineContent(normalizedReplacement);
+				parseAllInlineContent(normalizedReplacement);
 			}
 
 			// Work on plain copies to prevent $state proxy splice cascades.

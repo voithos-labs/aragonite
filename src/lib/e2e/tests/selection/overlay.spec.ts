@@ -16,9 +16,7 @@ test.describe('selection — overlay: happy paths', () => {
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
-		const middle = await editor.page.$(
-			"[data-block-path='[1]'] .selection-overlay-middle"
-		);
+		const middle = await editor.page.$("[data-block-path='[1]'] .selection-overlay-middle");
 		expect(middle).not.toBeNull();
 	});
 
@@ -73,9 +71,7 @@ test.describe('selection — overlay: edge cases', () => {
 		const startOverlays = await editor.page.$$(
 			"[data-block-path='[0]'] .selection-overlay-endpoint"
 		);
-		const endOverlays = await editor.page.$$(
-			"[data-block-path='[2]'] .selection-overlay-endpoint"
-		);
+		const endOverlays = await editor.page.$$("[data-block-path='[2]'] .selection-overlay-endpoint");
 		expect(startOverlays.length).toBeGreaterThan(0);
 		expect(endOverlays.length).toBeGreaterThan(0);
 	});
@@ -112,9 +108,7 @@ test.describe('selection — overlay: edge cases', () => {
 		expect(startOverlays.length).toBeGreaterThan(0);
 
 		// Block 1 (end endpoint) should also have endpoint overlay rects.
-		const endOverlays = await editor.page.$$(
-			"[data-block-path='[1]'] .selection-overlay-endpoint"
-		);
+		const endOverlays = await editor.page.$$("[data-block-path='[1]'] .selection-overlay-endpoint");
 		expect(endOverlays.length).toBeGreaterThan(0);
 	});
 });

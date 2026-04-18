@@ -191,4 +191,3 @@ export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetRes
 
 	return null;
 }
-

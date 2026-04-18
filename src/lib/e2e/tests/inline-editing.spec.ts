@@ -200,6 +200,24 @@ test.describe('inline editing', () => {
 		expect(source).not.toContain('*');
 	});
 
+	// Regression: selecting the word inside `**word**` (excluding the markers,
+	// e.g. via double-click) and pressing Ctrl+B used to double-wrap the text
+	// to `****word****`. The toggle now detects markers flanking the selection
+	// and strips them — matches Obsidian / VS Code / Google Docs.
+	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
+		await editor.loadContent('Hello **world** today\n');
+		// Select "world" only (offsets 8..13 in "Hello **world** today").
+		await editor.focusBlock(0, 8);
+		for (let i = 0; i < 5; i++) {
+			await editor.page.keyboard.press('Shift+ArrowRight');
+		}
+		await editor.page.keyboard.press('Control+b');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Hello world today');
+		expect(source).not.toContain('****');
+	});
+
 	test('Ctrl+B with no selection is a no-op', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);

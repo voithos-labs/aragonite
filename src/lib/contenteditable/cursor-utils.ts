@@ -107,9 +107,7 @@ export function getSelectionFocusOffset(container: HTMLElement): number | null {
  * Read the current selection's character offsets inside `container`, or null
  * if the selection is collapsed or not inside `container`.
  */
-export function getSelectionOffsets(
-	container: HTMLElement
-): { start: number; end: number } | null {
+export function getSelectionOffsets(container: HTMLElement): { start: number; end: number } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
 	const range = sel.getRangeAt(0);

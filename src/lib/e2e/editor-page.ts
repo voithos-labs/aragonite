@@ -191,7 +191,9 @@ export class EditorPage {
 				const attr = JSON.stringify(path);
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
 				if (!wrapper) return;
-				const block = wrapper.querySelector(':scope > :not(.selection-overlay)') as HTMLElement | null;
+				const block = wrapper.querySelector(
+					':scope > :not(.selection-overlay)'
+				) as HTMLElement | null;
 				if (!block) return;
 				block.focus();
 
@@ -307,10 +309,7 @@ export class EditorPage {
 		const steps = 10;
 		for (let i = 1; i <= steps; i++) {
 			const t = i / steps;
-			await this.page.mouse.move(
-				start.x + (end.x - start.x) * t,
-				start.y + (end.y - start.y) * t
-			);
+			await this.page.mouse.move(start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t);
 		}
 		await this.page.mouse.up();
 		await this.page.waitForTimeout(100);
@@ -336,9 +335,7 @@ export class EditorPage {
 	): Promise<{ x: number; y: number } | null> {
 		return this.page.evaluate(
 			({ path, offset }) => {
-				const wrapper = document.querySelector(
-					`[data-block-path='${JSON.stringify(path)}']`
-				);
+				const wrapper = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
 				if (!editable) return null;
 				const range = document.createRange();

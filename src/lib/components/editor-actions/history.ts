@@ -7,6 +7,7 @@
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../contracts';
 import { applySelectionToDom } from '../../selection/native-bridge';
+import { parseAllInlineContent } from '../../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createHistoryActions(
@@ -21,7 +22,7 @@ export function createHistoryActions(
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;
 			deps.setDoc(entry.snapshot);
-			deps.parseAllInlineContent(deps.doc.children);
+			parseAllInlineContent(deps.doc.children);
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
@@ -32,7 +33,7 @@ export function createHistoryActions(
 			const entry = deps.undoManager.redo(controller.captureCurrentState());
 			if (!entry) return;
 			deps.setDoc(entry.snapshot);
-			deps.parseAllInlineContent(deps.doc.children);
+			parseAllInlineContent(deps.doc.children);
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);

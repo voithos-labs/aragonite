@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-	createStandardNestedActions
-} from '../../components/blocks/container-state/nested-actions';
+import { createStandardNestedActions } from '../../components/blocks/container-state/nested-actions';
 import { createBlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { BlockEditActions, FocusActions, ContainerEditActions } from '../../contracts';
@@ -53,7 +51,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -72,7 +72,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 5,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -91,7 +93,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw,
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -115,7 +119,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 0,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw,
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -133,7 +139,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 7,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -153,7 +161,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 3,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
@@ -171,7 +181,9 @@ describe('createStandardNestedActions', () => {
 
 		const bundle = createStandardNestedActions(state, {
 			index: 3,
-			get node() { return node; },
+			get node() {
+				return node;
+			},
 			rebuildRaw: vi.fn(),
 			stickyColumn: fakeStickyColumn(),
 			parent
