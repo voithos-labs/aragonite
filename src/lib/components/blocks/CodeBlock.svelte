@@ -48,10 +48,10 @@
 		isBetweenEmptyBracketPair
 	} from './code/code-editing';
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
-	import { computeCodePaste } from './code/code-paste';
 	import { computeCodeEnter } from './code/code-enter';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
+	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -444,7 +444,7 @@
 	 * Copy pulls the native selection verbatim — fences and all. The concern
 	 * that a lone fence on the clipboard makes pasting into a paragraph create
 	 * an unclosed code block is real, but the fix lives on the paste side:
-	 * when the target is a code block, `computeCodePaste` bumps the outer
+	 * when the target is a code block, the code paste surface bumps the outer
 	 * fence to a longer run so any pasted fence stays literal body. Pasting
 	 * into a paragraph matches whatever the user selected, including orphan
 	 * fences — the trade-off accepted when we chose "clipboard is literal"
@@ -498,18 +498,23 @@
 		const pasted = e.clipboardData?.getData('text/plain') ?? '';
 		if (!pasted) return;
 
-		const meta = node.metadata as FencedCodeMetadata;
-		const result = computeCodePaste({
-			display: el.textContent ?? '',
-			selection: currentRange(),
-			pasted,
-			fenceMarker: meta.fenceMarker,
-			fenceLength: meta.fenceLength,
-			closed: meta.closed
-		});
+		const sel = currentRange();
+		const result = await pasteDispatch(
+			{
+				pastedText: pasted,
+				targetPath: myPath,
+				offset: sel.start,
+				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
+			},
+			{
+				doc: getDoc(),
+				blockEdit
+			}
+		);
 
-		blockEdit.updateBlockContent(index, result.text + '\n', result.cursor);
-		pendingCursorOffset = result.cursor;
+		if (result.inlineCaretOffset !== undefined) {
+			pendingCursorOffset = result.inlineCaretOffset;
+		}
 	}
 </script>
 
