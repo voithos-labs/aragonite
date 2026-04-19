@@ -98,6 +98,21 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
+	// ── Container-matching unwrap ─────────────────────────────────────────
+	// When the clipboard is a single list/blockquote of kind K and an
+	// ancestor of the target is also kind K (with matching ordered flag
+	// for lists), AND the target's immediate descendant of that ancestor
+	// is empty (e.g. a list-item whose content was deleted by a preceding
+	// cross-block range delete), unwrap the pasted container and splice
+	// its items into the matching ancestor — replacing the empty
+	// descendant. This makes Ctrl+C → Ctrl+V round-trips within a list
+	// preserve structure instead of producing a nested sub-list.
+	const unwrap = findContainerMatchingUnwrap(ctx.doc, input.targetPath, parsed);
+	if (unwrap) {
+		await applyContainerMatchingPaste(unwrap, ctx);
+		return {};
+	}
+
 	const surface = getPasteSurface(targetNode.kind);
 	const clipboardStrategy = pickPasteStrategy(parsed);
 
@@ -308,4 +323,97 @@ function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 		if (!ancestor || !('kind' in ancestor)) break;
 		rebuildContainerRawIfContainer(ancestor as CstNode);
 	}
+}
+
+// ── Container-matching unwrap ────────────────────────────────────────────
+
+interface ContainerUnwrap {
+	/** Path to the matching outer container (list or blockquote). */
+	outerPath: number[];
+	/** Index within outerPath.children of the empty descendant to replace. */
+	spliceIndex: number;
+	/** Items from the clipboard's top-level container, to splice in. */
+	items: CstNode[];
+}
+
+/**
+ * Detect whether a paste should be flattened into a matching ancestor
+ * container. Returns null if no rewrite applies; otherwise returns the
+ * splice target. Only fires when the empty-descendant condition is met,
+ * so non-empty targets keep the standard nested-paste behavior.
+ */
+function findContainerMatchingUnwrap(
+	doc: Document,
+	targetPath: number[],
+	parsed: Document
+): ContainerUnwrap | null {
+	if (parsed.children.length !== 1) return null;
+	const topBlock = parsed.children[0];
+	if (topBlock.kind !== 'list' && topBlock.kind !== 'blockquote') return null;
+	if (!topBlock.children || topBlock.children.length === 0) return null;
+
+	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
+		const ancestorPath = targetPath.slice(0, depth);
+		const ancestor = nodeAt(doc, ancestorPath) as CstNode | null;
+		if (!ancestor) break;
+		if (ancestor.kind !== topBlock.kind) continue;
+
+		if (topBlock.kind === 'list') {
+			const ancOrd = (ancestor.metadata as { ordered?: boolean } | undefined)?.ordered;
+			const topOrd = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered;
+			if (ancOrd !== topOrd) continue;
+		}
+
+		const spliceIndex = targetPath[depth];
+		const targetChild = ancestor.children?.[spliceIndex];
+		if (!targetChild) continue;
+		// Only unwrap when the target's immediate container-child is
+		// empty. Non-empty targets retain the nested-paste behavior to
+		// avoid surprising users who deliberately paste inside a
+		// partially-filled item.
+		if (!isEmptyContainerChild(targetChild)) return null;
+
+		return {
+			outerPath: ancestorPath,
+			spliceIndex,
+			items: topBlock.children
+		};
+	}
+	return null;
+}
+
+/** Empty in the "cross-block delete just cleared this" sense: one leaf
+ * child whose raw has no visible content. */
+function isEmptyContainerChild(node: CstNode): boolean {
+	if (!node.children || node.children.length === 0) return true;
+	if (node.children.length !== 1) return false;
+	const c = node.children[0];
+	if (c.kind !== 'paragraph') return false;
+	return c.raw.trim() === '';
+}
+
+async function applyContainerMatchingPaste(
+	unwrap: ContainerUnwrap,
+	ctx: PasteDispatchContext
+): Promise<void> {
+	const outer = nodeAt(ctx.doc, unwrap.outerPath) as CstNode | null;
+	if (!outer) return;
+	const outerState = getStateForNode(outer);
+	if (!outerState) return;
+
+	outerState.commitChildrenEdit((children, ids, refs) => {
+		children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
+		ids.splice(unwrap.spliceIndex, 1, ...unwrap.items.map(() => generateBlockId()));
+		refs.splice(unwrap.spliceIndex, 1, ...new Array(unwrap.items.length).fill(undefined));
+	});
+
+	// Rebuild the outer container's raw (and any enclosing ancestors)
+	// from the newly-spliced children.
+	const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
+	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
+	await tick();
+
+	// Focus lands at the end of the last inserted item — matches the
+	// structural-paste convention elsewhere.
+	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
 }
