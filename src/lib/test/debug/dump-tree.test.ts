@@ -26,9 +26,7 @@ describe('dumpTree', () => {
 	it('truncates raw past maxRawChars with an ellipsis', () => {
 		const long = 'a'.repeat(60);
 		const doc = parse(long + '\n');
-		const out = dumpTree(doc);
-		expect(out).toContain('…');
-		expect(out.length).toBeLessThan(long.length + 40);
+		expect(dumpTree(doc)).toBe(`[0] paragraph "${'a'.repeat(40)}…"`);
 	});
 
 	it('honours custom maxRawChars', () => {
@@ -49,5 +47,10 @@ describe('dumpTree', () => {
 		expect(out).toMatch(/\[0\] list kind=bullet .*children=2/);
 		expect(out).toMatch(/  \[0\] listItem marker="- " children=1/);
 		expect(out).toMatch(/    \[0\] paragraph "first"/);
+	});
+
+	it('includes metaRaw when showAllMetadata is true', () => {
+		const doc = parse('## Hello\n');
+		expect(dumpTree(doc, { showAllMetadata: true })).toContain('metaRaw=');
 	});
 });

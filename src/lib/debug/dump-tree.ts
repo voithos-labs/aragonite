@@ -54,8 +54,6 @@ function formatMetadata(node: CstNode, opts: Required<DumpTreeOptions>): string 
 	const frags: string[] = [];
 	switch (node.kind) {
 		case 'heading':
-			if ('level' in m && m.level) frags.push(`level=${m.level}`);
-			break;
 		case 'setextHeading':
 			if ('level' in m && m.level) frags.push(`level=${m.level}`);
 			break;
@@ -68,12 +66,13 @@ function formatMetadata(node: CstNode, opts: Required<DumpTreeOptions>): string 
 			if ('marker' in m && m.marker) frags.push(`marker=${JSON.stringify(m.marker)}`);
 			break;
 		case 'list':
-			if ('ordered' in m && m.ordered) frags.push('kind=ordered');
-			if ('ordered' in m && !m.ordered) frags.push('kind=bullet');
+			if ('ordered' in m) frags.push(`kind=${m.ordered ? 'ordered' : 'bullet'}`);
 			break;
 		case 'listItem':
 			if ('marker' in m && m.marker) frags.push(`marker=${JSON.stringify(m.marker)}`);
-			if ('taskItem' in m && m.taskItem) frags.push(`task=${(m as any).taskChecked ? 'x' : ' '}`);
+			if ('taskItem' in m && m.taskItem && 'taskChecked' in m) {
+				frags.push(`task=${m.taskChecked ? 'x' : ' '}`);
+			}
 			break;
 		case 'blockquote':
 			if ('quoteDepth' in m && m.quoteDepth) frags.push(`quoteDepth=${m.quoteDepth}`);
