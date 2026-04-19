@@ -17,9 +17,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 
 	test('shift-click cross-block, paste multi-item list over multi-item selection', async () => {
 		await editor.loadContent('- target one\n- target two\n- target three\n- tail\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
@@ -42,9 +40,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		page
 	}) => {
 		await editor.loadContent('- target one\n- target two\n- target three\n- tail\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);

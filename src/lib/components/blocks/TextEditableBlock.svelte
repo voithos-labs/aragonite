@@ -453,9 +453,7 @@
 				pastedText,
 				targetPath: myPath,
 				offset: selOffsets ? selOffsets.start : offset,
-				preDelete: selOffsets
-					? { start: selOffsets.start, end: selOffsets.end }
-					: undefined
+				preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
 			},
 			{
 				doc: getDoc(),
