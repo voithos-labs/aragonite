@@ -53,21 +53,6 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
-	// Re-sync IDs when children count changes externally (undo/redo, or a
-	// parent-level structural op that mutates this container's CST via the
-	// deep $state proxy without going through commitChildrenEdit — e.g.
-	// ListBlock.promoteNestedItem removing a nested sub-list from a list
-	// item). Regenerating ids forces Svelte to remount children, so the
-	// existing refs are stale; reset the refs array to match the new
-	// child count so trailing slots don't point at unmounted components.
-	$effect(() => {
-		const childCount = (getNode().children ?? []).length;
-		if (childCount !== innerBlockIds.length) {
-			innerBlockIds = assignIds(getNode().children ?? []);
-			innerBlockRefs = new Array(childCount);
-		}
-	});
-
 	function commitChildrenEdit(
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
 	): void {
