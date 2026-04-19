@@ -58,10 +58,20 @@ export function buildPastedReplacement(
 	// of the parsed clipboard (no preceding content in the clipboard);
 	// without the override, that block butts up against the leading slice
 	// via a soft line break and the user sees one merged paragraph.
+	//
+	// Empty paragraphs (raw "\n" only) ARE themselves the blank-line
+	// separator — don't also force "\n" trivia, or the double newline
+	// renders as two visible blank lines. Same goes for a block
+	// immediately following an empty paragraph: the previous empty's raw
+	// provides the newline separation already.
 	for (let i = 0; i < blocks.length; i++) {
 		const node = { ...blocks[i] };
+		const prev = newNodes[newNodes.length - 1];
+		const prevIsEmptyParagraph = prev !== undefined && isEmptyParagraphNode(prev);
 		if (newNodes.length === 0) {
 			node.leadingTrivia = originalTrivia;
+		} else if (isEmptyParagraphNode(blocks[i]) || prevIsEmptyParagraph) {
+			node.leadingTrivia = blocks[i].leadingTrivia ?? '';
 		} else {
 			node.leadingTrivia = blocks[i].leadingTrivia ? blocks[i].leadingTrivia : lineEnding;
 		}
@@ -87,6 +97,18 @@ export function buildPastedReplacement(
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * Empty-paragraph sentinel: a paragraph whose raw contains only an
+ * optional line ending (the visual "blank line" produced by typing
+ * Enter on an empty paragraph). Such blocks are their own blank-line
+ * separator and don't need additional leadingTrivia to separate from
+ * their neighbors.
+ */
+function isEmptyParagraphNode(node: CstNode): boolean {
+	if (node.kind !== 'paragraph') return false;
+	return node.raw === '' || node.raw === '\n' || node.raw === '\r\n';
+}
 
 /**
  * Parse a raw fragment and return its first block, or a fallback paragraph

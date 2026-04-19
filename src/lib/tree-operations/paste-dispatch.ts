@@ -133,9 +133,45 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, parsed.children, input.preDelete);
+	const blocks = materializeBlankLines(parsed.children);
+	const result = hook(targetNode, input.offset, blocks, input.preDelete);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};
+}
+
+/**
+ * Convert blank-line trivia on top-level pasted blocks into explicit
+ * empty-paragraph blocks. Keyboard typing (Enter-Enter) produces an empty
+ * paragraph block that renders as a visible blank-line row; the parser
+ * collapses the same semantic into `leadingTrivia` on the following block
+ * (which serializes the same but doesn't render as a visible row). Without
+ * this normalization, pasting content like "one\n\ntwo" produces two
+ * blocks visually touching, while typing the same content shows a blank
+ * line — same serialized source, different rendered structure.
+ *
+ * Rule: for each block after the first whose leadingTrivia contains N
+ * newlines (N >= 1 indicates a blank line preceded), prepend N empty
+ * paragraph blocks and clear the trivia. Non-recursive — only applies to
+ * the top-level block sequence, not nested container children (list
+ * items don't carry blank-line semantics in their own trivia).
+ */
+function materializeBlankLines(blocks: CstNode[]): CstNode[] {
+	if (blocks.length <= 1) return blocks;
+	const out: CstNode[] = [blocks[0]];
+	for (let i = 1; i < blocks.length; i++) {
+		const block = blocks[i];
+		const trivia = block.leadingTrivia ?? '';
+		const newlineCount = (trivia.match(/\n/g) ?? []).length;
+		if (newlineCount >= 1) {
+			for (let j = 0; j < newlineCount; j++) {
+				out.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+			}
+			out.push({ ...block, leadingTrivia: '' });
+		} else {
+			out.push(block);
+		}
+	}
+	return out;
 }
 
 /** Parse a parsed-document shape into the dispatch strategy. */
