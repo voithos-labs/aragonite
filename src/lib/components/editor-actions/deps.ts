@@ -12,6 +12,7 @@ import type {
 } from '../../contracts';
 import type { StickyColumnState } from '../../contenteditable/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import type { OperationKind, OperationsLog } from '../../debug/operations-log';
 
 export interface EditorActionsDeps {
 	// Reactive state — getters read the live value from Svelte's $state.
@@ -28,6 +29,8 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
+	// Optional — when present, structural mutations and undo/redo are logged.
+	operationsLog?: OperationsLog;
 }
 
 export interface UndoController {
@@ -38,7 +41,10 @@ export interface UndoController {
 		snapshotOffset: number,
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void,
-		options?: { skipSnapshot?: boolean }
+		options?: {
+			skipSnapshot?: boolean;
+			op?: { kind: OperationKind; detail?: Record<string, unknown> };
+		}
 	): Promise<void>;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
