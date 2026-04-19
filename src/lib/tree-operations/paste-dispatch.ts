@@ -9,14 +9,24 @@
  * into result data. This module owns parsing, strategy selection,
  * mutation routing, and focus landing so surface authors never need to
  * understand the reactive / undo architecture.
+ *
+ * Inline paste is special: the target block's own reactive rendering
+ * pipeline is responsible for cursor placement via `pendingCursorOffset`.
+ * The dispatcher returns the caret offset so the caller can set
+ * `pendingCursorOffset` synchronously alongside the raw mutation, keeping
+ * both writes in a single Svelte reactivity flush. Cross-block inline
+ * paste (skipSnapshot) bypasses updateBlockContent entirely and uses
+ * DOM-level focus because the originating block's pendingCursorOffset
+ * may address a block that's about to be unmounted by the range delete.
  */
 
 import { tick } from 'svelte';
-import type { BlockKind, CstNode, Document } from '../core/nodes';
-import type { BlockEditActions, BlockComponent } from '../contracts';
+import type { CstNode, Document } from '../core/nodes';
+import type { BlockEditActions } from '../contracts';
 import { CURSOR_END } from '../contracts';
 import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
+import { isProseKind, parseInline, getContentRange } from '../core/inline';
 import { buildPastedReplacement } from './paste-replacement';
 import { nodeAt } from './node-ops';
 import { rebuildContainerRawIfContainer } from './container-raw';
@@ -48,11 +58,27 @@ export interface PasteDispatchInput {
 
 export interface PasteDispatchContext {
 	doc: Document;
+	/** Action bundle for the target's level (top-level or nested). Used
+	 * for single-block paste to route updates through updateBlockContent
+	 * / replaceBlock. Not used in cross-block (skipSnapshot) mode because
+	 * the originating block's bundle may not match the target's level. */
 	blockEdit: BlockEditActions;
-	/** Top-level block refs, for focus landing on top-level pastes. */
-	blockRefs: (BlockComponent | undefined)[];
-	/** Skip pushing an undo snapshot — caller already owns the bracket. */
+	/** Skip pushing an undo snapshot and bypass updateBlockContent's
+	 * debounce. Set by cross-block callers that already pushed a
+	 * snapshot via beginContainerEdit. */
 	skipSnapshot?: boolean;
+}
+
+export interface PasteDispatchResult {
+	/** For inline paste: caret offset to restore after the raw mutation
+	 * settles. Callers should:
+	 * - Single-block: set the block's `pendingCursorOffset` to this value
+	 *   synchronously with the updateBlockContent call (so both land in
+	 *   one reactive flush).
+	 * - Cross-block: use for DOM-level caret restoration via
+	 *   applyCollapsedCaret + el.focus() after awaiting reactivity.
+	 * Undefined for structural paste — focus is handled internally. */
+	inlineCaretOffset?: number;
 }
 
 /**
@@ -63,14 +89,14 @@ export interface PasteDispatchContext {
 export async function pasteDispatch(
 	input: PasteDispatchInput,
 	ctx: PasteDispatchContext
-): Promise<void> {
-	if (!input.pastedText) return;
+): Promise<PasteDispatchResult> {
+	if (!input.pastedText) return {};
 
 	const parsed = parse(input.pastedText);
-	if (parsed.children.length === 0) return;
+	if (parsed.children.length === 0) return {};
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
-	if (!targetNode) return;
+	if (!targetNode) return {};
 
 	const strategy = pickPasteStrategy(parsed);
 	const surface = getPasteSurface(targetNode.kind);
@@ -78,13 +104,14 @@ export async function pasteDispatch(
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, input.pastedText, input.preDelete);
-		await applyInlineResult(input.targetPath, result, ctx);
-		return;
+		applyInlineResult(input.targetPath, result, ctx);
+		return { inlineCaretOffset: result.caretOffset };
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
 	const result = hook(targetNode, input.offset, parsed.children, input.preDelete);
 	await applyStructuralResult(input.targetPath, result, ctx);
+	return {};
 }
 
 /** Parse a parsed-document shape into the dispatch strategy. */
@@ -172,7 +199,7 @@ for (const kind of ['paragraph', 'heading', 'setextHeading'] as const) {
 }
 
 /** Test-only: produce a default text surface descriptor (for unit tests). */
-export function __getDefaultTextSurface(kind: BlockKind): PasteSurface {
+export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {
 	return {
 		kind,
 		onInlinePaste: defaultInlineHook,
@@ -182,28 +209,50 @@ export function __getDefaultTextSurface(kind: BlockKind): PasteSurface {
 
 // ── Mutation routing ───────────────────────────────────────────────────────
 
-async function applyInlineResult(
+/**
+ * Apply an inline paste synchronously. For single-block paste, routes
+ * through the target's own `updateBlockContent` (which handles snapshot,
+ * inline re-parse, and kind-change focus). For cross-block paste
+ * (skipSnapshot), mutates raw directly because the originating bundle
+ * may not match the target's level.
+ *
+ * Intentionally synchronous (no `await`): the caller must set cursor
+ * state (`pendingCursorOffset` for single-block, DOM caret for
+ * cross-block) before the first Svelte reactivity flush, so this
+ * function returns before any microtask boundary.
+ */
+function applyInlineResult(
 	targetPath: number[],
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
-): Promise<void> {
-	if (targetPath.length === 1) {
-		// Top-level inline paste routes through updateBlockContent which already
-		// handles undo debouncing, kind-change re-render, and focus.
-		await ctx.blockEdit.updateBlockContent(targetPath[0], result.newRaw, result.caretOffset);
-		await tick();
-		ctx.blockRefs[targetPath[0]]?.focus(result.caretOffset);
+): void {
+	if (ctx.skipSnapshot) {
+		// Cross-block: caller owns snapshot bracket. Mutate raw, re-parse
+		// inline for prose kinds, rebuild ancestry so container raw
+		// reflects the change. Caller awaits reactivity and restores
+		// DOM caret.
+		const targetNode = nodeAt(ctx.doc, targetPath) as CstNode | null;
+		if (!targetNode) return;
+		targetNode.raw = result.newRaw;
+		if (isProseKind(targetNode.kind)) {
+			const range = getContentRange(targetNode);
+			targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
+		}
+		if (targetPath.length >= 2) {
+			rebuildAncestryForLeaf(ctx.doc, targetPath);
+		}
 		return;
 	}
 
-	// Nested inline paste: mutate raw directly, rebuild ancestry raw. Mirrors
-	// the pattern cross-block-dispatch's inline path used pre-consolidation
-	// for nested targets.
-	const targetNode = nodeAt(ctx.doc, targetPath) as CstNode | null;
-	if (!targetNode) return;
-	targetNode.raw = result.newRaw;
-	rebuildAncestryForLeaf(ctx.doc, targetPath);
-	await tick();
+	// Single-block inline paste: target is the originating block, so
+	// ctx.blockEdit is its own bundle (top-level or nested via Svelte
+	// context walking). updateBlockContent handles snapshot +
+	// inline re-parse + kind-change focus. Called unawaited — the sync
+	// side effects (raw mutation via performUpdate, snapshot debounce)
+	// fire immediately, and the caller sets pendingCursorOffset next in
+	// the same synchronous block so both land in one reactive flush.
+	const blockIndex = targetPath[targetPath.length - 1];
+	ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
 }
 
 async function applyStructuralResult(
@@ -226,8 +275,8 @@ async function applyStructuralResult(
 	}
 
 	// Nested structural: splice through the parent container's
-	// BlockListState so ids/refs stay aligned (same as the 0.5.1-rewritten
-	// nested paste path).
+	// BlockListState so ids/refs stay aligned (same as the 0.5.1
+	// registry-rewritten path).
 	const parentPath = targetPath.slice(0, -1);
 	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
 	const innerIndex = targetPath[targetPath.length - 1];
