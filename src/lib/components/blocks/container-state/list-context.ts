@@ -22,6 +22,7 @@ import {
 	buildExitReplacement
 } from '../../../tree-operations/list-ops';
 import type { BlockListState } from './block-list-state.svelte';
+import { getStateForNode } from './state-registry';
 
 export interface ListContextDeps {
 	/** Reactive getter for the list container's own index in its parent. */
@@ -67,7 +68,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			let destList: CstNode;
 			if (existingNestedList && existingNestedList.children) {
-				existingNestedList.children.push(movedItem);
+				// existingNestedList is a currently-mounted list inside prevItem;
+				// its ListBlock registered a BlockListState on mount.
+				const existingState = getStateForNode(existingNestedList)!;
+				existingState.commitChildrenEdit((children, ids, refs) => {
+					children.push(movedItem);
+					ids.push(generateBlockId());
+					refs.push(undefined);
+				});
 				destList = existingNestedList;
 			} else {
 				destList = {
@@ -77,7 +85,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					metadata: { ordered },
 					children: [movedItem]
 				};
-				prevItem.children.push(destList);
+				// prevItem is a currently-mounted list item; its ListItemBlock
+				// registered a BlockListState on mount.
+				const prevItemState = getStateForNode(prevItem)!;
+				prevItemState.commitChildrenEdit((children, ids, refs) => {
+					children.push(destList);
+					ids.push(generateBlockId());
+					refs.push(undefined);
+				});
 			}
 
 			// Renumber the destination list (so the appended item slots into the
@@ -157,15 +172,29 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			const item = nestedListNode.children[nestedItemIdx];
 
-			// 1. Remove item from nested list; renumber and rebuild the remainder,
-			// or delete the nested list if it's now empty. These mutations touch
-			// parentItem's inner children (via $state proxy) — the parentItem's
-			// own BlockListState $effect will catch the childCount drift and
-			// resync its refs on the next render flush.
-			nestedListNode.children.splice(nestedItemIdx, 1);
+			// 1. Remove item from nested list through the nested list's own
+			// state, so its ids/refs stay aligned with its mounted children.
+			// If the nested list is now empty, remove it from parentItem
+			// through parentItem's state so parentItem's ids/refs likewise
+			// stay aligned. Both nodes are currently mounted containers —
+			// their BlockListState is registered.
+			const nestedListState = getStateForNode(nestedListNode)!;
+			nestedListState.commitChildrenEdit((children, ids, refs) => {
+				children.splice(nestedItemIdx, 1);
+				ids.splice(nestedItemIdx, 1);
+				refs.splice(nestedItemIdx, 1);
+			});
+
 			if (nestedListNode.children.length === 0) {
-				const nestedIdx = parentItem.children.indexOf(nestedListNode);
-				if (nestedIdx !== -1) parentItem.children.splice(nestedIdx, 1);
+				const parentItemState = getStateForNode(parentItem)!;
+				parentItemState.commitChildrenEdit((children, ids, refs) => {
+					const nestedIdx = children.indexOf(nestedListNode);
+					if (nestedIdx !== -1) {
+						children.splice(nestedIdx, 1);
+						ids.splice(nestedIdx, 1);
+						refs.splice(nestedIdx, 1);
+					}
+				});
 			} else {
 				renumberOrderedList(nestedListNode);
 				rebuildListRaw(nestedListNode);
