@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
+import { renderCodeBlock } from '../../../components/blocks/code/code-renderer';
 import {
 	bootstrapCodeLanguages,
 	__resetBootForTests
-} from '../../components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '../../components/blocks/code/code-languages';
-import { trimTrailingLineEnding } from '../../core/lines';
-import type { CstNode } from '../../core/nodes';
+} from '../../../components/blocks/code/code-bootstrap';
+import { __resetRegistryForTests } from '../../../components/blocks/code/code-languages';
+import { trimTrailingLineEnding } from '../../../core/lines';
+import type { CstNode } from '../../../core/nodes';
 
 function makeFencedCodeNode(
 	raw: string,

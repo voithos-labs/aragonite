@@ -261,8 +261,8 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(list.children?.length).toBe(1);
 		const mergedRaw = list.children?.[0].raw ?? '';
 		expect(mergedRaw).toContain('AB');
-		// Target path should be [0] (first item in list), offset = length of "A"
-		expect(mergePoint.targetPath).toEqual([0]);
+		// Target path is [0, 0] — first item's first (only) paragraph. Offset = length of "A".
+		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
 	});
 
@@ -280,8 +280,8 @@ describe('mergeListItemIntoPrevious', () => {
 		// Second child is the absorbed nested list containing C
 		expect(mergedItem?.children?.[1].kind).toBe('list');
 		expect(mergedItem?.children?.[1].children?.[0].raw ?? '').toContain('C');
-		// Target: [0] (first item), offset = length of "A"
-		expect(mergePoint.targetPath).toEqual([0]);
+		// Target: [0, 0] — first item's first paragraph. Offset = length of "A".
+		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
 	});
 
@@ -303,10 +303,9 @@ describe('mergeListItemIntoPrevious', () => {
 		expect((nestedList?.children?.[0].children?.[0].raw ?? '').trim()).toBe('AAB');
 		// Second nested item: "C" (moved from being B's child)
 		expect((nestedList?.children?.[1].children?.[0].raw ?? '').trim()).toBe('C');
-		// Target "AA" lives in A (index 0) → nestedList (index 1) → item AA (index 0).
-		// Uniform path strips the trailing paragraph index: [0, 1, 0].
-		// Offset is measured within AA's paragraph, before the appended text.
-		expect(mergePoint.targetPath).toEqual([0, 1, 0]);
+		// Target "AA" lives in A (0) → nestedList (1) → item AA (0) → paragraph (0).
+		// Uniform path through the paragraph leaf: [0, 1, 0, 0].
+		expect(mergePoint.targetPath).toEqual([0, 1, 0, 0]);
 		expect(mergePoint.offset).toBe('AA'.length);
 	});
 
@@ -335,9 +334,9 @@ describe('mergeListItemIntoPrevious', () => {
 		expect((depth2List?.children?.[0]?.children?.[0]?.raw ?? '').trim()).toBe('CD');
 		// Second: E (at depth 1 as sibling of B)
 		expect((depth1List?.children?.[1]?.children?.[0]?.raw ?? '').trim()).toBe('E');
-		// Uniform path with trailing paragraph index stripped before return:
-		// [0 (A) → 1 (nestedList in A) → 0 (B) → 1 (nestedList in B) → 0 (C)]
-		expect(mergePoint.targetPath).toEqual([0, 1, 0, 1, 0]);
+		// Uniform path through the paragraph leaf:
+		// [0 (A) → 1 (nestedList) → 0 (B) → 1 (nestedList) → 0 (C) → 0 (para)]
+		expect(mergePoint.targetPath).toEqual([0, 1, 0, 1, 0, 0]);
 		expect(mergePoint.offset).toBe('C'.length);
 	});
 
@@ -353,8 +352,29 @@ describe('mergeListItemIntoPrevious', () => {
 		const target = list.children?.[0];
 		expect((target?.children?.[0].raw ?? '').trim()).toBe('AB');
 		expect((target?.children?.[1]?.raw ?? '').trim()).toBe('extra');
-		expect(mergePoint.targetPath).toEqual([0]);
+		// Target A is not loose — its first paragraph is the leaf: [0, 0].
+		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
+	});
+
+	it('row 5b: target item is loose — trailing paragraph index is not 0', () => {
+		// Loose target: A has two paragraphs (para "A", para "extra").
+		// findDeepestVisibleTextTarget walks to A's LAST paragraph, so the
+		// merge point sits on A.children[1], not A.children[0]. The old
+		// `targetPath.slice(0,-1)` + `[...restPath, 0]` dance dropped this
+		// index and cascaded focus to A.children[0] — the wrong paragraph.
+		const list = parseList('- A\n\n  extra\n- B\n');
+
+		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+
+		expect(list.children?.length).toBe(1);
+		const target = list.children?.[0];
+		expect(target?.children?.length).toBe(2);
+		expect((target?.children?.[0].raw ?? '').trim()).toBe('A');
+		expect((target?.children?.[1].raw ?? '').trim()).toBe('extraB');
+		// Uniform path through the appended-into paragraph leaf: [0, 1].
+		expect(mergePoint.targetPath).toEqual([0, 1]);
+		expect(mergePoint.offset).toBe('extra'.length);
 	});
 
 	it('ordered list: remaining items renumber after the merged item is deleted', () => {

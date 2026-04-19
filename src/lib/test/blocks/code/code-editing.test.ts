@@ -9,7 +9,7 @@ import {
 	BRACKET_PAIRS,
 	QUOTE_CHARS,
 	SKIP_CLOSE_CHARS
-} from '../../components/blocks/code/code-editing';
+} from '../../../components/blocks/code/code-editing';
 
 // ── getLineLeadingWhitespace ────────────────────────────────────────────────
 

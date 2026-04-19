@@ -232,7 +232,8 @@ export function createStandardNestedActions(
 			innerIndex: number,
 			offset: number,
 			blocks: CstNode[],
-			preDelete?: { start: number; end: number }
+			preDelete?: { start: number; end: number },
+			options?: { skipSnapshot?: boolean }
 		): Promise<void> {
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
@@ -254,20 +255,34 @@ export function createStandardNestedActions(
 				effectiveOffset = preDelete.start;
 			}
 			const replacement = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
-			await blockEdit.replaceBlock(innerIndex, replacement, {
-				replacementIndex: replacement.length - 1,
-				offset: CURSOR_END
-			});
+			await blockEdit.replaceBlock(
+				innerIndex,
+				replacement,
+				{
+					replacementIndex: replacement.length - 1,
+					offset: CURSOR_END
+				},
+				options
+			);
 		},
 
 		async replaceBlock(
 			innerIndex: number,
 			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number }
+			focus?: { replacementIndex: number; offset: number },
+			options?: { skipSnapshot?: boolean }
 		): Promise<void> {
 			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			parent.containerEdit?.beginContainerEdit(deps.index, 0);
+			// Cross-block paste pre-pushes one snapshot covering the whole
+			// delete-then-paste. When the dispatching bundle is a nested
+			// container, this path runs for the paste half — skipping
+			// beginContainerEdit avoids a duplicate snapshot. The sticky-column
+			// reset and debounce-clear inside beginContainerEdit were already
+			// done by the caller's pre-paste pushUndoSnapshot.
+			if (!options?.skipSnapshot) {
+				parent.containerEdit?.beginContainerEdit(deps.index, 0);
+			}
 
 			state.commitChildrenEdit((children, ids, refs) => {
 				if (replacement.length === 0) {
@@ -300,10 +315,20 @@ export function createStandardNestedActions(
 
 	const focus: FocusActions = {
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			await dispatchMoveFocus(state.innerBlockRefs, innerIndex, position, stickyColumn, {
-				focus: parent.focus,
-				index: deps.index
-			});
+			// Pass node.children.length as authoritative bound — refs.length can
+			// lag after a structural op (bind:this write is asynchronous), and
+			// a stale low bound would make delegation fire too early.
+			await dispatchMoveFocus(
+				state.innerBlockRefs,
+				innerIndex,
+				position,
+				stickyColumn,
+				{
+					focus: parent.focus,
+					index: deps.index
+				},
+				deps.node.children?.length
+			);
 		}
 	};
 

@@ -1,27 +1,27 @@
 /**
  * Factory for the ListContext bundle that a ListBlock provides to its child
- * ListItemBlock components — pure tree-manipulation logic with no Svelte
- * rendering or lifecycle, parameterized on the list's reactive node/index,
- * its BlockListState, and the parent action handles.
+ * ListItemBlock components. Container-local wiring: it reaches into the list's
+ * reactive BlockListState and calls through to the parent bundle, so it lives
+ * under container-state/ alongside the state it depends on.
  */
 
 import { tick } from 'svelte';
-import type { CstNode } from '../core/nodes';
+import type { CstNode } from '../../../core/nodes';
 import {
 	FOCUS_LAST_START,
 	type BlockEditActions,
 	type FocusActions,
 	type ContainerEditActions,
 	type ListContext
-} from '../contracts';
-import { generateBlockId } from './block-id';
-import { rebuildListRaw, rebuildListItemRaw } from './container-raw';
+} from '../../../contracts';
+import { generateBlockId } from '../../../tree-operations/block-id';
+import { rebuildListRaw, rebuildListItemRaw } from '../../../tree-operations/container-raw';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList,
 	buildExitReplacement
-} from './list-ops';
-import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
+} from '../../../tree-operations/list-ops';
+import type { BlockListState } from './block-list-state.svelte';
 
 export interface ListContextDeps {
 	/** Reactive getter for the list container's own index in its parent. */

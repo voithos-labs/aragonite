@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { indentLines, dedentLines } from '../../components/blocks/code/code-indent';
+import { indentLines, dedentLines } from '../../../components/blocks/code/code-indent';
 
 // ── indentLines: collapsed selection (single tab insert) ────────────────────
 

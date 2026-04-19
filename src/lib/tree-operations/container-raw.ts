@@ -92,8 +92,7 @@ function prefixLines(text: string, contentPrefix: string, blankPrefix: string): 
  * pointed at by the path) is NOT rebuilt — the caller is expected to have
  * already mutated the leaf's raw before calling this.
  *
- * Used by cross-container merge (Editor.mergeWithPrevious) and by M1's
- * mergeListItemIntoPrevious (via the refactor in Task 4).
+ * Used by cross-container merge and by M1's mergeListItemIntoPrevious.
  */
 export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 	if (path.length === 0) {

@@ -91,9 +91,9 @@ export interface BlockComponent {
 	/**
 	 * Position the cursor at the offset nearest to editor-relative pixel X
 	 * on the block's first visual line (`from === 'above'`) or last visual
-	 * line (`from === 'below'`). Optional — blocks that don't participate in
-	 * sticky column (code block, thematic break) omit this method, and
-	 * callers fall back to focus(0) / focus(CURSOR_END).
+	 * line (`from === 'below'`). Optional — non-participating blocks (e.g.
+	 * thematic break) omit this method, and callers fall back to
+	 * focus(0) / focus(CURSOR_END).
 	 */
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/**
@@ -154,11 +154,16 @@ export interface BlockEditActions {
 	 * given offset after tick.
 	 *
 	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
+	 *
+	 * `options.skipSnapshot` lets callers coalesce with a pre-pushed snapshot
+	 * (e.g. the cross-block delete-then-paste path). When set, the implementation
+	 * must not push its own undo entry.
 	 */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number }
+		focus?: { replacementIndex: number; offset: number },
+		options?: { skipSnapshot?: boolean }
 	): void | Promise<void>;
 }
 

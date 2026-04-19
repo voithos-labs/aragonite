@@ -31,7 +31,8 @@ import {
 	handleShiftClick,
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
-import { findBlockPathForElement, nodeAt } from './path-lookup';
+import { findBlockPathForElement } from './path-lookup';
+import { nodeAt } from '../tree-operations/node-ops';
 import {
 	applyCollapsedCaret,
 	clearNativeSelection,
@@ -458,11 +459,17 @@ async function handleBeforeInput(
 	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
 	if (!caret || !typed) return true;
 
-	const targetNode = nodeAt(ctx.getDoc(), caret.path) as CstNode | null;
+	const doc = ctx.getDoc();
+	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
 	if (!targetNode || !('raw' in targetNode)) return true;
 	targetNode.raw =
 		targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
 	ctx.afterRawMutated?.(targetNode);
+	// Mirror the inline-paste path: when the collapsed caret lives inside a
+	// container, the originating block's containerEdit bracket may not share
+	// the merge target's ancestry. Walk the target's path and rebuild raw
+	// directly so list/blockquote `raw` fields reflect the typed character.
+	rebuildAncestryForLeaf(doc, caret.path);
 	ctx.containerEdit.endContainerEdit();
 	ctx.setPendingCursor(caret.offset + typed.length);
 	return true;

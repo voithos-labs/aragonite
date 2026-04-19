@@ -25,8 +25,18 @@ export class EditorPage {
 		await this.page.evaluate((content) => {
 			(window as any).__test.setSource(content);
 		}, md);
-		// Wait for Svelte reactivity to settle
-		await this.page.waitForTimeout(200);
+		// Poll the test bridge until Svelte reactivity has published the new
+		// source — deterministic replacement for a fixed sleep. The editor
+		// round-trips through serialize(), which normalizes trailing
+		// whitespace, so compare on trimmed forms.
+		await this.page.waitForFunction(
+			(expected) => {
+				const actual = (window as any).__test.getSource() as string;
+				return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
+			},
+			md,
+			{ timeout: 2000, polling: 16 }
+		);
 		await this.editorContainer.waitFor({ state: 'visible' });
 	}
 
@@ -106,82 +116,73 @@ export class EditorPage {
 
 	/** Focus a block and place the cursor at the end of its content. */
 	async focusBlockEnd(index: number) {
-		await this.page.evaluate((idx) => {
-			const blocks = document.querySelectorAll(
-				'.block-list > .block-host > :not(.selection-overlay)'
-			);
-			const block = blocks[idx] as HTMLElement;
-			if (!block) return;
-			block.focus();
-			const range = document.createRange();
-			range.selectNodeContents(block);
-			range.collapse(false);
-			const sel = window.getSelection()!;
-			sel.removeAllRanges();
-			sel.addRange(range);
-		}, index);
+		await this.placeCaretInBlock(index, 'end');
 	}
 
 	/** Focus a block and place the cursor at a specific offset within its content. */
 	async focusBlock(index: number, offset: number) {
+		await this.placeCaretInBlock(index, offset);
+	}
+
+	/** Focus a block and place the cursor at the start of its content. */
+	async focusBlockStart(index: number) {
+		await this.placeCaretInBlock(index, 'start');
+	}
+
+	/**
+	 * Shared caret placement for {@link focusBlockEnd}, {@link focusBlockStart},
+	 * and {@link focusBlock}. Resolves the nth top-level block element, focuses
+	 * it, and collapses a range at the requested position. A numeric position
+	 * walks text nodes to find the matching character offset; `'end'` falls
+	 * back to the block's end if the offset overruns the content.
+	 */
+	private async placeCaretInBlock(
+		index: number,
+		position: 'start' | 'end' | number
+	): Promise<void> {
 		await this.page.evaluate(
-			({ idx, off }) => {
+			({ idx, position }) => {
 				const blocks = document.querySelectorAll(
 					'.block-list > .block-host > :not(.selection-overlay)'
 				);
-				const block = blocks[idx] as HTMLElement;
+				const block = blocks[idx] as HTMLElement | undefined;
 				if (!block) return;
 				block.focus();
 
-				// Walk text nodes to find the position at `off`
-				let remaining = off;
-				function walk(node: Node): { node: Node; offset: number } | null {
-					if (node.nodeType === Node.TEXT_NODE) {
-						const len = node.textContent?.length ?? 0;
-						if (remaining <= len) return { node, offset: remaining };
-						remaining -= len;
+				const range = document.createRange();
+				if (position === 'start' || position === 'end') {
+					range.selectNodeContents(block);
+					range.collapse(position === 'start');
+				} else {
+					let remaining = position;
+					function walk(node: Node): { node: Node; offset: number } | null {
+						if (node.nodeType === Node.TEXT_NODE) {
+							const len = node.textContent?.length ?? 0;
+							if (remaining <= len) return { node, offset: remaining };
+							remaining -= len;
+							return null;
+						}
+						for (const child of node.childNodes) {
+							const result = walk(child);
+							if (result) return result;
+						}
 						return null;
 					}
-					for (const child of node.childNodes) {
-						const result = walk(child);
-						if (result) return result;
+					const pos = walk(block);
+					if (pos) {
+						range.setStart(pos.node, pos.offset);
+						range.collapse(true);
+					} else {
+						range.selectNodeContents(block);
+						range.collapse(false);
 					}
-					return null;
-				}
-
-				const pos = walk(block);
-				const range = document.createRange();
-				if (pos) {
-					range.setStart(pos.node, pos.offset);
-					range.collapse(true);
-				} else {
-					range.selectNodeContents(block);
-					range.collapse(false);
 				}
 				const sel = window.getSelection()!;
 				sel.removeAllRanges();
 				sel.addRange(range);
 			},
-			{ idx: index, off: offset }
+			{ idx: index, position }
 		);
-	}
-
-	/** Focus a block and place the cursor at the start of its content. */
-	async focusBlockStart(index: number) {
-		await this.page.evaluate((idx) => {
-			const blocks = document.querySelectorAll(
-				'.block-list > .block-host > :not(.selection-overlay)'
-			);
-			const block = blocks[idx] as HTMLElement;
-			if (!block) return;
-			block.focus();
-			const range = document.createRange();
-			range.selectNodeContents(block);
-			range.collapse(true);
-			const sel = window.getSelection()!;
-			sel.removeAllRanges();
-			sel.addRange(range);
-		}, index);
 	}
 
 	/** Focus a block by its CST path and place the cursor at a character offset. */
@@ -272,16 +273,23 @@ export class EditorPage {
 		await this.pressKey('ArrowDown');
 	}
 
+	// macOS binds undo/redo/select-all to Cmd; every other platform uses
+	// Ctrl. Using the wrong modifier is a silent no-op on the host OS,
+	// so pick the modifier from the runner's platform.
 	async undo() {
-		await this.page.keyboard.press('Control+z');
+		await this.page.keyboard.press(`${this.primaryModifier}+z`);
 	}
 
 	async redo() {
-		await this.page.keyboard.press('Control+Shift+z');
+		await this.page.keyboard.press(`${this.primaryModifier}+Shift+z`);
 	}
 
 	async selectAll() {
-		await this.page.keyboard.press('Control+a');
+		await this.page.keyboard.press(`${this.primaryModifier}+a`);
+	}
+
+	private get primaryModifier(): 'Meta' | 'Control' {
+		return process.platform === 'darwin' ? 'Meta' : 'Control';
 	}
 
 	async screenshot(name: string) {

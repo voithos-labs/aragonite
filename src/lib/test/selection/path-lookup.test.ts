@@ -9,9 +9,9 @@ import {
 	previousPath,
 	firstPath,
 	lastPath,
-	nodeAt,
 	findBlockPathForElement
 } from '../../selection/path-lookup';
+import { nodeAt } from '../../tree-operations/node-ops';
 import type { CstNode, Document } from '../../core/nodes';
 
 function para(raw: string): CstNode {

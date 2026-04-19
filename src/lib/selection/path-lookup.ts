@@ -5,7 +5,6 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-export { nodeAt } from '../tree-operations/node-ops';
 import { nodeAt } from '../tree-operations/node-ops';
 
 /**

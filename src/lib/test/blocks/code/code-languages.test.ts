@@ -3,7 +3,7 @@ import {
 	registerLanguage,
 	getLanguageGrammar,
 	__resetRegistryForTests
-} from '../../components/blocks/code/code-languages';
+} from '../../../components/blocks/code/code-languages';
 import type { LanguageFn } from 'highlight.js';
 
 const fakeGrammar = (() => ({ name: 'fake' })) as unknown as LanguageFn;

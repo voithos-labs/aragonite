@@ -14,7 +14,8 @@ import {
 	clearNativeSelection,
 	offsetFromViewportPoint
 } from './native-bridge';
-import { nextPath, previousPath, firstPath, lastPath, nodeAt } from './path-lookup';
+import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
+import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths } from './primitives';
 import { displayLength } from '../core/lines';
 

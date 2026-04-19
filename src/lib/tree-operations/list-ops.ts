@@ -236,8 +236,9 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
  *
  * Returns the merge point so the caller can position the cursor:
  *   targetPath: uniform path (every child-array index explicit) from `list` down
- *               to the target listItem — the trailing paragraph index (0) is stripped
- *               so the caller can append 0 itself when cascading through focusByPath.
+ *               to the target paragraph leaf (inclusive). For a non-loose item
+ *               the trailing index is 0; for a loose item it is the index of
+ *               the LAST paragraph within the target listItem.
  *   offset:     display-length position within the target paragraph, before the appended content
  */
 export function mergeListItemIntoPrevious(
@@ -368,16 +369,10 @@ export function mergeListItemIntoPrevious(
 		rebuildListRaw(list);
 	}
 
-	// Return the merge point. Strip the trailing paragraph index (always 0) from
-	// targetPath before returning, so the returned targetPath ends at the target
-	// listItem. ListBlock.svelte appends a 0 itself when cascading focus via
-	// focusByPath, so stripping it here keeps the caller's convention intact.
-	// targetPath ends at the paragraph leaf — required for the resolver loop
-	// above and for rebuildAncestryRaw, both of which need the full path. Strip
-	// the trailing paragraph index before returning, so ListBlock.svelte's
-	// focusByPath cascade can re-append 0 via its existing [...restPath, 0]
-	// convention.
-	return { mergePoint: { targetPath: targetPath.slice(0, -1), offset: mergeOffset } };
+	// Return the full uniform path (through the target paragraph leaf). For
+	// loose items the trailing index is not 0, so ListBlock.svelte's focus
+	// cascade must forward it verbatim rather than reconstructing a trailing 0.
+	return { mergePoint: { targetPath, offset: mergeOffset } };
 }
 
 // ── Exit-list replacement builder ──

@@ -1,10 +1,6 @@
 // src/lib/editor/test/tree-operations/merge-rules.test.ts
 import { describe, it, expect } from 'vitest';
-import {
-	isMergeEligible,
-	isBlockEditable,
-	findMergeTarget
-} from '../../tree-operations/merge-rules';
+import { isMergeEligible, findMergeTarget } from '../../tree-operations/merge-rules';
 import { parse } from '../../core/parser';
 import type { BlockKind, CstNode } from '../../core/nodes';
 import { rebuildAncestryRaw } from '../../tree-operations';
@@ -99,19 +95,10 @@ describe('isMergeEligible', () => {
 	}
 });
 
-describe('isBlockEditable', () => {
-	const editable = ['paragraph', 'heading', 'fencedCode', 'blockquote', 'list', 'listItem'];
-
-	for (const kind of editable) {
-		it(`${kind} is editable`, () => {
-			expect(isBlockEditable(kind as BlockKind)).toBe(true);
-		});
-	}
-
-	it('thematicBreak is NOT editable', () => {
-		expect(isBlockEditable('thematicBreak')).toBe(false);
-	});
-});
+// `isBlockEditable` is covered exhaustively in
+// test/tree-operations/block-kind-descriptor.test.ts — the per-kind loop that
+// previously lived here was a subset of that one and offered no distinct
+// coverage.
 
 describe('findMergeTarget', () => {
 	function parseBlock(src: string): CstNode {
@@ -193,63 +180,9 @@ describe('findMergeTarget', () => {
 	});
 });
 
-describe('isMergeEligible — role-pair coverage', () => {
-	// Two representative kinds per role, exercising the cross-role boundaries
-	// without the full N² combinatorial expansion.
-	const PROSE = 'paragraph' as const;
-	const PROSE_ABSORBER = 'heading' as const;
-	const CONTAINER = 'blockquote' as const;
-	const SELF_MERGE = 'unrecognized' as const;
-	const OPAQUE = 'fencedCode' as const;
-
-	it('prose + prose → eligible', () => {
-		expect(isMergeEligible(PROSE, PROSE)).toBe(true);
-	});
-
-	it('prose-absorber + prose → eligible', () => {
-		expect(isMergeEligible(PROSE_ABSORBER, PROSE)).toBe(true);
-	});
-
-	it('container + prose → eligible (cross-container merge)', () => {
-		expect(isMergeEligible(CONTAINER, PROSE)).toBe(true);
-	});
-
-	it('self-merge + self-merge → eligible', () => {
-		expect(isMergeEligible(SELF_MERGE, SELF_MERGE)).toBe(true);
-	});
-
-	it('prose + prose-absorber → not eligible (headings are not absorbed into paragraphs)', () => {
-		expect(isMergeEligible(PROSE, PROSE_ABSORBER)).toBe(false);
-	});
-
-	it('prose + container → not eligible (paragraph into container as curr is out of scope)', () => {
-		expect(isMergeEligible(PROSE, CONTAINER)).toBe(false);
-	});
-
-	it('container + container → not eligible', () => {
-		expect(isMergeEligible(CONTAINER, CONTAINER)).toBe(false);
-	});
-
-	it('container + prose-absorber → not eligible (heading-into-blockquote out of scope)', () => {
-		expect(isMergeEligible(CONTAINER, PROSE_ABSORBER)).toBe(false);
-	});
-
-	it('opaque + prose → not eligible', () => {
-		expect(isMergeEligible(OPAQUE, PROSE)).toBe(false);
-	});
-
-	it('prose + opaque → not eligible', () => {
-		expect(isMergeEligible(PROSE, OPAQUE)).toBe(false);
-	});
-
-	it('self-merge + prose → not eligible (mixing roles)', () => {
-		expect(isMergeEligible(SELF_MERGE, PROSE)).toBe(false);
-	});
-
-	it('prose + self-merge → not eligible (mixing roles)', () => {
-		expect(isMergeEligible(PROSE, SELF_MERGE)).toBe(false);
-	});
-});
+// The representative-pair describe block that previously lived here duplicated
+// the full cross-product matrix in the `isMergeEligible` describe block above.
+// The exhaustive matrix is the stronger test, so the smaller one was removed.
 
 describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 	function parseBlock(src: string): CstNode {
