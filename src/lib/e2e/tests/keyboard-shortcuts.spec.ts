@@ -63,6 +63,22 @@ test.describe('prose keyboard shortcuts', () => {
 		expect(source).not.toMatch(/^##/m);
 	});
 
+	test('Ctrl+3 on a heading preserves cursor position relative to content', async () => {
+		// Regression: the old cursor formula (level + 1 + preEditOffset) double-counted
+		// the old marker length whenever the caret sat past the prefix. After
+		// converting `## hello` (caret at end, offset 8) to `### hello`, the caret
+		// should land at offset 9 (end of new display) so a subsequent keystroke
+		// appends at the end — not past the end, where it clamps invisibly.
+		await editor.loadContent('## hello\n');
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Control+3');
+		await editor.page.waitForTimeout(300);
+		await editor.typeText('X');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toMatch(/^### helloX$/m);
+	});
+
 	test('Escape collapses a live cross-block selection', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		await editor.focusBlockEnd(0);

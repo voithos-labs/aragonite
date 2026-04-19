@@ -21,19 +21,27 @@ import type { StickyColumnState } from '../../../contenteditable/sticky-column';
  * Move focus within a container's inner children, or delegate upward to
  * the parent when the target index is out of range. Handles numeric offsets,
  * 'start'/'end' positions, and the sticky-column variant.
+ *
+ * `childCount`, when supplied, overrides `refs.length` for the upper-bound
+ * guard. Pass `node.children.length` from containers whose child count may
+ * diverge from `refs.length` for one render cycle after a structural op
+ * (bind:this fires asynchronously). Without it, delegation could fire
+ * prematurely and the cursor would escape the container by mistake.
  */
 export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
 	innerIndex: number,
 	position: FocusPosition,
 	stickyColumn: StickyColumnState,
-	parent: { focus: FocusActions; index: number }
+	parent: { focus: FocusActions; index: number },
+	childCount?: number
 ): Promise<void> {
 	if (innerIndex < 0) {
 		await parent.focus.moveFocus(parent.index - 1, position);
 		return;
 	}
-	if (innerIndex >= refs.length) {
+	const upperBound = childCount ?? refs.length;
+	if (innerIndex >= upperBound) {
 		await parent.focus.moveFocus(parent.index + 1, position);
 		return;
 	}

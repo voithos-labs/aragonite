@@ -15,7 +15,7 @@
 	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
-	import { createBlockquoteOverrides } from '../../tree-operations/blockquote-context';
+	import { createBlockquoteOverrides } from './container-state/blockquote-context';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,

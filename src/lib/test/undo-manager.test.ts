@@ -89,6 +89,36 @@ describe('UndoManager', () => {
 		expect(restored!.selection.focus.offset).toBe(15);
 	});
 
+	it('evicts the oldest entry once the stack exceeds MAX_UNDO (FIFO)', () => {
+		// MAX_UNDO = 200 inside undo-manager.ts. Pushing one past the cap
+		// should drop the OLDEST entry, not the newest — oldest-out FIFO so
+		// the most recent edits are always recoverable. A bug that flipped
+		// the eviction direction (shift vs pop) would keep the user's most
+		// recent edit unreachable.
+		const manager = createUndoManager();
+		const CAP = 200;
+		for (let i = 0; i < CAP + 1; i++) {
+			manager.push(makeEntry(`entry${i}\n`));
+		}
+		// Undo CAP times — the first entry ("entry0") should already be gone.
+		// The most-recent kept entry is "entry200" (the one we pushed last).
+		const mostRecent = manager.undo(CURRENT);
+		expect(serialize(mostRecent!.snapshot)).toBe(`entry${CAP}\n`);
+
+		let current = CURRENT;
+		let last: UndoEntry | null = null;
+		for (let i = 0; i < CAP - 1; i++) {
+			const next = manager.undo(current);
+			expect(next).not.toBeNull();
+			last = next;
+			current = next!;
+		}
+		// The deepest surviving entry is "entry1" (entry0 was evicted).
+		expect(serialize(last!.snapshot)).toBe('entry1\n');
+		// Stack exhausted.
+		expect(manager.undo(current)).toBeNull();
+	});
+
 	it('full undo-redo-undo cycle', () => {
 		const manager = createUndoManager();
 		// State progression: empty → "A" → "AB"

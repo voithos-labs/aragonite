@@ -11,7 +11,6 @@
 		type BlockEditActions,
 		type FocusActions,
 		type ContainerEditActions,
-		type FocusPosition,
 		type StickyColumnDirection,
 		type ListContext,
 		type CstNode,
@@ -29,7 +28,7 @@
 	} from '../../tree-operations';
 	import { parseAllInlineContent } from '../../core/inline';
 	import { rebuildListRaw } from '../../tree-operations/container-raw';
-	import { createListContext } from '../../tree-operations/list-context';
+	import { createListContext } from './container-state/list-context';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
@@ -167,7 +166,7 @@
 					state.triggerReactivity();
 					await tick();
 					const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-					state.innerBlockRefs[firstPathIdx]?.focusByPath?.([...restPath, 0], mergePoint.offset);
+					state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
 				},
 
 				// Delete an item; if it was the only item, delete the whole list.
@@ -197,11 +196,14 @@
 				replaceBlock: async (
 					itemIndex: number,
 					replacement: CstNode[],
-					focus?: { replacementIndex: number; offset: number }
+					focus?: { replacementIndex: number; offset: number },
+					options?: { skipSnapshot?: boolean }
 				): Promise<void> => {
 					if (!node.children || itemIndex < 0 || itemIndex >= node.children.length) return;
 
-					parentContainerEdit?.beginContainerEdit(index, 0);
+					if (!options?.skipSnapshot) {
+						parentContainerEdit?.beginContainerEdit(index, 0);
+					}
 					state.commitChildrenEdit((children, ids, refs) => {
 						if (replacement.length === 0) {
 							children.splice(itemIndex, 1);
@@ -226,40 +228,6 @@
 						const targetIdx = itemIndex + focus.replacementIndex;
 						state.innerBlockRefs[targetIdx]?.focus(focus.offset);
 					}
-				}
-			},
-			focus: {
-				// Use node.children.length (authoritative) for bounds rather than
-				// refs.length. After M1 merges reduce the item count, refs.length
-				// can be stale for one render cycle (bind:this sets undefined
-				// asynchronously), and the factory default would silently return
-				// instead of delegating upward.
-				moveFocus: async (itemIndex: number, position: FocusPosition): Promise<void> => {
-					if (!node.children) return;
-					if (itemIndex < 0) {
-						parentFocus.moveFocus(index - 1, position);
-						return;
-					}
-					if (itemIndex >= node.children.length) {
-						parentFocus.moveFocus(index + 1, position);
-						return;
-					}
-					const item = state.innerBlockRefs[itemIndex];
-					if (!item?.focusable) return;
-
-					if (typeof position === 'object' && 'stickyColumnFrom' in position) {
-						const x = stickyColumn.get();
-						const from = position.stickyColumnFrom;
-						if (x !== null && item.focusAtColumn) {
-							item.focusAtColumn(x, from);
-							return;
-						}
-						item.focus(from === 'above' ? 0 : CURSOR_END);
-						return;
-					}
-					if (typeof position === 'number') item.focus(position);
-					else if (position === 'start') item.focus(0);
-					else item.focus(CURSOR_END);
 				}
 			}
 		})

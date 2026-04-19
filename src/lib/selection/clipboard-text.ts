@@ -7,7 +7,7 @@
 
 import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
-import { nodeAt } from './path-lookup';
+import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize } from './primitives';
 import { displayLength } from '../core/lines';
 

@@ -300,13 +300,19 @@
 
 		// Ctrl+1..6 — set heading level, or (Ctrl+0) convert back to paragraph.
 		// Replaces any existing `#` prefix run so repeated shortcuts cycle levels.
+		// The cursor remaps by stripping the old prefix length and re-adding the
+		// new prefix length — `level + 1 + preEditOffset` used to double-count
+		// the old marker whenever the caret sat past it.
 		if ((e.ctrlKey || e.metaKey) && /^[0-6]$/.test(e.key) && !e.shiftKey && !e.altKey) {
 			e.preventDefault();
 			const level = parseInt(e.key, 10);
 			const displayText = getDisplayText();
-			const stripped = displayText.replace(/^#{1,6}\s?/, '');
-			const newDisplay = level === 0 ? stripped : '#'.repeat(level) + ' ' + stripped;
-			const cursor = (level === 0 ? 0 : level + 1) + (preEditOffset ?? 0);
+			const oldPrefixMatch = displayText.match(/^#{1,6}\s?/);
+			const oldPrefixLen = oldPrefixMatch ? oldPrefixMatch[0].length : 0;
+			const stripped = displayText.slice(oldPrefixLen);
+			const newPrefix = level === 0 ? '' : '#'.repeat(level) + ' ';
+			const newDisplay = newPrefix + stripped;
+			const cursor = newPrefix.length + Math.max(0, (preEditOffset ?? 0) - oldPrefixLen);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', cursor);
 			pendingCursorOffset = cursor;
 			return;
@@ -456,8 +462,7 @@
 		// updateBlockContent re-parses the new raw and reparseAsNode keeps
 		// only the first parsed child, so a list pasted into a paragraph
 		// would silently drop everything after the first item.
-		const isInlinePaste =
-			parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
+		const isInlinePaste = parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
 
 		if (isInlinePaste) {
 			const newDisplay =

@@ -15,8 +15,12 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { SELECTION_KEY, type BlockComponent } from '../contracts';
-	import type { SelectionState } from './selection-state.svelte';
-	import { normalize, classifyBlockForSelection, type BlockSelectionClass } from './primitives';
+	import type { SelectionState } from '../selection/selection-state.svelte';
+	import {
+		normalize,
+		classifyBlockForSelection,
+		type BlockSelectionClass
+	} from '../selection/primitives';
 
 	let {
 		path,

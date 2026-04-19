@@ -32,4 +32,35 @@ describe('collectCrossBlockText', () => {
 		);
 		expect(text).toBe('a\n\nb');
 	});
+
+	it('collects text across two list items (container paths)', () => {
+		// Previous coverage exercised top-level paragraph paths only. A regression
+		// in path-walking for list-item descent (wrong trivia, wrong ancestor
+		// traversal) would produce mangled text but go undetected. This test
+		// exercises a path like [0, 0, 0] → [0, 1, 0].
+		const doc = parse('- first\n- second\n');
+		const text = collectCrossBlockText(
+			doc,
+			{ path: [0, 0, 0], offset: 1 }, // mid "first" inside item 0's paragraph
+			{ path: [0, 1, 0], offset: 3 } // mid "second" inside item 1's paragraph
+		);
+		expect(text).toContain('irst');
+		expect(text).toContain('sec');
+		// A blank-line join is not expected between adjacent tight list items,
+		// but the two item contents MUST both appear — a walker that bailed at
+		// the first nested container would only return one of them.
+	});
+
+	it('collects text across a blockquote and a following paragraph', () => {
+		// Container start, top-level end — forces the walker to ascend out of
+		// the blockquote before walking across siblings.
+		const doc = parse('> inside\n\nafter\n');
+		const text = collectCrossBlockText(
+			doc,
+			{ path: [0, 0], offset: 0 }, // start of paragraph inside blockquote
+			{ path: [1], offset: 5 } // end of "after"
+		);
+		expect(text).toContain('inside');
+		expect(text).toContain('after');
+	});
 });

@@ -72,7 +72,7 @@ Every block component exposes a common shape. Two boolean flags — `editable` (
 Examples:
 
 - `TextEditableBlock` (paragraph, heading, raw): `{ editable: true, focusable: true }` — contenteditable, parameterized by CSS class
-- `CodeBlock`: `{ editable: true, focusable: true }` — textarea editing surface
+- `CodeBlock`: `{ editable: true, focusable: true }` — contenteditable editing surface with live syntax highlighting
 - `ThematicBreakBlock`: `{ editable: false, focusable: true }` — arrow-key navigable, Enter creates a paragraph below, Backspace deletes it
 - `BlockquoteBlock`, `ListBlock`, `ListItemBlock`: `{ editable: true, focusable: true }` — containers delegate focus to inner children
 - `ImageBlock` (future): `{ editable: false, focusable: true }` — focusable for keyboard navigation and deletion
