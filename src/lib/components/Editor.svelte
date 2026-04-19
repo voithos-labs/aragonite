@@ -62,7 +62,7 @@
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
 	const selectionState = createSelectionState();
-	const operationsLog = createOperationsLog(100);
+	const operationsLog = createOperationsLog();
 
 	// Re-initialize when source prop changes (e.g., async document load).
 	// The `source !== lastSource` check is load-bearing: after the first

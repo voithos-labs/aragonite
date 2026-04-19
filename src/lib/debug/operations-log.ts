@@ -17,6 +17,11 @@ export interface OperationEntry {
 	t: number;
 }
 
+export interface OpDescriptor {
+	kind: OperationKind;
+	detail?: Record<string, unknown>;
+}
+
 export interface OperationsLog {
 	record(entry: Omit<OperationEntry, 't'>): void;
 	snapshot(): OperationEntry[];
@@ -26,7 +31,7 @@ export interface OperationsLog {
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 /** Bounded FIFO log. Oldest entries are evicted once `capacity` is exceeded. */
-export function createOperationsLog(capacity: number): OperationsLog {
+export function createOperationsLog(capacity = 100): OperationsLog {
 	const buf: OperationEntry[] = [];
 	const listeners = new Set<(entry: OperationEntry) => void>();
 
