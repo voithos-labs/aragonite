@@ -107,8 +107,7 @@ export async function pasteDispatch(
 	// shape. This is the right behavior for surfaces where pasted
 	// markdown should stay verbatim (code blocks treat "```" on the
 	// clipboard as body text, not a fence).
-	const surfaceForcesInline =
-		surface !== undefined && surface.onStructuralPaste === undefined;
+	const surfaceForcesInline = surface !== undefined && surface.onStructuralPaste === undefined;
 	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
 
 	if (strategy === 'inline') {
@@ -156,9 +155,7 @@ export function defaultInlineHook(
 	}
 
 	const newDisplay =
-		effectiveDisplay.slice(0, effectiveOffset) +
-		text +
-		effectiveDisplay.slice(effectiveOffset);
+		effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
 
 	return {
 		newRaw: newDisplay + lineEnding,

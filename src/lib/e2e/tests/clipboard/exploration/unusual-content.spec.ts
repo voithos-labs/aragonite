@@ -16,9 +16,7 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste content with CRLF line endings preserves block structure', async () => {
 		await editor.loadContent('target\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('one\r\n\r\ntwo\r\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('one\r\n\r\ntwo\r\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
@@ -32,9 +30,7 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste content with leading blank lines does not create empty paragraphs', async () => {
 		await editor.loadContent('target\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('\n\nactual content\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('\n\nactual content\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
@@ -67,9 +63,7 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste markdown containing backtick runs into a code block bumps the outer fence', async () => {
 		await editor.loadContent('```\ncontent\n```\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('```\ninner fence\n```')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('```\ninner fence\n```'));
 		await editor.page.waitForTimeout(100);
 
 		// Click inside the code block at the end of "content".
@@ -89,9 +83,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		page
 	}) => {
 		await editor.loadContent('existing para one\n\nexisting para two\n\nexisting para three\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('replacement content\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('replacement content\n'));
 		await editor.page.waitForTimeout(100);
 
 		// Focus first block, Ctrl+A+A to select whole doc.
