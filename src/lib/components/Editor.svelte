@@ -26,6 +26,7 @@
 	import { parseAllInlineContent } from '../core/inline';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorActions } from './editor-actions';
+	import { createOperationsLog } from '../debug/operations-log';
 	import BlockList from './BlockList.svelte';
 
 	bootstrapCodeLanguages();
@@ -61,6 +62,7 @@
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
 	const selectionState = createSelectionState();
+	const operationsLog = createOperationsLog(100);
 
 	// Re-initialize when source prop changes (e.g., async document load).
 	// The `source !== lastSource` check is load-bearing: after the first
@@ -152,7 +154,8 @@
 		undoManager,
 		stickyColumn,
 		selectionState,
-		getBlockElByPath
+		getBlockElByPath,
+		operationsLog
 	});
 
 	// Reactive getter: block components call this at keystroke time to read
@@ -189,6 +192,10 @@
 
 	export function getSelectionState() {
 		return selectionState;
+	}
+
+	export function getOperationsLog() {
+		return operationsLog;
 	}
 </script>
 
