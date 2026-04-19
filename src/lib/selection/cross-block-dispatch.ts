@@ -43,6 +43,9 @@ import { parse } from '../core/parser';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 import { buildPastedReplacement } from '../tree-operations/paste-replacement';
+import { getStateForNode } from '../components/blocks/container-state/state-registry';
+import { generateBlockId } from '../tree-operations/block-id';
+import { CURSOR_END } from '../contracts';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -407,28 +410,25 @@ async function handlePaste(
 	}
 	const leaf = parent.children[innerIndex];
 	const replacement = buildPastedReplacement(leaf, caret.offset, parsed.children);
-	parent.children.splice(innerIndex, 1, ...replacement);
+
+	// Parent is a currently-mounted container (path.length >= 2 means it's
+	// a descendant of Document), so its BlockListState is registered. Route
+	// the splice through commitChildrenEdit so ids/refs stay aligned with
+	// the newly-mounted replacement blocks — lets us focus via
+	// innerBlockRefs instead of falling back to DOM-level focus.
+	const parentState = getStateForNode(parent)!;
+	parentState.commitChildrenEdit((children, ids, refs) => {
+		children.splice(innerIndex, 1, ...replacement);
+		ids.splice(innerIndex, 1, ...replacement.map(() => generateBlockId()));
+		refs.splice(innerIndex, 1, ...new Array(replacement.length).fill(undefined));
+	});
 	rebuildAncestryForLeaf(doc, [...parentPath, innerIndex]);
 	ctx.containerEdit.endContainerEdit();
 	await ctx.afterReactivity();
-	focusLastInsertedBlock(ctx, [...parentPath, innerIndex + replacement.length - 1]);
-	return true;
-}
 
-/**
- * After a nested multi-block paste, land the caret at the end of the last
- * inserted block using DOM-level focus — the block component instance (and
- * its BlockComponent.focus method) isn't reachable from the root dispatch
- * context, but applyCollapsedCaret + el.focus() achieves the same result.
- */
-function focusLastInsertedBlock(ctx: CrossBlockDispatchContext, lastPath: number[]): void {
-	const blockEl = ctx.getBlockElByPath(lastPath);
-	if (!blockEl) return;
-	const doc = ctx.getDoc();
-	const lastNode = nodeAt(doc, lastPath) as CstNode | null;
-	const offset = lastNode?.raw ? displayLength(lastNode.raw) : 0;
-	applyCollapsedCaret(blockEl, { path: lastPath, offset });
-	blockEl.focus();
+	const lastIdx = innerIndex + replacement.length - 1;
+	parentState.innerBlockRefs[lastIdx]?.focus(CURSOR_END);
+	return true;
 }
 
 /**
