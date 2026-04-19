@@ -42,6 +42,19 @@ function matchTaskCheckbox(text: string): { checked: boolean } | null {
 	return m ? { checked: m[1].toLowerCase() === 'x' } : null;
 }
 
+/**
+ * Per CommonMark §5.2, a list marker can interrupt an open paragraph only
+ * if the marker is a bullet or an ordered marker starting with `1` — this
+ * prevents hard-wrapped numerals like "the fifth item is 2. bananas" from
+ * being mistaken for a list start. Used by paragraph-continuation scans;
+ * standalone list parsing (outside paragraph continuation) still accepts
+ * any ordered number.
+ */
+export function canInterruptParagraph(text: string): boolean {
+	if (/^ {0,3}[-*+]\s+/.test(text)) return true;
+	return /^ {0,3}1[.)]\s+/.test(text);
+}
+
 export function parseList(
 	lines: ParsedLine[],
 	startIndex: number,
