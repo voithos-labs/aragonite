@@ -432,19 +432,8 @@ test.describe('code block paste — fence bumping', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockEnd(0);
 
-		await page.evaluate(() => {
-			const el = document.querySelector('.code-block') as HTMLElement;
-			if (!el) return;
-			el.focus();
-			const dt = new DataTransfer();
-			dt.setData('text/plain', '\n```pasted code```\n');
-			const ev = new ClipboardEvent('paste', {
-				clipboardData: dt,
-				bubbles: true,
-				cancelable: true
-			});
-			el.dispatchEvent(ev);
-		});
+		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
+		await editor.pressKey('Control+v');
 		await page.waitForTimeout(100);
 
 		const source = await editor.getSource();
@@ -460,22 +449,14 @@ test.describe('code block paste — fence bumping', () => {
 	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
 		await editor.loadContent('```\ncontent\n```\n');
 		await editor.getBlock(0).click();
-		// Place cursor at end of "content" line (offset 4 = after "```\n")
+		// Place cursor at end of "content" line (offset 11 = after "```\ncontent")
 		await editor.focusBlock(0, 11);
 
-		await page.evaluate(() => {
-			const el = document.querySelector('.code-block') as HTMLElement;
-			if (!el) return;
-			el.focus();
-			const dt = new DataTransfer();
-			dt.setData('text/plain', '\n# Heading\n\n- list item\n\nparagraph\n');
-			const ev = new ClipboardEvent('paste', {
-				clipboardData: dt,
-				bubbles: true,
-				cancelable: true
-			});
-			el.dispatchEvent(ev);
-		});
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			'\n# Heading\n\n- list item\n\nparagraph\n'
+		);
+		await editor.pressKey('Control+v');
 		await page.waitForTimeout(100);
 
 		// Still one block, still a code block
@@ -516,41 +497,14 @@ test.describe('code block tab / indent', () => {
 		await editor.loadContent('```\nline1\nline2\nline3\n```\n');
 		await editor.getBlock(0).click();
 
-		// Select from start of "line1" to end of "line2" via a manual Range
-		await page.evaluate(() => {
-			const el = document.querySelector('.code-block') as HTMLElement;
-			el.focus();
-			// textContent: "```\nline1\nline2\nline3\n```"
-			// Offsets: ``` (0-2), \n (3), line1 (4-8), \n (9), line2 (10-14), \n (15), line3 (16-20), \n (21), ``` (22-24)
-			// Select from offset 4 (start of line1) to 15 (end of line2, before \n)
-			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-			let startNode: Text | null = null;
-			let startOff = 0;
-			let endNode: Text | null = null;
-			let endOff = 0;
-			let chars = 0;
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const len = (node as Text).textContent?.length ?? 0;
-				if (startNode === null && chars + len >= 4) {
-					startNode = node as Text;
-					startOff = 4 - chars;
-				}
-				if (chars + len >= 15) {
-					endNode = node as Text;
-					endOff = 15 - chars;
-					break;
-				}
-				chars += len;
-			}
-			if (!startNode || !endNode) return;
-			const range = document.createRange();
-			range.setStart(startNode, startOff);
-			range.setEnd(endNode, endOff);
-			const sel = window.getSelection();
-			sel?.removeAllRanges();
-			sel?.addRange(range);
-		});
+		// textContent: "```\nline1\nline2\nline3\n```"
+		// Offsets: ``` (0-2), \n (3), line1 (4-8), \n (9), line2 (10-14), \n (15), line3 (16-20), \n (21), ``` (22-24)
+		// Position caret at offset 4 (start of "line1"), then extend selection 11
+		// chars forward to offset 15 (end of "line2", before its trailing \n).
+		await editor.focusBlock(0, 4);
+		for (let i = 0; i < 11; i++) {
+			await editor.pressKey('Shift+ArrowRight');
+		}
 
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(100);
@@ -612,38 +566,12 @@ test.describe('code block tab / indent', () => {
 
 		// textContent: "```\n\tline1\n\tline2\nline3\n```"
 		// Offsets: ``` (0-2), \n (3), \t (4), line1 (5-9), \n (10), \t (11), line2 (12-16), \n (17), line3 (18-22), \n (23), ``` (24-26)
-		// Select from offset 4 (the \t of line1) to 22 (end of line3)
-		await page.evaluate(() => {
-			const el = document.querySelector('.code-block') as HTMLElement;
-			el.focus();
-			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-			let startNode: Text | null = null;
-			let startOff = 0;
-			let endNode: Text | null = null;
-			let endOff = 0;
-			let chars = 0;
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
-				const len = (node as Text).textContent?.length ?? 0;
-				if (startNode === null && chars + len >= 4) {
-					startNode = node as Text;
-					startOff = 4 - chars;
-				}
-				if (chars + len >= 22) {
-					endNode = node as Text;
-					endOff = 22 - chars;
-					break;
-				}
-				chars += len;
-			}
-			if (!startNode || !endNode) return;
-			const range = document.createRange();
-			range.setStart(startNode, startOff);
-			range.setEnd(endNode, endOff);
-			const sel = window.getSelection();
-			sel?.removeAllRanges();
-			sel?.addRange(range);
-		});
+		// Position caret at offset 4 (the \t of line1), then extend 18 chars forward
+		// to offset 22 (end of line3).
+		await editor.focusBlock(0, 4);
+		for (let i = 0; i < 18; i++) {
+			await editor.pressKey('Shift+ArrowRight');
+		}
 
 		await page.keyboard.press('Shift+Tab');
 		await page.waitForTimeout(100);

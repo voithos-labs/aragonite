@@ -90,7 +90,10 @@ describe('buildExitReplacement', () => {
 		// Enter is what the parser produces if we strip "Item" out and split.
 		const item = list.children![0];
 		// Insert an empty paragraph at the front so it looks like an exited item.
-		item.children = [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }, ...(item.children ?? []).slice(1)];
+		item.children = [
+			{ kind: 'paragraph', leadingTrivia: '', raw: '\n' },
+			...(item.children ?? []).slice(1)
+		];
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
 
@@ -126,7 +129,10 @@ describe('buildExitReplacement', () => {
 		// Same shape as the mismatched test, but the sub-list type matches the
 		// parent. Synthesize the exited-item shape.
 		const item = list.children![0];
-		item.children = [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }, ...(item.children ?? []).slice(1)];
+		item.children = [
+			{ kind: 'paragraph', leadingTrivia: '', raw: '\n' },
+			...(item.children ?? []).slice(1)
+		];
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
 

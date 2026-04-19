@@ -42,6 +42,8 @@ export function createBlockEditActions(
 	controller: UndoController
 ): BlockEditActions {
 	return {
+		// ── Structural split / merge / delete ─────────────────────────────────
+
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
 			await controller.commitStructural(
 				blockIndex,
@@ -209,6 +211,8 @@ export function createBlockEditActions(
 			);
 		},
 
+		// ── Content update ────────────────────────────────────────────────────
+
 		async updateBlockContent(
 			blockIndex: number,
 			text: string,
@@ -228,6 +232,8 @@ export function createBlockEditActions(
 				deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
 			}
 		},
+
+		// ── Paste / replace ───────────────────────────────────────────────────
 
 		async insertParsedBlocks(
 			blockIndex: number,
@@ -281,7 +287,8 @@ export function createBlockEditActions(
 		async replaceBlock(
 			blockIndex: number,
 			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number }
+			focus?: { replacementIndex: number; offset: number },
+			options?: { skipSnapshot?: boolean }
 		): Promise<void> {
 			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 
@@ -326,7 +333,8 @@ export function createBlockEditActions(
 						const targetIndex = blockIndex + focus.replacementIndex;
 						deps.blockRefs[targetIndex]?.focus(focus.offset);
 					}
-				}
+				},
+				options
 			);
 		}
 	};

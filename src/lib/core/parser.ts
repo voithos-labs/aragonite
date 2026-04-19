@@ -18,12 +18,6 @@ import { matchHtmlBlock, parseHtmlBlock } from './parsers/html-block';
 import { matchLinkReferenceDefinition } from './parsers/link-reference';
 import { parseParagraph } from './parsers/paragraph';
 
-// Re-export public matcher helpers so existing external callers
-// (`from '../core/parser'` import sites in tests and e2e helpers)
-// continue to resolve unchanged after the kind-split.
-export { matchThematicBreak } from './parsers/thematic-break';
-export { matchListItem } from './parsers/list';
-
 // ── Public entry point ──────────────────────────────────────────────────
 
 /** Parse a markdown source string into a Document CST. */

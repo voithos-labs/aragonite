@@ -5,7 +5,7 @@
 	import CodeBlock from './blocks/CodeBlock.svelte';
 	import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 	import ListBlock from './blocks/ListBlock.svelte';
-	import SelectionOverlay from '../selection/SelectionOverlay.svelte';
+	import SelectionOverlay from './SelectionOverlay.svelte';
 	import { getBlockKindDescriptor } from '../tree-operations/block-kind-descriptor';
 
 	let {

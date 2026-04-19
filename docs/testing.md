@@ -46,7 +46,7 @@ Editor.svelte (production component, unchanged)
 
 Feature-level specs live in `src/lib/editor/e2e/tests/` and cover: test-harness smoke, text editing (typing / split / merge / kind change), keyboard navigation (arrow keys, container traversal, sticky column), undo/redo, inline editing (bold / italic / code / links), container editing (blockquotes, lists, nested structure, exit behavior), and selection + clipboard (cut / copy / paste / select-all).
 
-Block-specific specs live in `src/lib/editor/e2e/tests/blocks/` with matching requirement files in `src/lib/editor/e2e/requirements/blocks/` — one requirement file per spec file, kept in lockstep. The filesystem is the authoritative list of what's covered.
+Requirement files in `src/lib/editor/e2e/requirements/` pair one-to-one with spec files under `src/lib/editor/e2e/tests/`. When a subdirectory's specs split further (e.g. `tests/sticky-column/` into several files), the requirements split with them. The filesystem is the authoritative list of what's covered — if a spec has no requirement file or vice versa, one or the other is out of lockstep.
 
 ### Writing New E2E Tests
 

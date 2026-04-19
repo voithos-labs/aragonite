@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodeEnter } from '../../components/blocks/code/code-enter';
+import { computeCodeEnter } from '../../../components/blocks/code/code-enter';
 
 // ── normal mode (auto-indent) ───────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ describe('computeCodeEnter — normal mode', () => {
 		expect(result.newCursor).toBe(4);
 	});
 
-	it('replicates the current line\'s leading whitespace', () => {
+	it("replicates the current line's leading whitespace", () => {
 		const result = computeCodeEnter({
 			display: '    indented',
 			selection: { start: 12, end: 12 },

@@ -23,21 +23,30 @@ test.describe('cross-block clipboard: copy', () => {
 
 	test('Ctrl+C copies correct text: paste elsewhere reproduces it', async () => {
 		await editor.loadContent('first\n\nsecond\n\nthird\n');
-		// Select from end of first through start of second
-		await editor.focusBlock(0, 3); // "fir|st"
+		// Select from "fir|st" across the blank line to "sec|ond" (tail of
+		// first + blank trivia + head of second → "st\n\nsec").
+		await editor.focusBlock(0, 3);
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
-		// Collapse to end of third and paste
+		// Collapse selection and paste at end of "third".
 		await editor.pressKey('ArrowRight');
 		await editor.page.waitForTimeout(100);
 		await editor.focusBlockEnd(2);
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
-		// The copied text should contain the tail of "first" + leading trivia + head of "second"
-		expect(source).toContain('third');
+		// Pasted content MUST appear after "third" — both the head fragment
+		// "st" and the tail fragment "sec" must be present, or the clipboard
+		// round-trip dropped half of the copied range. The bystander-only
+		// assertion (`toContain('third')`) this replaces would pass on a
+		// completely garbled paste.
+		expect(source).toMatch(/third\s*st/);
+		expect(source).toContain('sec');
+		// And the originals upstream are still intact — paste did not overwrite them.
+		expect(source).toContain('first');
+		expect(source).toContain('second');
 	});
 
 	// Regression: buildPastedReplacement used to hardcode the last node's
@@ -689,9 +698,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 	// the splice landed on the merged caret.
 	test('cross-block paste of multi-block content into list items lands content', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('alpha\n\nbeta\n\ngamma\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n\ngamma\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);

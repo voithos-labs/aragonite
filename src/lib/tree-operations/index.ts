@@ -33,7 +33,6 @@ export {
 } from './list-ops';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';
-export { createBlockquoteOverrides } from './blockquote-context';
 
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
@@ -43,7 +42,7 @@ export { cloneDocument, cloneNode } from './clone';
 
 export { generateBlockId, assignIds } from './block-id';
 
-export type { MergeRole, MergeTarget } from './merge-rules';
+export type { MergeTarget } from './merge-rules';
 export {
 	isMergeEligible,
 	isBlockEditable,
@@ -51,6 +50,8 @@ export {
 	walkToDeepestMergeLeaf,
 	getMergeRole
 } from './merge-rules';
+
+export type { MergeRole } from './block-kind-descriptor';
 
 export type { BlockKindDescriptor } from './block-kind-descriptor';
 export {

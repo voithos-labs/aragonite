@@ -11,10 +11,6 @@
 import type { CstNode } from '../core/nodes';
 import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor';
 
-// Re-exported so existing callers importing `MergeRole` from this module keep
-// working. New code should import from `block-kind-descriptor` directly.
-export type { MergeRole } from './block-kind-descriptor';
-
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
 /**

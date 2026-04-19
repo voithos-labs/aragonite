@@ -124,11 +124,11 @@ test.describe('code block auto-close brackets', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '()');
 		// Prove cursor is between the pair by typing a letter.
-		await editor.page.keyboard.type('x');
+		await editor.typeSlowly('x');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(x)');
 	});
@@ -138,9 +138,9 @@ test.describe('code block auto-close brackets', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('[');
+		await editor.typeSlowly('[');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type('{');
+		await editor.typeSlowly('{');
 		await editor.page.waitForTimeout(100);
 		// After `[`, body is `[]`, cursor between. Typing `{` inserts `{}` between
 		// the brackets: `[{}]`.
@@ -150,7 +150,7 @@ test.describe('code block auto-close brackets', () => {
 	test('typing ( after a word (foo|) auto-pairs', async () => {
 		await editor.loadContent('```\nfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo()');
 	});
@@ -161,7 +161,7 @@ test.describe('code block auto-close brackets', () => {
 		// Move cursor to before "foo" (offset 4 = start of body).
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo');
 	});
@@ -173,7 +173,7 @@ test.describe('code block auto-close brackets', () => {
 		// Walk to offset 4 (start of "foo"), then select 3 chars forward.
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo)');
 	});
@@ -192,10 +192,10 @@ test.describe('code block auto-close quotes', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('"');
+		await editor.typeSlowly('"');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '""');
-		await editor.page.keyboard.type('hi');
+		await editor.typeText('hi');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"');
 	});
@@ -206,7 +206,7 @@ test.describe('code block auto-close quotes', () => {
 		await editor.focusBlockStart(0);
 		// Walk to offset 7 (between "don" and "t").
 		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type("'");
+		await editor.typeSlowly("'");
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, "don't");
 	});
@@ -215,7 +215,7 @@ test.describe('code block auto-close quotes', () => {
 		// 'don is an open-quoted fragment; typing ' at the end should NOT auto-pair.
 		await editor.loadContent("```\n'don\n```\n");
 		await focusCodeBlockAtEnd(editor);
-		await editor.page.keyboard.type("'");
+		await editor.typeSlowly("'");
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, "'don'");
 	});
@@ -225,7 +225,7 @@ test.describe('code block auto-close quotes', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('`');
+		await editor.typeSlowly('`');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '``');
 	});
@@ -244,16 +244,16 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type('foo');
+		await editor.typeText('foo');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type(')');
+		await editor.typeSlowly(')');
 		await editor.page.waitForTimeout(100);
 		// Skip-over: no duplicate `)`, cursor now after existing `)`.
 		await expectBody(editor, '(foo)');
 		// Prove cursor is past the closer by typing one more char.
-		await editor.page.keyboard.type('X');
+		await editor.typeSlowly('X');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo)X');
 	});
@@ -263,14 +263,14 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('"');
+		await editor.typeSlowly('"');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type('hi');
+		await editor.typeText('hi');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type('"');
+		await editor.typeSlowly('"');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"');
-		await editor.page.keyboard.type('Y');
+		await editor.typeSlowly('Y');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"Y');
 	});
@@ -280,7 +280,7 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(50);
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(100);
@@ -292,9 +292,9 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(50);
-		await editor.page.keyboard.type('[');
+		await editor.typeSlowly('[');
 		await editor.page.waitForTimeout(50);
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(100);
@@ -313,7 +313,7 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 	test('auto-pair undoes in one Ctrl+Z', async () => {
 		await editor.loadContent('```\nfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo()');
 		await editor.undo();
@@ -333,7 +333,7 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 	test('auto-close bracket works inside a js-highlighted code block', async () => {
 		await editor.loadContent('```js\nfunction f\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.page.keyboard.type('(');
+		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'function f()');
 	});

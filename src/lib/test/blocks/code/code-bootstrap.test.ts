@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	bootstrapCodeLanguages,
 	__resetBootForTests
-} from '../../components/blocks/code/code-bootstrap';
+} from '../../../components/blocks/code/code-bootstrap';
 import {
 	getLanguageGrammar,
 	__resetRegistryForTests
-} from '../../components/blocks/code/code-languages';
+} from '../../../components/blocks/code/code-languages';
 
 describe('code-bootstrap', () => {
 	beforeEach(() => {

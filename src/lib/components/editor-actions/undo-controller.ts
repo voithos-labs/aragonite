@@ -26,16 +26,22 @@ import type { EditorActionsDeps, UndoController } from './deps';
 const UNDO_DEBOUNCE_MS = 250;
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
+	// ── Local state ───────────────────────────────────────────────────────────
+
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let lastUndoBlockIndex = -1;
 	// When true, the next keystroke should capture a "before" snapshot
 	let needsUndoCheckpoint = true;
+
+	// ── Selection helpers ─────────────────────────────────────────────────────
 
 	/** Build a collapsed EditorSelection from a top-level block index and offset. */
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
 		const point: SelectionPoint = { path: [blockIndex], offset };
 		return { anchor: point, focus: point };
 	}
+
+	// ── Snapshot pushers ──────────────────────────────────────────────────────
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		const selection = deps.selectionState.isCrossBlock
@@ -82,6 +88,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * paste) coalesce two structural mutations under a single undo entry —
 	 * the caller pushes one snapshot, then runs each leg with skipSnapshot.
 	 */
+	// ── Structural-mutation ceremony ─────────────────────────────────────────
+
 	async function commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
@@ -110,6 +118,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		await tick();
 		afterTick?.();
 	}
+
+	// ── State capture / checkpoint control ───────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
 		return {

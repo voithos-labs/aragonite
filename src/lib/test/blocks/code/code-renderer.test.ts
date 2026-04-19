@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { mapHljsClass, walkHljsNodes } from '../../components/blocks/code/code-renderer';
+import { mapHljsClass, walkHljsNodes } from '../../../components/blocks/code/code-renderer';
 
 describe('mapHljsClass', () => {
 	it('maps core hljs classes to code-tok classes', () => {

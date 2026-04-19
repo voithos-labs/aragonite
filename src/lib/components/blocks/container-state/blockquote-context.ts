@@ -1,21 +1,25 @@
 /**
  * Factory for BlockquoteBlock's override bundle — the Enter-on-empty-last-
- * child exit and the Rule U2 unwrap. Peer of createListContext (extracted in
- * the 0.4.1 pass). Pure except for the Svelte `tick()` await inside the
- * Enter handler; no framework lifecycle, no DOM coupling.
+ * child exit and the Rule U2 unwrap. Peer of createListContext; lives under
+ * container-state/ alongside the state it reaches into.
  *
  * Returns the override map expected by `createStandardNestedActions`'s third
  * argument — callers pass it through directly.
  */
 
 import { tick } from 'svelte';
-import type { BlockEditActions, FocusActions, ContainerEditActions, CstNode } from '../contracts';
-import { displayLength } from '../core/lines';
-import { deleteNode as performDelete } from './node-ops';
-import { unwrapFirstChildFromBlockquote } from './blockquote';
-import { rebuildBlockquoteRaw } from './container-raw';
-import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
-import type { NestedActionsBundle } from '../components/blocks/container-state/nested-actions';
+import type {
+	BlockEditActions,
+	FocusActions,
+	ContainerEditActions,
+	CstNode
+} from '../../../contracts';
+import { displayLength } from '../../../core/lines';
+import { deleteNode as performDelete } from '../../../tree-operations/node-ops';
+import { unwrapFirstChildFromBlockquote } from '../../../tree-operations/blockquote';
+import { rebuildBlockquoteRaw } from '../../../tree-operations/container-raw';
+import type { BlockListState } from './block-list-state.svelte';
+import type { NestedActionsBundle } from './nested-actions';
 
 export interface BlockquoteContextDeps {
 	get index(): number;

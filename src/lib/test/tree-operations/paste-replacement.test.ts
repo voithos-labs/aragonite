@@ -72,6 +72,40 @@ describe('buildPastedReplacement — structural separator at leading slice bound
 	});
 });
 
+describe('buildPastedReplacement — cursor at offset 0 (no leading slice)', () => {
+	it('does not emit a leading slice node when offset is 0', () => {
+		// When the cursor sits at the very start of the leaf, rawBefore is
+		// empty so no beforeNode is pushed. The first pasted block then
+		// inherits the leaf's original leadingTrivia rather than a forced
+		// separator — position-0 paste is structurally identical to inserting
+		// the blocks where the leaf was.
+		const parsed = parse('one\n\ntwo\n');
+		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: 'tail\n' };
+		const replacement = buildPastedReplacement(leaf, 0, parsed.children);
+
+		// Only the pasted blocks plus the trailing slice — no leading slice node.
+		expect(replacement).toHaveLength(3);
+		expect(replacement[0].raw.trim()).toBe('one');
+		expect(replacement[0].leadingTrivia).toBe('\n');
+		expect(replacement[1].raw.trim()).toBe('two');
+		// Trailing slice sits at the end as its own paragraph.
+		expect(replacement[2].raw.trim()).toBe('tail');
+	});
+
+	it('inherits originalTrivia on the first pasted block when offset is 0', () => {
+		// The first pasted block had leadingTrivia='' in the clipboard parse;
+		// at offset 0, buildPastedReplacement overwrites that with the leaf's
+		// leadingTrivia so the spliced region sits in the same vertical rhythm
+		// the original leaf occupied.
+		const parsed = parse('A\nB\n');
+		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '\n\n', raw: 'existing\n' };
+		const replacement = buildPastedReplacement(leaf, 0, parsed.children);
+
+		// First pasted block picks up the leaf's double-newline trivia.
+		expect(replacement[0].leadingTrivia).toBe('\n\n');
+	});
+});
+
 describe('buildPastedReplacement — trailing slice as separate paragraph', () => {
 	it('preserves trailing slice as its own block instead of merging into last pasted', () => {
 		// Pre-fix: the trailing slice was concatenated onto the last pasted
