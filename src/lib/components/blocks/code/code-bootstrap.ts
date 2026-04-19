@@ -2,10 +2,15 @@
  * Static bootstrap for the 17 starter code-block languages. Called from
  * Editor.svelte onMount; idempotent across multiple editor mounts.
  *
+ * Also registers the code-block PasteSurface so pasteDispatch knows how
+ * to handle paste into fencedCode nodes.
+ *
  * Adding a language = one import + one registerLanguage call here.
  */
 
 import { registerLanguage } from './code-languages';
+import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
+import { codePasteSurface } from './code-paste-surface';
 
 // Tier 1 — the 11 core languages
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -54,6 +59,9 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('ruby', ruby);
 	registerLanguage('markdown', markdown, ['md']);
 	registerLanguage('diff', diff);
+
+	// Paste surface for the fenced code block.
+	registerPasteSurface(codePasteSurface);
 }
 
 /** Test-only: reset booted flag. */

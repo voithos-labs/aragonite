@@ -1,0 +1,59 @@
+import { describe, it, expect } from 'vitest';
+import { codePasteSurface } from '../../../components/blocks/code/code-paste-surface';
+import type { CstNode } from '../../../core/nodes';
+
+function makeFencedCode(
+	raw: string,
+	fenceMarker: '`' | '~' = '`',
+	fenceLength = 3,
+	closed = true
+): CstNode {
+	return {
+		kind: 'fencedCode',
+		leadingTrivia: '',
+		raw,
+		metadata: { fenceMarker, fenceLength, closed, info: '' }
+	};
+}
+
+describe('code-paste-surface', () => {
+	it('is registered for kind fencedCode', () => {
+		expect(codePasteSurface.kind).toBe('fencedCode');
+	});
+
+	it('exposes onInlinePaste', () => {
+		expect(codePasteSurface.onInlinePaste).toBeDefined();
+	});
+
+	it('omits onStructuralPaste — code always treats paste as literal text', () => {
+		expect(codePasteSurface.onStructuralPaste).toBeUndefined();
+	});
+
+	it('onInlinePaste splices text without fence bump when paste contains no fence run', () => {
+		const node = makeFencedCode('```\nhello\n```\n');
+		const result = codePasteSurface.onInlinePaste!(node, 4, ' XYZ');
+		expect(result.newRaw).toContain('XYZ');
+		expect(result.caretOffset).toBe(4 + ' XYZ'.length);
+	});
+
+	it('onInlinePaste bumps the fence when paste contains a run ≥ fenceLength', () => {
+		// Three-backtick fence; paste containing a three-backtick run needs the
+		// outer fence bumped to at least four.
+		const node = makeFencedCode('```\nbody\n```\n');
+		const result = codePasteSurface.onInlinePaste!(node, 0, '```\ninner\n```');
+		expect(result.newRaw).toMatch(/^````/);
+	});
+
+	it('onInlinePaste with preDelete replaces the specified range', () => {
+		const node = makeFencedCode('```\nfoo bar\n```\n');
+		// display = "```\nfoo bar\n```"; replace "bar" (offsets 8..11 in display)
+		const fooBarStart = '```\nfoo '.length;
+		const fooBarEnd = fooBarStart + 'bar'.length;
+		const result = codePasteSurface.onInlinePaste!(node, fooBarStart, 'BAZ', {
+			start: fooBarStart,
+			end: fooBarEnd
+		});
+		expect(result.newRaw).toContain('foo BAZ');
+		expect(result.newRaw).not.toContain('foo bar');
+	});
+});
