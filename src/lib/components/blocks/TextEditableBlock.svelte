@@ -24,7 +24,7 @@
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
-	import { parse } from '../../core/parser';
+	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
 	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import {
@@ -446,43 +446,29 @@
 		if (!pastedText) return;
 
 		const offset = getCursorOffsetHelper(el!) ?? 0;
-		const displayText = getDisplayText();
 		const selOffsets = getSelectionOffsetsHelper(el!);
-		const start = selOffsets?.start ?? offset;
-		const end = selOffsets?.end ?? offset;
 
-		const effectiveDisplay = displayText.slice(0, start) + displayText.slice(end);
-		const effectiveOffset = start;
+		const result = await pasteDispatch(
+			{
+				pastedText,
+				targetPath: myPath,
+				offset: selOffsets ? selOffsets.start : offset,
+				preDelete: selOffsets
+					? { start: selOffsets.start, end: selOffsets.end }
+					: undefined
+			},
+			{
+				doc: getDoc(),
+				blockEdit
+			}
+		);
 
-		const parsed = parse(pastedText);
-
-		// Inline path only when the clipboard parses to a single plain
-		// paragraph. A single non-paragraph block (list, heading, code,
-		// blockquote) needs the structural insertParsedBlocks path —
-		// updateBlockContent re-parses the new raw and reparseAsNode keeps
-		// only the first parsed child, so a list pasted into a paragraph
-		// would silently drop everything after the first item.
-		const isInlinePaste = parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
-
-		if (isInlinePaste) {
-			const newDisplay =
-				effectiveDisplay.slice(0, effectiveOffset) +
-				pastedText +
-				effectiveDisplay.slice(effectiveOffset);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', effectiveOffset + pastedText.length);
-			pendingCursorOffset = effectiveOffset + pastedText.length;
-		} else {
-			// Pass the pre-paste selection range to insertParsedBlocks so the
-			// selection-delete + splice land in one undo entry. Previously the
-			// block did updateBlockContent + insertParsedBlocks as two calls,
-			// producing two snapshots — Ctrl+Z stopped in a weird intermediate
-			// "selection gone, blocks not inserted" state. See docs/issues.md.
-			blockEdit.insertParsedBlocks(
-				index,
-				selOffsets ? start : effectiveOffset,
-				parsed.children,
-				selOffsets ? { start, end } : undefined
-			);
+		// For inline paste, the dispatcher returns the target caret offset
+		// so we can set pendingCursorOffset synchronously alongside the raw
+		// mutation. Both land in one reactive flush, so the re-rendered
+		// block positions the cursor correctly.
+		if (result.inlineCaretOffset !== undefined) {
+			pendingCursorOffset = result.inlineCaretOffset;
 		}
 	}
 
