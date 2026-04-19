@@ -17,6 +17,7 @@
 import type { CstNode } from '../../../core/nodes';
 import type { BlockComponent } from '../../../contracts';
 import { assignIds } from '../../../tree-operations/block-id';
+import { registerBlockListState } from './state-registry';
 
 export interface BlockListState {
 	/** Reactive IDs for keyed {#each} rendering. */
@@ -86,7 +87,7 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		innerBlockIds = [...innerBlockIds];
 	}
 
-	return {
+	const state: BlockListState = {
 		get innerBlockIds() {
 			return innerBlockIds;
 		},
@@ -102,4 +103,7 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		commitChildrenEdit,
 		triggerReactivity
 	};
+
+	registerBlockListState(getNode(), state);
+	return state;
 }
