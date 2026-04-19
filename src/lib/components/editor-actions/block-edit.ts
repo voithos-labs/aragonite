@@ -58,7 +58,8 @@ export function createBlockEditActions(
 					// shift positions, so we must manually keep refs aligned.
 					refs.splice(blockIndex + 1, 0, undefined);
 				},
-				() => deps.blockRefs[blockIndex + 1]?.focus(0)
+				() => deps.blockRefs[blockIndex + 1]?.focus(0),
+				{ op: { kind: 'split', detail: { at: offset } } }
 			);
 		},
 
@@ -81,7 +82,8 @@ export function createBlockEditActions(
 							performDelete({ children }, ids, blockIndex - 1);
 							refs.splice(blockIndex - 1, 1);
 						},
-						() => deps.blockRefs[blockIndex - 1]?.focus(0)
+						() => deps.blockRefs[blockIndex - 1]?.focus(0),
+						{ op: { kind: 'delete' } }
 					);
 				} else {
 					// Previous block is editable but not mergeable — move focus
@@ -149,7 +151,8 @@ export function createBlockEditActions(
 					} else {
 						deps.blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
 					}
-				}
+				},
+				{ op: { kind: 'merge', detail: { direction: 'prev' } } }
 			);
 		},
 
@@ -170,7 +173,8 @@ export function createBlockEditActions(
 							performDelete({ children }, ids, blockIndex + 1);
 							refs.splice(blockIndex + 1, 1);
 						},
-						() => deps.blockRefs[blockIndex]?.focus(CURSOR_END)
+						() => deps.blockRefs[blockIndex]?.focus(CURSOR_END),
+						{ op: { kind: 'delete' } }
 					);
 				} else {
 					// Next block is editable but not mergeable — move focus
@@ -189,7 +193,8 @@ export function createBlockEditActions(
 					performMergeNext({ children }, ids, blockIndex);
 					refs.splice(blockIndex + 1, 1); // Remove next block's ref
 				},
-				() => deps.blockRefs[blockIndex]?.focus(mergeOffset)
+				() => deps.blockRefs[blockIndex]?.focus(mergeOffset),
+				{ op: { kind: 'merge', detail: { direction: 'next' } } }
 			);
 		},
 
@@ -207,7 +212,8 @@ export function createBlockEditActions(
 					if (focusIndex >= 0) {
 						deps.blockRefs[focusIndex]?.focus(0);
 					}
-				}
+				},
+				{ op: { kind: 'delete' } }
 			);
 		},
 
@@ -280,7 +286,7 @@ export function createBlockEditActions(
 				() => {
 					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
 				},
-				options
+				{ ...options, op: { kind: 'paste', detail: { count: newNodes.length } } }
 			);
 		},
 
@@ -334,7 +340,7 @@ export function createBlockEditActions(
 						deps.blockRefs[targetIndex]?.focus(focus.offset);
 					}
 				},
-				options
+				{ ...options, op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } } }
 			);
 		}
 	};
