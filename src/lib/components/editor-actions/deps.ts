@@ -12,7 +12,7 @@ import type {
 } from '../../contracts';
 import type { StickyColumnState } from '../../contenteditable/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import type { OperationKind, OperationsLog } from '../../debug/operations-log';
+import type { OperationKind, OperationsLog, OpDescriptor } from '../../debug/operations-log';
 
 export interface EditorActionsDeps {
 	// Reactive state — getters read the live value from Svelte's $state.
@@ -43,7 +43,7 @@ export interface UndoController {
 		afterTick?: () => void,
 		options?: {
 			skipSnapshot?: boolean;
-			op?: { kind: OperationKind; detail?: Record<string, unknown> };
+			op?: OpDescriptor;
 		}
 	): Promise<void>;
 	captureCurrentState(): UndoEntry;

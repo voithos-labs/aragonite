@@ -237,6 +237,11 @@ export function createBlockEditActions(
 				await tick();
 				deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
 			}
+			deps.operationsLog?.record({
+				op: 'updateContent',
+				path: [blockIndex],
+				detail: { length: text.length }
+			});
 		},
 
 		// ── Paste / replace ───────────────────────────────────────────────────
