@@ -98,8 +98,18 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	const strategy = pickPasteStrategy(parsed);
 	const surface = getPasteSurface(targetNode.kind);
+	const clipboardStrategy = pickPasteStrategy(parsed);
+
+	// A surface that explicitly omits `onStructuralPaste` (e.g. the code
+	// block surface) opts out of structural paste entirely — all paste
+	// becomes literal text via the inline hook, regardless of clipboard
+	// shape. This is the right behavior for surfaces where pasted
+	// markdown should stay verbatim (code blocks treat "```" on the
+	// clipboard as body text, not a fence).
+	const surfaceForcesInline =
+		surface !== undefined && surface.onStructuralPaste === undefined;
+	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
