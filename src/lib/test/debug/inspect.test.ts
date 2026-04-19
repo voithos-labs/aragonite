@@ -60,7 +60,10 @@ describe('dumpUndoStack', () => {
 		const stack = { undo: [mkEntry('structural', 0), mkEntry('input-batch', 1)], redo: [] };
 		const out = dumpUndoStack(stack, 10);
 		expect(out).toContain('undo-depth=2 redo-depth=0');
-		expect(out).toMatch(/\[0\] type=/);
+		// Most-recent-first order: input-batch is [0], structural is [1]
+		expect(out).toMatch(/\[0\] type=input-batch/);
+		expect(out).toMatch(/\[1\] type=structural/);
+		expect(out).toContain('selection=[0]');
 	});
 });
 
@@ -77,6 +80,19 @@ describe('dumpInlineTree', () => {
 
 	it('returns empty-string on undefined inline tree', () => {
 		expect(dumpInlineTree(undefined)).toBe('');
+	});
+
+	it('indents nested children and emits url attribute for links', () => {
+		const doc = parse('*emph [link](https://example.com) end*\n');
+		const para = doc.children[0];
+		const range = getContentRange(para);
+		const inline = parseInline(para.raw, range.start, range.end);
+		const out = dumpInlineTree(inline);
+		// Link node should emit url= attribute
+		expect(out).toContain('url=');
+		expect(out).toContain('https://example.com');
+		// Nested children indent: link sits inside emphasis, so at least one line has >= 2-space indent
+		expect(out.split('\n').some((line) => line.startsWith('  '))).toBe(true);
 	});
 });
 

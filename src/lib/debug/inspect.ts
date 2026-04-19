@@ -12,7 +12,7 @@ export function dumpSelection(state: SelectionState | null): string {
 	const parts = [
 		`anchor=${formatPoint(state.anchor)}`,
 		`focus=${formatPoint(state.focus)}`,
-		`cross-block=${state.isCrossBlock ?? false}`
+		`cross-block=${state.isCrossBlock}`
 	];
 	if (state.isCrossBlock && state.start && state.end) {
 		parts.push(`start=${formatPoint(state.start)}`);
@@ -35,6 +35,8 @@ export interface UndoStackLike {
 export function dumpUndoStack(stack: UndoStackLike, n = 10): string {
 	const now = Date.now();
 	const entries = stack.undo.slice(-n).reverse();
+	// UndoEntry doesn't declare `type` / `t` yet; the undo manager adds them
+	// in Task 8. Fall through to defaults until then.
 	const lines = entries.map((e, i) => {
 		const typeTag = (e as { type?: string }).type ?? 'structural';
 		const selStr = e.selection ? formatUndoSelection(e.selection) : 'selection=null';
@@ -84,7 +86,7 @@ export function dumpOperationsLog(log: OperationsLog, n = 20): string {
 }
 
 function renderOp(e: OperationEntry, now: number): string {
-	const base = `[${e.t - now}ms] op=${e.op} path=[${e.path.join(',')}]`;
+	const base = `[${now - e.t}ms ago] op=${e.op} path=[${e.path.join(',')}]`;
 	const detail = renderDetail(e);
 	return detail ? `${base} ${detail}` : base;
 }
