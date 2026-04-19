@@ -43,3 +43,13 @@ export { createUndoManager } from './undo-manager';
 // consumer would force us to break. The 0.5.1 done-gate is satisfied
 // explicitly: no new container-state exports at 0.5.1; full plugin surface
 // locked at 1.2 when the first external consumer is real.
+
+// ── Debug engine — intentionally internal at 0.5.3 ────────────────────────
+//
+// dumpTree, dumpSelection, dumpUndoStack, dumpInlineTree, dumpOperationsLog,
+// and createOperationsLog live in `debug/` but are NOT exported here.
+//
+// Decision rationale: same shape as the 0.5.1 container-state non-export
+// above. The inspect surface is consumed by `/test/editor`'s debug panel
+// and by tests, not by external library consumers. Locking names at 0.5.3
+// risks premature naming the 1.2 plugin API would force us to break.
