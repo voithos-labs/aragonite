@@ -26,6 +26,7 @@ export function createHistoryActions(
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
+			// path=[] signals a history-level op (not position-bound like split/merge).
 			deps.operationsLog?.record({ op: 'undo', path: [], detail: {} });
 		},
 

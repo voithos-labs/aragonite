@@ -15,7 +15,7 @@ import type {
 import { cloneDocument } from '../../tree-operations/clone';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
-import type { OperationKind } from '../../debug/operations-log';
+import type { OpDescriptor } from '../../debug/operations-log';
 
 /**
  * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
@@ -98,7 +98,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		afterTick?: () => void,
 		options?: {
 			skipSnapshot?: boolean;
-			op?: { kind: OperationKind; detail?: Record<string, unknown> };
+			op?: OpDescriptor;
 		}
 	): Promise<void> {
 		deps.stickyColumn.reset();
