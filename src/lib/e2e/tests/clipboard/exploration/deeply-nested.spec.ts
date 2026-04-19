@@ -15,9 +15,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('paste multi-paragraph into a nested list item (list > item > paragraph)', async () => {
 		await editor.loadContent('- outer\n  - nested target\n- tail\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('pasted one\n\npasted two\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted one\n\npasted two\n'));
 		await editor.page.waitForTimeout(100);
 
 		// Nested item's paragraph: path [0, 0, 1, 0, 0] (list > item > list > item > para)
@@ -32,9 +30,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('paste structural into list item inside blockquote (blockquote > list > item > paragraph)', async () => {
 		await editor.loadContent('> - bq item\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('# Heading\n\npara\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
 		await editor.page.waitForTimeout(100);
 
 		// Path: document > blockquote > list > listItem > paragraph.
@@ -51,9 +47,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('cross-block paste inside deeply nested list replaces selection', async () => {
 		await editor.loadContent('- A\n  - B1\n  - B2\n  - B3\n- C\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('- X1\n- X2\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- X1\n- X2\n'));
 		await editor.page.waitForTimeout(100);
 
 		// Cross-block selection across B1..B3 (inside the nested list).

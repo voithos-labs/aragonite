@@ -29,9 +29,7 @@ test.describe('clipboard exploration: edge targets', () => {
 
 	test('paste multi-block content into empty document', async () => {
 		await editor.loadContent('');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('# Heading\n\npara\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
@@ -74,9 +72,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		expect(afterCut).toContain('three');
 
 		// Clipboard should hold the cut content.
-		const clipContent = await editor.page.evaluate(() =>
-			navigator.clipboard.readText()
-		);
+		const clipContent = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clipContent).toContain('one');
 		expect(clipContent).toContain('two');
 	});
