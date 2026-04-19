@@ -77,6 +77,7 @@
 			blockRefs = [];
 			undoManager.clear();
 			stickyColumn.reset();
+			selectionState.clear();
 		}
 	});
 
