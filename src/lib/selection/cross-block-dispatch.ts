@@ -39,13 +39,8 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { installDragListener } from './drag-pointer';
-import { parse } from '../core/parser';
-import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
-import { buildPastedReplacement } from '../tree-operations/paste-replacement';
-import { getStateForNode } from '../components/blocks/container-state/state-registry';
-import { generateBlockId } from '../tree-operations/block-id';
-import { CURSOR_END } from '../contracts';
+import { pasteDispatch } from '../tree-operations/paste-dispatch';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -327,9 +322,9 @@ async function handlePaste(
 	if (!pasted) return true;
 
 	// One snapshot covers the whole delete-then-paste — the cross-block
-	// delete and the paste mutation share a single undo entry. Pre-fix this
-	// path produced two snapshots for the top-level multi-block case (the
-	// implicit one inside performCrossBlockDelete plus another inside
+	// delete and the paste mutation share a single undo entry. Pre-fix,
+	// the nested structural path produced two snapshots (the implicit
+	// one inside performCrossBlockDelete plus another inside
 	// insertParsedBlocks), so a single Ctrl+Z left the document in an
 	// intermediate "selection-deleted but blocks-not-inserted" state.
 	mutCtx.pushUndoSnapshot();
@@ -340,94 +335,40 @@ async function handlePaste(
 		skipCaretRestore: true
 	});
 	if (!caret) return true;
-	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
-	if (!targetNode || !('raw' in targetNode)) return true;
 
-	const parsed = parse(pasted);
-	const isInlinePaste = parsed.children.length === 1 && parsed.children[0].kind === 'paragraph';
+	// Route through the unified dispatcher. skipSnapshot: true threads
+	// into the mutation APIs so the whole delete-then-paste lands as one
+	// undo entry under the snapshot we already pushed.
+	const result = await pasteDispatch(
+		{
+			pastedText: pasted,
+			targetPath: caret.path,
+			offset: caret.offset
+		},
+		{
+			doc,
+			blockEdit: ctx.blockEdit,
+			skipSnapshot: true
+		}
+	);
+	ctx.containerEdit.endContainerEdit();
 
-	// Inline paste: splice pasted text into the target node's raw and
-	// rebuild any container ancestors so their serialized form reflects
-	// the mutated leaf. Used only when the clipboard is a single plain
-	// paragraph — anything structural (lists, headings, code, multi-block
-	// content) takes the buildPastedReplacement path below so the pasted
-	// blocks land as actual structural children rather than as raw text
-	// inside the target paragraph (which would either be silently dropped
-	// by reparseAsNode taking only the first child, or rendered as plain
-	// text with stale block kind).
-	if (isInlinePaste) {
-		const targetDisplay = trimTrailingLineEnding(targetNode.raw);
-		const lineEnding = targetNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		targetNode.raw =
-			targetDisplay.slice(0, caret.offset) +
-			pasted +
-			targetDisplay.slice(caret.offset) +
-			lineEnding;
-		ctx.afterRawMutated?.(targetNode);
-		rebuildAncestryForLeaf(doc, caret.path);
-		ctx.containerEdit.endContainerEdit();
-		// Place the caret on the MERGED block via the DOM rather than
-		// pendingCursor — the originating block (the one whose handler
-		// fired this paste) may have been removed by the cross-block
-		// delete when the user extended selection upward, leaving its
-		// pendingCursor write addressed to an unmounted component.
+	// For inline paste, the dispatcher mutated raw directly. Place the
+	// caret on the merged block via DOM — the originating block (whose
+	// handler fired the paste) may have been removed by the cross-block
+	// delete when the user extended selection upward, leaving its
+	// pendingCursor write addressed to an unmounted component.
+	if (result.inlineCaretOffset !== undefined) {
 		await ctx.afterReactivity();
 		const inlineEl = ctx.getBlockElByPath(caret.path);
 		if (inlineEl) {
 			applyCollapsedCaret(inlineEl, {
 				path: caret.path,
-				offset: caret.offset + pasted.length
+				offset: result.inlineCaretOffset
 			});
 			inlineEl.focus();
 		}
-		return true;
 	}
-
-	// Structural paste. Top-level carets route through insertParsedBlocks
-	// with skipSnapshot so the splice joins the snapshot we already
-	// pushed above. Nested carets splice directly into the parent
-	// container's children — `ctx.blockEdit` is the bundle of the block
-	// that originally received the paste event, and the cross-block
-	// delete may have removed that block's container, leaving the bundle
-	// pointing at an orphaned node. BlockListState's auto-sync `$effect`
-	// regenerates ids/refs when the children-array length changes.
-	if (caret.path.length === 1) {
-		await ctx.blockEdit.insertParsedBlocks(
-			caret.path[0],
-			caret.offset,
-			parsed.children,
-			undefined,
-			{ skipSnapshot: true }
-		);
-		return true;
-	}
-
-	const parentPath = caret.path.slice(0, -1);
-	const parent = nodeAt(doc, parentPath) as CstNode | null;
-	const innerIndex = caret.path[caret.path.length - 1];
-	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) {
-		return true;
-	}
-	const leaf = parent.children[innerIndex];
-	const replacement = buildPastedReplacement(leaf, caret.offset, parsed.children);
-
-	// Parent is a currently-mounted container (path.length >= 2 means it's
-	// a descendant of Document), so its BlockListState is registered. Route
-	// the splice through commitChildrenEdit so ids/refs stay aligned with
-	// the newly-mounted replacement blocks — lets us focus via
-	// innerBlockRefs instead of falling back to DOM-level focus.
-	const parentState = getStateForNode(parent)!;
-	parentState.commitChildrenEdit((children, ids, refs) => {
-		children.splice(innerIndex, 1, ...replacement);
-		ids.splice(innerIndex, 1, ...replacement.map(() => generateBlockId()));
-		refs.splice(innerIndex, 1, ...new Array(replacement.length).fill(undefined));
-	});
-	rebuildAncestryForLeaf(doc, [...parentPath, innerIndex]);
-	ctx.containerEdit.endContainerEdit();
-	await ctx.afterReactivity();
-
-	const lastIdx = innerIndex + replacement.length - 1;
-	parentState.innerBlockRefs[lastIdx]?.focus(CURSOR_END);
 	return true;
 }
 
