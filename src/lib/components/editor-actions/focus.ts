@@ -32,7 +32,11 @@ export function createFocusActions(
 						const lastIdx = deps.doc.children.length - 1;
 						deps.blockRefs[lastIdx]?.focus(0);
 					},
-					{ op: { kind: 'split', detail: { at: 0 } } }
+					// TODO(post-0.5.4): 'split' is semantically wrong here — this is an
+				// append, not a split of an existing block. A dedicated 'appendBlock'
+				// op kind would express the intent accurately; deferred until the
+				// EditEvent union is extended in a later pass.
+				{ op: { kind: 'split', detail: { at: 0 } } }
 				);
 				return;
 			}
