@@ -175,9 +175,16 @@
 						state,
 						{ blockIndex: index, offset: 0 },
 						(children, ids, refs) => {
-							node.children = children;
+							// mergeListItemIntoPrevious splices `list.children` in place.
+							// commitContainer's post-mutate publish then assigns
+							// `node.children = childrenCopy`, which would overwrite the
+							// splice with the pre-splice snapshot (length 2) and leave
+							// a ListItemBlock zombie mounted under a key=undefined slot.
+							// Sync the commit's `children` copy with the post-splice
+							// node.children so the final assignment lands correctly.
 							const result = mergeListItemIntoPrevious(node, itemIndex);
 							mergePoint = result.mergePoint;
+							children.splice(0, children.length, ...(node.children ?? []));
 							ids.splice(itemIndex, 1);
 							refs.splice(itemIndex, 1);
 						},
