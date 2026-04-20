@@ -301,9 +301,6 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		);
 	}
 
-	// Pointer always "handled" — the caller still needs to process the event
-	// for single-block concerns, so we return true only when we short-circuited
-	// (shift-click entered cross-block mode).
 	return false;
 }
 
@@ -372,12 +369,7 @@ async function handlePaste(
 	return true;
 }
 
-/**
- * Rebuild container raw for every ancestor of a leaf path, innermost-first.
- * Stops before the document root — serialization reads top-level children
- * directly, so the document itself never needs rebuild. Mirrors the local
- * walker in rangeDelete and keeps paste/type-replace ancestries fresh.
- */
+/** Rebuild container raw for every ancestor of a leaf path, innermost-first. */
 function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
 		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
