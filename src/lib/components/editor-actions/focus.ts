@@ -4,23 +4,36 @@
  * past the document end.
  */
 
-import { tick } from 'svelte';
 import { CURSOR_END, type FocusActions, type FocusPosition, type CstNode } from '../../contracts';
 import { generateBlockId } from '../../tree-operations/block-id';
-import type { EditorActionsDeps } from './deps';
+import type { EditorActionsDeps, UndoController } from './deps';
 
-export function createFocusActions(deps: EditorActionsDeps): FocusActions {
+export function createFocusActions(
+	deps: EditorActionsDeps,
+	controller: UndoController
+): FocusActions {
 	return {
 		async moveFocus(blockIndex: number, position: FocusPosition): Promise<void> {
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
-				// Past the last block — create a new empty paragraph
+				// Past the last block — create a new empty paragraph via the
+				// commit primitive so the append participates in undo history
+				// and edit-event emission like every other structural mutation.
 				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
-				deps.setDocChildren([...deps.doc.children, newBlock]);
-				deps.setBlockIds([...deps.blockIds, generateBlockId()]);
-				deps.setBlockRefs([...deps.blockRefs, undefined]);
-				await tick();
-				deps.blockRefs[deps.doc.children.length - 1]?.focus(0);
+				await controller.commitStructural(
+					deps.doc.children.length,
+					0,
+					(children, ids, refs) => {
+						children.push(newBlock);
+						ids.push(generateBlockId());
+						refs.push(undefined);
+					},
+					() => {
+						const lastIdx = deps.doc.children.length - 1;
+						deps.blockRefs[lastIdx]?.focus(0);
+					},
+					{ op: { kind: 'split', detail: { at: 0 } } }
+				);
 				return;
 			}
 			const block = deps.blockRefs[blockIndex];

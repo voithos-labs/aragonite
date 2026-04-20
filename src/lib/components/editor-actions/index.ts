@@ -30,7 +30,7 @@ export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundl
 	const controller = createUndoController(deps);
 	return {
 		blockEdit: createBlockEditActions(deps, controller),
-		focus: createFocusActions(deps),
+		focus: createFocusActions(deps, controller),
 		history: createHistoryActions(deps, controller),
 		containerEdit: createContainerEditActions(deps, controller),
 		captureCurrentState: controller.captureCurrentState

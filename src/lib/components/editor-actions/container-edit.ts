@@ -26,7 +26,11 @@ export function createContainerEditActions(
 		},
 
 		endContainerEdit(): void {
-			deps.setDocChildren([...deps.doc.children]);
+			// Reactivity nudge for paths that don't go through commitContainer
+			// (e.g. list-context.ts indentItem, which spans multiple container
+			// states). Direct reassignment on the $state proxy triggers the
+			// reactive signal without the indirection of a setter.
+			deps.doc.children = [...deps.doc.children];
 		},
 
 		commitContainer(containerNode, state, snapshot, mutate, afterTick, op): Promise<void> {

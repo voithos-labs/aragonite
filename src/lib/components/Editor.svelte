@@ -156,9 +156,6 @@
 		setDoc: (v) => {
 			doc = v;
 		},
-		setDocChildren: (v) => {
-			doc.children = v;
-		},
 		setBlockIds: (v) => {
 			blockIds = v;
 		},
