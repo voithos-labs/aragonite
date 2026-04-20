@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	PANEL_STORAGE_KEY,
+	MIN_PANEL_WIDTH,
+	DEFAULT_PANEL_WIDTH,
 	readPanelState,
 	writePanelState,
 	defaultPanelState,
@@ -26,7 +28,8 @@ describe('panel-state persistence', () => {
 				undo: false,
 				inline: true,
 				opsLog: true
-			}
+			},
+			width: 560
 		};
 		writePanelState(state);
 		expect(readPanelState()).toEqual(state);
@@ -58,6 +61,26 @@ describe('panel-state persistence', () => {
 		expect(result.expanded.cst).toBe(false);
 		expect(result.expanded.rawSource).toBe(defaults.expanded.rawSource);
 		expect(result.expanded.opsLog).toBe(defaults.expanded.opsLog);
+	});
+
+	it('defaults width when storage omits it', () => {
+		localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ open: true }));
+		expect(readPanelState().width).toBe(DEFAULT_PANEL_WIDTH);
+	});
+
+	it('clamps a stored width below the minimum up to the minimum on read', () => {
+		localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ width: 50 }));
+		expect(readPanelState().width).toBe(MIN_PANEL_WIDTH);
+	});
+
+	it('accepts a stored width above the minimum verbatim', () => {
+		localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ width: 640 }));
+		expect(readPanelState().width).toBe(640);
+	});
+
+	it('falls back to default width on a non-numeric stored value', () => {
+		localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ width: 'wide' }));
+		expect(readPanelState().width).toBe(DEFAULT_PANEL_WIDTH);
 	});
 });
 
