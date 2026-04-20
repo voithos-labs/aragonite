@@ -65,9 +65,8 @@ describe('createEditorEvents', () => {
 	// Test #5 from the failing-first pin list: a container edit must fire
 	// exactly one edit event per commit.
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
-		const { createUndoController } = await import(
-			'$lib/editor/components/editor-actions/undo-controller'
-		);
+		const { createUndoController } =
+			await import('$lib/editor/components/editor-actions/undo-controller');
 		const { createUndoManager } = await import('$lib/editor/undo-manager');
 		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
 

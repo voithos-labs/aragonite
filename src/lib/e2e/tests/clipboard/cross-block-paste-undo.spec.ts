@@ -26,12 +26,9 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 
 		await editor.page.keyboard.press('Control+v');
 		// Allow reactivity + post-tick focus to settle.
-		await editor.page.waitForFunction(
-			(expected) => {
-				return (window as any).__test.getSource().trim() === expected.trim();
-			},
-			pasteMd
-		);
+		await editor.page.waitForFunction((expected) => {
+			return (window as any).__test.getSource().trim() === expected.trim();
+		}, pasteMd);
 
 		// Single undo restores the original doc.
 		await editor.undo();

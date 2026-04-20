@@ -3,6 +3,19 @@
  * ListItemBlock components. Container-local wiring: it reaches into the list's
  * reactive BlockListState and calls through to the parent bundle, so it lives
  * under container-state/ alongside the state it depends on.
+ *
+ * Residual begin/end seam (0.5.4):
+ * List-scope operations that span MULTIPLE container states (the outer list
+ * plus a nested list or a previous item's nested list) — indentItem,
+ * unindentItem, promoteNestedItem, exitListAtItem — stay on the legacy
+ * `beginContainerEdit → state.commitChildrenEdit → endContainerEdit` seam
+ * because `commitContainerStructural` is single-container-scoped.
+ *
+ * Consequence: these operations do NOT emit `edit` events on the
+ * `EditorEvents` surface. They DO get undo snapshots (via begin) and
+ * reactivity publishes (via endContainerEdit's children-array nudge). A
+ * multi-scope commit primitive, or per-operation event emission, is future
+ * work.
  */
 
 import { tick } from 'svelte';

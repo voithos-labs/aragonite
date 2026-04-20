@@ -97,12 +97,7 @@
 <svelte:window onkeydown={handleKeyDown} onmousemove={onMouseMove} onmouseup={onMouseUp} />
 
 {#if panel.open}
-	<aside
-		class="debug-panel"
-		class:resizing
-		tabindex="-1"
-		style:width="{panel.width}px"
-	>
+	<aside class="debug-panel" class:resizing tabindex="-1" style:width="{panel.width}px">
 		<div
 			class="resize-handle"
 			role="separator"
@@ -113,24 +108,45 @@
 		<header class="debug-panel-header">
 			<span class="debug-panel-title">Debug</span>
 			<button type="button" class="copy-all" onclick={onCopyAll}>Copy all as text</button>
-			<button type="button" class="close-btn" onclick={() => (panel.open = false)} aria-label="Close">×</button>
+			<button
+				type="button"
+				class="close-btn"
+				onclick={() => (panel.open = false)}
+				aria-label="Close">×</button
+			>
 		</header>
-		<Section title="Raw source" expanded={panel.isExpanded('rawSource')} onToggle={mkToggle('rawSource')}>
+		<Section
+			title="Raw source"
+			expanded={panel.isExpanded('rawSource')}
+			onToggle={mkToggle('rawSource')}
+		>
 			{rawSource}
 		</Section>
 		<Section title="CST tree" expanded={panel.isExpanded('cst')} onToggle={mkToggle('cst')}>
 			{cstText}
 		</Section>
-		<Section title="Selection" expanded={panel.isExpanded('selection')} onToggle={mkToggle('selection')}>
+		<Section
+			title="Selection"
+			expanded={panel.isExpanded('selection')}
+			onToggle={mkToggle('selection')}
+		>
 			{selectionText}
 		</Section>
 		<Section title="Undo stack" expanded={panel.isExpanded('undo')} onToggle={mkToggle('undo')}>
 			{undoText}
 		</Section>
-		<Section title="Inline tree (focused block)" expanded={panel.isExpanded('inline')} onToggle={mkToggle('inline')}>
+		<Section
+			title="Inline tree (focused block)"
+			expanded={panel.isExpanded('inline')}
+			onToggle={mkToggle('inline')}
+		>
 			{inlineText}
 		</Section>
-		<Section title="Operations log" expanded={panel.isExpanded('opsLog')} onToggle={mkToggle('opsLog')}>
+		<Section
+			title="Operations log"
+			expanded={panel.isExpanded('opsLog')}
+			onToggle={mkToggle('opsLog')}
+		>
 			{opsLogText}
 		</Section>
 	</aside>

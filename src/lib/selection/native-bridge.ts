@@ -80,9 +80,7 @@ export function readCurrentSelection(
 			focus: { path: selectionState.focus.path.slice(), offset: selectionState.focus.offset }
 		};
 	}
-	const focusedIndex = blockRefs.findIndex(
-		(b) => b !== undefined && b.getCursorOffset() !== null
-	);
+	const focusedIndex = blockRefs.findIndex((b) => b !== undefined && b.getCursorOffset() !== null);
 	if (focusedIndex === -1) return null;
 	const focusedOffset = blockRefs[focusedIndex]!.getCursorOffset()!;
 	return buildCollapsed(focusedIndex, focusedOffset);

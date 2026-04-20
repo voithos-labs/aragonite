@@ -22,9 +22,7 @@ test.describe('debug panel', () => {
 		await editor.goto();
 		// Clear persisted panel state from any prior test run so each test
 		// starts from the default closed state.
-		await editor.page.evaluate(() =>
-			localStorage.removeItem('limestone.debug-panel.state.v1')
-		);
+		await editor.page.evaluate(() => localStorage.removeItem('limestone.debug-panel.state.v1'));
 		await editor.page.reload();
 		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000
@@ -62,9 +60,9 @@ test.describe('debug panel', () => {
 	test('all six sections render in document order and CST body is populated', async () => {
 		await editor.page.keyboard.press(toggleKey());
 
-		const titles = await editor.page.locator('.debug-section').evaluateAll((sections) =>
-			sections.map((s) => s.getAttribute('data-section-title'))
-		);
+		const titles = await editor.page
+			.locator('.debug-section')
+			.evaluateAll((sections) => sections.map((s) => s.getAttribute('data-section-title')));
 		expect(titles).toEqual([
 			'Raw source',
 			'CST tree',
@@ -184,9 +182,7 @@ test.describe('debug panel', () => {
 
 		// The source must not contain a stray 'd' or 'D' from the hotkey.
 		const source = await editor.getSource();
-		const linesWithStrayD = source
-			.split('\n')
-			.filter((l) => l.trim() === 'd' || l.trim() === 'D');
+		const linesWithStrayD = source.split('\n').filter((l) => l.trim() === 'd' || l.trim() === 'D');
 		expect(linesWithStrayD).toHaveLength(0);
 	});
 });
