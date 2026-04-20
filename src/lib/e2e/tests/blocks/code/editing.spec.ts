@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('code block editing — happy paths', () => {
 	let editor: EditorPage;

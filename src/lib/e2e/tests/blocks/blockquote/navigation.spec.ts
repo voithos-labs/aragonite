@@ -2,10 +2,10 @@
  * Blockquote navigation — arrow-key traversal inside / across blockquote
  * boundaries, before and after various structural edits. Companion to the
  * cross-container merge work in v0.3.4.
- * Requirements: e2e/requirements/blocks/blockquote-navigation.md
+ * Requirements: e2e/requirements/blocks/blockquote/navigation.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('blockquote navigation — basic traversal', () => {
 	let editor: EditorPage;
