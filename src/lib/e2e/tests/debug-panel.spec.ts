@@ -115,6 +115,44 @@ test.describe('debug panel', () => {
 		expect(clip).toContain('### Operations log');
 	});
 
+	// ── Inline tree reacts to caret placement ─────────────────────────────────
+
+	test('inline tree populates with inline-node kinds when caret is placed in a formatted prose block', async () => {
+		await editor.page.keyboard.press(toggleKey());
+		// Inline tree section is collapsed by default; expand it.
+		await editor.page
+			.locator(
+				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-header'
+			)
+			.click();
+		// Block 3 of DEFAULT_CONTENT is "A paragraph with **bold text**, *italic text*, ~~strikethrough~~, and `inline code`."
+		await editor.clickBlock(3);
+		const body = editor.page.locator(
+			'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-body'
+		);
+		// Each recognized inline kind should show up in the dump.
+		await expect(body).toContainText('strong');
+		await expect(body).toContainText('emphasis');
+		await expect(body).toContainText('strikethrough');
+		await expect(body).toContainText('inlineCode');
+	});
+
+	// ── Selection section reacts to caret placement ───────────────────────────
+
+	test('selection section shows the focused block path when user clicks in a block', async () => {
+		await editor.page.keyboard.press(toggleKey());
+		// Selection section is collapsed by default; expand it.
+		await editor.page
+			.locator('.debug-section[data-section-title="Selection"] .debug-section-header')
+			.click();
+		await editor.clickBlock(3);
+		const body = editor.page.locator(
+			'.debug-section[data-section-title="Selection"] .debug-section-body'
+		);
+		// Body must reference the focused block's path [3].
+		await expect(body).toContainText('[3]');
+	});
+
 	// ── Hotkey with editor focused ────────────────────────────────────────────
 
 	test('hotkey with focus in the editor toggles panel without inserting a character', async () => {

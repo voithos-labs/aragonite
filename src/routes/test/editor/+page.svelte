@@ -18,7 +18,13 @@
 
 	let source = $state(DEFAULT_CONTENT);
 	let editor: ReturnType<typeof Editor>;
-	let opsLogTick = $state(0);
+
+	// Single reactive counter that retriggers panel getters. Bumped by BOTH
+	// editor ops (via the ops-log subscriber) AND native DOM selection changes
+	// (selectionchange). Without the selectionchange half, clicking in a block
+	// moves the caret but no Svelte signal fires, so the inline/selection
+	// sections never refresh.
+	let panelTick = $state(0);
 
 	onMount(() => {
 		applyTheme(DEFAULT_THEME);
@@ -29,18 +35,75 @@
 		const log = editor.getOperationsLog?.();
 		if (!log) return;
 		const unsub = log.subscribe(() => {
-			opsLogTick += 1;
+			panelTick += 1;
 		});
 		return () => unsub();
+	});
+
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+		const onSelectionChange = () => {
+			panelTick += 1;
+		};
+		document.addEventListener('selectionchange', onSelectionChange);
+		return () => document.removeEventListener('selectionchange', onSelectionChange);
 	});
 
 	// Panel-display view of the editor's live source. MUST NOT feed back into
 	// the `source` prop — Editor re-initializes from source changes, which
 	// would wipe undo / selection / CST on every op.
 	const liveSource = $derived.by(() => {
-		opsLogTick;
+		panelTick;
 		return editor?.getSource() ?? source;
 	});
+
+	// Path of the block containing the current native selection's start.
+	// Prefers the range's container over document.activeElement so it still
+	// resolves when focus has moved to the panel (e.g., after clicking a
+	// section header) — the browser's last selection still points into the
+	// editor's DOM.
+	function getFocusedBlockPath(): number[] | null {
+		if (typeof window === 'undefined') return null;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return null;
+		const node = sel.getRangeAt(0).startContainer;
+		const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+		return findBlockPathForElement(el);
+	}
+
+	// Selection section string. Covers both cross-block (SelectionState) and
+	// single-block (native DOM) modes — SelectionState is null-everywhere in
+	// single-block by design, so dumpSelection alone would always show
+	// "(no selection)" and the user would never see their live caret.
+	function liveSelectionText(): string {
+		const state = editor?.getSelectionState();
+		if (state?.isCrossBlock && state.anchor && state.focus) {
+			return dumpSelection(state);
+		}
+		if (typeof window === 'undefined') return '(no selection)';
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return '(no selection)';
+		const range = sel.getRangeAt(0);
+		const startNode = range.startContainer;
+		const endNode = range.endContainer;
+		const startEl =
+			startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as Element);
+		const endEl =
+			endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as Element);
+		const startPath = findBlockPathForElement(startEl);
+		const endPath = findBlockPathForElement(endEl);
+		if (!startPath || !endPath) return '(no selection in editor)';
+		const lines = [
+			`mode=single-block${range.collapsed ? ' (caret)' : ' (range)'}`,
+			`anchor=[${startPath.join(',')}] focus=[${endPath.join(',')}]`,
+			`dom-offsets: start=${range.startOffset} end=${range.endOffset}`
+		];
+		if (!range.collapsed) {
+			const selected = sel.toString();
+			if (selected) lines.push(`selected=${JSON.stringify(selected)}`);
+		}
+		return lines.join('\n');
+	}
 
 	$effect(() => {
 		if (typeof window === 'undefined' || !editor) return;
@@ -72,10 +135,9 @@
 			// ── Debug engine surface ──────────────────────────────────────────
 			dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 				dumpTree(parse(editor.getSource()), opts),
-			dumpSelection: () => dumpSelection(editor.getSelectionState()),
+			dumpSelection: () => liveSelectionText(),
 			dumpInlineTree: () => {
-				if (typeof document === 'undefined') return '';
-				const path = findBlockPathForElement(document.activeElement);
+				const path = getFocusedBlockPath();
 				if (!path) return '';
 				const doc = parse(editor.getSource());
 				const node = nodeAt(doc, path);
@@ -97,18 +159,19 @@
 	<DebugPanel
 		rawSource={liveSource}
 		getCst={() => dumpTree(parse(liveSource))}
-		getSelection={() => dumpSelection(editor?.getSelectionState() ?? null)}
+		getSelection={() => {
+			panelTick;
+			return liveSelectionText();
+		}}
 		getUndoStack={() => {
+			panelTick;
 			const stack = editor?.getUndoStack?.();
 			return stack ? dumpUndoStack(stack) : '(editor not ready)';
 		}}
 		getInlineTree={() => {
-			if (!editor || typeof document === 'undefined') return '';
-			// Tick opsLogTick so the derived re-runs after every edit — the focused
-			// block may be the same, but its raw (and therefore its inline tree)
-			// can change on keystrokes.
-			opsLogTick;
-			const path = findBlockPathForElement(document.activeElement);
+			if (!editor) return '';
+			panelTick;
+			const path = getFocusedBlockPath();
 			if (!path) return '';
 			const doc = parse(liveSource);
 			const node = nodeAt(doc, path);
@@ -121,7 +184,7 @@
 			const log = editor?.getOperationsLog?.();
 			return log ? dumpOperationsLog(log) : '';
 		}}
-		{opsLogTick}
+		opsLogTick={panelTick}
 	/>
 </div>
 
