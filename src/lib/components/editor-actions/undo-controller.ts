@@ -172,7 +172,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				: { blockIndex: snapshotBlockIndex, offset: snapshotOffset },
 			mutate,
 			publish: (children, ids, refs) => {
-				deps.setDocChildren(children);
+				deps.doc.children = children;
 				deps.setBlockIds(ids);
 				deps.setBlockRefs(refs);
 			},
@@ -227,7 +227,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			publish: () => {
 				// Nudge top-level reactivity so any ancestor-raw mutation
 				// performed inside `mutate` propagates to the document tree.
-				deps.setDocChildren([...deps.doc.children]);
+				deps.doc.children = [...deps.doc.children];
 			},
 			op: op ? { kind: op.kind, detail: op.detail } : undefined,
 			eventPath: op?.eventPath ?? [],
