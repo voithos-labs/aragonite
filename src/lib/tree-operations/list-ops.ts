@@ -428,10 +428,8 @@ export function buildExitReplacement(
 	const before = items.slice(0, itemIndex).map(cloneNode);
 	const after = items.slice(itemIndex + 1).map(cloneNode);
 
-	// Promotions slot into whichever surviving half they originally sat next
-	// to. wasFirstItem has no `before` half, so promotions slide into `after`;
-	// otherwise they extend `before`. Mirrors the pre-fix behavior preserved
-	// by the existing only-item-with-nested promotion test.
+	// Promotions slot into whichever surviving half they originally sat next to.
+	// wasFirstItem has no `before` half, so promotions slide into `after`.
 	const wasFirstItem = itemIndex === 0;
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;

@@ -245,9 +245,7 @@ export function defaultStructuralHook(
 
 // ── Default surface registration ───────────────────────────────────────────
 
-// Prose text kinds share paste semantics — register a default surface for
-// each at module load. Code registers its own in code-bootstrap; future
-// table / plugin surfaces register at their own bootstrap time.
+// Prose text kinds share paste semantics — register a default surface for each at module load.
 for (const kind of ['paragraph', 'heading', 'setextHeading'] as const) {
 	registerPasteSurface({
 		kind,

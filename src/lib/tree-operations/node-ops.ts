@@ -48,19 +48,15 @@ export function splitNode(
 	const node = parent.children[blockIndex];
 	const rawText = node.raw;
 
-	// Detect line ending style from the original raw
 	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
 
-	// Split the raw text at the offset
 	let firstRaw = rawText.slice(0, offset);
 	let secondRaw = rawText.slice(offset);
 
-	// Ensure the first part ends with a line ending
 	if (!firstRaw.endsWith('\n')) {
 		firstRaw += lineEnding;
 	}
 
-	// Ensure the second part ends with a line ending
 	if (secondRaw.length === 0 || !secondRaw.endsWith('\n')) {
 		if (secondRaw.length === 0) {
 			secondRaw = lineEnding;
@@ -72,10 +68,7 @@ export function splitNode(
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
 	const secondNode = reparseAsNode(secondRaw, '');
 
-	// Replace the original node with the two new nodes
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
-
-	// Update IDs: original stays, new one inserted after
 	blockIds.splice(blockIndex + 1, 0, generateBlockId());
 }
 
@@ -96,15 +89,9 @@ export function mergeWithPrevious(
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
 
-	// Strip trailing line ending from prev so the merged text flows together
 	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
-
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
-
-	// Replace both nodes with the merged node
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
-
-	// Remove the second block's ID
 	blockIds.splice(blockIndex, 1);
 }
 
@@ -119,15 +106,9 @@ export function mergeWithNext(parent: NodeParent, blockIds: string[], blockIndex
 	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
 
-	// Strip trailing line ending from current so the merged text flows together
 	const mergedRaw = trimTrailingLineEnding(curr.raw) + next.raw;
-
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
-
-	// Replace both nodes with the merged node
 	parent.children.splice(blockIndex, 2, mergedNode);
-
-	// Remove the next block's ID
 	blockIds.splice(blockIndex + 1, 1);
 }
 
@@ -142,7 +123,6 @@ export function deleteNode(parent: NodeParent, blockIds: string[], blockIndex: n
 
 	const deleted = parent.children[blockIndex];
 
-	// Transfer leading trivia to the next block
 	if (blockIndex + 1 < parent.children.length) {
 		parent.children[blockIndex + 1].leadingTrivia =
 			deleted.leadingTrivia + parent.children[blockIndex + 1].leadingTrivia;
@@ -168,8 +148,7 @@ export function updateNodeContent(
 
 	const reparsed = reparseAsNode(newText, node.leadingTrivia);
 
-	// Update the node in place — copy all fields so leaf↔container transitions
-	// (e.g., paragraph → list) propagate children and container structure
+	// Copy all fields so leaf↔container transitions propagate children and container structure.
 	node.raw = newText;
 	node.kind = reparsed.kind;
 	node.metadata = reparsed.metadata;
@@ -186,10 +165,7 @@ export function updateNodeContent(
 
 // ── Reparse helper (private) ──
 
-/**
- * Parse a raw string as a single block node.
- * The parser produces mutable plain objects directly — no conversion needed.
- */
+/** Parse a raw string as a single block node. */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) {
@@ -205,16 +181,9 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 // ── Replacement normalization ──
 
 /**
- * Normalize the trivia of a replacement array produced for `replaceBlock`:
- * the first replacement node inherits the original block's leadingTrivia (so
- * the replacement takes over the original's position in its parent's
- * children), and subsequent nodes keep their own trivia (which may carry
- * blank-line separators). Pass-through on empty replacements.
- *
- * Shared by the top-level `BlockEditActions.replaceBlock`, the nested
- * `replaceBlock` inside `createStandardNestedActions`, and the custom
- * `ListBlock.replaceBlock` override — consolidating the identical three-way
- * duplication from the original review.
+ * Normalize the trivia of a replacement array: the first node inherits the
+ * original block's leadingTrivia; subsequent nodes keep their own trivia.
+ * Pass-through on empty replacements.
  */
 export function normalizeReplacementTrivia(original: CstNode, replacement: CstNode[]): CstNode[] {
 	const originalTrivia = original.leadingTrivia ?? '';
