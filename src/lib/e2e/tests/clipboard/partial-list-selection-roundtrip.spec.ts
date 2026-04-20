@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage } from '../../editor-page';
 
 /**
  * User-reported follow-up to the 0.5.2 consolidation: partial-selection
