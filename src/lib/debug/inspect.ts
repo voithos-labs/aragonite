@@ -1,3 +1,17 @@
+/**
+ * Internal debug engine. Not exported from `src/lib/editor/index.ts`.
+ *
+ * Ad-hoc debugging during a dev session: import directly and
+ * `console.log(dumpTree(doc))` where useful, then strip before commit.
+ *   from editor source:  import { dumpTree } from '...debug/inspect';
+ *   from tests/routes:   import { dumpTree } from '$lib/editor/debug/inspect';
+ * The `/test/editor` debug panel (Ctrl+Shift+D) is the non-ephemeral path.
+ *
+ * Format is intentionally disposable — callers must not assert on the
+ * output string. Use structured accessors (getSource, kinds, paths) for
+ * test assertions.
+ */
+
 import type { InlineNode } from '../core/nodes';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry } from '../contracts';
