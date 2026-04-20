@@ -21,28 +21,28 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                         | Covers                                      |
-| ------------------------------ | ------------------------------------------- |
-| `test:editor:core`             | Parser, serializer, round-trip invariants   |
-| `test:editor:tree-ops`         | Tree mutation helpers                       |
-| `test:editor:container`        | Container-state transitions                 |
-| `test:editor:contenteditable`  | Contenteditable normalization helpers       |
-| `test:editor:selection`        | Selection-state logic                       |
-| `test:editor:blocks`           | Per-block unit tests (code block, etc.)     |
-| `test:editor:debug`            | Debug engine helpers and operations log     |
+| Script                        | Covers                                    |
+| ----------------------------- | ----------------------------------------- |
+| `test:editor:core`            | Parser, serializer, round-trip invariants |
+| `test:editor:tree-ops`        | Tree mutation helpers                     |
+| `test:editor:container`       | Container-state transitions               |
+| `test:editor:contenteditable` | Contenteditable normalization helpers     |
+| `test:editor:selection`       | Selection-state logic                     |
+| `test:editor:blocks`          | Per-block unit tests (code block, etc.)   |
+| `test:editor:debug`           | Debug engine helpers and operations log   |
 
 E2E tests are grouped into Playwright projects:
 
-| Script                      | Covers                                                    |
-| --------------------------- | --------------------------------------------------------- |
-| `test:e2e:top`              | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers |
-| `test:e2e:blocks`           | All per-block specs under `tests/blocks/`                 |
-| `test:e2e:blocks:list`      | List block specs only                                     |
-| `test:e2e:blocks:code`      | Code block specs only                                     |
-| `test:e2e:clipboard`        | Cut / copy / paste (excludes exploration)                 |
-| `test:e2e:exploration`      | Clipboard exploration / manual-verification scenarios     |
-| `test:e2e:selection`        | Cross-block selection behavior                            |
-| `test:e2e:sticky-column`    | Vertical cursor column tracking across block transitions  |
+| Script                   | Covers                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `test:e2e:top`           | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers |
+| `test:e2e:blocks`        | All per-block specs under `tests/blocks/`                                     |
+| `test:e2e:blocks:list`   | List block specs only                                                         |
+| `test:e2e:blocks:code`   | Code block specs only                                                         |
+| `test:e2e:clipboard`     | Cut / copy / paste (excludes exploration)                                     |
+| `test:e2e:exploration`   | Clipboard exploration / manual-verification scenarios                         |
+| `test:e2e:selection`     | Cross-block selection behavior                                                |
+| `test:e2e:sticky-column` | Vertical cursor column tracking across block transitions                      |
 
 ## Unit Tests (Vitest)
 
@@ -130,14 +130,14 @@ A collapsible side panel overlaid on the `/test/editor` route for ad-hoc debuggi
 
 Six collapsible sections:
 
-| Section | Contents |
-| ----------------------- | --------------------------------------------------------------- |
-| Raw source              | Read-only view of the editor's live source (edit via the editor itself or `window.__test.setSource(md)` from DevTools) |
-| CST tree                | Compact text rendering of the full parsed block tree            |
-| Selection               | Live anchor/focus paths in both single-block (native DOM) and cross-block (SelectionState) modes |
-| Undo stack              | Top-N undo entries with type, selection snapshot, and timestamp |
-| Inline tree (focused block) | Inline parse tree for the currently-focused prose block    |
-| Operations log          | Tail of the structural-operation ring buffer with op type, path, and elapsed time |
+| Section                     | Contents                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Raw source                  | Read-only view of the editor's live source (edit via the editor itself or `window.__test.setSource(md)` from DevTools) |
+| CST tree                    | Compact text rendering of the full parsed block tree                                                                   |
+| Selection                   | Live anchor/focus paths in both single-block (native DOM) and cross-block (SelectionState) modes                       |
+| Undo stack                  | Top-N undo entries with type, selection snapshot, and timestamp                                                        |
+| Inline tree (focused block) | Inline parse tree for the currently-focused prose block                                                                |
+| Operations log              | Tail of the structural-operation ring buffer with op type, path, and elapsed time                                      |
 
 **Copy all:** The header button concatenates every section into a fenced Markdown snapshot (timestamped) and writes it to the clipboard — paste directly into bug reports or AI conversations.
 
@@ -147,13 +147,13 @@ The underlying debug engine (`src/lib/editor/debug/`) is internal at 0.5.3 and i
 
 The same helpers are wired to `window.__test` on the test route, callable from DevTools without opening the panel:
 
-| Call | Returns |
-| ---------------------------------------- | ------------------------------------------------------- |
-| `__test.dumpTree(opts?)` | Compact text rendering of the parsed CST                |
-| `__test.dumpSelection()` | Current selection state as a one-line summary           |
-| `__test.dumpInlineTree()` | Inline tree for the currently-focused prose block       |
-| `__test.dumpUndoStack(n?)` | Top-N undo entries (default 10)                         |
-| `__test.dumpOperationsLog(n?)` | Tail-N of the structural-op ring buffer (default 20)    |
+| Call                           | Returns                                              |
+| ------------------------------ | ---------------------------------------------------- |
+| `__test.dumpTree(opts?)`       | Compact text rendering of the parsed CST             |
+| `__test.dumpSelection()`       | Current selection state as a one-line summary        |
+| `__test.dumpInlineTree()`      | Inline tree for the currently-focused prose block    |
+| `__test.dumpUndoStack(n?)`     | Top-N undo entries (default 10)                      |
+| `__test.dumpOperationsLog(n?)` | Tail-N of the structural-op ring buffer (default 20) |
 
 The existing test-bridge calls (`getSource`, `setSource`, `getBlockCount`, etc.) remain on `window.__test` alongside these helpers.
 

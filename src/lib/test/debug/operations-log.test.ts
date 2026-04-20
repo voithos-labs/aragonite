@@ -15,7 +15,7 @@ describe('operations-log', () => {
 		for (let i = 0; i < 5; i++) log.record({ op: 'split', path: [i], detail: { at: 0 } });
 		const snap = log.snapshot();
 		expect(snap).toHaveLength(3);
-		expect(snap.map((e) => (e.path[0] as number))).toEqual([2, 3, 4]);
+		expect(snap.map((e) => e.path[0] as number)).toEqual([2, 3, 4]);
 	});
 
 	it('stamps each entry with a monotonically increasing timestamp', () => {

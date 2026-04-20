@@ -356,6 +356,28 @@ Single unified undo stack; browser contenteditable undo is disabled. Each entry 
 
 Undo restores the previous snapshot, pushes the current state onto the redo stack, and restores the saved selection (including cross-block state if the original operation had one). Redo is the inverse. The redo stack clears on any new edit.
 
+### Commit Primitive
+
+Every structural mutation routes through a single internal commit helper. Two public entry points cover the two scopes:
+
+- **Top-level scope** — operations on the document's children array (split, merge, delete, paste, replaceBlock, kind-change republish).
+- **Container scope** — operations confined to a single container's children array (nested split/merge/delete, nested paste, list item reorder inside one list).
+
+Both entry points delegate to one internal `__commit` that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, record an op-log entry, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). Callers pick their scope; they don't assemble the ceremony themselves. This retires an older pattern where container mutations were bracketed by begin/end calls and a separate reactivity nudge — the commit primitive is now the only seam.
+
+### Event Seam
+
+The editor exposes an observer-pattern event surface at `editor.events`. Two channels:
+
+- **`edit`** — fires after every commit, with a discriminated union keyed by `op`: structural ops (split / merge / delete / paste / replaceBlock / updateContent) emitted by the commit primitive, plus `input` emitted by the debounced keystroke flush, plus `undo` / `redo` emitted by the history layer.
+- **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.
+
+Events fire synchronously from their emission sites. Handlers must not mutate the document; reentrant edits are not supported. Subscribe via `on(name, cb)`, which returns a disposer.
+
+The debug op-log is implemented as a subscriber to the `edit` channel, not as a direct call from commit sites. Future persistent-history layers and external observers hook in the same way without touching editor internals.
+
+The nested paste path emits `op: 'replaceBlock'` because `insertParsedBlocks` delegates to `replaceBlock` on the container. Top-level paste emits `op: 'paste'`. Consumers that count paste events across paths should match on both variants.
+
 ### Relationship to Persistent History
 
 The undo stack is session-scoped — it lives in memory and clears when the document is closed. A future persistent version history layer is expected to operate at a different boundary (the save write), and the two systems are designed not to interact: the editor produces a serialized document on save, and whatever storage layer handles cross-session history does so independently.
