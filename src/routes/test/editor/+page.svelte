@@ -28,12 +28,16 @@
 		if (!log) return;
 		const unsub = log.subscribe(() => {
 			opsLogTick += 1;
-			// Re-sync source with the editor's live state so panel getters
-			// that depend on `source` (CST tree, inline tree, raw textarea)
-			// reflect edits made in the editor itself, not just the textarea.
-			source = editor.getSource();
 		});
 		return () => unsub();
+	});
+
+	// Panel-display view of the editor's live source. MUST NOT feed back into
+	// the `source` prop — Editor re-initializes from source changes, which
+	// would wipe undo / selection / CST on every op.
+	const liveSource = $derived.by(() => {
+		opsLogTick;
+		return editor?.getSource() ?? source;
 	});
 
 	$effect(() => {
@@ -89,9 +93,9 @@
 		<Editor bind:this={editor} {source} />
 	</div>
 	<DebugPanel
-		rawSource={source}
+		rawSource={liveSource}
 		onRawSourceChange={(v) => (source = v)}
-		getCst={() => dumpTree(parse(source))}
+		getCst={() => dumpTree(parse(liveSource))}
 		getSelection={() => dumpSelection(editor?.getSelectionState() ?? null)}
 		getUndoStack={() => {
 			const stack = editor?.getUndoStack?.();
@@ -101,7 +105,7 @@
 			if (!editor) return '';
 			const sel = editor.getSelectionState();
 			if (!sel?.anchor) return '';
-			const doc = parse(source);
+			const doc = parse(liveSource);
 			const blockIdx = sel.anchor.path[0];
 			const node = doc.children[blockIdx];
 			if (!node || !isProseKind(node.kind)) return '';
