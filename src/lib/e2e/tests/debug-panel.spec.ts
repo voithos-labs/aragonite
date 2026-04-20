@@ -1,0 +1,137 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../editor-page';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Ctrl on Windows/Linux, Meta on macOS. */
+function modifier(): string {
+	return process.platform === 'darwin' ? 'Meta' : 'Control';
+}
+
+function toggleKey(): string {
+	return `${modifier()}+Shift+D`;
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+test.describe('debug panel', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		// Clear persisted panel state from any prior test run so each test
+		// starts from the default closed state.
+		await editor.page.evaluate(() =>
+			localStorage.removeItem('limestone.debug-panel.state.v1')
+		);
+		await editor.page.reload();
+		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
+			timeout: 10_000
+		});
+	});
+
+	// ── Toggle ────────────────────────────────────────────────────────────────
+
+	test('hotkey opens panel from closed state then closes it again', async () => {
+		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
+
+		await editor.page.keyboard.press(toggleKey());
+		await expect(editor.page.locator('.debug-panel')).toBeVisible();
+
+		await editor.page.keyboard.press(toggleKey());
+		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
+	});
+
+	// ── Persistence ───────────────────────────────────────────────────────────
+
+	test('panel open state survives a page reload', async () => {
+		await editor.page.keyboard.press(toggleKey());
+		await expect(editor.page.locator('.debug-panel')).toBeVisible();
+
+		await editor.page.reload();
+		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
+			timeout: 10_000
+		});
+
+		await expect(editor.page.locator('.debug-panel')).toBeVisible();
+	});
+
+	// ── Section order ─────────────────────────────────────────────────────────
+
+	test('all six sections render in document order and CST body is populated', async () => {
+		await editor.page.keyboard.press(toggleKey());
+
+		const titles = await editor.page.locator('.debug-section').evaluateAll((sections) =>
+			sections.map((s) => s.getAttribute('data-section-title'))
+		);
+		expect(titles).toEqual([
+			'Raw source',
+			'CST tree',
+			'Selection',
+			'Undo stack',
+			'Inline tree (focused block)',
+			'Operations log'
+		]);
+
+		// CST tree is expanded by default — its body must contain at least block [0].
+		await expect(
+			editor.page.locator('.debug-section[data-section-title="CST tree"] .debug-section-body')
+		).toContainText('[0]');
+	});
+
+	// ── Esc to close ──────────────────────────────────────────────────────────
+
+	test('Esc while panel is focused closes the panel', async () => {
+		await editor.page.keyboard.press(toggleKey());
+		await editor.page.locator('.debug-panel').focus();
+		await editor.page.keyboard.press('Escape');
+		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
+	});
+
+	// ── Raw source edit ───────────────────────────────────────────────────────
+
+	test('editing the raw-source textarea propagates to the editor after the debounce', async () => {
+		await editor.page.keyboard.press(toggleKey());
+
+		const textarea = editor.page.locator('.debug-panel textarea.raw-source');
+		await textarea.fill('# New heading\n\nBody text.\n');
+
+		// Wait past the 200ms debounce and a Svelte flush.
+		await editor.page.waitForTimeout(400);
+
+		expect(await editor.getBlockCount()).toBe(2);
+		expect(await editor.getBlockKind(0)).toBe('heading');
+	});
+
+	// ── Copy all ──────────────────────────────────────────────────────────────
+
+	test('copy-all button writes a fenced snapshot to the clipboard', async () => {
+		// Clipboard permissions are granted globally in playwright.config.ts.
+		await editor.page.keyboard.press(toggleKey());
+		await editor.page.locator('.debug-panel .copy-all').click();
+
+		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		expect(clip).toContain('# Debug snapshot —');
+		expect(clip).toContain('### CST');
+		expect(clip).toContain('### Raw source');
+		expect(clip).toContain('### Operations log');
+	});
+
+	// ── Hotkey with editor focused ────────────────────────────────────────────
+
+	test('hotkey with focus in the editor toggles panel without inserting a character', async () => {
+		// Focus the editor by clicking the first block.
+		await editor.clickBlock(0);
+
+		await editor.page.keyboard.press(toggleKey());
+		await expect(editor.page.locator('.debug-panel')).toBeVisible();
+
+		// The source must not contain a stray 'd' or 'D' from the hotkey.
+		const source = await editor.getSource();
+		const linesWithStrayD = source
+			.split('\n')
+			.filter((l) => l.trim() === 'd' || l.trim() === 'D');
+		expect(linesWithStrayD).toHaveLength(0);
+	});
+});
