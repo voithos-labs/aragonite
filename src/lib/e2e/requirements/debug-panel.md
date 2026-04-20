@@ -7,7 +7,7 @@
 - Reload with the panel open — panel is still open (state persisted in localStorage).
 - Reload with the panel closed — panel is still closed.
 - Copy-all button writes a fenced markdown blob to the clipboard containing every section's text.
-- Raw-source textarea edit propagates to the editor after the 200ms debounce.
+- Raw-source section is read-only. Previously edit-through (textarea + 200ms debounce); removed because setting the editor's `source` prop re-initializes the editor and wipes undo / selection / CST. Use `window.__test.setSource(md)` from DevTools for the rare repro-paste case.
 
 ## User interactions
 

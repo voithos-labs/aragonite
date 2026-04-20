@@ -96,7 +96,6 @@
 	</div>
 	<DebugPanel
 		rawSource={liveSource}
-		onRawSourceChange={(v) => (source = v)}
 		getCst={() => dumpTree(parse(liveSource))}
 		getSelection={() => dumpSelection(editor?.getSelectionState() ?? null)}
 		getUndoStack={() => {
