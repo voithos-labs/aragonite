@@ -48,6 +48,21 @@ export interface UndoController {
 			op?: OpDescriptor;
 		}
 	): Promise<void>;
+	commitContainerStructural(
+		containerNode: CstNode,
+		state: {
+			innerBlockIds: string[];
+			innerBlockRefs: (BlockComponent | undefined)[];
+		},
+		snapshot: { blockIndex: number; offset: number } | 'skip',
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		afterTick?: () => void,
+		op?: {
+			kind: OperationKind;
+			detail?: Record<string, unknown>;
+			eventPath: number[];
+		}
+	): Promise<void>;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
 	/** Clear the pending keystroke-debounce timer + force the next edit to start a new batch. */
