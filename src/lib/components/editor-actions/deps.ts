@@ -12,7 +12,7 @@ import type {
 } from '../../contracts';
 import type { StickyColumnState } from '../../contenteditable/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import type { OperationKind, OperationsLog, OpDescriptor } from '../../debug/operations-log';
+import type { OperationKind, OpDescriptor } from '../../debug/operations-log';
 import type { EditorEvents } from '../../events/editor-events';
 
 export interface EditorActionsDeps {
@@ -29,8 +29,6 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	// Optional — when present, structural mutations and undo/redo are logged.
-	operationsLog?: OperationsLog;
 	events: EditorEvents;
 }
 
