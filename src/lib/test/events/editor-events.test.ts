@@ -62,6 +62,26 @@ describe('createEditorEvents', () => {
 		expect(called).toEqual(['a', 'b']);
 	});
 
+	it('a throwing subscriber does not starve downstream subscribers', () => {
+		const events = createEditorEvents();
+		const called: string[] = [];
+		// Swallow the error log so test output stays clean.
+		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		events.on('edit', () => called.push('a'));
+		events.on('edit', () => {
+			called.push('b-throwing');
+			throw new Error('subscriber blew up');
+		});
+		events.on('edit', () => called.push('c'));
+
+		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
+
+		expect(called).toEqual(['a', 'b-throwing', 'c']);
+		expect(consoleError).toHaveBeenCalledTimes(1);
+		consoleError.mockRestore();
+	});
+
 	// Test #5 from the failing-first pin list: a container edit must fire
 	// exactly one edit event per commit.
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {

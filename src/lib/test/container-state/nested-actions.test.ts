@@ -38,7 +38,8 @@ function fakeParentBundles() {
 	const containerEdit: ContainerEditActions = {
 		beginContainerEdit: vi.fn(),
 		beginContainerEditDebounced: vi.fn(),
-		endContainerEdit: vi.fn()
+		endContainerEdit: vi.fn(),
+		commitContainer: vi.fn()
 	};
 	return { blockEdit, focus, containerEdit };
 }
