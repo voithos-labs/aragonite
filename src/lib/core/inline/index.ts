@@ -5,6 +5,7 @@
 
 import type { CstNode, InlineNode } from '../nodes';
 import { displayLength } from '../lines';
+import { getBlockKindDescriptor } from '../../tree-operations/block-kind-descriptor';
 import { scanBacktickSpans } from './backticks';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
@@ -18,36 +19,18 @@ export interface ContentRange {
 }
 
 /**
- * Extract the content range within a prose block's raw text.
- * Returns start/end offsets that exclude block-level markers and trailing line endings.
+ * Extract the content range within a prose block's raw text. Delegates to the
+ * block-kind descriptor's `getContentRange` hook when present; paragraphs and
+ * other no-marker prose kinds use the default (start=0, end=displayLength).
  */
 export function getContentRange(node: CstNode): ContentRange {
-	const raw = node.raw;
-	const displayEnd = displayLength(raw);
-
-	if (node.kind === 'heading') {
-		let i = 0;
-		while (i < raw.length && raw[i] === ' ') i++;
-		while (i < raw.length && raw[i] === '#') i++;
-		if (i < raw.length && raw[i] === ' ') i++;
-		return { start: i, end: displayEnd };
-	}
-
-	if (node.kind === 'setextHeading') {
-		const end = displayEnd;
-		const underlineStart = raw.lastIndexOf('\n', end - 1);
-		if (underlineStart === -1) return { start: 0, end };
-		let contentEnd = underlineStart;
-		if (contentEnd > 0 && raw[contentEnd - 1] === '\r') contentEnd--;
-		return { start: 0, end: contentEnd };
-	}
-
-	// paragraph and other prose blocks
-	return { start: 0, end: displayEnd };
+	const d = getBlockKindDescriptor(node.kind);
+	if (d.getContentRange) return d.getContentRange(node);
+	return { start: 0, end: displayLength(node.raw) };
 }
 
-export function isProseKind(kind: string): boolean {
-	return kind === 'paragraph' || kind === 'heading' || kind === 'setextHeading';
+export function isProseKind(kind: CstNode['kind']): boolean {
+	return getBlockKindDescriptor(kind).supportsInline;
 }
 
 /**
