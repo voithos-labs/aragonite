@@ -67,6 +67,79 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}, UNDO_DEBOUNCE_MS);
 	}
 
+	// ── Internal commit primitive ────────────────────────────────────────────
+	/**
+	 * Universal commit ceremony: snapshot push, mutation on copies, atomic
+	 * publish via kind-specific callback, op-log record, edit event emission,
+	 * tick, post-tick callback. The public wrappers (`commitStructural`;
+	 * `commitContainerStructural` added in T10) delegate here.
+	 */
+
+	interface CommitArgs {
+		kind: 'document' | 'container';
+		snapshot: { blockIndex: number; offset: number } | 'skip';
+		mutate: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void;
+		publish: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void;
+		op?: OpDescriptor;
+		eventPath: number[];
+		afterTick?: () => void;
+	}
+
+	async function __commit(args: CommitArgs): Promise<void> {
+		deps.stickyColumn.reset();
+		if (undoDebounceTimer) {
+			clearTimeout(undoDebounceTimer);
+			undoDebounceTimer = null;
+		}
+
+		if (args.snapshot !== 'skip') {
+			pushUndoSnapshot(args.snapshot.blockIndex, args.snapshot.offset);
+		}
+		needsUndoCheckpoint = true;
+
+		// Document scope works on the live doc.children; container scope will
+		// supply its own source in T10. For now only 'document' is reachable.
+		const srcChildren = args.kind === 'document' ? deps.doc.children : [];
+		const childrenCopy = [...srcChildren];
+		const idsCopy = [...deps.blockIds];
+		const refsCopy = [...deps.blockRefs];
+		args.mutate(childrenCopy, idsCopy, refsCopy);
+
+		args.publish(childrenCopy, idsCopy, refsCopy);
+
+		if (deps.operationsLog && args.op) {
+			deps.operationsLog.record({
+				op: args.op.kind,
+				path: args.eventPath,
+				detail: args.op.detail ?? {}
+			});
+		}
+
+		if (args.op) {
+			// Emit the corresponding EditEvent. The detail shape per op is a
+			// discriminated-union member; the `as any` bridges the union
+			// narrowing the caller has already validated.
+			const detail = args.op.detail ?? {};
+			deps.events.emit('edit', {
+				op: args.op.kind,
+				path: args.eventPath,
+				detail,
+				timestamp: Date.now()
+			} as never);
+		}
+
+		await tick();
+		args.afterTick?.();
+	}
+
 	// ── Structural-mutation ceremony ─────────────────────────────────────────
 	/**
 	 * Wrap a structural mutation: clear debounce, push snapshot, apply mutation
@@ -79,39 +152,23 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		snapshotOffset: number,
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void,
-		options?: {
-			skipSnapshot?: boolean;
-			op?: OpDescriptor;
-		}
+		options?: { skipSnapshot?: boolean; op?: OpDescriptor }
 	): Promise<void> {
-		deps.stickyColumn.reset();
-		if (undoDebounceTimer) {
-			clearTimeout(undoDebounceTimer);
-			undoDebounceTimer = null;
-		}
-		if (!options?.skipSnapshot) {
-			pushUndoSnapshot(snapshotBlockIndex, snapshotOffset);
-		}
-		needsUndoCheckpoint = true;
-
-		const childrenCopy = [...deps.doc.children];
-		const idsCopy = [...deps.blockIds];
-		const refsCopy = [...deps.blockRefs];
-		mutate(childrenCopy, idsCopy, refsCopy);
-		deps.setDocChildren(childrenCopy);
-		deps.setBlockIds(idsCopy);
-		deps.setBlockRefs(refsCopy);
-
-		if (deps.operationsLog && options?.op) {
-			deps.operationsLog.record({
-				op: options.op.kind,
-				path: [snapshotBlockIndex],
-				detail: options.op.detail ?? {}
-			});
-		}
-
-		await tick();
-		afterTick?.();
+		await __commit({
+			kind: 'document',
+			snapshot: options?.skipSnapshot
+				? 'skip'
+				: { blockIndex: snapshotBlockIndex, offset: snapshotOffset },
+			mutate,
+			publish: (children, ids, refs) => {
+				deps.setDocChildren(children);
+				deps.setBlockIds(ids);
+				deps.setBlockRefs(refs);
+			},
+			op: options?.op,
+			eventPath: [snapshotBlockIndex],
+			afterTick
+		});
 	}
 
 	// ── State capture / checkpoint control ──────────────────────────────────
