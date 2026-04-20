@@ -58,23 +58,13 @@ describe('createStickyColumnState', () => {
 		expect(s.get()).toBe(200);
 	});
 
-	it('capture rejects NaN', () => {
-		const s = createStickyColumnState();
-		s.capture(NaN);
-		expect(s.get()).toBe(null);
-	});
-
-	it('capture rejects Infinity', () => {
-		const s = createStickyColumnState();
-		s.capture(Infinity);
-		expect(s.get()).toBe(null);
-	});
-
-	it('capture rejects -Infinity', () => {
-		const s = createStickyColumnState();
-		s.capture(-Infinity);
-		expect(s.get()).toBe(null);
-	});
+	for (const invalid of [NaN, Infinity, -Infinity]) {
+		it(`capture rejects ${invalid}`, () => {
+			const s = createStickyColumnState();
+			s.capture(invalid);
+			expect(s.get()).toBe(null);
+		});
+	}
 
 	it('capture accepts zero', () => {
 		const s = createStickyColumnState();
