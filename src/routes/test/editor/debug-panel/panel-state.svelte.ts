@@ -7,7 +7,11 @@ const SECTION_KEYS: SectionKey[] = ['rawSource', 'cst', 'selection', 'undo', 'in
 export interface PanelStateShape {
 	open: boolean;
 	expanded: Record<SectionKey, boolean>;
+	width: number;
 }
+
+export const MIN_PANEL_WIDTH = 300;
+export const DEFAULT_PANEL_WIDTH = 420;
 
 export function defaultPanelState(): PanelStateShape {
 	return {
@@ -19,7 +23,8 @@ export function defaultPanelState(): PanelStateShape {
 			undo: false,
 			inline: false,
 			opsLog: true
-		}
+		},
+		width: DEFAULT_PANEL_WIDTH
 	};
 }
 
@@ -36,9 +41,14 @@ export function readPanelState(): PanelStateShape {
 				if (typeof parsed.expanded[key] === 'boolean') expanded[key] = parsed.expanded[key]!;
 			}
 		}
+		const width =
+			typeof parsed.width === 'number' && Number.isFinite(parsed.width)
+				? Math.max(MIN_PANEL_WIDTH, parsed.width)
+				: defaults.width;
 		return {
 			open: typeof parsed.open === 'boolean' ? parsed.open : defaults.open,
-			expanded
+			expanded,
+			width
 		};
 	} catch {
 		return defaultPanelState();
@@ -78,6 +88,14 @@ export function createPanelState() {
 				...state,
 				expanded: { ...state.expanded, [section]: !state.expanded[section] }
 			};
+		},
+		get width() {
+			return state.width;
+		},
+		setWidth(px: number) {
+			const clamped = Math.max(MIN_PANEL_WIDTH, px);
+			if (clamped === state.width) return;
+			state = { ...state, width: clamped };
 		}
 	};
 }
