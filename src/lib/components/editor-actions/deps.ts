@@ -13,6 +13,7 @@ import type {
 import type { StickyColumnState } from '../../contenteditable/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { OperationKind, OperationsLog, OpDescriptor } from '../../debug/operations-log';
+import type { EditorEvents } from '../../events/editor-events';
 
 export interface EditorActionsDeps {
 	// Reactive state — getters read the live value from Svelte's $state.
@@ -31,6 +32,7 @@ export interface EditorActionsDeps {
 	getBlockElByPath: BlockElLookup;
 	// Optional — when present, structural mutations and undo/redo are logged.
 	operationsLog?: OperationsLog;
+	events: EditorEvents;
 }
 
 export interface UndoController {
