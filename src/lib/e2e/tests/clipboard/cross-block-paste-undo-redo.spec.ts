@@ -42,11 +42,13 @@ test.describe('cross-block paste — undo / redo round-trip', () => {
 		);
 		expect((await editor.getSource()).trim()).toBe(postPasteSource);
 
-		// Cross-block selection state is restored post-redo.
+		// Redo restores the post-paste state, not the pre-paste selection —
+		// so the selection is collapsed (cursor at end of last pasted block),
+		// not cross-block.
 		const isCrossBlock = await editor.page.evaluate(
 			() => (window as any).__test.isCrossBlockSelection?.() ?? false
 		);
-		expect(isCrossBlock).toBe(true);
+		expect(isCrossBlock).toBe(false);
 	});
 
 	test('redo stack clears on forward edit after undo', async () => {
