@@ -1,8 +1,5 @@
 /**
  * Barrel re-exports for the tree-operations directory.
- * Existing import sites — `from '../tree-operations'` or
- * `from '../../tree-operations'` — continue to resolve here after the split.
- * Internal callers may import directly from a sibling file for specificity.
  */
 
 export type { NodeParent } from './node-ops';
