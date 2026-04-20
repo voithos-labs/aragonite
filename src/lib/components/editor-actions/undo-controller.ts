@@ -45,9 +45,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
-		const selection = deps.selectionState.isCrossBlock
-			? readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
-			: collapsedSelectionAt(blockIndex, offset);
+		const selection =
+			(deps.selectionState.isCrossBlock
+				? readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
+				: collapsedSelectionAt(blockIndex, offset)) ?? collapsedSelectionAt(blockIndex, offset);
 		deps.undoManager.push({
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],
@@ -238,10 +239,20 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
+		const selection = readCurrentSelection(
+			deps.selectionState,
+			deps.blockRefs,
+			collapsedSelectionAt
+		);
+		// When no block reports a cursor (editor unfocused at capture time), fall
+		// back to a collapsed sentinel at doc path [0] offset 0. captureCurrentState
+		// is only called at redo-stack push time — in practice some block IS
+		// focused then, but the sentinel keeps the UndoEntry shape valid even in
+		// edge cases (headless test harnesses, programmatic capture).
 		return {
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],
-			selection: readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
+			selection: selection ?? collapsedSelectionAt(0, 0)
 		};
 	}
 
