@@ -12,6 +12,8 @@
 		dumpOperationsLog
 	} from '$lib/editor/debug/inspect';
 	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
+	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
+	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 
 	let source = $state(DEFAULT_CONTENT);
@@ -72,12 +74,12 @@
 				dumpTree(parse(editor.getSource()), opts),
 			dumpSelection: () => dumpSelection(editor.getSelectionState()),
 			dumpInlineTree: () => {
-				const sel = editor.getSelectionState();
-				if (!sel?.anchor) return '';
+				if (typeof document === 'undefined') return '';
+				const path = findBlockPathForElement(document.activeElement);
+				if (!path) return '';
 				const doc = parse(editor.getSource());
-				const blockIdx = sel.anchor.path[0];
-				const node = doc.children[blockIdx];
-				if (!node || !isProseKind(node.kind)) return '';
+				const node = nodeAt(doc, path);
+				if (!node || !('kind' in node) || !isProseKind(node.kind)) return '';
 				const range = getContentRange(node);
 				const inline = parseInline(node.raw, range.start, range.end);
 				return dumpInlineTree(inline);
@@ -102,13 +104,16 @@
 			return stack ? dumpUndoStack(stack) : '(editor not ready)';
 		}}
 		getInlineTree={() => {
-			if (!editor) return '';
-			const sel = editor.getSelectionState();
-			if (!sel?.anchor) return '';
+			if (!editor || typeof document === 'undefined') return '';
+			// Tick opsLogTick so the derived re-runs after every edit — the focused
+			// block may be the same, but its raw (and therefore its inline tree)
+			// can change on keystrokes.
+			opsLogTick;
+			const path = findBlockPathForElement(document.activeElement);
+			if (!path) return '';
 			const doc = parse(liveSource);
-			const blockIdx = sel.anchor.path[0];
-			const node = doc.children[blockIdx];
-			if (!node || !isProseKind(node.kind)) return '';
+			const node = nodeAt(doc, path);
+			if (!node || !('kind' in node) || !isProseKind(node.kind)) return '';
 			const range = getContentRange(node);
 			const inline = parseInline(node.raw, range.start, range.end);
 			return dumpInlineTree(inline);
