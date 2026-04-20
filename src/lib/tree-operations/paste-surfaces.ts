@@ -1,10 +1,7 @@
 /**
  * Registry for PasteSurface descriptors — the per-block-kind paste
- * strategy hook pair consumed by pasteDispatch.
- *
- * Mirrors the 0.5.1 state-registry pattern: Map keyed by BlockKind,
- * overwrite-on-register, dev-mode warning on double-register. Plugins
- * at 1.2 register their surfaces here; 0.6.3's table surface will too.
+ * strategy hook pair consumed by pasteDispatch. Map keyed by BlockKind,
+ * overwrite-on-register, dev-mode warning on double-register.
  */
 
 import type { BlockKind, CstNode } from '../core/nodes';

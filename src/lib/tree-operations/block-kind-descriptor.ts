@@ -1,13 +1,7 @@
 /**
- * Per-kind descriptor registry. Consolidates merge role, editability,
- * container-ness, and raw-rebuild logic that used to live in three separate
- * files (merge-rules.ts MERGE_ROLE + NON_EDITABLE_KINDS, container-raw.ts
- * dispatch switch, BlockHost.svelte isContainer literal). Adding a new
- * BlockKind means one `registerBlockKind` call instead of four edits.
- *
- * Built-in kinds register themselves at module load — callers of the public
- * getters can assume the registry is populated for every BlockKind in the
- * type union.
+ * Per-kind descriptor registry. Consolidates merge role, editability, and
+ * container-ness. Built-in kinds register at module load; adding a new kind
+ * requires one `registerBlockKind` call.
  */
 
 import type { BlockKind } from '../core/nodes';

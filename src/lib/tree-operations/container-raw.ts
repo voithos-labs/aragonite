@@ -45,11 +45,9 @@ export function rebuildListItemRaw(node: CstNode): void {
 	node.raw = lines
 		.map((line, i) => {
 			if (i === lines.length - 1 && line === '') return '';
-			// First line: marker prefix; continuation lines: indented
 			if (i === 0) return marker + line;
-			// Blank lines are preserved without indentation (loose list items)
+			// Blank lines without indentation = GFM loose list item format.
 			if (line === '') return '';
-			// Content continuation lines get indentation
 			return indent + line;
 		})
 		.join('\n');
@@ -126,13 +124,8 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
  * container — callers that walk ancestry chains and may encounter leaves should
  * use {@link rebuildContainerRawIfContainer} instead.
  *
- * NOTE: the switch here intentionally does not dispatch via the
- * `BlockKindDescriptor` registry. Plugging rebuildRaw into the descriptor
- * creates a module cycle (the descriptor file would import the rebuild
- * helpers from here, and this file would import the registry). The plugin-
- * system primitive for "register a custom rebuildRaw" from the roadmap is a
- * separable refactor; today's v0.5 block additions (table, image, etc.) are
- * all leaves — they don't need this hook.
+ * Not dispatched via BlockKindDescriptor: plugging rebuildRaw into the registry
+ * would create a module cycle between this file and block-kind-descriptor.ts.
  */
 export function rebuildContainerRaw(node: CstNode): void {
 	switch (node.kind) {
