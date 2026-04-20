@@ -30,17 +30,41 @@ function renderNode(
 	opts: Required<DumpTreeOptions>
 ): void {
 	const indent = '  '.repeat(depth);
-	const parts: string[] = [`${indent}[${index}] ${node.kind}`];
+	const header: string[] = [`${indent}[${index}] ${node.kind}`];
 	const meta = formatMetadata(node, opts);
-	if (meta) parts.push(meta);
+	if (meta) header.push(meta);
 	if (node.children && node.children.length > 0) {
-		parts.push(`children=${node.children.length}`);
+		header.push(`children=${node.children.length}`);
 	}
-	parts.push(`"${truncate(trimTrailingNewline(node.raw), opts.maxRawChars)}"`);
-	if (node.leadingTrivia && node.leadingTrivia.length > 0) {
-		parts.push(`trivia=${JSON.stringify(node.leadingTrivia)}`);
+
+	const rawDisplay = truncate(trimTrailingNewline(node.raw), opts.maxRawChars);
+	const triviaStr =
+		node.leadingTrivia && node.leadingTrivia.length > 0
+			? `trivia=${JSON.stringify(node.leadingTrivia)}`
+			: null;
+
+	if (rawDisplay.includes('\n')) {
+		// Multi-line raw: header + trivia on one line, raw on following indented
+		// lines. Continuation lines are offset by one extra column so they visually
+		// line up with the character after the opening quote, and don't get
+		// mistaken for child entries (which start with `[` at the same indent).
+		if (triviaStr) header.push(triviaStr);
+		lines.push(header.join(' '));
+		const rawLines = rawDisplay.split('\n');
+		const rawIndent = indent + '  ';
+		const contIndent = rawIndent + ' ';
+		lines.push(`${rawIndent}"${rawLines[0]}`);
+		for (let i = 1; i < rawLines.length - 1; i++) {
+			lines.push(`${contIndent}${rawLines[i]}`);
+		}
+		lines.push(`${contIndent}${rawLines[rawLines.length - 1]}"`);
+	} else {
+		// Single-line raw: inline with header, followed by trivia if any.
+		header.push(`"${rawDisplay}"`);
+		if (triviaStr) header.push(triviaStr);
+		lines.push(header.join(' '));
 	}
-	lines.push(parts.join(' '));
+
 	if (node.children && node.children.length > 0) {
 		for (let i = 0; i < node.children.length; i++) {
 			renderNode(node.children[i], i, depth + 1, lines, opts);
