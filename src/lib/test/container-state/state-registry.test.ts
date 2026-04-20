@@ -11,8 +11,7 @@ function makeFakeState(): BlockListState {
 	return {
 		innerBlockIds: [],
 		innerBlockRefs: [],
-		commitChildrenEdit: () => {},
-		triggerReactivity: () => {}
+		commitChildrenEdit: () => {}
 	};
 }
 
