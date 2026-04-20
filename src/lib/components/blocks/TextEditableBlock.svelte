@@ -26,7 +26,7 @@
 	import { renderInlineNodes } from '../../core/inline-render';
 	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
 	import type { InlineNode } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../core/lines';
+	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -442,7 +442,7 @@
 
 		stickyColumn.reset();
 		e.preventDefault();
-		const pastedText = e.clipboardData?.getData('text/plain') ?? '';
+		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
 		const offset = getCursorOffsetHelper(el!) ?? 0;

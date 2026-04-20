@@ -21,6 +21,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import { collectCrossBlockText } from './clipboard-text';
+import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
 import {
 	collapseCrossBlock,
@@ -315,7 +316,7 @@ async function handlePaste(
 
 	ctx.stickyColumn.reset();
 	e.preventDefault();
-	const pasted = e.clipboardData?.getData('text/plain') ?? '';
+	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	// One snapshot covers the whole delete-then-paste — the cross-block

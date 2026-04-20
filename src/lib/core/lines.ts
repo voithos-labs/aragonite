@@ -18,6 +18,17 @@ export function trimTrailingLineEnding(raw: string): string {
 	return raw.slice(0, displayLength(raw));
 }
 
+/**
+ * Normalize clipboard or external text to LF line endings. The CST stores
+ * pasted content with whatever line ending was provided, so platform drift
+ * (Windows clipboards deliver CRLF) would otherwise leak CRLF into notes
+ * and break byte-level cross-platform consistency. All paste entry points
+ * funnel incoming text through this helper before parsing.
+ */
+export function normalizeLineEndings(text: string): string {
+	return text.replace(/\r\n/g, '\n');
+}
+
 export interface ParsedLine {
 	raw: string;
 	text: string;
