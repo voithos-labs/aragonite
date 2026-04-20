@@ -79,18 +79,4 @@ describe('createBlockListState', () => {
 
 		expect(node.children).toHaveLength(3);
 	});
-
-	it('triggerReactivity re-spreads children and ids without changing length', () => {
-		const node = makeNode([makePara('a\n'), makePara('b\n')]);
-		const state = createBlockListState(() => node);
-		const idsBefore = state.innerBlockIds;
-		const childrenBefore = node.children;
-
-		state.triggerReactivity();
-
-		expect(state.innerBlockIds).not.toBe(idsBefore);
-		expect(state.innerBlockIds).toEqual(idsBefore);
-		expect(node.children).not.toBe(childrenBefore);
-		expect(node.children).toHaveLength(2);
-	});
 });

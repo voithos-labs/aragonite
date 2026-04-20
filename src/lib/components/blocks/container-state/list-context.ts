@@ -90,7 +90,6 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			renumberOrderedList(node, itemIndex);
 			rebuildListRaw(node);
 			deps.parentContainerEdit?.endContainerEdit();
-			deps.state.triggerReactivity();
 			await tick();
 
 			// FOCUS_LAST_START cascades through containers to the last child at offset 0.
