@@ -40,6 +40,10 @@ export function createUndoManager(): UndoManager {
 			redoStack.length = 0;
 		},
 
+		getStacks() {
+			return { undo: [...undoStack], redo: [...redoStack] };
+		},
+
 		get canUndo(): boolean {
 			return undoStack.length > 0;
 		},
