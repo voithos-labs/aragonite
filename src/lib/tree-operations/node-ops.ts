@@ -19,14 +19,16 @@
  * array, and the keyed {#each} rendered a stale component pinned at
  * key=undefined that intercepted typed characters.
  *
- * Scope: the rule applies to the top-level children array being mutated by
- * the op. Mutations to descendant nodes discovered during the op (e.g.,
- * appending to a nested list found during M1 walking) remain in-place — the
- * commit primitive's snapshot captures descendants via cloneDocument, so
- * there is no publish collision. If an op needs to mutate descendants
- * structurally (insert/delete items in a discovered container), it should
- * look up that container's registered BlockListState and route through
- * `commitChildrenEdit`, matching the pattern in `list-context.ts`.
+ * Scope: the rule applies to the top-level children array the op was handed.
+ * Mutations to other nodes reached by walking the live tree during the op —
+ * whether descendants (e.g., appending to a nested list found during M1
+ * walking) or ancestors (e.g., cascade-cleanup pruning an empty parent) —
+ * remain in-place. The commit primitive's snapshot captures the whole subtree
+ * via cloneDocument regardless of walk direction, so there is no publish
+ * collision. If an op needs to mutate descendants structurally (insert/delete
+ * items in a discovered container), it should look up that container's
+ * registered BlockListState and route through `commitChildrenEdit`, matching
+ * the pattern in `list-context.ts`.
  *
  * Contract audit: before shipping, grep for `.children.splice` and
  * `.children.push` across `tree-operations/` and confirm every hit is either
@@ -233,6 +235,7 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 export function ensureEditableContainers(node: CstNode): void {
 	if (node.children !== undefined) {
 		if (node.children.length === 0) {
+			// 0.5.5.1: discovered-descendant mutation, see node-ops.ts header
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 		}
 		for (const child of node.children) {
