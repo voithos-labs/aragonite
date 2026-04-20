@@ -13,8 +13,18 @@ import { normalize } from './primitives';
 
 // ── Public factory ──────────────────────────────────────────────────────────
 
-export function createSelectionState(): SelectionState {
-	return new SelectionStateImpl();
+export interface SelectionStateOptions {
+	/**
+	 * Fired after any state mutation (anchor/focus/dragStart/selectAllCount).
+	 * No payload — subscribers call `editor.getSelection()` to read the new
+	 * value. Used by Editor.svelte to bridge SelectionState mutations onto
+	 * the `selectionChange` event on `editor.events`.
+	 */
+	onChange?: () => void;
+}
+
+export function createSelectionState(options?: SelectionStateOptions): SelectionState {
+	return new SelectionStateImpl(options);
 }
 
 // ── Interface ───────────────────────────────────────────────────────────────
@@ -44,6 +54,11 @@ class SelectionStateImpl implements SelectionState {
 	#focus: SelectionPoint | null = $state(null);
 	#dragStart: SelectionDragStart = $state(null);
 	#selectAllCount: number = $state(0);
+	#onChange?: () => void;
+
+	constructor(options?: SelectionStateOptions) {
+		this.#onChange = options?.onChange;
+	}
 
 	get anchor(): SelectionPoint | null {
 		return this.#anchor;
@@ -77,11 +92,13 @@ class SelectionStateImpl implements SelectionState {
 
 	beginDrag(point: SelectionPoint): void {
 		this.#dragStart = point;
+		this.#onChange?.();
 	}
 
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
 		this.#anchor = anchor;
 		this.#focus = focus;
+		this.#onChange?.();
 	}
 
 	extendFocus(point: SelectionPoint): void {
@@ -89,11 +106,13 @@ class SelectionStateImpl implements SelectionState {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
 		this.#focus = point;
+		this.#onChange?.();
 	}
 
 	collapse(): void {
 		this.#anchor = null;
 		this.#focus = null;
+		this.#onChange?.();
 	}
 
 	clear(): void {
@@ -101,13 +120,16 @@ class SelectionStateImpl implements SelectionState {
 		this.#focus = null;
 		this.#dragStart = null;
 		this.#selectAllCount = 0;
+		this.#onChange?.();
 	}
 
 	incrementSelectAllCount(): void {
 		this.#selectAllCount += 1;
+		this.#onChange?.();
 	}
 
 	resetSelectAllCount(): void {
 		this.#selectAllCount = 0;
+		this.#onChange?.();
 	}
 }
