@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage } from '../../editor-page';
 
 /**
  * Copy-paste round-trip fidelity in lists. When the user copies list
