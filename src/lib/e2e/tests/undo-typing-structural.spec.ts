@@ -34,5 +34,10 @@ test.describe('needsUndoCheckpoint — typing / structural / typing', () => {
 		// Batch A → undo removes " one", returning to original "Hello".
 		await editor.undo();
 		expect((await editor.getSource()).trim()).toBe('Hello');
+
+		// Fourth Ctrl+Z is a no-op on the original doc.
+		const afterThreeUndos = await editor.getSource();
+		await editor.undo();
+		expect(await editor.getSource()).toBe(afterThreeUndos);
 	});
 });
