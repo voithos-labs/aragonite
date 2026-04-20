@@ -1,9 +1,9 @@
 /**
  * List Backspace tests — delete, merge, promote, and Delete-at-end.
- * Requirements: e2e/requirements/blocks/list-backspace.md
+ * Requirements: e2e/requirements/blocks/list/backspace.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('list Backspace', () => {
 	let editor: EditorPage;

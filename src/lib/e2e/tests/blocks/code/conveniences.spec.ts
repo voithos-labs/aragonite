@@ -2,10 +2,10 @@
  * Code block editing conveniences — auto-indent, electric indent, auto-close
  * bracket / quote pairs, skip-over, Backspace pair-delete.
  *
- * See e2e/requirements/blocks/code-block-conveniences.md.
+ * See e2e/requirements/blocks/code/conveniences.md.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 async function focusCodeBlockAtEnd(editor: EditorPage) {
 	await editor.getBlock(0).click();

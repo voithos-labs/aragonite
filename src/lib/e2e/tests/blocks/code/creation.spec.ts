@@ -2,10 +2,10 @@
  * Code block creation via typing ``` — behavior in the immediate aftermath
  * of a paragraph re-parsing as an unclosed fenced code block.
  *
- * See e2e/requirements/blocks/code-block-creation.md.
+ * See e2e/requirements/blocks/code/creation.md.
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('code block creation — Enter after typing ```', () => {
 	let editor: EditorPage;

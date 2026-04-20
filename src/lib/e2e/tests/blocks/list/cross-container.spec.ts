@@ -1,9 +1,9 @@
 /**
  * Cross-container merge on Backspace when prev block is a list.
- * Requirements: e2e/requirements/blocks/list-cross-container.md
+ * Requirements: e2e/requirements/blocks/list/cross-container.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('cross-container merge on Backspace (list prev)', () => {
 	let editor: EditorPage;

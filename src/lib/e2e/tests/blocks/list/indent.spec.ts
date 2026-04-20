@@ -1,9 +1,9 @@
 /**
  * List Tab + Shift+Tab tests — change nesting level.
- * Requirements: e2e/requirements/blocks/list-indent.md
+ * Requirements: e2e/requirements/blocks/list/indent.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('list Tab', () => {
 	let editor: EditorPage;
