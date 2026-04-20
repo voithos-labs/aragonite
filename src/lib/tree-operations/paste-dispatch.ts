@@ -21,7 +21,7 @@
  */
 
 import { tick } from 'svelte';
-import type { CstNode, Document } from '../core/nodes';
+import type { BlockKind, CstNode, Document } from '../core/nodes';
 import type { BlockEditActions } from '../contracts';
 import { CURSOR_END } from '../contracts';
 import { parse } from '../core/parser';
@@ -245,8 +245,16 @@ export function defaultStructuralHook(
 
 // ── Default surface registration ───────────────────────────────────────────
 
-// Prose text kinds share paste semantics — register a default surface for each at module load.
-for (const kind of ['paragraph', 'heading', 'setextHeading'] as const) {
+// Every inline-capable kind shares paste semantics unless a kind-specific
+// surface (e.g. code-paste-surface) registers over the default. The list
+// is the source of truth for WHICH kinds register a default surface at
+// module load (the descriptor registry is built at the same module-load
+// phase, so iterating the registry here would be ordering-hazardous).
+// Adding a new inline-capable block kind: add it here AND set
+// supportsInline: true on its descriptor in block-kind-descriptor.ts.
+const INLINE_CAPABLE_KINDS: BlockKind[] = ['paragraph', 'heading', 'setextHeading'];
+
+for (const kind of INLINE_CAPABLE_KINDS) {
 	registerPasteSurface({
 		kind,
 		onInlinePaste: defaultInlineHook,
