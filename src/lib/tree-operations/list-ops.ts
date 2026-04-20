@@ -243,14 +243,15 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
+	children: CstNode[],
 	currentIndex: number
 ): { mergePoint: { targetPath: number[]; offset: number } } {
-	if (
-		list.kind !== 'list' ||
-		!list.children ||
-		currentIndex <= 0 ||
-		currentIndex >= list.children.length
-	) {
+	// Contract: callers pass a children array copy to mutate (per 0.5.5.1).
+	// `list` is the container node — reads from list.children are allowed
+	// during targeting, but the final splice MUST land in `children`, not
+	// `list.children`. See tree-operations/node-ops.ts header for the
+	// project-wide rule.
+	if (list.kind !== 'list' || !list.children || currentIndex <= 0 || currentIndex >= children.length) {
 		throw new Error(`mergeListItemIntoPrevious: invalid currentIndex ${currentIndex}`);
 	}
 
@@ -283,7 +284,7 @@ export function mergeListItemIntoPrevious(
 	const targetOriginalText = (targetParagraph.raw ?? '').replace(/\r?\n$/, '');
 	const mergeOffset = targetOriginalText.length;
 
-	const currentItem = list.children[currentIndex];
+	const currentItem = children[currentIndex];
 	if (
 		!currentItem.children ||
 		currentItem.children.length === 0 ||
@@ -322,12 +323,10 @@ export function mergeListItemIntoPrevious(
 
 	for (const child of remainingChildren) {
 		if (child.kind === 'list' && child.children) {
-			// child is a nested list whose items are at depth 1 (relative to currentItem's depth 0)
-			// Find the container at depth 1 along target's ancestry.
+			// Nested-list items from currentItem are at depth 1. Promote them as siblings
+			// of the target's depth-1 ancestor (targetPath length ≥ 4 means that ancestor
+			// exists); otherwise absorb directly into targetItem (flat target has no depth-1 slot).
 			if (targetPath.length >= 4) {
-				// depth ≥ 1: a nested-list container exists along the target's ancestry
-				// Target is at depth >= 1. The depth-1 container is the last nested list
-				// inside list.children[targetPath[0]].
 				const depthOneParent = list.children[targetPath[0]];
 				if (depthOneParent.children) {
 					let depthOneList: CstNode | undefined;
@@ -335,7 +334,6 @@ export function mergeListItemIntoPrevious(
 						if (c.kind === 'list') depthOneList = c;
 					}
 					if (depthOneList && depthOneList.children) {
-						// Append child.children (list items) to this list
 						for (const item of child.children) {
 							item.leadingTrivia = '';
 							depthOneList.children.push(item);
@@ -345,25 +343,29 @@ export function mergeListItemIntoPrevious(
 					}
 				}
 			}
-			// No depth-1 container along target ancestry — absorb into targetItem's children
 			targetItem.children!.push(child);
 		} else {
-			// Non-list child (paragraph, heading, etc.) — absorb into targetItem's children
+			// Extra paragraphs, headings, etc. absorb into targetItem directly.
 			child.leadingTrivia = '';
 			targetItem.children!.push(child);
 		}
 	}
 
-	// 3. Delete current item from the list
-	list.children.splice(currentIndex, 1);
+	// 3. Delete current item from the caller-owned children array.
+	children.splice(currentIndex, 1);
 
-	// 4. Rebuild raw for all affected container nodes along the target's ancestry.
-	// targetPath is already a uniform path (every child-array index explicit), ending
-	// at the paragraph leaf. rebuildAncestryRaw expects exactly that shape, so no
-	// expansion is needed — just call it directly.
+	// 4. Sync list.children so post-splice reads (rebuildAncestryRaw,
+	//    renumberOrderedList, rebuildListRaw) see the new shape. The caller
+	//    still owns `children` — they may re-assign after we return; this
+	//    sync is idempotent with commitContainerStructural's final publish.
+	list.children = children;
+
+	// 5. Rebuild raw for all affected container nodes along the target's ancestry.
+	// targetPath is a uniform path (every child-array index explicit), ending at
+	// the paragraph leaf — rebuildAncestryRaw expects exactly that shape.
 	rebuildAncestryRaw(list, targetPath);
 
-	// 5. Renumber ordered markers at the top level
+	// 6. Renumber ordered markers at the top level
 	if ((list.metadata as { ordered?: boolean } | undefined)?.ordered) {
 		renumberOrderedList(list);
 		rebuildListRaw(list);
