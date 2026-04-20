@@ -42,12 +42,9 @@ export interface BlockListState {
 }
 
 /**
- * Build a reactive state bundle for `node.children`. The caller passes a
- * getter (`() => node`) rather than the node itself so that reassignments
- * of the component's `node` prop — e.g. after undo/redo replaces the
- * document with a cloned snapshot — reach every closure in the factory.
- * Passing by value would capture a stale snapshot at call time and later
- * writes would go to a detached object.
+ * Build a reactive state bundle for `node.children`. Takes a getter rather
+ * than the node directly so undo/redo prop reassignments reach every closure
+ * — passing by value would capture a stale snapshot.
  */
 export function createBlockListState(getNode: () => CstNode): BlockListState {
 	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));

@@ -33,8 +33,8 @@ export interface BlockquoteContextDeps {
 export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 	return (defaults: NestedActionsBundle) => ({
 		blockEdit: {
-			// Empty trailing-paragraph Enter exits the blockquote (creates a
-			// paragraph after it) instead of appending another inner line.
+			// Enter on an empty trailing paragraph exits the blockquote instead of
+			// appending another inner line.
 			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
 				const { node, index, state, parentBlockEdit, parentFocus, parentContainerEdit } = deps;
 				if (!node.children) return;
@@ -60,10 +60,8 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 				return defaults.blockEdit.splitBlock(innerIndex, offset);
 			},
 
-			// Rule U2: Backspace at the start of the first child lifts that
-			// child out of the blockquote. The factory default would delegate
-			// upward and merge the whole blockquote with its previous sibling —
-			// the wrong thing for U2.
+			// Rule U2: Backspace at first child lifts it out of the blockquote.
+			// The factory default would delegate upward and merge the whole blockquote.
 			mergeWithPrevious: async (innerIndex: number): Promise<void> => {
 				const { node, index, parentBlockEdit } = deps;
 				if (!node.children) return;

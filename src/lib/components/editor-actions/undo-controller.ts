@@ -27,22 +27,19 @@ import type { OpDescriptor } from '../../debug/operations-log';
 const UNDO_DEBOUNCE_MS = 250;
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
-	// ── Local state ───────────────────────────────────────────────────────────
-
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let lastUndoBlockIndex = -1;
-	// When true, the next keystroke should capture a "before" snapshot
+	// When true, the next keystroke should capture a "before" snapshot.
 	let needsUndoCheckpoint = true;
 
 	// ── Selection helpers ─────────────────────────────────────────────────────
 
-	/** Build a collapsed EditorSelection from a top-level block index and offset. */
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
 		const point: SelectionPoint = { path: [blockIndex], offset };
 		return { anchor: point, focus: point };
 	}
 
-	// ── Snapshot pushers ──────────────────────────────────────────────────────
+	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		const selection = deps.selectionState.isCrossBlock
@@ -55,12 +52,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	/**
-	 * Called before each edit. Captures a "before" snapshot on the first
-	 * keystroke of a new batch. Subsequent keystrokes in the same batch
-	 * just reset the debounce timer. When the timer fires (user paused),
-	 * the next keystroke starts a new batch.
-	 */
+	/** Capture a "before" snapshot on the first keystroke of each batch; reset debounce on subsequent ones. */
 	function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
 		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
 			pushUndoSnapshot(blockIndex, offset);
@@ -68,28 +60,19 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			needsUndoCheckpoint = false;
 		}
 
-		// Reset debounce — when it fires, the next keystroke starts a new batch
-		if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+			if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
 		undoDebounceTimer = setTimeout(() => {
 			needsUndoCheckpoint = true;
 			undoDebounceTimer = null;
 		}, UNDO_DEBOUNCE_MS);
 	}
 
-	/**
-	 * Wrap a structural mutation with the full ceremony: clear pending undo
-	 * debounce timer, push a snapshot, reset the checkpoint flag, apply the
-	 * mutation on plain array copies, publish in one atomic write, tick,
-	 * and invoke the optional post-tick callback (typically a focus call).
-	 *
-	 * Every structural action method begins with this sequence; extracting
-	 * it here removes ~8 lines of duplication from each action.
-	 *
-	 * `options.skipSnapshot` lets composite operations (cross-block delete +
-	 * paste) coalesce two structural mutations under a single undo entry —
-	 * the caller pushes one snapshot, then runs each leg with skipSnapshot.
-	 */
 	// ── Structural-mutation ceremony ─────────────────────────────────────────
+	/**
+	 * Wrap a structural mutation: clear debounce, push snapshot, apply mutation
+	 * on array copies, publish atomically, tick, run post-tick callback.
+	 * `skipSnapshot` lets composite operations share a single undo entry.
+	 */
 
 	async function commitStructural(
 		snapshotBlockIndex: number,
@@ -131,7 +114,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		afterTick?.();
 	}
 
-	// ── State capture / checkpoint control ───────────────────────────────────
+	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
 		return {

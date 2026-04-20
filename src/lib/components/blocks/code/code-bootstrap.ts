@@ -60,7 +60,6 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('markdown', markdown, ['md']);
 	registerLanguage('diff', diff);
 
-	// Paste surface for the fenced code block.
 	registerPasteSurface(codePasteSurface);
 }
 
