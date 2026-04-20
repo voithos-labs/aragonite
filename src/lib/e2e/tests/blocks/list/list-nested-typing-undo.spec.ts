@@ -13,7 +13,7 @@ test.describe('nested list item — typing + undo', () => {
 	test('type into a list item → Ctrl+Z reverts the batch exactly', async () => {
 		const before = await editor.getSource();
 
-		// Click into the first list item's contenteditable.
+		// Focus end of the first list item.
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' extra');
 		await editor.page.waitForTimeout(400);
