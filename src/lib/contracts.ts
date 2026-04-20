@@ -232,6 +232,8 @@ export interface UndoManager {
 	undo(currentState: UndoEntry): UndoEntry | null;
 	redo(currentState: UndoEntry): UndoEntry | null;
 	clear(): void;
+	/** Returns snapshots of both stacks for inspection (e.g. the debug panel). */
+	getStacks(): { undo: UndoEntry[]; redo: UndoEntry[] };
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;
 }

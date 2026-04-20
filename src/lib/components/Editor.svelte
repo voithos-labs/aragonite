@@ -197,6 +197,10 @@
 	export function getOperationsLog() {
 		return operationsLog;
 	}
+
+	export function getUndoStack() {
+		return undoManager.getStacks();
+	}
 </script>
 
 <div class="editor" bind:this={editorEl}>
