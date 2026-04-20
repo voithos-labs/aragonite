@@ -14,7 +14,8 @@
 		type DocumentGetter,
 		type BlockComponent,
 		type CstNode,
-		type Document
+		type Document,
+		type EditorSelection
 	} from '../contracts';
 	import { createStickyColumnState } from '../contenteditable/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -62,9 +63,13 @@
 	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
-	const selectionState = createSelectionState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
+	// SelectionState emits `selectionChange` on every mutation; callback reads
+	// the fresh snapshot via getSelection() (function-hoisted below).
+	const selectionState = createSelectionState({
+		onChange: () => events.emit('selectionChange', getSelection())
+	});
 
 	// Op-log subscribes to edit events. Scoped to editor lifetime via $effect.
 	$effect(() => {
@@ -196,14 +201,66 @@
 		}
 	});
 
+	// Bridge native caret movement (click, arrow key) onto the
+	// `selectionChange` event. Single-block motion doesn't go through
+	// SelectionState, so without this listener subscribers would miss every
+	// intra-block caret move. Scoped to this editor's root to avoid noise
+	// from DevTools selections or other parts of the page.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const handler = () => {
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return;
+			const anchorNode = sel.anchorNode;
+			if (!anchorNode || !root.contains(anchorNode)) return;
+			events.emit('selectionChange', getSelection());
+		};
+		document.addEventListener('selectionchange', handler);
+		return () => document.removeEventListener('selectionchange', handler);
+	});
+
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
 		return serialize(doc);
 	}
 
-	export function getSelectionState() {
-		return selectionState;
+	/**
+	 * Return a frozen snapshot of the current selection (anchor/focus path +
+	 * offset), or null when nothing is focused. Cross-block ranges come from
+	 * SelectionState; single-block carets are read from the native DOM via
+	 * the focused block's ref. Path arrays are copies — mutating the result
+	 * does not affect internal state.
+	 */
+	export function getSelection(): EditorSelection | null {
+		if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
+			return {
+				anchor: {
+					path: selectionState.anchor.path.slice(),
+					offset: selectionState.anchor.offset
+				},
+				focus: {
+					path: selectionState.focus.path.slice(),
+					offset: selectionState.focus.offset
+				}
+			};
+		}
+		for (let i = 0; i < blockRefs.length; i++) {
+			const ref = blockRefs[i];
+			if (!ref) continue;
+			const offset = ref.getCursorOffset();
+			if (offset === null) continue;
+			return {
+				anchor: { path: [i], offset },
+				focus: { path: [i], offset }
+			};
+		}
+		return null;
+	}
+
+	export function getEvents() {
+		return events;
 	}
 
 	export function getOperationsLog() {

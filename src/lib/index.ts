@@ -31,6 +31,15 @@ export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
 export { createUndoManager } from './undo-manager';
 
+// ── Events surface (0.5.4) ─────────────────────────────────────────────────
+
+export type {
+	EditorEvents,
+	EditEvent,
+	EditorEventMap,
+	SelectionChangeEvent
+} from './events/editor-events';
+
 // ── Container state — intentionally internal at 0.5.1 ─────────────────────
 //
 // BlockListState, createBlockListState, registerBlockListState,
