@@ -7,9 +7,8 @@
 import type { InlineNode } from '../nodes';
 import { parseInline } from './index';
 
-// NOTE: The import above creates a links.ts ↔ index.ts module cycle. This is
-// benign — the call to parseInline inside scanRegionForLinksAndAutolinks is
-// runtime-deferred, not module-init. ./index.ts is created in Task 5.
+// links.ts ↔ index.ts module cycle is benign — the call to parseInline is
+// runtime-deferred, not module-init.
 
 /**
  * Scan text regions (not occupied by code spans) for links, images, and autolinks.

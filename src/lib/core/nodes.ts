@@ -65,7 +65,6 @@ export interface ListItemMetadata {
 	taskChecked: boolean;
 }
 
-/** Union of all block metadata types. */
 export type BlockMetadata =
 	| HeadingMetadata
 	| SetextHeadingMetadata
@@ -123,7 +122,6 @@ export interface CstNode {
 	inlineContent?: InlineNode[];
 }
 
-/** Root document node. */
 export interface Document {
 	kind: 'document';
 	prefix: string;
