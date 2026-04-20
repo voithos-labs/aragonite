@@ -251,7 +251,12 @@ export function mergeListItemIntoPrevious(
 	// during targeting, but the final splice MUST land in `children`, not
 	// `list.children`. See tree-operations/node-ops.ts header for the
 	// project-wide rule.
-	if (list.kind !== 'list' || !list.children || currentIndex <= 0 || currentIndex >= children.length) {
+	if (
+		list.kind !== 'list' ||
+		!list.children ||
+		currentIndex <= 0 ||
+		currentIndex >= children.length
+	) {
 		throw new Error(`mergeListItemIntoPrevious: invalid currentIndex ${currentIndex}`);
 	}
 
