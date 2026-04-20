@@ -30,10 +30,12 @@
  * registered BlockListState and route through `commitChildrenEdit`, matching
  * the pattern in `list-context.ts`.
  *
- * Contract audit: before shipping, grep for `.children.splice` and
- * `.children.push` across `tree-operations/` and confirm every hit is either
- * (a) on a caller-passed array parameter, (b) on a NodeParent wrapper, or
- * (c) on a discovered descendant covered by the scope exception above.
+ * Contract audit: before shipping, grep for `.children.splice`,
+ * `.children.push`, and the `children!.splice` / `children!.push`
+ * non-null-assertion variants across `tree-operations/` and confirm every
+ * hit is either (a) on a caller-passed array parameter, (b) on a
+ * NodeParent wrapper, or (c) on a discovered descendant or ancestor
+ * covered by the scope exception above.
  */
 
 import type { CstNode, Document } from '../core/nodes';

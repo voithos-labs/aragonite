@@ -349,10 +349,12 @@ export function mergeListItemIntoPrevious(
 					}
 				}
 			}
+			// 0.5.5.1: discovered-descendant mutation, see node-ops.ts header
 			targetItem.children!.push(child);
 		} else {
 			// Extra paragraphs, headings, etc. absorb into targetItem directly.
 			child.leadingTrivia = '';
+			// 0.5.5.1: discovered-descendant mutation, see node-ops.ts header
 			targetItem.children!.push(child);
 		}
 	}
