@@ -171,7 +171,6 @@
 		stickyColumn,
 		selectionState,
 		getBlockElByPath,
-		operationsLog,
 		events
 	});
 

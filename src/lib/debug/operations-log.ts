@@ -4,6 +4,7 @@ export type OperationKind =
 	| 'split'
 	| 'merge'
 	| 'delete'
+	| 'input'
 	| 'updateContent'
 	| 'replaceBlock'
 	| 'paste'

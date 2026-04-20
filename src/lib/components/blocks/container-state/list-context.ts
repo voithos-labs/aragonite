@@ -5,17 +5,26 @@
  * under container-state/ alongside the state it depends on.
  *
  * Residual begin/end seam (0.5.4):
- * List-scope operations that span MULTIPLE container states (the outer list
- * plus a nested list or a previous item's nested list) — indentItem,
- * unindentItem, promoteNestedItem, exitListAtItem — stay on the legacy
+ * The following sites still use the legacy
  * `beginContainerEdit → state.commitChildrenEdit → endContainerEdit` seam
- * because `commitContainerStructural` is single-container-scoped.
+ * instead of routing through `commitContainerStructural`, so they do NOT emit
+ * `edit` events on the `EditorEvents` surface. They DO get undo snapshots
+ * (via begin) and reactivity publishes (via endContainerEdit's nudge).
  *
- * Consequence: these operations do NOT emit `edit` events on the
- * `EditorEvents` surface. They DO get undo snapshots (via begin) and
- * reactivity publishes (via endContainerEdit's children-array nudge). A
- * multi-scope commit primitive, or per-operation event emission, is future
- * work.
+ * Known bypass sites:
+ *   - indentItem (list-context.ts) — spans outer list + nested list state
+ *   - unindentItem (list-context.ts) — delegates to promoteNestedItem
+ *   - promoteNestedItem (list-context.ts) — spans outer + nested list state
+ *   - ListItemBlock.svelte Enter (insertItemAfter path, lines ~135–138)
+ *   - ListItemBlock.svelte Enter (splitItemAtOffset path, lines ~142–144)
+ *   - blockquote-context.ts splitBlock exit path (lines ~48–54)
+ *   - cross-block-dispatch.ts performCrossBlockDelete (pushes snapshots via
+ *     mutCtx.pushUndoSnapshot, not through __commit — predates 0.5.4)
+ *
+ * Note: exitListAtItem is NOT on this seam — it routes through
+ * parentBlockEdit.replaceBlock → commitStructural and DOES emit edit events.
+ *
+ * A multi-scope commit primitive is future work (0.5.5+).
  */
 
 import { tick } from 'svelte';
