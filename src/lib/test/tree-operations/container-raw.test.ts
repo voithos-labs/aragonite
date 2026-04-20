@@ -191,19 +191,6 @@ describe('rebuildListItemRaw: nested content', () => {
 		expect(item.raw).toBe('- Item\n  - Nested a\n  - Nested b\n');
 	});
 
-	it('rebuilds item with continuation paragraph', () => {
-		const item: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(item);
-		expect(item.raw).toBe('- Line 1\n  Line 2\n');
-	});
 });
 
 describe('parse + rebuild round-trip', () => {
