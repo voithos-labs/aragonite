@@ -31,6 +31,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let lastUndoBlockIndex = -1;
 	// When true, the next keystroke should capture a "before" snapshot.
 	let needsUndoCheckpoint = true;
+	// Batch tracking for input-event emission on debounce flush.
+	let batchBlockIndex = -1;
+	let batchByteLength = 0;
 
 	// ── Selection helpers ─────────────────────────────────────────────────────
 
@@ -57,22 +60,36 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
 			pushUndoSnapshot(blockIndex, offset);
 			lastUndoBlockIndex = blockIndex;
+			batchBlockIndex = blockIndex;
+			batchByteLength = 0;
 			needsUndoCheckpoint = false;
 		}
-
-			if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
+		batchByteLength++;
+		if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
 		undoDebounceTimer = setTimeout(() => {
 			needsUndoCheckpoint = true;
 			undoDebounceTimer = null;
+			// Batch flushed — emit one input event summarizing it.
+			if (batchByteLength > 0 && batchBlockIndex >= 0) {
+				deps.events.emit('edit', {
+					op: 'input',
+					path: [batchBlockIndex],
+					detail: { byteLength: batchByteLength },
+					timestamp: Date.now()
+				});
+				batchBlockIndex = -1;
+				batchByteLength = 0;
+			}
 		}, UNDO_DEBOUNCE_MS);
 	}
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 	/**
 	 * Universal commit ceremony: snapshot push, mutation on copies, atomic
-	 * publish via kind-specific callback, op-log record, edit event emission,
-	 * tick, post-tick callback. The public wrappers (`commitStructural`;
-	 * `commitContainerStructural` added in T10) delegate here.
+	 * publish via kind-specific callback, edit event emission, tick, post-tick
+	 * callback. The public wrappers (`commitStructural`,
+	 * `commitContainerStructural`) delegate here. Op-log recording is wired
+	 * externally via an `events.on('edit', ...)` subscription in Editor.svelte.
 	 */
 
 	interface CommitArgs {
@@ -98,6 +115,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (undoDebounceTimer) {
 			clearTimeout(undoDebounceTimer);
 			undoDebounceTimer = null;
+			batchBlockIndex = -1;
+			batchByteLength = 0;
 		}
 
 		if (args.snapshot !== 'skip') {
@@ -105,8 +124,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 		needsUndoCheckpoint = true;
 
-		// Document scope works on the live doc.children; container scope will
-		// supply its own source in T10. For now only 'document' is reachable.
+		// Document scope works on the live doc.children; container scope
+		// supplies its own source inside the caller-provided mutate closure.
 		const srcChildren = args.kind === 'document' ? deps.doc.children : [];
 		const childrenCopy = [...srcChildren];
 		const idsCopy = [...deps.blockIds];
@@ -114,14 +133,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		args.mutate(childrenCopy, idsCopy, refsCopy);
 
 		args.publish(childrenCopy, idsCopy, refsCopy);
-
-		if (deps.operationsLog && args.op) {
-			deps.operationsLog.record({
-				op: args.op.kind,
-				path: args.eventPath,
-				detail: args.op.detail ?? {}
-			});
-		}
 
 		if (args.op) {
 			// Emit the corresponding EditEvent. The detail shape per op is a
@@ -171,6 +182,59 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
+	/**
+	 * Container-scoped commit wrapper. Mutation is applied to the container
+	 * node's children; publish re-spreads `node.children` in place plus the
+	 * container's `BlockListState.innerBlockIds`. Ancestry raw rebuild runs
+	 * inside `mutate` — the caller owns it so the atomic publish sees a
+	 * rebuilt tree.
+	 */
+	async function commitContainerStructural(
+		containerNode: CstNode,
+		state: {
+			innerBlockIds: string[];
+			innerBlockRefs: (BlockComponent | undefined)[];
+		},
+		snapshot: { blockIndex: number; offset: number } | 'skip',
+		mutate: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void,
+		afterTick?: () => void,
+		op?: {
+			kind: OpDescriptor['kind'];
+			detail?: OpDescriptor['detail'];
+			eventPath: number[];
+		}
+	): Promise<void> {
+		// Container mutation applies directly to `containerNode.children` +
+		// the state bundle; the __commit top-level copies are unused for this
+		// path. We still route through __commit for snapshot / op-log / event /
+		// tick / afterTick bookkeeping.
+		await __commit({
+			kind: 'container',
+			snapshot,
+			mutate: () => {
+				const childrenCopy = [...(containerNode.children ?? [])];
+				const idsCopy = [...state.innerBlockIds];
+				const refsCopy = [...state.innerBlockRefs];
+				mutate(childrenCopy, idsCopy, refsCopy);
+				containerNode.children = childrenCopy;
+				state.innerBlockIds = idsCopy;
+				state.innerBlockRefs = refsCopy;
+			},
+			publish: () => {
+				// Nudge top-level reactivity so any ancestor-raw mutation
+				// performed inside `mutate` propagates to the document tree.
+				deps.setDocChildren([...deps.doc.children]);
+			},
+			op: op ? { kind: op.kind, detail: op.detail } : undefined,
+			eventPath: op?.eventPath ?? [],
+			afterTick
+		});
+	}
+
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
@@ -186,6 +250,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			clearTimeout(undoDebounceTimer);
 			undoDebounceTimer = null;
 		}
+		batchBlockIndex = -1;
+		batchByteLength = 0;
 		needsUndoCheckpoint = true;
 	}
 
@@ -193,6 +259,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		pushUndoSnapshot,
 		pushUndoSnapshotDebounced,
 		commitStructural,
+		commitContainerStructural,
 		captureCurrentState,
 		collapsedSelectionAt,
 		clearDebouncedCheckpoint

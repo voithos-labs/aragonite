@@ -26,7 +26,7 @@ export function createHistoryActions(
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
-			deps.operationsLog?.record({ op: 'undo', path: [], detail: {} });
+			deps.events.emit('edit', { op: 'undo', path: [], timestamp: Date.now() });
 		},
 
 		async requestRedo(): Promise<void> {
@@ -38,7 +38,7 @@ export function createHistoryActions(
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
-			deps.operationsLog?.record({ op: 'redo', path: [], detail: {} });
+			deps.events.emit('edit', { op: 'redo', path: [], timestamp: Date.now() });
 		}
 	};
 }
