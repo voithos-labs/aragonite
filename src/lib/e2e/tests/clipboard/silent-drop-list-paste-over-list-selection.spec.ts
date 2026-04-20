@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage } from '../../editor-page';
 
 /**
  * Exploration of the issues.md "multi-line list paste over multi-line
