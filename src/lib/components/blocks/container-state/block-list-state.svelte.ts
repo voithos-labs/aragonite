@@ -32,13 +32,6 @@ export interface BlockListState {
 	commitChildrenEdit(
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
 	): void;
-	/**
-	 * Re-spread `node.children` and `innerBlockIds` to trigger Svelte's
-	 * reactivity after in-place mutations that don't re-assign either array
-	 * (e.g., a kind-changing updateBlockContent that mutates a child's
-	 * `kind` field but keeps the children array itself intact).
-	 */
-	triggerReactivity(): void;
 }
 
 /**
@@ -63,12 +56,6 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		innerBlockRefs = refsCopy;
 	}
 
-	function triggerReactivity(): void {
-		const node = getNode();
-		node.children = [...(node.children ?? [])];
-		innerBlockIds = [...innerBlockIds];
-	}
-
 	const state: BlockListState = {
 		get innerBlockIds() {
 			return innerBlockIds;
@@ -82,8 +69,7 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		set innerBlockRefs(value) {
 			innerBlockRefs = value;
 		},
-		commitChildrenEdit,
-		triggerReactivity
+		commitChildrenEdit
 	};
 
 	registerBlockListState(getNode(), state);
