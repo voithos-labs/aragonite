@@ -1,9 +1,9 @@
 /**
  * List Enter key tests — new item, split, and exit behaviors.
- * Requirements: e2e/requirements/blocks/list-enter.md
+ * Requirements: e2e/requirements/blocks/list/enter.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('list Enter', () => {
 	let editor: EditorPage;

@@ -1,9 +1,9 @@
 /**
  * List rendering + arrow navigation tests.
- * Requirements: e2e/requirements/blocks/list-rendering.md
+ * Requirements: e2e/requirements/blocks/list/rendering.md
  */
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { EditorPage } from '../../../editor-page';
 
 test.describe('list rendering', () => {
 	let editor: EditorPage;
