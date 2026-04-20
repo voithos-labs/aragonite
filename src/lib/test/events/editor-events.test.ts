@@ -100,9 +100,6 @@ describe('createEditorEvents', () => {
 				return blockRefs;
 			},
 			setDoc: (v: any) => Object.assign(doc, v),
-			setDocChildren: (v: any) => {
-				doc.children = v;
-			},
 			setBlockIds: () => {},
 			setBlockRefs: () => {},
 			undoManager: createUndoManager(),

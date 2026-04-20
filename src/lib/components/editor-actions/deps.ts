@@ -22,7 +22,6 @@ export interface EditorActionsDeps {
 	get blockRefs(): (BlockComponent | undefined)[];
 	// Setters for reassignment from inside factories.
 	setDoc(doc: Document): void;
-	setDocChildren(children: CstNode[]): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
 	// Services.

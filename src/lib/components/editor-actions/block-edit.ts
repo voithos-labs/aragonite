@@ -5,7 +5,6 @@
  * in one place.
  */
 
-import { tick } from 'svelte';
 import {
 	CURSOR_END,
 	type BlockEditActions,
@@ -228,20 +227,30 @@ export function createBlockEditActions(
 			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
 			const result = performUpdate(deps.doc, blockIndex, text);
 			if (result.kindChanged) {
-				deps.setDocChildren([...deps.doc.children]);
-				// Re-focus after Svelte swaps the component type. Use
-				// preEditOffset (the cursor position before the edit) to restore
-				// the cursor approximately where it was. `await tick()` rather
-				// than `tick().then(...)` so callers that want to observe the
-				// post-swap state can `await updateBlockContent(...)` directly.
-				await tick();
-				deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
+				// Kind change is a structural republish, not a new undo entry:
+				// the debounced snapshot above already captured the pre-edit state,
+				// so this commit shares that entry via skipSnapshot. The mutate
+				// callback is a no-op — performUpdate mutated the tree in place,
+				// and commitStructural will swap the children array atomically so
+				// Svelte remounts with the correct block kind.
+				await controller.commitStructural(
+					blockIndex,
+					preEditOffset ?? 0,
+					() => {
+						// No-op: kind change was applied by performUpdate in place.
+					},
+					() => {
+						deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
+					},
+					{ skipSnapshot: true, op: { kind: 'updateContent', detail: { length: text.length } } }
+				);
+			} else {
+				deps.operationsLog?.record({
+					op: 'updateContent',
+					path: [blockIndex],
+					detail: { length: text.length }
+				});
 			}
-			deps.operationsLog?.record({
-				op: 'updateContent',
-				path: [blockIndex],
-				detail: { length: text.length }
-			});
 		},
 
 		// ── Paste / replace ───────────────────────────────────────────────────
