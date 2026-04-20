@@ -174,4 +174,38 @@
 		line-height: 1.4;
 		resize: vertical;
 	}
+
+	/* Custom scrollbars — unified across panel, section bodies, textarea. */
+	.debug-panel,
+	.raw-source,
+	.debug-panel :global(.debug-section-body) {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+	}
+	.debug-panel::-webkit-scrollbar,
+	.raw-source::-webkit-scrollbar,
+	.debug-panel :global(.debug-section-body)::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+	.debug-panel::-webkit-scrollbar-track,
+	.raw-source::-webkit-scrollbar-track,
+	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.debug-panel::-webkit-scrollbar-thumb,
+	.raw-source::-webkit-scrollbar-thumb,
+	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.12);
+		border-radius: 4px;
+	}
+	.debug-panel::-webkit-scrollbar-thumb:hover,
+	.raw-source::-webkit-scrollbar-thumb:hover,
+	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.22);
+	}
+	.debug-panel::-webkit-scrollbar-corner,
+	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-corner {
+		background: transparent;
+	}
 </style>
