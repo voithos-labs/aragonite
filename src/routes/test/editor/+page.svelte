@@ -6,7 +6,6 @@
 	import { applyTheme, DEFAULT_THEME } from '$lib/theme';
 	import {
 		dumpTree,
-		dumpSelection,
 		dumpUndoStack,
 		dumpInlineTree,
 		dumpOperationsLog
@@ -71,19 +70,34 @@
 		return findBlockPathForElement(el);
 	}
 
-	// Selection section string. Covers both cross-block (SelectionState) and
-	// single-block (native DOM) modes — SelectionState is null-everywhere in
-	// single-block by design, so dumpSelection alone would always show
-	// "(no selection)" and the user would never see their live caret.
+	// True when the editor's current selection spans two different blocks.
+	function isCrossBlockSnapshot(sel: {
+		anchor: { path: number[] };
+		focus: { path: number[] };
+	}): boolean {
+		const a = sel.anchor.path;
+		const f = sel.focus.path;
+		if (a.length !== f.length) return true;
+		for (let i = 0; i < a.length; i++) {
+			if (a[i] !== f[i]) return true;
+		}
+		return false;
+	}
+
+	// Selection section string. Covers both cross-block (via editor.getSelection)
+	// and single-block (native DOM) modes. editor.getSelection's cross-block
+	// branch only populates when SelectionState is active, so we fall back to
+	// reading the native selection for single-block carets.
 	function liveSelectionText(): string {
-		const state = editor?.getSelectionState();
-		if (state?.isCrossBlock && state.anchor && state.focus) {
-			return dumpSelection(state);
+		const editorSel = editor?.getSelection();
+		if (editorSel && isCrossBlockSnapshot(editorSel)) {
+			const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
+			return `anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)} cross-block=true`;
 		}
 		if (typeof window === 'undefined') return '(no selection)';
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return '(no selection)';
-		const range = sel.getRangeAt(0);
+		const nativeSel = window.getSelection();
+		if (!nativeSel || nativeSel.rangeCount === 0) return '(no selection)';
+		const range = nativeSel.getRangeAt(0);
 		const startNode = range.startContainer;
 		const endNode = range.endContainer;
 		const startEl =
@@ -99,7 +113,7 @@
 			`dom-offsets: start=${range.startOffset} end=${range.endOffset}`
 		];
 		if (!range.collapsed) {
-			const selected = sel.toString();
+			const selected = nativeSel.toString();
 			if (selected) lines.push(`selected=${JSON.stringify(selected)}`);
 		}
 		return lines.join('\n');
@@ -125,14 +139,16 @@
 				return document.querySelector('[data-cross-block]') !== null;
 			},
 			isCrossBlockSelection: (): boolean => {
-				return editor?.getSelectionState().isCrossBlock ?? false;
+				const sel = editor?.getSelection();
+				if (!sel) return false;
+				return isCrossBlockSnapshot(sel);
 			},
 			getSelectionPaths: () => {
-				const state = editor.getSelectionState();
-				if (!state || !state.anchor || !state.focus) return null;
+				const sel = editor?.getSelection();
+				if (!sel) return null;
 				return {
-					anchor: { path: state.anchor.path, offset: state.anchor.offset },
-					focus: { path: state.focus.path, offset: state.focus.offset }
+					anchor: { path: sel.anchor.path, offset: sel.anchor.offset },
+					focus: { path: sel.focus.path, offset: sel.focus.offset }
 				};
 			},
 			// ── Debug engine surface ──────────────────────────────────────────
