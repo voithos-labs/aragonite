@@ -1,6 +1,6 @@
 /**
  * Container block editing — focuses on blockquote behavior and cross-container
- * interactions. Single-container list behavior lives in blocks/list-block.spec.ts.
+ * interactions. Single-container list behavior lives in blocks/list/rendering.spec.ts.
  */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
