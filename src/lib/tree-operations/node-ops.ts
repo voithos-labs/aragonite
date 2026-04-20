@@ -3,6 +3,35 @@
  * update, and editable-container scaffolding. Kind-specific unwrap and merge
  * live in `list-ops.ts` and `blockquote.ts`; container raw-rebuilds live in
  * `container-raw.ts`.
+ *
+ * Children-array mutation contract (0.5.5.1):
+ *
+ * Every tree op that modifies a container's top-level children array MUST take
+ * the array as an explicit parameter and mutate it, never `node.children` of
+ * the passed-in container node directly. The caller owns the array — typically
+ * a copy spread from `node.children` inside `commitContainerStructural`'s
+ * mutate callback — and publishes it atomically after the op returns.
+ *
+ * Why: direct `node.children.splice(...)` inside an op collides with the
+ * commit primitive's post-mutate publish, which reassigns a pre-mutation copy
+ * back to `node.children`. The M1 zombie-ListItemBlock bug (0.5.4) was exactly
+ * this pattern — splice mutated live children, publish overwrote with the old
+ * array, and the keyed {#each} rendered a stale component pinned at
+ * key=undefined that intercepted typed characters.
+ *
+ * Scope: the rule applies to the top-level children array being mutated by
+ * the op. Mutations to descendant nodes discovered during the op (e.g.,
+ * appending to a nested list found during M1 walking) remain in-place — the
+ * commit primitive's snapshot captures descendants via cloneDocument, so
+ * there is no publish collision. If an op needs to mutate descendants
+ * structurally (insert/delete items in a discovered container), it should
+ * look up that container's registered BlockListState and route through
+ * `commitChildrenEdit`, matching the pattern in `list-context.ts`.
+ *
+ * Contract audit: before shipping, grep for `.children.splice` and
+ * `.children.push` across `tree-operations/` and confirm every hit is either
+ * (a) on a caller-passed array parameter, (b) on a NodeParent wrapper, or
+ * (c) on a discovered descendant covered by the scope exception above.
  */
 
 import type { CstNode, Document } from '../core/nodes';
