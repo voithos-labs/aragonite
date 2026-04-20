@@ -183,6 +183,31 @@ export interface ContainerEditActions {
 	beginContainerEditDebounced(blockIndex: number, offset: number): void;
 	/** Trigger top-level Svelte reactivity after a container mutation. */
 	endContainerEdit(): void;
+	/**
+	 * Preferred entry for structural container mutations (0.5.4+). Routes
+	 * through the unified commit primitive: single snapshot + reactivity
+	 * publish + edit event emission + post-tick callback. Replaces the
+	 * `begin → commit → rebuildRaw → end → trigger` sequence.
+	 */
+	commitContainer(
+		containerNode: CstNode,
+		state: {
+			innerBlockIds: string[];
+			innerBlockRefs: (BlockComponent | undefined)[];
+		},
+		snapshot: { blockIndex: number; offset: number } | 'skip',
+		mutate: (
+			children: CstNode[],
+			ids: string[],
+			refs: (BlockComponent | undefined)[]
+		) => void,
+		afterTick?: () => void,
+		op?: {
+			kind: string;
+			detail?: Record<string, unknown>;
+			eventPath: number[];
+		}
+	): Promise<void>;
 }
 
 // ── List context ───────────────────────────────────────────────────────────
