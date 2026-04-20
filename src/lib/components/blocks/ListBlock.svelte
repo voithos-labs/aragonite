@@ -164,27 +164,16 @@
 
 					// Non-empty item — Rule M1: merge into deepest visible text above
 					// (rule B) with preserve-absolute-indent child placement.
-					// mergeListItemIntoPrevious mutates list.children in place via splice;
-					// assigning `node.children = children` before the call redirects the
-					// mutation onto the commit's children copy. ids/refs are spliced
-					// manually to keep all three arrays aligned (the tree op only touches
-					// children).
+					// The op now accepts the commit's caller-owned children copy directly,
+					// so no post-call sync dance is needed (that was the Bug A workaround).
 					let mergePoint!: { targetPath: number[]; offset: number };
 					await parentContainerEdit!.commitContainer(
 						node,
 						state,
 						{ blockIndex: index, offset: 0 },
 						(children, ids, refs) => {
-							// mergeListItemIntoPrevious splices `list.children` in place.
-							// commitContainer's post-mutate publish then assigns
-							// `node.children = childrenCopy`, which would overwrite the
-							// splice with the pre-splice snapshot (length 2) and leave
-							// a ListItemBlock zombie mounted under a key=undefined slot.
-							// Sync the commit's `children` copy with the post-splice
-							// node.children so the final assignment lands correctly.
-							const result = mergeListItemIntoPrevious(node, itemIndex);
+							const result = mergeListItemIntoPrevious(node, children, itemIndex);
 							mergePoint = result.mergePoint;
-							children.splice(0, children.length, ...(node.children ?? []));
 							ids.splice(itemIndex, 1);
 							refs.splice(itemIndex, 1);
 						},

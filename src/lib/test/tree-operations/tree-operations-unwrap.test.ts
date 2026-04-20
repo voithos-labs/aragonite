@@ -256,7 +256,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('row 1: flat merge of two paragraphs', () => {
 		const list = parseList('- A\n- B\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const mergedRaw = list.children?.[0].raw ?? '';
@@ -269,7 +269,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('row 2: current item has nested sub-list; it nests under target item (absorb)', () => {
 		const list = parseList('- A\n- B\n  - C\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		// Result: [- AB\n  - C\n]
 		expect(list.children?.length).toBe(1);
@@ -288,7 +288,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it("row 3: target is nested inside previous item; merged text appends to nested paragraph; current's nested children become sibling of target", () => {
 		const list = parseList('- A\n  - AA\n- B\n  - C\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		// Result: [- A\n  - AAB\n  - C\n]
 		expect(list.children?.length).toBe(1);
@@ -316,7 +316,7 @@ describe('mergeListItemIntoPrevious', () => {
 		// should preserve E at its ORIGINAL absolute depth 1 (not deepen it to match C's depth 2).
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		// Result:
 		//   - A
@@ -344,7 +344,7 @@ describe('mergeListItemIntoPrevious', () => {
 		// Loose item: B has two paragraphs (paragraph "B" and paragraph "extra")
 		const list = parseList('- A\n- B\n\n  extra\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		// Result: [- AB\n\n  extra\n] — the "extra" paragraph is absorbed as
 		// the second child of the target item, after the merged paragraph.
@@ -365,7 +365,7 @@ describe('mergeListItemIntoPrevious', () => {
 		// index and cascaded focus to A.children[0] — the wrong paragraph.
 		const list = parseList('- A\n\n  extra\n- B\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const target = list.children?.[0];
@@ -380,7 +380,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: remaining items renumber after the merged item is deleted', () => {
 		const list = parseList('1. First\n2. Second\n3. Third\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, 1);
+		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
 		// Result: [1. FirstSecond\n2. Third\n]
 		expect(list.children?.length).toBe(2);
@@ -393,6 +393,6 @@ describe('mergeListItemIntoPrevious', () => {
 	it("itemIndex = 0 is rejected (caller's responsibility to handle)", () => {
 		const list = parseList('- A\n- B\n');
 
-		expect(() => mergeListItemIntoPrevious(list, 0)).toThrow();
+		expect(() => mergeListItemIntoPrevious(list, list.children!.slice(), 0)).toThrow();
 	});
 });
