@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Section from './Section.svelte';
-	import { createPanelState, type SectionKey } from './panel-state.svelte';
+	import { createPanelState, MIN_PANEL_WIDTH, type SectionKey } from './panel-state.svelte';
 
 	interface Props {
 		rawSource: string;
@@ -67,12 +67,49 @@
 	function mkToggle(key: SectionKey) {
 		return () => panel.toggleSection(key);
 	}
+
+	// ── Resize ────────────────────────────────────────────────────────────────
+
+	let resizing = $state(false);
+	let startX = 0;
+	let startWidth = 0;
+
+	function onHandleMouseDown(e: MouseEvent) {
+		e.preventDefault();
+		resizing = true;
+		startX = e.clientX;
+		startWidth = panel.width;
+	}
+
+	function onMouseMove(e: MouseEvent) {
+		if (!resizing) return;
+		const delta = startX - e.clientX;
+		const maxWidth = window.innerWidth * 0.5;
+		const next = Math.min(maxWidth, Math.max(MIN_PANEL_WIDTH, startWidth + delta));
+		panel.setWidth(next);
+	}
+
+	function onMouseUp() {
+		resizing = false;
+	}
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} onmousemove={onMouseMove} onmouseup={onMouseUp} />
 
 {#if panel.open}
-	<aside class="debug-panel" tabindex="-1">
+	<aside
+		class="debug-panel"
+		class:resizing
+		tabindex="-1"
+		style:width="{panel.width}px"
+	>
+		<div
+			class="resize-handle"
+			role="separator"
+			aria-orientation="vertical"
+			aria-label="Resize debug panel"
+			onmousedown={onHandleMouseDown}
+		></div>
 		<header class="debug-panel-header">
 			<span class="debug-panel-title">Debug</span>
 			<button type="button" class="copy-all" onclick={onCopyAll}>Copy all as text</button>
@@ -104,7 +141,6 @@
 		position: fixed;
 		top: 0;
 		right: 0;
-		width: 420px;
 		height: 100vh;
 		background: var(--debug-bg, #1e1e1e);
 		color: var(--debug-fg, #ddd);
@@ -114,6 +150,26 @@
 		overflow-y: auto;
 		z-index: 9999;
 		font-size: 12px;
+	}
+	.debug-panel.resizing,
+	.debug-panel.resizing :global(*) {
+		user-select: none;
+		cursor: ew-resize !important;
+	}
+	.resize-handle {
+		position: absolute;
+		top: 0;
+		left: -3px;
+		width: 6px;
+		height: 100%;
+		cursor: ew-resize;
+		z-index: 10000;
+		background: transparent;
+		transition: background-color 120ms ease;
+	}
+	.resize-handle:hover,
+	.debug-panel.resizing .resize-handle {
+		background: rgba(100, 160, 255, 0.35);
 	}
 	.debug-panel-header {
 		display: flex;
