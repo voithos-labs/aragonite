@@ -154,3 +154,19 @@ The same helpers are wired to `window.__test` on the test route, callable from D
 | `__test.dumpOperationsLog(n?)` | Tail-N of the structural-op ring buffer (default 20)    |
 
 The existing test-bridge calls (`getSource`, `setSource`, `getBlockCount`, etc.) remain on `window.__test` alongside these helpers.
+
+### Using the debug engine inside tests
+
+Both Vitest and Playwright tests can reach the engine — the module is internal, not sealed. From a unit test, import directly:
+
+```ts
+import { dumpTree, dumpSelection } from '$lib/editor/debug/inspect';
+```
+
+From an E2E spec, read through the bridge:
+
+```ts
+const cst = await page.evaluate(() => (window as any).__test.dumpTree());
+```
+
+**Diagnostic narration only — never assertion targets.** Drop these inside `console.log`, an assertion-failure message, or `test.info().annotations.push(...)` when you want to see what the CST looked like during a failure. Do NOT write `expect(dumpTree(doc)).toBe('[0] heading …')` — the output format is intentionally internal and may change without a deprecation notice, which would turn every formatter tweak into a test-suite churn wave. Assert on structured accessors instead: `getSource()`, `getBlockKind(i)`, `getSelectionPaths()`, or the CST directly.
