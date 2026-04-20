@@ -25,6 +25,7 @@
 	import { parse } from '../core/parser';
 	import { parseAllInlineContent } from '../core/inline';
 	import { createUndoManager } from '../undo-manager';
+	import { createEditorEvents } from '../events/editor-events';
 	import { createEditorActions } from './editor-actions';
 	import { createOperationsLog } from '../debug/operations-log';
 	import BlockList from './BlockList.svelte';
@@ -63,6 +64,7 @@
 	const stickyColumn = createStickyColumnState();
 	const selectionState = createSelectionState();
 	const operationsLog = createOperationsLog();
+	const events = createEditorEvents();
 
 	// Re-initialize when source prop changes (e.g., async document load).
 	// The `source !== lastSource` check is load-bearing: after the first
@@ -155,7 +157,8 @@
 		stickyColumn,
 		selectionState,
 		getBlockElByPath,
-		operationsLog
+		operationsLog,
+		events
 	});
 
 	// Reactive getter: block components call this at keystroke time to read
