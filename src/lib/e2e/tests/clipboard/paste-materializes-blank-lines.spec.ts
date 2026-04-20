@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage } from '../../editor-page';
 
-test.describe('DEBUG: visual blank-line discrepancy', () => {
+test.describe('paste materializes blank lines as empty-paragraph blocks', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -32,8 +32,6 @@ test.describe('DEBUG: visual blank-line discrepancy', () => {
 
 		const src = await editor.getSource();
 		const domCount = await editor.getDomBlockCount();
-		console.log('[PASTED] source:', JSON.stringify(src));
-		console.log('[PASTED] DOM count:', domCount);
 
 		// Normalize CRLF (Windows clipboard writes) → LF.
 		expect(src.replace(/\r\n/g, '\n').replace(/\s+$/, '')).toBe('one\n\ntwo');
