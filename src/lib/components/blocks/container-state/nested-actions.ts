@@ -10,7 +10,7 @@
  * HISTORY_KEY to any descendant that reads it.
  */
 
-import { setContext, tick } from 'svelte';
+import { setContext } from 'svelte';
 import type {
 	BlockEditActions,
 	FocusActions,
@@ -88,22 +88,28 @@ export function createStandardNestedActions(
 	// the document tree with a cloned snapshot.
 	const { rebuildRaw, stickyColumn, parent } = deps;
 
-	function finalizeContainerEdit(): void {
-		rebuildRaw();
-		parent.containerEdit?.endContainerEdit();
-	}
-
 	const blockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!deps.node.children) return;
-			parent.containerEdit?.beginContainerEdit(deps.index, offset);
-			state.commitChildrenEdit((children, ids, refs) => {
-				performSplit({ children }, ids, innerIndex, offset);
-				refs.splice(innerIndex + 1, 0, undefined);
-			});
-			finalizeContainerEdit();
-			await tick();
-			state.innerBlockRefs[innerIndex + 1]?.focus(0);
+			await parent.containerEdit!.commitContainer(
+				deps.node,
+				state,
+				{ blockIndex: deps.index, offset },
+				(children, ids, refs) => {
+					performSplit({ children }, ids, innerIndex, offset);
+					refs.splice(innerIndex + 1, 0, undefined);
+					// rebuildRaw reads from deps.node.children; assign the updated
+					// copy in place so the raw reconstruction sees the post-mutation
+					// tree. commitContainerStructural re-assigns the same ref on
+					// exit, so this write is a no-op by then.
+					deps.node.children = children;
+					rebuildRaw();
+				},
+				() => {
+					state.innerBlockRefs[innerIndex + 1]?.focus(0);
+				},
+				{ kind: 'split', eventPath: [deps.index, innerIndex] }
+			);
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
@@ -121,23 +127,41 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex - 1].raw);
-				parent.containerEdit?.beginContainerEdit(deps.index, 0);
-				state.commitChildrenEdit((children, ids, refs) => {
-					performMerge({ children }, ids, innerIndex);
-					refs.splice(innerIndex, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
+				await parent.containerEdit!.commitContainer(
+					deps.node,
+					state,
+					{ blockIndex: deps.index, offset: 0 },
+					(children, ids, refs) => {
+						performMerge({ children }, ids, innerIndex);
+						refs.splice(innerIndex, 1);
+						deps.node.children = children;
+						rebuildRaw();
+					},
+					() => {
+						state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
+					},
+					{
+						kind: 'merge',
+						detail: { direction: 'prev' },
+						eventPath: [deps.index, innerIndex]
+					}
+				);
 			} else if (!isBlockEditable(prevKind)) {
-				parent.containerEdit?.beginContainerEdit(deps.index, 0);
-				state.commitChildrenEdit((children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex - 1);
-					refs.splice(innerIndex - 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				state.innerBlockRefs[innerIndex - 1]?.focus(0);
+				await parent.containerEdit!.commitContainer(
+					deps.node,
+					state,
+					{ blockIndex: deps.index, offset: 0 },
+					(children, ids, refs) => {
+						performDelete({ children }, ids, innerIndex - 1);
+						refs.splice(innerIndex - 1, 1);
+						deps.node.children = children;
+						rebuildRaw();
+					},
+					() => {
+						state.innerBlockRefs[innerIndex - 1]?.focus(0);
+					},
+					{ kind: 'delete', eventPath: [deps.index, innerIndex - 1] }
+				);
 			} else {
 				state.innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
 			}
@@ -156,23 +180,41 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
-				parent.containerEdit?.beginContainerEdit(deps.index, 0);
-				state.commitChildrenEdit((children, ids, refs) => {
-					performMergeNext({ children }, ids, innerIndex);
-					refs.splice(innerIndex + 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
+				await parent.containerEdit!.commitContainer(
+					deps.node,
+					state,
+					{ blockIndex: deps.index, offset: 0 },
+					(children, ids, refs) => {
+						performMergeNext({ children }, ids, innerIndex);
+						refs.splice(innerIndex + 1, 1);
+						deps.node.children = children;
+						rebuildRaw();
+					},
+					() => {
+						state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
+					},
+					{
+						kind: 'merge',
+						detail: { direction: 'next' },
+						eventPath: [deps.index, innerIndex]
+					}
+				);
 			} else if (!isBlockEditable(nextKind)) {
-				parent.containerEdit?.beginContainerEdit(deps.index, 0);
-				state.commitChildrenEdit((children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex + 1);
-					refs.splice(innerIndex + 1, 1);
-				});
-				finalizeContainerEdit();
-				await tick();
-				state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
+				await parent.containerEdit!.commitContainer(
+					deps.node,
+					state,
+					{ blockIndex: deps.index, offset: 0 },
+					(children, ids, refs) => {
+						performDelete({ children }, ids, innerIndex + 1);
+						refs.splice(innerIndex + 1, 1);
+						deps.node.children = children;
+						rebuildRaw();
+					},
+					() => {
+						state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
+					},
+					{ kind: 'delete', eventPath: [deps.index, innerIndex + 1] }
+				);
 			} else {
 				state.innerBlockRefs[innerIndex + 1]?.focus(0);
 			}
@@ -186,15 +228,22 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			parent.containerEdit?.beginContainerEdit(deps.index, 0);
-			state.commitChildrenEdit((children, ids, refs) => {
-				performDelete({ children }, ids, innerIndex);
-				refs.splice(innerIndex, 1);
-			});
-			finalizeContainerEdit();
-			await tick();
-			const focusIdx = Math.min(innerIndex, deps.node.children.length - 1);
-			state.innerBlockRefs[focusIdx]?.focus(0);
+			await parent.containerEdit!.commitContainer(
+				deps.node,
+				state,
+				{ blockIndex: deps.index, offset: 0 },
+				(children, ids, refs) => {
+					performDelete({ children }, ids, innerIndex);
+					refs.splice(innerIndex, 1);
+					deps.node.children = children;
+					rebuildRaw();
+				},
+				() => {
+					const focusIdx = Math.min(innerIndex, (deps.node.children?.length ?? 1) - 1);
+					state.innerBlockRefs[focusIdx]?.focus(0);
+				},
+				{ kind: 'delete', eventPath: [deps.index, innerIndex] }
+			);
 		},
 
 		async updateBlockContent(
@@ -203,15 +252,50 @@ export function createStandardNestedActions(
 			preEditOffset?: number
 		): Promise<void> {
 			if (!deps.node.children) return;
+
+			// Peek at the would-be result on shallow-cloned children to decide
+			// between the structural (kind-changing) commit path and the routine
+			// typing path. The preview does not touch the live tree — the actual
+			// mutation runs inside the chosen branch below.
+			const preview = performUpdate(
+				{ children: deps.node.children.map((c) => ({ ...c })) },
+				innerIndex,
+				text
+			);
+
+			if (preview.kindChanged) {
+				// Kind flipped — structural change: single snapshot, atomic
+				// publish, updateContent edit event.
+				await parent.containerEdit!.commitContainer(
+					deps.node,
+					state,
+					{ blockIndex: deps.index, offset: preEditOffset ?? 0 },
+					(children, ids, refs) => {
+						void ids;
+						void refs;
+						performUpdate({ children }, innerIndex, text);
+						deps.node.children = children;
+						rebuildRaw();
+					},
+					() => {
+						state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
+					},
+					{
+						kind: 'updateContent',
+						detail: { length: text.length },
+						eventPath: [deps.index, innerIndex]
+					}
+				);
+				return;
+			}
+
+			// Routine typing — stays on the debounced undo path (no structural
+			// commit). Mutation runs in place; rebuildRaw keeps the container's
+			// raw in sync; endContainerEdit nudges top-level reactivity.
 			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
-			const result = performUpdate({ children: deps.node.children }, innerIndex, text);
+			performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
 			parent.containerEdit?.endContainerEdit();
-			if (result.kindChanged) {
-				state.triggerReactivity();
-					await tick();
-				state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
-			}
 		},
 
 		async insertParsedBlocks(
@@ -259,36 +343,43 @@ export function createStandardNestedActions(
 
 			// skipSnapshot: the caller already pushed a snapshot covering the whole
 			// delete-then-paste; skip to avoid a duplicate entry.
-			if (!options?.skipSnapshot) {
-				parent.containerEdit?.beginContainerEdit(deps.index, 0);
-			}
+			const snapshot = options?.skipSnapshot
+				? ('skip' as const)
+				: { blockIndex: deps.index, offset: 0 };
 
-			state.commitChildrenEdit((children, ids, refs) => {
-				if (replacement.length === 0) {
-					children.splice(innerIndex, 1);
-					ids.splice(innerIndex, 1);
-					refs.splice(innerIndex, 1);
-				} else {
-					const normalizedReplacement = normalizeReplacementTrivia(
-						children[innerIndex],
-						replacement
-					);
-					parseAllInlineContent(normalizedReplacement);
-					children.splice(innerIndex, 1, ...normalizedReplacement);
-					ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-					refs.splice(innerIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));
+			await parent.containerEdit!.commitContainer(
+				deps.node,
+				state,
+				snapshot,
+				(children, ids, refs) => {
+					if (replacement.length === 0) {
+						children.splice(innerIndex, 1);
+						ids.splice(innerIndex, 1);
+						refs.splice(innerIndex, 1);
+					} else {
+						const normalizedReplacement = normalizeReplacementTrivia(
+							children[innerIndex],
+							replacement
+						);
+						parseAllInlineContent(normalizedReplacement);
+						children.splice(innerIndex, 1, ...normalizedReplacement);
+						ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
+						refs.splice(innerIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));
+					}
+					deps.node.children = children;
+					rebuildRaw();
+				},
+				() => {
+					if (focus && replacement.length > 0) {
+						const targetIdx = innerIndex + focus.replacementIndex;
+						state.innerBlockRefs[targetIdx]?.focus(focus.offset);
+					}
+				},
+				{
+					kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
+					eventPath: [deps.index, innerIndex]
 				}
-			});
-
-			rebuildRaw();
-			parent.containerEdit?.endContainerEdit();
-
-			await tick();
-
-			if (focus && replacement.length > 0) {
-				const targetIdx = innerIndex + focus.replacementIndex;
-				state.innerBlockRefs[targetIdx]?.focus(focus.offset);
-			}
+			);
 		}
 	};
 
@@ -322,6 +413,43 @@ export function createStandardNestedActions(
 		endContainerEdit(): void {
 			rebuildRaw();
 			parent.containerEdit?.endContainerEdit();
+		},
+
+		commitContainer(containerNode, innerState, snapshot, mutate, afterTick, op): Promise<void> {
+			// Forward to the enclosing container's commit, remapping the snapshot's
+			// blockIndex to this container's own doc-relative index and prepending
+			// `deps.index` to the edit event path so the published path reaches the
+			// document root. The deeper container's `containerNode` / `innerState`
+			// / `mutate` / `afterTick` pass through unchanged — they describe the
+			// inner mutation, not the ancestry.
+			if (!parent.containerEdit) return Promise.resolve();
+			const remappedSnapshot =
+				snapshot === 'skip' ? snapshot : { blockIndex: deps.index, offset: snapshot.offset };
+			const remappedOp = op
+				? {
+						kind: op.kind,
+						detail: op.detail,
+						eventPath: [deps.index, ...op.eventPath]
+					}
+				: undefined;
+			// Ancestry raw needs to rebuild whenever a descendant mutates — wrap
+			// the inner mutate so our rebuildRaw runs after the inner mutation.
+			const wrappedMutate = (
+				children: CstNode[],
+				ids: string[],
+				refs: Parameters<typeof mutate>[2]
+			) => {
+				mutate(children, ids, refs);
+				rebuildRaw();
+			};
+			return parent.containerEdit.commitContainer(
+				containerNode,
+				innerState,
+				remappedSnapshot,
+				wrappedMutate,
+				afterTick,
+				remappedOp
+			);
 		}
 	};
 
