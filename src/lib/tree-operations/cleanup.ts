@@ -33,6 +33,7 @@ export function cascadeCleanupEmptyAncestors(
 		const parent = nodeAt(doc, parentPath);
 		if (!parent || !('children' in parent) || !parent.children) break;
 		const idx = currentPath[currentPath.length - 1];
+		// 0.5.5.1: discovered-ancestor mutation, see node-ops.ts header
 		parent.children.splice(idx, 1);
 		currentPath = parentPath;
 	}
