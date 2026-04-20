@@ -50,7 +50,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
 	import { computeCodeEnter } from './code/code-enter';
 	import type { FencedCodeMetadata } from '../../core/nodes';
-	import { trimTrailingLineEnding } from '../../core/lines';
+	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
@@ -495,7 +495,7 @@
 		stickyColumn.reset();
 		if (!el) return;
 		e.preventDefault();
-		const pasted = e.clipboardData?.getData('text/plain') ?? '';
+		const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pasted) return;
 
 		const sel = currentRange();

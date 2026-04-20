@@ -2,7 +2,7 @@
 
 ## Happy paths
 
-- Paste 2 blocks over a 3-block selection, Ctrl+Z (restores original), Ctrl+Y (re-applies paste). Source and cross-block selection match the post-paste state exactly.
+- Paste 2 blocks over a 3-block selection, Ctrl+Z (restores original and reactivates the pre-paste cross-block selection), Ctrl+Y (re-applies paste). After redo, source matches the post-paste state and the selection is collapsed at the end of the last pasted block (matching where the original paste left the cursor).
 
 ## Edge cases
 
