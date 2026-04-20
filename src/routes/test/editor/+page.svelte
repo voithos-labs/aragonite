@@ -124,6 +124,9 @@
 			isCrossBlockActive: () => {
 				return document.querySelector('[data-cross-block]') !== null;
 			},
+			isCrossBlockSelection: (): boolean => {
+				return editor?.getSelectionState().isCrossBlock ?? false;
+			},
 			getSelectionPaths: () => {
 				const state = editor.getSelectionState();
 				if (!state || !state.anchor || !state.focus) return null;
