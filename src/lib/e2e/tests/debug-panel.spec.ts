@@ -115,6 +115,26 @@ test.describe('debug panel', () => {
 		expect(clip).toContain('### Operations log');
 	});
 
+	// ── Inline tree survives focus moving to the panel (click block, then expand) ──
+
+	test('inline tree populates when user clicks block FIRST, then expands the section', async () => {
+		await editor.page.keyboard.press(toggleKey());
+		// User flow: click block 3 first (while inline section is still collapsed).
+		await editor.clickBlock(3);
+		// Then expand the inline tree section — this click moves focus to the button
+		// and likely collapses the native selection to the button.
+		await editor.page
+			.locator(
+				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-header'
+			)
+			.click();
+		const body = editor.page.locator(
+			'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-body'
+		);
+		await expect(body).toContainText('strong');
+		await expect(body).toContainText('emphasis');
+	});
+
 	// ── Inline tree reacts to caret placement ─────────────────────────────────
 
 	test('inline tree populates with inline-node kinds when caret is placed in a formatted prose block', async () => {

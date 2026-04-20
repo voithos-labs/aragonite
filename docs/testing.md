@@ -126,13 +126,15 @@ A collapsible side panel overlaid on the `/test/editor` route for ad-hoc debuggi
 
 **Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it when focus is inside the panel.
 
+**Resize:** drag the panel's left edge. Minimum width 300px; width persists in localStorage alongside the open/expanded state.
+
 Six collapsible sections:
 
 | Section | Contents |
 | ----------------------- | --------------------------------------------------------------- |
-| Raw source              | Editable textarea — changes feed back into the editor live      |
+| Raw source              | Read-only view of the editor's live source (edit via the editor itself or `window.__test.setSource(md)` from DevTools) |
 | CST tree                | Compact text rendering of the full parsed block tree            |
-| Selection               | Current anchor / focus paths and cross-block flag               |
+| Selection               | Live anchor/focus paths in both single-block (native DOM) and cross-block (SelectionState) modes |
 | Undo stack              | Top-N undo entries with type, selection snapshot, and timestamp |
 | Inline tree (focused block) | Inline parse tree for the currently-focused prose block    |
 | Operations log          | Tail of the structural-operation ring buffer with op type, path, and elapsed time |
