@@ -12,15 +12,43 @@ The entire editor module is self-contained: components, core logic, unit tests, 
 ## Running Tests
 
 ```bash
-npm run test:editor    # unit tests
-npm run test:e2e       # E2E tests (auto-starts dev server)
+npm run test           # full suite
+npm run test:editor    # all unit tests
+npm run test:e2e       # all E2E tests (auto-starts dev server)
 ```
+
+### By category
+
+Unit tests can be scoped to a single concept area:
+
+| Script                         | Covers                                      |
+| ------------------------------ | ------------------------------------------- |
+| `test:editor:core`             | Parser, serializer, round-trip invariants   |
+| `test:editor:tree-ops`         | Tree mutation helpers                       |
+| `test:editor:container`        | Container-state transitions                 |
+| `test:editor:contenteditable`  | Contenteditable normalization helpers       |
+| `test:editor:selection`        | Selection-state logic                       |
+| `test:editor:blocks`           | Per-block unit tests (code block, etc.)     |
+| `test:editor:debug`            | Debug engine helpers and operations log     |
+
+E2E tests are grouped into Playwright projects:
+
+| Script                      | Covers                                                    |
+| --------------------------- | --------------------------------------------------------- |
+| `test:e2e:top`              | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers |
+| `test:e2e:blocks`           | All per-block specs under `tests/blocks/`                 |
+| `test:e2e:blocks:list`      | List block specs only                                     |
+| `test:e2e:blocks:code`      | Code block specs only                                     |
+| `test:e2e:clipboard`        | Cut / copy / paste (excludes exploration)                 |
+| `test:e2e:exploration`      | Clipboard exploration / manual-verification scenarios     |
+| `test:e2e:selection`        | Cross-block selection behavior                            |
+| `test:e2e:sticky-column`    | Vertical cursor column tracking across block transitions  |
 
 ## Unit Tests (Vitest)
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/code-block/` — keyed to the source area it covers (some mirror source paths exactly; `container-state` and `code-block` are flat for naming clarity). Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
+Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/` — keyed to the source area it covers. Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
 
 ## E2E Tests (Playwright)
 
@@ -47,6 +75,8 @@ Editor.svelte (production component, unchanged)
 Feature-level specs live in `src/lib/editor/e2e/tests/` and cover: test-harness smoke, text editing (typing / split / merge / kind change), keyboard navigation (arrow keys, container traversal, sticky column), undo/redo, inline editing (bold / italic / code / links), container editing (blockquotes, lists, nested structure, exit behavior), and selection + clipboard (cut / copy / paste / select-all).
 
 Requirement files in `src/lib/editor/e2e/requirements/` pair one-to-one with spec files under `src/lib/editor/e2e/tests/`. When a subdirectory's specs split further (e.g. `tests/sticky-column/` into several files), the requirements split with them. The filesystem is the authoritative list of what's covered — if a spec has no requirement file or vice versa, one or the other is out of lockstep.
+
+**Per-block subfolder rule.** Create a per-block subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` npm script when a block area reaches 3 or more spec files. Below that threshold, specs live flat under the parent category. The `list/` and `code/` subfolders both earned their own category scripts this way. `blockquote/` uses the subfolder structure for consistency with its siblings but has a single spec and no dedicated script.
 
 ### Writing New E2E Tests
 
@@ -84,8 +114,43 @@ test.describe('my feature', () => {
 
 **Use "type and check where it appeared" for focus assertions.** `getSource()` serializes the CST, which is always correct regardless of focus state. To verify where focus actually landed after a navigation operation, type a marker character and assert on its position in the source. `getSource()`-only assertions can't detect focus bugs.
 
-**Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous in the 0.3.4 architecture — the wait is for reactivity and render flush, not for a debouncer.
+**Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous — the wait is for reactivity and render flush, not for a debouncer.
 
 **Block selectors drill through the `.block-host` wrapper.** The editor renders as `.editor > .block-list > .block-host > [block element + selection overlay]`. Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling. Helpers resolve the actual block with `.block-list > .block-host > :not(.selection-overlay)`.
 
 **Heading contenteditables include the `## ` prefix.** The block marker is rendered as a dimmed `.md-marker` span inside the contenteditable. `getBlockText(i)` returns the full text including the marker prefix.
+
+## Debug Panel
+
+A collapsible side panel overlaid on the `/test/editor` route for ad-hoc debugging during dev sessions and for capturing snapshots in bug reports. It is not present in production builds.
+
+**Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it when focus is inside the panel.
+
+Six collapsible sections:
+
+| Section | Contents |
+| ----------------------- | --------------------------------------------------------------- |
+| Raw source              | Editable textarea — changes feed back into the editor live      |
+| CST tree                | Compact text rendering of the full parsed block tree            |
+| Selection               | Current anchor / focus paths and cross-block flag               |
+| Undo stack              | Top-N undo entries with type, selection snapshot, and timestamp |
+| Inline tree (focused block) | Inline parse tree for the currently-focused prose block    |
+| Operations log          | Tail of the structural-operation ring buffer with op type, path, and elapsed time |
+
+**Copy all:** The header button concatenates every section into a fenced Markdown snapshot (timestamped) and writes it to the clipboard — paste directly into bug reports or AI conversations.
+
+The underlying debug engine (`src/lib/editor/debug/`) is internal at 0.5.3 and is not exported from `src/lib/editor/index.ts`.
+
+### Debug engine from the console
+
+The same helpers are wired to `window.__test` on the test route, callable from DevTools without opening the panel:
+
+| Call | Returns |
+| ---------------------------------------- | ------------------------------------------------------- |
+| `__test.dumpTree(opts?)` | Compact text rendering of the parsed CST                |
+| `__test.dumpSelection()` | Current selection state as a one-line summary           |
+| `__test.dumpInlineTree()` | Inline tree for the currently-focused prose block       |
+| `__test.dumpUndoStack(n?)` | Top-N undo entries (default 10)                         |
+| `__test.dumpOperationsLog(n?)` | Tail-N of the structural-op ring buffer (default 20)    |
+
+The existing test-bridge calls (`getSource`, `setSource`, `getBlockCount`, etc.) remain on `window.__test` alongside these helpers.
