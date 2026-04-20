@@ -61,4 +61,11 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 		expect(called).toEqual(['a', 'b']);
 	});
+
+	// Enabled in Task 10 (0.5.4 plan) when commitContainerStructural exists.
+	// Test #5 from the failing-first pin list: a container edit must fire
+	// exactly one edit event per commit (no duplicate events, no misses).
+	it.skip('commitContainerStructural fires exactly one edit event per commit', () => {
+		// Implementation lands with commitContainerStructural in Task 10.
+	});
 });
