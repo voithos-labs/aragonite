@@ -60,12 +60,9 @@ export interface NestedActionsDeps {
 }
 
 /**
- * Override factory: receives the default bundle (stable references to the
- * factory-provided methods) and returns per-sub-interface partial overrides.
- * Overrides that want to chain to the default call `defaults.blockEdit.foo(...)`
- * — the reference is stable and not subject to the stale-closure problem the
- * previous `bundle.blockEdit.foo = ...; const factoryFoo = bundle.blockEdit.foo`
- * pattern danced around.
+ * Override factory: receives stable default bundle references and returns
+ * per-sub-interface partial overrides. Chain to defaults via
+ * `defaults.blockEdit.foo(...)` — the reference is stable across reactivity.
  */
 export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 	blockEdit?: Partial<BlockEditActions>;
@@ -74,15 +71,9 @@ export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 };
 
 /**
- * Produce a NestedActionsBundle. Callers that need custom behavior (list
- * U1/M1, blockquote U2, blockquote empty-last-child Enter) pass an
- * `overrideFactory` that returns per-method overrides. Overrides chain to
- * the factory default via the `defaults` argument they receive.
- *
- * This replaces the earlier monkey-patching pattern (`bundle.blockEdit.splitBlock
- * = async (...)` after factory return). The override set is now visible at
- * the call site, type-checked against each sub-interface, and the default
- * references are captured in a closure the overrides control.
+ * Produce a NestedActionsBundle. Pass `overrideFactory` for custom behavior
+ * (list U1/M1, blockquote U2); overrides chain to factory defaults via the
+ * `defaults` argument. Override set is visible at the call site and type-checked.
  */
 export function createStandardNestedActions(
 	state: BlockListState,
@@ -118,10 +109,8 @@ export function createStandardNestedActions(
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
 			if (!deps.node.children) return;
 
-			// At innerIndex === 0, default behavior is to delegate upward
-			// (merge the container with its previous sibling). Containers
-			// that override for unwrap behavior (BlockquoteBlock U2, ListBlock U1/M1)
-			// override this whole method.
+			// innerIndex === 0: delegate upward. Containers that override for unwrap
+			// (BlockquoteBlock U2, ListBlock U1/M1) override this whole method.
 			if (innerIndex <= 0) {
 				parent.blockEdit.mergeWithPrevious(deps.index);
 				return;
@@ -220,10 +209,7 @@ export function createStandardNestedActions(
 			parent.containerEdit?.endContainerEdit();
 			if (result.kindChanged) {
 				state.triggerReactivity();
-				// Use preEditOffset (cursor just before the kind-changing keystroke)
-				// so the cursor stays near the edit point. Parity with Editor.svelte's
-				// top-level updateBlockContent handler.
-				await tick();
+					await tick();
 				state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
 			}
 		},
@@ -238,11 +224,8 @@ export function createStandardNestedActions(
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			// Mirror the top-level insertParsedBlocks: when the leaf had a
-			// selection at paste time, fold the selection-delete into the
-			// buildPastedReplacement input by synthesizing a leaf whose raw
-			// has the selected range removed. The single replaceBlock call
-			// below produces one undo entry covering both delete and splice.
+			// Fold any preDelete into a synthesized leaf so the single replaceBlock
+			// call covers both delete and paste as one undo entry.
 			const currentNode = deps.node.children[innerIndex];
 			let synthLeaf = currentNode;
 			let effectiveOffset = offset;
@@ -274,12 +257,8 @@ export function createStandardNestedActions(
 		): Promise<void> {
 			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			// Cross-block paste pre-pushes one snapshot covering the whole
-			// delete-then-paste. When the dispatching bundle is a nested
-			// container, this path runs for the paste half — skipping
-			// beginContainerEdit avoids a duplicate snapshot. The sticky-column
-			// reset and debounce-clear inside beginContainerEdit were already
-			// done by the caller's pre-paste pushUndoSnapshot.
+			// skipSnapshot: the caller already pushed a snapshot covering the whole
+			// delete-then-paste; skip to avoid a duplicate entry.
 			if (!options?.skipSnapshot) {
 				parent.containerEdit?.beginContainerEdit(deps.index, 0);
 			}
@@ -315,9 +294,8 @@ export function createStandardNestedActions(
 
 	const focus: FocusActions = {
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			// Pass node.children.length as authoritative bound — refs.length can
-			// lag after a structural op (bind:this write is asynchronous), and
-			// a stale low bound would make delegation fire too early.
+			// node.children.length is authoritative — refs.length lags after
+			// structural ops because bind:this fires asynchronously.
 			await dispatchMoveFocus(
 				state.innerBlockRefs,
 				innerIndex,
