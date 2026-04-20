@@ -244,13 +244,10 @@ export function createBlockEditActions(
 					},
 					{ skipSnapshot: true, op: { kind: 'updateContent', detail: { length: text.length } } }
 				);
-			} else {
-				deps.operationsLog?.record({
-					op: 'updateContent',
-					path: [blockIndex],
-					detail: { length: text.length }
-				});
 			}
+			// Non-kindChanged branch is routine typing. The debounced snapshot
+			// above holds the undo seam; `input` edit events at debounce-flush
+			// time feed the op-log via its `events.on('edit', ...)` subscription.
 		},
 
 		// ── Paste / replace ───────────────────────────────────────────────────
@@ -354,7 +351,10 @@ export function createBlockEditActions(
 						deps.blockRefs[targetIndex]?.focus(focus.offset);
 					}
 				},
-				{ ...options, op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } } }
+				{
+					...options,
+					op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } }
+				}
 			);
 		}
 	};

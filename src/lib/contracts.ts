@@ -196,11 +196,7 @@ export interface ContainerEditActions {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		},
 		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void,
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void,
 		op?: {
 			kind: string;

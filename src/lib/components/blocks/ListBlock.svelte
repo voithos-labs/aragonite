@@ -252,7 +252,11 @@
 								parseAllInlineContent(normalizedReplacement);
 								children.splice(itemIndex, 1, ...normalizedReplacement);
 								ids.splice(itemIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-								refs.splice(itemIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));
+								refs.splice(
+									itemIndex,
+									1,
+									...new Array(normalizedReplacement.length).fill(undefined)
+								);
 							}
 							node.children = children;
 							rebuildListRaw(node);

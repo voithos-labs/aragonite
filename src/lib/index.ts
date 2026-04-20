@@ -62,3 +62,19 @@ export type {
 // above. The inspect surface is consumed by `/test/editor`'s debug panel
 // and by tests, not by external library consumers. Locking names at 0.5.3
 // risks premature naming the 1.2 plugin API would force us to break.
+
+// ── Commit primitives + selection mutators — intentionally internal at 0.5.4 ─
+//
+// commitStructural, commitContainerStructural, createUndoController,
+// EditorActionsDeps, the createEditorEvents factory, SelectionState write
+// methods (setSelection / clearSelection / extendFocus / ...), and the
+// container-state registry live in `components/editor-actions/`,
+// `events/`, `selection/`, and `components/blocks/container-state/` — but
+// are NOT exported here. Only the EditorEvents type surface above is
+// exported, giving external observers a read-only subscription seam.
+//
+// Decision rationale: same shape as the 0.5.1 / 0.5.3 non-exports. The
+// commit primitives and selection-write APIs will be shaped against the
+// real 1.2 plugin consumer requirements. Locking names at 0.5.4 — before
+// any external consumer exists — risks premature naming a 1.2 reshape
+// would have to break.

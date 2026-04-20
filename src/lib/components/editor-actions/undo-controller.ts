@@ -96,16 +96,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	interface CommitArgs {
 		kind: 'document' | 'container';
 		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void;
-		publish: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void;
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
+		publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 		op?: OpDescriptor;
 		eventPath: number[];
 		afterTick?: () => void;
@@ -197,11 +189,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		},
 		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (
-			children: CstNode[],
-			ids: string[],
-			refs: (BlockComponent | undefined)[]
-		) => void,
+		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
 		afterTick?: () => void,
 		op?: {
 			kind: OpDescriptor['kind'];

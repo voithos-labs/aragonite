@@ -190,7 +190,6 @@ describe('rebuildListItemRaw: nested content', () => {
 		rebuildListItemRaw(item);
 		expect(item.raw).toBe('- Item\n  - Nested a\n  - Nested b\n');
 	});
-
 });
 
 describe('parse + rebuild round-trip', () => {
