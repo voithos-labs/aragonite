@@ -160,17 +160,22 @@
 		rawSource={liveSource}
 		getCst={() => dumpTree(parse(liveSource))}
 		getSelection={() => {
-			panelTick;
+			void panelTick;
 			return liveSelectionText();
 		}}
 		getUndoStack={() => {
-			panelTick;
+			void panelTick;
 			const stack = editor?.getUndoStack?.();
 			return stack ? dumpUndoStack(stack) : '(editor not ready)';
 		}}
 		getInlineTree={() => {
+			// panelTick read FIRST — if editor is undefined on the derived's first
+			// evaluation (possible during HMR re-mount or tight initial-mount
+			// timing), the early return below would skip the signal read and the
+			// derived would never subscribe. Reading it unconditionally makes the
+			// dep registration independent of editor's ready state.
+			void panelTick;
 			if (!editor) return '';
-			panelTick;
 			const path = getFocusedBlockPath();
 			if (!path) return '';
 			const doc = parse(liveSource);
