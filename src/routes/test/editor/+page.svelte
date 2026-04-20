@@ -28,6 +28,10 @@
 		if (!log) return;
 		const unsub = log.subscribe(() => {
 			opsLogTick += 1;
+			// Re-sync source with the editor's live state so panel getters
+			// that depend on `source` (CST tree, inline tree, raw textarea)
+			// reflect edits made in the editor itself, not just the textarea.
+			source = editor.getSource();
 		});
 		return () => unsub();
 	});
