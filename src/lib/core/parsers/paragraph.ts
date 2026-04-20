@@ -78,7 +78,6 @@ function parseTable(
 	leadingTrivia: string,
 	columnCount: number
 ): { node: CstNode; nextIndex: number } {
-	// Header row + delimiter row already confirmed, consume data rows
 	let i = startIndex + 2;
 
 	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
