@@ -89,19 +89,16 @@ test.describe('debug panel', () => {
 		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
 	});
 
-	// ── Raw source edit ───────────────────────────────────────────────────────
+	// ── Raw source is read-only ───────────────────────────────────────────────
 
-	test('editing the raw-source textarea propagates to the editor after the debounce', async () => {
+	test('raw-source section is not a textarea (read-only by design)', async () => {
 		await editor.page.keyboard.press(toggleKey());
-
-		const textarea = editor.page.locator('.debug-panel textarea.raw-source');
-		await textarea.fill('# New heading\n\nBody text.\n');
-
-		// Wait past the 200ms debounce and a Svelte flush.
-		await editor.page.waitForTimeout(400);
-
-		expect(await editor.getBlockCount()).toBe(2);
-		expect(await editor.getBlockKind(0)).toBe('heading');
+		const rawBody = editor.page.locator(
+			'.debug-section[data-section-title="Raw source"] .debug-section-body'
+		);
+		await expect(rawBody).toBeVisible();
+		// No textarea inside — the section shows live source as read-only text.
+		await expect(rawBody.locator('textarea')).toHaveCount(0);
 	});
 
 	// ── Copy all ──────────────────────────────────────────────────────────────

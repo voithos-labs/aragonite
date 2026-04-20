@@ -4,7 +4,6 @@
 
 	interface Props {
 		rawSource: string;
-		onRawSourceChange: (value: string) => void;
 		getCst: () => string;
 		getSelection: () => string;
 		getUndoStack: () => string;
@@ -14,7 +13,6 @@
 	}
 	let {
 		rawSource,
-		onRawSourceChange,
 		getCst,
 		getSelection,
 		getUndoStack,
@@ -24,22 +22,6 @@
 	}: Props = $props();
 
 	const panel = createPanelState();
-
-	let rawBuffer = $state(rawSource);
-	$effect(() => {
-		rawBuffer = rawSource;
-	});
-
-	let rawDebounceTimer: number | null = null;
-	function onRawInput(ev: Event) {
-		const value = (ev.target as HTMLTextAreaElement).value;
-		rawBuffer = value;
-		if (rawDebounceTimer !== null) clearTimeout(rawDebounceTimer);
-		rawDebounceTimer = window.setTimeout(() => {
-			onRawSourceChange(rawBuffer);
-			rawDebounceTimer = null;
-		}, 200);
-	}
 
 	const cstText = $derived(getCst());
 	const selectionText = $derived(getSelection());
@@ -67,7 +49,7 @@
 
 	async function onCopyAll() {
 		const sections = [
-			['Raw source', rawBuffer],
+			['Raw source', rawSource],
 			['CST', cstText],
 			['Selection', selectionText],
 			['Undo stack', undoText],
@@ -97,7 +79,7 @@
 			<button type="button" class="close-btn" onclick={() => (panel.open = false)} aria-label="Close">×</button>
 		</header>
 		<Section title="Raw source" expanded={panel.isExpanded('rawSource')} onToggle={mkToggle('rawSource')}>
-			<textarea class="raw-source" value={rawBuffer} oninput={onRawInput} spellcheck={false}></textarea>
+			{rawSource}
 		</Section>
 		<Section title="CST tree" expanded={panel.isExpanded('cst')} onToggle={mkToggle('cst')}>
 			{cstText}
@@ -161,46 +143,27 @@
 		font-size: 18px;
 		line-height: 1;
 	}
-	.raw-source {
-		width: 100%;
-		min-height: 120px;
-		background: var(--debug-input-bg, #252525);
-		color: inherit;
-		border: 1px solid var(--debug-divider, #2a2a2a);
-		border-radius: 3px;
-		padding: 6px 8px;
-		font-family: var(--font-mono, monospace);
-		font-size: 12px;
-		line-height: 1.4;
-		resize: vertical;
-	}
-
-	/* Custom scrollbars — unified across panel, section bodies, textarea. */
+	/* Custom scrollbars — unified across panel and section bodies. */
 	.debug-panel,
-	.raw-source,
 	.debug-panel :global(.debug-section-body) {
 		scrollbar-width: thin;
 		scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 	}
 	.debug-panel::-webkit-scrollbar,
-	.raw-source::-webkit-scrollbar,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar {
 		width: 8px;
 		height: 8px;
 	}
 	.debug-panel::-webkit-scrollbar-track,
-	.raw-source::-webkit-scrollbar-track,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-track {
 		background: transparent;
 	}
 	.debug-panel::-webkit-scrollbar-thumb,
-	.raw-source::-webkit-scrollbar-thumb,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb {
 		background: rgba(255, 255, 255, 0.12);
 		border-radius: 4px;
 	}
 	.debug-panel::-webkit-scrollbar-thumb:hover,
-	.raw-source::-webkit-scrollbar-thumb:hover,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb:hover {
 		background: rgba(255, 255, 255, 0.22);
 	}
