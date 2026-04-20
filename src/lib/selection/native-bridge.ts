@@ -66,25 +66,25 @@ export function clearNativeSelection(): void {
 
 /**
  * Read the effective editor selection: cross-block from SelectionState if
- * active, otherwise collapsed from the native caret. Returns a collapsed
- * zero selection as fallback.
+ * active, otherwise collapsed from the native caret. Returns null when no
+ * block reports a cursor (editor unfocused).
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
 	blockRefs: ({ getCursorOffset(): number | null } | undefined)[],
 	buildCollapsed: (blockIndex: number, offset: number) => EditorSelection
-): EditorSelection {
+): EditorSelection | null {
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
 			anchor: { path: selectionState.anchor.path.slice(), offset: selectionState.anchor.offset },
 			focus: { path: selectionState.focus.path.slice(), offset: selectionState.focus.offset }
 		};
 	}
-	const focusedIndex = Math.max(
-		0,
-		blockRefs.findIndex((b) => b !== undefined && b.getCursorOffset() !== null)
+	const focusedIndex = blockRefs.findIndex(
+		(b) => b !== undefined && b.getCursorOffset() !== null
 	);
-	const focusedOffset = blockRefs[focusedIndex]?.getCursorOffset() ?? 0;
+	if (focusedIndex === -1) return null;
+	const focusedOffset = blockRefs[focusedIndex]!.getCursorOffset()!;
 	return buildCollapsed(focusedIndex, focusedOffset);
 }
 
