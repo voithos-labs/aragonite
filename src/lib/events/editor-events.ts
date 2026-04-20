@@ -69,9 +69,16 @@ export function createEditorEvents(): EditorEvents {
 		const set = handlers[event] as Set<(p: EditorEventMap[K]) => void> | undefined;
 		if (!set) return;
 		// Copy before iterating so handlers that dispose themselves don't mutate
-		// the set mid-iteration.
+		// the set mid-iteration. Each handler runs in its own try/catch so a
+		// throwing subscriber doesn't starve downstream subscribers — an
+		// observer-pattern invariant that edit-event consumers (persistent
+		// history, dirty tracking, op-log) rely on for independence.
 		for (const handler of [...set]) {
-			handler(payload);
+			try {
+				handler(payload);
+			} catch (err) {
+				console.error('[EditorEvents] subscriber threw while handling event:', err);
+			}
 		}
 	}
 
