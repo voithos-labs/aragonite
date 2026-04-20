@@ -66,6 +66,18 @@
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
 
+	// Op-log subscribes to edit events. Scoped to editor lifetime via $effect.
+	$effect(() => {
+		const dispose = events.on('edit', (e) => {
+			operationsLog?.record({
+				op: e.op,
+				path: e.path,
+				detail: 'detail' in e ? e.detail : {}
+			});
+		});
+		return () => dispose();
+	});
+
 	// Re-initialize when source prop changes (e.g., async document load).
 	// The `source !== lastSource` check is load-bearing: after the first
 	// re-init reads `doc.children` (via assignIds), doc.children becomes

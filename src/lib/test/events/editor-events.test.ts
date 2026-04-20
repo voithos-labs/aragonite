@@ -62,10 +62,82 @@ describe('createEditorEvents', () => {
 		expect(called).toEqual(['a', 'b']);
 	});
 
-	// Enabled in Task 10 (0.5.4 plan) when commitContainerStructural exists.
 	// Test #5 from the failing-first pin list: a container edit must fire
-	// exactly one edit event per commit (no duplicate events, no misses).
-	it.skip('commitContainerStructural fires exactly one edit event per commit', () => {
-		// Implementation lands with commitContainerStructural in Task 10.
+	// exactly one edit event per commit.
+	it('commitContainerStructural fires exactly one edit event per commit', async () => {
+		const { createUndoController } = await import(
+			'$lib/editor/components/editor-actions/undo-controller'
+		);
+		const { createUndoManager } = await import('$lib/editor/undo-manager');
+		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
+
+		const events = createEditorEvents();
+		let editCount = 0;
+		events.on('edit', (e) => {
+			if (e.op !== 'input') editCount++;
+		});
+
+		const containerNode: any = {
+			kind: 'list',
+			raw: '- a\n- b\n',
+			children: [
+				{ kind: 'listItem', raw: '- a\n' },
+				{ kind: 'listItem', raw: '- b\n' }
+			]
+		};
+		const doc: any = { kind: 'document', children: [containerNode] };
+		const blockIds = ['id0'];
+		const blockRefs: any[] = [undefined];
+
+		const deps: any = {
+			get doc() {
+				return doc;
+			},
+			get blockIds() {
+				return blockIds;
+			},
+			get blockRefs() {
+				return blockRefs;
+			},
+			setDoc: (v: any) => Object.assign(doc, v),
+			setDocChildren: (v: any) => {
+				doc.children = v;
+			},
+			setBlockIds: () => {},
+			setBlockRefs: () => {},
+			undoManager: createUndoManager(),
+			stickyColumn: {
+				reset() {},
+				capture() {},
+				get current() {
+					return null;
+				}
+			},
+			selectionState: createSelectionState(),
+			getBlockElByPath: () => null,
+			operationsLog: undefined,
+			events
+		};
+
+		const controller = createUndoController(deps);
+		const state = {
+			innerBlockIds: ['li0', 'li1'],
+			innerBlockRefs: [undefined, undefined] as (any | undefined)[]
+		};
+
+		await controller.commitContainerStructural(
+			containerNode,
+			state,
+			{ blockIndex: 0, offset: 0 },
+			(children, ids, refs) => {
+				children.splice(1, 1);
+				ids.splice(1, 1);
+				refs.splice(1, 1);
+			},
+			undefined,
+			{ kind: 'delete', eventPath: [0, 1] }
+		);
+
+		expect(editCount).toBe(1);
 	});
 });
