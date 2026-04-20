@@ -1,6 +1,6 @@
 # Feature: Container Block Editing
 
-Blockquote editing and cross-container interactions (list inside blockquote, blockquote inside list). Single-container list behavior lives in `blocks/list-block.md`.
+Blockquote editing and cross-container interactions (list inside blockquote, blockquote inside list). Single-container list behavior lives in `blocks/list/rendering.md`.
 
 ## Happy paths
 
@@ -22,7 +22,7 @@ Blockquote editing and cross-container interactions (list inside blockquote, blo
 
 ## Cross-container interactions
 
-- Blockquote containing a list: Backspace at start of the list's first item runs U1 (list unwrap) against the inner list, producing a plain paragraph still wrapped by `> `. See `blocks/list-block.md` for the full U1 semantics (first-item unwrap, matching-type sub-list promotion, mismatched sub-list as separate block, ordered renumbering).
+- Blockquote containing a list: Backspace at start of the list's first item runs U1 (list unwrap) against the inner list, producing a plain paragraph still wrapped by `> `. See `blocks/list/rendering.md` for the full U1 semantics (first-item unwrap, matching-type sub-list promotion, mismatched sub-list as separate block, ordered renumbering).
 
 ## Cross-container merge on Backspace
 
