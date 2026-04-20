@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage } from '../../editor-page';
 
 /**
  * Paste / cut into unusual target positions: empty document, thematic
