@@ -341,6 +341,7 @@ export function mergeListItemIntoPrevious(
 					if (depthOneList && depthOneList.children) {
 						for (const item of child.children) {
 							item.leadingTrivia = '';
+							// 0.5.5.1: discovered-descendant mutation, see node-ops.ts header
 							depthOneList.children.push(item);
 						}
 						rebuildListRaw(depthOneList);
