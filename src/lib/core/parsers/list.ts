@@ -8,11 +8,7 @@ import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 
-/**
- * Match an ordered or unordered list item on `text`. Returns marker + indent
- * metadata, or null. Currently exported from parser.ts for external callers;
- * Task 10 re-exports it from parser.ts.
- */
+/** Match an ordered or unordered list item on `text`. Returns marker + indent metadata, or null. */
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {

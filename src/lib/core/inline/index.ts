@@ -1,12 +1,6 @@
 /**
  * Inline parser orchestrator for CST Phase 2.
  * See docs/design/editor/inline-parsing.md for the design spec.
- *
- * Pipeline:
- *   Stage 1    — backticks.ts         (scanBacktickSpans)
- *   Stage 1.5  — links.ts             (scanLinksAndAutolinks)
- *   Stages 2+3 — emphasis.ts          (buildSegments + processEmphasis)
- *   Post       — post-process.ts      (hard breaks + merge adjacent text)
  */
 
 import type { CstNode, InlineNode } from '../nodes';
@@ -52,7 +46,6 @@ export function getContentRange(node: CstNode): ContentRange {
 	return { start: 0, end: displayEnd };
 }
 
-/** Returns true if the given block kind carries inline content (paragraph, heading, setextHeading). */
 export function isProseKind(kind: string): boolean {
 	return kind === 'paragraph' || kind === 'heading' || kind === 'setextHeading';
 }
