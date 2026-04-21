@@ -319,59 +319,46 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] },
 		afterTick?: () => void
 	): Promise<void> {
-		deps.stickyColumn.reset();
-		if (undoDebounceTimer) {
-			clearTimeout(undoDebounceTimer);
-			undoDebounceTimer = null;
-			batchBlockIndex = -1;
-			batchByteLength = 0;
-		}
+		await __commit({
+			kind: 'container',
+			snapshot,
+			mutate: () => {
+				// Per-scope copies — mutate callback operates on these, never on live state.
+				const perScope = scopes.map((s) => ({
+					target: s,
+					children: [...(s.node.children ?? [])],
+					ids: [...s.state.innerBlockIds],
+					refs: [...s.state.innerBlockRefs]
+				}));
 
-		if (snapshot !== 'skip') {
-			pushUndoSnapshot(snapshot.blockIndex, snapshot.offset);
-		}
-		needsUndoCheckpoint = true;
+				const changes = mutate(perScope.map((p) => ({ children: p.children })));
+				if (changes.length !== scopes.length) {
+					throw new Error(
+						`commitMultiScope: mutate returned ${changes.length} changes for ${scopes.length} scopes`
+					);
+				}
 
-		// Per-scope copies — mutate callback operates on these, never on live state.
-		const perScope = scopes.map((s) => ({
-			target: s,
-			children: [...(s.node.children ?? [])],
-			ids: [...s.state.innerBlockIds],
-			refs: [...s.state.innerBlockRefs]
-		}));
+				for (let i = 0; i < perScope.length; i++) {
+					applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
+				}
 
-		const changes = mutate(perScope.map((p) => ({ children: p.children })));
-		if (changes.length !== scopes.length) {
-			throw new Error(
-				`commitMultiScope: mutate returned ${changes.length} changes for ${scopes.length} scopes`
-			);
-		}
+				// Atomic publish: assign all scopes before Svelte sees any change.
+				for (const p of perScope) {
+					p.target.node.children = p.children;
+					p.target.state.innerBlockIds = p.ids;
+					p.target.state.innerBlockRefs = p.refs;
+				}
 
-		for (let i = 0; i < perScope.length; i++) {
-			applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
-		}
-
-		// Atomic publish: assign all scopes before Svelte sees any change.
-		for (const p of perScope) {
-			p.target.node.children = p.children;
-			p.target.state.innerBlockIds = p.ids;
-			p.target.state.innerBlockRefs = p.refs;
-		}
-
-		// Nudge top-level reactivity so ancestor-raw mutations propagate.
-		deps.doc.children = [...deps.doc.children];
-
-		if (op) {
-			deps.events.emit('edit', {
-				op: op.kind,
-				path: op.eventPath,
-				detail: op.detail,
-				timestamp: Date.now()
-			} as EditEvent);
-		}
-
-		await tick();
-		afterTick?.();
+				return { op: 'noop' };
+			},
+			publish: () => {
+				// Nudge top-level reactivity so ancestor-raw mutations propagate.
+				deps.doc.children = [...deps.doc.children];
+			},
+			op: op ? { kind: op.kind, detail: op.detail } : undefined,
+			eventPath: op?.eventPath ?? [],
+			afterTick
+		});
 	}
 
 	// ── State capture / checkpoint control ──────────────────────────────────
