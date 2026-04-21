@@ -8,8 +8,6 @@
  * exactly one edit event per call.
  *
  * Remaining legacy seam (not in this file):
- *   - cross-block-dispatch.ts performCrossBlockDelete (pushes snapshots via
- *     mutCtx.pushUndoSnapshot — predates 0.5.4; migrated in 0.5.5.3 Task 6)
  *   - paste-dispatch.ts (two sites — migrated in 0.5.5.3 Tasks 7+8)
  */
 

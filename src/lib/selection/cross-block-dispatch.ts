@@ -20,6 +20,7 @@ import type {
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
+import type { UndoController } from '../components/editor-actions/deps';
 import { collectCrossBlockText } from './clipboard-text';
 import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
@@ -57,6 +58,7 @@ export interface CrossBlockDispatchContext {
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
+	controller: UndoController;
 
 	getCursorOffset: () => number | null;
 
@@ -94,8 +96,12 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		selection: ctx.selection,
 		getDoc: ctx.getDoc,
 		getBlockElByPath: ctx.getBlockElByPath,
+		controller: ctx.controller,
+		// Used by the paste path to push a snapshot covering delete + paste as
+		// one undo entry, before calling performCrossBlockDelete with skipSnapshot.
 		pushUndoSnapshot: () =>
-			ctx.containerEdit.beginContainerEdit(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
+			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
+		// Used by the sync path (compositionstart) and legacy callers.
 		notifyDocMutated: () => ctx.containerEdit.endContainerEdit()
 	};
 
@@ -106,7 +112,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleBeforeInput: (e) => handleBeforeInput(ctx, mutationCtx, e),
 		handleCompositionStart: () => handleCompositionStart(ctx, mutationCtx),
 		performCrossBlockDeleteFromEvent: async () => {
-			await performCrossBlockDelete(mutationCtx, ctx.afterReactivity);
+			await performCrossBlockDelete(mutationCtx);
 		}
 	};
 }
@@ -151,7 +157,7 @@ async function handleCrossBlockActive(
 
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
+		await performCrossBlockDelete(mutCtx);
 		return true;
 	}
 
@@ -328,7 +334,7 @@ async function handlePaste(
 	mutCtx.pushUndoSnapshot();
 
 	const doc = ctx.getDoc();
-	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity, {
+	const caret = await performCrossBlockDelete(mutCtx, {
 		skipSnapshot: true,
 		skipCaretRestore: true
 	});
@@ -390,7 +396,7 @@ async function handleBeforeInput(
 
 	e.preventDefault();
 	const typed = e.data ?? '';
-	const caret = await performCrossBlockDelete(mutCtx, ctx.afterReactivity);
+	const caret = await performCrossBlockDelete(mutCtx);
 	if (!caret || !typed) return true;
 
 	const doc = ctx.getDoc();
