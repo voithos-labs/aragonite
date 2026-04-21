@@ -2,6 +2,7 @@
 	import { getContext, tick } from 'svelte';
 	import {
 		BLOCK_EDIT_KEY,
+		CONTROLLER_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
@@ -20,6 +21,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../contracts';
+	import type { UndoController } from '../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		createRangeFromOffsets,
@@ -58,6 +60,7 @@
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
@@ -84,6 +87,7 @@
 		stickyColumn,
 		containerEdit,
 		blockEdit,
+		controller,
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
