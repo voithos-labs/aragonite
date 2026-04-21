@@ -4,6 +4,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
+		CONTROLLER_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		CURSOR_END,
@@ -16,6 +17,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../contracts';
+	import type { UndoController } from '../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		deleteNode as performDelete,
@@ -41,6 +43,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
 	const state = createBlockListState(() => node);
@@ -287,7 +290,8 @@
 		parentBlockEdit,
 		parentFocus,
 		parentContainerEdit,
-		parentListContext
+		parentListContext,
+		controller
 	});
 
 	setContext(LIST_CONTEXT_KEY, listContext);
