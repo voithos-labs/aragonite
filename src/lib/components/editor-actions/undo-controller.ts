@@ -17,6 +17,8 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
 import type { OpDescriptor } from '../../debug/operations-log';
 import type { EditEvent } from '../../events/editor-events';
+import type { StructuralChange } from '../../tree-operations/structural-change';
+import { generateBlockId } from '../../tree-operations/block-id';
 
 /**
  * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
@@ -26,6 +28,51 @@ import type { EditEvent } from '../../events/editor-events';
  * is a potential further refinement (flush on space/punctuation).
  */
 const UNDO_DEBOUNCE_MS = 250;
+
+// ── StructuralChange applicator ──────────────────────────────────────────────
+
+/**
+ * Apply a StructuralChange to the parallel ids + refs arrays so their shape
+ * matches the mutated children array. Inserted slots get fresh IDs and
+ * undefined ref placeholders; deleted slots are removed; `idMap` on replace
+ * preserves specified old-index IDs for split/merge semantics.
+ */
+function applyStructuralChangeToIdsRefs(
+	change: StructuralChange,
+	ids: string[],
+	refs: (BlockComponent | undefined)[]
+): void {
+	switch (change.op) {
+		case 'noop':
+			return;
+		case 'insert': {
+			const newIds = Array.from({ length: change.count }, generateBlockId);
+			const newRefs = new Array<BlockComponent | undefined>(change.count).fill(undefined);
+			ids.splice(change.at, 0, ...newIds);
+			refs.splice(change.at, 0, ...newRefs);
+			return;
+		}
+		case 'delete': {
+			ids.splice(change.at, change.count);
+			refs.splice(change.at, change.count);
+			return;
+		}
+		case 'replace': {
+			const oldIds = ids.slice(change.at, change.at + change.count);
+			const oldRefs = refs.slice(change.at, change.at + change.count);
+			const idMap = change.idMap ?? {};
+			const newIds = Array.from({ length: change.newCount }, (_, i) =>
+				idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
+			);
+			const newRefs = Array.from({ length: change.newCount }, (_, i) =>
+				idMap[i] !== undefined ? oldRefs[idMap[i]] : undefined
+			);
+			ids.splice(change.at, change.count, ...newIds);
+			refs.splice(change.at, change.count, ...newRefs);
+			return;
+		}
+	}
+}
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -97,7 +144,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	interface CommitArgs {
 		kind: 'document' | 'container';
 		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
+		/**
+		 * Mutate `children` in place (per 0.5.5.1) and return a StructuralChange
+		 * describing the array-shape mutation. The commit primitive auto-syncs
+		 * `ids` and `refs` from the descriptor — do NOT splice them inside the
+		 * mutate callback. Side effects (raw rebuild, inline reparse, etc.) are
+		 * allowed; they don't affect the ids/refs sync.
+		 */
+		mutate: (children: CstNode[]) => StructuralChange;
 		publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 		op?: OpDescriptor;
 		eventPath: number[];
@@ -118,20 +172,18 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 		needsUndoCheckpoint = true;
 
-		// Document scope works on the live doc.children; container scope
-		// supplies its own source inside the caller-provided mutate closure.
 		const srcChildren = args.kind === 'document' ? deps.doc.children : [];
 		const childrenCopy = [...srcChildren];
 		const idsCopy = [...deps.blockIds];
 		const refsCopy = [...deps.blockRefs];
-		args.mutate(childrenCopy, idsCopy, refsCopy);
+
+		const change = args.mutate(childrenCopy);
+		applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 
 		args.publish(childrenCopy, idsCopy, refsCopy);
 
 		if (args.op) {
-			// detail is carried verbatim from the op descriptor — no ?? {} default.
-			// Detail-less ops (delete / appendBlock / undo / redo) have detail
-			// optional in the union, so omitting it is type-valid.
+			// detail is carried verbatim from the op descriptor (the 0.5.5.4 fix).
 			deps.events.emit('edit', {
 				op: args.op.kind,
 				path: args.eventPath,
@@ -154,7 +206,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	async function commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		mutate: (children: CstNode[]) => StructuralChange,
 		afterTick?: () => void,
 		options?: { skipSnapshot?: boolean; op?: OpDescriptor }
 	): Promise<void> {
@@ -189,7 +241,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		},
 		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		mutate: (children: CstNode[]) => StructuralChange,
 		afterTick?: () => void,
 		op?: {
 			kind: OpDescriptor['kind'];
@@ -197,10 +249,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			eventPath: number[];
 		}
 	): Promise<void> {
-		// Container mutation applies directly to `containerNode.children` +
-		// the state bundle; the __commit top-level copies are unused for this
-		// path. We still route through __commit for snapshot / op-log / event /
-		// tick / afterTick bookkeeping.
+		// The container path applies the descriptor INSIDE its custom mutate that
+		// reaches into the container node + state bundle. The outer __commit's
+		// mutate parameter is used purely for the snapshot/event ceremony; its
+		// StructuralChange return is 'noop' because the descriptor's effects were
+		// already applied to the inner state via applyStructuralChangeToIdsRefs.
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -208,14 +261,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				const childrenCopy = [...(containerNode.children ?? [])];
 				const idsCopy = [...state.innerBlockIds];
 				const refsCopy = [...state.innerBlockRefs];
-				mutate(childrenCopy, idsCopy, refsCopy);
+				const change = mutate(childrenCopy);
+				applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 				containerNode.children = childrenCopy;
 				state.innerBlockIds = idsCopy;
 				state.innerBlockRefs = refsCopy;
+				return { op: 'noop' };
 			},
 			publish: () => {
-				// Nudge top-level reactivity so any ancestor-raw mutation
-				// performed inside `mutate` propagates to the document tree.
+				// Nudge top-level reactivity so ancestor-raw mutations propagate.
 				deps.doc.children = [...deps.doc.children];
 			},
 			op: op ? { kind: op.kind, detail: op.detail } : undefined,

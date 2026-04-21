@@ -31,7 +31,6 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../../../tree-operations';
-import { generateBlockId } from '../../../tree-operations/block-id';
 import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
 import { parseAllInlineContent } from '../../../core/inline';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
@@ -95,15 +94,15 @@ export function createStandardNestedActions(
 				deps.node,
 				state,
 				{ blockIndex: deps.index, offset },
-				(children, ids, refs) => {
-					performSplit({ children }, ids, innerIndex, offset);
-					refs.splice(innerIndex + 1, 0, undefined);
+				(children) => {
+					const change = performSplit({ children }, innerIndex, offset);
 					// rebuildRaw reads from deps.node.children; assign the updated
 					// copy in place so the raw reconstruction sees the post-mutation
 					// tree. commitContainerStructural re-assigns the same ref on
 					// exit, so this write is a no-op by then.
 					deps.node.children = children;
 					rebuildRaw();
+					return change;
 				},
 				() => {
 					state.innerBlockRefs[innerIndex + 1]?.focus(0);
@@ -131,11 +130,11 @@ export function createStandardNestedActions(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
-					(children, ids, refs) => {
-						performMerge({ children }, ids, innerIndex);
-						refs.splice(innerIndex, 1);
+					(children) => {
+						const change = performMerge({ children }, innerIndex);
 						deps.node.children = children;
 						rebuildRaw();
+						return change;
 					},
 					() => {
 						state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
@@ -151,11 +150,11 @@ export function createStandardNestedActions(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
-					(children, ids, refs) => {
-						performDelete({ children }, ids, innerIndex - 1);
-						refs.splice(innerIndex - 1, 1);
+					(children) => {
+						const change = performDelete({ children }, innerIndex - 1);
 						deps.node.children = children;
 						rebuildRaw();
+						return change;
 					},
 					() => {
 						state.innerBlockRefs[innerIndex - 1]?.focus(0);
@@ -184,11 +183,11 @@ export function createStandardNestedActions(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
-					(children, ids, refs) => {
-						performMergeNext({ children }, ids, innerIndex);
-						refs.splice(innerIndex + 1, 1);
+					(children) => {
+						const change = performMergeNext({ children }, innerIndex);
 						deps.node.children = children;
 						rebuildRaw();
+						return change;
 					},
 					() => {
 						state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
@@ -204,11 +203,11 @@ export function createStandardNestedActions(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
-					(children, ids, refs) => {
-						performDelete({ children }, ids, innerIndex + 1);
-						refs.splice(innerIndex + 1, 1);
+					(children) => {
+						const change = performDelete({ children }, innerIndex + 1);
 						deps.node.children = children;
 						rebuildRaw();
+						return change;
 					},
 					() => {
 						state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
@@ -232,11 +231,11 @@ export function createStandardNestedActions(
 				deps.node,
 				state,
 				{ blockIndex: deps.index, offset: 0 },
-				(children, ids, refs) => {
-					performDelete({ children }, ids, innerIndex);
-					refs.splice(innerIndex, 1);
+				(children) => {
+					const change = performDelete({ children }, innerIndex);
 					deps.node.children = children;
 					rebuildRaw();
+					return change;
 				},
 				() => {
 					const focusIdx = Math.min(innerIndex, (deps.node.children?.length ?? 1) - 1);
@@ -270,12 +269,11 @@ export function createStandardNestedActions(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: preEditOffset ?? 0 },
-					(children, ids, refs) => {
-						void ids;
-						void refs;
+					(children) => {
 						performUpdate({ children }, innerIndex, text);
 						deps.node.children = children;
 						rebuildRaw();
+						return { op: 'noop' };
 					},
 					() => {
 						state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
@@ -351,23 +349,28 @@ export function createStandardNestedActions(
 				deps.node,
 				state,
 				snapshot,
-				(children, ids, refs) => {
+				(children) => {
 					if (replacement.length === 0) {
 						children.splice(innerIndex, 1);
-						ids.splice(innerIndex, 1);
-						refs.splice(innerIndex, 1);
-					} else {
-						const normalizedReplacement = normalizeReplacementTrivia(
-							children[innerIndex],
-							replacement
-						);
-						parseAllInlineContent(normalizedReplacement);
-						children.splice(innerIndex, 1, ...normalizedReplacement);
-						ids.splice(innerIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-						refs.splice(innerIndex, 1, ...new Array(normalizedReplacement.length).fill(undefined));
+						deps.node.children = children;
+						rebuildRaw();
+						return { op: 'delete', at: innerIndex, count: 1 };
 					}
+					const normalizedReplacement = normalizeReplacementTrivia(
+						children[innerIndex],
+						replacement
+					);
+					parseAllInlineContent(normalizedReplacement);
+					children.splice(innerIndex, 1, ...normalizedReplacement);
 					deps.node.children = children;
 					rebuildRaw();
+					// All replacement slots get fresh IDs (no idMap) — existing behavior.
+					return {
+						op: 'replace',
+						at: innerIndex,
+						count: 1,
+						newCount: normalizedReplacement.length
+					};
 				},
 				() => {
 					if (focus && replacement.length > 0) {
@@ -434,13 +437,10 @@ export function createStandardNestedActions(
 				: undefined;
 			// Ancestry raw needs to rebuild whenever a descendant mutates — wrap
 			// the inner mutate so our rebuildRaw runs after the inner mutation.
-			const wrappedMutate = (
-				children: CstNode[],
-				ids: string[],
-				refs: Parameters<typeof mutate>[2]
-			) => {
-				mutate(children, ids, refs);
+			const wrappedMutate = (children: CstNode[]) => {
+				const change = mutate(children);
 				rebuildRaw();
+				return change;
 			};
 			return parent.containerEdit.commitContainer(
 				containerNode,

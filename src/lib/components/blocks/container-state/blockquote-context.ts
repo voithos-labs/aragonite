@@ -47,8 +47,12 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					} else {
 						parentContainerEdit?.beginContainerEdit(index, 0);
 						state.commitChildrenEdit((children, ids, refs) => {
-							performDelete({ children }, ids, innerIndex);
-							refs.splice(innerIndex, 1);
+							// Legacy commitChildrenEdit path: apply descriptor manually.
+							const change = performDelete({ children }, innerIndex);
+							if (change.op === 'delete') {
+								ids.splice(change.at, change.count);
+								refs.splice(change.at, change.count);
+							}
 						});
 						rebuildBlockquoteRaw(node);
 						parentContainerEdit?.endContainerEdit();

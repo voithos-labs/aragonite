@@ -5,7 +5,6 @@
  */
 
 import { CURSOR_END, type FocusActions, type FocusPosition, type CstNode } from '../../contracts';
-import { generateBlockId } from '../../tree-operations/block-id';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createFocusActions(
@@ -23,10 +22,10 @@ export function createFocusActions(
 				await controller.commitStructural(
 					deps.doc.children.length,
 					0,
-					(children, ids, refs) => {
+					(children) => {
+						const at = children.length;
 						children.push(newBlock);
-						ids.push(generateBlockId());
-						refs.push(undefined);
+						return { op: 'insert', at, count: 1 };
 					},
 					() => {
 						const lastIdx = deps.doc.children.length - 1;

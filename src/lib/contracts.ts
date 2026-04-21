@@ -6,6 +6,7 @@
 
 import type { CstNode, Document } from './core/nodes';
 import type { EditorSelection } from './selection/primitives';
+import type { StructuralChange } from './tree-operations/structural-change';
 
 // ── Re-exported core types ─────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ export interface ContainerEditActions {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		},
 		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		mutate: (children: CstNode[]) => StructuralChange,
 		afterTick?: () => void,
 		op?: {
 			kind: string;
