@@ -347,6 +347,7 @@ async function applyStructuralResult(
 	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) return;
 
 	const parentState = getStateForNode(parent)!;
+	// TODO(0.5.5.3): migrate via multi-scope commit primitive
 	parentState.commitChildrenEdit((children, ids, refs) => {
 		children.splice(innerIndex, 1, ...result.replacement);
 		ids.splice(innerIndex, 1, ...result.replacement.map(() => generateBlockId()));
@@ -443,6 +444,7 @@ async function applyContainerMatchingPaste(
 	const outerState = getStateForNode(outer);
 	if (!outerState) return;
 
+	// TODO(0.5.5.3): migrate via multi-scope commit primitive
 	outerState.commitChildrenEdit((children, ids, refs) => {
 		children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
 		ids.splice(unwrap.spliceIndex, 1, ...unwrap.items.map(() => generateBlockId()));

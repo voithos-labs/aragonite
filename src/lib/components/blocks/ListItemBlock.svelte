@@ -61,6 +61,7 @@
 		if (!node.children) return;
 
 		let newChildren: CstNode[] = [];
+		// TODO(0.5.5.3): migrate via multi-scope commit primitive
 		state.commitChildrenEdit((children, ids, refs) => {
 			// performSplit no longer takes ids — it returns a descriptor. On this
 			// legacy commitChildrenEdit path the descriptor is ignored because the

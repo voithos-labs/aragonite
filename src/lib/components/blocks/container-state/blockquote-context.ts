@@ -46,6 +46,7 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 						parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
 						parentContainerEdit?.beginContainerEdit(index, 0);
+						// TODO(0.5.5.3): migrate via multi-scope commit primitive
 						state.commitChildrenEdit((children, ids, refs) => {
 							// Legacy commitChildrenEdit path: apply descriptor manually.
 							const change = performDelete({ children }, innerIndex);

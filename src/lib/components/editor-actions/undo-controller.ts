@@ -37,7 +37,7 @@ const UNDO_DEBOUNCE_MS = 250;
  * undefined ref placeholders; deleted slots are removed; `idMap` on replace
  * preserves specified old-index IDs for split/merge semantics.
  */
-function applyStructuralChangeToIdsRefs(
+export function applyStructuralChangeToIdsRefs(
 	change: StructuralChange,
 	ids: string[],
 	refs: (BlockComponent | undefined)[]
