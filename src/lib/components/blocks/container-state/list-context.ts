@@ -75,6 +75,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			);
 
 			let movedItem!: CstNode;
+			// TODO(0.5.5.3): migrate via multi-scope commit primitive
 			deps.state.commitChildrenEdit((children, ids, refs) => {
 				[movedItem] = children.splice(itemIndex, 1);
 				ids.splice(itemIndex, 1);
@@ -147,6 +148,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				rebuildListItemRaw(newItem);
 			}
 
+			// TODO(0.5.5.3): migrate via multi-scope commit primitive
 			deps.state.commitChildrenEdit((children, ids, refs) => {
 				children.splice(itemIndex + 1, 0, newItem!);
 				ids.splice(itemIndex + 1, 0, generateBlockId());
@@ -176,6 +178,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// 1. Remove item via the nested list's own state so ids/refs stay
 			// aligned. If that empties the list, also remove it from parentItem.
 			const nestedListState = getStateForNode(nestedListNode)!;
+			// TODO(0.5.5.3): migrate via multi-scope commit primitive
 			nestedListState.commitChildrenEdit((children, ids, refs) => {
 				children.splice(nestedItemIdx, 1);
 				ids.splice(nestedItemIdx, 1);
@@ -184,6 +187,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			if (nestedListNode.children.length === 0) {
 				const parentItemState = getStateForNode(parentItem)!;
+				// TODO(0.5.5.3): migrate via multi-scope commit primitive
 				parentItemState.commitChildrenEdit((children, ids, refs) => {
 					const nestedIdx = children.indexOf(nestedListNode);
 					if (nestedIdx !== -1) {
@@ -202,6 +206,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// well-formed marker suffix.
 			normalizeItemMarkerToList(item, node);
 
+			// TODO(0.5.5.3): migrate via multi-scope commit primitive
 			deps.state.commitChildrenEdit((children, ids, refs) => {
 				children.splice(parentItemIdx + 1, 0, item);
 				ids.splice(parentItemIdx + 1, 0, generateBlockId());
