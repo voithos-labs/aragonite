@@ -23,7 +23,6 @@ describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
 		const change = splitNode(doc, 0, 5);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } });
 		expect(doc.children).toHaveLength(2);
