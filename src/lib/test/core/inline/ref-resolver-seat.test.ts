@@ -21,6 +21,21 @@ describe('parseInline — RefResolver parameter seat (0.5.5.4 reservation)', () 
 		expect(nodes.length).toBeGreaterThan(0);
 	});
 
+	it('parseInline with a link forwards the resolver into nested link-text parsing', () => {
+		let calls = 0;
+		const resolver: RefResolver = () => {
+			calls++;
+			return null;
+		};
+		// A link with nested emphasis — the internal parseInline recursion runs for
+		// the link-text range. At 0.5.5.4 the resolver is forwarded but still not
+		// consulted. When 0.6.6 lands, a reference-style variant (`[text][ref]`)
+		// will flip this assertion to calls > 0.
+		const input = '[**hello**](https://example.com)';
+		parseInline(input, 0, input.length, resolver);
+		expect(calls).toBe(0);
+	});
+
 	it('parseAllInlineContent forwards the resolver through recursion (no-op today)', () => {
 		let calls = 0;
 		const resolver: RefResolver = () => {

@@ -6,9 +6,11 @@
 
 import type { InlineNode } from '../nodes';
 import { parseInline } from './index';
+import type { RefResolver } from './index';
 
 // links.ts ↔ index.ts module cycle is benign — the call to parseInline is
-// runtime-deferred, not module-init.
+// runtime-deferred, not module-init. The `import type { RefResolver }` is
+// erased at compile time and carries no runtime cycle risk.
 
 /**
  * Scan text regions (not occupied by code spans) for links, images, and autolinks.
@@ -22,7 +24,8 @@ export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	codeSpans: InlineNode[]
+	codeSpans: InlineNode[],
+	resolver?: RefResolver
 ): InlineNode[] {
 	// Build list of occupied ranges from code spans
 	const occupied: Array<{ start: number; end: number }> = codeSpans
@@ -33,10 +36,10 @@ export function scanLinksAndAutolinks(
 
 	let pos = start;
 	for (const occ of occupied) {
-		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found);
+		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found, resolver);
 		pos = occ.end;
 	}
-	scanRegionForLinksAndAutolinks(raw, pos, end, found);
+	scanRegionForLinksAndAutolinks(raw, pos, end, found, resolver);
 
 	if (found.length === 0) return codeSpans;
 
@@ -140,7 +143,8 @@ function scanRegionForLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	out: InlineNode[]
+	out: InlineNode[],
+	resolver?: RefResolver
 ): void {
 	let pos = start;
 
@@ -178,7 +182,7 @@ function scanRegionForLinksAndAutolinks(
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
 					// Recursively parse the link text for emphasis etc.
-					const children = parseInline(raw, pos + 1, bracketClose);
+					const children = parseInline(raw, pos + 1, bracketClose, resolver);
 					out.push({
 						kind: 'link',
 						start: pos,
