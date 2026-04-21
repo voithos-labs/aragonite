@@ -78,16 +78,15 @@ export function parseInline(
 	end: number,
 	resolver?: RefResolver
 ): InlineNode[] {
-	// resolver is reserved for 0.6.6 (reference-style link/image resolution).
-	// Accepted today as a no-op so every call site threads it through without
-	// a later signature migration.
-	void resolver;
+	// resolver threads through to scanLinksAndAutolinks (and its internal parseInline
+	// recursion for link text). No caller populates it at 0.5.5.4 — it becomes live
+	// at 0.6.6 (reference-style link/image resolution).
 
 	// Stage 0: pre-escape normalization. Identity today; 0.6.2 fills this in.
 	preEscapeInline(raw, start, end);
 
 	const codeSpans = scanBacktickSpans(raw, start, end);
-	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans);
+	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans, resolver);
 
 	if (!hasDelimiterChars(raw, start, end, withLinks)) {
 		return processHardLineBreaks(withLinks, raw);
