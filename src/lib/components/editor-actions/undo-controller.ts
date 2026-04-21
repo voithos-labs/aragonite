@@ -16,6 +16,7 @@ import { cloneDocument } from '../../tree-operations/clone';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
 import type { OpDescriptor } from '../../debug/operations-log';
+import type { EditEvent } from '../../events/editor-events';
 
 /**
  * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
@@ -128,16 +129,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		args.publish(childrenCopy, idsCopy, refsCopy);
 
 		if (args.op) {
-			// Emit the corresponding EditEvent. The detail shape per op is a
-			// discriminated-union member; the `as any` bridges the union
-			// narrowing the caller has already validated.
-			const detail = args.op.detail ?? {};
+			// detail is carried verbatim from the op descriptor — no ?? {} default.
+			// Detail-less ops (delete / appendBlock / undo / redo) have detail
+			// optional in the union, so omitting it is type-valid.
 			deps.events.emit('edit', {
 				op: args.op.kind,
 				path: args.eventPath,
-				detail,
+				detail: args.op.detail,
 				timestamp: Date.now()
-			} as never);
+			} as EditEvent);
 		}
 
 		await tick();

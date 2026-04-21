@@ -77,7 +77,7 @@
 			operationsLog?.record({
 				op: e.op,
 				path: e.path,
-				detail: 'detail' in e ? e.detail : {}
+				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
 		});
 		return () => dispose();
