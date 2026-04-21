@@ -15,10 +15,32 @@ import type {
 import { cloneDocument } from '../../tree-operations/clone';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
-import type { OpDescriptor } from '../../debug/operations-log';
+import type { OpDescriptor, OperationKind } from '../../debug/operations-log';
 import type { EditEvent } from '../../events/editor-events';
 import type { StructuralChange } from '../../tree-operations/structural-change';
 import { generateBlockId } from '../../tree-operations/block-id';
+import type { BlockListState } from '../blocks/container-state/block-list-state.svelte';
+
+// ── Multi-scope commit types ──────────────────────────────────────────────────
+
+/**
+ * Target scope for commitMultiScope: a container node + its registered
+ * BlockListState. Order matters for the emitted event path — scopes[0] is
+ * the outermost scope conceptually.
+ */
+export interface MultiScopeTarget {
+	node: CstNode;
+	state: BlockListState;
+}
+
+/**
+ * Mutable view of one scope during a multi-scope commit. Mutate `children`
+ * per 0.5.5.1; return a StructuralChange[] (one per scope, same order) from
+ * the mutate callback — the primitive applies descriptors to ids/refs.
+ */
+export interface MultiScopeMutable {
+	children: CstNode[];
+}
 
 /**
  * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
@@ -278,6 +300,80 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
+	// ── Multi-scope structural commit ────────────────────────────────────────
+
+	/**
+	 * Structural commit spanning multiple container scopes atomically. Pushes
+	 * ONE undo snapshot, calls `mutate` with per-scope children views, applies
+	 * the returned StructuralChange[] to each scope's ids/refs, then publishes
+	 * all scopes at once before emitting a single edit event.
+	 *
+	 * Use this for operations that must mutate ≥2 container nodes (e.g.,
+	 * indent/unindent across a list + parent list). Single-scope mutations
+	 * should continue to use commitContainerStructural.
+	 */
+	async function commitMultiScope(
+		scopes: MultiScopeTarget[],
+		snapshot: { blockIndex: number; offset: number } | 'skip',
+		mutate: (scopeChildren: MultiScopeMutable[]) => StructuralChange[],
+		op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] },
+		afterTick?: () => void
+	): Promise<void> {
+		deps.stickyColumn.reset();
+		if (undoDebounceTimer) {
+			clearTimeout(undoDebounceTimer);
+			undoDebounceTimer = null;
+			batchBlockIndex = -1;
+			batchByteLength = 0;
+		}
+
+		if (snapshot !== 'skip') {
+			pushUndoSnapshot(snapshot.blockIndex, snapshot.offset);
+		}
+		needsUndoCheckpoint = true;
+
+		// Per-scope copies — mutate callback operates on these, never on live state.
+		const perScope = scopes.map((s) => ({
+			target: s,
+			children: [...(s.node.children ?? [])],
+			ids: [...s.state.innerBlockIds],
+			refs: [...s.state.innerBlockRefs]
+		}));
+
+		const changes = mutate(perScope.map((p) => ({ children: p.children })));
+		if (changes.length !== scopes.length) {
+			throw new Error(
+				`commitMultiScope: mutate returned ${changes.length} changes for ${scopes.length} scopes`
+			);
+		}
+
+		for (let i = 0; i < perScope.length; i++) {
+			applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
+		}
+
+		// Atomic publish: assign all scopes before Svelte sees any change.
+		for (const p of perScope) {
+			p.target.node.children = p.children;
+			p.target.state.innerBlockIds = p.ids;
+			p.target.state.innerBlockRefs = p.refs;
+		}
+
+		// Nudge top-level reactivity so ancestor-raw mutations propagate.
+		deps.doc.children = [...deps.doc.children];
+
+		if (op) {
+			deps.events.emit('edit', {
+				op: op.kind,
+				path: op.eventPath,
+				detail: op.detail,
+				timestamp: Date.now()
+			} as EditEvent);
+		}
+
+		await tick();
+		afterTick?.();
+	}
+
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
@@ -313,6 +409,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		pushUndoSnapshotDebounced,
 		commitStructural,
 		commitContainerStructural,
+		commitMultiScope,
 		captureCurrentState,
 		collapsedSelectionAt,
 		clearDebouncedCheckpoint
