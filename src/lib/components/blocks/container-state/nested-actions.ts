@@ -296,6 +296,33 @@ export function createStandardNestedActions(
 			parent.containerEdit?.endContainerEdit();
 		},
 
+		async updateBlockMetadata(
+			innerIndex: number,
+			metadata: Record<string, unknown>,
+			options?: { skipSnapshot?: boolean }
+		): Promise<void> {
+			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
+			const fields = Object.keys(metadata);
+			if (fields.length === 0) return;
+
+			await parent.containerEdit!.commitContainer(
+				deps.node,
+				state,
+				options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
+				() => {
+					const node = deps.node.children![innerIndex];
+					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
+					return { op: 'noop' };
+				},
+				undefined,
+				{
+					kind: 'metadataUpdate',
+					detail: { fields },
+					eventPath: [deps.index, innerIndex]
+				}
+			);
+		},
+
 		async insertParsedBlocks(
 			innerIndex: number,
 			offset: number,

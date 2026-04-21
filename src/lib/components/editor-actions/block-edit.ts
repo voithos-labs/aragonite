@@ -219,6 +219,31 @@ export function createBlockEditActions(
 			// time feed the op-log via its `events.on('edit', ...)` subscription.
 		},
 
+		async updateBlockMetadata(
+			blockIndex: number,
+			metadata: Record<string, unknown>,
+			options?: { skipSnapshot?: boolean }
+		): Promise<void> {
+			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
+			const fields = Object.keys(metadata);
+			if (fields.length === 0) return;
+
+			await controller.commitStructural(
+				blockIndex,
+				0,
+				() => {
+					const node = deps.doc.children[blockIndex];
+					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
+					return { op: 'noop' };
+				},
+				undefined,
+				{
+					...options,
+					op: { kind: 'metadataUpdate', detail: { fields } }
+				}
+			);
+		},
+
 		// ── Paste / replace ───────────────────────────────────────────────────
 
 		async insertParsedBlocks(

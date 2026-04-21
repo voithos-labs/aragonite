@@ -9,6 +9,7 @@ export type OperationKind =
 	| 'replaceBlock'
 	| 'paste'
 	| 'appendBlock'
+	| 'metadataUpdate'
 	| 'undo'
 	| 'redo';
 

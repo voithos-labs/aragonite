@@ -137,6 +137,24 @@ export interface BlockEditActions {
 		preEditOffset?: number
 	): void | Promise<void>;
 	/**
+	 * Mutate block metadata without touching raw. Used by interactive
+	 * adornments that express state as metadata rather than as raw syntax
+	 * (task checkboxes, future callout severity toggles, image alignment
+	 * flags, etc.). Not for raw-driven metadata (heading level comes from
+	 * `## ` in raw; change it via updateBlockContent).
+	 *
+	 * The metadata patch is shallow-merged into the existing metadata. The
+	 * commit primitive pushes a snapshot (unless skipSnapshot) and emits a
+	 * `metadataUpdate` edit event whose detail.fields lists the top-level
+	 * keys of the patch. Empty patch (no keys) is a no-op — no snapshot, no
+	 * event.
+	 */
+	updateBlockMetadata(
+		blockIndex: number,
+		metadata: Record<string, unknown>,
+		options?: { skipSnapshot?: boolean }
+	): void | Promise<void>;
+	/**
 	 * Insert parsed blocks at a split point, replacing the current block with
 	 * spliced content. `preDelete`, when set, folds a pre-paste selection
 	 * deletion into the same undo entry as the block-splice — callers that
