@@ -271,6 +271,16 @@
 	export function getUndoStack() {
 		return undoManager.getStacks();
 	}
+
+	/**
+	 * Return the live CST Document. Intended for test harnesses that need to
+	 * walk the actual mutated tree (not a re-parse of the serialized source).
+	 * Callers must treat the returned object as read-only — mutating it
+	 * bypasses the undo pipeline.
+	 */
+	export function getDocument() {
+		return doc;
+	}
 </script>
 
 <div class="editor" bind:this={editorEl}>
