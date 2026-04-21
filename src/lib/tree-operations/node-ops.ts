@@ -78,6 +78,8 @@ export function splitNode(
 	blockIndex: number,
 	offset: number
 ): StructuralChange {
+	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
+
 	const node = parent.children[blockIndex];
 	const rawText = node.raw;
 
