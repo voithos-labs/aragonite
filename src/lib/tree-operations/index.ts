@@ -50,6 +50,8 @@ export {
 
 export type { MergeRole } from './block-kind-descriptor';
 
+export type { StructuralChange } from './structural-change';
+
 export type { BlockKindDescriptor } from './block-kind-descriptor';
 export {
 	registerBlockKind,
