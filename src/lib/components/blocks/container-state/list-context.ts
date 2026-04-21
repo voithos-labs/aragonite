@@ -4,11 +4,16 @@
  * list's reactive BlockListState and calls through to the parent bundle, so
  * it lives under container-state/ alongside the state it depends on.
  *
- * All structural mutations route through `commitMultiScope` (0.5.5.3).
- * Residual: `paste-dispatch.ts`'s `applyStructuralResult` and
- * `applyContainerMatchingPaste` still use the legacy `commitChildrenEdit`
- * seam (tracked via `TODO(0.5.5.3)` markers in that file, to be migrated
- * alongside the paste-surface API cleanup).
+ * All list-side structural mutations route through `commitMultiScope`
+ * (0.5.5.3). Residual legacy-seam call sites elsewhere:
+ *   - `paste-dispatch.ts`'s `applyStructuralResult` and
+ *     `applyContainerMatchingPaste` — TODO(0.5.5.3) markers; to be
+ *     migrated alongside the paste-surface API cleanup.
+ *   - `cross-block-dispatch.ts` inline-paste + cross-block `beforeInput`
+ *     insertText reactivity nudges (small `endContainerEdit` calls that
+ *     bracket non-structural raw mutations).
+ *   - `performCrossBlockDeleteSync` (compositionstart path) —
+ *     intentional non-migration, see `cross-block-ops.ts`.
  */
 
 import { tick } from 'svelte';

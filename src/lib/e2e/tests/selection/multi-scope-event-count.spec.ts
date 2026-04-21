@@ -222,10 +222,13 @@ test.describe('cross-block delete — list item id identity', () => {
 			const alphaId = idsBefore[0];
 			expect(alphaId).toBeTruthy();
 
-			// Select from offset 1 inside alpha's paragraph to offset 3 of "follow"
-			// (top-level block at index 1). This is a mixed-scope selection: start
-			// descends into the list, end is at the top level.
+			// Select from offset 1 inside alpha's paragraph to the top-level
+			// paragraph "follow". One Shift+ArrowDown only reaches beta (still
+			// inside the list); a second Shift+ArrowDown crosses the list
+			// boundary to the top-level block. This makes it a mixed-scope
+			// selection — start descends into the list, end is at the top level.
 			await editor.focusBlockAtPath([0, 0, 0], 1);
+			await editor.pressKey('Shift+ArrowDown');
 			await editor.pressKey('Shift+ArrowDown');
 			await editor.waitForCrossBlock(true);
 			await editor.pressBackspace();
