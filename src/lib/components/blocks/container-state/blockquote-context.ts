@@ -8,18 +8,14 @@
  */
 
 import { tick } from 'svelte';
-import type {
-	BlockEditActions,
-	FocusActions,
-	ContainerEditActions,
-	CstNode
-} from '../../../contracts';
+import type { BlockEditActions, FocusActions, CstNode } from '../../../contracts';
 import { displayLength } from '../../../core/lines';
 import { deleteNode as performDelete } from '../../../tree-operations/node-ops';
 import { unwrapFirstChildFromBlockquote } from '../../../tree-operations/blockquote';
 import { rebuildBlockquoteRaw } from '../../../tree-operations/container-raw';
 import type { BlockListState } from './block-list-state.svelte';
 import type { NestedActionsBundle } from './nested-actions';
+import type { UndoController } from '../../editor-actions/deps';
 
 export interface BlockquoteContextDeps {
 	get index(): number;
@@ -27,7 +23,7 @@ export interface BlockquoteContextDeps {
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
-	parentContainerEdit: ContainerEditActions | undefined;
+	controller: UndoController;
 }
 
 export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
@@ -36,7 +32,7 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 			// Enter on an empty trailing paragraph exits the blockquote instead of
 			// appending another inner line.
 			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
-				const { node, index, state, parentBlockEdit, parentFocus, parentContainerEdit } = deps;
+				const { node, index, state, parentBlockEdit, parentFocus } = deps;
 				if (!node.children) return;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
@@ -45,18 +41,22 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					if (node.children.length <= 1) {
 						parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
-						parentContainerEdit?.beginContainerEdit(index, 0);
-						// TODO(0.5.5.3): migrate via multi-scope commit primitive
-						state.commitChildrenEdit((children, ids, refs) => {
-							// Legacy commitChildrenEdit path: apply descriptor manually.
-							const change = performDelete({ children }, innerIndex);
-							if (change.op === 'delete') {
-								ids.splice(change.at, change.count);
-								refs.splice(change.at, change.count);
+						await deps.controller.commitMultiScope(
+							[{ node, state }],
+							{ blockIndex: index, offset: 0 },
+							(scopeChildren) => {
+								const change = performDelete(scopeChildren[0], innerIndex);
+								// Sync node.children before rebuild — rebuildBlockquoteRaw reads it directly.
+								node.children = scopeChildren[0].children;
+								rebuildBlockquoteRaw(node);
+								return [change];
+							},
+							{
+								kind: 'delete',
+								detail: { action: 'blockquoteExit', innerIndex },
+								eventPath: [index]
 							}
-						});
-						rebuildBlockquoteRaw(node);
-						parentContainerEdit?.endContainerEdit();
+						);
 						await tick();
 						parentFocus.moveFocus(index + 1, 'start');
 					}
