@@ -22,10 +22,6 @@ export interface PreEscapeResult {
  * The stage boundary exists so future fills can change scanner inputs
  * without changing the pipeline shape in index.ts.
  */
-export function preEscapeInline(
-	_raw: string,
-	_start: number,
-	_end: number
-): PreEscapeResult {
+export function preEscapeInline(_raw: string, _start: number, _end: number): PreEscapeResult {
 	return { modified: false };
 }

@@ -4,16 +4,11 @@ import type { EditEvent } from '$lib/editor/events/editor-events';
 describe('moveFocus past the last block', () => {
 	it('emits op=appendBlock and no op=split (0.5.5.4)', async () => {
 		const { createEditorEvents } = await import('$lib/editor/events/editor-events');
-		const { createUndoController } = await import(
-			'$lib/editor/components/editor-actions/undo-controller'
-		);
-		const { createFocusActions } = await import(
-			'$lib/editor/components/editor-actions/focus'
-		);
+		const { createUndoController } =
+			await import('$lib/editor/components/editor-actions/undo-controller');
+		const { createFocusActions } = await import('$lib/editor/components/editor-actions/focus');
 		const { createUndoManager } = await import('$lib/editor/undo-manager');
-		const { createSelectionState } = await import(
-			'$lib/editor/selection/selection-state.svelte'
-		);
+		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
 		const captured: EditEvent[] = [];
