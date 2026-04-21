@@ -13,6 +13,8 @@
 	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
 	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
 	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
+	import { getStateForNode } from '$lib/editor/components/blocks/container-state/state-registry';
+	import type { CstNode } from '$lib/editor/core/nodes';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 
 	let source = $state(DEFAULT_CONTENT);
@@ -166,7 +168,50 @@
 				return dumpInlineTree(inline);
 			},
 			dumpUndoStack: (n = 10) => dumpUndoStack(editor.getUndoStack(), n),
-			dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.getOperationsLog(), n)
+			dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.getOperationsLog(), n),
+			// ── BlockListState consistency probe ─────────────────────────────
+			/**
+			 * Walk the live CST — NOT a re-parse — and report any container
+			 * whose registered BlockListState has innerBlockIds of a different
+			 * length from its node.children. Regression guard for the
+			 * cross-block-delete desync bug where nested state was left out of
+			 * sync with the mutated children array.
+			 */
+			auditBlockListStateConsistency: (): Array<{
+				path: number[];
+				kind: string;
+				childrenLen: number;
+				idsLen: number;
+				refsLen: number;
+			}> => {
+				const doc = editor.getDocument();
+				const violations: Array<{
+					path: number[];
+					kind: string;
+					childrenLen: number;
+					idsLen: number;
+					refsLen: number;
+				}> = [];
+				function walk(node: CstNode, path: number[]): void {
+					if (!node.children) return;
+					const state = getStateForNode(node);
+					if (state) {
+						const childrenLen = node.children.length;
+						const idsLen = state.innerBlockIds.length;
+						const refsLen = state.innerBlockRefs.length;
+						if (idsLen !== childrenLen || refsLen !== childrenLen) {
+							violations.push({ path: [...path], kind: node.kind, childrenLen, idsLen, refsLen });
+						}
+					}
+					for (let i = 0; i < node.children.length; i++) {
+						walk(node.children[i], [...path, i]);
+					}
+				}
+				for (let i = 0; i < doc.children.length; i++) {
+					walk(doc.children[i], [i]);
+				}
+				return violations;
+			}
 		};
 	});
 </script>

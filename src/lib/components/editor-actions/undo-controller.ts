@@ -371,6 +371,41 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
+	// ── Doc scope adapter ────────────────────────────────────────────────────
+
+	/**
+	 * Expose the document root as a MultiScopeTarget so cross-scope ops that
+	 * span from a container down into top-level doc.children (e.g., a cross-
+	 * block delete with LCA at doc level) can include the doc in their scope
+	 * list. The synthetic BlockListState forwards ids/refs reads and writes
+	 * through `deps.blockIds` / `deps.blockRefs` setters — so publish-time
+	 * assignments reach the Svelte $state proxies.
+	 *
+	 * `commitChildrenEdit` is unused by commitMultiScope and throws if called.
+	 */
+	function getDocScope(): MultiScopeTarget {
+		return {
+			node: deps.doc as unknown as CstNode,
+			state: {
+				get innerBlockIds() {
+					return deps.blockIds;
+				},
+				set innerBlockIds(v: string[]) {
+					deps.setBlockIds(v);
+				},
+				get innerBlockRefs() {
+					return deps.blockRefs;
+				},
+				set innerBlockRefs(v: (BlockComponent | undefined)[]) {
+					deps.setBlockRefs(v);
+				},
+				commitChildrenEdit: () => {
+					throw new Error('doc scope: commitChildrenEdit is not supported');
+				}
+			}
+		};
+	}
+
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
@@ -407,6 +442,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		commitStructural,
 		commitContainerStructural,
 		commitMultiScope,
+		getDocScope,
 		captureCurrentState,
 		collapsedSelectionAt,
 		clearDebouncedCheckpoint

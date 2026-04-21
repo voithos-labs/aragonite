@@ -70,6 +70,13 @@ export interface UndoController {
 		op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] },
 		afterTick?: () => void
 	): Promise<void>;
+	/**
+	 * Adapter that exposes the document root as a MultiScopeTarget so
+	 * commitMultiScope callers can include doc-level splices alongside
+	 * container scopes — e.g., a cross-block delete whose LCA is the
+	 * document root.
+	 */
+	getDocScope(): MultiScopeTarget;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
 	/** Clear the pending keystroke-debounce timer + force the next edit to start a new batch. */
