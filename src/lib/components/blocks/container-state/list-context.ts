@@ -1,14 +1,14 @@
 /**
  * Factory for the ListContext bundle that a ListBlock provides to its child
- * ListItemBlock components. Container-local wiring: it reaches into the list's
- * reactive BlockListState and calls through to the parent bundle, so it lives
- * under container-state/ alongside the state it depends on.
+ * ListItemBlock components. Container-local wiring: it reaches into the
+ * list's reactive BlockListState and calls through to the parent bundle, so
+ * it lives under container-state/ alongside the state it depends on.
  *
- * All ops in this file now route through commitMultiScope (0.5.5.3) and emit
- * exactly one edit event per call.
- *
- * Remaining legacy seam (not in this file):
- *   - paste-dispatch.ts (two sites — migrated in 0.5.5.3 Tasks 7+8)
+ * All structural mutations route through `commitMultiScope` (0.5.5.3).
+ * Residual: `paste-dispatch.ts`'s `applyStructuralResult` and
+ * `applyContainerMatchingPaste` still use the legacy `commitChildrenEdit`
+ * seam (tracked via `TODO(0.5.5.3)` markers in that file, to be migrated
+ * alongside the paste-surface API cleanup).
  */
 
 import { tick } from 'svelte';
