@@ -33,6 +33,13 @@ export const SELECTION_KEY = Symbol('selection');
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**
+ * Svelte context key for the UndoController. Container blocks that span
+ * multiple scopes (e.g. list indent/unindent) read this to call
+ * `commitMultiScope` directly.
+ */
+export const CONTROLLER_KEY = Symbol('undo-controller');
+
+/**
  * Svelte context key for a `BlockElLookup` callback that resolves a block
  * path to its DOM element. Block components call this to find the focus or
  * anchor block during cross-block keyboard extension.

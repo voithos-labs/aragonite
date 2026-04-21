@@ -5,6 +5,7 @@
 		FOCUS_KEY,
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
+		CONTROLLER_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -148,7 +149,7 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
-	const { blockEdit, focus, history, containerEdit } = createEditorActions({
+	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions({
 		get doc() {
 			return doc;
 		},
@@ -182,6 +183,7 @@
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
+	setContext(CONTROLLER_KEY, controller);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
