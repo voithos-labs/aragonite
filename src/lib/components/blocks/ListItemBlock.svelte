@@ -4,6 +4,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
+		CONTROLLER_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		CURSOR_END,
@@ -16,6 +17,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../contracts';
+	import type { UndoController } from '../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../core/lines';
 	import { splitNode as performSplit } from '../../tree-operations';
@@ -33,6 +35,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
 	// Read parent's ListContext before wrapping — reads methods like
@@ -61,23 +64,26 @@
 		if (!node.children) return;
 
 		let newChildren: CstNode[] = [];
-		// TODO(0.5.5.3): migrate via multi-scope commit primitive
-		state.commitChildrenEdit((children, ids, refs) => {
-			// performSplit no longer takes ids — it returns a descriptor. On this
-			// legacy commitChildrenEdit path the descriptor is ignored because the
-			// subsequent splices immediately remove the second half (it moves to
-			// `newChildren` and becomes a new sibling list item), leaving ids/refs
-			// aligned with the first-half-only children array.
-			performSplit({ children }, innerIndex, offset);
-			newChildren = children.splice(innerIndex + 1);
-			ids.splice(innerIndex + 1);
-			refs.splice(innerIndex + 1);
-			if (newChildren.length > 0) {
-				newChildren[0].leadingTrivia = '';
-			}
-		});
-
-		rebuildListItemRaw(node);
+		await controller.commitMultiScope(
+			[{ node, state }],
+			{ blockIndex: index, offset },
+			(scopeChildren) => {
+				const children = scopeChildren[0].children;
+				// performSplit mutates children in place; the second half moves to
+				// newChildren and becomes a new sibling item — only the first half stays.
+				performSplit({ children }, innerIndex, offset);
+				newChildren = children.splice(innerIndex + 1);
+				if (newChildren.length > 0) {
+					newChildren[0].leadingTrivia = '';
+				}
+				// Sync node.children before rebuild — rebuildListItemRaw reads it directly.
+				node.children = children;
+				rebuildListItemRaw(node);
+				// Net: node at innerIndex replaced with first half only (same count).
+				return [{ op: 'replace', at: innerIndex, count: 1, newCount: 1, idMap: { 0: 0 } }];
+			},
+			{ kind: 'split', detail: { innerIndex, offset }, eventPath: [index] }
+		);
 
 		const newItem: CstNode = {
 			kind: 'listItem',
@@ -138,16 +144,12 @@
 						innerIndex === node.children.length - 1 && offset >= displayLength(lastChild.raw);
 
 					if (isAtEnd) {
-						parentContainerEdit?.beginContainerEdit(index, offset);
 						await listContext.insertItemAfter(index);
-						parentContainerEdit?.endContainerEdit();
 						return;
 					}
 
 					// In middle — split content across two items.
-					parentContainerEdit?.beginContainerEdit(index, offset);
 					await splitItemAtOffset(innerIndex, offset);
-					parentContainerEdit?.endContainerEdit();
 				}
 				// mergeWithPrevious at innerIndex <= 0 delegates to
 				// parentBlockEdit.mergeWithPrevious(index) — that is already

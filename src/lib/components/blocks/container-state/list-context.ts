@@ -4,25 +4,13 @@
  * reactive BlockListState and calls through to the parent bundle, so it lives
  * under container-state/ alongside the state it depends on.
  *
- * Residual begin/end seam (0.5.4):
- * The following sites still use the legacy
- * `beginContainerEdit → state.commitChildrenEdit → endContainerEdit` seam
- * instead of routing through `commitContainerStructural`, so they do NOT emit
- * `edit` events on the `EditorEvents` surface. They DO get undo snapshots
- * (via begin) and reactivity publishes (via endContainerEdit's nudge).
+ * All ops in this file now route through commitMultiScope (0.5.5.3) and emit
+ * exactly one edit event per call.
  *
- * Known bypass sites:
- *   - ListItemBlock.svelte Enter (insertItemAfter path, lines ~135–138)
- *   - ListItemBlock.svelte Enter (splitItemAtOffset path, lines ~142–144)
- *   - blockquote-context.ts splitBlock exit path (lines ~48–54)
+ * Remaining legacy seam (not in this file):
  *   - cross-block-dispatch.ts performCrossBlockDelete (pushes snapshots via
- *     mutCtx.pushUndoSnapshot, not through __commit — predates 0.5.4)
- *
- * Note: exitListAtItem is NOT on this seam — it routes through
- * parentBlockEdit.replaceBlock → commitStructural and DOES emit edit events.
- *
- * indentItem and promoteNestedItem were migrated to commitMultiScope (0.5.5.3)
- * and now emit exactly one edit event per call.
+ *     mutCtx.pushUndoSnapshot — predates 0.5.4; migrated in 0.5.5.3 Task 6)
+ *   - paste-dispatch.ts (two sites — migrated in 0.5.5.3 Tasks 7+8)
  */
 
 import { tick } from 'svelte';
@@ -36,7 +24,6 @@ import {
 } from '../../../contracts';
 import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
 import type { StructuralChange } from '../../../tree-operations/structural-change';
-import { generateBlockId } from '../../../tree-operations/block-id';
 import { rebuildListRaw, rebuildListItemRaw } from '../../../tree-operations/container-raw';
 import {
 	renumberOrderedList,
@@ -177,14 +164,23 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				rebuildListItemRaw(newItem);
 			}
 
-			// TODO(0.5.5.3): migrate via multi-scope commit primitive
-			deps.state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(itemIndex + 1, 0, newItem!);
-				ids.splice(itemIndex + 1, 0, generateBlockId());
-				refs.splice(itemIndex + 1, 0, undefined);
-			});
-			renumberOrderedList(node, itemIndex + 1);
-			rebuildListRaw(node);
+			await deps.controller.commitMultiScope(
+				[{ node, state: deps.state }],
+				{ blockIndex: deps.index, offset: 0 },
+				(scopeChildren) => {
+					scopeChildren[0].children.splice(itemIndex + 1, 0, newItem!);
+					// Sync node.children before rebuild — rebuildListRaw reads it directly.
+					node.children = scopeChildren[0].children;
+					renumberOrderedList(node, itemIndex + 1);
+					rebuildListRaw(node);
+					return [{ op: 'insert', at: itemIndex + 1, count: 1 }];
+				},
+				{
+					kind: 'appendBlock',
+					detail: { itemIndex },
+					eventPath: [deps.index]
+				}
+			);
 			await tick();
 			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 		},
