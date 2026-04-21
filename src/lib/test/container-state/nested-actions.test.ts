@@ -31,6 +31,7 @@ function fakeParentBundles() {
 		mergeWithNext: vi.fn(),
 		deleteBlock: vi.fn(),
 		updateBlockContent: vi.fn(),
+		updateBlockMetadata: vi.fn(),
 		insertParsedBlocks: vi.fn(),
 		replaceBlock: vi.fn()
 	};
