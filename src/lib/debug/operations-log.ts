@@ -8,6 +8,7 @@ export type OperationKind =
 	| 'updateContent'
 	| 'replaceBlock'
 	| 'paste'
+	| 'appendBlock'
 	| 'undo'
 	| 'redo';
 

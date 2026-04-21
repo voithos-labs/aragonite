@@ -26,6 +26,7 @@ export type EditEvent =
 	| { op: 'replaceBlock'; path: number[]; detail: { count: number }; timestamp: number }
 	| { op: 'updateContent'; path: number[]; detail: { length: number }; timestamp: number }
 	| { op: 'input'; path: number[]; detail: { byteLength: number }; timestamp: number }
+	| { op: 'appendBlock'; path: number[]; timestamp: number }
 	| { op: 'undo'; path: number[]; timestamp: number }
 	| { op: 'redo'; path: number[]; timestamp: number };
 
