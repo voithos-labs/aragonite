@@ -18,6 +18,10 @@ Covers list behavior when Enter creates a new item, splits content, or exits the
   - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks
   - Order: lifted blocks appear immediately after the new exit paragraph, preserving the document order they had inside the exited item
 
+### Undo after Enter mid-item
+
+- Enter in the middle of an item followed by Ctrl+Z restores the original item in ONE undo press (mid-item Enter is one user action, one undo snapshot)
+
 ### Ordered list numbering on Enter
 
 - New item gets the next sequential number after the previous item

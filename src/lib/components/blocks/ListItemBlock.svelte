@@ -4,7 +4,6 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		CURSOR_END,
@@ -17,10 +16,8 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../contracts';
-	import type { UndoController } from '../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../core/lines';
-	import { splitNode as performSplit } from '../../tree-operations';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
 	import { createBlockListState } from './container-state/block-list-state.svelte';
 	import {
@@ -35,7 +32,6 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
 	// Read parent's ListContext before wrapping — reads methods like
@@ -57,46 +53,6 @@
 
 	function marker(): string {
 		return (node.metadata as { marker?: string })?.marker ?? '- ';
-	}
-
-	/** Split the current item's content at offset, moving trailing children to a new sibling item. */
-	async function splitItemAtOffset(innerIndex: number, offset: number): Promise<void> {
-		if (!node.children) return;
-
-		let newChildren: CstNode[] = [];
-		await controller.commitMultiScope(
-			[{ node, state }],
-			{ blockIndex: index, offset },
-			(scopeChildren) => {
-				const children = scopeChildren[0].children;
-				// performSplit mutates children in place; the second half moves to
-				// newChildren and becomes a new sibling item — only the first half stays.
-				performSplit({ children }, innerIndex, offset);
-				newChildren = children.splice(innerIndex + 1);
-				if (newChildren.length > 0) {
-					newChildren[0].leadingTrivia = '';
-				}
-				// Sync node.children before rebuild — rebuildListItemRaw reads it directly.
-				node.children = children;
-				rebuildListItemRaw(node);
-				// Net: node at innerIndex replaced with first half only (same count).
-				return [{ op: 'replace', at: innerIndex, count: 1, newCount: 1, idMap: { 0: 0 } }];
-			},
-			{ kind: 'split', detail: { innerIndex, offset }, eventPath: [index] }
-		);
-
-		const newItem: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: marker(), taskItem: false, taskChecked: false },
-			innerPrefix: '',
-			children: newChildren,
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(newItem);
-
-		await listContext.insertItemAfter(index, newItem);
 	}
 
 	const bundle = createStandardNestedActions(
@@ -149,7 +105,7 @@
 					}
 
 					// In middle — split content across two items.
-					await splitItemAtOffset(innerIndex, offset);
+					await listContext.splitItemAtOffset(index, innerIndex, offset);
 				}
 				// mergeWithPrevious at innerIndex <= 0 delegates to
 				// parentBlockEdit.mergeWithPrevious(index) — that is already

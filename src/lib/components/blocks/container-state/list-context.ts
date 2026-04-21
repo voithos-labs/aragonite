@@ -24,6 +24,7 @@ import {
 } from '../../../contracts';
 import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
 import type { StructuralChange } from '../../../tree-operations/structural-change';
+import { splitNode as performSplit } from '../../../tree-operations';
 import { rebuildListRaw, rebuildListItemRaw } from '../../../tree-operations/container-raw';
 import {
 	renumberOrderedList,
@@ -180,6 +181,85 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { itemIndex },
 					eventPath: [deps.index]
 				}
+			);
+			await tick();
+			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
+		},
+
+		async splitItemAtOffset(
+			itemIndex: number,
+			innerIndex: number,
+			offset: number
+		): Promise<void> {
+			const outerList = deps.node;
+			if (!outerList.children) return;
+
+			const item = outerList.children[itemIndex];
+			if (!item.children) return;
+
+			const itemState = getStateForNode(item);
+			if (!itemState) return;
+
+			// Scope 0 = outer list: new sibling item inserted after itemIndex.
+			// Scope 1 = this item: content split, first half retained, second removed.
+			// Collapsing both into one commitMultiScope ensures mid-item Enter
+			// produces exactly one undo snapshot and one edit event.
+			await deps.controller.commitMultiScope(
+				[
+					{ node: outerList, state: deps.state },
+					{ node: item, state: itemState }
+				],
+				{ blockIndex: deps.index, offset },
+				(scopeChildren) => {
+					const outerChildren = scopeChildren[0].children;
+					const itemChildren = scopeChildren[1].children;
+
+					// Split the item's content at offset; second half lands at innerIndex + 1.
+					performSplit({ children: itemChildren }, innerIndex, offset);
+					const secondHalf = itemChildren.splice(innerIndex + 1);
+					if (secondHalf.length > 0) {
+						secondHalf[0].leadingTrivia = '';
+					}
+
+					// Build the new sibling: marker incremented/matched from this item.
+					const prevMarker = (item.metadata as { marker?: string })?.marker ?? '- ';
+					const newMarker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
+					const newItem: CstNode = {
+						kind: 'listItem',
+						leadingTrivia: '',
+						raw: '',
+						metadata: {
+							marker: newMarker,
+							taskItem: (item.metadata as { taskItem?: boolean }).taskItem ?? false,
+							taskChecked: false
+						},
+						innerPrefix: '',
+						children: secondHalf,
+						innerSuffix: ''
+					};
+
+					// Sync-before-rebuild for both scopes.
+					item.children = itemChildren;
+					rebuildListItemRaw(item);
+					rebuildListItemRaw(newItem);
+
+					outerChildren.splice(itemIndex + 1, 0, newItem);
+					outerList.children = outerChildren;
+					renumberOrderedList(outerList, itemIndex + 1);
+					rebuildListRaw(outerList);
+
+					return [
+						{ op: 'insert', at: itemIndex + 1, count: 1 },
+						{
+							op: 'replace',
+							at: innerIndex,
+							count: 1,
+							newCount: 1,
+							idMap: { 0: 0 }
+						} as StructuralChange
+					];
+				},
+				{ kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] }
 			);
 			await tick();
 			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
