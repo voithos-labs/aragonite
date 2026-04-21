@@ -2,13 +2,30 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
+import { generateBlockId } from '../../tree-operations/block-id';
+
+/** Apply a replace descriptor to an ids array (mirrors the commit primitive logic). */
+function applyReplace(
+	ids: string[],
+	at: number,
+	count: number,
+	newCount: number,
+	idMap: Record<number, number> = {}
+): void {
+	const oldIds = ids.slice(at, at + count);
+	const newIds = Array.from({ length: newCount }, (_, i) =>
+		idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
+	);
+	ids.splice(at, count, ...newIds);
+}
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
 		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		const change = splitNode(doc, 0, 5);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } });
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].raw).toBe(' World\n');
@@ -20,7 +37,9 @@ describe('splitNode', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
 		const ids = ['original-id'];
-		splitNode(doc, ids, 0, 5);
+		const change = splitNode(doc, 0, 5);
+		if (change.op !== 'replace') throw new Error('expected replace');
+		applyReplace(ids, change.at, change.count, change.newCount, change.idMap);
 		expect(ids).toHaveLength(2);
 		expect(ids[0]).toBe('original-id');
 		expect(ids[1]).not.toBe('original-id');
@@ -29,8 +48,7 @@ describe('splitNode', () => {
 	it('splits at the beginning creates empty first paragraph', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 0);
+		splitNode(doc, 0, 0);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -40,8 +58,7 @@ describe('splitNode', () => {
 	it('splits at the end creates empty second paragraph', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		splitNode(doc, 0, 5);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].kind).toBe('paragraph');
@@ -51,16 +68,14 @@ describe('splitNode', () => {
 	it('second block has empty leading trivia (no blank line)', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		splitNode(doc, 0, 5);
 		expect(doc.children[1].leadingTrivia).toBe('');
 	});
 
 	it('preserves leading trivia on the first block when splitting a non-first block', () => {
 		const source = 'First\n\nSecond\n';
 		const doc = parse(source);
-		const ids = ['id-1', 'id-2'];
-		splitNode(doc, ids, 1, 3);
+		splitNode(doc, 1, 3);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(doc.children[2].leadingTrivia).toBe('');
 	});
@@ -68,8 +83,7 @@ describe('splitNode', () => {
 	it('handles multi-line paragraph split', () => {
 		const source = 'Line one.\nLine two.\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 10);
+		splitNode(doc, 0, 10);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Line one.\n');
 		expect(doc.children[1].raw).toBe('Line two.\n');
@@ -78,8 +92,7 @@ describe('splitNode', () => {
 	it('produces correct serialization after split', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		splitNode(doc, 0, 5);
 		const result = serialize(doc);
 		expect(result).toBe('Hello\n World\n');
 	});
@@ -87,8 +100,7 @@ describe('splitNode', () => {
 	it('handles CRLF line endings correctly', () => {
 		const source = 'Hello World\r\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		splitNode(doc, 0, 5);
 		expect(doc.children[0].raw).toBe('Hello\r\n');
 		expect(doc.children[1].raw).toBe(' World\r\n');
 	});
@@ -98,8 +110,7 @@ describe('splitNode edge cases', () => {
 	it('splits the only node in the document', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 5);
+		splitNode(doc, 0, 5);
 		expect(doc.children).toHaveLength(2);
 		expect(serialize(doc)).toBe('Hello\n World\n');
 	});
@@ -107,8 +118,7 @@ describe('splitNode edge cases', () => {
 	it('split at offset beyond raw length produces empty second block', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 100);
+		splitNode(doc, 0, 100);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].raw).toBe('\n');
@@ -119,8 +129,7 @@ describe('heading split operations', () => {
 	it('splits a heading into heading + paragraph', () => {
 		const source = '## Hello World\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 8);
+		splitNode(doc, 0, 8);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Hello\n');
@@ -131,8 +140,7 @@ describe('heading split operations', () => {
 	it('splits a heading at start produces empty paragraph + heading', () => {
 		const source = '## Title\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 0);
+		splitNode(doc, 0, 0);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -145,8 +153,7 @@ describe('thematic break split', () => {
 	it('splitting at end of thematic break produces break + empty paragraph', () => {
 		const source = '---\n';
 		const doc = parse(source);
-		const ids = ['id-1'];
-		splitNode(doc, ids, 0, 3);
+		splitNode(doc, 0, 3);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('thematicBreak');
 		expect(doc.children[0].raw).toBe('---\n');
@@ -160,8 +167,7 @@ describe('splitNode on arbitrary parent', () => {
 		const parent = {
 			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }]
 		};
-		const ids = ['id-1'];
-		splitNode(parent, ids, 0, 5);
+		splitNode(parent, 0, 5);
 		expect(parent.children).toHaveLength(2);
 		expect(parent.children[0].raw).toBe('Hello\n');
 		expect(parent.children[1].raw).toBe(' World\n');

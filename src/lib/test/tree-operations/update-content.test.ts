@@ -72,7 +72,10 @@ describe('deleteNode', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
 		const ids = ['id-1', 'id-2', 'id-3'];
-		deleteNode(doc, ids, 1);
+		const change = deleteNode(doc, 1);
+		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
+		if (change.op !== 'delete') throw new Error('expected delete');
+		ids.splice(change.at, change.count);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('A\n');
 		expect(doc.children[1].raw).toBe('C\n');
@@ -82,10 +85,9 @@ describe('deleteNode', () => {
 	it('transfers leading trivia to the next block', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
-		const ids = ['id-1', 'id-2', 'id-3'];
 		const triviaB = doc.children[1].leadingTrivia;
 		const triviaC = doc.children[2].leadingTrivia;
-		deleteNode(doc, ids, 1);
+		deleteNode(doc, 1);
 		expect(doc.children[1].leadingTrivia).toBe(triviaB + triviaC);
 	});
 });
@@ -95,7 +97,9 @@ describe('deleteNode edge cases', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
 		const ids = ['id-1'];
-		deleteNode(doc, ids, 0);
+		const change = deleteNode(doc, 0);
+		if (change.op !== 'delete') throw new Error('expected delete');
+		ids.splice(change.at, change.count);
 		expect(doc.children).toHaveLength(0);
 		expect(ids).toHaveLength(0);
 	});
@@ -103,8 +107,7 @@ describe('deleteNode edge cases', () => {
 	it('deleting the first node transfers trivia correctly', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const ids = ['id-1', 'id-2'];
-		deleteNode(doc, ids, 0);
+		deleteNode(doc, 0);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].raw).toBe('B\n');
 	});
@@ -112,9 +115,16 @@ describe('deleteNode edge cases', () => {
 	it('deleting the last node does not crash', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const ids = ['id-1', 'id-2'];
-		deleteNode(doc, ids, 1);
+		deleteNode(doc, 1);
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].raw).toBe('A\n');
+	});
+
+	it('returns noop for out-of-bounds index', () => {
+		const source = 'A\n';
+		const doc = parse(source);
+		const change = deleteNode(doc, 5);
+		expect(change).toEqual({ op: 'noop' });
+		expect(doc.children).toHaveLength(1);
 	});
 });
