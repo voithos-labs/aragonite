@@ -21,14 +21,14 @@ export type EditEvent =
 			detail: { direction: 'prev' | 'next' };
 			timestamp: number;
 	  }
-	| { op: 'delete'; path: number[]; timestamp: number }
+	| { op: 'delete'; path: number[]; detail?: {}; timestamp: number }
 	| { op: 'paste'; path: number[]; detail: { count: number }; timestamp: number }
 	| { op: 'replaceBlock'; path: number[]; detail: { count: number }; timestamp: number }
 	| { op: 'updateContent'; path: number[]; detail: { length: number }; timestamp: number }
 	| { op: 'input'; path: number[]; detail: { byteLength: number }; timestamp: number }
-	| { op: 'appendBlock'; path: number[]; timestamp: number }
-	| { op: 'undo'; path: number[]; timestamp: number }
-	| { op: 'redo'; path: number[]; timestamp: number };
+	| { op: 'appendBlock'; path: number[]; detail?: {}; timestamp: number }
+	| { op: 'undo'; path: number[]; detail?: {}; timestamp: number }
+	| { op: 'redo'; path: number[]; detail?: {}; timestamp: number };
 
 export type SelectionChangeEvent = EditorSelection | null;
 

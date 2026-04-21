@@ -160,7 +160,7 @@
 				if (!path) return '';
 				const doc = parse(editor.getSource());
 				const node = nodeAt(doc, path);
-				if (!node || !('kind' in node) || !isProseKind(node.kind)) return '';
+				if (!node || node.kind === 'document' || !isProseKind(node.kind)) return '';
 				const range = getContentRange(node);
 				const inline = parseInline(node.raw, range.start, range.end);
 				return dumpInlineTree(inline);
@@ -199,7 +199,7 @@
 			if (!path) return '';
 			const doc = parse(liveSource);
 			const node = nodeAt(doc, path);
-			if (!node || !('kind' in node) || !isProseKind(node.kind)) return '';
+			if (!node || node.kind === 'document' || !isProseKind(node.kind)) return '';
 			const range = getContentRange(node);
 			const inline = parseInline(node.raw, range.start, range.end);
 			return dumpInlineTree(inline);
