@@ -185,11 +185,19 @@ export interface HistoryActions {
 }
 
 export interface ContainerEditActions {
-	/** Push a document-level undo snapshot. Called by container blocks before structural mutations. */
+	/**
+	 * Push a document-level undo snapshot before a structural mutation.
+	 * @deprecated Use `commitMultiScope` on the UndoController instead (0.5.5.3).
+	 * Retained for `paste-dispatch.ts` until its own migration lands.
+	 */
 	beginContainerEdit(blockIndex: number, offset: number): void;
 	/** Push a debounced undo snapshot. Called by container blocks for text input. */
 	beginContainerEditDebounced(blockIndex: number, offset: number): void;
-	/** Trigger top-level Svelte reactivity after a container mutation. */
+	/**
+	 * Trigger top-level Svelte reactivity after a container mutation.
+	 * @deprecated Use `commitMultiScope` on the UndoController instead (0.5.5.3).
+	 * Retained for `paste-dispatch.ts` until its own migration lands.
+	 */
 	endContainerEdit(): void;
 	/**
 	 * Preferred entry for structural container mutations (0.5.4+). Routes
