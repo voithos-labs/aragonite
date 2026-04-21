@@ -27,6 +27,7 @@ export type EditEvent =
 	| { op: 'updateContent'; path: number[]; detail: { length: number }; timestamp: number }
 	| { op: 'input'; path: number[]; detail: { byteLength: number }; timestamp: number }
 	| { op: 'appendBlock'; path: number[]; detail?: {}; timestamp: number }
+	| { op: 'metadataUpdate'; path: number[]; detail: { fields: string[] }; timestamp: number }
 	| { op: 'undo'; path: number[]; detail?: {}; timestamp: number }
 	| { op: 'redo'; path: number[]; detail?: {}; timestamp: number };
 
