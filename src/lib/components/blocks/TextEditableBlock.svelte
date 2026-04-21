@@ -2,6 +2,7 @@
 	import { getContext, tick } from 'svelte';
 	import {
 		BLOCK_EDIT_KEY,
+		CONTROLLER_KEY,
 		LIST_CONTEXT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
@@ -21,6 +22,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../contracts';
+	import type { UndoController } from '../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
@@ -61,6 +63,7 @@
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
 	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
 	const listContext = getContext(LIST_CONTEXT_KEY);
@@ -92,6 +95,7 @@
 		stickyColumn,
 		containerEdit,
 		blockEdit,
+		controller,
 		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
