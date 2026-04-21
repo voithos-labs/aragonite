@@ -12,9 +12,6 @@
  * (via begin) and reactivity publishes (via endContainerEdit's nudge).
  *
  * Known bypass sites:
- *   - indentItem (list-context.ts) — spans outer list + nested list state
- *   - unindentItem (list-context.ts) — delegates to promoteNestedItem
- *   - promoteNestedItem (list-context.ts) — spans outer + nested list state
  *   - ListItemBlock.svelte Enter (insertItemAfter path, lines ~135–138)
  *   - ListItemBlock.svelte Enter (splitItemAtOffset path, lines ~142–144)
  *   - blockquote-context.ts splitBlock exit path (lines ~48–54)
@@ -24,7 +21,8 @@
  * Note: exitListAtItem is NOT on this seam — it routes through
  * parentBlockEdit.replaceBlock → commitStructural and DOES emit edit events.
  *
- * A multi-scope commit primitive is future work (0.5.5+).
+ * indentItem and promoteNestedItem were migrated to commitMultiScope (0.5.5.3)
+ * and now emit exactly one edit event per call.
  */
 
 import { tick } from 'svelte';
@@ -36,6 +34,8 @@ import {
 	type ContainerEditActions,
 	type ListContext
 } from '../../../contracts';
+import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
+import type { StructuralChange } from '../../../tree-operations/structural-change';
 import { generateBlockId } from '../../../tree-operations/block-id';
 import { rebuildListRaw, rebuildListItemRaw } from '../../../tree-operations/container-raw';
 import {
@@ -56,6 +56,7 @@ export interface ListContextDeps {
 	parentFocus: FocusActions;
 	parentContainerEdit: ContainerEditActions | undefined;
 	parentListContext: ListContext | undefined;
+	controller: UndoController;
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -67,53 +68,81 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const prevItem = node.children[itemIndex - 1];
 			if (!prevItem.children) return;
 
-			deps.parentContainerEdit?.beginContainerEdit(deps.index, 0);
-
 			const ordered = (node.metadata as { ordered: boolean }).ordered;
 			const existingNestedList = prevItem.children.find(
 				(c) => c.kind === 'list' && (c.metadata as { ordered: boolean }).ordered === ordered
 			);
 
-			let movedItem!: CstNode;
-			// TODO(0.5.5.3): migrate via multi-scope commit primitive
-			deps.state.commitChildrenEdit((children, ids, refs) => {
-				[movedItem] = children.splice(itemIndex, 1);
-				ids.splice(itemIndex, 1);
-				refs.splice(itemIndex, 1);
-			});
+			// Build the scope array. Outermost scope first.
+			// Scope 0 = outer list (deps.node / deps.state) — item is removed here.
+			// Scope 1 = destination: existing same-kind nested list OR prevItem's
+			//           children (where a new nested list will be appended).
+			const scopes: MultiScopeTarget[] = [{ node, state: deps.state }];
 
-			let destList: CstNode;
 			if (existingNestedList && existingNestedList.children) {
-				const existingState = getStateForNode(existingNestedList)!;
-				existingState.commitChildrenEdit((children, ids, refs) => {
-					children.push(movedItem);
-					ids.push(generateBlockId());
-					refs.push(undefined);
-				});
-				destList = existingNestedList;
+				scopes.push({ node: existingNestedList, state: getStateForNode(existingNestedList)! });
 			} else {
-				destList = {
-					kind: 'list',
-					leadingTrivia: '',
-					raw: '',
-					metadata: { ordered },
-					children: [movedItem]
-				};
-				const prevItemState = getStateForNode(prevItem)!;
-				prevItemState.commitChildrenEdit((children, ids, refs) => {
-					children.push(destList);
-					ids.push(generateBlockId());
-					refs.push(undefined);
-				});
+				scopes.push({ node: prevItem, state: getStateForNode(prevItem)! });
 			}
 
-			renumberOrderedList(destList);
-			rebuildListRaw(destList);
-			rebuildListItemRaw(prevItem);
-			renumberOrderedList(node, itemIndex);
-			rebuildListRaw(node);
-			deps.parentContainerEdit?.endContainerEdit();
-			await tick();
+			let destList: CstNode | null = null;
+			if (existingNestedList) {
+				destList = existingNestedList;
+			}
+
+			await deps.controller.commitMultiScope(
+				scopes,
+				{ blockIndex: deps.index, offset: 0 },
+				(scopeChildren) => {
+					const [outerScope, destScope] = scopeChildren;
+
+					// Scope 0: remove the item being indented.
+					const [movedItem] = outerScope.children.splice(itemIndex, 1);
+
+					// Scope 1: push moved item into existing nested list, or build a
+					// new nested list and push it into prevItem's children.
+					if (existingNestedList) {
+						destScope.children.push(movedItem);
+					} else {
+						destList = {
+							kind: 'list',
+							leadingTrivia: '',
+							raw: '',
+							metadata: { ordered },
+							children: [movedItem]
+						};
+						destScope.children.push(destList);
+					}
+
+					// Write scope copies back to nodes before raw rebuild — rebuildListRaw
+					// and rebuildListItemRaw read node.children directly.
+					node.children = outerScope.children;
+					if (existingNestedList) {
+						existingNestedList.children = destScope.children;
+					} else {
+						prevItem.children = destScope.children;
+					}
+
+					// Raw rebuilds. destList points to the nested list (existing or new).
+					if (destList) {
+						renumberOrderedList(destList);
+						rebuildListRaw(destList);
+					}
+					rebuildListItemRaw(prevItem);
+					renumberOrderedList(node, itemIndex);
+					rebuildListRaw(node);
+
+					return [
+						{ op: 'delete', at: itemIndex, count: 1 },
+						{ op: 'insert', at: destScope.children.length - 1, count: 1 }
+					];
+				},
+				{
+					kind: 'replaceBlock',
+					detail: { action: 'indentItem', itemIndex },
+					eventPath: [deps.index]
+				}
+			);
 
 			// FOCUS_LAST_START cascades through containers to the last child at offset 0.
 			deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
@@ -171,52 +200,87 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const parentItem = node.children[parentItemIdx];
 			if (!parentItem?.children) return;
 
-			deps.parentContainerEdit?.beginContainerEdit(deps.index, 0);
-
 			const item = nestedListNode.children[nestedItemIdx];
+			// When the nested list has exactly one item, removing it empties the
+			// list — we need a third scope to splice out the now-empty list node
+			// from parentItem's children.
+			const nestedListWillEmpty = nestedListNode.children.length === 1;
 
-			// 1. Remove item via the nested list's own state so ids/refs stay
-			// aligned. If that empties the list, also remove it from parentItem.
-			const nestedListState = getStateForNode(nestedListNode)!;
-			// TODO(0.5.5.3): migrate via multi-scope commit primitive
-			nestedListState.commitChildrenEdit((children, ids, refs) => {
-				children.splice(nestedItemIdx, 1);
-				ids.splice(nestedItemIdx, 1);
-				refs.splice(nestedItemIdx, 1);
-			});
-
-			if (nestedListNode.children.length === 0) {
-				const parentItemState = getStateForNode(parentItem)!;
-				// TODO(0.5.5.3): migrate via multi-scope commit primitive
-				parentItemState.commitChildrenEdit((children, ids, refs) => {
-					const nestedIdx = children.indexOf(nestedListNode);
-					if (nestedIdx !== -1) {
-						children.splice(nestedIdx, 1);
-						ids.splice(nestedIdx, 1);
-						refs.splice(nestedIdx, 1);
-					}
-				});
-			} else {
-				renumberOrderedList(nestedListNode);
-				rebuildListRaw(nestedListNode);
+			// Scope list. The outermost container goes first so commitMultiScope
+			// applies the doc-level reactivity nudge from that scope's perspective.
+			// Scope 0 = outer list (deps.node / deps.state) — promoted item inserted here.
+			// Scope 1 = nested list — item spliced out here.
+			// Scope 2 (conditional) = parentItem's children — empty nested list removed.
+			const scopes: MultiScopeTarget[] = [
+				{ node, state: deps.state },
+				{ node: nestedListNode, state: getStateForNode(nestedListNode)! }
+			];
+			let parentItemScopeIdx = -1;
+			if (nestedListWillEmpty) {
+				parentItemScopeIdx = scopes.length;
+				scopes.push({ node: parentItem, state: getStateForNode(parentItem)! });
 			}
-			rebuildListItemRaw(parentItem);
 
-			// Normalize marker style before inserting so renumber can read a
-			// well-formed marker suffix.
-			normalizeItemMarkerToList(item, node);
+			await deps.controller.commitMultiScope(
+				scopes,
+				{ blockIndex: deps.index, offset: 0 },
+				(scopeChildren) => {
+					const outerChildren = scopeChildren[0].children;
+					const nestedChildren = scopeChildren[1].children;
 
-			// TODO(0.5.5.3): migrate via multi-scope commit primitive
-			deps.state.commitChildrenEdit((children, ids, refs) => {
-				children.splice(parentItemIdx + 1, 0, item);
-				ids.splice(parentItemIdx + 1, 0, generateBlockId());
-				refs.splice(parentItemIdx + 1, 0, undefined);
-			});
-			renumberOrderedList(node, parentItemIdx + 1);
-			rebuildListRaw(node);
+					// Scope 1: remove item from the nested list.
+					nestedChildren.splice(nestedItemIdx, 1);
 
-			deps.parentContainerEdit?.endContainerEdit();
-			await tick();
+					const changes: StructuralChange[] = new Array(scopes.length);
+					changes[1] = { op: 'delete', at: nestedItemIdx, count: 1 };
+
+					// Scope 2: remove the now-empty nested list from parentItem's children.
+					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
+						const parentItemChildren = scopeChildren[parentItemScopeIdx].children;
+						const nestedIdx = parentItemChildren.indexOf(nestedListNode);
+						if (nestedIdx !== -1) {
+							parentItemChildren.splice(nestedIdx, 1);
+							changes[parentItemScopeIdx] = { op: 'delete', at: nestedIdx, count: 1 };
+						} else {
+							changes[parentItemScopeIdx] = { op: 'noop' };
+						}
+					}
+
+					// Write scope copies back to nodes before raw rebuild — rebuild
+					// helpers read node.children directly, not the scope copies.
+					nestedListNode.children = nestedChildren;
+					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
+						parentItem.children = scopeChildren[parentItemScopeIdx].children;
+					}
+
+					// Raw rebuilds for the nested list (only when it remains non-empty).
+					if (!nestedListWillEmpty) {
+						renumberOrderedList(nestedListNode);
+						rebuildListRaw(nestedListNode);
+					}
+					rebuildListItemRaw(parentItem);
+
+					// Normalize marker style to match the outer list before inserting.
+					normalizeItemMarkerToList(item, node);
+
+					// Scope 0: insert the promoted item after parentItemIdx in the outer list.
+					outerChildren.splice(parentItemIdx + 1, 0, item);
+					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
+
+					// Write outer copy back before rebuilding.
+					node.children = outerChildren;
+					renumberOrderedList(node, parentItemIdx + 1);
+					rebuildListRaw(node);
+
+					return changes;
+				},
+				{
+					kind: 'replaceBlock',
+					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
+					eventPath: [deps.index]
+				}
+			);
+
 			deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
 		},
 

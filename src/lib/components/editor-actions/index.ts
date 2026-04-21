@@ -4,7 +4,7 @@
  * to wire into the Svelte context.
  */
 
-import type { EditorActionsDeps } from './deps';
+import type { EditorActionsDeps, UndoController } from './deps';
 import type {
 	BlockEditActions,
 	FocusActions,
@@ -24,6 +24,7 @@ export interface EditorActionsBundle {
 	history: HistoryActions;
 	containerEdit: ContainerEditActions;
 	captureCurrentState(): UndoEntry;
+	controller: UndoController;
 }
 
 export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundle {
@@ -33,7 +34,8 @@ export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundl
 		focus: createFocusActions(deps, controller),
 		history: createHistoryActions(deps, controller),
 		containerEdit: createContainerEditActions(deps, controller),
-		captureCurrentState: controller.captureCurrentState
+		captureCurrentState: controller.captureCurrentState,
+		controller
 	};
 }
 
