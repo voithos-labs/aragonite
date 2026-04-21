@@ -10,6 +10,21 @@ import { scanBacktickSpans } from './backticks';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
+import { preEscapeInline } from './pre-escape';
+
+// ── Reference resolver (reserved for 0.6.6) ────────────────────────────────
+
+/**
+ * Resolves a link reference label to a destination URL and optional title.
+ * Returns null when the label has no matching `linkReferenceDefinition` in
+ * the document. Passed through `parseInline` / `parseAllInlineContent` so
+ * 0.6.6 can populate reference-style link/image destinations at parse time.
+ *
+ * The parameter is optional at 0.5.5.4 — no caller populates it and the
+ * parser ignores it. Adding the seat now means 0.6.6 does not need to
+ * change every parse callsite when it lands.
+ */
+export type RefResolver = (label: string) => { url: string; title?: string } | null;
 
 // ── Content Range ──────────────────────────────────────────────────────────
 
@@ -38,14 +53,14 @@ export function isProseKind(kind: CstNode['kind']): boolean {
  * container children. Use after structural operations that produce or
  * mutate prose nodes outside the per-input reactive pipeline.
  */
-export function parseAllInlineContent(nodes: CstNode[]): void {
+export function parseAllInlineContent(nodes: CstNode[], resolver?: RefResolver): void {
 	for (const node of nodes) {
 		if (isProseKind(node.kind)) {
 			const range = getContentRange(node);
-			node.inlineContent = parseInline(node.raw, range.start, range.end);
+			node.inlineContent = parseInline(node.raw, range.start, range.end, resolver);
 		}
 		if (node.children) {
-			parseAllInlineContent(node.children);
+			parseAllInlineContent(node.children, resolver);
 		}
 	}
 }
@@ -57,7 +72,20 @@ export function parseAllInlineContent(nodes: CstNode[]): void {
  * Returns an InlineNode[] tree covering the range [start, end) in raw.
  * All start/end offsets in returned nodes are relative to the full raw string.
  */
-export function parseInline(raw: string, start: number, end: number): InlineNode[] {
+export function parseInline(
+	raw: string,
+	start: number,
+	end: number,
+	resolver?: RefResolver
+): InlineNode[] {
+	// resolver is reserved for 0.6.6 (reference-style link/image resolution).
+	// Accepted today as a no-op so every call site threads it through without
+	// a later signature migration.
+	void resolver;
+
+	// Stage 0: pre-escape normalization. Identity today; 0.6.2 fills this in.
+	preEscapeInline(raw, start, end);
+
 	const codeSpans = scanBacktickSpans(raw, start, end);
 	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans);
 
