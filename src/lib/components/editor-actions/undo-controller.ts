@@ -311,6 +311,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * Use this for operations that must mutate ≥2 container nodes (e.g.,
 	 * indent/unindent across a list + parent list). Single-scope mutations
 	 * should continue to use commitContainerStructural.
+	 *
+	 * Raw-rebuild gotcha: rebuild helpers like `rebuildListRaw` read
+	 * `node.children` directly. If the mutate callback mutates a scope's
+	 * `children` copy and then calls a rebuild helper BEFORE publish, the
+	 * rebuild sees the pre-mutation tree. The callback must either sync
+	 * `scope.node.children = scopeChildren[i].children` before invoking any
+	 * helper that reads it, or avoid calling rebuild helpers inside mutate
+	 * entirely (the atomic publish happens after mutate returns). The
+	 * `list-context.ts` and `nested-actions.ts` call sites follow the
+	 * sync-before-rebuild pattern — match them when adding new callers.
 	 */
 	async function commitMultiScope(
 		scopes: MultiScopeTarget[],
