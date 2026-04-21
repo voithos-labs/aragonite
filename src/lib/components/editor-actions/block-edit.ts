@@ -5,11 +5,7 @@
  * in one place.
  */
 
-import {
-	CURSOR_END,
-	type BlockEditActions,
-	type CstNode
-} from '../../contracts';
+import { CURSOR_END, type BlockEditActions, type CstNode } from '../../contracts';
 import { trimTrailingLineEnding, displayLength } from '../../core/lines';
 import {
 	splitNode as performSplit,
