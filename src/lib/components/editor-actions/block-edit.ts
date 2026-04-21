@@ -8,7 +8,6 @@
 import {
 	CURSOR_END,
 	type BlockEditActions,
-	type BlockComponent,
 	type CstNode
 } from '../../contracts';
 import { trimTrailingLineEnding, displayLength } from '../../core/lines';
@@ -22,7 +21,6 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../../tree-operations';
-import { generateBlockId } from '../../tree-operations/block-id';
 import {
 	isMergeEligible,
 	isBlockEditable,
@@ -47,16 +45,7 @@ export function createBlockEditActions(
 			await controller.commitStructural(
 				blockIndex,
 				offset,
-				(children, ids, refs) => {
-					// Work on plain array copies to prevent $state proxy splice mutations
-					// from triggering intermediate reactive updates that corrupt the keyed
-					// {#each} component-to-index mapping.
-					performSplit({ children }, ids, blockIndex, offset);
-					// Sync blockRefs: insert undefined slot for the new block.
-					// bind:ref in keyed {#each} only fires on mount, not when components
-					// shift positions, so we must manually keep refs aligned.
-					refs.splice(blockIndex + 1, 0, undefined);
-				},
+				(children) => performSplit({ children }, blockIndex, offset),
 				() => deps.blockRefs[blockIndex + 1]?.focus(0),
 				{ op: { kind: 'split', detail: { at: offset } } }
 			);
@@ -77,10 +66,7 @@ export function createBlockEditActions(
 					await controller.commitStructural(
 						blockIndex,
 						0,
-						(children, ids, refs) => {
-							performDelete({ children }, ids, blockIndex - 1);
-							refs.splice(blockIndex - 1, 1);
-						},
+						(children) => performDelete({ children }, blockIndex - 1),
 						() => deps.blockRefs[blockIndex - 1]?.focus(0),
 						{ op: { kind: 'delete' } }
 					);
@@ -114,15 +100,15 @@ export function createBlockEditActions(
 			const joinOffset = targetText.length;
 			const mergedRaw = targetText + currText + lineEnding;
 
-			// Delete curr from top-level children / ids / refs.
-			// All mutations (target.raw, inline reparse, ancestry rebuild, array splice)
-			// happen inside mutate so commitStructural snapshots the pre-mutation state.
+			// Delete curr from top-level children. All mutations (target.raw,
+			// inline reparse, ancestry rebuild, array splice) happen inside
+			// mutate so commitStructural snapshots the pre-mutation state.
 			await controller.commitStructural(
 				blockIndex,
 				0,
-				(children, ids, refs) => {
-					// Mutate the target's raw. target is a reference into the same object
-					// tree that childrenCopy shares (shallow copy), so this is safe.
+				(children) => {
+					// Mutate the target's raw. target is a reference into the same
+					// object tree that childrenCopy shares (shallow copy), so this is safe.
 					target.raw = mergedRaw;
 
 					// Refresh the target's inline content cache. The per-input reactive
@@ -133,14 +119,13 @@ export function createBlockEditActions(
 						target.inlineContent = parseInline(target.raw, range.start, range.end);
 					}
 
-					// Rebuild ancestry raw for container-target merges. For top-level prose
-					// merges (empty path) there's no ancestry to rebuild — the target IS prev.
+					// Rebuild ancestry raw for container-target merges. For top-level
+					// prose merges (empty path) there's no ancestry to rebuild.
 					if (mergeTarget.path.length > 0) {
 						rebuildAncestryRaw(prev, mergeTarget.path);
 					}
 
-					performDelete({ children }, ids, blockIndex);
-					refs.splice(blockIndex, 1);
+					return performDelete({ children }, blockIndex);
 				},
 				() => {
 					// Focus cascade: for flat (prev === target) merges, focus prev directly.
@@ -168,10 +153,7 @@ export function createBlockEditActions(
 					await controller.commitStructural(
 						blockIndex,
 						CURSOR_END,
-						(children, ids, refs) => {
-							performDelete({ children }, ids, blockIndex + 1);
-							refs.splice(blockIndex + 1, 1);
-						},
+						(children) => performDelete({ children }, blockIndex + 1),
 						() => deps.blockRefs[blockIndex]?.focus(CURSOR_END),
 						{ op: { kind: 'delete' } }
 					);
@@ -188,10 +170,7 @@ export function createBlockEditActions(
 			await controller.commitStructural(
 				blockIndex,
 				CURSOR_END,
-				(children, ids, refs) => {
-					performMergeNext({ children }, ids, blockIndex);
-					refs.splice(blockIndex + 1, 1); // Remove next block's ref
-				},
+				(children) => performMergeNext({ children }, blockIndex),
 				() => deps.blockRefs[blockIndex]?.focus(mergeOffset),
 				{ op: { kind: 'merge', detail: { direction: 'next' } } }
 			);
@@ -201,12 +180,8 @@ export function createBlockEditActions(
 			await controller.commitStructural(
 				blockIndex,
 				0,
-				(children, ids, refs) => {
-					performDelete({ children }, ids, blockIndex);
-					refs.splice(blockIndex, 1);
-				},
+				(children) => performDelete({ children }, blockIndex),
 				() => {
-					// Focus the block that took the deleted block's position, or the previous one
 					const focusIndex = Math.min(blockIndex, deps.doc.children.length - 1);
 					if (focusIndex >= 0) {
 						deps.blockRefs[focusIndex]?.focus(0);
@@ -230,15 +205,13 @@ export function createBlockEditActions(
 				// Kind change is a structural republish, not a new undo entry:
 				// the debounced snapshot above already captured the pre-edit state,
 				// so this commit shares that entry via skipSnapshot. The mutate
-				// callback is a no-op — performUpdate mutated the tree in place,
+				// callback returns noop — performUpdate mutated the tree in place,
 				// and commitStructural will swap the children array atomically so
 				// Svelte remounts with the correct block kind.
 				await controller.commitStructural(
 					blockIndex,
 					preEditOffset ?? 0,
-					() => {
-						// No-op: kind change was applied by performUpdate in place.
-					},
+					() => ({ op: 'noop' }),
 					() => {
 						deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
 					},
@@ -284,15 +257,15 @@ export function createBlockEditActions(
 			await controller.commitStructural(
 				blockIndex,
 				offset,
-				(children, ids, refs) => {
+				(children) => {
 					children.splice(blockIndex, 1, ...newNodes);
-					const newIds = newNodes.slice(1).map(() => generateBlockId());
-					ids.splice(blockIndex + 1, 0, ...newIds);
-					const newRefSlots: (BlockComponent | undefined)[] = new Array(newNodes.length).fill(
-						undefined
-					);
-					newRefSlots[0] = refs[blockIndex];
-					refs.splice(blockIndex, 1, ...newRefSlots);
+					return {
+						op: 'replace',
+						at: blockIndex,
+						count: 1,
+						newCount: newNodes.length,
+						idMap: { 0: 0 } // first replacement inherits the original block's id + ref
+					};
 				},
 				() => {
 					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
@@ -321,29 +294,22 @@ export function createBlockEditActions(
 				parseAllInlineContent(normalizedReplacement);
 			}
 
-			// Work on plain copies to prevent $state proxy splice cascades.
 			await controller.commitStructural(
 				blockIndex,
 				focus?.offset ?? 0,
-				(children, ids, refs) => {
+				(children) => {
 					if (normalizedReplacement.length === 0) {
-						// Degenerate case: delete the block.
 						children.splice(blockIndex, 1);
-						ids.splice(blockIndex, 1);
-						refs.splice(blockIndex, 1);
-					} else {
-						children.splice(blockIndex, 1, ...normalizedReplacement);
-
-						// IDs: fresh for each replacement block.
-						const newIds = normalizedReplacement.map(() => generateBlockId());
-						ids.splice(blockIndex, 1, ...newIds);
-
-						// Refs: new undefined slots for each replacement block.
-						const newRefSlots: (BlockComponent | undefined)[] = new Array(
-							normalizedReplacement.length
-						).fill(undefined);
-						refs.splice(blockIndex, 1, ...newRefSlots);
+						return { op: 'delete', at: blockIndex, count: 1 };
 					}
+					children.splice(blockIndex, 1, ...normalizedReplacement);
+					return {
+						op: 'replace',
+						at: blockIndex,
+						count: 1,
+						newCount: normalizedReplacement.length
+						// no idMap — every replacement gets a fresh id (existing behavior)
+					};
 				},
 				() => {
 					if (focus && normalizedReplacement.length > 0) {

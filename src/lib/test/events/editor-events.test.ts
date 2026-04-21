@@ -145,10 +145,9 @@ describe('createEditorEvents', () => {
 			containerNode,
 			state,
 			{ blockIndex: 0, offset: 0 },
-			(children, ids, refs) => {
+			(children) => {
 				children.splice(1, 1);
-				ids.splice(1, 1);
-				refs.splice(1, 1);
+				return { op: 'delete', at: 1, count: 1 };
 			},
 			undefined,
 			{ kind: 'delete', eventPath: [0, 1] }

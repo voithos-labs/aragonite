@@ -62,7 +62,12 @@
 
 		let newChildren: CstNode[] = [];
 		state.commitChildrenEdit((children, ids, refs) => {
-			performSplit({ children }, ids, innerIndex, offset);
+			// performSplit no longer takes ids — it returns a descriptor. On this
+			// legacy commitChildrenEdit path the descriptor is ignored because the
+			// subsequent splices immediately remove the second half (it moves to
+			// `newChildren` and becomes a new sibling list item), leaving ids/refs
+			// aligned with the first-half-only children array.
+			performSplit({ children }, innerIndex, offset);
 			newChildren = children.splice(innerIndex + 1);
 			ids.splice(innerIndex + 1);
 			refs.splice(innerIndex + 1);

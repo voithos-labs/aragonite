@@ -14,6 +14,7 @@ import type { StickyColumnState } from '../../contenteditable/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { OperationKind, OpDescriptor } from '../../debug/operations-log';
 import type { EditorEvents } from '../../events/editor-events';
+import type { StructuralChange } from '../../tree-operations/structural-change';
 
 export interface EditorActionsDeps {
 	// Reactive state — getters read the live value from Svelte's $state.
@@ -38,7 +39,7 @@ export interface UndoController {
 	commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		mutate: (children: CstNode[]) => StructuralChange,
 		afterTick?: () => void,
 		options?: {
 			skipSnapshot?: boolean;
@@ -52,7 +53,7 @@ export interface UndoController {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		},
 		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void,
+		mutate: (children: CstNode[]) => StructuralChange,
 		afterTick?: () => void,
 		op?: {
 			kind: OperationKind;

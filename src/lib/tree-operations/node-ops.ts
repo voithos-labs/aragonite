@@ -40,8 +40,8 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import { generateBlockId } from './block-id';
 import { trimTrailingLineEnding } from '../core/lines';
+import type { StructuralChange } from './structural-change';
 
 // ── Types ──
 
@@ -66,18 +66,18 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 
 /**
  * Split the node at `blockIndex` into two nodes at the given raw `offset`.
- * The first node keeps the original ID. A new ID is inserted for the second node.
- * Both halves are re-parsed to determine their block type.
+ * Returns a StructuralChange descriptor; the commit primitive applies it to
+ * ids/refs. The first half inherits the original node's ID (idMap: {0: 0});
+ * the second half gets a fresh ID.
  *
  * The offset is relative to the displayed text content (without trailing line ending).
  * The line ending style (\n or \r\n) is preserved from the original raw.
  */
 export function splitNode(
 	parent: NodeParent,
-	blockIds: string[],
 	blockIndex: number,
 	offset: number
-): void {
+): StructuralChange {
 	const node = parent.children[blockIndex];
 	const rawText = node.raw;
 
@@ -102,22 +102,20 @@ export function splitNode(
 	const secondNode = reparseAsNode(secondRaw, '');
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
-	blockIds.splice(blockIndex + 1, 0, generateBlockId());
+	// First half inherits the original node's ID (via idMap); second half gets a fresh ID.
+	return { op: 'replace', at: blockIndex, count: 1, newCount: 2, idMap: { 0: 0 } };
 }
 
 // ── Merge ──
 
 /**
  * Merge the node at `blockIndex` into the node at `blockIndex - 1`.
- * The combined raw text is re-parsed. The first block's ID is kept.
- * No-op if blockIndex is 0.
+ * The combined raw text is re-parsed. The merged block inherits prev's ID
+ * (idMap: {0: 0} — new[0] inherits old[0] which is the prev block).
+ * Returns noop if blockIndex is 0.
  */
-export function mergeWithPrevious(
-	parent: NodeParent,
-	blockIds: string[],
-	blockIndex: number
-): void {
-	if (blockIndex <= 0 || blockIndex >= parent.children.length) return;
+export function mergeWithPrevious(parent: NodeParent, blockIndex: number): StructuralChange {
+	if (blockIndex <= 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
@@ -125,16 +123,17 @@ export function mergeWithPrevious(
 	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
-	blockIds.splice(blockIndex, 1);
+	return { op: 'replace', at: blockIndex - 1, count: 2, newCount: 1, idMap: { 0: 0 } };
 }
 
 /**
  * Merge the node at `blockIndex` with the node at `blockIndex + 1`.
- * The combined raw text is re-parsed. The current block's ID is kept.
- * No-op if blockIndex is the last block.
+ * The combined raw text is re-parsed. The merged block inherits the current
+ * block's ID (idMap: {0: 0} — new[0] inherits old[0] which is the current block).
+ * Returns noop if blockIndex is the last block.
  */
-export function mergeWithNext(parent: NodeParent, blockIds: string[], blockIndex: number): void {
-	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return;
+export function mergeWithNext(parent: NodeParent, blockIndex: number): StructuralChange {
+	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return { op: 'noop' };
 
 	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
@@ -142,17 +141,17 @@ export function mergeWithNext(parent: NodeParent, blockIds: string[], blockIndex
 	const mergedRaw = trimTrailingLineEnding(curr.raw) + next.raw;
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 	parent.children.splice(blockIndex, 2, mergedNode);
-	blockIds.splice(blockIndex + 1, 1);
+	return { op: 'replace', at: blockIndex, count: 2, newCount: 1, idMap: { 0: 0 } };
 }
 
 // ── Delete ──
 
 /**
- * Remove the node at `blockIndex`.
- * Transfers leading trivia to the next sibling if one exists.
+ * Remove the node at `blockIndex`. Transfers leading trivia to the next sibling
+ * if one exists. Returns noop if blockIndex is out of bounds.
  */
-export function deleteNode(parent: NodeParent, blockIds: string[], blockIndex: number): void {
-	if (blockIndex < 0 || blockIndex >= parent.children.length) return;
+export function deleteNode(parent: NodeParent, blockIndex: number): StructuralChange {
+	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const deleted = parent.children[blockIndex];
 
@@ -162,7 +161,7 @@ export function deleteNode(parent: NodeParent, blockIds: string[], blockIndex: n
 	}
 
 	parent.children.splice(blockIndex, 1);
-	blockIds.splice(blockIndex, 1);
+	return { op: 'delete', at: blockIndex, count: 1 };
 }
 
 // ── Update Content ──

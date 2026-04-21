@@ -17,7 +17,6 @@
 		type BlockComponent
 	} from '../../contracts';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
-	import { generateBlockId } from '../../tree-operations/block-id';
 	import {
 		deleteNode as performDelete,
 		unwrapFirstItemFromList,
@@ -112,12 +111,12 @@
 								node,
 								state,
 								{ blockIndex: index, offset: 0 },
-								(children, ids, refs) => {
-									performDelete({ children }, ids, 0);
-									refs.splice(0, 1);
+								(children) => {
+									const change = performDelete({ children }, 0);
 									node.children = children;
 									renumberOrderedList(node, 0);
 									rebuildListRaw(node);
+									return change;
 								},
 								() => {
 									state.innerBlockRefs[0]?.focus(0);
@@ -147,12 +146,12 @@
 							node,
 							state,
 							{ blockIndex: index, offset: 0 },
-							(children, ids, refs) => {
-								performDelete({ children }, ids, itemIndex);
-								refs.splice(itemIndex, 1);
+							(children) => {
+								const change = performDelete({ children }, itemIndex);
 								node.children = children;
 								renumberOrderedList(node, itemIndex);
 								rebuildListRaw(node);
+								return change;
 							},
 							() => {
 								state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
@@ -171,11 +170,11 @@
 						node,
 						state,
 						{ blockIndex: index, offset: 0 },
-						(children, ids, refs) => {
+						(children) => {
 							const result = mergeListItemIntoPrevious(node, children, itemIndex);
 							mergePoint = result.mergePoint;
-							ids.splice(itemIndex, 1);
-							refs.splice(itemIndex, 1);
+							// mergeListItemIntoPrevious removes itemIndex from children.
+							return { op: 'delete', at: itemIndex, count: 1 };
 						},
 						() => {
 							const [firstPathIdx, ...restPath] = mergePoint.targetPath;
@@ -200,11 +199,11 @@
 						node,
 						state,
 						{ blockIndex: index, offset: 0 },
-						(children, ids, refs) => {
-							performDelete({ children }, ids, itemIndex);
-							refs.splice(itemIndex, 1);
+						(children) => {
+							const change = performDelete({ children }, itemIndex);
 							node.children = children;
 							rebuildListRaw(node);
+							return change;
 						},
 						() => {
 							const focusIdx = Math.min(itemIndex, (node.children?.length ?? 1) - 1);
@@ -235,27 +234,28 @@
 						node,
 						state,
 						snapshot,
-						(children, ids, refs) => {
+						(children) => {
 							if (replacement.length === 0) {
 								children.splice(itemIndex, 1);
-								ids.splice(itemIndex, 1);
-								refs.splice(itemIndex, 1);
-							} else {
-								const normalizedReplacement = normalizeReplacementTrivia(
-									children[itemIndex],
-									replacement
-								);
-								parseAllInlineContent(normalizedReplacement);
-								children.splice(itemIndex, 1, ...normalizedReplacement);
-								ids.splice(itemIndex, 1, ...normalizedReplacement.map(() => generateBlockId()));
-								refs.splice(
-									itemIndex,
-									1,
-									...new Array(normalizedReplacement.length).fill(undefined)
-								);
+								node.children = children;
+								rebuildListRaw(node);
+								return { op: 'delete', at: itemIndex, count: 1 };
 							}
+							const normalizedReplacement = normalizeReplacementTrivia(
+								children[itemIndex],
+								replacement
+							);
+							parseAllInlineContent(normalizedReplacement);
+							children.splice(itemIndex, 1, ...normalizedReplacement);
 							node.children = children;
 							rebuildListRaw(node);
+							// No idMap — all replacement slots get fresh IDs (existing behavior).
+							return {
+								op: 'replace',
+								at: itemIndex,
+								count: 1,
+								newCount: normalizedReplacement.length
+							};
 						},
 						() => {
 							if (focus && replacement.length > 0) {
