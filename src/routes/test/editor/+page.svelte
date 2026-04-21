@@ -169,6 +169,41 @@
 			},
 			dumpUndoStack: (n = 10) => dumpUndoStack(editor.getUndoStack(), n),
 			dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.getOperationsLog(), n),
+			// ── Edit-event counting probe ─────────────────────────────────────
+			/**
+			 * Begin accumulating structural edit events (op !== 'input').
+			 * Call `stopEditCount()` to unsubscribe and retrieve the count.
+			 * Only one session at a time — calling startEditCount again while
+			 * one is running replaces the previous subscription.
+			 */
+			startEditCount: (): void => {
+				if ((window as any).__test._editCountDispose) {
+					(window as any).__test._editCountDispose();
+				}
+				(window as any).__test._editCount = 0;
+				(window as any).__test._editCountDispose = editor.getEvents().on('edit', (e: { op: string }) => {
+					if (e.op !== 'input') (window as any).__test._editCount++;
+				});
+			},
+			stopEditCount: (): number => {
+				const dispose = (window as any).__test._editCountDispose;
+				if (dispose) dispose();
+				(window as any).__test._editCountDispose = null;
+				return (window as any).__test._editCount ?? 0;
+			},
+			// ── List item id probe ────────────────────────────────────────────
+			/**
+			 * Return the innerBlockIds array for the first list node found at
+			 * the given top-level block index. Useful for identity-preservation
+			 * regression tests that check which id survives a cross-scope delete.
+			 */
+			getListItemIds: (blockIndex: number): string[] => {
+				const doc = editor.getDocument();
+				const node = doc.children[blockIndex] as CstNode | undefined;
+				if (!node) return [];
+				const state = getStateForNode(node);
+				return state ? [...state.innerBlockIds] : [];
+			},
 			// ── BlockListState consistency probe ─────────────────────────────
 			/**
 			 * Walk the live CST — NOT a re-parse — and report any container
