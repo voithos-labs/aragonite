@@ -222,6 +222,13 @@ export interface ListContext {
 	indentItem(itemIndex: number): Promise<void>;
 	unindentItem(itemIndex: number): Promise<void>;
 	/**
+	 * Split the item at `itemIndex` mid-content: first half stays in the
+	 * existing item, second half moves into a new sibling item inserted
+	 * immediately after. Emits exactly one undo snapshot and one edit event
+	 * (outer list insert + item content replace collapse into one commitMultiScope).
+	 */
+	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
+	/**
 	 * Promote a nested list item to the parent list level.
 	 * Called by a nested ListBlock on the PARENT list's context.
 	 * @param parentItemIndex Index of the parent list item containing the nested list
