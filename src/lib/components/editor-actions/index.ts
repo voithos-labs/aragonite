@@ -37,4 +37,4 @@ export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundl
 	};
 }
 
-export type { EditorActionsDeps } from './deps';
+export type { EditorActionsDeps, MultiScopeTarget, MultiScopeMutable } from './deps';
