@@ -15,6 +15,8 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { OperationKind, OpDescriptor } from '../../debug/operations-log';
 import type { EditorEvents } from '../../events/editor-events';
 import type { StructuralChange } from '../../tree-operations/structural-change';
+import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';
+export type { MultiScopeTarget, MultiScopeMutable };
 
 export interface EditorActionsDeps {
 	// Reactive state — getters read the live value from Svelte's $state.
@@ -60,6 +62,13 @@ export interface UndoController {
 			detail?: Record<string, unknown>;
 			eventPath: number[];
 		}
+	): Promise<void>;
+	commitMultiScope(
+		scopes: MultiScopeTarget[],
+		snapshot: { blockIndex: number; offset: number } | 'skip',
+		mutate: (scopeChildren: MultiScopeMutable[]) => StructuralChange[],
+		op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] },
+		afterTick?: () => void
 	): Promise<void>;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
