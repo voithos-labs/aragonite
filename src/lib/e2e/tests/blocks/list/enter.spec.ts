@@ -37,6 +37,26 @@ test.describe('list Enter', () => {
 		expect(source).toContain('- World');
 	});
 
+	// Regression: mid-item Enter used to push TWO undo snapshots (one for the item
+	// split, one for the sibling insert). The fix collapses both into a single
+	// commitMultiScope, so one Ctrl+Z restores the original single-item state.
+	test('Enter in middle of item: one Ctrl+Z restores original item', async () => {
+		await editor.loadContent('- HelloWorld\n');
+		const before = await editor.getSource();
+		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
+		await item.click();
+		await editor.page.keyboard.press('Home');
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
+		await editor.pressEnter();
+		await editor.page.waitForTimeout(200);
+		// Confirm split happened.
+		expect(await editor.getSource()).toContain('- Hello');
+		// ONE undo press must restore the pre-split state.
+		await editor.undo();
+		await editor.page.waitForTimeout(200);
+		expect(await editor.getSource()).toBe(before);
+	});
+
 	test('Enter on empty only item exits list', async () => {
 		await editor.loadContent('- Only\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Only' });
