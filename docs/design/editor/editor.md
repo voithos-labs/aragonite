@@ -143,7 +143,7 @@ The CST is always up-to-date (updated on every input event). The DOM is only pat
 
 Blocks call typed context functions for structural operations: split, merge, delete, move focus, update content, undo, redo. Each takes a block index relative to the local children array. Structural operations use `await tick()` for post-render focus management.
 
-Block–editor communication is divided across four focused sub-interfaces (block editing, focus, history, and container editing), each provided via its own Svelte context key. Containers set only the sub-interfaces they override; history and non-overridden concerns are resolved by walking up the Svelte context tree to the nearest ancestor that provides them. Pass-through delegation boilerplate is eliminated.
+Block–editor communication is divided across four focused sub-interfaces (block editing, focus, history, and container editing), each provided via its own Svelte context key. Containers set only the sub-interfaces they override; history and non-overridden concerns are resolved by walking up the Svelte context tree to the nearest ancestor that provides them. Pass-through delegation boilerplate is eliminated. A fifth context key (`CONTROLLER_KEY`) threads the multi-scope commit primitive to container components that participate in cross-container operations.
 
 No signal dispatcher, no string matching, no performer registry. Blocks call typed functions directly.
 
@@ -358,18 +358,19 @@ Undo restores the previous snapshot, pushes the current state onto the redo stac
 
 ### Commit Primitive
 
-Every structural mutation routes through a single internal commit helper. Two public entry points cover the two scopes:
+Every structural mutation routes through a single internal commit helper. Three entry points cover the three scopes:
 
 - **Top-level scope** — operations on the document's children array (split, merge, delete, paste, replaceBlock, kind-change republish).
 - **Container scope** — operations confined to a single container's children array (nested split/merge/delete, nested paste, list item reorder inside one list).
+- **Multi-scope** — operations that touch multiple container states in one logical step (cross-container delete, indent/unindent). One snapshot, one edit event, atomic reactivity publish across all touched scopes.
 
-Both entry points delegate to one internal `__commit` that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, record an op-log entry, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). Callers pick their scope; they don't assemble the ceremony themselves. This retires an older pattern where container mutations were bracketed by begin/end calls and a separate reactivity nudge — the commit primitive is now the only seam.
+All three entry points delegate to one internal `__commit` that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, record an op-log entry, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). Callers pick their scope; they don't assemble the ceremony themselves. The older `beginContainerEdit`/`endContainerEdit` bracketing pattern is deprecated; the commit primitive is now the only seam.
 
 ### Event Seam
 
 The editor exposes an observer-pattern event surface at `editor.events`. Two channels:
 
-- **`edit`** — fires after every commit, with a discriminated union keyed by `op`: structural ops (split / merge / delete / paste / replaceBlock / updateContent) emitted by the commit primitive, plus `input` emitted by the debounced keystroke flush, plus `undo` / `redo` emitted by the history layer.
+- **`edit`** — fires after every commit, with a discriminated union keyed by `op`: structural ops (split / merge / delete / paste / replaceBlock / updateContent / appendBlock / metadataUpdate) emitted by the commit primitive, plus `input` emitted by the debounced keystroke flush, plus `undo` / `redo` emitted by the history layer.
 - **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.
 
 Events fire synchronously from their emission sites. Handlers must not mutate the document; reentrant edits are not supported. Subscribe via `on(name, cb)`, which returns a disposer.
