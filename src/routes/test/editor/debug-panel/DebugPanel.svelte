@@ -163,6 +163,10 @@
 		border-left: 1px solid var(--debug-divider, #2a2a2a);
 		display: flex;
 		flex-direction: column;
+		/* overflow-x: hidden clips the resize-handle's negative-left 3px so the
+		   panel doesn't permanently show a horizontal scrollbar. overflow-y: auto
+		   alone computes the other axis to auto per CSS, which was the bug. */
+		overflow-x: hidden;
 		overflow-y: auto;
 		z-index: 9999;
 		font-size: 12px;
