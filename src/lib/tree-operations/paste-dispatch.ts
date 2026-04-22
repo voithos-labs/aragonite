@@ -48,7 +48,7 @@ export interface PasteDispatchContext {
 	doc: Document;
 	/** Action bundle for the target's level. Not used in cross-block (skipSnapshot) mode. */
 	blockEdit: BlockEditActions;
-	/** Undo controller — required for migrated multi-scope commit sites (Tasks 3 + 5). */
+	/** Undo controller — required by the multi-scope commit sites inside this module. */
 	controller: UndoController;
 	/** Skip undo snapshot + updateBlockContent debounce. Cross-block callers push the snapshot themselves. */
 	skipSnapshot?: boolean;
