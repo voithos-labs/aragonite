@@ -10,6 +10,7 @@
  */
 
 import { tick } from 'svelte';
+import type { UndoController } from '../components/editor-actions/deps';
 import type { BlockKind, CstNode, Document } from '../core/nodes';
 import type { BlockEditActions } from '../contracts';
 import { CURSOR_END } from '../contracts';
@@ -49,6 +50,8 @@ export interface PasteDispatchContext {
 	doc: Document;
 	/** Action bundle for the target's level. Not used in cross-block (skipSnapshot) mode. */
 	blockEdit: BlockEditActions;
+	/** Undo controller — required for migrated multi-scope commit sites (Tasks 3 + 5). */
+	controller: UndoController;
 	/** Skip undo snapshot + updateBlockContent debounce. Cross-block callers push the snapshot themselves. */
 	skipSnapshot?: boolean;
 }
@@ -389,9 +392,7 @@ function isEmptyContainerChild(node: CstNode): boolean {
 }
 
 function hasSingleParagraphChild(node: CstNode): boolean {
-	return (
-		!!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph'
-	);
+	return !!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph';
 }
 
 async function applyContainerMatchingPaste(

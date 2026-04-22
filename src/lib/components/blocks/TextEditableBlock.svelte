@@ -559,7 +559,8 @@
 			},
 			{
 				doc: getDoc(),
-				blockEdit
+				blockEdit,
+				controller
 			}
 		);
 
