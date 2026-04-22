@@ -12,11 +12,13 @@
 		node,
 		index,
 		parentPath = [],
+		ambientPrefix = '',
 		ref = $bindable()
 	}: {
 		node: CstNode;
 		index: number;
 		parentPath?: number[];
+		ambientPrefix?: string;
 		ref?: BlockComponent;
 	} = $props();
 
@@ -34,9 +36,23 @@
 
 <div class="block-host" data-block-path={JSON.stringify(myPath)} bind:this={hostEl}>
 	{#if node.kind === 'paragraph'}
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="paragraph-block" />
+		<TextEditableBlock
+			{node}
+			{index}
+			{myPath}
+			{ambientPrefix}
+			bind:this={ref}
+			blockClass="paragraph-block"
+		/>
 	{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass={headingClass()} />
+		<TextEditableBlock
+			{node}
+			{index}
+			{myPath}
+			{ambientPrefix}
+			bind:this={ref}
+			blockClass={headingClass()}
+		/>
 	{:else if node.kind === 'thematicBreak'}
 		<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
 	{:else if node.kind === 'fencedCode'}
@@ -46,7 +62,14 @@
 	{:else if node.kind === 'list'}
 		<ListBlock {node} {index} {myPath} bind:this={ref} />
 	{:else}
-		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
+		<TextEditableBlock
+			{node}
+			{index}
+			{myPath}
+			{ambientPrefix}
+			bind:this={ref}
+			blockClass="raw-block"
+		/>
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
