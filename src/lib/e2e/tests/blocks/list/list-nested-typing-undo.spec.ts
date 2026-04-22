@@ -46,9 +46,7 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.page.waitForTimeout(400);
 
 		await editor.undo();
-		await editor.page.waitForFunction(
-			() => !(window as any).__test.getSource().includes(' B')
-		);
+		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
 		expect((await editor.getSource()).includes(' B')).toBe(false);
 		expect((await editor.getSource()).includes(' A')).toBe(true);
 

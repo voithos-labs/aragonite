@@ -181,9 +181,11 @@
 					(window as any).__test._editCountDispose();
 				}
 				(window as any).__test._editCount = 0;
-				(window as any).__test._editCountDispose = editor.getEvents().on('edit', (e: { op: string }) => {
-					if (e.op !== 'input') (window as any).__test._editCount++;
-				});
+				(window as any).__test._editCountDispose = editor
+					.getEvents()
+					.on('edit', (e: { op: string }) => {
+						if (e.op !== 'input') (window as any).__test._editCount++;
+					});
 			},
 			stopEditCount: (): number => {
 				const dispose = (window as any).__test._editCountDispose;

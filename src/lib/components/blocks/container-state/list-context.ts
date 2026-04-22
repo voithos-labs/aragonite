@@ -168,11 +168,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 		},
 
-		async splitItemAtOffset(
-			itemIndex: number,
-			innerIndex: number,
-			offset: number
-		): Promise<void> {
+		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
 			const outerList = deps.node;
 			if (!outerList.children) return;
 

@@ -193,7 +193,8 @@
 		node.inlineContent = parseInline(node.raw, range.start, range.end);
 	}
 
-	// Heading/etc. marker rendered as a dimmed span before inline content so el.textContent === getDisplayText().
+	// Heading/etc. own-marker prefix slice. Rendered as a dimmed span before inline
+	// content so el.textContent === ambientPrefix + getDisplayText() holds.
 	function getBlockMarkerPrefix(): string {
 		if (!isProseKind(node.kind)) return '';
 		const range = getContentRange(node);
