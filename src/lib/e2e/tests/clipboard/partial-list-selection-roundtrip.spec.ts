@@ -2,22 +2,21 @@ import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 /**
- * User-reported follow-up to the 0.5.2 consolidation: partial-selection
- * copy-paste within a list (mid-word to mid-word) used to produce a
- * nested-list mess. The root cause was our parser treating "2." as
- * interrupting an open paragraph (only "1." may per CommonMark §5.2);
- * the clipboard "ne\n2. two\n3. thre" parsed as [paragraph, list]
- * instead of a single paragraph, routing through the structural paste
- * path and splitting the target item into four children.
+ * Partial-selection Ctrl+C → Ctrl+V inside an ordered list reconstructs
+ * the original structure. Two cooperating changes make this possible:
  *
- * With the CommonMark conformance fix, the clipboard now parses as a
- * single paragraph. The inline paste splices the text into the target's
- * raw, producing a single list item with multi-line content. Not
- * the full 3-item round-trip the user might wish for (inherent
- * limitation of plain-text clipboard for mid-word partial selections),
- * but clean and structurally correct.
+ * - `collectCrossBlockText` now prefixes the start block's container
+ *   marker on mid-item selections (symmetric to the end-side helper), so
+ *   the clipboard parses as a list instead of a paragraph with bare
+ *   "2." / "3." continuation lines (CommonMark §5.2 otherwise folds them).
+ *
+ * - `pasteDispatch` handles the non-empty-target container-matching case
+ *   by merging the first clipboard item's content into the target leaf at
+ *   the caret and splicing the remaining items as siblings. Trailing
+ *   residue from the pre-paste delete reattaches to the last spliced
+ *   item.
  */
-test.describe('partial-selection list copy-paste produces clean (non-nested) output', () => {
+test.describe('copy-paste round-trip: partial-list selection preserves structure', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -25,10 +24,27 @@ test.describe('partial-selection list copy-paste produces clean (non-nested) out
 		await editor.goto();
 	});
 
-	test('mid-one to mid-three partial selection, Ctrl+C+V: no nested list, no content loss', async () => {
+	test('mid-one to end-of-three (offset 5): exact round-trip', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 
-		// Selection: offset 1 of "one" ("o|ne") to offset 4 of "three" ("thre|e")
+		// Selection: offset 1 of "one" ("o|ne") through offset 5 of "three" (end).
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 2, 0], 5);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const src = await editor.getSource();
+		expect(src.trim()).toBe('1. one\n2. two\n3. three');
+	});
+
+	test('mid-one to mid-three (offset 4): residue reattaches, full round-trip', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		// Selection: offset 1 of "one" ("o|ne") through offset 4 of "three" ("thre|e").
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 2, 0], 4);
 		await editor.waitForCrossBlock(true);
@@ -39,14 +55,24 @@ test.describe('partial-selection list copy-paste produces clean (non-nested) out
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.getSource();
+		// The trailing "e" (post-"thre") reattaches to the last item so the
+		// document returns to its original shape.
+		expect(src.trim()).toBe('1. one\n2. two\n3. three');
+	});
 
-		// Full original content survives (no silent deletion).
-		expect(src).toContain('one');
-		expect(src).toContain('two');
-		expect(src).toContain('three');
+	test('mid-one to end-of-two (two-item partial): exact round-trip', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
 
-		// No nested-list artifacts: no 5+ space indentation inside a list item
-		// (5 spaces is "1. " marker width 3 + 2-space nest indent).
-		expect(src).not.toMatch(/^\s{5,}/m);
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 1, 0], 3);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(100);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const src = await editor.getSource();
+		expect(src.trim()).toBe('1. one\n2. two\n3. three');
 	});
 });

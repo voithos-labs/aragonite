@@ -33,6 +33,14 @@ export const SELECTION_KEY = Symbol('selection');
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**
+ * Svelte context key for an AbortSignal tied to the editor's mount lifetime.
+ * Aborts when the Editor component unmounts. Document-level listeners (drag-
+ * pointer, etc.) observe this to tear themselves down if the editor goes
+ * away mid-operation.
+ */
+export const EDITOR_LIFETIME_KEY = Symbol('editor-lifetime');
+
+/**
  * Svelte context key for the UndoController. Container blocks that span
  * multiple scopes (e.g. list indent/unindent) read this to call
  * `commitMultiScope` directly.
