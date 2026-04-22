@@ -22,6 +22,13 @@ export interface DragContext {
 	scrollContainer: HTMLElement;
 	selection: SelectionState;
 	getBlockElByPath: BlockElLookup;
+	/**
+	 * Abort signal tied to the editor's mount lifetime. If the editor
+	 * unmounts mid-drag, the pointerup listener would never fire; wiring
+	 * abort to dispose() ensures document-level listeners are removed and
+	 * captured references (editorRoot, scrollContainer) released.
+	 */
+	lifetimeSignal?: AbortSignal;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
@@ -111,9 +118,15 @@ export function installDragListener(
 		}
 	}
 
+	let disposed = false;
 	function dispose(): void {
+		if (disposed) return;
+		disposed = true;
 		document.removeEventListener('pointermove', onPointerMove);
 		document.removeEventListener('pointerup', onPointerUp);
+		if (ctx.lifetimeSignal) {
+			ctx.lifetimeSignal.removeEventListener('abort', dispose);
+		}
 		if (rafId !== null) {
 			cancelAnimationFrame(rafId);
 			rafId = null;
@@ -123,6 +136,15 @@ export function installDragListener(
 			autoScrollRafId = null;
 		}
 		pendingMove = null;
+	}
+
+	// If the editor unmounts during the drag, pointerup may never reach
+	// these handlers. Abort the lifetime signal → dispose tears down.
+	if (ctx.lifetimeSignal) {
+		if (ctx.lifetimeSignal.aborted) {
+			return { dispose };
+		}
+		ctx.lifetimeSignal.addEventListener('abort', dispose, { once: true });
 	}
 
 	document.addEventListener('pointermove', onPointerMove);

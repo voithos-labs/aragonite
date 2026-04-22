@@ -55,6 +55,8 @@ export interface CrossBlockDispatchContext {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	getEditorRoot: () => HTMLElement | null;
+	/** AbortSignal aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
+	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
@@ -167,15 +169,17 @@ async function handleCrossBlockActive(
 	if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
 		e.preventDefault();
 		const focusPath = selection.focus?.path ?? myPath;
-		extendFocusToNextBlock(selection, doc, el, focusPath);
+		const focusEl = getBlockElByPath(focusPath) ?? el;
+		extendFocusToNextBlock(selection, doc, focusEl, focusPath);
 		scrollFocusBlockIntoView(selection, getBlockElByPath);
 		return true;
 	}
 	if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
 		e.preventDefault();
 		const focusPath = selection.focus?.path ?? myPath;
+		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(selection, doc, el, focusPath, side);
+		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side);
 		scrollFocusBlockIntoView(selection, getBlockElByPath);
 		return true;
 	}
@@ -302,7 +306,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 				editorRoot: root,
 				scrollContainer: root,
 				selection,
-				getBlockElByPath: ctx.getBlockElByPath
+				getBlockElByPath: ctx.getBlockElByPath,
+				lifetimeSignal: ctx.getEditorLifetime() ?? undefined
 			},
 			{ path: myPath.slice(), offset }
 		);

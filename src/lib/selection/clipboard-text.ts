@@ -55,6 +55,8 @@ export function collectCrossBlockText(
 		} else {
 			startTail = startRaw.slice(start.offset);
 		}
+	} else if (start.offset > 0 && start.path.length > 1) {
+		startTail = startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(start.offset);
 	} else {
 		startTail = startRaw.slice(start.offset);
 	}
@@ -127,6 +129,35 @@ function pathsEqual(a: number[], b: number[]): boolean {
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * Mirror of {@link endPartialWithContainerMarker} for the start endpoint.
+ * When the start falls mid-leaf inside a simple container, prepend the
+ * container's marker so the clipboard parses as a proper list / blockquote
+ * even for partial selections — without this, the first line arrives
+ * marker-less and CommonMark §5.2 keeps subsequent "N." lines from
+ * interrupting the paragraph, collapsing the round-trip into a single
+ * multi-line block.
+ */
+function startPartialWithContainerMarker(
+	doc: Document,
+	start: SelectionPoint,
+	startRaw: string
+): string | null {
+	const parentPath = start.path.slice(0, -1);
+	const parent = nodeAt(doc, parentPath);
+	if (!parent || !('children' in parent) || !parent.children) return null;
+	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
+
+	if (parent.children.length !== 1) return null;
+	if (start.path[start.path.length - 1] !== 0) return null;
+
+	const parentRaw = (parent as CstNode).raw;
+	if (!parentRaw.endsWith(startRaw)) return null;
+
+	const prefix = parentRaw.slice(0, parentRaw.length - startRaw.length);
+	return prefix + startRaw.slice(start.offset);
+}
 
 /**
  * For a partial end endpoint inside a simple container (listItem or

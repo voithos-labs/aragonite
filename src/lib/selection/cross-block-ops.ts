@@ -355,6 +355,22 @@ function computeScopeDescriptor(
 	if (rightIdx < 0) return { op: 'noop' };
 
 	const removed = beforeLen - afterLen;
+
+	// Mixed-depth case: only one endpoint descends through this scope, but
+	// cascade-cleanup / range-walk removed siblings from the other direction.
+	// Extend the touched range to cover those removals so the descriptor
+	// reports the real splice, and idMap[0]=0 preserves the descending
+	// endpoint's id instead of a deleted sibling's. See issues.md "mixed-
+	// depth cross-scope delete".
+	if (removed > 0 && startDescends !== endDescends) {
+		if (startDescends) {
+			// Items after startIdx were removed — extend right.
+			rightIdx = Math.max(rightIdx, startIdx + removed);
+		} else {
+			// Items before endIdx were removed — extend left.
+			leftIdx = Math.min(leftIdx, Math.max(0, endIdx - removed));
+		}
+	}
 	// Length-unchanged single-index edit: the child at leftIdx was modified
 	// in-place (replacement.length === 1, no cascade cleanup at this level).
 	// Keep existing id/ref — returning noop leaves them untouched.

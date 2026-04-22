@@ -101,13 +101,23 @@ export async function pasteDispatch(
 	// ── Container-matching unwrap ─────────────────────────────────────────
 	// When the clipboard is a single list/blockquote of kind K and an
 	// ancestor of the target is also kind K (with matching ordered flag
-	// for lists), AND the target's immediate descendant of that ancestor
-	// is empty (e.g. a list-item whose content was deleted by a preceding
-	// cross-block range delete), unwrap the pasted container and splice
-	// its items into the matching ancestor — replacing the empty
-	// descendant. This makes Ctrl+C → Ctrl+V round-trips within a list
-	// preserve structure instead of producing a nested sub-list.
-	const unwrap = findContainerMatchingUnwrap(ctx.doc, input.targetPath, parsed);
+	// for lists), splice the clipboard's items into the matching ancestor
+	// instead of nesting a sub-container inside the target descendant.
+	// Two shapes:
+	//   - Empty target descendant (post-cross-block-delete stub, or a
+	//     blank list item): replace the stub with all clipboard items.
+	//   - Non-empty descendant, cross-block context only (skipSnapshot):
+	//     merge the first clipboard item's content into the target leaf
+	//     at the caret, splice the remainder as siblings, and reattach
+	//     any trailing residue to the last spliced item. This handles the
+	//     Ctrl+C → Ctrl+V round-trip for partial-item selections.
+	const unwrap = findContainerMatchingUnwrap(
+		ctx.doc,
+		input.targetPath,
+		input.offset,
+		parsed,
+		ctx.skipSnapshot === true
+	);
 	if (unwrap) {
 		await applyContainerMatchingPaste(unwrap, ctx);
 		return {};
@@ -373,22 +383,42 @@ function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 interface ContainerUnwrap {
 	/** Path to the matching outer container (list or blockquote). */
 	outerPath: number[];
-	/** Index within outerPath.children of the empty descendant to replace. */
+	/** Index within outerPath.children of the target descendant. */
 	spliceIndex: number;
-	/** Items from the clipboard's top-level container, to splice in. */
+	/** Items from the clipboard's top-level container. */
 	items: CstNode[];
+	/**
+	 * When set, the target descendant is non-empty: merge the first
+	 * clipboard item's content into the target leaf at `offset`, splice
+	 * the remaining items as siblings after the descendant, and reattach
+	 * any post-caret residue to the last spliced item. When absent, the
+	 * descendant is empty and gets replaced in-place by all items.
+	 */
+	merge?: {
+		/** Path of the leaf to merge into. */
+		targetLeafPath: number[];
+		/** Cursor offset within the target leaf's display. */
+		offset: number;
+	};
 }
 
 /**
  * Detect whether a paste should be flattened into a matching ancestor
  * container. Returns null if no rewrite applies; otherwise returns the
- * splice target. Only fires when the empty-descendant condition is met,
- * so non-empty targets keep the standard nested-paste behavior.
+ * splice target.
+ *
+ * Empty target descendants always unwrap (replaces the stub with all
+ * items). Non-empty targets unwrap only in cross-block context
+ * (`skipSnapshot` — i.e. after a range delete), so single-block pastes
+ * into a partially-filled item keep the nested-sub-container behavior
+ * users expect from a deliberate paste.
  */
 function findContainerMatchingUnwrap(
 	doc: Document,
 	targetPath: number[],
-	parsed: Document
+	offset: number,
+	parsed: Document,
+	crossBlockContext: boolean
 ): ContainerUnwrap | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
@@ -410,16 +440,25 @@ function findContainerMatchingUnwrap(
 		const spliceIndex = targetPath[depth];
 		const targetChild = ancestor.children?.[spliceIndex];
 		if (!targetChild) continue;
-		// Only unwrap when the target's immediate container-child is
-		// empty. Non-empty targets retain the nested-paste behavior to
-		// avoid surprising users who deliberately paste inside a
-		// partially-filled item.
-		if (!isEmptyContainerChild(targetChild)) return null;
+
+		if (isEmptyContainerChild(targetChild)) {
+			return { outerPath: ancestorPath, spliceIndex, items: topBlock.children };
+		}
+
+		// Non-empty: only unwrap in cross-block context, and only when
+		// the first & last clipboard items each have a single paragraph
+		// child — otherwise the merge-first / trailing-residue semantics
+		// aren't well-defined and we fall through to nested structural
+		// paste.
+		if (!crossBlockContext) return null;
+		if (!hasSingleParagraphChild(topBlock.children[0])) return null;
+		if (!hasSingleParagraphChild(topBlock.children[topBlock.children.length - 1])) return null;
 
 		return {
 			outerPath: ancestorPath,
 			spliceIndex,
-			items: topBlock.children
+			items: topBlock.children,
+			merge: { targetLeafPath: targetPath, offset }
 		};
 	}
 	return null;
@@ -435,6 +474,12 @@ function isEmptyContainerChild(node: CstNode): boolean {
 	return c.raw.trim() === '';
 }
 
+function hasSingleParagraphChild(node: CstNode): boolean {
+	return (
+		!!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph'
+	);
+}
+
 async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
 	ctx: PasteDispatchContext
@@ -443,6 +488,11 @@ async function applyContainerMatchingPaste(
 	if (!outer) return;
 	const outerState = getStateForNode(outer);
 	if (!outerState) return;
+
+	if (unwrap.merge) {
+		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx);
+		return;
+	}
 
 	// TODO(0.5.5.3): migrate via multi-scope commit primitive
 	outerState.commitChildrenEdit((children, ids, refs) => {
@@ -459,5 +509,96 @@ async function applyContainerMatchingPaste(
 
 	// Focus lands at the end of the last inserted item — matches the
 	// structural-paste convention elsewhere.
+	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+}
+
+/**
+ * Non-empty-target path: merge the first clipboard item's leaf content
+ * into the target leaf at the caret, splice the rest as siblings of the
+ * target descendant, and reattach trailing residue (display characters
+ * after the caret) to the last spliced item's leaf. When the clipboard
+ * has only one item, all content (including residue) lands in the
+ * target leaf and no splice happens.
+ */
+async function applyContainerMatchingMerge(
+	unwrap: ContainerUnwrap,
+	merge: NonNullable<ContainerUnwrap['merge']>,
+	outer: CstNode,
+	outerState: NonNullable<ReturnType<typeof getStateForNode>>,
+	ctx: PasteDispatchContext
+): Promise<void> {
+	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;
+	if (!targetLeaf) return;
+
+	const firstItem = unwrap.items[0];
+	const firstLeaf = firstItem.children?.[0];
+	if (!firstLeaf) return;
+
+	const targetLineEnding = targetLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const targetDisplay = trimTrailingLineEnding(targetLeaf.raw);
+	const displayBefore = targetDisplay.slice(0, merge.offset);
+	const displayAfter = targetDisplay.slice(merge.offset);
+	const firstItemText = trimTrailingLineEnding(firstLeaf.raw);
+
+	const remainingItems = unwrap.items.slice(1);
+
+	if (remainingItems.length === 0) {
+		targetLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
+	} else {
+		targetLeaf.raw = displayBefore + firstItemText + targetLineEnding;
+		const lastItem = remainingItems[remainingItems.length - 1];
+		const lastLeaf = lastItem.children![0];
+		const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+		const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
+		lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
+	}
+
+	if (isProseKind(targetLeaf.kind)) {
+		const range = getContentRange(targetLeaf);
+		targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
+	}
+	if (remainingItems.length > 0) {
+		const lastLeaf = remainingItems[remainingItems.length - 1].children![0];
+		if (isProseKind(lastLeaf.kind)) {
+			const range = getContentRange(lastLeaf);
+			lastLeaf.inlineContent = parseInline(lastLeaf.raw, range.start, range.end);
+		}
+	}
+
+	// Rebuild raw up from the mutated target leaf so its enclosing
+	// listItem reflects the merged content before we splice siblings.
+	rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
+
+	if (remainingItems.length === 0) {
+		// No structural change on outer — just force a reactivity publish
+		// so its children bind update with the new target-leaf content.
+		// TODO(0.5.5.3): migrate via multi-scope commit primitive
+		outerState.commitChildrenEdit(() => {});
+		await tick();
+		outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
+		return;
+	}
+
+	// The last remaining item's paragraph raw was mutated above; its
+	// enclosing listItem's own raw still reflects the pre-mutation
+	// paragraph. Rebuild it before splicing so the published children
+	// carry correct raws in one reactive flush.
+	rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
+
+	// TODO(0.5.5.3): migrate via multi-scope commit primitive
+	outerState.commitChildrenEdit((children, ids, refs) => {
+		children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
+		ids.splice(unwrap.spliceIndex + 1, 0, ...remainingItems.map(() => generateBlockId()));
+		refs.splice(unwrap.spliceIndex + 1, 0, ...new Array(remainingItems.length).fill(undefined));
+	});
+
+	const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
+	// Rebuild the outer container and any enclosing ancestors of it now
+	// that its children array is complete. Pass the last-inserted leaf
+	// path so the walk starts one level above the outer (skipping the
+	// listItem we already rebuilt).
+	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
+	await tick();
+
 	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
 }

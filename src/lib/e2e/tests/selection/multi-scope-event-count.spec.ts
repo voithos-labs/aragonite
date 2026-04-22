@@ -205,12 +205,12 @@ test.describe('cross-block delete — list item id identity', () => {
 		await editor.goto();
 	});
 
-	// Known identity-preservation issue in computeScopeDescriptor for mixed
-	// cross-scope deletes (start descends into the list, end is at top level).
-	// The surviving item at position 0 should carry alpha's original id, but
-	// the current computeScopeDescriptor logic assigns it beta's id instead.
-	// TODO(follow-up): fix computeScopeDescriptor mixed-scope idMap and remove fixme.
-	test.fixme(
+	// Mixed cross-scope delete (start descends into the list, end is at top
+	// level). computeScopeDescriptor now extends the touched range to cover
+	// cascade-removed siblings in the XOR-descent case, so idMap[0]=0
+	// preserves the real surviving item's id instead of inheriting a deleted
+	// sibling's.
+	test(
 		'surviving list item keeps start-item id after mixed cross-scope delete',
 		async () => {
 			await editor.loadContent('- alpha\n- beta\n\nfollow\n');

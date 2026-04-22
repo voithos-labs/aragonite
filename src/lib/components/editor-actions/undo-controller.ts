@@ -126,7 +126,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	/** Capture a "before" snapshot on the first keystroke of each batch; reset debounce on subsequent ones. */
+	/**
+	 * Capture a "before" snapshot on the first keystroke of each batch; reset
+	 * debounce on subsequent ones.
+	 *
+	 * `setTimeout` is intentional here despite the editor's "no setTimeout for
+	 * sequencing" rule: this is wall-clock pause detection, not ordering
+	 * between async steps. `await tick()` operates at microtask granularity
+	 * and cannot express "the user has stopped typing for ~250ms." Each
+	 * keystroke clears the pending timer, so the callback only fires on a
+	 * genuine pause — no spurious flushes mid-edit.
+	 */
 	function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
 		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
 			pushUndoSnapshot(blockIndex, offset);
