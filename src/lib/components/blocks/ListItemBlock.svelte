@@ -157,7 +157,6 @@
 </script>
 
 <div class="list-item-block">
-	<span class="list-item-marker">{marker()}</span>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="list-item-content" onkeydown={handleKeydown}>
 		<BlockList
@@ -165,6 +164,7 @@
 			blockIds={state.innerBlockIds}
 			bind:blockRefs={state.innerBlockRefs}
 			parentPath={myPath}
+			ambientPrefixForFirst={marker()}
 		/>
 	</div>
 </div>
@@ -173,13 +173,6 @@
 	.list-item-block {
 		display: flex;
 		align-items: flex-start;
-	}
-
-	.list-item-marker {
-		flex-shrink: 0;
-		width: 2em;
-		color: var(--color-ui-dulled, #888);
-		user-select: none;
 	}
 
 	.list-item-content {

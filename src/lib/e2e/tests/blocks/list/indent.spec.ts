@@ -61,7 +61,7 @@ test.describe('list Tab', () => {
 
 	test('ordered: Tab appending to existing ordered nested list continues the sequence', async () => {
 		await editor.loadContent('1. A\n   1. AA\n   2. AB\n2. B\n');
-		const b = editor.page.locator('[contenteditable="true"]', { hasText: /^B$/ });
+		const b = editor.page.locator('[contenteditable="true"]', { hasText: /\. B$/ });
 		await b.click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
