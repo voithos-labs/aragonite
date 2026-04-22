@@ -51,7 +51,11 @@
 		font-size: 12px;
 		line-height: 1.4;
 		color: var(--debug-fg, #ddd);
-		white-space: pre;
+		/* pre-wrap preserves indentation from dumpTree/etc.; overflow-wrap: anywhere
+		   handles long unbreakable tokens (hex IDs, raw snippets without spaces)
+		   so the panel doesn't permanently sport a horizontal scrollbar. */
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 		overflow-x: auto;
 	}
 </style>
