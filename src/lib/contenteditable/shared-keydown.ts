@@ -17,7 +17,6 @@ import {
 } from '../selection/keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from './sticky-measure';
 import { isAtFirstVisualLine, isAtLastVisualLine } from './visual-lines';
-import { getSelectionFocusOffset } from './cursor-utils';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -25,6 +24,8 @@ export interface SharedKeydownContext {
 	getEl(): HTMLElement | null;
 	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
 	getCursorOffset(): number | null;
+	/** Shift-selection focus offset in raw-content coordinates (ambient marker excluded). */
+	getFocusOffset(): number | null;
 	/** textContent length in raw-content coordinates (ambient marker excluded). */
 	getTextLen(): number;
 	getMyPath(): number[];
@@ -92,7 +93,7 @@ export async function handleSharedKeydown(
 	// Read the focus offset (not the anchor) for Shift+Arrow: when the user
 	// has extended forward, the anchor stays mid-block while the focus sits
 	// at the boundary. Reading the anchor would fail to enter cross-block mode.
-	const shiftOffset = e.shiftKey ? getSelectionFocusOffset(el) : null;
+	const shiftOffset = e.shiftKey ? ctx.getFocusOffset() : null;
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
