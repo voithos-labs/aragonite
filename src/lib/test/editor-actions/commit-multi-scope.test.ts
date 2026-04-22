@@ -8,7 +8,12 @@ import type { BlockComponent } from '$lib/editor/contracts';
 // ── Harness helpers ───────────────────────────────────────────────────────────
 
 function mockRef(): BlockComponent {
-	return { focus: () => {}, getCursorOffset: () => null, editable: true, focusable: true } as BlockComponent;
+	return {
+		focus: () => {},
+		getCursorOffset: () => null,
+		editable: true,
+		focusable: true
+	} as BlockComponent;
 }
 
 function makeContainerNode(childRaws: string[]): any {
@@ -23,10 +28,18 @@ function makeBlockListState(node: any, ids: string[]): any {
 	let innerBlockIds = [...ids];
 	let innerBlockRefs: (BlockComponent | undefined)[] = ids.map(() => undefined);
 	return {
-		get innerBlockIds() { return innerBlockIds; },
-		set innerBlockIds(v: string[]) { innerBlockIds = v; },
-		get innerBlockRefs() { return innerBlockRefs; },
-		set innerBlockRefs(v: (BlockComponent | undefined)[]) { innerBlockRefs = v; },
+		get innerBlockIds() {
+			return innerBlockIds;
+		},
+		set innerBlockIds(v: string[]) {
+			innerBlockIds = v;
+		},
+		get innerBlockRefs() {
+			return innerBlockRefs;
+		},
+		set innerBlockRefs(v: (BlockComponent | undefined)[]) {
+			innerBlockRefs = v;
+		},
 		commitChildrenEdit: vi.fn()
 	};
 }
@@ -38,14 +51,28 @@ function makeDeps(containerNodes: any[]) {
 	const events = createEditorEvents();
 	return {
 		deps: {
-			get doc() { return doc; },
-			get blockIds() { return blockIds; },
-			get blockRefs() { return blockRefs; },
-			setDoc: (v: any) => { Object.assign(doc, v); },
+			get doc() {
+				return doc;
+			},
+			get blockIds() {
+				return blockIds;
+			},
+			get blockRefs() {
+				return blockRefs;
+			},
+			setDoc: (v: any) => {
+				Object.assign(doc, v);
+			},
 			setBlockIds: vi.fn(),
 			setBlockRefs: vi.fn(),
 			undoManager: createUndoManager(),
-			stickyColumn: { reset: vi.fn(), capture: vi.fn(), get current() { return null; } },
+			stickyColumn: {
+				reset: vi.fn(),
+				capture: vi.fn(),
+				get current() {
+					return null;
+				}
+			},
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
 			events
@@ -134,7 +161,10 @@ describe('commitMultiScope', () => {
 
 		await expect(
 			controller.commitMultiScope(
-				[{ node: nodeA, state: stateA }, { node: nodeB, state: stateB }],
+				[
+					{ node: nodeA, state: stateA },
+					{ node: nodeB, state: stateB }
+				],
 				{ blockIndex: 0, offset: 0 },
 				() => [{ op: 'noop' }]
 			)

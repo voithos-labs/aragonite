@@ -441,9 +441,7 @@ async function applyContainerMatchingPaste(
 			outer.children = children;
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
 			rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
-			return [
-				{ op: 'replace', at: unwrap.spliceIndex, count: 1, newCount: unwrap.items.length }
-			];
+			return [{ op: 'replace', at: unwrap.spliceIndex, count: 1, newCount: unwrap.items.length }];
 		},
 		{
 			kind: 'paste',
