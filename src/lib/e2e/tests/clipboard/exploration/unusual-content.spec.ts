@@ -1,23 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
-// Partial coverage pin. These scenarios are covered by named specs (safe to
-// retire when touched again):
-//   - "paste markdown containing backtick runs into a code block bumps the outer fence":
-//       clipboard/code-block-partial.spec.ts — "full code block copy, paste into another
-//       code block: outer fence bumps, body stays literal"
-//   - "paste after Ctrl+A selection (whole-document) replaces entire document":
-//       clipboard/select-all.spec.ts — "select-all cut then paste replaces with clipboard"
-// Remaining scenarios below are still pinned exclusively here:
-//   - paste CRLF line endings preserves block structure
-//   - paste content with leading blank lines does not create empty paragraphs
-//   - paste into thematic break (non-editable) — either no-op or creates paragraph
-
-/**
- * Probe paste with unusual clipboard content shapes: CRLF line endings,
- * leading/trailing whitespace, content crossing code blocks, and
- * paste-while-focused-on-non-editable-block.
- */
 test.describe('clipboard exploration: unusual content', () => {
 	let editor: EditorPage;
 
@@ -58,7 +41,6 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted'));
 		await editor.page.waitForTimeout(100);
 
-		// Click the thematic break to focus it.
 		const hr = editor.page.locator('.block-list > .block-host > :not(.selection-overlay)').nth(1);
 		await hr.click();
 		await editor.page.waitForTimeout(100);
@@ -67,8 +49,8 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.getSource();
-		// Either the paste no-ops (thematic break still there) or creates a paragraph.
-		// We don't care which, but the document shouldn't be corrupted.
+		// Paste on a thematic break may no-op or create a paragraph; either is ok
+		// as long as the document isn't corrupted.
 		expect(src).toMatch(/above/);
 		expect(src).toMatch(/below/);
 	});
@@ -78,16 +60,12 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('```\ninner fence\n```'));
 		await editor.page.waitForTimeout(100);
 
-		// Click inside the code block at the end of "content".
 		await editor.focusBlockAtPath([0], 0);
-		// Move cursor to end of block's content. For code blocks this might
-		// need a different approach — try End key.
 		await editor.page.keyboard.press('End');
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.getSource();
-		// Outer fence should have bumped to at least 4 backticks.
 		expect(src).toMatch(/^````/m);
 	});
 
@@ -98,7 +76,6 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('replacement content\n'));
 		await editor.page.waitForTimeout(100);
 
-		// Focus first block, Ctrl+A+A to select whole doc.
 		await editor.focusBlockAtPath([0], 0);
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(100);

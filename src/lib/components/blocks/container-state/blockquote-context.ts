@@ -1,10 +1,7 @@
 /**
- * Factory for BlockquoteBlock's override bundle — the Enter-on-empty-last-
- * child exit and the Rule U2 unwrap. Peer of createListContext; lives under
- * container-state/ alongside the state it reaches into.
- *
- * Returns the override map expected by `createStandardNestedActions`'s third
- * argument — callers pass it through directly.
+ * Override factory for BlockquoteBlock — Enter-on-empty-last-child exit plus
+ * the Rule U2 unwrap. Returns the override map consumed by
+ * `createStandardNestedActions`.
  */
 
 import { tick } from 'svelte';
@@ -46,7 +43,7 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 							{ blockIndex: index, offset: 0 },
 							(scopeChildren) => {
 								const change = performDelete(scopeChildren[0], innerIndex);
-								// Sync node.children before rebuild — rebuildBlockquoteRaw reads it directly.
+								// Sync before rebuild — rebuildBlockquoteRaw reads node.children directly.
 								node.children = scopeChildren[0].children;
 								rebuildBlockquoteRaw(node);
 								return [change];
@@ -65,8 +62,8 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 				return defaults.blockEdit.splitBlock(innerIndex, offset);
 			},
 
-			// Rule U2: Backspace at first child lifts it out of the blockquote.
-			// The factory default would delegate upward and merge the whole blockquote.
+			// Rule U2: Backspace at first child lifts it out. Without this override,
+			// the default would delegate upward and merge the whole blockquote.
 			mergeWithPrevious: async (innerIndex: number): Promise<void> => {
 				const { node, index, parentBlockEdit } = deps;
 				if (!node.children) return;

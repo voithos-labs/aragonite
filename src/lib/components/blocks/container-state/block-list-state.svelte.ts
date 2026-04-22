@@ -1,17 +1,12 @@
 /**
- * Reactive state bundle for a container block's inner BlockList children.
- * Used by container components (blockquote, list, listItem) and by any
- * future plugin container that holds a linear sequence of child blocks.
+ * Reactive state bundle for a container's inner BlockList children.
  *
- * Why the commit-then-publish pattern in `commitChildrenEdit`: splicing
- * directly on $state proxies (or on node.children, whose parent is a
- * proxy) during a keyed {#each} re-render interleaves reactivity with
- * the mutation and can leave innerBlockRefs out of sync with the
- * rendered components — bind:ref in a keyed each only fires on mount,
- * so shifted or re-mounted children can't rebind an already-populated
- * slot. Committing all three arrays at once gives Svelte a consistent
- * snapshot to diff against and keeps the refs array aligned with the
- * shifted components.
+ * `commitChildrenEdit` publishes children + ids + refs atomically: splicing
+ * directly on $state proxies during a keyed {#each} re-render interleaves
+ * reactivity with mutation and leaves `innerBlockRefs` out of sync (bind:ref
+ * in a keyed each fires only on mount, so shifted children can't rebind an
+ * already-populated slot). One atomic commit gives Svelte a consistent
+ * snapshot to diff against.
  */
 
 import type { CstNode } from '../../../core/nodes';
@@ -20,14 +15,10 @@ import { assignIds } from '../../../tree-operations/block-id';
 import { registerBlockListState } from './state-registry';
 
 export interface BlockListState {
-	/** Reactive IDs for keyed {#each} rendering. */
 	innerBlockIds: string[];
-	/** Reactive refs to child block components for focus management. */
 	innerBlockRefs: (BlockComponent | undefined)[];
 	/**
-	 * Apply a structural mutation on plain-array copies, then publish all
-	 * three arrays atomically. Callers mutate the copies in the callback;
-	 * the factory writes the updates back.
+	 * Mutate plain-array copies, then publish children + ids + refs atomically.
 	 */
 	commitChildrenEdit(
 		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
@@ -35,9 +26,8 @@ export interface BlockListState {
 }
 
 /**
- * Build a reactive state bundle for `node.children`. Takes a getter rather
- * than the node directly so undo/redo prop reassignments reach every closure
- * — passing by value would capture a stale snapshot.
+ * Takes a getter rather than the node directly so undo/redo prop reassignments
+ * reach every closure — by-value would capture a stale snapshot.
  */
 export function createBlockListState(getNode: () => CstNode): BlockListState {
 	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));

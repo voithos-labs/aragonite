@@ -1,6 +1,6 @@
 /**
  * Editor-wide contract surface: context keys, action interfaces,
- * cursor sentinels, and block component shape.
+ * cursor sentinels, block component shape.
  * See docs/design/editor/editor.md for the design spec.
  */
 
@@ -17,83 +17,59 @@ export type { SelectionPoint, EditorSelection, SelectionDragStart } from './sele
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
-/** Svelte context key for the editor's sticky-column state. @see StickyColumnState in `./sticky-column` for the value provided under this key. */
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
 
-// Decomposed action sub-interface context keys (cluster A).
 export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
 export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
-/** Svelte context key for the editor's cross-block SelectionState. See `selection/selection-state.svelte.ts`. */
 export const SELECTION_KEY = Symbol('selection');
 
-/** Svelte context key for a lazy getter returning the editor's root DOM element. */
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**
- * Svelte context key for an AbortSignal tied to the editor's mount lifetime.
- * Aborts when the Editor component unmounts. Document-level listeners (drag-
- * pointer, etc.) observe this to tear themselves down if the editor goes
- * away mid-operation.
+ * AbortSignal tied to the editor's mount lifetime. Document-level listeners
+ * (drag-pointer, etc.) observe this to tear themselves down if the editor
+ * unmounts mid-operation.
  */
 export const EDITOR_LIFETIME_KEY = Symbol('editor-lifetime');
 
-/**
- * Svelte context key for the UndoController. Container blocks that span
- * multiple scopes (e.g. list indent/unindent) read this to call
- * `commitMultiScope` directly.
- */
 export const CONTROLLER_KEY = Symbol('undo-controller');
 
-/**
- * Svelte context key for a `BlockElLookup` callback that resolves a block
- * path to its DOM element. Block components call this to find the focus or
- * anchor block during cross-block keyboard extension.
- */
 export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
 
-/**
- * Svelte context key for a `DocumentGetter` that returns the current
- * reactive Document. Wrapped in a getter so block components always read
- * the latest value rather than capturing a stale snapshot at mount.
- */
+/** Getter-wrapped so block components always read the latest reactive Document. */
 export const DOC_KEY = Symbol('editor-doc');
 
 // ── Cursor sentinels ───────────────────────────────────────────────────────
 
-/** Sentinel offset meaning "place cursor at end of content". focus() clamps to content length. */
+/** "Place cursor at end of content." focus() clamps to content length. */
 export const CURSOR_END = 999999;
 
 /**
- * Sentinel offset meaning "focus the last descendant at its start."
- * Used after indent: cascade through containers choosing the last child at each
- * level, but when the leaf is reached, place the cursor at offset 0.
+ * "Focus the last descendant at its start." Used after indent — cascade
+ * through containers choosing the last child at each level, then place the
+ * cursor at offset 0 on the leaf.
  */
 export const FOCUS_LAST_START = -1;
 
 // ── Helper types ───────────────────────────────────────────────────────────
 
-/** Resolves a block path to its DOM element, or null if the path is unknown. */
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 
-/** Returns the editor's current Document. */
 export type DocumentGetter = () => Document;
 
 /**
- * Origin direction for sticky-column cross-block focus moves.
- * - `'above'` — cursor is entering this block from the block above (a downward move).
- * - `'below'` — cursor is entering this block from the block below (an upward move).
+ * Direction the cursor is entering a block from for sticky-column moves.
+ * `'above'` = downward move; `'below'` = upward move.
  */
 export type StickyColumnDirection = 'above' | 'below';
 
 /**
- * Focus position for moveFocus. The sticky-column variant tells the target
- * block to position the cursor at the offset nearest to the current sticky X
- * on its first (stickyColumnFrom: 'above') or last (stickyColumnFrom: 'below')
- * visual line. Falls back to focus(0) / focus(CURSOR_END) if the target does
- * not implement focusAtColumn?.
+ * Focus position for moveFocus. The sticky-column variant aligns the cursor
+ * to the current sticky X on the target's first or last visual line, falling
+ * back to focus(0) / focus(CURSOR_END) when focusAtColumn is unimplemented.
  */
 export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
@@ -106,26 +82,19 @@ export interface BlockComponent {
 	setSelection?(start: number, end: number): void;
 	/**
 	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * on the block's first visual line (`from === 'above'`) or last visual
-	 * line (`from === 'below'`). Optional — non-participating blocks (e.g.
-	 * thematic break) omit this method, and callers fall back to
-	 * focus(0) / focus(CURSOR_END).
+	 * on the first (`'above'`) or last (`'below'`) visual line. Non-
+	 * participating blocks omit this; callers fall back to focus(0) / CURSOR_END.
 	 */
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/**
 	 * Cascade focus down a path of child indices to reach a leaf at the
-	 * given cursor offset. Implemented by container blocks (ListBlock,
-	 * ListItemBlock) whose leaves may be arbitrarily deep; optional on
-	 * leaf blocks that cannot nest further. Used by M1 to place the
-	 * cursor at the merge point in a potentially deeply-nested target.
+	 * given offset. Container blocks implement it; leaves that cannot nest
+	 * further omit it.
 	 */
 	focusByPath?(path: number[], offset: number): void;
 	/**
-	 * Report viewport-space client rects covering the character range
-	 * [startOffset, endOffset) inside this block's visible text.
-	 * Implemented by text/code leaves that can appear as an endpoint of a
-	 * cross-block selection; SelectionOverlay converts the rects into
-	 * wrapper-local coordinates when painting the partial highlight.
+	 * Viewport-space rects covering [startOffset, endOffset) in this block's
+	 * visible text, for cross-block selection painting.
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
 	readonly editable: boolean;
@@ -145,17 +114,11 @@ export interface BlockEditActions {
 		preEditOffset?: number
 	): void | Promise<void>;
 	/**
-	 * Mutate block metadata without touching raw. Used by interactive
-	 * adornments that express state as metadata rather than as raw syntax
-	 * (task checkboxes, future callout severity toggles, image alignment
-	 * flags, etc.). Not for raw-driven metadata (heading level comes from
-	 * `## ` in raw; change it via updateBlockContent).
+	 * Mutate block metadata without touching raw. For adornments that express
+	 * state as metadata rather than raw syntax (task checkboxes, etc.) — NOT
+	 * for raw-driven metadata like heading level (change via updateBlockContent).
 	 *
-	 * The metadata patch is shallow-merged into the existing metadata. The
-	 * commit primitive pushes a snapshot (unless skipSnapshot) and emits a
-	 * `metadataUpdate` edit event whose detail.fields lists the top-level
-	 * keys of the patch. Empty patch (no keys) is a no-op — no snapshot, no
-	 * event.
+	 * Patch is shallow-merged. Empty patch is a no-op.
 	 */
 	updateBlockMetadata(
 		blockIndex: number,
@@ -163,15 +126,12 @@ export interface BlockEditActions {
 		options?: { skipSnapshot?: boolean }
 	): void | Promise<void>;
 	/**
-	 * Insert parsed blocks at a split point, replacing the current block with
-	 * spliced content. `preDelete`, when set, folds a pre-paste selection
-	 * deletion into the same undo entry as the block-splice — callers that
-	 * have a non-collapsed selection at paste time pass it so Ctrl+Z undoes
-	 * the entire paste in one step.
+	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste
+	 * selection deletion into the same undo entry as the splice so Ctrl+Z
+	 * undoes the whole paste in one step.
 	 *
-	 * `options.skipSnapshot` lets the cross-block paste path coalesce the
-	 * range-delete snapshot with the splice into a single undo entry. The
-	 * caller is responsible for having pushed exactly one snapshot already.
+	 * `skipSnapshot`: cross-block paste path coalesces the range-delete and
+	 * splice snapshots. Caller must have pushed exactly one snapshot already.
 	 */
 	insertParsedBlocks(
 		blockIndex: number,
@@ -182,16 +142,10 @@ export interface BlockEditActions {
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
-	 * Handles undo snapshot, ID generation, blockRefs splice, and post-tick
-	 * focus. If `focus` is given, focuses the replacement block at that
-	 * index (relative to the replacement array, not doc.children) with the
-	 * given offset after tick.
+	 * `replacement.length === 0` is equivalent to deleteBlock.
 	 *
-	 * If `replacement.length === 0`, this is equivalent to deleteBlock(blockIndex).
-	 *
-	 * `options.skipSnapshot` lets callers coalesce with a pre-pushed snapshot
-	 * (e.g. the cross-block delete-then-paste path). When set, the implementation
-	 * must not push its own undo entry.
+	 * `skipSnapshot`: when set, implementation must not push its own undo
+	 * entry — the caller has already pushed one for the coalesced operation.
 	 */
 	replaceBlock(
 		blockIndex: number,
@@ -212,24 +166,20 @@ export interface HistoryActions {
 
 export interface ContainerEditActions {
 	/**
-	 * Push a document-level undo snapshot before a structural mutation.
-	 * @deprecated Use `commitMultiScope` on the UndoController instead (0.5.5.3).
-	 * Retained for `paste-dispatch.ts` until its own migration lands.
+	 * @deprecated Use `commitMultiScope` on the UndoController instead.
+	 * Retained for `paste-dispatch.ts` until its migration lands.
 	 */
 	beginContainerEdit(blockIndex: number, offset: number): void;
-	/** Push a debounced undo snapshot. Called by container blocks for text input. */
+	/** Debounced undo snapshot for text input. */
 	beginContainerEditDebounced(blockIndex: number, offset: number): void;
 	/**
-	 * Trigger top-level Svelte reactivity after a container mutation.
-	 * @deprecated Use `commitMultiScope` on the UndoController instead (0.5.5.3).
-	 * Retained for `paste-dispatch.ts` until its own migration lands.
+	 * @deprecated Use `commitMultiScope` on the UndoController instead.
+	 * Retained for `paste-dispatch.ts` until its migration lands.
 	 */
 	endContainerEdit(): void;
 	/**
-	 * Preferred entry for structural container mutations (0.5.4+). Routes
-	 * through the unified commit primitive: single snapshot + reactivity
-	 * publish + edit event emission + post-tick callback. Replaces the
-	 * `begin → commit → rebuildRaw → end → trigger` sequence.
+	 * Preferred entry for structural container mutations. Routes through the
+	 * unified commit primitive: snapshot + publish + edit event + post-tick.
 	 */
 	commitContainer(
 		containerNode: CstNode,
@@ -256,30 +206,17 @@ export interface ListContext {
 	indentItem(itemIndex: number): Promise<void>;
 	unindentItem(itemIndex: number): Promise<void>;
 	/**
-	 * Split the item at `itemIndex` mid-content: first half stays in the
-	 * existing item, second half moves into a new sibling item inserted
-	 * immediately after. Emits exactly one undo snapshot and one edit event
-	 * (outer list insert + item content replace collapse into one commitMultiScope).
+	 * Split the item mid-content: first half stays, second half moves into a
+	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
 	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
-	/**
-	 * Promote a nested list item to the parent list level.
-	 * Called by a nested ListBlock on the PARENT list's context.
-	 * @param parentItemIndex Index of the parent list item containing the nested list
-	 * @param nestedListNode The nested list CstNode (for direct manipulation)
-	 * @param nestedItemIndex Index of the item within the nested list to promote
-	 */
+	/** Promote a nested list item to the parent list level. Called on the PARENT list's context. */
 	promoteNestedItem(
 		parentItemIndex: number,
 		nestedListNode: CstNode,
 		nestedItemIndex: number
 	): Promise<void>;
-	/**
-	 * For a nested list inside a list item, returns the item's index in its
-	 * containing list. Used by nested lists to call promoteNestedItem with
-	 * the correct parent-item coordinate. Provided by the immediately
-	 * enclosing ListItemBlock wrapping its parent list's context.
-	 */
+	/** Returns this list's index in its enclosing list (for nested-list promotion). */
 	getContainingItemIndex(): number;
 }
 
@@ -288,12 +225,7 @@ export interface ListContext {
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
-	/**
-	 * The effective selection at the moment of push. Collapsed selection
-	 * (anchor === focus) represents a single caret; same-path with different
-	 * offsets is a single-block range; different paths is a cross-block
-	 * range. See docs/design/editor/editor.md — Undo/Redo section.
-	 */
+	/** Effective selection at push. See docs/design/editor/editor.md — Undo/Redo. */
 	selection: EditorSelection;
 }
 
@@ -302,7 +234,7 @@ export interface UndoManager {
 	undo(currentState: UndoEntry): UndoEntry | null;
 	redo(currentState: UndoEntry): UndoEntry | null;
 	clear(): void;
-	/** Returns snapshots of both stacks for inspection (e.g. the debug panel). */
+	/** Snapshots of both stacks for inspection. */
 	getStacks(): { undo: UndoEntry[]; redo: UndoEntry[] };
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;

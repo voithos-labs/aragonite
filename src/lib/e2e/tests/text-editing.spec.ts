@@ -31,7 +31,6 @@ test.describe('text editing — happy paths', () => {
 	test('Enter in middle splits content across two blocks', async () => {
 		await editor.loadContent('HelloWorld\n');
 		await editor.focusBlockStart(0);
-		// Move cursor 5 characters right to sit between Hello and World
 		for (let i = 0; i < 5; i++) await editor.pressKey('ArrowRight');
 		await editor.pressEnter();
 
@@ -80,7 +79,6 @@ test.describe('text editing — edge cases', () => {
 
 		const source = await editor.getSource();
 		expect(source).toContain('Content');
-		// The second block should have the content
 		const secondText = await editor.getBlockText(1);
 		expect(secondText).toContain('Content');
 	});
@@ -103,7 +101,6 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockStart(1);
 		await editor.pressBackspace();
 
-		// Both headings should still exist — heading+heading is not mergeable
 		const countAfter = await editor.getBlockCount();
 		expect(countAfter).toBe(countBefore);
 	});
@@ -122,7 +119,6 @@ test.describe('text editing — edge cases', () => {
 		await editor.loadContent('Before\n\n---\n\nAfter\n');
 		const countBefore = await editor.getBlockCount();
 
-		// Focus the block after the thematic break and press Backspace
 		await editor.focusBlockStart(2);
 		await editor.pressBackspace();
 
@@ -137,8 +133,6 @@ test.describe('text editing — edge cases', () => {
 		await editor.loadContent('# Title\n');
 		expect(await editor.getBlockKind(0)).toBe('heading');
 
-		// The contenteditable includes the "# " marker as a dimmed span.
-		// Select the first 2 characters ("# ") and delete them.
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Shift+ArrowRight');
@@ -151,7 +145,6 @@ test.describe('text editing — edge cases', () => {
 	test('split heading at middle — first stays heading, second becomes paragraph', async () => {
 		await editor.loadContent('# HelloWorld\n');
 		await editor.focusBlockStart(0);
-		// Move past "# Hello" (2 marker chars + 5 content chars = 7)
 		for (let i = 0; i < 7; i++) await editor.pressKey('ArrowRight');
 		await editor.pressEnter();
 
@@ -167,7 +160,7 @@ test.describe('text editing — edge cases', () => {
 		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 		expect(await editor.getBlockKind(0)).toBe('heading');
-		// Empty block may be absorbed as trivia by the parser — verify via DOM instead
+		// Empty block may be absorbed as trivia by the parser — verify via DOM.
 		const secondBlock = editor.getBlock(1);
 		await expect(secondBlock).toBeVisible();
 	});
@@ -216,7 +209,6 @@ test.describe('forward delete', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		// Two headings can't merge — focus moves to start of next
 		expect(await editor.getBlockCount()).toBe(2);
 	});
 });
@@ -244,7 +236,6 @@ test.describe('text editing — user interactions', () => {
 		await editor.focusBlockEnd(0);
 		await editor.pressEnter();
 
-		// New block is now focused (index 1); type into it
 		await editor.typeSlowly('New content');
 
 		const source = await editor.getSource();
@@ -266,7 +257,6 @@ test.describe('text editing — user interactions', () => {
 		await editor.loadContent('First\n\nSecond\n');
 		const countBefore = await editor.getDomBlockCount();
 
-		// Focus end of second block, backspace should delete 'd', not merge
 		await editor.focusBlockEnd(1);
 		await editor.pressBackspace();
 

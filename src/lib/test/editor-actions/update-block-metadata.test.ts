@@ -80,16 +80,13 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		// One snapshot in undo stack capturing pre-mutation state
 		const stacks = deps.undoManager.getStacks();
 		expect(stacks.undo).toHaveLength(1);
 		expect(stacks.undo[0].snapshot.children[0].metadata).toEqual({ taskChecked: false });
 
-		// Undo restores taskChecked: false
 		await history.requestUndo();
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: false });
 
-		// Redo re-applies taskChecked: true
 		await history.requestRedo();
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 	});
@@ -103,7 +100,6 @@ describe('updateBlockMetadata', () => {
 		await actions.updateBlockMetadata(0, { taskChecked: true }, { skipSnapshot: true });
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
-		// Mutation still applied
 		expect(node.metadata).toEqual({ taskChecked: true });
 	});
 
@@ -124,8 +120,7 @@ describe('updateBlockMetadata', () => {
 	});
 
 	it('shallow-merge preserves untouched fields', async () => {
-		// Multi-field starting metadata: patching one key must not clobber others.
-		// A regression to `node.metadata = metadata` (no spread) would fail this.
+		// Regression guard: a switch to `node.metadata = metadata` (no spread) would fail this.
 		const node = makeNode('list-item', '- [ ] task\n', {
 			marker: '- ',
 			taskItem: true,
@@ -179,8 +174,6 @@ function makeContainerSetup(containerIndex: number) {
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
 
-	// Minimal parent bundle wired to real container-edit actions so
-	// commitContainer actually executes the mutation callback.
 	const parentBlockEdit: BlockEditActions = {
 		splitBlock: vi.fn(),
 		mergeWithPrevious: vi.fn(),
@@ -219,10 +212,8 @@ describe('updateBlockMetadata — container scope', () => {
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 
-		// Mutation applied in place
 		expect(innerNode.metadata).toMatchObject({ taskChecked: true });
 
-		// One edit event with the correct path [containerIndex, innerIndex]
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
 		expect(evt.op).toBe('metadataUpdate');
@@ -242,8 +233,6 @@ describe('updateBlockMetadata — container scope', () => {
 		const containerIndex = 1;
 		const { bundle, deps, events } = makeContainerSetup(containerIndex);
 
-		// Spy on containerEditActions.commitContainer via the edit event — no
-		// event should fire for an empty patch.
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 

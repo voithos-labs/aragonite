@@ -4,7 +4,6 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { generateBlockId } from '../../tree-operations/block-id';
 
-/** Apply a replace descriptor to an ids array (mirrors the commit primitive logic). */
 function applyReplace(
 	ids: string[],
 	at: number,

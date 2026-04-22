@@ -27,23 +27,17 @@ test.describe('code block editing — happy paths', () => {
 		await editor.pressEnter();
 		await editor.typeText('line two');
 		await editor.page.waitForTimeout(200);
-		// Block must not split
 		expect(await editor.getBlockCount()).toBe(1);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
-		// Enter must have actually produced a newline — 'line two' lands on its own line.
 		const source = await editor.getSource();
 		expect(source).toContain('line one\nline two');
 	});
 
 	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
-		// Regression for a bug where plain Enter fell through to the browser's
-		// default `insertParagraph` handler, which produced <div>/<br> that added
-		// zero characters to textContent — making Enter appear to do nothing.
+		// Regression: default browser `insertParagraph` produced <div>/<br> with zero textContent change.
 		await editor.loadContent('```\nabc\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// textContent = "```\nabc\n```": positions 0-2 ```, 3 \n, 4 a, 5 b, 6 c, 7 \n, 8-10 ```
-		// Walk to position 5 (between 'a' and 'b')
 		for (let i = 0; i < 5; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -59,7 +53,6 @@ test.describe('code block editing — happy paths', () => {
 		await editor.loadContent('```\nfoo\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Walk to position 7 (end of "foo" line, just before its terminating \n)
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -70,45 +63,32 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('Enter twice from end of body line exits via blank-line path', async ({ page }) => {
-		// The canonical "press Enter twice to exit a code block" UX for closed fences:
-		// first Enter creates a trailing blank line, second Enter on that blank line
-		// strips the line and exits to the next block.
 		await editor.loadContent('```\nsome code\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Walk to end of "some code" body line (position 13: after 'e' of "some code")
 		for (let i = 0; i < 13; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Body now has a trailing blank line
 		let source = await editor.getSource();
 		expect(source).toContain('some code\n\n```');
-		// Second Enter exits — strips the blank line, moves focus below
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('after code');
 		await editor.page.waitForTimeout(200);
 		source = await editor.getSource();
-		// Exit path stripped the trailing blank line — body is just "some code" again
 		expect(source).toContain('```\nsome code\n```');
 		expect(source).not.toContain('some code\n\n```');
-		// Typed text lands outside the code block
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
 
 	test('Enter at end of a closed fence places the caret on the new line (typed text follows)', async ({
 		page
 	}) => {
-		// Caret-position regression for B3 (CST-first Enter). Pressing Enter at
-		// the end of the last body line puts the caret on the freshly-inserted
-		// blank line; subsequent typing must land on that line, not on the
-		// previous line or somewhere outside the body.
 		await editor.loadContent('```\nfoo\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Walk to position 7 — end of "foo" body line, before its terminating \n.
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -122,11 +102,7 @@ test.describe('code block editing — happy paths', () => {
 	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async ({
 		page
 	}) => {
-		// B3 regression — the original Chromium quirk: in an unclosed fence
-		// the cursor at the end of the rebuilt DOM (just past a trailing \n)
-		// would route the next typed character BEFORE the \n. The CST-first
-		// fix plus the trailing-newline caret anchor must keep the caret on
-		// the new body line.
+		// Regression: Chromium routed the next typed character BEFORE the trailing \n in unclosed fences.
 		await editor.loadContent('```js\nconst x = 1\n');
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
 		await editor.getBlock(0).click();
@@ -140,15 +116,9 @@ test.describe('code block editing — happy paths', () => {
 	});
 
 	test('Enter mid-line in a multi-line code block splits at the cursor', async ({ page }) => {
-		// Regression: Enter in the middle of a body line must split the line
-		// at the cursor, with the caret landing at the start of the new line.
-		// Typing immediately after Enter must extend that new line, not bleed
-		// into the surrounding content.
 		await editor.loadContent('```\naaaaa\nbbbbb\nccccc\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Walk to position 7 — between 'a' and 'a' of "bb|bbb": opener (4) + "bb" (2) = 6
-		// Actually: "```\n" (4) + "aaaaa\n" (6) + "bb" (2) = 12.
 		for (let i = 0; i < 12; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -157,7 +127,6 @@ test.describe('code block editing — happy paths', () => {
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(150);
 		const source = await editor.getSource();
-		// Split at "bb|bbb" → "bb" then new line starting with "X" then "bbb"
 		expect(source).toBe('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
 	});
 
@@ -187,18 +156,15 @@ test.describe('code block editing — edge cases', () => {
 		await editor.loadContent('```\nsome code\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('Control+End');
-		// First Enter adds trailing newline; second Enter exits code block
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
-		// Type to prove focus exited the code block
 		await editor.typeText('after code');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('after code');
 		expect(source).toContain('some code');
-		// "after code" must appear after the closing fence
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
 
@@ -437,11 +403,8 @@ test.describe('code block paste — fence bumping', () => {
 		await page.waitForTimeout(100);
 
 		const source = await editor.getSource();
-		// Outer fence bumped to at least 4 backticks
 		expect(source).toMatch(/^````/m);
-		// Pasted ``` stays as literal body content
 		expect(source).toContain('```pasted code```');
-		// Still a single fenced code block
 		expect(await editor.getBlockCount()).toBe(1);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
 	});
@@ -449,7 +412,6 @@ test.describe('code block paste — fence bumping', () => {
 	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
 		await editor.loadContent('```\ncontent\n```\n');
 		await editor.getBlock(0).click();
-		// Place cursor at end of "content" line (offset 11 = after "```\ncontent")
 		await editor.focusBlock(0, 11);
 
 		await page.evaluate(
@@ -459,10 +421,8 @@ test.describe('code block paste — fence bumping', () => {
 		await editor.pressKey('Control+v');
 		await page.waitForTimeout(100);
 
-		// Still one block, still a code block
 		expect(await editor.getBlockCount()).toBe(1);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
-		// Heading / list / paragraph become literal content
 		const source = await editor.getSource();
 		expect(source).toContain('# Heading');
 		expect(source).toContain('- list item');
@@ -481,9 +441,7 @@ test.describe('code block tab / indent', () => {
 	test('Tab with no selection inserts a literal tab', async ({ page }) => {
 		await editor.loadContent('```\nhello\n```\n');
 		await editor.getBlock(0).click();
-		// Position cursor inside "hel|lo"
 		await editor.focusBlockStart(0);
-		// Walk past opener (```\n = 4 chars) then 3 chars into "hel"
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -497,10 +455,6 @@ test.describe('code block tab / indent', () => {
 		await editor.loadContent('```\nline1\nline2\nline3\n```\n');
 		await editor.getBlock(0).click();
 
-		// textContent: "```\nline1\nline2\nline3\n```"
-		// Offsets: ``` (0-2), \n (3), line1 (4-8), \n (9), line2 (10-14), \n (15), line3 (16-20), \n (21), ``` (22-24)
-		// Position caret at offset 4 (start of "line1"), then extend selection 11
-		// chars forward to offset 15 (end of "line2", before its trailing \n).
 		await editor.focusBlock(0, 4);
 		for (let i = 0; i < 11; i++) {
 			await editor.pressKey('Shift+ArrowRight');
@@ -512,14 +466,12 @@ test.describe('code block tab / indent', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('\tline1');
 		expect(source).toContain('\tline2');
-		// line3 was NOT in selection — should not be indented
 		expect(source).toMatch(/^line3$/m);
 	});
 
 	test('Shift+Tab removes leading tab from current line', async ({ page }) => {
 		await editor.loadContent('```\n\tindented\n```\n');
 		await editor.getBlock(0).click();
-		// Position cursor inside "indented" (opener = 4 chars, then \t = 1, then 'i' = 1)
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) {
 			await page.keyboard.press('ArrowRight');
@@ -535,7 +487,6 @@ test.describe('code block tab / indent', () => {
 		await editor.loadContent('```\n    spaced\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Opener 4 + 4 spaces + 1 ('s')
 		for (let i = 0; i < 9; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
@@ -564,10 +515,6 @@ test.describe('code block tab / indent', () => {
 		await editor.loadContent('```\n\tline1\n\tline2\nline3\n```\n');
 		await editor.getBlock(0).click();
 
-		// textContent: "```\n\tline1\n\tline2\nline3\n```"
-		// Offsets: ``` (0-2), \n (3), \t (4), line1 (5-9), \n (10), \t (11), line2 (12-16), \n (17), line3 (18-22), \n (23), ``` (24-26)
-		// Position caret at offset 4 (the \t of line1), then extend 18 chars forward
-		// to offset 22 (end of line3).
 		await editor.focusBlock(0, 4);
 		for (let i = 0; i < 18; i++) {
 			await editor.pressKey('Shift+ArrowRight');
@@ -577,12 +524,10 @@ test.describe('code block tab / indent', () => {
 		await page.waitForTimeout(100);
 
 		const source = await editor.getSource();
-		// line1 and line2 dedented
 		expect(source).toContain('line1');
 		expect(source).toContain('line2');
 		expect(source).not.toContain('\tline1');
 		expect(source).not.toContain('\tline2');
-		// line3 had no leading whitespace — unchanged
 		expect(source).toContain('line3');
 	});
 });

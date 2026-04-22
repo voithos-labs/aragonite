@@ -1,12 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-/**
- * Exploration of the issues.md "multi-line list paste over multi-line
- * list selection → deletion only" bug. The issue describes selection
- * entry via "Shift+Arrow or drag" — this file probes both shift-click
- * and Shift+Arrow entry to see which (if any) still reproduces.
- */
 test.describe('clipboard: silent drop — multi-item list paste over multi-item list selection', () => {
 	let editor: EditorPage;
 

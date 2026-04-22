@@ -10,8 +10,6 @@ test.describe('editor smoke tests', () => {
 		await editor.goto();
 	});
 
-	// ── Happy paths ─────────────────────────────────────────────────────
-
 	test('editor container is visible after goto', async () => {
 		await expect(editor.editorContainer).toBeVisible();
 	});
@@ -33,13 +31,9 @@ test.describe('editor smoke tests', () => {
 	test('loadContent with multiple blocks yields correct block count', async () => {
 		await editor.loadContent(DEFAULT_CONTENT);
 
-		// DEFAULT_CONTENT has: h1, h2, h3, paragraph, paragraph, hr,
-		// blockquote, unordered list, ordered list, fenced code, paragraph
 		const count = await editor.getBlockCount();
 		expect(count).toBeGreaterThanOrEqual(10);
 	});
-
-	// ── Edge cases ──────────────────────────────────────────────────────
 
 	test('empty document produces at least 1 editable block', async () => {
 		await editor.loadContent('');

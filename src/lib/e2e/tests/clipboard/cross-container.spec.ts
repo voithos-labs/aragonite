@@ -11,40 +11,36 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 
 	test('cut with anchor inside blockquote and focus outside', async () => {
 		await editor.loadContent('> quoted line\n\noutside\n');
-		// Focus inside the blockquote at end of its content
-		await editor.focusBlockAtPath([0, 0], 11); // end of "quoted line"
+		await editor.focusBlockAtPath([0, 0], 11);
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
 		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
-		// "start wins": the blockquote context should survive
+		// "start wins": the blockquote context should survive.
 		expect(source).toContain('>');
 	});
 
 	test('cut with anchor outside and focus inside blockquote', async () => {
 		await editor.loadContent('before\n\n> quoted\n');
 		await editor.focusBlockEnd(0);
-		// Extend down into blockquote
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+x');
 		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
-		// "start wins": the paragraph context should survive
+		// "start wins": the paragraph context should survive.
 		expect(source).toContain('before');
 	});
 
 	test('backspace across container boundary merges into start context', async () => {
 		await editor.loadContent('top\n\n> inside quote\n');
 		await editor.focusBlockEnd(0);
-		// Extend selection into the blockquote
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
-		// The merged block should live at the start's context (top-level paragraph)
 		expect(source).toContain('top');
 	});
 
@@ -69,7 +65,6 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
-		// Document should be unchanged after copy
 		expect(await editor.getSource()).toContain('para');
 		expect(await editor.getSource()).toContain('> quote');
 		expect(await editor.isCrossBlockActive()).toBe(true);
@@ -77,16 +72,13 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 
 	test('copy from inside blockquote to paragraph then paste reproduces text', async () => {
 		await editor.loadContent('> quoted text\n\noutside\n\ndestination\n');
-		// Focus inside blockquote at path [0, 0]
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		// Copy
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(100);
 
-		// Collapse and paste into "destination"
 		await editor.pressKey('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
@@ -94,7 +86,6 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.waitForTimeout(300);
 
 		const source = await editor.getSource();
-		// "quoted text" and "outside" should each appear at least twice
 		const quotedCount = source.split('quoted text').length - 1;
 		const outsideCount = source.split('outside').length - 1;
 		expect(quotedCount).toBeGreaterThanOrEqual(2);
@@ -115,7 +106,6 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		const afterCut = await editor.getSource();
 		expect(afterCut.length).toBeLessThan(before.length);
 
-		// Undo restores the original doc including the blockquote structure
 		await editor.undo();
 		await editor.page.waitForTimeout(300);
 		expect(await editor.getSource()).toBe(before);

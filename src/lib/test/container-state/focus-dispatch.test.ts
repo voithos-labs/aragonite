@@ -103,11 +103,8 @@ describe('dispatchMoveFocus', () => {
 		expect(parentFocus.moveFocus).not.toHaveBeenCalled();
 	});
 
-	// Regression for a realistic scenario: a list with a non-focusable
-	// block at the requested index, targeted with a focusable next sibling.
-	// The dispatcher currently no-ops on the non-focusable ref rather than
-	// advancing — pinning that contract so any future "skip non-focusable
-	// and advance" change has to explicitly update this test.
+	// Pins the contract: dispatcher no-ops on a non-focusable target.
+	// Traversal through non-focusable blocks is the caller's responsibility.
 	it('non-focusable at target + focusable sibling: current dispatcher no-ops on the target', async () => {
 		const nonFocusable = fakeBlock({ focusable: false });
 		const focusable = fakeBlock({ focusable: true });
@@ -116,8 +113,6 @@ describe('dispatchMoveFocus', () => {
 			focus: parentFocus,
 			index: 0
 		});
-		// Current contract: dispatcher does nothing on a non-focusable target.
-		// Traversal through non-focusable blocks is the caller's responsibility.
 		expect(nonFocusable.focus).not.toHaveBeenCalled();
 		expect(focusable.focus).not.toHaveBeenCalled();
 		expect(parentFocus.moveFocus).not.toHaveBeenCalled();

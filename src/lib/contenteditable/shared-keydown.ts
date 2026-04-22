@@ -1,13 +1,8 @@
 /**
- * Shared keydown logic for contenteditable blocks.
- *
- * Both TextEditableBlock and CodeBlock route every keystroke through the
- * same prelude — Ctrl+A counter reset, cross-block dispatch, sticky-column
- * capture/reset, undo/redo, and arrow boundary navigation. This module
- * owns that prelude so the two blocks cannot drift.
- *
- * The block-specific tail (Enter, Backspace, Tab, formatting shortcuts)
- * stays in each component because the behaviors genuinely differ.
+ * Shared keydown prelude for contenteditable blocks — Ctrl+A counter,
+ * cross-block dispatch, sticky-column capture/reset, undo/redo, and arrow
+ * boundary navigation. Block-specific handlers (Enter, Backspace, Tab,
+ * formatting shortcuts) stay in each component.
  */
 
 import type { BlockElLookup, DocumentGetter, FocusActions, HistoryActions } from '../contracts';
@@ -41,17 +36,15 @@ export interface SharedKeydownContext {
 }
 
 /**
- * Handle keystrokes shared by every contenteditable block. Returns true if
- * the event was fully handled — the caller must return immediately and skip
- * its block-specific branches.
+ * Returns true if the event was fully handled — caller must return
+ * immediately and skip its block-specific branches.
  */
 export async function handleSharedKeydown(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
-	// Reset Ctrl+A doubling counter on any non-Ctrl+A keystroke. Bare
-	// modifier keys (Control, Shift, Alt, Meta) don't reset — pressing
-	// Control before 'a' is part of the Ctrl+A chord, not a separate action.
+	// Bare modifier keys don't reset the Ctrl+A doubling counter — pressing
+	// Control before 'a' is part of the chord, not a separate action.
 	const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
 	const isBareModifier =
 		e.key === 'Control' ||
@@ -70,9 +63,6 @@ export async function handleSharedKeydown(
 	if (!el) return false;
 
 	// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
-	// Horizontal arrows, Home, End, Escape, and typable characters fall into
-	// the else branch and reset sticky. PRESERVE_KEYS_NON_ARROW lists every
-	// key that intentionally leaves sticky state untouched.
 	if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
 		const x = getCurrentCursorEditorRelativeX(el);
 		if (x !== null) ctx.stickyColumn.capture(x);
@@ -80,8 +70,7 @@ export async function handleSharedKeydown(
 		ctx.stickyColumn.reset();
 	}
 
-	// Ctrl+Z / Ctrl+Y — caught here because Ctrl+Y doesn't fire beforeinput
-	// historyRedo in Chromium/WebView2.
+	// Ctrl+Y doesn't fire beforeinput historyRedo in Chromium/WebView2, so catch here.
 	if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
 		e.preventDefault();
 		ctx.history.requestUndo();
@@ -94,26 +83,19 @@ export async function handleSharedKeydown(
 	}
 
 	// ── Arrow boundary navigation ─────────────────────────────────────────
-	// Each branch crosses the block boundary when the cursor is already at
-	// the relevant edge. Shift variants extend the cross-block selection;
-	// unshifted variants move single-block focus.
 	const index = ctx.getIndex();
 	const myPath = ctx.getMyPath();
 
-	// For Shift+Arrow boundary checks, use the selection's FOCUS offset
-	// rather than the range start (anchor). When the user has extended a
-	// selection forward — e.g., clicked at offset 5 then Shift+clicked at
-	// the block's end — the anchor stays at 5 while the focus sits at
-	// the boundary. Reading the anchor would leave the boundary check
-	// mid-block and silently fail to enter cross-block mode.
+	// Read the focus offset (not the anchor) for Shift+Arrow: when the user
+	// has extended forward, the anchor stays mid-block while the focus sits
+	// at the boundary. Reading the anchor would fail to enter cross-block mode.
 	const shiftOffset = e.shiftKey ? getSelectionFocusOffset(el) : null;
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		if (isAtFirstVisualLine(el, offset)) {
-			// Shift+ArrowUp: native first extends to start of block content.
-			// Only cross the boundary when the focus is already at offset 0,
-			// so native extension has nowhere left to go.
+			// Cross the boundary only when focus is already at 0, so native
+			// Shift+ArrowUp extension has nowhere left to go within the block.
 			if (e.shiftKey && offset === 0) {
 				e.preventDefault();
 				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
@@ -132,9 +114,8 @@ export async function handleSharedKeydown(
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		const textLen = (el.textContent ?? '').length;
 		if (isAtLastVisualLine(el, offset, textLen)) {
-			// Shift+ArrowDown: native first extends to end of block content.
-			// Only cross the boundary when the focus is already at the end,
-			// so native extension has nowhere left to go.
+			// Cross the boundary only when focus is already at textLen, so
+			// native Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset === textLen) {
 				e.preventDefault();
 				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath);
@@ -186,12 +167,9 @@ export async function handleSharedKeydown(
 // ── Shared beforeinput prelude ─────────────────────────────────────────────
 
 /**
- * Before-input handling shared by every contenteditable block:
- * `historyUndo` / `historyRedo` are intercepted and routed through the undo
- * controller, `insertLineBreak` is preventDefault'd (blocks own their own
- * Shift+Enter semantics), and cross-block selection paste/type-replace is
- * delegated to the cross-block dispatcher. Returns true when the caller
- * should return early from its own `onBeforeInput`.
+ * Routes historyUndo/historyRedo through the undo controller and delegates
+ * cross-block paste/type-replace. Returns true when the caller should return
+ * early from its own `onBeforeInput`.
  */
 export async function handleSharedBeforeInput(
 	e: InputEvent,

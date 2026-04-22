@@ -15,7 +15,6 @@ function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	};
 }
 
-// Dummy "current state" for undo/redo calls
 const CURRENT = makeEntry('current\n');
 
 describe('UndoManager', () => {
@@ -51,10 +50,8 @@ describe('UndoManager', () => {
 	it('redo restores the current state that was passed to undo', () => {
 		const manager = createUndoManager();
 		manager.push(makeEntry('Before\n'));
-		// Undo, passing current state "After\n"
 		manager.undo(makeEntry('After\n'));
 		expect(manager.canRedo).toBe(true);
-		// Redo should give back "After\n" (the state we were at when we undid)
 		const redone = manager.redo(makeEntry('Before\n'));
 		expect(serialize(redone!.snapshot)).toBe('After\n');
 	});
@@ -90,18 +87,13 @@ describe('UndoManager', () => {
 	});
 
 	it('evicts the oldest entry once the stack exceeds MAX_UNDO (FIFO)', () => {
-		// MAX_UNDO = 200 inside undo-manager.ts. Pushing one past the cap
-		// should drop the OLDEST entry, not the newest — oldest-out FIFO so
-		// the most recent edits are always recoverable. A bug that flipped
-		// the eviction direction (shift vs pop) would keep the user's most
-		// recent edit unreachable.
+		// Regression guard: an eviction direction flip (pop vs shift) would make
+		// the user's most recent edit unreachable.
 		const manager = createUndoManager();
 		const CAP = 200;
 		for (let i = 0; i < CAP + 1; i++) {
 			manager.push(makeEntry(`entry${i}\n`));
 		}
-		// Undo CAP times — the first entry ("entry0") should already be gone.
-		// The most-recent kept entry is "entry200" (the one we pushed last).
 		const mostRecent = manager.undo(CURRENT);
 		expect(serialize(mostRecent!.snapshot)).toBe(`entry${CAP}\n`);
 
@@ -113,27 +105,21 @@ describe('UndoManager', () => {
 			last = next;
 			current = next!;
 		}
-		// The deepest surviving entry is "entry1" (entry0 was evicted).
 		expect(serialize(last!.snapshot)).toBe('entry1\n');
-		// Stack exhausted.
 		expect(manager.undo(current)).toBeNull();
 	});
 
 	it('full undo-redo-undo cycle', () => {
-		const manager = createUndoManager();
 		// State progression: empty → "A" → "AB"
-		manager.push(makeEntry('\n')); // checkpoint: empty
-		manager.push(makeEntry('A\n')); // checkpoint: "A"
-		// Current state is "AB". Undo should restore "A".
+		const manager = createUndoManager();
+		manager.push(makeEntry('\n'));
+		manager.push(makeEntry('A\n'));
 		const undone1 = manager.undo(makeEntry('AB\n'));
 		expect(serialize(undone1!.snapshot)).toBe('A\n');
-		// Redo should restore "AB"
 		const redone = manager.redo(makeEntry('A\n'));
 		expect(serialize(redone!.snapshot)).toBe('AB\n');
-		// Undo again should restore "A"
 		const undone2 = manager.undo(makeEntry('AB\n'));
 		expect(serialize(undone2!.snapshot)).toBe('A\n');
-		// Undo again should restore empty
 		const undone3 = manager.undo(makeEntry('A\n'));
 		expect(serialize(undone3!.snapshot)).toBe('\n');
 	});

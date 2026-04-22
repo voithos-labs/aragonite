@@ -1,8 +1,3 @@
-/**
- * Complex document round-trips and edge case tests.
- * These test interactions between block types and boundary conditions.
- */
-
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';
@@ -180,34 +175,28 @@ See [full docs](https://example.com) for details.
 
 describe('round-trip: edge cases', () => {
 	const cases: { name: string; source: string }[] = [
-		// Heading edge cases
 		{ name: 'heading with closing hashes', source: '## Title ##\n' },
 		{ name: 'heading with trailing spaces', source: '# Title   \n' },
 		{ name: 'empty heading', source: '#\n' },
 		{ name: 'empty heading with space', source: '# \n' },
 		{ name: '7 hashes is not a heading', source: '####### Not a heading\n' },
 
-		// Fenced code edge cases
 		{ name: 'fence with trailing space on opener', source: '```  \ncode\n```\n' },
 		{ name: 'fence with empty content', source: '```\n```\n' },
 		{ name: 'tilde fence close must match character', source: '```\ncode\n~~~\nmore code\n```\n' },
 
-		// Blockquote edge cases
 		{ name: 'blockquote no space after >', source: '>text\n' },
 		{ name: 'blockquote containing a list', source: '> - A\n> - B\n' },
 		{ name: 'blockquote containing thematic break', source: '> ---\n' },
 
-		// List edge cases
 		{ name: 'list item with empty content', source: '- \n' },
 		{ name: 'mixed list types are separate lists', source: '- A\n\n1. B\n' },
 		{ name: 'list item with special chars', source: '- Item with `code` and *emphasis*\n' },
 
-		// Whitespace edge cases
 		{ name: 'single newline only', source: '\n' },
 		{ name: 'single character no newline', source: 'x' },
 		{ name: 'spaces only line', source: '   \n' },
 
-		// Block boundary edge cases
 		{ name: 'blockquote then list no gap', source: '> Quote\n- List\n' },
 		{ name: 'list then blockquote no gap', source: '- Item\n> Quote\n' },
 		{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' }
@@ -224,7 +213,6 @@ describe('round-trip: edge cases', () => {
 // ── V2 Edge Case Tests ──────────────────────────────────────────────────────
 
 describe('v2 edge cases', () => {
-	// Setext vs thematic break disambiguation
 	it('--- after blank line is thematic break, not setext', () => {
 		const doc = parse('Paragraph.\n\n---\n');
 		expect(doc.children.length).toBe(2);
@@ -242,14 +230,12 @@ describe('v2 edge cases', () => {
 		expect(doc.children[0].kind).toBe('paragraph');
 	});
 
-	// Setext in containers
 	it('round-trips setext inside blockquote', () => {
 		const source = '> Title\n> ---\n';
 		const doc = parse(source);
 		expect(serialize(doc)).toBe(source);
 	});
 
-	// Indented code at document start
 	it('round-trips indented code at document start', () => {
 		const source = '    code at start\n';
 		const doc = parse(source);
@@ -257,14 +243,12 @@ describe('v2 edge cases', () => {
 		expect(doc.children[0].kind).toBe('indentedCode');
 	});
 
-	// HTML block boundaries
 	it('round-trips HTML block after heading with no blank line', () => {
 		const source = '# Title\n<div>\nContent\n</div>\n';
 		const doc = parse(source);
 		expect(serialize(doc)).toBe(source);
 	});
 
-	// Table detection edge cases
 	it('delimiter row alone is not a table', () => {
 		const doc = parse('| --- | --- |\n');
 		expect(doc.children[0].kind).not.toBe('table');
@@ -276,7 +260,6 @@ describe('v2 edge cases', () => {
 		expect(serialize(doc)).toBe(source);
 	});
 
-	// Link ref def edge cases
 	it('link ref def at document start', () => {
 		const doc = parse('[ref]: https://example.com\n');
 		expect(doc.children[0].kind).toBe('linkReferenceDefinition');
@@ -287,7 +270,6 @@ describe('v2 edge cases', () => {
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
 	});
 
-	// Cross-block round-trips
 	it('round-trips setext heading then table', () => {
 		const source = 'Title\n===\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 		const doc = parse(source);

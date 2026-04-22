@@ -1,23 +1,12 @@
 /**
- * Pixel-X measurement helpers for sticky column tracking. All coordinates
- * are editor-relative (viewport X minus the editor container's viewport-left),
- * so values are invariant to vertical scrolling inside the editor.
- *
- * Why linear scan in findOffsetNearestX: binary search on character offsets
- * is invalid on BiDi visual lines, where getClientRects() left values are
- * non-monotonic along logical offsets. Linear scan is O(n) in the block
- * length but the constant is small and this runs at most once per vertical
- * arrow keypress.
+ * Pixel-X measurement for sticky column tracking. All coordinates are
+ * editor-relative (viewport X minus editor container's viewport-left), so
+ * values are invariant to vertical scrolling inside the editor.
  */
 
 import type { StickyColumnDirection } from '../contracts';
 import { createRangeFromOffsets } from './cursor-utils';
 
-/**
- * Get the current cursor's editor-relative pixel X, or null if no usable
- * rect can be obtained. Requires `el` to contain the selection and to
- * have an ancestor with the `.editor` class.
- */
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
@@ -41,7 +30,6 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null 
 	return viewportX - editorLeft;
 }
 
-/** Get the DOMRect of a collapsed range at a specific character offset inside the container. */
 export function getOffsetRect(container: HTMLElement, offset: number): DOMRect | null {
 	const range = createRangeFromOffsets(container, offset, offset);
 	if (!range) return null;
@@ -53,9 +41,10 @@ export function getOffsetRect(container: HTMLElement, offset: number): DOMRect |
 }
 
 /**
- * Scan character offsets in the target visual line (first or last) and
- * return the offset whose Range left coordinate is closest to the target
- * editor-relative X. Linear scan for BiDi correctness.
+ * Returns the offset in the target visual line (first or last) whose Range
+ * left coordinate is closest to the target X. Linear scan because
+ * getClientRects left values are non-monotonic along logical offsets on BiDi
+ * lines, so binary search is invalid.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,

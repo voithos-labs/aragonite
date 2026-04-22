@@ -11,8 +11,6 @@ test.describe('selection — overlay: happy paths', () => {
 
 	test('middle block overlay renders for strictly-between blocks', async () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
-		// Use Ctrl+Shift+End from block start to select all three blocks,
-		// ensuring block [1] is strictly between start [0] and end [2].
 		await editor.focusBlockStart(0);
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
@@ -82,14 +80,11 @@ test.describe('selection — overlay: edge cases', () => {
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		// Container's .block-host should NOT have a direct .selection-overlay-middle
-		// (containers skip overlay rendering to prevent double-layering).
 		const containerOverlay = await editor.page.$(
 			"[data-block-path='[1]'] > .selection-overlay-middle"
 		);
 		expect(containerOverlay).toBeNull();
 
-		// Inner paragraphs inside the blockquote SHOULD have overlays.
 		const innerOverlays = await editor.page.$$(
 			'[data-block-path] [data-block-path] .selection-overlay-middle'
 		);
@@ -98,16 +93,13 @@ test.describe('selection — overlay: edge cases', () => {
 
 	test('start endpoint block renders partial overlay rects', async () => {
 		await editor.loadContent('first block text\n\nsecond block text\n');
-		// Drag from middle of block 0 to middle of block 1.
 		await editor.dragFromTo([0], 6, [1], 6);
 
-		// Block 0 (start endpoint) should have at least one endpoint overlay rect.
 		const startOverlays = await editor.page.$$(
 			"[data-block-path='[0]'] .selection-overlay-endpoint"
 		);
 		expect(startOverlays.length).toBeGreaterThan(0);
 
-		// Block 1 (end endpoint) should also have endpoint overlay rects.
 		const endOverlays = await editor.page.$$("[data-block-path='[1]'] .selection-overlay-endpoint");
 		expect(endOverlays.length).toBeGreaterThan(0);
 	});

@@ -1,8 +1,5 @@
-/**
- * Indented code block parser. Matches lines starting with 4 spaces or a tab.
- * Cannot interrupt a paragraph — the guard (`leadingTrivia.length > 0 || isFirstBlock`)
- * lives in parseNextBlock, not here.
- */
+// Paragraph-interruption guard lives in parseNextBlock, not here — the rule
+// is dispatch-context-sensitive, not a line-level match.
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
@@ -24,7 +21,7 @@ export function parseIndentedCode(
 		if (matchIndentedCode(lines[i].text)) {
 			i++;
 		} else if (isBlankLine(lines[i].text)) {
-			// Blank lines inside indented code are kept if followed by more indented lines
+			// Blank lines stay inside the block only if followed by more indented content.
 			let j = i + 1;
 			while (j < endIndex && isBlankLine(lines[j].text)) j++;
 			if (j < endIndex && matchIndentedCode(lines[j].text)) {

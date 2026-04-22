@@ -7,7 +7,7 @@ describe('computeCodePaste — non-bumping paste', () => {
 	it('inserts plain text at a collapsed cursor', () => {
 		const result = computeCodePaste({
 			display: '```\nfoo\n```',
-			selection: { start: 7, end: 7 }, // end of "foo"
+			selection: { start: 7, end: 7 },
 			pasted: 'bar',
 			fenceMarker: '`',
 			fenceLength: 3,
@@ -20,7 +20,7 @@ describe('computeCodePaste — non-bumping paste', () => {
 	it('replaces a non-empty selection with the paste', () => {
 		const result = computeCodePaste({
 			display: '```\nfoo\n```',
-			selection: { start: 4, end: 7 }, // over "foo"
+			selection: { start: 4, end: 7 },
 			pasted: 'bar',
 			fenceMarker: '`',
 			fenceLength: 3,
@@ -70,8 +70,6 @@ describe('computeCodePaste — fence bump', () => {
 			closed: true
 		});
 		expect(result.text).toBe('````\n```\n````');
-		// Paste starts at old offset 4, opener bump shifts by 1 → new paste
-		// start at offset 5. End at 5 + 3 = 8.
 		expect(result.cursor).toBe(8);
 	});
 
@@ -79,13 +77,12 @@ describe('computeCodePaste — fence bump', () => {
 		const result = computeCodePaste({
 			display: '```\n\n```',
 			selection: { start: 4, end: 4 },
-			pasted: '`````', // 5 backticks
+			pasted: '`````',
 			fenceMarker: '`',
 			fenceLength: 3,
 			closed: true
 		});
 		expect(result.text).toBe('``````\n`````\n``````');
-		// fenceDelta = 6 - 3 = 3. newCursor = 4 + 3 + 5 = 12.
 		expect(result.cursor).toBe(12);
 	});
 
@@ -111,7 +108,6 @@ describe('computeCodePaste — fence bump', () => {
 			fenceLength: 3,
 			closed: true
 		});
-		// No fence run in the paste; body stays verbatim.
 		expect(result.text).toBe('```\nx```inside\n```');
 	});
 

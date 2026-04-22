@@ -1,13 +1,8 @@
 /**
- * Core range mutation primitive. Takes a Document and a normalized range
- * ({start, end}) and mutates the document: truncate start block, truncate
- * end block, delete everything between, re-parse merged raw, cascade-clean
- * empty ancestors, and rebuild container raw up each affected ancestor
- * chain. Caller must normalize the range before calling.
- *
- * Used by cross-block Cut, Paste, Backspace, Delete, and type-replace.
- * See docs/design/editor/editor.md — Clipboard / Cross-Container Semantics
- * sections for the "start wins" rule that drives cleanup behavior.
+ * Core range mutation primitive. Mutates the doc in place: truncate start
+ * block, truncate end block, delete between, re-parse merged raw, cascade-
+ * clean empty ancestors, rebuild ancestor container raws. Caller must
+ * pre-normalize the range. See the "start wins" rule in editor design docs.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -26,16 +21,11 @@ export interface RangeDeleteResult {
 }
 
 /**
- * Delete the range [start, end] from `doc`, merge the endpoint blocks at
- * start's position with start's container context preserved, cascade-clean
- * empty ancestors of deleted blocks, and rebuild container raw along every
- * ancestor chain that touched a mutation. Returns the mutated `doc`
- * (mutated in place — the parameter and `newDoc` reference the same
- * object) and the collapsed caret position inside the merged block.
- *
- * Caller must ensure `start` and `end` are normalized (start <= end in doc
- * order) via `primitives.normalize`. Caller must also ensure neither
- * endpoint lands on a non-focusable block.
+ * Delete [start, end] in place, merge at start's position with its
+ * container context preserved, cascade-clean empty ancestors, rebuild
+ * container raws. Returns the (mutated) doc and the collapsed caret.
+ * Caller must pre-normalize the range and ensure neither endpoint lands
+ * on a non-focusable block.
  */
 export function rangeDelete(
 	doc: Document,
@@ -54,10 +44,8 @@ export function rangeDelete(
 	const mergedRaw = startRaw.slice(0, start.offset) + endRaw.slice(end.offset);
 
 	if (sameBlock) {
-		// Same-block: overwrite raw directly. No deletion, no cascade cleanup.
-		// Still need to rebuild ancestor container raws — this block may be
-		// nested inside a blockquote/list/listItem whose serialized form
-		// depends on its descendants' raws.
+		// Ancestor rebuild is still needed — this block may be nested inside
+		// a blockquote/list/listItem whose raw depends on descendant raws.
 		(startBlock as CstNode).raw = mergedRaw;
 		rebuildAncestryContainerRaw(doc, start.path);
 		return {
@@ -66,26 +54,24 @@ export function rangeDelete(
 		};
 	}
 
-	// Cross-block: re-parse the merged raw. May produce 0, 1, or more blocks;
-	// an empty parse result is replaced with a blank paragraph so the slot
-	// vacated by startBlock always receives at least one node.
+	// Re-parse merged raw; fall back to a blank paragraph so start's slot
+	// always gets at least one node.
 	const reparsed = parse(mergedRaw || '\n');
 	const replacement: CstNode[] =
 		reparsed.children.length > 0
 			? reparsed.children
 			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
 
-	// Deletion targets: every path strictly between start and end, plus
-	// end.path itself. start.path is not deleted — its node is replaced by
-	// the merged block(s) below.
+	// start.path is replaced (not deleted); deletion targets are the paths
+	// strictly between start and end, plus end.path.
 	const betweenPaths = walkBetween(doc, start.path, end.path);
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
 
-	// Cascade cleanup must not walk above the LCA of start/end — containers
-	// at or above still hold the merged replacement and can't be empty.
+	// Cascade cleanup must stop at the LCA — ancestors at or above still
+	// hold the merged replacement and can't be empty.
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// Apply in REVERSE document order so earlier paths aren't invalidated mid-iteration.
+	// Reverse doc order so earlier paths aren't invalidated mid-iteration.
 	const reverseSortedDeletions = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
 	for (const path of reverseSortedDeletions) {
 		deleteAtPath(doc, path);
@@ -97,17 +83,15 @@ export function rangeDelete(
 		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
-	// Rebuild along both chains: start-path ancestors because the replacement
-	// changed their contents, deleted-path ancestors because their children
-	// arrays shrank (cascade-cleanup may also have removed intermediates).
+	// Rebuild both chains: start-path (replacement changed contents) and
+	// deletion-path ancestors (children arrays shrank, possibly via cascade).
 	rebuildAncestryContainerRaw(doc, start.path);
 	for (const path of deletionPaths) {
 		rebuildAncestryContainerRaw(doc, path);
 	}
 
-	// For replacement.length === 1 the caret lands inside the merged block at
-	// start.path/start.offset. For N > 1 (rare) the caret still lands there
-	// because replacement[0] occupies the original slot.
+	// replacement[0] occupies start.path's slot, so the caret lands at
+	// start.path/start.offset for every N >= 1.
 	const collapsedCaret: SelectionPoint = {
 		path: start.path.slice(),
 		offset: start.offset
@@ -118,7 +102,7 @@ export function rangeDelete(
 // ── Internal helpers ────────────────────────────────────────────────────────
 
 function deleteAtPath(doc: Document, path: number[]): void {
-	if (path.length === 0) return; // Can't delete the root.
+	if (path.length === 0) return;
 	const parent = nodeAt(doc, path.slice(0, -1));
 	if (!parent || !parent.children) return;
 	const idx = path[path.length - 1];
@@ -147,13 +131,10 @@ function lowestCommonAncestor(a: number[], b: number[]): number[] {
 
 /**
  * Rebuild `raw` for every container ancestor of `leafPath`, innermost-first.
- * The document root is never rebuilt (serialization reads children directly).
- * Missing ancestors (e.g., removed by cascade cleanup) short-circuit the walk.
+ * Stops at depth 1 (a direct child of doc root, possibly itself a container).
+ * Doc root is never rebuilt — serialization reads its children directly.
  */
 function rebuildAncestryContainerRaw(doc: Document, leafPath: number[]): void {
-	// Walk from the deepest ancestor (leafPath.length - 1) down to the shallowest (1).
-	// Stopping at length 1 means ancestorPath = [idx], i.e. a direct child of
-	// document root — that node may itself be a container whose raw needs rebuild.
 	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
 		const ancestorPath = leafPath.slice(0, depth);
 		const ancestor = nodeAt(doc, ancestorPath);

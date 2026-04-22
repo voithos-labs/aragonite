@@ -1,7 +1,7 @@
 /**
- * Undo/snapshot controller for the editor. Owns the keystroke-debounce
- * timer and the "needs new checkpoint" flag, exposes snapshot pushers,
- * and wraps structural mutations with the full undo + commit ceremony.
+ * Undo/snapshot controller. Owns the keystroke-debounce timer and the
+ * "needs new checkpoint" flag; exposes snapshot pushers and commit
+ * primitives that wrap structural mutations with undo + reactivity ceremony.
  */
 
 import { tick } from 'svelte';
@@ -24,9 +24,7 @@ import type { BlockListState } from '../blocks/container-state/block-list-state.
 // ── Multi-scope commit types ──────────────────────────────────────────────────
 
 /**
- * Target scope for commitMultiScope: a container node + its registered
- * BlockListState. Order matters for the emitted event path — scopes[0] is
- * the outermost scope conceptually.
+ * Order matters for the emitted event path — scopes[0] is the outermost.
  */
 export interface MultiScopeTarget {
 	node: CstNode;
@@ -34,30 +32,26 @@ export interface MultiScopeTarget {
 }
 
 /**
- * Mutable view of one scope during a multi-scope commit. Mutate `children`
- * per 0.5.5.1; return a StructuralChange[] (one per scope, same order) from
- * the mutate callback — the primitive applies descriptors to ids/refs.
+ * Mutable view of one scope. Return a StructuralChange[] (one per scope,
+ * same order); the primitive applies descriptors to ids/refs.
  */
 export interface MultiScopeMutable {
 	children: CstNode[];
 }
 
 /**
- * Keystroke-batch window. 500 ms was too coarse — typing at 50–80 WPM
- * produces 4–7 characters per window, so Ctrl+Z reverted entire half-words.
- * 250 ms matches Obsidian's keystroke-batching more closely; VS Code /
- * Google Docs use word-boundary detection instead of a fixed window, which
- * is a potential further refinement (flush on space/punctuation).
+ * Keystroke-batch window. 500 ms reverted entire half-words at typical typing
+ * speeds; 250 ms roughly matches Obsidian. Word-boundary flushing (like VS Code
+ * / Google Docs) is a potential refinement.
  */
 const UNDO_DEBOUNCE_MS = 250;
 
 // ── StructuralChange applicator ──────────────────────────────────────────────
 
 /**
- * Apply a StructuralChange to the parallel ids + refs arrays so their shape
- * matches the mutated children array. Inserted slots get fresh IDs and
- * undefined ref placeholders; deleted slots are removed; `idMap` on replace
- * preserves specified old-index IDs for split/merge semantics.
+ * Re-shape the parallel ids/refs arrays to match the mutated children.
+ * Inserts get fresh IDs + undefined refs; `idMap` on replace preserves
+ * specified old-index IDs for split/merge semantics.
  */
 export function applyStructuralChangeToIdsRefs(
 	change: StructuralChange,
@@ -99,7 +93,7 @@ export function applyStructuralChangeToIdsRefs(
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let lastUndoBlockIndex = -1;
-	// When true, the next keystroke should capture a "before" snapshot.
+	// When true, the next keystroke captures a "before" snapshot.
 	let needsUndoCheckpoint = true;
 	// Batch tracking for input-event emission on debounce flush.
 	let batchBlockIndex = -1;
@@ -127,15 +121,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Capture a "before" snapshot on the first keystroke of each batch; reset
-	 * debounce on subsequent ones.
+	 * First keystroke of each batch captures a snapshot; subsequent keystrokes
+	 * reset the debounce.
 	 *
-	 * `setTimeout` is intentional here despite the editor's "no setTimeout for
-	 * sequencing" rule: this is wall-clock pause detection, not ordering
-	 * between async steps. `await tick()` operates at microtask granularity
-	 * and cannot express "the user has stopped typing for ~250ms." Each
-	 * keystroke clears the pending timer, so the callback only fires on a
-	 * genuine pause — no spurious flushes mid-edit.
+	 * `setTimeout` is intentional despite the editor's "no setTimeout for
+	 * sequencing" rule — this is wall-clock pause detection, not async
+	 * ordering. `await tick()` is microtask-grained and can't express "user
+	 * has stopped typing for ~250ms."
 	 */
 	function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
 		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
@@ -150,7 +142,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		undoDebounceTimer = setTimeout(() => {
 			needsUndoCheckpoint = true;
 			undoDebounceTimer = null;
-			// Batch flushed — emit one input event summarizing it.
 			if (batchByteLength > 0 && batchBlockIndex >= 0) {
 				deps.events.emit('edit', {
 					op: 'input',
@@ -167,21 +158,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Internal commit primitive ────────────────────────────────────────────
 	/**
 	 * Universal commit ceremony: snapshot push, mutation on copies, atomic
-	 * publish via kind-specific callback, edit event emission, tick, post-tick
-	 * callback. The public wrappers (`commitStructural`,
-	 * `commitContainerStructural`) delegate here. Op-log recording is wired
-	 * externally via an `events.on('edit', ...)` subscription in Editor.svelte.
+	 * publish, edit event emission, tick, post-tick callback. Public wrappers
+	 * (`commitStructural`, `commitContainerStructural`) delegate here.
 	 */
 
 	interface CommitArgs {
 		kind: 'document' | 'container';
 		snapshot: { blockIndex: number; offset: number } | 'skip';
 		/**
-		 * Mutate `children` in place (per 0.5.5.1) and return a StructuralChange
-		 * describing the array-shape mutation. The commit primitive auto-syncs
-		 * `ids` and `refs` from the descriptor — do NOT splice them inside the
-		 * mutate callback. Side effects (raw rebuild, inline reparse, etc.) are
-		 * allowed; they don't affect the ids/refs sync.
+		 * Mutate `children` in place; return a StructuralChange describing the
+		 * array-shape mutation. The primitive auto-syncs ids/refs from the
+		 * descriptor — do NOT splice them inside `mutate`.
 		 */
 		mutate: (children: CstNode[]) => StructuralChange;
 		publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
@@ -215,7 +202,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		args.publish(childrenCopy, idsCopy, refsCopy);
 
 		if (args.op) {
-			// detail is carried verbatim from the op descriptor (the 0.5.5.4 fix).
 			deps.events.emit('edit', {
 				op: args.op.kind,
 				path: args.eventPath,
@@ -229,11 +215,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	// ── Structural-mutation ceremony ─────────────────────────────────────────
-	/**
-	 * Wrap a structural mutation: clear debounce, push snapshot, apply mutation
-	 * on array copies, publish atomically, tick, run post-tick callback.
-	 * `skipSnapshot` lets composite operations share a single undo entry.
-	 */
+	/** `skipSnapshot` lets composite operations share a single undo entry. */
 
 	async function commitStructural(
 		snapshotBlockIndex: number,
@@ -260,11 +242,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Container-scoped commit wrapper. Mutation is applied to the container
-	 * node's children; publish re-spreads `node.children` in place plus the
-	 * container's `BlockListState.innerBlockIds`. Ancestry raw rebuild runs
-	 * inside `mutate` — the caller owns it so the atomic publish sees a
-	 * rebuilt tree.
+	 * Container-scoped commit wrapper. Mutation applies to the container's
+	 * children; publish writes `node.children` + the state bundle's ids/refs.
+	 * Ancestry raw rebuild lives inside `mutate` — the caller owns it so the
+	 * atomic publish sees a rebuilt tree.
 	 */
 	async function commitContainerStructural(
 		containerNode: CstNode,
@@ -281,11 +262,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			eventPath: number[];
 		}
 	): Promise<void> {
-		// The container path applies the descriptor INSIDE its custom mutate that
+		// The container path applies the descriptor inside its custom mutate that
 		// reaches into the container node + state bundle. The outer __commit's
-		// mutate parameter is used purely for the snapshot/event ceremony; its
-		// StructuralChange return is 'noop' because the descriptor's effects were
-		// already applied to the inner state via applyStructuralChangeToIdsRefs.
+		// mutate is used purely for snapshot/event ceremony; its StructuralChange
+		// return is 'noop' because effects were already applied to inner state.
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -313,24 +293,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Multi-scope structural commit ────────────────────────────────────────
 
 	/**
-	 * Structural commit spanning multiple container scopes atomically. Pushes
-	 * ONE undo snapshot, calls `mutate` with per-scope children views, applies
-	 * the returned StructuralChange[] to each scope's ids/refs, then publishes
-	 * all scopes at once before emitting a single edit event.
+	 * Atomic structural commit spanning multiple container scopes — one undo
+	 * snapshot, per-scope children views, one edit event. Use for operations
+	 * touching ≥2 container nodes (e.g., indent across parent + nested list).
 	 *
-	 * Use this for operations that must mutate ≥2 container nodes (e.g.,
-	 * indent/unindent across a list + parent list). Single-scope mutations
-	 * should continue to use commitContainerStructural.
-	 *
-	 * Raw-rebuild gotcha: rebuild helpers like `rebuildListRaw` read
-	 * `node.children` directly. If the mutate callback mutates a scope's
-	 * `children` copy and then calls a rebuild helper BEFORE publish, the
-	 * rebuild sees the pre-mutation tree. The callback must either sync
-	 * `scope.node.children = scopeChildren[i].children` before invoking any
-	 * helper that reads it, or avoid calling rebuild helpers inside mutate
-	 * entirely (the atomic publish happens after mutate returns). The
-	 * `list-context.ts` and `nested-actions.ts` call sites follow the
-	 * sync-before-rebuild pattern — match them when adding new callers.
+	 * Gotcha: rebuild helpers like `rebuildListRaw` read `node.children`
+	 * directly. If `mutate` calls a rebuild helper before the atomic publish,
+	 * sync `scope.node.children = scopeChildren[i].children` first — otherwise
+	 * the rebuild sees the pre-mutation tree. See `list-context.ts` /
+	 * `nested-actions.ts` for the sync-before-rebuild pattern.
 	 */
 	async function commitMultiScope(
 		scopes: MultiScopeTarget[],
@@ -343,7 +314,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			kind: 'container',
 			snapshot,
 			mutate: () => {
-				// Per-scope copies — mutate callback operates on these, never on live state.
+				// Per-scope copies — mutate operates on these, never on live state.
 				const perScope = scopes.map((s) => ({
 					target: s,
 					children: [...(s.node.children ?? [])],
@@ -362,7 +333,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
 				}
 
-				// Atomic publish: assign all scopes before Svelte sees any change.
+				// Atomic publish: assign all scopes before Svelte observes a change.
 				for (const p of perScope) {
 					p.target.node.children = p.children;
 					p.target.state.innerBlockIds = p.ids;
@@ -384,14 +355,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Doc scope adapter ────────────────────────────────────────────────────
 
 	/**
-	 * Expose the document root as a MultiScopeTarget so cross-scope ops that
-	 * span from a container down into top-level doc.children (e.g., a cross-
-	 * block delete with LCA at doc level) can include the doc in their scope
-	 * list. The synthetic BlockListState forwards ids/refs reads and writes
-	 * through `deps.blockIds` / `deps.blockRefs` setters — so publish-time
-	 * assignments reach the Svelte $state proxies.
-	 *
-	 * `commitChildrenEdit` is unused by commitMultiScope and throws if called.
+	 * Expose the document root as a MultiScopeTarget so cross-scope ops with
+	 * an LCA at doc level can include it. The synthetic BlockListState forwards
+	 * ids/refs through deps setters so publish-time assignments reach the
+	 * Svelte $state proxies. `commitChildrenEdit` is unused and throws.
 	 */
 	function getDocScope(): MultiScopeTarget {
 		return {
@@ -424,11 +391,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			deps.blockRefs,
 			collapsedSelectionAt
 		);
-		// When no block reports a cursor (editor unfocused at capture time), fall
-		// back to a collapsed sentinel at doc path [0] offset 0. captureCurrentState
-		// is only called at redo-stack push time — in practice some block IS
-		// focused then, but the sentinel keeps the UndoEntry shape valid even in
-		// edge cases (headless test harnesses, programmatic capture).
+		// Sentinel for the unfocused-at-capture edge case (headless harness,
+		// programmatic capture) — keeps the UndoEntry shape valid.
 		return {
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],

@@ -1,14 +1,7 @@
 /**
- * Pure cursor / range / selection helpers for contenteditable text surfaces.
- * Operates on HTMLElement + Range + Selection APIs directly — no Svelte
- * coupling, no editor state dependency. Extracted from TextEditableBlock.svelte.
+ * Cursor / range / selection helpers for contenteditable text surfaces.
  */
 
-/**
- * Create a browser Range spanning character offsets [start, end) inside
- * `container`. Walks text node descendants counting characters. If `start`
- * or `end` is beyond the container's content length, clamps to the end.
- */
 export function createRangeFromOffsets(
 	container: HTMLElement,
 	start: number,
@@ -43,13 +36,11 @@ export function createRangeFromOffsets(
 		range.selectNodeContents(container);
 		range.collapse(false);
 	} else if (!endFound) {
-		// End offset beyond content length — clamp to end of container.
 		range.setEndAfter(container);
 	}
 	return range;
 }
 
-/** Place a collapsed cursor inside `container` at the given character offset. */
 export function setCursorOffset(container: HTMLElement, offset: number): void {
 	const range = createRangeFromOffsets(container, offset, offset);
 	if (!range) return;
@@ -59,13 +50,8 @@ export function setCursorOffset(container: HTMLElement, offset: number): void {
 }
 
 /**
- * Read the current cursor's character offset inside `container`, or null
- * if the container is not the active element or no range exists.
- *
- * Returns the range START — the earlier endpoint of the selection in
- * document order, which equals the anchor for forward selections.
- * Callers that need the moving endpoint (e.g., Shift+Arrow boundary
- * checks) should use `getSelectionFocusOffset` instead.
+ * Returns the range START (anchor for forward selections). For the moving
+ * endpoint during Shift+Arrow extension, use `getSelectionFocusOffset`.
  */
 export function getCursorOffset(container: HTMLElement): number | null {
 	if (document.activeElement !== container) return null;
@@ -79,14 +65,9 @@ export function getCursorOffset(container: HTMLElement): number | null {
 }
 
 /**
- * Read the current selection's FOCUS offset inside `container`, or null
- * if `container` is not the active element or the focus is not inside it.
- *
- * The focus is where the caret is actively moving — distinct from the
- * range start (anchor) when the user has extended a selection. Used by
- * Shift+Arrow boundary checks to decide whether the next extension would
- * cross a block boundary based on where the caret currently is, not
- * where the selection originally started.
+ * Returns the moving endpoint of the selection (distinct from the anchor
+ * when the user has extended a selection). Used by Shift+Arrow boundary
+ * checks to decide whether the next extension crosses a block boundary.
  */
 export function getSelectionFocusOffset(container: HTMLElement): number | null {
 	if (document.activeElement !== container) return null;
@@ -103,10 +84,6 @@ export function getSelectionFocusOffset(container: HTMLElement): number | null {
 	return preRange.toString().length;
 }
 
-/**
- * Read the current selection's character offsets inside `container`, or null
- * if the selection is collapsed or not inside `container`.
- */
 export function getSelectionOffsets(container: HTMLElement): { start: number; end: number } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
@@ -119,7 +96,6 @@ export function getSelectionOffsets(container: HTMLElement): { start: number; en
 	return { start, end };
 }
 
-/** Returns true if a non-collapsed selection exists in the document. */
 export function hasSelection(): boolean {
 	const sel = window.getSelection();
 	return Boolean(sel && !sel.isCollapsed);

@@ -48,10 +48,7 @@
 
 	const state = createBlockListState(() => node);
 
-	// Read the parent list context BEFORE `setContext(LIST_CONTEXT_KEY, ...)`
-	// later in the file shadows it. For nested lists this returns the outer
-	// list's context; for top-level lists it is undefined. Captured here so
-	// the override factory below can close over it.
+	// Read parent context before the setContext below shadows it; captured for the override factory.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
 	const bundle = createStandardNestedActions(
@@ -73,16 +70,13 @@
 		},
 		() => ({
 			blockEdit: {
-				// Structural ops at the list-wrapper level are handled by the
-				// individual ListItemBlock components, not the list itself.
+				// Structural ops at list-wrapper level are owned by the individual ListItemBlocks.
 				splitBlock: async (): Promise<void> => {},
 				updateBlockContent: (): void => {},
 				insertParsedBlocks: async (): Promise<void> => {},
 
-				// Forward-delete at end of an inner item is a no-op (list items
-				// are structural peers, not text-mergeable). For the LAST item,
-				// delegate upward so the cross-container merge handler can merge
-				// the following block into the list's deepest prose leaf.
+				// Forward-delete is a no-op between items (structural peers, not text-mergeable).
+				// For the LAST item, delegate upward so the following block merges into this list's deepest leaf.
 				mergeWithNext: async (itemIndex: number): Promise<void> => {
 					if (!node.children) return;
 					if (itemIndex >= node.children.length - 1) {
@@ -164,10 +158,7 @@
 						return;
 					}
 
-					// Non-empty item — Rule M1: merge into deepest visible text above
-					// (rule B) with preserve-absolute-indent child placement.
-					// The op now accepts the commit's caller-owned children copy directly,
-					// so no post-call sync dance is needed (that was the Bug A workaround).
+					// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
 					let mergePoint!: { targetPath: number[]; offset: number };
 					await parentContainerEdit!.commitContainer(
 						node,
@@ -191,7 +182,6 @@
 					);
 				},
 
-				// Delete an item; if it was the only item, delete the whole list.
 				deleteBlock: async (itemIndex: number): Promise<void> => {
 					if (!node.children) return;
 					if (node.children.length <= 1) {
@@ -216,11 +206,8 @@
 					);
 				},
 
-				// Splice replacement items. U1 and U2 typically replace on a parent
-				// that contains the list, not on the list itself — this path is
-				// rare but kept for symmetry. Uses normalizeReplacementTrivia +
-				// parseAllInlineContent so prose replacements don't drop their
-				// inline cache, matching the other two replaceBlock paths.
+				// U1/U2 typically replace on the list's parent; this list-level path is rare but symmetric.
+				// Normalizes trivia and re-parses inline content so prose replacements keep their inline cache.
 				replaceBlock: async (
 					itemIndex: number,
 					replacement: CstNode[],
@@ -252,7 +239,6 @@
 							children.splice(itemIndex, 1, ...normalizedReplacement);
 							node.children = children;
 							rebuildListRaw(node);
-							// No idMap — all replacement slots get fresh IDs (existing behavior).
 							return {
 								op: 'replace',
 								at: itemIndex,
@@ -323,26 +309,10 @@
 		return null;
 	}
 
-	/**
-	 * Cascade focus down a path of child indices to land a cursor at `offset`
-	 * in the target leaf block. Used by M1 merge to position the cursor at
-	 * the merge point inside a potentially-nested list item.
-	 *
-	 * A path of `[]` means "this list itself" — we treat that as focus at
-	 * offset 0 of the first item for safety; this should not happen in
-	 * practice because M1 always provides a non-empty path.
-	 */
 	export function focusByPath(path: number[], offset: number): void {
 		dispatchFocusByPath(state.innerBlockRefs, path, offset);
 	}
 
-	/**
-	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * inside this list's first (from='above') or last (from='below') item.
-	 * Delegates to the child item's focusAtColumn? if available, else falls
-	 * back to focus(0) / focus(CURSOR_END). List itself does no pixel math —
-	 * it just picks the right item and forwards.
-	 */
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!node.children || node.children.length === 0) return;
 		dispatchFocusAtColumn(state.innerBlockRefs, x, from);

@@ -33,7 +33,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		const src = await editor.getSource();
 		const domCount = await editor.getDomBlockCount();
 
-		// Normalize CRLF (Windows clipboard writes) → LF.
+		// Windows clipboard writes CRLF.
 		expect(src.replace(/\r\n/g, '\n').replace(/\s+$/, '')).toBe('one\n\ntwo');
 		expect(domCount).toBe(3);
 	});

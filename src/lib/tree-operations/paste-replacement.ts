@@ -1,22 +1,11 @@
 /**
  * Build the replacement node list for a multi-block paste into a single
- * leaf block. Splits the leaf's raw at the cursor offset and produces:
+ * leaf. Splits the leaf's raw at the cursor and produces:
+ *   [optional leading-slice, ...pastedBlocks, optional trailing-slice]
  *
- *   [optional leading-slice node, ...pastedBlocks, optional trailing-slice node]
- *
- * Each pasted block keeps its source leadingTrivia where it carries a
- * meaningful blank-line separator, otherwise it inherits the parent
- * paragraph break so the structural blocks render as distinct paragraphs
- * rather than collapsing into the leading slice via a soft line break.
- *
- * Leaf-agnostic: works identically at document top-level and inside any
- * container (list item, blockquote). Callers handle id / ref / ancestry
- * rebuilds — this helper is pure CST.
- *
- * Only invoked for STRUCTURAL pastes (multi-block clipboard, or single
- * non-paragraph block). Single-paragraph clipboards take the inline raw-
- * splice path in their respective callers; routing them here would split
- * a one-paragraph paste into three nodes when the user expected one.
+ * Only invoked for STRUCTURAL pastes. Single-paragraph clipboards take the
+ * inline raw-splice path; routing them here would split a one-paragraph
+ * paste into three nodes when the user expected one.
  */
 
 import type { CstNode } from '../core/nodes';
@@ -41,9 +30,8 @@ export function buildPastedReplacement(
 
 	const newNodes: CstNode[] = [];
 
-	// Leading slice — re-parse so a leaf whose kind is heading/list/etc.
-	// round-trips through its own parser rather than being forced back to
-	// a paragraph. Empty slice (cursor at start) means no leading node.
+	// Re-parse the leading slice so heading/list leaves round-trip through
+	// their own parser rather than being forced back to a paragraph.
 	if (rawBefore.length > 0) {
 		const beforeRaw = rawBefore + lineEnding;
 		const beforeNode = parseFirstBlock(beforeRaw);
@@ -52,18 +40,12 @@ export function buildPastedReplacement(
 		newNodes.push(beforeNode);
 	}
 
-	// Pasted blocks — first-placed inherits the leaf's original trivia;
-	// subsequent pasted blocks force a blank-line separator when their
-	// source trivia is empty. The empty case happens for the FIRST block
-	// of the parsed clipboard (no preceding content in the clipboard);
-	// without the override, that block butts up against the leading slice
-	// via a soft line break and the user sees one merged paragraph.
-	//
-	// Empty paragraphs (raw "\n" only) ARE themselves the blank-line
-	// separator — don't also force "\n" trivia, or the double newline
-	// renders as two visible blank lines. Same goes for a block
-	// immediately following an empty paragraph: the previous empty's raw
-	// provides the newline separation already.
+	// First-placed inherits the leaf's original trivia. Subsequent blocks
+	// force a blank-line separator when their source trivia is empty —
+	// without it, the first clipboard block butts against the leading
+	// slice via a soft line break and renders as one merged paragraph.
+	// Empty paragraphs ARE themselves the separator; skip the override
+	// for them (and for blocks immediately after one).
 	for (let i = 0; i < blocks.length; i++) {
 		const node = { ...blocks[i] };
 		const prev = newNodes[newNodes.length - 1];
@@ -79,11 +61,9 @@ export function buildPastedReplacement(
 		newNodes.push(node);
 	}
 
-	// Trailing slice — separate node, NOT merged into the last pasted
-	// block. Merging produced soft-break artifacts ("two\nafter" parses as
-	// one paragraph with a soft line break) and worse for non-paragraph
-	// last blocks (a list whose last item absorbs the trailing text as a
-	// continuation line). A separate paragraph is the conservative choice.
+	// Trailing slice stays a separate node — merging into the last pasted
+	// block produced soft-break artifacts and worse for non-paragraph tails
+	// (a list whose last item absorbs trailing text as a continuation line).
 	if (rawAfter.length > 0) {
 		const afterRaw = rawAfter + lineEnding;
 		const afterNode = parseFirstBlock(afterRaw);
@@ -98,22 +78,12 @@ export function buildPastedReplacement(
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/**
- * Empty-paragraph sentinel: a paragraph whose raw contains only an
- * optional line ending (the visual "blank line" produced by typing
- * Enter on an empty paragraph). Such blocks are their own blank-line
- * separator and don't need additional leadingTrivia to separate from
- * their neighbors.
- */
+/** A paragraph containing only a line ending — its own blank-line separator. */
 function isEmptyParagraphNode(node: CstNode): boolean {
 	if (node.kind !== 'paragraph') return false;
 	return node.raw === '' || node.raw === '\n' || node.raw === '\r\n';
 }
 
-/**
- * Parse a raw fragment and return its first block, or a fallback paragraph
- * carrying the raw verbatim when the parser produced nothing.
- */
 function parseFirstBlock(raw: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) return doc.children[0];

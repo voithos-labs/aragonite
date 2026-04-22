@@ -1,9 +1,6 @@
-/**
- * Serialize a document tree to its source text representation.
- * Structurally typed — works with any object that has prefix, children (with leadingTrivia + raw), and suffix.
- */
+// Structurally typed: accepts any object with prefix/children/suffix so nested
+// containers (blockquote, list, listItem) can serialize without a class.
 
-/** Structural type accepted by serialize. */
 interface Serializable {
 	prefix: string;
 	children: { leadingTrivia: string; raw: string }[];

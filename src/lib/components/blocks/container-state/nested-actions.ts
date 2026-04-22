@@ -1,13 +1,9 @@
 /**
- * Convenience factory for container nestedActions bundles. Produces a
- * complete { blockEdit, focus, containerEdit } triple from a state bundle
- * + a container's own raw rebuild function. Containers that need custom
- * behavior (list's U1/M1, blockquote's U2) override specific methods
- * after calling this factory.
- *
- * HistoryActions is intentionally NOT in the bundle — containers never
- * override history; Svelte context walking delivers the document-level
- * HISTORY_KEY to any descendant that reads it.
+ * Factory for container nestedActions bundles — produces a complete
+ * { blockEdit, focus, containerEdit } triple from a state bundle and the
+ * container's raw rebuild. HistoryActions is deliberately absent: containers
+ * never override history; Svelte context delivers the document-level
+ * HISTORY_KEY to any descendant.
  */
 
 import { setContext } from 'svelte';
@@ -42,15 +38,10 @@ export interface NestedActionsBundle {
 }
 
 export interface NestedActionsDeps {
-	/** The container's own index in its parent's children array. */
 	index: number;
-	/** The container's CstNode (accessed inside method bodies for kind-specific raw rebuilds). */
 	node: CstNode;
-	/** Rebuild the container's `raw` after its inner children change. */
 	rebuildRaw: () => void;
-	/** Sticky column state (passed through from the editor root's context). */
 	stickyColumn: StickyColumnState;
-	/** Parent sub-interface bundles for delegation. */
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
@@ -59,9 +50,8 @@ export interface NestedActionsDeps {
 }
 
 /**
- * Override factory: receives stable default bundle references and returns
- * per-sub-interface partial overrides. Chain to defaults via
- * `defaults.blockEdit.foo(...)` — the reference is stable across reactivity.
+ * Receives stable default bundle references and returns per-sub-interface
+ * partial overrides. Chain via `defaults.blockEdit.foo(...)`.
  */
 export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 	blockEdit?: Partial<BlockEditActions>;
@@ -69,22 +59,15 @@ export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 	containerEdit?: Partial<ContainerEditActions>;
 };
 
-/**
- * Produce a NestedActionsBundle. Pass `overrideFactory` for custom behavior
- * (list U1/M1, blockquote U2); overrides chain to factory defaults via the
- * `defaults` argument. Override set is visible at the call site and type-checked.
- */
 export function createStandardNestedActions(
 	state: BlockListState,
 	deps: NestedActionsDeps,
 	overrideFactory?: NestedActionsOverrideFactory
 ): NestedActionsBundle {
-	// Note: `index` and `node` are intentionally NOT destructured. Containers
-	// pass both via getter properties (`get index()` / `get node()`) so that
-	// factory closures always read the current reactive prop values. Passing
-	// by value would capture stale snapshots: `index` after a parent structural
-	// op shifts the container's position, and `node` after undo/redo replaces
-	// the document tree with a cloned snapshot.
+	// `index` and `node` are intentionally not destructured: containers expose
+	// both as getters (`get index()`, `get node()`) so closures read live
+	// reactive values. Destructuring would capture stale snapshots after a
+	// parent structural op or undo/redo replacement.
 	const { rebuildRaw, stickyColumn, parent } = deps;
 
 	const blockEdit: BlockEditActions = {
@@ -96,10 +79,7 @@ export function createStandardNestedActions(
 				{ blockIndex: deps.index, offset },
 				(children) => {
 					const change = performSplit({ children }, innerIndex, offset);
-					// rebuildRaw reads from deps.node.children; assign the updated
-					// copy in place so the raw reconstruction sees the post-mutation
-					// tree. commitContainerStructural re-assigns the same ref on
-					// exit, so this write is a no-op by then.
+					// Sync before rebuildRaw — it reads deps.node.children directly.
 					deps.node.children = children;
 					rebuildRaw();
 					return change;
@@ -114,7 +94,7 @@ export function createStandardNestedActions(
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
 			if (!deps.node.children) return;
 
-			// innerIndex === 0: delegate upward. Containers that override for unwrap
+			// innerIndex === 0: delegate upward. Unwrap-style containers
 			// (BlockquoteBlock U2, ListBlock U1/M1) override this whole method.
 			if (innerIndex <= 0) {
 				parent.blockEdit.mergeWithPrevious(deps.index);
@@ -252,10 +232,9 @@ export function createStandardNestedActions(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			// Peek at the would-be result on shallow-cloned children to decide
-			// between the structural (kind-changing) commit path and the routine
-			// typing path. The preview does not touch the live tree — the actual
-			// mutation runs inside the chosen branch below.
+			// Preview on shallow-cloned children to pick between structural
+			// (kind-changing) commit and routine typing path. Live tree is not
+			// mutated here — the chosen branch runs the real mutation below.
 			const preview = performUpdate(
 				{ children: deps.node.children.map((c) => ({ ...c })) },
 				innerIndex,
@@ -263,8 +242,6 @@ export function createStandardNestedActions(
 			);
 
 			if (preview.kindChanged) {
-				// Kind flipped — structural change: single snapshot, atomic
-				// publish, updateContent edit event.
 				await parent.containerEdit!.commitContainer(
 					deps.node,
 					state,
@@ -287,9 +264,7 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			// Routine typing — stays on the debounced undo path (no structural
-			// commit). Mutation runs in place; rebuildRaw keeps the container's
-			// raw in sync; endContainerEdit nudges top-level reactivity.
+			// Routine typing — debounced undo path, no structural commit.
 			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
 			performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
@@ -333,8 +308,8 @@ export function createStandardNestedActions(
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			// Fold any preDelete into a synthesized leaf so the single replaceBlock
-			// call covers both delete and paste as one undo entry.
+			// Fold preDelete into a synthesized leaf so one replaceBlock call
+			// covers both delete and paste as a single undo entry.
 			const currentNode = deps.node.children[innerIndex];
 			let synthLeaf = currentNode;
 			let effectiveOffset = offset;
@@ -366,8 +341,8 @@ export function createStandardNestedActions(
 		): Promise<void> {
 			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			// skipSnapshot: the caller already pushed a snapshot covering the whole
-			// delete-then-paste; skip to avoid a duplicate entry.
+			// skipSnapshot: caller already pushed a snapshot covering the whole
+			// delete-then-paste — skip to avoid duplicating the entry.
 			const snapshot = options?.skipSnapshot
 				? ('skip' as const)
 				: { blockIndex: deps.index, offset: 0 };
@@ -391,7 +366,6 @@ export function createStandardNestedActions(
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					deps.node.children = children;
 					rebuildRaw();
-					// All replacement slots get fresh IDs (no idMap) — existing behavior.
 					return {
 						op: 'replace',
 						at: innerIndex,
@@ -415,7 +389,7 @@ export function createStandardNestedActions(
 
 	const focus: FocusActions = {
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
-			// node.children.length is authoritative — refs.length lags after
+			// node.children.length is authoritative: refs.length lags after
 			// structural ops because bind:this fires asynchronously.
 			await dispatchMoveFocus(
 				state.innerBlockRefs,
@@ -446,12 +420,11 @@ export function createStandardNestedActions(
 		},
 
 		commitContainer(containerNode, innerState, snapshot, mutate, afterTick, op): Promise<void> {
-			// Forward to the enclosing container's commit, remapping the snapshot's
+			// Forward to the enclosing container, remapping the snapshot's
 			// blockIndex to this container's own doc-relative index and prepending
-			// `deps.index` to the edit event path so the published path reaches the
-			// document root. The deeper container's `containerNode` / `innerState`
-			// / `mutate` / `afterTick` pass through unchanged — they describe the
-			// inner mutation, not the ancestry.
+			// `deps.index` to the edit event path. Inner containerNode/innerState/
+			// mutate/afterTick pass through unchanged — they describe the inner
+			// mutation, not the ancestry.
 			if (!parent.containerEdit) return Promise.resolve();
 			const remappedSnapshot =
 				snapshot === 'skip' ? snapshot : { blockIndex: deps.index, offset: snapshot.offset };
@@ -462,8 +435,8 @@ export function createStandardNestedActions(
 						eventPath: [deps.index, ...op.eventPath]
 					}
 				: undefined;
-			// Ancestry raw needs to rebuild whenever a descendant mutates — wrap
-			// the inner mutate so our rebuildRaw runs after the inner mutation.
+			// Ancestry raw must rebuild whenever a descendant mutates — wrap the
+			// inner mutate so our rebuildRaw runs after it.
 			const wrappedMutate = (children: CstNode[]) => {
 				const change = mutate(children);
 				rebuildRaw();
@@ -491,11 +464,7 @@ export function createStandardNestedActions(
 	};
 }
 
-/**
- * Set the three container sub-interface contexts in one call. Containers
- * call this after building a bundle (via createStandardNestedActions or
- * a custom override pattern).
- */
+/** Set the three container sub-interface contexts in one call. */
 export function setNestedActionsContexts(bundle: NestedActionsBundle): void {
 	setContext(BLOCK_EDIT_KEY, bundle.blockEdit);
 	setContext(FOCUS_KEY, bundle.focus);

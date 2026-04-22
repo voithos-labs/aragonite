@@ -1,9 +1,3 @@
-/**
- * Registry for PasteSurface descriptors — the per-block-kind paste
- * strategy hook pair consumed by pasteDispatch. Map keyed by BlockKind,
- * overwrite-on-register, dev-mode warning on double-register.
- */
-
 import type { BlockKind, CstNode } from '../core/nodes';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -16,26 +10,20 @@ export interface PasteRange {
 export interface InlinePasteResult {
 	/** New raw for the target node (including trailing line ending). */
 	newRaw: string;
-	/** Caret offset within the new raw after paste. */
 	caretOffset: number;
 }
 
 export interface StructuralPasteResult {
-	/** Replacement block sequence. */
 	replacement: CstNode[];
-	/** Index into `replacement` whose last position should receive focus. */
 	focusReplacementIndex: number;
-	/** Offset within the focused replacement block. */
 	focusOffset: number;
 }
 
 export interface PasteSurface {
 	kind: BlockKind;
 	/**
-	 * Handle an inline paste: plain text spliced into the target at offset.
-	 * `preDelete` removes a range from the node's raw before the splice —
-	 * used when the target had a selection at paste time. Returns the new
-	 * raw and the post-paste caret offset. Stateless: pure data transform.
+	 * Splice `text` into `node` at `offset` (optionally pre-deleting a range).
+	 * Pure data transform.
 	 */
 	onInlinePaste?(
 		node: CstNode,
@@ -43,11 +31,7 @@ export interface PasteSurface {
 		text: string,
 		preDelete?: PasteRange
 	): InlinePasteResult;
-	/**
-	 * Handle a structural paste: N CST blocks spliced at the target.
-	 * Returns the replacement sequence (what to splice in place of the
-	 * target) and focus landing info. Stateless: pure data transform.
-	 */
+	/** Splice CST blocks at the target. Pure data transform. */
 	onStructuralPaste?(
 		node: CstNode,
 		offset: number,
@@ -74,7 +58,6 @@ export function getPasteSurface(kind: BlockKind): PasteSurface | undefined {
 	return surfaces.get(kind);
 }
 
-/** Test-only: clear the registry between tests. */
 export function __resetPasteSurfacesForTests(): void {
 	surfaces.clear();
 }

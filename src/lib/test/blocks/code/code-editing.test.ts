@@ -32,13 +32,11 @@ describe('getLineLeadingWhitespace', () => {
 
 	it('finds the current line when cursor is in the middle of a multi-line string', () => {
 		const text = 'line one\n    line two\n\t\tline three';
-		// Offset 15 is inside "line two"; its line starts after the first \n.
 		expect(getLineLeadingWhitespace(text, 15)).toBe('    ');
 	});
 
 	it('returns the indent even when cursor sits on the whitespace prefix itself', () => {
 		const text = 'a\n    foo';
-		// Offset 4 is between the spaces, before 'foo'.
 		expect(getLineLeadingWhitespace(text, 4)).toBe('    ');
 	});
 
@@ -105,12 +103,10 @@ describe('shouldAutoClose', () => {
 		});
 
 		it('does NOT pair when the next char is an identifier char', () => {
-			// Typing `(` before `foo` — user is wrapping existing code manually.
 			expect(shouldAutoClose('foo', 0, '(')).toBe(false);
 		});
 
 		it('pairs even when the previous char is an identifier (foo( case)', () => {
-			// This is the canonical "open paren after function name" — must pair.
 			expect(shouldAutoClose('foo', 3, '(')).toBe(true);
 		});
 	});
@@ -125,7 +121,6 @@ describe('shouldAutoClose', () => {
 		});
 
 		it('does NOT pair when prev char is an identifier — quote-only rule', () => {
-			// `'don|` → typing `'` should just insert, not produce `''`.
 			expect(shouldAutoClose("'don", 4, "'")).toBe(false);
 		});
 
@@ -156,7 +151,6 @@ describe('shouldSkipClose', () => {
 	});
 
 	it('returns false for typed openers even when the next char matches', () => {
-		// Typing `(` before an existing `(` should produce nesting, not skip.
 		expect(shouldSkipClose('((', 1, '(')).toBe(false);
 		expect(shouldSkipClose('[[', 1, '[')).toBe(false);
 		expect(shouldSkipClose('{{', 1, '{')).toBe(false);
@@ -198,8 +192,8 @@ describe('isBetweenEmptyPair', () => {
 	});
 
 	it('detects a pair inside longer text', () => {
-		expect(isBetweenEmptyPair('foo(){bar}', 4)).toBe(true); // between ( and )
-		expect(isBetweenEmptyPair('foo(){bar}', 6)).toBe(false); // between { and b
+		expect(isBetweenEmptyPair('foo(){bar}', 4)).toBe(true);
+		expect(isBetweenEmptyPair('foo(){bar}', 6)).toBe(false);
 	});
 });
 

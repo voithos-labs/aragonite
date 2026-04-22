@@ -42,9 +42,6 @@ describe('rangeDelete — same-container cases', () => {
 
 describe('rangeDelete — cross-container start-wins', () => {
 	it('start outside container, end inside blockquote: merges at top level, blockquote cleans up', () => {
-		// The parser merges consecutive "> " lines into a single inner paragraph
-		// with multi-line raw, so the second line lives at [1, 0] offset 19
-		// (past "quote line 1\nquote "), not at a separate [1, 1] child.
 		const { source, caret } = run(
 			'before paragraph\n\n> quote line 1\n> quote line 2\n',
 			{ path: [0], offset: 7 },
@@ -81,7 +78,6 @@ describe('rangeDelete — boundary offsets', () => {
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 7 }
 		);
-		// Heading marker consumed; result re-parses as paragraph.
 		expect(source).toBe('paragraph\n');
 	});
 

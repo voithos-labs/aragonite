@@ -1,7 +1,6 @@
 /**
- * Editor-root action bundles. Factory composes the undo controller plus
- * four sub-interface bundles, returning them as one object for Editor.svelte
- * to wire into the Svelte context.
+ * Editor-root action bundle factory. Composes the undo controller plus four
+ * sub-interface bundles for Editor.svelte to wire into Svelte context.
  */
 
 import type { EditorActionsDeps, UndoController } from './deps';

@@ -1,8 +1,5 @@
 /**
- * Cross-block clipboard text collection. Walks the CST between two
- * selection endpoints and assembles the plain-text slice, promoting
- * leaf endpoints to container ancestors when the boundary falls at a
- * full-content edge so structural formatting is preserved.
+ * Cross-block clipboard text collection.
  */
 
 import type { SelectionPoint } from './primitives';
@@ -18,17 +15,13 @@ import { displayLength } from '../core/lines';
  * the tail of the start block's raw, the full leadingTrivia + raw of every
  * middle block, and the head of the end block's raw.
  *
- * walkBetween yields ALL paths (containers AND their children). A container's
- * raw already includes its children's text, so collecting both would duplicate
- * content. We skip descendants of already-collected containers, and also skip
- * ancestors of the start/end paths (those are handled by the partial
- * tail/head slicing).
+ * walkBetween yields containers AND their children; a container's raw already
+ * includes its children's text, so we skip descendants of already-collected
+ * containers to avoid duplication.
  *
- * When an endpoint is a leaf inside a container (e.g. a paragraph inside a
- * list item) and the selection includes the full leaf boundary (offset 0 for
- * start, displayLength for end), we promote to the deepest non-shared
- * container ancestor so that structural formatting (list markers, blockquote
- * prefixes) is preserved in the clipboard text.
+ * Leaf endpoints at full-boundary offsets promote to their deepest non-shared
+ * container ancestor so structural formatting (list markers, blockquote
+ * prefixes) is preserved.
  */
 export function collectCrossBlockText(
 	doc: Document,
@@ -43,8 +36,6 @@ export function collectCrossBlockText(
 	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
 	const endRaw = 'raw' in endNode ? (endNode as CstNode).raw : '';
 
-	// Promote start/end to container ancestors when at full-boundary offsets,
-	// so structural formatting (list markers, blockquote prefixes) is included.
 	let effectiveStartPath = start.path;
 	let startTail: string;
 	if (start.offset === 0 && start.path.length > 1) {
@@ -81,12 +72,8 @@ export function collectCrossBlockText(
 	const collectedContainers: number[][] = [];
 
 	for (const path of walkBetween(doc, effectiveStartPath, effectiveEndPath)) {
-		// Skip ancestors of either endpoint
 		if (isStrictAncestorOf(path, effectiveStartPath)) continue;
 		if (isStrictAncestorOf(path, effectiveEndPath)) continue;
-
-		// Skip descendants of promoted endpoints — their text is already in
-		// startTail / endHead via the container's raw
 		if (isStrictAncestorOf(effectiveStartPath, path)) continue;
 		if (isStrictAncestorOf(effectiveEndPath, path)) continue;
 
@@ -102,13 +89,9 @@ export function collectCrossBlockText(
 		}
 	}
 
-	// Prepend the end node's leadingTrivia to endHead. This captures the
-	// separator (blank line or line ending) between the last-collected
-	// content and the end block — without it, blank lines between paragraphs
-	// get dropped from the clipboard and paste reparses as a single merged
-	// paragraph via soft line break. Skip when start and end resolved to the
-	// same effective path (degenerate same-container case; endHead already
-	// equals startTail).
+	// Without the end node's leadingTrivia, blank lines between paragraphs get
+	// dropped and paste reparses as a single merged paragraph. Skip when
+	// start/end resolved to the same effective path (endHead === startTail).
 	let endLead = '';
 	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
 		const endNode = nodeAt(doc, effectiveEndPath);
@@ -132,12 +115,9 @@ function pathsEqual(a: number[], b: number[]): boolean {
 
 /**
  * Mirror of {@link endPartialWithContainerMarker} for the start endpoint.
- * When the start falls mid-leaf inside a simple container, prepend the
- * container's marker so the clipboard parses as a proper list / blockquote
- * even for partial selections — without this, the first line arrives
- * marker-less and CommonMark §5.2 keeps subsequent "N." lines from
- * interrupting the paragraph, collapsing the round-trip into a single
- * multi-line block.
+ * Without the container marker, CommonMark §5.2 prevents subsequent "N."
+ * lines from interrupting the paragraph, collapsing the round-trip into a
+ * single multi-line block.
  */
 function startPartialWithContainerMarker(
 	doc: Document,
@@ -160,15 +140,10 @@ function startPartialWithContainerMarker(
 }
 
 /**
- * For a partial end endpoint inside a simple container (listItem or
- * blockquote holding one child), prepend the container's marker/prefix
- * to the partial leaf text so the clipboard retains structural formatting
- * (e.g. "3. thi" rather than "thi" for a partial last-item selection).
- *
- * Returns null if the container isn't eligible — multi-child containers,
- * non-listItem/blockquote parents, leaves that aren't the first child, or
- * cases where the prefix can't be recovered from the parent's raw (so the
- * caller falls back to the plain leaf slice).
+ * Prepend the container marker to a partial leaf slice when the leaf is the
+ * sole child of a listItem / blockquote, so the clipboard retains structural
+ * formatting (e.g. "3. thi" rather than "thi"). Returns null when the
+ * container isn't eligible; callers fall back to the plain leaf slice.
  */
 function endPartialWithContainerMarker(
 	doc: Document,
@@ -180,8 +155,8 @@ function endPartialWithContainerMarker(
 	if (!parent || !('children' in parent) || !parent.children) return null;
 	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
 
-	// Prefix recovery only works when the leaf is the container's sole child —
-	// otherwise earlier siblings' text sits between the marker and the leaf's raw.
+	// Prefix recovery requires the leaf be the sole child — otherwise earlier
+	// siblings' text sits between the marker and the leaf's raw.
 	if (parent.children.length !== 1) return null;
 	if (end.path[end.path.length - 1] !== 0) return null;
 
@@ -194,10 +169,8 @@ function endPartialWithContainerMarker(
 
 /**
  * Walk up from a leaf endpoint, promoting to the deepest container ancestor
- * whose content is entirely within the selection scope. For the start side,
- * promotion is safe only while the child at each level is the first child
- * (no earlier siblings to accidentally include). For the end side, only while
- * the child is the last.
+ * whose content is entirely within the selection scope. Start-side promotion
+ * is safe only while each child is the first; end-side, only while last.
  */
 function promoteToContainer(
 	doc: Document,

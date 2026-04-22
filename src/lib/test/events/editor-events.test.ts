@@ -65,7 +65,6 @@ describe('createEditorEvents', () => {
 	it('a throwing subscriber does not starve downstream subscribers', () => {
 		const events = createEditorEvents();
 		const called: string[] = [];
-		// Swallow the error log so test output stays clean.
 		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 		events.on('edit', () => called.push('a'));
@@ -82,8 +81,6 @@ describe('createEditorEvents', () => {
 		consoleError.mockRestore();
 	});
 
-	// Test #5 from the failing-first pin list: a container edit must fire
-	// exactly one edit event per commit.
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
 		const { createUndoController } =
 			await import('$lib/editor/components/editor-actions/undo-controller');

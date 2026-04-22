@@ -1,33 +1,24 @@
 /**
- * Stages 2 and 3 of the inline parser pipeline: delimiter run scanning
- * (`*`, `_`, `~~`) and CommonMark emphasis matching. Bundled in one file
- * because `Segment` and `DelimiterEntry` pass between them and every
- * correctness change to delimiter semantics would touch both.
+ * Inline pipeline stages 2–3: delimiter run scanning (`*`, `_`, `~~`) and
+ * CommonMark emphasis matching. Bundled because Segment / DelimiterEntry
+ * pass between them and correctness changes touch both.
  */
 
 import type { InlineNode } from '../nodes';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-/** A delimiter run: a sequence of *, _, or ~ characters. */
 interface DelimiterEntry {
 	kind: '*' | '_' | '~';
-	/** Number of delimiter characters remaining (decremented as matched). */
+	/** Characters remaining in the run — decremented as emphasis matches consume them. */
 	count: number;
-	/** Original length of this run. */
 	origCount: number;
-	/** Start offset in raw (absolute). */
 	start: number;
-	/** End offset in raw (absolute, exclusive). */
 	end: number;
 	canOpen: boolean;
 	canClose: boolean;
 }
 
-/**
- * A segment is either a resolved inline node (text or code span produced by
- * stage 1) or a delimiter entry that still needs matching.
- */
 type Segment = { type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry };
 
 // ── Delimiter Run Scanning ─────────────────────────────────────────────────
@@ -39,7 +30,6 @@ export function hasDelimiterChars(
 	end: number,
 	nodes: InlineNode[]
 ): boolean {
-	// Build occupied ranges from all non-text nodes
 	const occupied: Array<{ start: number; end: number }> = nodes
 		.filter((n) => n.kind !== 'text')
 		.map((n) => ({ start: n.start, end: n.end }));
@@ -57,32 +47,26 @@ export function hasDelimiterChars(
 	return false;
 }
 
-/** Unicode punctuation detection (covers ASCII punctuation + general category P). */
+/** Unicode punctuation (ASCII punctuation + general category P). */
 function isPunct(ch: string): boolean {
 	if (!ch) return false;
-	// ASCII punctuation
 	const code = ch.codePointAt(0)!;
 	if (
-		(code >= 0x21 && code <= 0x2f) || // !"#$%&'()*+,-./
-		(code >= 0x3a && code <= 0x40) || // :;<=>?@
-		(code >= 0x5b && code <= 0x60) || // [\]^_`
-		(code >= 0x7b && code <= 0x7e) // {|}~
+		(code >= 0x21 && code <= 0x2f) ||
+		(code >= 0x3a && code <= 0x40) ||
+		(code >= 0x5b && code <= 0x60) ||
+		(code >= 0x7b && code <= 0x7e)
 	) {
 		return true;
 	}
-	// Use Unicode category via regex for non-ASCII
 	return /^\p{P}$/u.test(ch);
 }
 
 function isWhitespace(ch: string): boolean {
-	if (!ch) return true; // treat boundary as whitespace (start/end of string)
+	if (!ch) return true; // string boundary counts as whitespace
 	return /\s/.test(ch);
 }
 
-/**
- * Classify a delimiter run for canOpen / canClose.
- * runStart/runEnd are absolute offsets into raw.
- */
 function classifyRun(
 	raw: string,
 	runStart: number,
@@ -97,33 +81,20 @@ function classifyRun(
 	const precededByWhitespace = isWhitespace(charBefore);
 	const precededByPunct = isPunct(charBefore);
 
-	// Left-flanking: not followed by whitespace, and (not followed by punctuation
-	// OR preceded by whitespace or punctuation)
 	const leftFlanking =
 		!followedByWhitespace && (!followedByPunct || precededByWhitespace || precededByPunct);
-
-	// Right-flanking: not preceded by whitespace, and (not preceded by punctuation
-	// OR followed by whitespace or punctuation)
 	const rightFlanking =
 		!precededByWhitespace && (!precededByPunct || followedByWhitespace || followedByPunct);
 
 	if (kind === '*' || kind === '~') {
-		// * and ~ use pure left/right flanking rules
 		return { canOpen: leftFlanking, canClose: rightFlanking };
-	} else {
-		// _: extra restrictions to avoid intra-word emphasis
-		const canOpen = leftFlanking && (!rightFlanking || precededByPunct);
-		const canClose = rightFlanking && (!leftFlanking || followedByPunct);
-		return { canOpen, canClose };
 	}
+	// `_` has extra restrictions to avoid intra-word emphasis.
+	const canOpen = leftFlanking && (!rightFlanking || precededByPunct);
+	const canClose = rightFlanking && (!leftFlanking || followedByPunct);
+	return { canOpen, canClose };
 }
 
-/**
- * Build a flat list of segments from the content range.
- * Occupied nodes (inlineCode, link, image, autolink from stages 1/1.5) are
- * inserted as 'node' segments; text regions between them are scanned for
- * delimiter runs.
- */
 export function buildSegments(
 	raw: string,
 	start: number,
@@ -136,17 +107,15 @@ export function buildSegments(
 
 	for (const node of stageNodes) {
 		if (node.kind !== 'text') {
-			// Scan the text region before this occupied node for delimiters
 			if (pos < node.start) {
 				scanTextRegionForDelimiters(raw, pos, node.start, segments);
 			}
 			segments.push({ type: 'node', node });
 			pos = node.end;
 		}
-		// 'text' nodes will be reconstructed from delimiter scanning; skip them.
+		// Existing text nodes get reconstructed by the delimiter scan; skip them here.
 	}
 
-	// Remaining text after the last occupied node
 	if (pos < end) {
 		scanTextRegionForDelimiters(raw, pos, end, segments);
 	}
@@ -154,9 +123,6 @@ export function buildSegments(
 	return segments;
 }
 
-/**
- * Scan a text region and emit text segments and delimiter segments.
- */
 function scanTextRegionForDelimiters(
 	raw: string,
 	start: number,
@@ -174,9 +140,8 @@ function scanTextRegionForDelimiters(
 			const runEnd = pos;
 			const count = runEnd - runStart;
 
-			// ~ is only valid as a strikethrough delimiter in runs of exactly 2
+			// `~` is only a strikethrough delimiter in runs of exactly 2; anything else is text.
 			if (ch === '~' && count !== 2) {
-				// Emit the whole ~ run as plain text
 				if (textStart < runStart) {
 					out.push({
 						type: 'node',
@@ -203,7 +168,6 @@ function scanTextRegionForDelimiters(
 
 			const { canOpen, canClose } = classifyRun(raw, runStart, runEnd, ch as '*' | '_' | '~');
 
-			// Emit preceding text as a text segment
 			if (textStart < runStart) {
 				out.push({
 					type: 'node',
@@ -251,15 +215,10 @@ function scanTextRegionForDelimiters(
 // ── Emphasis Matching (CommonMark algorithm) ───────────────────────────────
 
 /**
- * Process the delimiter stack using the CommonMark emphasis matching algorithm.
- * Returns a flat InlineNode[] (emphasis/strong nodes may have children).
+ * CommonMark emphasis matching. Repeatedly finds the leftmost closer with a
+ * valid opener, wraps the range, and restarts until no match remains.
  */
 export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] {
-	// We'll work with a mutable array of items. Each item is either a node
-	// or a delimiter entry. We repeatedly scan for a closer, find its opener,
-	// wrap the content between them, and restart.
-
-	// Clone segments into a working list
 	type Item = { type: 'node'; node: InlineNode } | { type: 'delimiter'; entry: DelimiterEntry };
 
 	const items: Item[] = segments.map((s) =>
@@ -272,14 +231,12 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 	while (changed) {
 		changed = false;
 
-		// Find the leftmost closer
 		for (let ci = 0; ci < items.length; ci++) {
 			const closerItem = items[ci];
 			if (closerItem.type !== 'delimiter') continue;
 			const closer = closerItem.entry;
 			if (!closer.canClose || closer.count === 0) continue;
 
-			// Find the nearest opener to the left
 			let openerIdx = -1;
 			for (let oi = ci - 1; oi >= 0; oi--) {
 				const openerItem = items[oi];
@@ -288,7 +245,7 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 				if (!opener.canOpen || opener.count === 0) continue;
 				if (opener.kind !== closer.kind) continue;
 
-				// Multiple-of-3 rule
+				// CommonMark multiple-of-3 rule.
 				if (
 					(opener.canClose || closer.canOpen) &&
 					(opener.count + closer.count) % 3 === 0 &&
@@ -306,11 +263,9 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 			const openerItem = items[openerIdx] as { type: 'delimiter'; entry: DelimiterEntry };
 			const opener = openerItem.entry;
 
-			// Determine consume count and kind
 			let consume: number;
 			let nodeKind: InlineNode['kind'];
 			if (opener.kind === '~') {
-				// ~ delimiters are always exactly 2 (enforced during scanning)
 				consume = 2;
 				nodeKind = 'strikethrough';
 			} else {
@@ -318,15 +273,9 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 				nodeKind = consume === 2 ? 'strong' : 'emphasis';
 			}
 
-			// The opener marker occupies the last `consume` chars of its run
 			const openerMarkerStart = opener.end - consume;
-			const openerMarkerEnd = opener.end;
-
-			// The closer marker occupies the first `consume` chars of its run
-			const closerMarkerStart = closer.start;
 			const closerMarkerEnd = closer.start + consume;
 
-			// Collect child nodes/delimiters between opener and closer
 			const childItems = items.slice(openerIdx + 1, ci);
 			const children = resolveItems(raw, childItems);
 
@@ -337,16 +286,12 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 				children
 			};
 
-			// Reduce or remove opener
 			opener.count -= consume;
 			opener.end -= consume;
-			// Reduce or remove closer
 			closer.count -= consume;
 			closer.start += consume;
 
-			// Replace [openerIdx+1 .. ci] with the wrapped node
-			const newItem: Item = { type: 'node', node: wrappedNode };
-			items.splice(openerIdx + 1, ci - openerIdx - 1, newItem);
+			items.splice(openerIdx + 1, ci - openerIdx - 1, { type: 'node', node: wrappedNode });
 
 			if (opener.count === 0) {
 				items.splice(openerIdx, 1);
@@ -357,7 +302,6 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 		}
 	}
 
-	// Convert remaining items to InlineNodes
 	return resolveItems(raw, items);
 }
 

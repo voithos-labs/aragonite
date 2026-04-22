@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-// Runner note: Vitest + jsdom environment (declared above via docblock).
-// jsdom implements the DOM tree walker and Range offset arithmetic correctly,
-// so cursor offset round-tripping is testable here. Visual-line geometry and
-// sticky-measure pixel X require real browser layout — covered by
-// e2e/tests/keyboard-navigation.spec.ts and sticky-column.spec.ts respectively.
+// Visual-line geometry and sticky-measure pixel X require real browser layout — covered by e2e.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -52,7 +48,6 @@ describe('cursor-utils', () => {
 			container.textContent = 'hello world';
 			const range = createRangeFromOffsets(container, 6, Number.MAX_SAFE_INTEGER);
 			expect(range).not.toBeNull();
-			// Start at offset 6 inside the text node, end clamped to container end.
 			expect(range!.startOffset).toBe(6);
 			expect(range!.collapsed).toBe(false);
 		});

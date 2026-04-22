@@ -186,16 +186,11 @@
 	});
 
 	/**
-	 * Chromium with `white-space: pre` will not paint a caret on the line
-	 * after a trailing `\n` unless something follows it — and `insertText` at
-	 * that caret position routes the typed character BEFORE the `\n` instead
-	 * (the bug that originally forced a DOM-mutation Enter handler). A
-	 * `<br data-caret-anchor>` after the trailing newline gives the browser a
-	 * concrete line-break anchor: the caret holds on the new line and typed
-	 * text lands after the `\n` as expected. BR has empty textContent so the
-	 * `textContent === trimTrailingLineEnding(raw)` invariant still holds.
-	 * Re-added on every render because the renderer is the source of truth
-	 * for the contenteditable's children.
+	 * Chromium with `white-space: pre` won't paint a caret on the line after a
+	 * trailing `\n` unless something follows it; typed text routes before the `\n`.
+	 * A trailing `<br>` anchors the caret on the new line. BR has empty textContent,
+	 * so `textContent === trimTrailingLineEnding(raw)` still holds.
+	 * Re-applied every render — the renderer owns the contenteditable's children.
 	 */
 	function anchorTrailingNewlineForChromium(host: HTMLElement): void {
 		if (!host.textContent?.endsWith('\n')) return;
@@ -227,10 +222,7 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		// Shift+Enter on desktop — and the mobile/IME `insertLineBreak`
-		// without a preceding keydown — both arrive here. Insert a bare `\n`
-		// at the cursor and route through the CST so the source of truth
-		// stays single (this is the "soft break" mode of `computeCodeEnter`).
+		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak without a preceding keydown.
 		if (e.inputType === 'insertLineBreak' && el) {
 			e.preventDefault();
 			const result = computeCodeEnter({
@@ -252,9 +244,7 @@
 
 		const closer = getCloserFor(data);
 
-		// Wrap a non-empty selection in a typed opener's pair. The selection
-		// is preserved inside the pair so the user can keep typing to replace
-		// the wrapped content.
+		// Selection preserved inside the pair so the user can keep typing to replace the wrapped content.
 		if (selOffsets && closer !== null) {
 			e.preventDefault();
 			const wrapped =
@@ -270,19 +260,15 @@
 
 		if (selOffsets) return; // Non-opener input with a selection — let the browser handle it.
 
-		// Skip-over: typed closer already sits at the cursor. Move past it
-		// without inserting a duplicate — the CST does not change, so we
-		// bypass the render cycle and just advance the caret.
+		// Skip-over: closer already at cursor. Bypass the render cycle — CST unchanged, just advance caret.
 		if (shouldSkipClose(text, offset, data)) {
 			e.preventDefault();
 			setCursorOffsetHelper(el, offset + 1);
 			return;
 		}
 
-		// Auto-pair: typed opener with a collapsed cursor inserts the closer too.
-		// Skip backtick pairing in an unclosed backtick fence — the user is
-		// almost certainly trying to close or extend the opening fence, not
-		// type literal backticks. Auto-pairing there produces a phantom closer.
+		// Skip backtick auto-pair inside an unclosed backtick fence — the user
+		// is closing/extending the fence, and auto-pairing would add a phantom closer.
 		const unclosedBacktickFence =
 			data === '`' &&
 			(node.metadata as FencedCodeMetadata).closed === false &&
@@ -303,8 +289,7 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// Ctrl+B / Ctrl+I — swallow inside code so the browser doesn't toggle
-		// bold/italic on the contenteditable. Code blocks have no formatting.
+		// Swallow bold/italic shortcuts so the browser doesn't toggle them on the contenteditable.
 		if (
 			(e.ctrlKey || e.metaKey) &&
 			(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
@@ -321,8 +306,7 @@
 				return;
 			}
 
-			// Pair-delete: cursor sitting between a matching empty pair removes
-			// both halves so the auto-closed companion does not get stranded.
+			// Pair-delete: remove both halves so the auto-closed companion isn't stranded.
 			if (!hasSelectionHelper()) {
 				const text = getDisplayText();
 				if (isBetweenEmptyPair(text, offset)) {
@@ -335,10 +319,8 @@
 			}
 		}
 
-		// Plain Enter: always handle manually. The browser's default `insertParagraph`
-		// adds <div>/<br> elements that contribute zero characters to textContent,
-		// which leaves the CST unchanged and the $effect wipes the browser's insertion
-		// on re-render — making Enter appear to do nothing.
+		// Handle Enter manually: the browser's insertParagraph adds <div>/<br> elements
+		// that don't affect textContent, so the CST never sees the edit.
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			const offset = getCursorOffsetHelper(el!) ?? 0;
@@ -348,14 +330,12 @@
 			if (meta.closed) {
 				const fenceChars = meta.fenceMarker.repeat(meta.fenceLength);
 
-				// Cursor past the closer (e.g. from Ctrl+End) → exit immediately.
 				if (offset === text.length) {
 					focusActions.moveFocus(index + 1, 'start');
 					return;
 				}
 
-				// Cursor on an empty body line immediately before the closer → exit,
-				// stripping the empty line so the block doesn't gain a trailing blank.
+				// Empty body line before the closer: strip it on exit so the block doesn't keep a trailing blank.
 				const onEmptyLineBeforeCloser =
 					offset >= 1 &&
 					text[offset - 1] === '\n' &&
@@ -368,8 +348,7 @@
 					return;
 				}
 			} else {
-				// Unclosed fence: exit when cursor is at the end of content AND the
-				// content already ends with a blank line (the earlier Enter added it).
+				// Unclosed fence: exit only when a prior Enter already left a trailing blank line.
 				if (offset === text.length && text.endsWith('\n')) {
 					blockEdit.updateBlockContent(index, text.slice(0, -1) + '\n', preEditOffset);
 					focusActions.moveFocus(index + 1, 'start');
@@ -377,11 +356,8 @@
 				}
 			}
 
-			// Default: insert a newline at the cursor, copying the current line's
-			// leading whitespace. When the cursor sits between an empty bracket
-			// pair, expand into three lines with one extra indent level on the
-			// middle line — the "electric indent" pattern every modern code
-			// editor ships. Quote pairs stay inline.
+			// Electric indent: between an empty bracket pair, expand into three lines
+			// with an extra indent on the middle line. Quote pairs stay inline.
 			if (isBetweenEmptyBracketPair(text, offset)) {
 				const indent = getLineLeadingWhitespace(text, offset);
 				const inner = indent + ELECTRIC_INDENT_UNIT;
@@ -412,7 +388,6 @@
 		}
 	}
 
-	/** Collapse the contenteditable's current selection to a `{start,end}` range. */
 	function currentRange(): { start: number; end: number } {
 		const sel = getSelectionOffsetsHelper(el!);
 		if (sel) return sel;
@@ -420,7 +395,6 @@
 		return { start: cursor, end: cursor };
 	}
 
-	/** Flush an IndentResult through the CST + cursor-restore pipeline. */
 	function applyIndentResult(result: IndentResult): void {
 		blockEdit.updateBlockContent(index, result.text + '\n', result.selection.start);
 		if (result.selection.start === result.selection.end) {
@@ -447,16 +421,6 @@
 		if (crossBlock.handlePointerDown(e)) return;
 	}
 
-	/**
-	 * Copy pulls the native selection verbatim — fences and all. The concern
-	 * that a lone fence on the clipboard makes pasting into a paragraph create
-	 * an unclosed code block is real, but the fix lives on the paste side:
-	 * when the target is a code block, the code paste surface bumps the outer
-	 * fence to a longer run so any pasted fence stays literal body. Pasting
-	 * into a paragraph matches whatever the user selected, including orphan
-	 * fences — the trade-off accepted when we chose "clipboard is literal"
-	 * over silent content dropping.
-	 */
 	function getCopyPayload(): string {
 		return window.getSelection()?.toString() ?? '';
 	}

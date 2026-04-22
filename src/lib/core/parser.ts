@@ -1,9 +1,7 @@
 /**
- * Single-pass, line-oriented GFM block parser.
- * Produces a recursive CST where serialize(parse(source)) === source.
- * Per-kind match and parse functions live in core/parsers/; this file
- * retains only the top-level dispatch, shared utilities, and the public
- * entry points (parse, parseBlocks).
+ * Single-pass GFM block parser. Produces a CST where
+ * serialize(parse(source)) === source. Per-kind parsers live in parsers/;
+ * this file holds only top-level dispatch and shared utilities.
  */
 
 import type { CstNode, Document } from './nodes';
@@ -20,7 +18,6 @@ import { parseParagraph } from './parsers/paragraph';
 
 // ── Public entry point ──────────────────────────────────────────────────
 
-/** Parse a markdown source string into a Document CST. */
 export function parse(source: string): Document {
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length);
@@ -44,7 +41,6 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 	let pendingTrivia = '';
 	let index = start;
 
-	// Consume leading blank lines into prefix
 	while (index < end && isBlankLine(lines[index].text)) {
 		prefix += lines[index].raw;
 		index++;
@@ -85,13 +81,11 @@ function parseNextBlock(
 ): { node: CstNode; nextIndex: number } {
 	const line = lines[startIndex];
 
-	// Fenced code block
 	const fence = matchFenceOpen(line.text);
 	if (fence) {
 		return parseFencedCode(lines, startIndex, endIndex, leadingTrivia, fence);
 	}
 
-	// ATX heading
 	const heading = matchHeading(line.text);
 	if (heading) {
 		return {
@@ -100,7 +94,7 @@ function parseNextBlock(
 		};
 	}
 
-	// Thematic break — setext detection inside parseParagraph handles the ---/=== ambiguity
+	// Setext heading's `---` underline is disambiguated inside parseParagraph.
 	const thematic = matchThematicBreak(line.text);
 	if (thematic) {
 		return {
@@ -109,30 +103,25 @@ function parseNextBlock(
 		};
 	}
 
-	// Blockquote
 	if (matchBlockquote(line.text)) {
 		return parseBlockquote(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	// List item
 	const listItem = matchListItem(line.text);
 	if (listItem) {
 		return parseList(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	// Indented code block — cannot interrupt a paragraph (GFM spec 4.4). The
-	// interruption rule is a dispatch-time context check, not a line-level
-	// match; hence it lives here rather than inside the matcher.
+	// Indented code cannot interrupt a paragraph (GFM §4.4) — a dispatch-time
+	// context check, not a line-level match, so it lives here not in the matcher.
 	if (matchIndentedCode(line.text) && (leadingTrivia.length > 0 || isFirstBlock)) {
 		return parseIndentedCode(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	// HTML block
 	if (matchHtmlBlock(line.text)) {
 		return parseHtmlBlock(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	// Link reference definition (exclude footnote labels starting with ^)
 	const linkRef = matchLinkReferenceDefinition(line.text);
 	if (linkRef) {
 		return {
@@ -146,7 +135,7 @@ function parseNextBlock(
 		};
 	}
 
-	// Fallback: paragraph (also detects setext headings and tables)
+	// Paragraph fallback also detects setext headings and tables.
 	return parseParagraph(lines, startIndex, endIndex, leadingTrivia);
 }
 
@@ -156,7 +145,6 @@ export function isBlankLine(text: string): boolean {
 	return text.trim().length === 0;
 }
 
-/** Concatenate `raw` across a line range. Shared with core/parsers/*.ts. */
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {
 	let result = '';
 	for (let i = startIndex; i < endIndex; i++) {

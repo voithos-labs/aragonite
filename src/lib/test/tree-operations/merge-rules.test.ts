@@ -1,4 +1,3 @@
-// src/lib/editor/test/tree-operations/merge-rules.test.ts
 import { describe, it, expect } from 'vitest';
 import { isMergeEligible, findMergeTarget } from '../../tree-operations/merge-rules';
 import { parse } from '../../core/parser';
@@ -7,35 +6,13 @@ import { rebuildAncestryRaw } from '../../tree-operations';
 import { serialize } from '../../core/serializer';
 
 describe('isMergeEligible', () => {
-	// Full role-pair matrix. Representatives of each role:
-	//   prose           → paragraph
-	//   prose-absorber  → heading, setextHeading
-	//   container       → blockquote, list, listItem
-	//   opaque          → fencedCode, thematicBreak, indentedCode, htmlBlock,
-	//                     linkReferenceDefinition, table
-	//   self-merge      → unrecognized
-	//
-	// Eligibility rules (see merge-rules.ts):
-	//   prose           + prose          → eligible
-	//   prose-absorber  + prose          → eligible
-	//   container       + prose          → eligible
-	//   self-merge      + self-merge     → eligible
-	//   everything else                  → not eligible
-	//
-	// The matrix below covers the cross product of every role category as
-	// both prev and curr, so any future narrowing of a rule is caught.
-
 	const eligible: [string, string][] = [
-		// prose + prose
 		['paragraph', 'paragraph'],
-		// prose-absorber + prose
 		['heading', 'paragraph'],
 		['setextHeading', 'paragraph'],
-		// container + prose
 		['blockquote', 'paragraph'],
 		['list', 'paragraph'],
 		['listItem', 'paragraph'],
-		// self-merge + self-merge
 		['unrecognized', 'unrecognized']
 	];
 
@@ -46,28 +23,22 @@ describe('isMergeEligible', () => {
 	}
 
 	const ineligible: [string, string][] = [
-		// prose + prose-absorber (asymmetric: only prose-absorber-as-prev merges)
 		['paragraph', 'heading'],
 		['paragraph', 'setextHeading'],
-		// prose-absorber + prose-absorber (headings don't absorb each other)
 		['heading', 'heading'],
 		['heading', 'setextHeading'],
 		['setextHeading', 'heading'],
-		// prose + container (containers as curr aren't eligible)
 		['paragraph', 'blockquote'],
 		['paragraph', 'list'],
 		['heading', 'blockquote'],
-		// container + container (even same kind)
 		['blockquote', 'blockquote'],
 		['blockquote', 'list'],
 		['list', 'list'],
 		['list', 'blockquote'],
 		['list', 'listItem'],
-		// container + prose-absorber (only prose, not heading/setextHeading)
 		['blockquote', 'heading'],
 		['list', 'heading'],
 		['list', 'setextHeading'],
-		// opaque + anything
 		['fencedCode', 'paragraph'],
 		['fencedCode', 'fencedCode'],
 		['thematicBreak', 'paragraph'],
@@ -75,13 +46,11 @@ describe('isMergeEligible', () => {
 		['htmlBlock', 'paragraph'],
 		['linkReferenceDefinition', 'paragraph'],
 		['table', 'paragraph'],
-		// anything + opaque
 		['paragraph', 'fencedCode'],
 		['paragraph', 'thematicBreak'],
 		['paragraph', 'table'],
 		['heading', 'fencedCode'],
 		['blockquote', 'fencedCode'],
-		// self-merge + non-self-merge
 		['unrecognized', 'paragraph'],
 		['paragraph', 'unrecognized'],
 		['unrecognized', 'heading'],
@@ -94,11 +63,6 @@ describe('isMergeEligible', () => {
 		});
 	}
 });
-
-// `isBlockEditable` is covered exhaustively in
-// test/tree-operations/block-kind-descriptor.test.ts — the per-kind loop that
-// previously lived here was a subset of that one and offered no distinct
-// coverage.
 
 describe('findMergeTarget', () => {
 	function parseBlock(src: string): CstNode {
@@ -154,7 +118,6 @@ describe('findMergeTarget', () => {
 		expect(result).not.toBeNull();
 		expect(result!.target.kind).toBe('paragraph');
 		expect((result!.target.raw ?? '').trim()).toBe('second');
-		// path: [listItemIndex, paragraphIndexInListItem] = [1, 0]
 		expect(result!.path).toEqual([1, 0]);
 	});
 
@@ -163,7 +126,6 @@ describe('findMergeTarget', () => {
 		const result = findMergeTarget(prev);
 		expect(result).not.toBeNull();
 		expect((result!.target.raw ?? '').trim()).toBe('b');
-		// path walks: top list → item 0 (a) → nested list (last child of item a) → item 0 (b) → paragraph (item 0 of b)
 		expect(result!.path).toEqual([0, 1, 0, 0]);
 	});
 
@@ -180,10 +142,6 @@ describe('findMergeTarget', () => {
 	});
 });
 
-// The representative-pair describe block that previously lived here duplicated
-// the full cross-product matrix in the `isMergeEligible` describe block above.
-// The exhaustive matrix is the stronger test, so the smaller one was removed.
-
 describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 	function parseBlock(src: string): CstNode {
 		const doc = parse(src);
@@ -193,7 +151,7 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 	function simulateMerge(prevSrc: string, currText: string): string {
 		const prev = parseBlock(prevSrc);
 		const result = findMergeTarget(prev);
-		if (!result) return prevSrc; // caller would fall back — we just return unchanged
+		if (!result) return prevSrc;
 		const target = result.target;
 		const raw = target.raw ?? '';
 		const lineEnding = raw.endsWith('\r\n') ? '\r\n' : '\n';
@@ -231,8 +189,6 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 	});
 
 	it('blockquote with opaque deepest leaf: simulateMerge returns unchanged (walker returned null)', () => {
-		// The fenced code block is the last inner child; walker fails, no mutation.
-		// simulateMerge returns prevSrc unchanged when findMergeTarget returns null.
 		const input = '> para\n>\n> ```\n> code\n> ```\n';
 		const result = simulateMerge(input, 'text');
 		expect(result).toBe(input);

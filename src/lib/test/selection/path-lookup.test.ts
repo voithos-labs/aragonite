@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// findBlockPathForElement walks the DOM, so we run this file under jsdom.
-// The pure tree-navigation helpers would work under node, but colocating
-// them with findBlockPathForElement keeps the module's tests in one file.
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -49,7 +46,6 @@ describe('nodeAt', () => {
 	it('returns null for invalid paths', () => {
 		const d = doc([para('a\n')]);
 		expect(nodeAt(d, [5])).toBeNull();
-		// Drilling into a paragraph (no children) is invalid.
 		expect(nodeAt(d, [0, 0])).toBeNull();
 	});
 });
@@ -64,8 +60,6 @@ describe('nextPath', () => {
 
 	it('enters a container as the next block', () => {
 		const d = doc([para('a\n'), bq([para('x\n')])]);
-		// Moving from [0] → [1] steps onto the blockquote itself;
-		// the container walks into its first child next.
 		expect(nextPath(d, [0])).toEqual([1]);
 		expect(nextPath(d, [1])).toEqual([1, 0]);
 	});
@@ -99,17 +93,12 @@ describe('previousPath', () => {
 	});
 
 	it('exits a container to its parent at the first child', () => {
-		// At [0, 0] the previous step is the container itself at [0].
 		const d = doc([bq([para('x\n'), para('y\n')])]);
 		expect(previousPath(d, [0, 0])).toEqual([0]);
-		// And [0] is the first block in the document — no earlier path.
 		expect(previousPath(d, [0])).toBeNull();
 	});
 
 	it('steps to the container itself when at its first child', () => {
-		// nextPath and previousPath are symmetric: nextPath goes
-		// [0] → [1] (blockquote) → [1, 0] (first child), so previousPath
-		// must go [1, 0] → [1] → [0].
 		const d = doc([para('a\n'), bq([para('x\n'), para('y\n')])]);
 		expect(previousPath(d, [1, 0])).toEqual([1]);
 		expect(previousPath(d, [1])).toEqual([0]);

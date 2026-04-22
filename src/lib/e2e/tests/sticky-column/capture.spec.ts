@@ -1,7 +1,3 @@
-/**
- * Sticky column — basic capture and survival through intermediate clamping.
- * See e2e/requirements/sticky-column.md.
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
@@ -20,7 +16,6 @@ test.describe('sticky column: basic capture and cross-block', () => {
 			'Hello world this is the first paragraph.\n\nSecond paragraph is also quite long.\n'
 		);
 
-		// Click into the first paragraph at around offset 10 (after "Hello worl")
 		const firstPara = editor.page.locator('[contenteditable="true"]').first();
 		await firstPara.click();
 		await editor.page.keyboard.press('Home');
@@ -29,7 +24,6 @@ test.describe('sticky column: basic capture and cross-block', () => {
 		const sourceX = await editor.getCaretPixelX();
 		expect(sourceX).toBeGreaterThan(0);
 
-		// ArrowDown to second paragraph
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 
@@ -42,7 +36,6 @@ test.describe('sticky column: basic capture and cross-block', () => {
 			'Hello world this is the first paragraph.\n\nSecond paragraph is also quite long.\n'
 		);
 
-		// Click into the second paragraph at around offset 10
 		const secondPara = editor.page.locator('[contenteditable="true"]').nth(1);
 		await secondPara.click();
 		await editor.page.keyboard.press('Home');
@@ -71,20 +64,17 @@ test.describe('sticky column: survive intermediate clamping', () => {
 			'A very long first paragraph with plenty of characters to start at a high column.\n\nShort.\n\nAnother long paragraph here with many characters to land in.\n'
 		);
 
-		// Click into first paragraph at a high column (around offset 40)
 		const first = editor.page.locator('[contenteditable="true"]').nth(0);
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 40; i++) await editor.page.keyboard.press('ArrowRight');
 
 		const sourceX = await editor.getCaretPixelX();
-		expect(sourceX).toBeGreaterThan(100); // Just verifying we're at a reasonably high column
+		expect(sourceX).toBeGreaterThan(100);
 
-		// ArrowDown to "Short." — cursor will clamp to end of "Short."
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 
-		// ArrowDown to "Another long paragraph..." — cursor should return to original column
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(100);
 
@@ -104,7 +94,6 @@ test.describe('sticky column: survive intermediate clamping', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		// ArrowDown 4 times to traverse through A, B, C to the final long line
 		await editor.pressArrowDown();
 		await editor.page.waitForTimeout(50);
 		await editor.pressArrowDown();

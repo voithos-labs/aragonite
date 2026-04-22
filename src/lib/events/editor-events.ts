@@ -1,11 +1,10 @@
 /**
- * Observer-pattern event surface exposed as `editor.events`. Subscribers
- * use `on(name, cb)` and receive a disposer. Events fire synchronously;
- * handler contract: do NOT mutate the document from inside a handler.
+ * Observer-pattern event surface exposed as `editor.events`. Events fire
+ * synchronously; handlers must NOT mutate the document.
  *
- * Emission sites (by event kind):
- *   - `edit` with structural op: from inside `__commit`, after publish.
- *   - `edit` with op='input': from the keystroke-debounce flush.
+ * Emission sites:
+ *   - `edit` structural op: inside `__commit`, after publish.
+ *   - `edit` op='input': from the keystroke-debounce flush.
  *   - `selectionChange`: from the selection-state change path.
  */
 
@@ -45,7 +44,7 @@ export interface EditorEvents {
 		event: K,
 		handler: (payload: EditorEventMap[K]) => void
 	): () => void;
-	/** Internal emit — not exported from index.ts. Used by __commit / debounce / selection. */
+	/** Internal emit — not exported from index.ts. */
 	emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): void;
 }
 
@@ -70,11 +69,8 @@ export function createEditorEvents(): EditorEvents {
 	function emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): void {
 		const set = handlers[event] as Set<(p: EditorEventMap[K]) => void> | undefined;
 		if (!set) return;
-		// Copy before iterating so handlers that dispose themselves don't mutate
-		// the set mid-iteration. Each handler runs in its own try/catch so a
-		// throwing subscriber doesn't starve downstream subscribers — an
-		// observer-pattern invariant that edit-event consumers (persistent
-		// history, dirty tracking, op-log) rely on for independence.
+		// Copy so self-disposing handlers don't mutate the set mid-iteration.
+		// try/catch per handler so one throwing subscriber doesn't starve others.
 		for (const handler of [...set]) {
 			try {
 				handler(payload);

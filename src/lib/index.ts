@@ -31,7 +31,7 @@ export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
 export { createUndoManager } from './undo-manager';
 
-// ── Events surface (0.5.4) ─────────────────────────────────────────────────
+// ── Events surface ─────────────────────────────────────────────────────────
 
 export type {
 	EditorEvents,
@@ -40,41 +40,7 @@ export type {
 	SelectionChangeEvent
 } from './events/editor-events';
 
-// ── Container state — intentionally internal at 0.5.1 ─────────────────────
-//
-// BlockListState, createBlockListState, registerBlockListState,
-// getStateForNode, createStandardNestedActions, and the NestedActions types
-// live in `components/blocks/container-state/` but are NOT exported here.
-//
-// Decision rationale: the roadmap scopes 0.5.1 as the foundation for 1.2's
-// plugin system. Locking export names at 0.5.1 — before a real plugin author
-// exists to shape requirements — risks premature naming decisions a later
-// consumer would force us to break. The 0.5.1 done-gate is satisfied
-// explicitly: no new container-state exports at 0.5.1; full plugin surface
-// locked at 1.2 when the first external consumer is real.
-
-// ── Debug engine — intentionally internal at 0.5.3 ────────────────────────
-//
-// dumpTree, dumpSelection, dumpUndoStack, dumpInlineTree, dumpOperationsLog,
-// and createOperationsLog live in `debug/` but are NOT exported here.
-//
-// Decision rationale: same shape as the 0.5.1 container-state non-export
-// above. The inspect surface is consumed by `/test/editor`'s debug panel
-// and by tests, not by external library consumers. Locking names at 0.5.3
-// risks premature naming the 1.2 plugin API would force us to break.
-
-// ── Commit primitives + selection mutators — intentionally internal at 0.5.4 ─
-//
-// commitStructural, commitContainerStructural, createUndoController,
-// EditorActionsDeps, the createEditorEvents factory, SelectionState write
-// methods (setSelection / clearSelection / extendFocus / ...), and the
-// container-state registry live in `components/editor-actions/`,
-// `events/`, `selection/`, and `components/blocks/container-state/` — but
-// are NOT exported here. Only the EditorEvents type surface above is
-// exported, giving external observers a read-only subscription seam.
-//
-// Decision rationale: same shape as the 0.5.1 / 0.5.3 non-exports. The
-// commit primitives and selection-write APIs will be shaped against the
-// real 1.2 plugin consumer requirements. Locking names at 0.5.4 — before
-// any external consumer exists — risks premature naming a 1.2 reshape
-// would have to break.
+// Internal-only (no external export): container-state, debug engine, commit
+// primitives, selection-write APIs. These surfaces will be shaped against
+// 1.2's plugin requirements; the EditorEvents type above is the only
+// read-only subscription seam exposed pre-1.2.

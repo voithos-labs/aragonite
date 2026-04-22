@@ -5,8 +5,6 @@ import {
 	tryGetBlockKindDescriptor
 } from '../../tree-operations/block-kind-descriptor';
 
-// Every BlockKind in the type union must have a descriptor registered at
-// module load. Callers (merge-rules, BlockHost) rely on non-optional lookups.
 const ALL_KINDS: BlockKind[] = [
 	'paragraph',
 	'heading',

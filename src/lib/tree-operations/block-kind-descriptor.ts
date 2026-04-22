@@ -1,9 +1,3 @@
-/**
- * Per-kind descriptor registry. Consolidates merge role, editability,
- * container-ness, and inline-parsing capability. Built-in kinds register at
- * module load; adding a new kind requires one `registerBlockKind` call.
- */
-
 import type { BlockKind, CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 
@@ -27,19 +21,12 @@ export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
 	isContainer: boolean;
-	/**
-	 * True when the block's raw contains inline syntax that the inline parser
-	 * should process on every edit. Drives isProseKind — callers outside this
-	 * registry should not hardcode a kind list. False for non-prose leaves
-	 * (fencedCode, thematicBreak, etc.) and containers (which delegate inline
-	 * parsing to their children).
-	 */
+	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
 	 * Extract the content range (post-marker offsets) from a node's raw. Prose
 	 * kinds whose markers occupy a prefix of `raw` implement this to skip
-	 * markers. Paragraphs use the default (start=0, end=displayLength). When
-	 * absent, the default is used.
+	 * markers; otherwise the default (start=0, end=displayLength) is used.
 	 */
 	getContentRange?: (node: CstNode) => { start: number; end: number };
 }
@@ -157,7 +144,6 @@ registerBlockKind('unrecognized', {
 	isContainer: false,
 	supportsInline: false
 });
-// Containers delegate inline parsing to their children — they do not hold inline content directly.
 registerBlockKind('blockquote', {
 	mergeRole: 'container',
 	editable: true,

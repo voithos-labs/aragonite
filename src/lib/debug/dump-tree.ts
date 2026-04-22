@@ -44,10 +44,9 @@ function renderNode(
 			: null;
 
 	if (rawDisplay.includes('\n')) {
-		// Multi-line raw: header + trivia on one line, raw on following indented
-		// lines. Continuation lines are offset by one extra column so they visually
-		// line up with the character after the opening quote, and don't get
-		// mistaken for child entries (which start with `[` at the same indent).
+		// Continuation lines are offset one extra column so they align after
+		// the opening quote and aren't mistaken for child entries (which start
+		// with `[` at the same indent).
 		if (triviaStr) header.push(triviaStr);
 		lines.push(header.join(' '));
 		const rawLines = rawDisplay.split('\n');
@@ -59,7 +58,6 @@ function renderNode(
 		}
 		lines.push(`${contIndent}${rawLines[rawLines.length - 1]}"`);
 	} else {
-		// Single-line raw: inline with header, followed by trivia if any.
 		header.push(`"${rawDisplay}"`);
 		if (triviaStr) header.push(triviaStr);
 		lines.push(header.join(' '));

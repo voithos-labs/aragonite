@@ -27,7 +27,6 @@ describe('comparePaths', () => {
 	});
 
 	it('treats a strict prefix as the earlier path (ancestor before descendant)', () => {
-		// [2] is an ancestor of [2, 0]; in document order, [2]'s opening comes first.
 		expect(comparePaths([2], [2, 0])).toBe(-1);
 		expect(comparePaths([2, 0], [2])).toBe(1);
 	});

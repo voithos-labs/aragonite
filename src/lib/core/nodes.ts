@@ -1,7 +1,6 @@
 /**
- * CST node types for the GFM block-level parser.
- * Mutable plain objects — no class hierarchy.
- * See docs/design/editor/syntax-tree.md for the design spec.
+ * CST node types for the GFM parser. Mutable plain objects — no class
+ * hierarchy. See docs/design/editor/syntax-tree.md for the design spec.
  */
 
 // ── Node Kinds ──────────────────────────────────────────────────────────────
@@ -76,7 +75,7 @@ export type BlockMetadata =
 	| ListMetadata
 	| ListItemMetadata;
 
-// ── Inline Node Types (Phase 2) ────────────────────────────────────────────
+// ── Inline Node Types ──────────────────────────────────────────────────────
 
 export type InlineNodeKind =
 	| 'text'
@@ -89,10 +88,7 @@ export type InlineNodeKind =
 	| 'autolink'
 	| 'hardLineBreak';
 
-/**
- * A single inline node within a prose block's content.
- * start/end are byte offsets into the parent block's raw, including markers.
- */
+/** start/end are byte offsets into the parent block's raw, including markers. */
 export interface InlineNode {
 	kind: InlineNodeKind;
 	start: number;
@@ -106,10 +102,6 @@ export interface InlineNode {
 
 // ── Node Types ──────────────────────────────────────────────────────────────
 
-/**
- * A single mutable CST block node. Plain object — no class hierarchy.
- * The editor, parser, and serializer all use this type directly.
- */
 export interface CstNode {
 	kind: BlockKind;
 	leadingTrivia: string;
@@ -118,7 +110,7 @@ export interface CstNode {
 	innerPrefix?: string;
 	children?: CstNode[];
 	innerSuffix?: string;
-	/** Phase 2: parsed inline content for prose blocks. Rendering cache — derived from raw. */
+	/** Rendering cache for prose blocks — derived from raw, never re-serialized. */
 	inlineContent?: InlineNode[];
 }
 
