@@ -176,7 +176,17 @@ export class EditorPage {
 				block.focus();
 
 				const range = document.createRange();
-				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+				const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
+					// Ambient marker spans (contenteditable="false") contribute to DOM
+					// textContent but not to raw. Callers pass raw-semantic offsets.
+					acceptNode(n) {
+						const parent = (n as Text).parentElement;
+						if (parent?.closest('.md-marker[contenteditable="false"]')) {
+							return NodeFilter.FILTER_REJECT;
+						}
+						return NodeFilter.FILTER_ACCEPT;
+					}
+				});
 				let remaining = offset;
 				let node: Node | null;
 				while ((node = walker.nextNode())) {
@@ -309,7 +319,17 @@ export class EditorPage {
 				if (!editable) return null;
 				const range = document.createRange();
 				let remaining = offset;
-				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+				const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
+					// Ambient marker spans (contenteditable="false") contribute to DOM
+					// textContent but not to raw. Callers pass raw-semantic offsets.
+					acceptNode(n) {
+						const parent = (n as Text).parentElement;
+						if (parent?.closest('.md-marker[contenteditable="false"]')) {
+							return NodeFilter.FILTER_REJECT;
+						}
+						return NodeFilter.FILTER_ACCEPT;
+					}
+				});
 				let node: Node | null;
 				while ((node = walker.nextNode())) {
 					const len = node.textContent?.length ?? 0;
