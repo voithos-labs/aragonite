@@ -288,17 +288,35 @@ async function applyStructuralResult(
 	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) return;
 
 	const parentState = getStateForNode(parent)!;
-	// TODO: migrate via multi-scope commit primitive
-	parentState.commitChildrenEdit((children, ids, refs) => {
-		children.splice(innerIndex, 1, ...result.replacement);
-		ids.splice(innerIndex, 1, ...result.replacement.map(() => generateBlockId()));
-		refs.splice(innerIndex, 1, ...new Array(result.replacement.length).fill(undefined));
-	});
-	rebuildAncestryForLeaf(ctx.doc, [...parentPath, innerIndex]);
-	await tick();
 
-	const lastIdx = innerIndex + result.focusReplacementIndex;
-	parentState.innerBlockRefs[lastIdx]?.focus(result.focusOffset);
+	await ctx.controller.commitMultiScope(
+		[{ node: parent, state: parentState }],
+		ctx.skipSnapshot ? 'skip' : { blockIndex: targetPath[0], offset: 0 },
+		(scopeChildren) => {
+			const children = scopeChildren[0].children;
+			children.splice(innerIndex, 1, ...result.replacement);
+			// Sync before rebuild — rebuildAncestryForLeaf reads node.children directly.
+			parent.children = children;
+			rebuildAncestryForLeaf(ctx.doc, [...parentPath, innerIndex]);
+			return [
+				{
+					op: 'replace',
+					at: innerIndex,
+					count: 1,
+					newCount: result.replacement.length
+				}
+			];
+		},
+		{
+			kind: 'replaceBlock',
+			detail: { source: 'paste-dispatch', path: targetPath },
+			eventPath: targetPath
+		},
+		() => {
+			const lastIdx = innerIndex + result.focusReplacementIndex;
+			parentState.innerBlockRefs[lastIdx]?.focus(result.focusOffset);
+		}
+	);
 }
 
 function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
