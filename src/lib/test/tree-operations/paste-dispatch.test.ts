@@ -1,12 +1,20 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+	pasteDispatch,
 	pickPasteStrategy,
 	defaultInlineHook,
 	defaultStructuralHook,
 	__getDefaultTextSurface
 } from '../../tree-operations/paste-dispatch';
+import {
+	__resetPasteSurfacesForTests,
+	registerPasteSurface
+} from '../../tree-operations/paste-surfaces';
 import { parse } from '../../core/parser';
-import type { CstNode } from '../../core/nodes';
+import type { BlockKind, CstNode, Document } from '../../core/nodes';
+import type { BlockEditActions } from '../../contracts';
+import type { UndoController } from '../../components/editor-actions/deps';
 
 function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -95,5 +103,95 @@ describe('paste-dispatch — default text surface descriptor', () => {
 	it('kind matches the requested kind', () => {
 		expect(__getDefaultTextSurface('paragraph').kind).toBe('paragraph');
 		expect(__getDefaultTextSurface('heading').kind).toBe('heading');
+	});
+});
+
+// ── Dev-mode opaque-fallback warning ─────────────────────────────────────
+
+function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
+	return {
+		kind: 'document',
+		prefix: '',
+		suffix: '',
+		children: [
+			{
+				kind,
+				leadingTrivia: '',
+				raw,
+				metadata: {}
+			}
+		]
+	};
+}
+
+function makeStubBlockEdit(): BlockEditActions {
+	return {
+		splitBlock: vi.fn(),
+		mergeWithPrevious: vi.fn(),
+		mergeWithNext: vi.fn(),
+		deleteBlock: vi.fn(),
+		updateBlockContent: vi.fn(),
+		updateBlockMetadata: vi.fn(),
+		insertParsedBlocks: vi.fn(),
+		replaceBlock: vi.fn()
+	};
+}
+
+function makeStubController(): UndoController {
+	return {
+		pushUndoSnapshot: vi.fn(),
+		pushUndoSnapshotDebounced: vi.fn(),
+		commitStructural: vi.fn(),
+		commitContainerStructural: vi.fn(),
+		commitMultiScope: vi.fn(),
+		getDocScope: vi.fn(),
+		captureCurrentState: vi.fn(),
+		collapsedSelectionAt: vi.fn(),
+		clearDebouncedCheckpoint: vi.fn()
+	} as unknown as UndoController;
+}
+
+describe('paste-dispatch opaque-fallback warning', () => {
+	beforeEach(() => {
+		__resetPasteSurfacesForTests();
+	});
+
+	it('warns in dev mode when target kind has no registered surface', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		const doc = makeDocWithOneBlock('indentedCode', 'plain\n');
+		await pasteDispatch(
+			{ pastedText: 'hello', targetPath: [0], offset: 0 },
+			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
+		);
+
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining('No paste surface registered for kind'),
+			expect.stringContaining('indentedCode'),
+			expect.any(String)
+		);
+
+		warn.mockRestore();
+	});
+
+	it('does not warn when target kind has a registered surface', async () => {
+		registerPasteSurface({
+			kind: 'paragraph',
+			onInlinePaste: (node, offset, text) => ({
+				newRaw: node.raw.slice(0, offset) + text + node.raw.slice(offset),
+				caretOffset: offset + text.length
+			}),
+			onStructuralPaste: () => ({ replacement: [], focusReplacementIndex: 0, focusOffset: 0 })
+		});
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		const doc = makeDocWithOneBlock('paragraph', 'hello\n');
+		await pasteDispatch(
+			{ pastedText: 'X', targetPath: [0], offset: 0 },
+			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
+		);
+
+		expect(warn).not.toHaveBeenCalled();
+		warn.mockRestore();
 	});
 });
