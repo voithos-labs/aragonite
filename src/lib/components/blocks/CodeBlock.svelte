@@ -101,6 +101,7 @@
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
 		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
+		getTextLen: () => (el?.textContent ?? '').length,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		crossBlock,

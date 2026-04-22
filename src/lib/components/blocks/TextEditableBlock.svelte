@@ -99,7 +99,74 @@
 
 	function setRawCursorOffset(offset: number): void {
 		if (!el) return;
-		setCursorOffsetHelper(el, rawToDomOffset(Math.max(0, offset), ambientLength));
+		// Raw offset 0 under an ambient marker: a container-level DOM offset of
+		// ambientLength walks createRangeFromOffsets INTO the marker's text
+		// node (which sits inside a contenteditable="false" island) and
+		// Chromium bounces the caret out in front of the span. Use a sibling
+		// boundary instead.
+		if (ambientLength > 0 && offset <= 0) {
+			setCursorToAmbientBoundary();
+			return;
+		}
+		setCursorOffsetHelper(el, rawToDomOffset(offset, ambientLength));
+	}
+
+	/** Park the caret at raw offset 0 (just after the ambient span). Prefers
+	 * the start of the first text node past the span so visual-line geometry
+	 * measurements return real rects — a container-level offset between an
+	 * element and a text sibling yields empty rects from getClientRects.
+	 * Falls back to `setStartAfter(span)` when there is no trailing text.
+	 */
+	function setCursorToAmbientBoundary(): void {
+		if (!el) return;
+		const ambientSpan = el.firstChild;
+		if (!ambientSpan) return;
+		const range = document.createRange();
+		const textAfter = firstTextNodeAfter(ambientSpan);
+		if (textAfter) {
+			range.setStart(textAfter, 0);
+		} else {
+			range.setStartAfter(ambientSpan);
+		}
+		range.collapse(true);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+	}
+
+	function firstTextNodeAfter(node: Node): Text | null {
+		let sibling = node.nextSibling;
+		while (sibling) {
+			const text = findFirstTextDescendant(sibling);
+			if (text) return text;
+			sibling = sibling.nextSibling;
+		}
+		return null;
+	}
+
+	function findFirstTextDescendant(node: Node): Text | null {
+		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
+			return node as Text;
+		}
+		for (const child of node.childNodes) {
+			const found = findFirstTextDescendant(child);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	/** After a click or Home, the caret may land inside [0, ambientLength).
+	 * Move it to raw offset 0 so the next keystroke inserts into raw, not into
+	 * a stray text node sibling of the marker.
+	 */
+	function clampCursorOutOfAmbient(): void {
+		if (!el || ambientLength === 0) return;
+		if (document.activeElement !== el) return;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
+		const dom = getCursorOffsetHelper(el);
+		if (dom === null || dom >= ambientLength) return;
+		setCursorToAmbientBoundary();
 	}
 
 	function getRawSelectionOffsets(): { start: number; end: number } | null {
@@ -140,7 +207,8 @@
 
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
-		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
+		getCursorOffset: () => getRawCursorOffset(),
+		getTextLen: () => getDisplayText().length,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		crossBlock,
@@ -282,7 +350,8 @@
 
 	function ensureBr(): void {
 		if (!el) return;
-		if (el.textContent === '' && !el.querySelector('br')) {
+		const display = getDisplayText();
+		if (display === '' && !el.querySelector('br')) {
 			el.appendChild(document.createElement('br'));
 		}
 	}
@@ -292,13 +361,37 @@
 	function onInput(): void {
 		stickyColumn.reset();
 		if (composing || !el) return;
-		const domText = el.textContent ?? '';
-		const text = ambientLength > 0 ? domText.slice(ambientLength) : domText;
+		const text = readRawText();
 		const savedRawOffset = getRawCursorOffset() ?? 0;
 		blockEdit.updateBlockContent(index, text + '\n', savedRawOffset);
 
 		// Signal the $effect to restore cursor after it rebuilds the DOM.
 		pendingCursorOffset = savedRawOffset;
+	}
+
+	/**
+	 * Read raw text by walking children and skipping the ambient span.
+	 * Robust against Chromium inserting stray text nodes before or after
+	 * the marker span (happens after Home/click or when typing into an
+	 * empty-paragraph <br> fallback).
+	 */
+	function readRawText(): string {
+		if (!el) return '';
+		if (ambientLength === 0) return el.textContent ?? '';
+		let out = '';
+		for (const child of Array.from(el.childNodes)) {
+			if (isAmbientSpan(child)) continue;
+			out += child.textContent ?? '';
+		}
+		return out;
+	}
+
+	function isAmbientSpan(node: Node): boolean {
+		if (node.nodeType !== Node.ELEMENT_NODE) return false;
+		const span = node as HTMLElement;
+		return (
+			span.classList.contains('md-marker') && span.getAttribute('contenteditable') === 'false'
+		);
 	}
 
 	function onCompositionStart(): void {
@@ -318,6 +411,15 @@
 		preEditOffset = getRawCursorOffset() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
+
+		// Home with an ambient marker: native Home lands at DOM 0 (before the
+		// marker span). Skip that — the user wants raw offset 0, i.e. the
+		// position immediately after the ambient span.
+		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
+			e.preventDefault();
+			setCursorToAmbientBoundary();
+			return;
+		}
 
 		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
 			e.preventDefault();
@@ -489,6 +591,10 @@
 		if (crossBlock.handlePointerDown(e)) return;
 	}
 
+	function onClick(): void {
+		clampCursorOutOfAmbient();
+	}
+
 	// ── Formatting shortcuts ────────────────────────────────────────────
 
 	function toggleFormat(format: 'strong' | 'emphasis'): void {
@@ -531,6 +637,7 @@
 	oncut={onCut}
 	onpaste={onPaste}
 	onpointerdown={onPointerDown}
+	onclick={onClick}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
