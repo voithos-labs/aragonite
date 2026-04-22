@@ -23,10 +23,11 @@ Every block exposes the `BlockComponent` shape — two boolean flags (`editable`
 
 Leaf and container blocks alike read from the concern-specific sub-interface contexts:
 
-- `BLOCK_EDIT_KEY` → `BlockEditActions` — structural mutations (split, merge, delete, updateContent, replaceBlock, insertParsedBlocks)
+- `BLOCK_EDIT_KEY` → `BlockEditActions` — structural mutations (split, merge, delete, updateContent, updateBlockMetadata, replaceBlock, insertParsedBlocks)
 - `FOCUS_KEY` → `FocusActions` — moveFocus (with sticky-column variant)
 - `HISTORY_KEY` → `HistoryActions` — requestUndo / requestRedo
-- `CONTAINER_EDIT_KEY` → `ContainerEditActions` — container-edit bracketing (begin / beginDebounced / end)
+- `CONTROLLER_KEY` → multi-scope commit primitive, used by container components that participate in cross-container operations
+- `CONTAINER_EDIT_KEY` → `ContainerEditActions` — deprecated bracketing API (`begin` / `beginDebounced` / `end`); prefer the commit primitive via `CONTROLLER_KEY`
 
 A block reads only the sub-interfaces it actually uses. Containers set only the sub-interfaces they override for their nested children; Svelte context walking delivers everything else from the nearest ancestor that does set it.
 
@@ -35,7 +36,7 @@ A block reads only the sub-interfaces it actually uses. Containers set only the 
 Two registration steps per new block kind:
 
 1. Add a case to `BlockHost`'s `{#if}` chain that mounts your component. The block receives `node`, `index`, and binds `ref`.
-2. Register the kind's descriptor in `tree-operations/block-kind-descriptor.ts` — one `registerBlockKind(kind, { mergeRole, editable, isContainer })` call. Consumers (merge-rules, BlockHost, SelectionOverlay) read from this registry rather than each maintaining a per-kind switch.
+2. Register the kind's descriptor in `tree-operations/block-kind-descriptor.ts` — one `registerBlockKind(kind, { mergeRole, editable, isContainer, supportsInline?, getContentRange? })` call. `supportsInline` marks prose kinds that carry an inline tree; `getContentRange` returns the content offset range within `raw` for the inline parser. Consumers (merge-rules, BlockHost, SelectionOverlay, inline pipeline) read from this registry rather than each maintaining a per-kind list.
 
 ## Container Blocks
 
