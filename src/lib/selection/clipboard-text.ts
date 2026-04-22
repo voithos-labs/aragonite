@@ -47,7 +47,8 @@ export function collectCrossBlockText(
 			startTail = startRaw.slice(start.offset);
 		}
 	} else if (start.offset > 0 && start.path.length > 1) {
-		startTail = startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(start.offset);
+		startTail =
+			startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(start.offset);
 	} else {
 		startTail = startRaw.slice(start.offset);
 	}

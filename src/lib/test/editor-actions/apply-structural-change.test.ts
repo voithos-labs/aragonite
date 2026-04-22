@@ -3,7 +3,12 @@ import { applyStructuralChangeToIdsRefs } from '$lib/editor/components/editor-ac
 import type { BlockComponent } from '$lib/editor/contracts';
 
 function mockRef(): BlockComponent {
-	return { focus: () => {}, getCursorOffset: () => null, editable: true, focusable: true } as BlockComponent;
+	return {
+		focus: () => {},
+		getCursorOffset: () => null,
+		editable: true,
+		focusable: true
+	} as BlockComponent;
 }
 
 describe('applyStructuralChangeToIdsRefs', () => {

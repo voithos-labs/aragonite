@@ -14,7 +14,12 @@ import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-colum
 // ── Harness helpers ───────────────────────────────────────────────────────────
 
 function mockRef(): BlockComponent {
-	return { focus: () => {}, getCursorOffset: () => null, editable: true, focusable: true } as BlockComponent;
+	return {
+		focus: () => {},
+		getCursorOffset: () => null,
+		editable: true,
+		focusable: true
+	} as BlockComponent;
 }
 
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
@@ -32,10 +37,18 @@ function makeDeps(nodes: any[]) {
 	const events = createEditorEvents();
 	return {
 		deps: {
-			get doc() { return doc; },
-			get blockIds() { return blockIds; },
-			get blockRefs() { return blockRefs; },
-			setDoc: (v: any) => { Object.assign(doc, v); },
+			get doc() {
+				return doc;
+			},
+			get blockIds() {
+				return blockIds;
+			},
+			get blockRefs() {
+				return blockRefs;
+			},
+			setDoc: (v: any) => {
+				Object.assign(doc, v);
+			},
 			setBlockIds: vi.fn(),
 			setBlockRefs: vi.fn(),
 			undoManager: createUndoManager(),
@@ -139,7 +152,11 @@ describe('updateBlockMetadata', () => {
 // ── Container scope ───────────────────────────────────────────────────────────
 
 function makeContainerSetup(containerIndex: number) {
-	const innerNode = makeNode('paragraph', 'hello\n', { marker: '- ', taskItem: true, taskChecked: false });
+	const innerNode = makeNode('paragraph', 'hello\n', {
+		marker: '- ',
+		taskItem: true,
+		taskChecked: false
+	});
 	const containerNode: any = {
 		kind: 'blockquote',
 		leadingTrivia: '',
@@ -158,10 +175,18 @@ function makeContainerSetup(containerIndex: number) {
 	const blockRefs: (BlockComponent | undefined)[] = docNodes.map(() => mockRef());
 	const events = createEditorEvents();
 	const deps = {
-		get doc() { return doc; },
-		get blockIds() { return blockIds; },
-		get blockRefs() { return blockRefs; },
-		setDoc: (v: any) => { Object.assign(doc, v); },
+		get doc() {
+			return doc;
+		},
+		get blockIds() {
+			return blockIds;
+		},
+		get blockRefs() {
+			return blockRefs;
+		},
+		setDoc: (v: any) => {
+			Object.assign(doc, v);
+		},
 		setBlockIds: vi.fn(),
 		setBlockRefs: vi.fn(),
 		undoManager: createUndoManager(),
@@ -189,7 +214,9 @@ function makeContainerSetup(containerIndex: number) {
 	const containerState = createBlockListState(() => containerNode);
 	const bundle = createStandardNestedActions(containerState, {
 		index: containerIndex,
-		get node() { return containerNode; },
+		get node() {
+			return containerNode;
+		},
 		rebuildRaw: vi.fn(),
 		stickyColumn: makeStickyColumn(),
 		parent: {
