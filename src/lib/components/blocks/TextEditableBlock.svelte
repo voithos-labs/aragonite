@@ -50,6 +50,7 @@
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
+	import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../contenteditable/ambient-dom';
 
 	let {
 		node,
@@ -112,48 +113,8 @@
 		setCursorOffsetHelper(el, rawToDomOffset(offset, ambientLength));
 	}
 
-	/** Park the caret at raw offset 0 (just after the ambient span). Prefers
-	 * the start of the first text node past the span so visual-line geometry
-	 * measurements return real rects — a container-level offset between an
-	 * element and a text sibling yields empty rects from getClientRects.
-	 * Falls back to `setStartAfter(span)` when there is no trailing text.
-	 */
 	function setCursorToAmbientBoundary(): void {
-		if (!el) return;
-		const ambientSpan = el.firstChild;
-		if (!ambientSpan) return;
-		const range = document.createRange();
-		const textAfter = firstTextNodeAfter(ambientSpan);
-		if (textAfter) {
-			range.setStart(textAfter, 0);
-		} else {
-			range.setStartAfter(ambientSpan);
-		}
-		range.collapse(true);
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
-	}
-
-	function firstTextNodeAfter(node: Node): Text | null {
-		let sibling = node.nextSibling;
-		while (sibling) {
-			const text = findFirstTextDescendant(sibling);
-			if (text) return text;
-			sibling = sibling.nextSibling;
-		}
-		return null;
-	}
-
-	function findFirstTextDescendant(node: Node): Text | null {
-		if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-			return node as Text;
-		}
-		for (const child of node.childNodes) {
-			const found = findFirstTextDescendant(child);
-			if (found) return found;
-		}
-		return null;
+		if (el) placeCaretAfterAmbientSpan(el);
 	}
 
 	/** After a click or Home, the caret may land inside [0, ambientLength).
@@ -390,18 +351,13 @@
 	function readRawText(): string {
 		if (!el) return '';
 		if (ambientLength === 0) return el.textContent ?? '';
+		const ambient = ambientSpanOf(el);
 		let out = '';
 		for (const child of Array.from(el.childNodes)) {
-			if (isAmbientSpan(child)) continue;
+			if (child === ambient) continue;
 			out += child.textContent ?? '';
 		}
 		return out;
-	}
-
-	function isAmbientSpan(node: Node): boolean {
-		if (node.nodeType !== Node.ELEMENT_NODE) return false;
-		const span = node as HTMLElement;
-		return span.classList.contains('md-marker') && span.getAttribute('contenteditable') === 'false';
 	}
 
 	function onCompositionStart(): void {
@@ -422,26 +378,15 @@
 
 		// Exclude the ambient marker from Ctrl+A selection — marker belongs to the container.
 		// Chromium clips a range whose start sits inside the contenteditable="false" ambient
-		// text node, so anchor the start after the ambient span and build the end with the
-		// offset-walking helper (which skips the ambient text and lands in raw content).
+		// text node, so anchor at raw offset 0 (sibling boundary after the ambient span) and
+		// extend to end of content.
 		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey && ambientLength > 0 && el) {
 			const textLen = (el.textContent ?? '').length;
 			if (textLen > ambientLength) {
 				e.preventDefault();
 				const endRange = createRangeFromOffsets(el, textLen, textLen);
-				const ambientSpan = el.firstChild;
-				if (endRange && ambientSpan) {
-					const range = document.createRange();
-					const textAfter = firstTextNodeAfter(ambientSpan);
-					if (textAfter) {
-						range.setStart(textAfter, 0);
-					} else {
-						range.setStartAfter(ambientSpan);
-					}
-					range.setEnd(endRange.endContainer, endRange.endOffset);
-					const sel = window.getSelection();
-					sel?.removeAllRanges();
-					sel?.addRange(range);
+				if (endRange && placeCaretAfterAmbientSpan(el)) {
+					window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
 				}
 				return;
 			}
