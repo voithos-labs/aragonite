@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-// Runner note: needs jsdom for Range.getClientRects. The rect geometry is
-// trivial under jsdom (zero-sized rects), so this suite only checks the
-// function's boundary handling — real pixel measurement is covered by the
-// cross-block selection e2e specs.
+// Needs jsdom for Range.getClientRects. Rects are zero-sized under jsdom, so this suite
+// only verifies boundary handling — real pixel measurement is covered by e2e specs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';

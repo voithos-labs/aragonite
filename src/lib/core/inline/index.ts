@@ -1,6 +1,5 @@
 /**
- * Inline parser orchestrator for CST Phase 2.
- * See docs/design/editor/inline-parsing.md for the design spec.
+ * Inline parser orchestrator. See docs/design/editor/inline-parsing.md.
  */
 
 import type { CstNode, InlineNode } from '../nodes';
@@ -12,17 +11,13 @@ import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
 import { preEscapeInline } from './pre-escape';
 
-// ── Reference resolver (reserved for 0.6.6) ────────────────────────────────
+// ── Reference resolver ─────────────────────────────────────────────────────
 
 /**
- * Resolves a link reference label to a destination URL and optional title.
- * Returns null when the label has no matching `linkReferenceDefinition` in
- * the document. Passed through `parseInline` / `parseAllInlineContent` so
- * 0.6.6 can populate reference-style link/image destinations at parse time.
- *
- * The parameter is optional at 0.5.5.4 — no caller populates it and the
- * parser ignores it. Adding the seat now means 0.6.6 does not need to
- * change every parse callsite when it lands.
+ * Resolves a link reference label to its destination. Returns null when no
+ * `linkReferenceDefinition` matches. Threaded through the parser so reference-
+ * style links/images can be resolved at parse time; currently unused at every
+ * call site (optional parameter).
  */
 export type RefResolver = (label: string) => { url: string; title?: string } | null;
 
@@ -34,9 +29,8 @@ export interface ContentRange {
 }
 
 /**
- * Extract the content range within a prose block's raw text. Delegates to the
- * block-kind descriptor's `getContentRange` hook when present; paragraphs and
- * other no-marker prose kinds use the default (start=0, end=displayLength).
+ * Content range within a prose block's raw. Defaults to the full display
+ * range; block kinds with markers (e.g. headings) override via descriptor.
  */
 export function getContentRange(node: CstNode): ContentRange {
 	const d = getBlockKindDescriptor(node.kind);
@@ -49,9 +43,8 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
- * Refresh `inlineContent` on every prose node in the tree, recursing into
- * container children. Use after structural operations that produce or
- * mutate prose nodes outside the per-input reactive pipeline.
+ * Refresh `inlineContent` on every prose node in the tree. Used after
+ * structural mutations that bypass the per-input reactive pipeline.
  */
 export function parseAllInlineContent(nodes: CstNode[], resolver?: RefResolver): void {
 	for (const node of nodes) {
@@ -68,9 +61,8 @@ export function parseAllInlineContent(nodes: CstNode[], resolver?: RefResolver):
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**
- * Parse inline content within a prose block's raw text.
- * Returns an InlineNode[] tree covering the range [start, end) in raw.
- * All start/end offsets in returned nodes are relative to the full raw string.
+ * Parse inline content over raw[start, end). Returned node offsets are
+ * absolute into raw.
  */
 export function parseInline(
 	raw: string,
@@ -78,11 +70,6 @@ export function parseInline(
 	end: number,
 	resolver?: RefResolver
 ): InlineNode[] {
-	// resolver threads through to scanLinksAndAutolinks (and its internal parseInline
-	// recursion for link text). No caller populates it at 0.5.5.4 — it becomes live
-	// at 0.6.6 (reference-style link/image resolution).
-
-	// Stage 0: pre-escape normalization. Identity today; 0.6.2 fills this in.
 	preEscapeInline(raw, start, end);
 
 	const codeSpans = scanBacktickSpans(raw, start, end);

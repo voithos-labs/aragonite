@@ -1,8 +1,6 @@
 /**
- * Cross-block keyboard extension and collapse. Pure helpers that enter,
- * extend, or collapse cross-block mode in response to keyboard and
- * pointer events. No state of their own — SelectionState holds the
- * anchor/focus and every function reads or writes through it.
+ * Cross-block keyboard extension and collapse. Pure helpers over
+ * SelectionState.
  */
 
 import type { SelectionState } from './selection-state.svelte';
@@ -22,15 +20,9 @@ import { displayLength } from '../core/lines';
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
 
 /**
- * Transition from single-block to cross-block mode on a keyboard extension
- * (Shift+Arrow leaving a block). Reads the native caret from
- * `currentBlockEl`, populates SelectionState with that caret as both anchor
- * and focus, then clears the native selection.
- *
- * The caller decides WHERE the focus should land — this function only
- * captures the anchor and enters cross-block mode with `focus === anchor`
- * initially. The caller immediately calls `selection.extendFocus(target)`
- * after this returns true.
+ * Enter cross-block mode on a keyboard extension (Shift+Arrow leaving a
+ * block). Captures the native caret as both anchor and focus; the caller
+ * immediately extendFocus()es to the actual target.
  */
 export function enterCrossBlockFromKeyboard(
 	selection: SelectionState,
@@ -43,17 +35,14 @@ export function enterCrossBlockFromKeyboard(
 		path: anchorPoint.path.slice(),
 		offset: anchorPoint.offset
 	});
-	// Collapse (not clear) the native selection so the focus block retains a
-	// caret. Chromium dispatches paste to the element containing the caret;
-	// with no caret anywhere, paste fires on <body> and the block's onPaste
-	// never sees it. See the "paste dispatch anchor" note on drag-pointer.ts.
+	// Collapse (not clear) so the focus block retains a caret — otherwise
+	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
 	return true;
 }
 
 /**
- * Collapse the cross-block selection to its start or end and restore a
- * native caret at that point. Exits cross-block mode.
+ * Collapse to start/end, restore a native caret, exit cross-block mode.
  */
 export function collapseCrossBlock(
 	selection: SelectionState,
@@ -72,8 +61,7 @@ export function collapseCrossBlock(
 }
 
 /**
- * After extending the focus endpoint, scroll the focus block into view.
- * No-op if the focus block is already visible.
+ * Scroll the focus block into view. No-op if already visible.
  */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
@@ -87,13 +75,9 @@ export function scrollFocusBlockIntoView(
 // ── Keyboard Extension ─────────────────────────────────────────────────────
 
 /**
- * Extend cross-block focus to the next leaf block in document order. Called
- * on Shift+ArrowDown / Shift+ArrowRight leaving the current block. Enters
- * cross-block mode first if the selection is still single-block (anchor =
- * native caret).
- *
- * Returns true if focus moved, false if no next leaf exists or entering
- * cross-block mode failed.
+ * Extend focus to the next leaf in document order (Shift+ArrowDown /
+ * Shift+ArrowRight leaving the current block). Enters cross-block mode if
+ * still single-block. Returns true if focus moved.
  */
 export function extendFocusToNextBlock(
 	selection: SelectionState,
@@ -114,15 +98,9 @@ export function extendFocusToNextBlock(
 }
 
 /**
- * Extend cross-block focus to the previous leaf block in document order.
- * Called on Shift+ArrowUp / Shift+ArrowLeft leaving the current block.
- *
- * `side` controls where the focus lands within the target leaf:
- *   - `'end'` (default): offset at the end of the leaf's display content.
- *     Correct for Shift+ArrowLeft, which crosses the boundary by one
- *     character.
- *   - `'start'`: offset 0. Correct for Shift+ArrowUp, which selects the
- *     entire previous line (matching native multi-line selection behavior).
+ * Extend focus to the previous leaf (Shift+ArrowUp / Shift+ArrowLeft).
+ * `side` = 'end' for ArrowLeft (cross boundary by one char), 'start' for
+ * ArrowUp (select the whole previous line, matching native behavior).
  */
 export function extendFocusToPreviousBlock(
 	selection: SelectionState,
@@ -145,9 +123,7 @@ export function extendFocusToPreviousBlock(
 }
 
 /**
- * Extend cross-block focus to the document start or end. Called on
- * Ctrl+Shift+Home / Ctrl+Shift+End. Enters cross-block mode first if the
- * selection is still single-block.
+ * Extend focus to the document edge (Ctrl+Shift+Home / Ctrl+Shift+End).
  */
 export function extendFocusToDocEdge(
 	selection: SelectionState,
@@ -169,9 +145,7 @@ export function extendFocusToDocEdge(
 }
 
 /**
- * Select the entire document as a cross-block range. Used by the second
- * press of Ctrl+A. Anchors at the first leaf's start and focuses at the
- * last leaf's end.
+ * Select the entire document as a cross-block range (second Ctrl+A press).
  */
 export function selectWholeDocument(
 	selection: SelectionState,
@@ -183,8 +157,7 @@ export function selectWholeDocument(
 	if (!first || !last) return false;
 	const focusPoint = { path: last, offset: leafOffsetEnd(doc, last) };
 	selection.enterCrossBlock({ path: first, offset: 0 }, focusPoint);
-	// Caret on the last leaf serves as the paste-dispatch anchor. See
-	// enterCrossBlockFromKeyboard.
+	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard.
 	const focusBlockEl = getBlockElByPath?.(last);
 	if (focusBlockEl) applyCollapsedCaret(focusBlockEl, focusPoint);
 	else clearNativeSelection();
@@ -194,13 +167,10 @@ export function selectWholeDocument(
 // ── Shift+Click ────────────────────────────────────────────────────────────
 
 /**
- * Handle a Shift+click on a block at a given viewport coordinate. Extends
- * the current cross-block selection or enters cross-block mode using the
- * previously focused block's caret as the anchor.
- *
- * Returns true if the selection was updated, false if no anchor could be
- * recovered or the click stayed within the same block (native shift-click
- * handles single-block selection).
+ * Shift+click on a block. Extends the current cross-block selection or
+ * enters cross-block mode using the previously focused block's caret as
+ * the anchor. Returns false when no anchor could be recovered or the click
+ * stayed within the same block (native shift-click handles that).
  */
 export function handleShiftClick(
 	selection: SelectionState,
@@ -224,21 +194,18 @@ export function handleShiftClick(
 	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, previouslyFocusedBlockPath);
 	if (!anchor) return false;
 
-	// Same-block shift-click — native selection already produced a single-block
-	// range, so leave cross-block mode inactive.
+	// Same-block — native selection already produced a single-block range.
 	if (comparePaths(anchor.path, focusPoint.path) === 0) return false;
 
 	selection.enterCrossBlock(anchor, focusPoint);
-	// Keep a caret on the shift-clicked block as a paste-dispatch anchor (see
-	// enterCrossBlockFromKeyboard). A shift-click's click default already
-	// plants one, but being explicit avoids relying on that quirk.
+	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. The click
+	// default already plants one; being explicit avoids relying on that.
 	applyCollapsedCaret(clickedBlockEl, focusPoint);
 	return true;
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** Walk forward from `path` to the first leaf (non-container) block. */
 function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
@@ -250,7 +217,6 @@ function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
 	return null;
 }
 
-/** Walk backward from `path` into the deepest last descendant leaf. */
 function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
@@ -262,11 +228,9 @@ function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	return null;
 }
 
-/** Character offset at the end of the leaf node at `path`. 0 if missing. */
 function leafOffsetEnd(doc: Document, path: number[]): number {
 	const node = nodeAt(doc, path);
 	if (!node || !('raw' in node) || typeof node.raw !== 'string') return 0;
-	// raw includes a trailing newline (CST invariant); the cursor system
-	// works in display space, so use displayLength to strip it.
+	// raw includes a trailing newline; the cursor works in display space.
 	return displayLength(node.raw);
 }

@@ -1,8 +1,3 @@
-/**
- * Cascade cleanup of empty container ancestors after a block deletion.
- * Used by range-delete and any future operation that removes blocks.
- */
-
 import type { Document } from '../core/nodes';
 import { nodeAt } from './node-ops';
 
@@ -21,9 +16,6 @@ export function cascadeCleanupEmptyAncestors(
 	deletedPath: number[],
 	lcaPath: number[]
 ): void {
-	// Walk from the deleted block's parent upward. Containers at or above the
-	// LCA still contain startBlock (or its merged replacement), so the walk
-	// only processes paths strictly deeper than lcaPath.
 	let currentPath = deletedPath.slice(0, -1);
 	while (currentPath.length > lcaPath.length) {
 		const node = nodeAt(doc, currentPath);
@@ -33,7 +25,7 @@ export function cascadeCleanupEmptyAncestors(
 		const parent = nodeAt(doc, parentPath);
 		if (!parent || !('children' in parent) || !parent.children) break;
 		const idx = currentPath[currentPath.length - 1];
-		// 0.5.5.1: discovered-ancestor mutation, see node-ops.ts header
+		// discovered-ancestor mutation, see node-ops.ts header
 		parent.children.splice(idx, 1);
 		currentPath = parentPath;
 	}

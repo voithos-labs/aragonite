@@ -3,13 +3,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '../../selection/drag-pointer';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 
-/**
- * Regression: pre-fix, if the editor unmounted mid-drag, pointerup never
- * reached the listener and the document-level handlers (+ their captured
- * references) lived past the editor's lifetime. The fix wires an
- * AbortSignal from the editor's mount lifetime into installDragListener
- * so abort triggers dispose.
- */
 describe('installDragListener — lifetime cleanup', () => {
 	let editorRoot: HTMLElement;
 
@@ -69,10 +62,7 @@ describe('installDragListener — lifetime cleanup', () => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * jsdom doesn't expose a listener count. Track by spying on add/remove pairs
- * via a proxy that re-uses the real implementation but tallies the delta.
- */
+// jsdom doesn't expose a listener count — tally add/remove pairs via a proxy.
 let currentCount = 0;
 const origAdd = document.addEventListener.bind(document);
 const origRemove = document.removeEventListener.bind(document);

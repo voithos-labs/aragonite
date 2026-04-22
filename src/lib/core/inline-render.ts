@@ -1,6 +1,7 @@
 /**
- * DOM renderer for InlineNode trees produced by the inline parser.
- * Builds a DocumentFragment where textContent equals the raw content slice.
+ * DOM renderer for InlineNode trees. textContent of the returned fragment
+ * equals raw.slice over the covered range — every character in raw has a
+ * corresponding text node in the DOM.
  */
 
 import type { InlineNode } from './nodes';
@@ -19,7 +20,6 @@ function markerSpan(text: string): HTMLSpanElement {
 function renderInlineCode(node: InlineNode, raw: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const content = node.text ?? '';
-	// tick length = (total span length - content length) / 2
 	const tickLen = (node.end - node.start - content.length) / 2;
 	const ticks = raw.slice(node.start, node.start + tickLen);
 
@@ -40,7 +40,6 @@ function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFrag
 	const frag = document.createDocumentFragment();
 	const children = node.children ?? [];
 
-	// Determine open/close marker lengths from gaps between node bounds and children
 	let openEnd: number;
 	let closeStart: number;
 
@@ -48,7 +47,7 @@ function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFrag
 		openEnd = children[0].start;
 		closeStart = children[children.length - 1].end;
 	} else {
-		// No children — entire interior is markers; split in half
+		// No children — entire interior is markers; split in half.
 		const mid = node.start + Math.floor((node.end - node.start) / 2);
 		openEnd = mid;
 		closeStart = mid;
@@ -70,11 +69,6 @@ function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFrag
 
 // ── Main renderer ────────────────────────────────────────────────────────────
 
-/**
- * Build a DocumentFragment from an InlineNode[] tree.
- * The textContent of the returned fragment equals raw.slice over the covered range.
- * Every character in `raw` has a corresponding text node in the DOM.
- */
 export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
 
@@ -101,10 +95,8 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				break;
 
 			case 'hardLineBreak': {
-				// Split into marker (\ or spaces) and the \n.
-				// Use a text node for \n instead of <br> — white-space: pre-wrap
-				// on the contenteditable handles the visual break, and a text node
-				// guarantees textContent matches raw (browser-independent).
+				// Text node for \n (not <br>): white-space: pre-wrap handles the visual
+				// break, and a text node guarantees textContent === raw across browsers.
 				const breakRaw = raw.slice(node.start, node.end);
 				const nlIdx = breakRaw.indexOf('\n');
 				if (nlIdx > 0) frag.appendChild(markerSpan(breakRaw.slice(0, nlIdx)));
@@ -113,7 +105,8 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 			}
 
 			case 'link': {
-				// Markers from raw.slice() — never reconstruct from parsed fields
+				// Markers come from raw.slice; never reconstruct from parsed fields
+				// (the parsed url/title can differ from the source bytes).
 				const children = node.children ?? [];
 				if (children.length > 0) {
 					const openMarker = raw.slice(node.start, children[0].start);
@@ -134,7 +127,6 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 			}
 
 			case 'image': {
-				// Markers from raw.slice() — never reconstruct from parsed fields
 				const altText = node.alt ?? '';
 				const altStart = node.start + 2; // after '!['
 				const altEnd = altStart + altText.length;
@@ -165,22 +157,17 @@ export interface OffsetResult {
 }
 
 /**
- * Find the leaf InlineNode containing the given raw offset.
- * At boundaries between nodes, prefers the right node.
- * Returns null only when nodes is empty and offset is unreachable.
+ * Find the leaf InlineNode containing `offset`. At boundaries between nodes,
+ * prefers the right node; `offset === end` only matches the last node.
  */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
 	for (let i = 0; i < nodes.length; i++) {
 		const node = nodes[i];
 		const isLast = i === nodes.length - 1;
 
-		// Boundary at node.start: prefer this node (right node at boundary)
-		// Interior: offset strictly within [start, end)
-		// End boundary: only for the last node, allow offset === end
 		const inRange = offset >= node.start && (offset < node.end || (isLast && offset === node.end));
 		if (!inRange) continue;
 
-		// Recurse into children if present
 		if (node.children && node.children.length > 0) {
 			const childResult = findNodeAtOffset(node.children, offset);
 			if (childResult) return childResult;

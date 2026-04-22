@@ -1,9 +1,6 @@
 /**
- * Pure primitives for the cross-block selection layer: types,
- * path math, document-order walking, and overlay classification.
- * No DOM, no state — every value is a plain object and every function
- * is pure. Consumed by selection-state, range-delete, native-bridge,
- * SelectionOverlay, and the clipboard helpers.
+ * Pure primitives for cross-block selection: types, path math,
+ * document-order walking, and overlay classification. No DOM, no state.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -11,12 +8,8 @@ import type { CstNode, Document } from '../core/nodes';
 // ── Types ──────────────────────────────────────────────────────────────────
 
 /**
- * A single endpoint of a selection. Addresses any leaf block in the document
- * tree via a path of child indices, plus a character offset into the leaf's
- * `raw` field.
- *
- * path: [2, 0, 1] means doc.children[2].children[0].children[1].
- * An empty path ([]) is the document root.
+ * A single selection endpoint: path of child indices plus character offset
+ * into the leaf's `raw`. Empty path is the document root.
  */
 export interface SelectionPoint {
 	path: number[];
@@ -24,10 +17,9 @@ export interface SelectionPoint {
 }
 
 /**
- * Anchor/focus pair. A collapsed selection has `anchor === focus` by value.
- * `anchor.path === focus.path` with different offsets is a single-block range
- * (native browser handles it; runtime SelectionState stays null). Different
- * paths is a cross-block range.
+ * Anchor/focus pair. Same path + same offset is collapsed; same path +
+ * different offsets is a single-block range (handled natively; runtime
+ * SelectionState stays null); different paths is cross-block.
  */
 export interface EditorSelection {
 	anchor: SelectionPoint;
@@ -35,19 +27,16 @@ export interface EditorSelection {
 }
 
 /**
- * Shadow value captured at pointerdown — the anchor of a potential cross-block
- * drag before it has escaped the original block. null when no drag is active.
+ * Pointerdown anchor of a potential cross-block drag before it has escaped
+ * the original block. Null when no drag is active.
  */
 export type SelectionDragStart = SelectionPoint | null;
 
 // ── Path comparison ────────────────────────────────────────────────────────
 
 /**
- * Compare two paths in document order.
- * Returns -1 if `a` comes before `b`, 1 if `a` comes after, 0 if equal.
- *
- * Ancestor-before-descendant: `[2]` comes before `[2, 0]` because in a
- * document walk, the container opens before its children.
+ * Compare two paths in document order. Ancestor-before-descendant:
+ * `[2]` comes before `[2, 0]` (container opens before children).
  */
 export function comparePaths(a: number[], b: number[]): number {
 	const len = Math.min(a.length, b.length);
@@ -62,7 +51,7 @@ export function comparePaths(a: number[], b: number[]): number {
 
 // ── Point equality ─────────────────────────────────────────────────────────
 
-/** True if both points refer to the same path and offset (value equality, not reference). */
+/** Value equality on path + offset. */
 export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
 	if (a.offset !== b.offset) return false;
 	if (a.path.length !== b.path.length) return false;
@@ -75,9 +64,8 @@ export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
 // ── Normalization ──────────────────────────────────────────────────────────
 
 /**
- * Normalize an EditorSelection into {start, end} where start <= end in
- * document order. A same-path selection with focus before anchor also gets
- * normalized by offset.
+ * Normalize to {start, end} where start <= end in document order
+ * (by path, then by offset when paths match).
  */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
@@ -87,7 +75,6 @@ export function normalize(selection: EditorSelection): {
 	const cmp = comparePaths(anchor.path, focus.path);
 	if (cmp < 0) return { start: anchor, end: focus };
 	if (cmp > 0) return { start: focus, end: anchor };
-	// Same path — compare by offset.
 	if (anchor.offset <= focus.offset) return { start: anchor, end: focus };
 	return { start: focus, end: anchor };
 }
@@ -96,8 +83,7 @@ export function normalize(selection: EditorSelection): {
 
 /**
  * True if `path` is strictly between `start` and `end` in document order
- * (exclusive of both endpoints). Used by overlay classification to decide
- * whether a block is a "middle block."
+ * (exclusive of both endpoints).
  */
 export function isPathBetween(path: number[], start: number[], end: number[]): boolean {
 	return comparePaths(path, start) > 0 && comparePaths(path, end) < 0;
@@ -106,11 +92,8 @@ export function isPathBetween(path: number[], start: number[], end: number[]): b
 // ── Range walk ─────────────────────────────────────────────────────────────
 
 /**
- * Return every block path strictly between `start` and `end` in document order.
- * Exclusive of both endpoints. Walks every nesting level.
- *
- * Used by range-delete to collect deletion targets, and by cross-block copy
- * to collect middle blocks whose text contributes to the clipboard payload.
+ * Every block path strictly between `start` and `end` in document order
+ * (exclusive of both endpoints). Walks every nesting level.
  */
 export function walkBetween(doc: Document, start: number[], end: number[]): number[][] {
 	if (comparePaths(start, end) >= 0) return [];
@@ -124,8 +107,7 @@ export function walkBetween(doc: Document, start: number[], end: number[]): numb
 		if (!node.children) return;
 		for (let i = 0; i < node.children.length; i++) {
 			const childPath = [...path, i];
-			// Short-circuit: if the entire subtree is before start or after end,
-			// we can skip it. This is O(path length) per skip — cheap.
+			// Skip subtrees that are entirely before start or after end.
 			const firstDescendant = [...childPath];
 			const lastDescendant = [...childPath, ...Array(8).fill(Number.MAX_SAFE_INTEGER)];
 			if (comparePaths(lastDescendant, start) <= 0) continue;
@@ -144,8 +126,8 @@ export type BlockSelectionClass = 'outside' | 'start' | 'middle' | 'end' | 'sing
 
 /**
  * Classify a block's position relative to a selection for overlay rendering.
- * The single-block case is returned so callers can delegate to native
- * browser selection instead of painting an overlay.
+ * 'single-block' is returned so callers can delegate to the browser instead
+ * of painting an overlay.
  */
 export function classifyBlockForSelection(
 	path: number[],

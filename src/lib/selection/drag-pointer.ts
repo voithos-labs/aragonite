@@ -1,12 +1,7 @@
 /**
- * Pointer drag lifecycle for cross-block selection. Installed on pointerdown
- * in a block component; removes itself on pointerup. Uses document-level
- * listeners so events are received even when the pointer leaves the
- * originating block.
- *
- * rAF is used for frame-paced continuous animation (drag throttle and
- * autoscroll), not for sequencing — see the editor design-rule note in
- * the v0.4 spec.
+ * Pointer drag lifecycle for cross-block selection. Uses document-level
+ * listeners so events arrive even after the pointer leaves the originating
+ * block. rAF is used for frame-paced continuous animation, not sequencing.
  */
 
 import type { SelectionState } from './selection-state.svelte';
@@ -23,10 +18,9 @@ export interface DragContext {
 	selection: SelectionState;
 	getBlockElByPath: BlockElLookup;
 	/**
-	 * Abort signal tied to the editor's mount lifetime. If the editor
-	 * unmounts mid-drag, the pointerup listener would never fire; wiring
-	 * abort to dispose() ensures document-level listeners are removed and
-	 * captured references (editorRoot, scrollContainer) released.
+	 * Aborted on editor unmount. Without this, an unmount mid-drag would
+	 * leak the document-level pointermove/pointerup listeners (pointerup
+	 * never fires because the originating element is gone).
 	 */
 	lifetimeSignal?: AbortSignal;
 }
@@ -34,9 +28,8 @@ export interface DragContext {
 // ── Public entry ───────────────────────────────────────────────────────────
 
 /**
- * Install pointermove + pointerup listeners on the document for the
- * duration of a drag. Call from a block's pointerdown after computing
- * the drag anchor point. Returns a disposer for early teardown.
+ * Install document-level pointermove + pointerup listeners for a drag.
+ * Returns a disposer for early teardown.
  */
 export function installDragListener(
 	ctx: DragContext,
@@ -62,7 +55,7 @@ export function installDragListener(
 		if (!hit) return;
 
 		if (comparePaths(hit.path, anchorPoint.path) === 0) {
-			// Still in the anchor block — let the browser handle native selection.
+			// Still in anchor block — let the browser handle native selection.
 			return;
 		}
 
@@ -97,7 +90,7 @@ export function installDragListener(
 		}
 		ctx.scrollContainer.scrollTop += d;
 		autoScrollRafId = requestAnimationFrame(step);
-		// Re-process the current pointer so selection follows the scroll.
+		// Re-process so selection follows the scroll.
 		processMove(pendingMove.clientX, pendingMove.clientY);
 	};
 
@@ -138,8 +131,6 @@ export function installDragListener(
 		pendingMove = null;
 	}
 
-	// If the editor unmounts during the drag, pointerup may never reach
-	// these handlers. Abort the lifetime signal → dispose tears down.
 	if (ctx.lifetimeSignal) {
 		if (ctx.lifetimeSignal.aborted) {
 			return { dispose };
@@ -154,12 +145,9 @@ export function installDragListener(
 }
 
 /**
- * Plant a collapsed native caret in the focus block's contenteditable while
- * cross-block mode is active. Keeps the browser's paste / key-dispatch
- * pipeline pointed at an editable — without this, the native selection is
- * empty and Chromium delivers paste events to <body> instead of any block.
- * The SelectionOverlay still paints the visual cross-block highlight; this
- * caret is a dispatch anchor, not a rendered one.
+ * Plant a collapsed native caret in the focus block as a paste/key-dispatch
+ * anchor. Without it, Chromium routes paste events to <body>. The visual
+ * cross-block highlight still comes from SelectionOverlay.
  */
 function parkCaretInFocusBlock(ctx: DragContext): void {
 	if (!ctx.selection.focus) return;
@@ -170,11 +158,6 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 
 // ── Hit test ───────────────────────────────────────────────────────────────
 
-/**
- * Walk up from `elementFromPoint` to the nearest block ancestor inside
- * `editorRoot` carrying `data-block-path`. Returns the parsed path and
- * the contenteditable element to pass to `offsetFromViewportPoint`.
- */
 function blockAtPoint(
 	editorRoot: HTMLElement,
 	clientX: number,

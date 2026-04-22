@@ -39,13 +39,10 @@ describe('createStickyColumnState', () => {
 
 	it('reset clears the value and is idempotent on null state', () => {
 		const s = createStickyColumnState();
-		// baseline null
 		expect(s.get()).toBe(null);
-		// reset after capture clears
 		s.capture(150);
 		s.reset();
 		expect(s.get()).toBe(null);
-		// calling reset again on null is a no-op
 		s.reset();
 		expect(s.get()).toBe(null);
 	});
@@ -73,8 +70,6 @@ describe('createStickyColumnState', () => {
 	});
 
 	it('capture accepts negative finite values', () => {
-		// Edge case: cursor at a position left of the editor (shouldn't happen
-		// in practice, but the state module doesn't restrict sign).
 		const s = createStickyColumnState();
 		s.capture(-10);
 		expect(s.get()).toBe(-10);

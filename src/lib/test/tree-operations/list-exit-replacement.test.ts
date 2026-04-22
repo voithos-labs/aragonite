@@ -15,9 +15,7 @@ function parseList(src: string): CstNode {
 	return list;
 }
 
-// Compose `exitedItem` synthetically from two raw fragments. Real callers reach
-// this code via Enter on an item whose first paragraph is empty; we mirror
-// that shape by parsing and surgically blanking the target's first paragraph.
+// Mirrors the shape produced when Enter is pressed on an item whose first paragraph is empty.
 function blankFirstParagraph(item: CstNode): void {
 	const first = item.children?.[0];
 	if (!first || first.kind !== 'paragraph') {
@@ -81,15 +79,9 @@ describe('buildExitReplacement', () => {
 		expect(paragraphIndex).toBe(1);
 	});
 
-	// Sub-case 1 of the original bug: mismatched-type nested list used to be
-	// silently dropped. It must lift to top-level instead.
 	it('mismatched-type nested list lifts as a separate top-level block', () => {
 		const list = parseList('- Item\n  1. NestedOrdered\n');
-		// Synthesize "user pressed Enter at end of Item, then Enter on the new
-		// empty item carrying the ordered sub-list". The CST shape after first
-		// Enter is what the parser produces if we strip "Item" out and split.
 		const item = list.children![0];
-		// Insert an empty paragraph at the front so it looks like an exited item.
 		item.children = [
 			{ kind: 'paragraph', leadingTrivia: '', raw: '\n' },
 			...(item.children ?? []).slice(1)
@@ -97,7 +89,6 @@ describe('buildExitReplacement', () => {
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
 
-		// [paragraph, ordered sub-list] — no surviving outer list (only-item).
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
 		expect(blocks[1].kind).toBe('list');
@@ -106,16 +97,12 @@ describe('buildExitReplacement', () => {
 		expect(paragraphIndex).toBe(0);
 	});
 
-	// Sub-case 2 of the original bug: extra paragraphs in a loose item used to
-	// be silently dropped. They must lift to top-level instead.
 	it('non-list trailing children lift as separate top-level blocks', () => {
-		// Loose item: [paragraph "First", paragraph "second"]
 		const list = parseList('- First\n\n  second\n');
 		blankFirstParagraph(list.children![0]);
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
 
-		// [empty paragraph (exit), paragraph "second"]
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
 		expect((blocks[0].raw ?? '').trim()).toBe('');
@@ -126,8 +113,6 @@ describe('buildExitReplacement', () => {
 
 	it('matching-type nested list items merge into the surviving list as siblings', () => {
 		const list = parseList('- Item\n  - Nested\n');
-		// Same shape as the mismatched test, but the sub-list type matches the
-		// parent. Synthesize the exited-item shape.
 		const item = list.children![0];
 		item.children = [
 			{ kind: 'paragraph', leadingTrivia: '', raw: '\n' },
@@ -136,8 +121,6 @@ describe('buildExitReplacement', () => {
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
 
-		// wasFirstItem promotes into the second half (no first half exists).
-		// Result: [paragraph, list[Nested]]
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].kind).toBe('paragraph');
 		expect(blocks[1].kind).toBe('list');
@@ -156,7 +139,7 @@ describe('buildExitReplacement', () => {
 		const secondHalf = blocks[2];
 		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^1\./);
 		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^2\./);
-		// "four" continues at 3 — the exit slot doesn't burn a number.
+		// Exit slot doesn't burn a number; "four" continues at 3.
 		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^3\./);
 	});
 

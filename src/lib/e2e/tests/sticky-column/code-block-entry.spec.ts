@@ -1,23 +1,10 @@
-/**
- * Sticky column — code block entry symmetry.
- *
- * Pins the invariant that a code block lands the cursor at the same pixel X
- * (and the same body offset) whether it is entered via ArrowDown from above
- * or ArrowUp from below, given the same captured sticky X in both cases.
- *
- * Investigated after a report that entry-from-below felt "a bit different"
- * from entry-from-above. No asymmetry reproduces; these tests guard against
- * a future regression in findOffsetNearestX / CodeBlock.focusAtColumn.
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 
 const PIXEL_TOLERANCE = 2;
 
-// Identical paragraphs bracket a code block so that walking to the same
-// column in either paragraph produces the same sticky X — any landing-X
-// asymmetry inside the code block then isolates to focusAtColumn.
+// Identical bracketing paragraphs isolate any landing-X asymmetry to focusAtColumn.
 const PARAGRAPH_TEXT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CURSOR_COL = 20;
 
@@ -91,10 +78,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 	});
 
 	test('code block with info string (```javascript): same landing X both directions', async () => {
-		// The opener visual line is wider than the closer (```javascript vs ```),
-		// so the first and last visual lines are not symmetric in width. The
-		// landing must still match because interior body offsets dominate the
-		// nearest-X search when sticky is on the body line.
+		// Opener (```javascript) is wider than closer (```); interior body offsets must still dominate the nearest-X search.
 		await editor.loadContent(
 			`${PARAGRAPH_TEXT}\n\n\`\`\`javascript\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
 		);
@@ -108,9 +92,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 	});
 
 	test('js-highlighted body (token spans split the line): same landing X both directions', async () => {
-		// highlight.js fragments the body into many adjacent token spans.
-		// findOffsetNearestX walks across span boundaries; any rect discontinuity
-		// at a boundary would produce direction-dependent landings.
+		// Guards against rect discontinuity at token-span boundaries in findOffsetNearestX.
 		const body = 'const xxxxxxxxxx = 1234567890 + 9876543210;';
 		await editor.loadContent(
 			`${PARAGRAPH_TEXT}\n\n\`\`\`js\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
@@ -125,9 +107,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 	});
 
 	test('landing body offset (not just X) matches from both directions', async () => {
-		// A pixel-X match within 2px could still hide a one-offset discrepancy.
-		// Type a marker character after each entry and compare byte positions in
-		// the serialized body line.
+		// A 2px X-match could still hide a one-offset discrepancy; compare byte positions instead.
 		await editor.loadContent(
 			`${PARAGRAPH_TEXT}\n\n\`\`\`\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
 		);
@@ -160,11 +140,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 	});
 
 	test('DEFAULT_CONTENT js code block: matched sticky X lands at the same X', async () => {
-		// Uses the real document from the /test/editor harness. Because the
-		// block above the code block (a list item) and the block below ("A final
-		// paragraph.") have different end columns, we cannot just press End in
-		// both; we click at matched page-X positions in each neighbour before
-		// pressing the arrow key, producing equivalent sticky captures.
+		// Neighbouring blocks have different end columns; click at matched page-X in each before arrowing.
 		await editor.loadContent(DEFAULT_CONTENT);
 
 		const codeBlockIndex = await editor.page.evaluate(() => {
@@ -178,7 +154,6 @@ test.describe('sticky column: code block entry symmetry', () => {
 		});
 		expect(codeBlockIndex).toBeGreaterThan(0);
 
-		// ── From above ─────────────────────────────────────────
 		const aboveBlock = editor.getBlock(codeBlockIndex - 1);
 		const aboveBox = await aboveBlock.boundingBox();
 		expect(aboveBox).not.toBeNull();
@@ -191,7 +166,6 @@ test.describe('sticky column: code block entry symmetry', () => {
 
 		await resetStickyByClickingOutside(editor);
 
-		// ── From below ─────────────────────────────────────────
 		const belowBlock = editor.getBlock(codeBlockIndex + 1);
 		const belowBox = await belowBlock.boundingBox();
 		expect(belowBox).not.toBeNull();
@@ -203,8 +177,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.page.waitForTimeout(150);
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Only assert landing symmetry when the two clicks produced matched
-		// sticky Xs — otherwise we'd be comparing different starting columns.
+		// Only compare landings when the two captures matched — otherwise different starting columns.
 		if (Math.abs(capturedAboveX - capturedBelowX) < 5) {
 			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(PIXEL_TOLERANCE);
 		}

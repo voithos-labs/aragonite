@@ -1,7 +1,6 @@
 /**
- * BlockEditActions factory: split, merge, delete, update, paste-insert,
- * and replace-with-blocks. Each method routes its mutation through
- * `controller.commitStructural` so the undo + reactivity ceremony stays
+ * BlockEditActions factory. Each method routes its mutation through
+ * `controller.commitStructural` so the undo + reactivity ceremony lives
  * in one place.
  */
 
@@ -58,7 +57,6 @@ export function createBlockEditActions(
 
 			if (!isMergeEligible(prevKind, currKind)) {
 				if (!isBlockEditable(prevKind)) {
-					// Previous block is non-editable — delete it
 					await controller.commitStructural(
 						blockIndex,
 						0,
@@ -67,56 +65,45 @@ export function createBlockEditActions(
 						{ op: { kind: 'delete' } }
 					);
 				} else {
-					// Previous block is editable but not mergeable — move focus
 					deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
 				}
 				return;
 			}
 
-			// Eligible — resolve the actual merge target. For prose/prose-absorber
-			// prev this is prev itself (empty path). For container prev this is
-			// the deepest prose leaf inside prev (non-empty path).
+			// For prose/prose-absorber prev, target is prev itself (empty path).
+			// For container prev, target is the deepest prose leaf.
 			const mergeTarget = findMergeTarget(prev);
 			if (!mergeTarget) {
-				// Walker couldn't find a prose leaf (e.g. container's deepest leaf
-				// is opaque). Same fallback as ineligible — move focus.
 				deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
 				return;
 			}
 
-			// Pre-compute join values before mutating (snapshot in commitStructural
-			// must capture the pre-mutation state, so all mutation goes inside mutate).
+			// Pre-compute join values before mutating — commitStructural's snapshot
+			// captures pre-mutation state, so all mutation must live inside mutate.
 			const target = mergeTarget.target;
 			const targetRaw = target.raw ?? '';
 			const currRaw = curr.raw ?? '';
-			// Preserve the target's existing line ending style.
 			const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
 			const targetText = trimTrailingLineEnding(targetRaw);
 			const currText = trimTrailingLineEnding(currRaw);
 			const joinOffset = targetText.length;
 			const mergedRaw = targetText + currText + lineEnding;
 
-			// Delete curr from top-level children. All mutations (target.raw,
-			// inline reparse, ancestry rebuild, array splice) happen inside
-			// mutate so commitStructural snapshots the pre-mutation state.
 			await controller.commitStructural(
 				blockIndex,
 				0,
 				(children) => {
-					// Mutate the target's raw. target is a reference into the same
-					// object tree that childrenCopy shares (shallow copy), so this is safe.
+					// `target` references into the shallow-copied tree shared with
+					// childrenCopy, so this write reaches the committed children.
 					target.raw = mergedRaw;
 
-					// Refresh the target's inline content cache. The per-input reactive
-					// pipeline doesn't fire here because the user was typing in curr, not
-					// in target — we must re-parse explicitly.
+					// Refresh the target's inline cache: the reactive pipeline didn't
+					// fire because the user typed in curr, not target.
 					if (isProseKind(target.kind)) {
 						const range = getContentRange(target);
 						target.inlineContent = parseInline(target.raw, range.start, range.end);
 					}
 
-					// Rebuild ancestry raw for container-target merges. For top-level
-					// prose merges (empty path) there's no ancestry to rebuild.
 					if (mergeTarget.path.length > 0) {
 						rebuildAncestryRaw(prev, mergeTarget.path);
 					}
@@ -124,8 +111,6 @@ export function createBlockEditActions(
 					return performDelete({ children }, blockIndex);
 				},
 				() => {
-					// Focus cascade: for flat (prev === target) merges, focus prev directly.
-					// For nested-target merges, use focusByPath to cascade down.
 					if (mergeTarget.path.length === 0) {
 						deps.blockRefs[blockIndex - 1]?.focus(joinOffset);
 					} else {
@@ -145,7 +130,6 @@ export function createBlockEditActions(
 
 			if (!isMergeEligible(currKind, nextKind)) {
 				if (!isBlockEditable(nextKind)) {
-					// Next block is non-editable — delete it
 					await controller.commitStructural(
 						blockIndex,
 						CURSOR_END,
@@ -154,13 +138,11 @@ export function createBlockEditActions(
 						{ op: { kind: 'delete' } }
 					);
 				} else {
-					// Next block is editable but not mergeable — move focus
 					deps.blockRefs[blockIndex + 1]?.focus(0);
 				}
 				return;
 			}
 
-			// Mergeable — proceed with merge
 			const mergeOffset = displayLength(deps.doc.children[blockIndex].raw);
 
 			await controller.commitStructural(
@@ -198,12 +180,9 @@ export function createBlockEditActions(
 			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
 			const result = performUpdate(deps.doc, blockIndex, text);
 			if (result.kindChanged) {
-				// Kind change is a structural republish, not a new undo entry:
-				// the debounced snapshot above already captured the pre-edit state,
-				// so this commit shares that entry via skipSnapshot. The mutate
-				// callback returns noop — performUpdate mutated the tree in place,
-				// and commitStructural will swap the children array atomically so
-				// Svelte remounts with the correct block kind.
+				// Structural republish sharing the debounced snapshot via skipSnapshot.
+				// performUpdate already mutated the tree in place; commitStructural
+				// swaps the children array atomically so Svelte remounts at the new kind.
 				await controller.commitStructural(
 					blockIndex,
 					preEditOffset ?? 0,
@@ -214,9 +193,8 @@ export function createBlockEditActions(
 					{ skipSnapshot: true, op: { kind: 'updateContent', detail: { length: text.length } } }
 				);
 			}
-			// Non-kindChanged branch is routine typing. The debounced snapshot
-			// above holds the undo seam; `input` edit events at debounce-flush
-			// time feed the op-log via its `events.on('edit', ...)` subscription.
+			// Non-kindChanged: routine typing. The debounced snapshot above holds
+			// the undo seam; `input` edit events fire at debounce-flush time.
 		},
 
 		async updateBlockMetadata(
@@ -257,12 +235,10 @@ export function createBlockEditActions(
 
 			const currentNode = deps.doc.children[blockIndex];
 
-			// Compute replacement once, outside commitStructural, based on the
-			// post-preDelete raw so a failing `buildPastedReplacement` doesn't
-			// corrupt the document. The actual raw mutation happens inside
-			// `mutate` below so the snapshot captured by commitStructural holds
-			// the pre-paste state, giving Ctrl+Z one-step undo for the entire
-			// paste (selection-delete + splice in one entry).
+			// Compute replacement outside commitStructural against the post-preDelete
+			// raw — a failing buildPastedReplacement won't corrupt the document. Raw
+			// mutation lives inside `mutate` so the snapshot captures pre-paste state,
+			// giving Ctrl+Z one-step undo for the whole paste.
 			let effectiveRaw = currentNode.raw;
 			let effectiveOffset = offset;
 			if (preDelete && preDelete.start < preDelete.end) {
@@ -280,12 +256,13 @@ export function createBlockEditActions(
 				offset,
 				(children) => {
 					children.splice(blockIndex, 1, ...newNodes);
+					// First replacement inherits the original block's id + ref.
 					return {
 						op: 'replace',
 						at: blockIndex,
 						count: 1,
 						newCount: newNodes.length,
-						idMap: { 0: 0 } // first replacement inherits the original block's id + ref
+						idMap: { 0: 0 }
 					};
 				},
 				() => {
@@ -303,9 +280,6 @@ export function createBlockEditActions(
 		): Promise<void> {
 			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 
-			// Normalize trivia + ensure editable containers + reparse inline, then
-			// the mutation callback only splices. Shared with nested replaceBlock
-			// and ListBlock's replaceBlock override via normalizeReplacementTrivia.
 			const normalizedReplacement =
 				replacement.length > 0
 					? normalizeReplacementTrivia(deps.doc.children[blockIndex], replacement)
@@ -329,7 +303,6 @@ export function createBlockEditActions(
 						at: blockIndex,
 						count: 1,
 						newCount: normalizedReplacement.length
-						// no idMap — every replacement gets a fresh id (existing behavior)
 					};
 				},
 				() => {

@@ -1,17 +1,10 @@
 /**
- * Inline parser post-processing: tree rewrites applied after the delimiter
- * pipeline has resolved all nesting. Splits text nodes on hard line break
- * sequences (backslash-before-\n or ≥2-spaces-before-\n) and merges adjacent
- * text siblings.
+ * Inline pipeline post-processing: split text on hard line breaks
+ * (`\`+\n or ≥2 spaces + \n) and merge adjacent text siblings.
  */
 
 import type { InlineNode } from '../nodes';
 
-/**
- * Walk the inline node tree and split text nodes on hard line break patterns.
- * Hard breaks: backslash immediately before \n, or two or more spaces before \n.
- * Single space before \n is NOT a hard break.
- */
 export function processHardLineBreaks(nodes: InlineNode[], raw: string): InlineNode[] {
 	const result: InlineNode[] = [];
 	for (const node of nodes) {
@@ -27,10 +20,6 @@ export function processHardLineBreaks(nodes: InlineNode[], raw: string): InlineN
 	return result;
 }
 
-/**
- * Split a single text node on hard line break sequences.
- * Returns one or more nodes: text, hardLineBreak, text, ...
- */
 function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 	const { start, end } = node;
 	const text = raw.slice(start, end);
@@ -44,10 +33,8 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 
 		const absNl = start + nlIdx;
 
-		// Check for backslash break: char immediately before \n is '\'
 		if (nlIdx > 0 && text[nlIdx - 1] === '\\') {
-			// Text before the backslash
-			const breakerStart = absNl - 1; // position of '\'
+			const breakerStart = absNl - 1;
 			if (segStart < breakerStart) {
 				result.push({
 					kind: 'text',
@@ -56,7 +43,6 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 					text: raw.slice(segStart, breakerStart)
 				});
 			}
-			// The hardLineBreak node covers the '\' and '\n'
 			result.push({
 				kind: 'hardLineBreak',
 				start: breakerStart,
@@ -67,9 +53,7 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 			continue;
 		}
 
-		// Check for two-or-more spaces before \n.
-		// Skip the '\r' in a CRLF sequence first so trailing spaces before
-		// \r\n still count as a hard break.
+		// Skip the '\r' of CRLF so trailing spaces before \r\n still count.
 		let spaceCount = 0;
 		let j = nlIdx - 1;
 		if (j >= 0 && text[j] === '\r') j--;
@@ -79,8 +63,7 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 		}
 
 		if (spaceCount >= 2) {
-			const spacesStart = start + j + 1; // absolute start of the trailing spaces
-			// Text before the trailing spaces
+			const spacesStart = start + j + 1;
 			if (segStart < spacesStart) {
 				result.push({
 					kind: 'text',
@@ -89,7 +72,6 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 					text: raw.slice(segStart, spacesStart)
 				});
 			}
-			// The hardLineBreak node covers the spaces + \n
 			result.push({
 				kind: 'hardLineBreak',
 				start: spacesStart,
@@ -100,11 +82,9 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 			continue;
 		}
 
-		// Not a hard break — advance past the \n
 		i = nlIdx + 1;
 	}
 
-	// Remaining text
 	if (segStart < end) {
 		result.push({
 			kind: 'text',

@@ -12,8 +12,6 @@ test.describe('source prop change', () => {
 	test('clears cross-block selection when source prop changes', async ({ page }) => {
 		await editor.loadContent('First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n');
 
-		// Enter cross-block mode: focus first block, then Shift+ArrowDown twice
-		// to extend selection across into subsequent blocks.
 		await editor.focusBlockStart(0);
 		await page.keyboard.down('Shift');
 		await page.keyboard.press('ArrowDown');
@@ -23,14 +21,10 @@ test.describe('source prop change', () => {
 		await editor.waitForCrossBlock(true);
 		expect(await editor.isCrossBlockActive()).toBe(true);
 
-		// Flip the source prop to a different document.
 		await editor.loadContent('Totally different content.\n');
 
-		// Cross-block state should be cleared.
 		expect(await editor.isCrossBlockActive()).toBe(false);
 
-		// Typing should insert visible characters — native caret is not
-		// suppressed by stale data-cross-block.
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' appended');
 		const src = await editor.getSource();

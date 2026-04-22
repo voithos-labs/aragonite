@@ -1,11 +1,9 @@
 /**
- * Merge eligibility rules for the block editor.
- * Determines what happens on Backspace at the start of a block.
- * See docs/design/editor/editor.md — Structural Operations, Merge Eligibility.
+ * Merge eligibility and target resolution for Backspace-at-start.
+ * See docs/design/editor/editor.md — Structural Operations.
  *
- * The per-kind `MergeRole` assignment lives on the `BlockKindDescriptor`
- * registry in `block-kind-descriptor.ts`. This file owns only the eligibility
- * rules (role-pair semantics) and the target-finding walker.
+ * Per-kind `MergeRole` assignment lives on `BlockKindDescriptor`; this file
+ * owns the role-pair eligibility rules and the target-finding walker.
  */
 
 import type { CstNode } from '../core/nodes';
@@ -14,16 +12,11 @@ import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor'
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
 /**
- * Can the block at `currKind` merge into the block at `prevKind` on Backspace?
- * When false, Backspace either deletes the previous block (if non-editable)
- * or moves focus to the end of the previous block (if editable).
- *
- * Eligibility is derived from role pairs, not an enumerated pair set:
- *   prose           + prose          → eligible (concat text)
- *   prose-absorber  + prose          → eligible (prev stays its kind)
- *   container       + prose          → eligible (merge into deepest prose leaf)
- *   self-merge      + self-merge     → eligible
- *   anything else                    → not eligible
+ * Can `currKind` merge into `prevKind` on Backspace? Eligibility is derived
+ * from role pairs:
+ *   prose / prose-absorber / container + prose → eligible
+ *   self-merge + self-merge                    → eligible
+ *   anything else                              → not eligible
  */
 export function isMergeEligible(prevKind: CstNode['kind'], currKind: CstNode['kind']): boolean {
 	const prev = getMergeRole(prevKind);
@@ -44,12 +37,9 @@ export function getMergeRole(kind: CstNode['kind']): MergeRole {
 // ── Merge Target Resolution ─────────────────────────────────────────────────
 
 /**
- * The result of resolving where a merge should land.
- *
- * `target` is the leaf CstNode whose `raw` will be mutated to receive the
- * merged text. `path` is a sequence of child-array indices walking from the
- * caller's `prev` block down to `target`. An empty path means `target === prev`
- * — no walking was needed because prev was itself a prose leaf.
+ * `target` is the leaf whose `raw` receives the merged text. `path` walks
+ * from the caller's `prev` block down to `target`; empty path means
+ * `target === prev` (prev was itself a prose leaf).
  */
 export interface MergeTarget {
 	target: CstNode;
@@ -57,16 +47,10 @@ export interface MergeTarget {
 }
 
 /**
- * Recursive walker: from `node`, descend into the last child at every step
- * until we land on a prose / prose-absorber leaf (return it) or hit an
- * opaque leaf / empty container (return null).
- *
- * `path` accumulates the child indices we descended through. At the top call
- * the caller passes `path = []`.
- *
- * Uniform descent (always `children[last]`) works because blockquote children,
- * list children (list items), and list-item children (inner blocks) all share
- * the convention that the last child is visually last in the source.
+ * Descend `node` into its last child at every step until landing on a prose
+ * / prose-absorber leaf, or returning null on an opaque leaf / empty container.
+ * Uniform last-child descent works because blockquote, list, and list-item
+ * children all place the visually-last element at children[length-1].
  */
 export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
 	const role = getMergeRole(node.kind);
@@ -81,13 +65,10 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
 }
 
 /**
- * Given a `prev` block, find the leaf that should receive the merged text
- * from the current block being backspaced.
- *
- * - prose / prose-absorber prev → returns prev itself, empty path
- * - container prev → walks into the subtree to find the deepest prose leaf
- * - self-merge prev → returns prev itself, empty path
- * - opaque prev → returns null (caller falls back to move-focus)
+ * Find the leaf that should receive text merged into `prev`:
+ *   prose / prose-absorber / self-merge → prev itself (empty path)
+ *   container                           → deepest prose leaf in the subtree
+ *   opaque                              → null (caller falls back to move-focus)
  */
 export function findMergeTarget(prev: CstNode): MergeTarget | null {
 	const role = getMergeRole(prev.kind);
@@ -97,15 +78,11 @@ export function findMergeTarget(prev: CstNode): MergeTarget | null {
 	if (role === 'container') {
 		return walkToDeepestMergeLeaf(prev, []);
 	}
-	return null; // opaque
+	return null;
 }
 
 // ── Block Editability ───────────────────────────────────────────────────────
 
-/**
- * Can this block receive text input? Non-editable blocks (thematic break)
- * are deleted on Backspace from the following block.
- */
 export function isBlockEditable(kind: CstNode['kind']): boolean {
 	return getBlockKindDescriptor(kind).editable;
 }

@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-/**
- * Deeply nested structural paste — the scenarios most likely to expose
- * seams in the dispatch / container-state machinery.
- */
 test.describe('clipboard exploration: deeply nested', () => {
 	let editor: EditorPage;
 
@@ -18,7 +14,6 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted one\n\npasted two\n'));
 		await editor.page.waitForTimeout(100);
 
-		// Nested item's paragraph: path [0, 0, 1, 0, 0] (list > item > list > item > para)
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 'nested target'.length);
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -33,8 +28,6 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
 		await editor.page.waitForTimeout(100);
 
-		// Path: document > blockquote > list > listItem > paragraph.
-		// Try to focus the paragraph inside the list item.
 		await editor.focusBlockAtPath([0, 0, 0, 0], 0);
 		await editor.page.keyboard.press('End');
 		await editor.pressKey('Control+v');
@@ -50,7 +43,6 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- X1\n- X2\n'));
 		await editor.page.waitForTimeout(100);
 
-		// Cross-block selection across B1..B3 (inside the nested list).
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 1, 2, 0], 'B3'.length);
 		await editor.waitForCrossBlock(true);

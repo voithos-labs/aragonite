@@ -1,16 +1,13 @@
 /**
  * Document-tree path navigation. Pure functions over a Document + path.
- * Used by keyboard dispatch (find the next/previous block), pointer drag
- * (block hit testing), and undo restoration (resolve a path back to a node).
  */
 
 import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 
 /**
- * Return the path of the block immediately after `path` in document order,
- * or null if `path` is the last block. Walks into container children
- * before walking across siblings.
+ * Block immediately after `path` in document order, or null if `path` is
+ * last. Walks into children before siblings.
  */
 export function nextPath(doc: Document, path: number[]): number[] | null {
 	const node = nodeAt(doc, path);
@@ -32,9 +29,8 @@ export function nextPath(doc: Document, path: number[]): number[] | null {
 }
 
 /**
- * Return the path of the block immediately before `path` in document order,
- * or null if `path` is the first block. Walks into the previous sibling's
- * deepest last descendant before walking across siblings.
+ * Block immediately before `path` in document order, or null if `path` is
+ * first. Walks into the previous sibling's deepest last descendant first.
  */
 export function previousPath(doc: Document, path: number[]): number[] | null {
 	if (path.length === 0) return null;
@@ -82,8 +78,7 @@ export function lastPath(doc: Document): number[] | null {
 }
 
 /**
- * Walk up from `el` until we find an ancestor with `data-block-path`.
- * Returns the parsed path, or null if none found.
+ * Walk up from `el` to the nearest ancestor carrying `data-block-path`.
  */
 export function findBlockPathForElement(el: Element | null): number[] | null {
 	let cur: Element | null = el;

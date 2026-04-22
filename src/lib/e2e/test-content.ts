@@ -1,7 +1,3 @@
-/**
- * Comprehensive markdown document for E2E testing.
- * Covers all GFM block types and inline syntax.
- */
 export const DEFAULT_CONTENT = `# Heading 1
 
 ## Heading 2
@@ -35,9 +31,6 @@ console.log(x);
 A final paragraph.
 `;
 
-/**
- * Simple content for tests that need a minimal starting state.
- */
 export const SIMPLE_CONTENT = `First paragraph.
 
 Second paragraph.

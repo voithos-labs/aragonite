@@ -53,7 +53,6 @@ describe('code-languages registry', () => {
 		const second = (() => ({ name: 'second' })) as unknown as LanguageFn;
 		registerLanguage('javascript', first);
 		registerLanguage('javascript', second);
-		// First registration wins — subsequent calls are ignored.
 		expect(getLanguageGrammar('javascript')?.definition).toBe(first);
 	});
 });

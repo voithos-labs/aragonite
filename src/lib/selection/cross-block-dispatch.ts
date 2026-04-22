@@ -1,12 +1,7 @@
 /**
  * Cross-block event dispatch shared by TextEditableBlock and CodeBlock.
- * Both block types need identical logic for cross-block keyboard
- * handling, pointer events, clipboard, and composition — the only
- * differences are single-block handling (kept in each component).
- *
- * The factory takes a dispatch context describing the block's state and
- * editor dependencies, and returns handler functions that each component
- * calls at the top of its own event handlers.
+ * Factory returns handler functions each block component calls at the top
+ * of its own event handlers; single-block handling stays in each component.
  */
 
 import type { SelectionState } from './selection-state.svelte';
@@ -55,7 +50,7 @@ export interface CrossBlockDispatchContext {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	getEditorRoot: () => HTMLElement | null;
-	/** AbortSignal aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
+	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;
@@ -66,14 +61,12 @@ export interface CrossBlockDispatchContext {
 
 	/** Svelte's tick() — awaited after mutations so the DOM settles. */
 	afterReactivity: () => Promise<void>;
-	/** Set the block's pendingCursorOffset state. */
 	setPendingCursor: (offset: number) => void;
 
 	/**
-	 * Optional post-mutation hook for cross-block type-replace. Called after
-	 * the factory splices the typed character into the target node's raw.
-	 * TextEditableBlock uses this to reparse inline content; CodeBlock
-	 * needs no post-processing.
+	 * Post-mutation hook for cross-block type-replace, called after the typed
+	 * character is spliced into the target node's raw. TextEditableBlock uses
+	 * it to reparse inline content; CodeBlock doesn't need one.
 	 */
 	afterRawMutated?: (node: CstNode) => void;
 }
@@ -86,9 +79,8 @@ export interface CrossBlockHandlers {
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/**
-	 * Trigger a cross-block range delete without reading from a keyboard event.
-	 * Called by the block-local Cut handlers after they've synchronously
-	 * written the collected cross-block text to e.clipboardData.
+	 * Cross-block range delete entry for Cut handlers — after they've
+	 * synchronously written the collected text to e.clipboardData.
 	 */
 	performCrossBlockDeleteFromEvent(): Promise<void>;
 }
@@ -99,11 +91,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		getDoc: ctx.getDoc,
 		getBlockElByPath: ctx.getBlockElByPath,
 		controller: ctx.controller,
-		// Used by the paste path to push a snapshot covering delete + paste as
-		// one undo entry, before calling performCrossBlockDelete with skipSnapshot.
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		// Used by the sync path (compositionstart) and legacy callers.
 		notifyDocMutated: () => ctx.containerEdit.endContainerEdit()
 	};
 
@@ -128,13 +117,11 @@ async function handleKeyDown(
 ): Promise<boolean> {
 	const { selection } = ctx;
 
-	// While cross-block is active, dispatch extend/collapse/clipboard first.
 	if (selection.isCrossBlock) {
 		const handled = await handleCrossBlockActive(ctx, mutCtx, e);
 		if (handled) return true;
 	}
 
-	// Single-block entry points: Ctrl+Shift+Home/End, double Ctrl+A.
 	return handleCrossBlockEntry(ctx, e);
 }
 
@@ -150,12 +137,10 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Ctrl+C / Ctrl+X are NOT intercepted here — letting the keydown default
-	// fire produces a synthetic copy/cut event which the block's own
-	// onCopy/onCut handler receives. That handler, inside a user-gesture
-	// context, writes synchronously via e.clipboardData.setData — reliable
-	// in tauri's wry webview, which refuses navigator.clipboard.writeText in
-	// some contexts.
+	// Ctrl+C / Ctrl+X intentionally pass through — the synthetic copy/cut event
+	// reaches the block's onCopy/onCut, which writes synchronously via
+	// e.clipboardData.setData. Tauri's wry webview refuses
+	// navigator.clipboard.writeText in some contexts.
 
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
@@ -184,8 +169,6 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Escape collapses to the start — matches "get me out of this weird state"
-	// user expectation from Obsidian / VS Code / Notion.
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
 		collapseCrossBlock(selection, 'start', getBlockElByPath);
@@ -203,7 +186,6 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Ctrl+A while already cross-block: select the whole document.
 	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
 		e.preventDefault();
 		selectWholeDocument(selection, doc, getBlockElByPath);
@@ -213,7 +195,6 @@ async function handleCrossBlockActive(
 	return false;
 }
 
-/** Single-block entry points that don't need boundary geometry checks. */
 function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean {
 	const el = ctx.getEl();
 	if (!el) return false;
@@ -242,7 +223,6 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
-/** Shared handler for Ctrl+Shift+Home / Ctrl+Shift+End in both active and entry paths. */
 function handleDocEdgeExtend(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent,
@@ -289,13 +269,11 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		}
 	}
 
-	// Collapse a live cross-block selection on unshifted click.
 	if (selection.isCrossBlock && !e.shiftKey) {
 		selection.clear();
 		clearNativeSelection();
 	}
 
-	// Install drag listener for potential cross-block drag selection.
 	if (!e.shiftKey) {
 		const root = ctx.getEditorRoot();
 		if (!root) return false;
@@ -330,12 +308,8 @@ async function handlePaste(
 	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
-	// One snapshot covers the whole delete-then-paste — the cross-block
-	// delete and the paste mutation share a single undo entry. Pre-fix,
-	// the nested structural path produced two snapshots (the implicit
-	// one inside performCrossBlockDelete plus another inside
-	// insertParsedBlocks), so a single Ctrl+Z left the document in an
-	// intermediate "selection-deleted but blocks-not-inserted" state.
+	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave
+	// an intermediate "selection-deleted but blocks-not-inserted" state.
 	mutCtx.pushUndoSnapshot();
 
 	const doc = ctx.getDoc();
@@ -345,9 +319,6 @@ async function handlePaste(
 	});
 	if (!caret) return true;
 
-	// Route through the unified dispatcher. skipSnapshot: true threads
-	// into the mutation APIs so the whole delete-then-paste lands as one
-	// undo entry under the snapshot we already pushed.
 	const result = await pasteDispatch(
 		{
 			pastedText: pasted,
@@ -362,10 +333,8 @@ async function handlePaste(
 	);
 	ctx.containerEdit.endContainerEdit();
 
-	// For inline paste, the dispatcher mutated raw directly. Place the
-	// caret on the merged block via DOM — the originating block (whose
-	// handler fired the paste) may have been removed by the cross-block
-	// delete when the user extended selection upward, leaving its
+	// Place the caret via DOM rather than pendingCursor — the originating
+	// block may have been removed by the cross-block delete, leaving a
 	// pendingCursor write addressed to an unmounted component.
 	if (result.inlineCaretOffset !== undefined) {
 		await ctx.afterReactivity();
@@ -381,7 +350,6 @@ async function handlePaste(
 	return true;
 }
 
-/** Rebuild container raw for every ancestor of a leaf path, innermost-first. */
 function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
 		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
@@ -410,10 +378,9 @@ async function handleBeforeInput(
 	targetNode.raw =
 		targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
 	ctx.afterRawMutated?.(targetNode);
-	// Mirror the inline-paste path: when the collapsed caret lives inside a
-	// container, the originating block's containerEdit bracket may not share
-	// the merge target's ancestry. Walk the target's path and rebuild raw
-	// directly so list/blockquote `raw` fields reflect the typed character.
+	// Originating block's containerEdit bracket may not share the merge
+	// target's ancestry; rebuild directly so list/blockquote raws reflect
+	// the typed character.
 	rebuildAncestryForLeaf(doc, caret.path);
 	ctx.containerEdit.endContainerEdit();
 	ctx.setPendingCursor(caret.offset + typed.length);

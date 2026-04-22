@@ -1,41 +1,24 @@
 /**
  * Kind-agnostic CST node mutations: path resolution, split, merge, delete,
- * update, and editable-container scaffolding. Kind-specific unwrap and merge
- * live in `list-ops.ts` and `blockquote.ts`; container raw-rebuilds live in
- * `container-raw.ts`.
+ * update, and editable-container scaffolding.
  *
- * Children-array mutation contract (0.5.5.1):
+ * Children-array mutation contract:
  *
- * Every tree op that modifies a container's top-level children array MUST take
- * the array as an explicit parameter and mutate it, never `node.children` of
- * the passed-in container node directly. The caller owns the array — typically
- * a copy spread from `node.children` inside `commitContainerStructural`'s
- * mutate callback — and publishes it atomically after the op returns.
- *
- * Why: direct `node.children.splice(...)` inside an op collides with the
+ * Tree ops that modify a container's top-level children array MUST take the
+ * array as an explicit parameter and mutate it, never `node.children` directly.
+ * The caller owns the array (typically a spread copy from inside
+ * `commitContainerStructural`'s mutate callback) and publishes it after the op
+ * returns. Direct `node.children.splice(...)` inside an op collides with the
  * commit primitive's post-mutate publish, which reassigns a pre-mutation copy
- * back to `node.children`. The M1 zombie-ListItemBlock bug (0.5.4) was exactly
- * this pattern — splice mutated live children, publish overwrote with the old
- * array, and the keyed {#each} rendered a stale component pinned at
- * key=undefined that intercepted typed characters.
+ * back — producing the M1 zombie-ListItemBlock class of bug where a stale
+ * keyed {#each} entry intercepts typed characters.
  *
- * Scope: the rule applies to the top-level children array the op was handed.
- * Mutations to other nodes reached by walking the live tree during the op —
- * whether descendants (e.g., appending to a nested list found during M1
- * walking) or ancestors (e.g., cascade-cleanup pruning an empty parent) —
- * remain in-place. The commit primitive's snapshot captures the whole subtree
- * via cloneDocument regardless of walk direction, so there is no publish
- * collision. If an op needs to mutate descendants structurally (insert/delete
- * items in a discovered container), it should look up that container's
- * registered BlockListState and route through `commitChildrenEdit`, matching
- * the pattern in `list-context.ts`.
- *
- * Contract audit: before shipping, grep for `.children.splice`,
- * `.children.push`, and the `children!.splice` / `children!.push`
- * non-null-assertion variants across `tree-operations/` and confirm every
- * hit is either (a) on a caller-passed array parameter, (b) on a
- * NodeParent wrapper, or (c) on a discovered descendant or ancestor
- * covered by the scope exception above.
+ * Scope exception: mutations to other nodes reached by walking the live tree
+ * (descendants found during targeting, ancestors during cascade cleanup) remain
+ * in-place. The commit primitive's cloneDocument snapshot covers the whole
+ * subtree regardless of walk direction. Ops that need to mutate discovered
+ * descendants structurally should route through that container's registered
+ * BlockListState via `commitChildrenEdit`.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -49,10 +32,6 @@ export type NodeParent = { children: CstNode[] };
 
 // ── Path resolution ──
 
-/**
- * Resolve a node by walking a path of child indices from the document root.
- * Returns null if the path does not correspond to an existing node.
- */
 export function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
 	let cur: CstNode | Document = doc;
 	for (const idx of path) {
@@ -65,13 +44,8 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 // ── Split ──
 
 /**
- * Split the node at `blockIndex` into two nodes at the given raw `offset`.
- * Returns a StructuralChange descriptor; the commit primitive applies it to
- * ids/refs. The first half inherits the original node's ID (idMap: {0: 0});
- * the second half gets a fresh ID.
- *
- * The offset is relative to the displayed text content (without trailing line ending).
- * The line ending style (\n or \r\n) is preserved from the original raw.
+ * Split the node at `blockIndex` into two at raw `offset` (display-relative,
+ * line-ending preserved). First half inherits the original ID via `idMap`.
  */
 export function splitNode(
 	parent: NodeParent,
@@ -104,17 +78,14 @@ export function splitNode(
 	const secondNode = reparseAsNode(secondRaw, '');
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
-	// First half inherits the original node's ID (via idMap); second half gets a fresh ID.
 	return { op: 'replace', at: blockIndex, count: 1, newCount: 2, idMap: { 0: 0 } };
 }
 
 // ── Merge ──
 
 /**
- * Merge the node at `blockIndex` into the node at `blockIndex - 1`.
- * The combined raw text is re-parsed. The merged block inherits prev's ID
- * (idMap: {0: 0} — new[0] inherits old[0] which is the prev block).
- * Returns noop if blockIndex is 0.
+ * Merge the node at `blockIndex` into `blockIndex - 1`. Combined raw is
+ * re-parsed; merged block inherits prev's ID. Noop when blockIndex is 0.
  */
 export function mergeWithPrevious(parent: NodeParent, blockIndex: number): StructuralChange {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return { op: 'noop' };
@@ -129,10 +100,8 @@ export function mergeWithPrevious(parent: NodeParent, blockIndex: number): Struc
 }
 
 /**
- * Merge the node at `blockIndex` with the node at `blockIndex + 1`.
- * The combined raw text is re-parsed. The merged block inherits the current
- * block's ID (idMap: {0: 0} — new[0] inherits old[0] which is the current block).
- * Returns noop if blockIndex is the last block.
+ * Merge the node at `blockIndex` with `blockIndex + 1`. Combined raw is
+ * re-parsed; merged block inherits the current block's ID. Noop at the tail.
  */
 export function mergeWithNext(parent: NodeParent, blockIndex: number): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return { op: 'noop' };
@@ -148,10 +117,7 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 
 // ── Delete ──
 
-/**
- * Remove the node at `blockIndex`. Transfers leading trivia to the next sibling
- * if one exists. Returns noop if blockIndex is out of bounds.
- */
+/** Remove the node at `blockIndex`, transferring its leading trivia to the next sibling. */
 export function deleteNode(parent: NodeParent, blockIndex: number): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
@@ -168,10 +134,7 @@ export function deleteNode(parent: NodeParent, blockIndex: number): StructuralCh
 
 // ── Update Content ──
 
-/**
- * Update the raw text of the node at `blockIndex` and re-parse to check
- * for block type changes. Returns whether the kind changed.
- */
+/** Update raw and re-parse; returns whether the block's kind changed. */
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
@@ -199,7 +162,6 @@ export function updateNodeContent(
 
 // ── Reparse helper (private) ──
 
-/** Parse a raw string as a single block node. */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) {
@@ -215,9 +177,8 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 // ── Replacement normalization ──
 
 /**
- * Normalize the trivia of a replacement array: the first node inherits the
- * original block's leadingTrivia; subsequent nodes keep their own trivia.
- * Pass-through on empty replacements.
+ * First node inherits the original block's leadingTrivia; subsequent nodes
+ * keep their own. Pass-through on empty replacements.
  */
 export function normalizeReplacementTrivia(original: CstNode, replacement: CstNode[]): CstNode[] {
 	const originalTrivia = original.leadingTrivia ?? '';
@@ -231,14 +192,13 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 // ── Editable container backfill ──
 
 /**
- * Ensure every container node in the tree has at least one child block.
- * Without this, container blocks (e.g., a list item with no content after
- * the marker) would have no editing surface for the cursor.
+ * Ensure every container has at least one child block, so the cursor always
+ * has a target (a list item with no content after the marker, etc.).
  */
 export function ensureEditableContainers(node: CstNode): void {
 	if (node.children !== undefined) {
 		if (node.children.length === 0) {
-			// 0.5.5.1: discovered-descendant mutation, see node-ops.ts header
+			// discovered-descendant mutation, see file header
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 		}
 		for (const child of node.children) {

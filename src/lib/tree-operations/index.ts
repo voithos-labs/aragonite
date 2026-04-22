@@ -1,7 +1,3 @@
-/**
- * Barrel re-exports for the tree-operations directory.
- */
-
 export type { NodeParent } from './node-ops';
 export {
 	splitNode,

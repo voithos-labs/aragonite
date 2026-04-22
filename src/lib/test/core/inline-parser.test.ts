@@ -192,8 +192,6 @@ describe('parseInline — emphasis and strong (Stage 2)', () => {
 
 	it('emphasis does not cross inline code', () => {
 		const nodes = inlineOf('*hello `code* end` world*');
-		// The backtick span takes priority — * inside backticks is literal.
-		// inlineCode may be nested inside emphasis; check the whole tree.
 		function hasKind(ns: InlineNode[], kind: string): boolean {
 			return ns.some((n) => n.kind === kind || (n.children ? hasKind(n.children, kind) : false));
 		}

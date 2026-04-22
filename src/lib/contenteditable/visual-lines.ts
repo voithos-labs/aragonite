@@ -1,23 +1,14 @@
 /**
- * Geometry-based visual-line detection for contenteditable text surfaces.
- * Determines whether the cursor sits on the first or last visual line of a
- * wrapping element — used by arrow-key navigation to decide when to cross
- * a block boundary.
+ * Geometry-based visual-line detection. Determines whether the cursor sits
+ * on the first or last visual line of a wrapping element.
  *
- * Why geometry rather than offsets: multi-line blocks (paragraphs that wrap
- * across 3+ visual lines, headings with soft-wrapping content) cannot be
- * judged by offset alone. The cursor's Y coordinate must be compared to
- * the first/last line's Y to decide "am I on the first visual line."
- *
- * Why the text-node walk: collapsed ranges at the start or end of a
- * contenteditable that begins or ends with a non-text element (like a
- * dimmed `<span class="md-marker">##</span>` prefix in headings) can
- * return null rects from getClientRects. Walking to the first or last
- * *text node* and measuring a one-character range around it always
- * returns a valid rect as long as any text content exists.
+ * Offsets alone can't answer this on blocks that wrap across 3+ visual lines;
+ * the cursor Y must be compared to the first/last line Y. The text-node walk
+ * is the workaround for collapsed ranges next to non-text children (e.g.
+ * dimmed `md-marker` spans) returning null rects from getClientRects —
+ * measuring around a real text node always returns a valid rect.
  */
 
-/** Get the vertical position (top) of a Range, handling null-rect edge cases. */
 export function getRangeTop(range: Range): number | null {
 	const rects = range.getClientRects();
 	if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
@@ -27,9 +18,8 @@ export function getRangeTop(range: Range): number | null {
 }
 
 /**
- * Get the vertical position of a non-collapsed range around a character.
- * Non-collapsed ranges reliably return rects; this is the primary
- * measurement primitive for isAtFirstVisualLine / isAtLastVisualLine.
+ * Non-collapsed ranges reliably return rects where collapsed ones don't —
+ * this is the primary measurement primitive for isAt{First,Last}VisualLine.
  */
 export function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
 	try {
@@ -52,8 +42,7 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 }
 
 /**
- * Find the first descendant text node with non-empty content. Used to
- * bypass dimmed-marker element children that would otherwise cause
+ * Skips non-text children (e.g. dimmed marker spans) that would cause
  * isAtFirstVisualLine to fail to measure the block's first line.
  */
 export function findFirstTextNode(node: Node): Text | null {
@@ -67,7 +56,6 @@ export function findFirstTextNode(node: Node): Text | null {
 	return null;
 }
 
-/** Symmetric counterpart to findFirstTextNode. */
 export function findLastTextNode(node: Node): Text | null {
 	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
 		return node as Text;
@@ -80,11 +68,9 @@ export function findLastTextNode(node: Node): Text | null {
 }
 
 /**
- * True if the current selection inside `el` sits on the first visual line.
- * `fallbackOffset` is consulted when geometry measurement fails (e.g.
- * transient layout states or collapsed ranges that return null rects) —
- * should be the cursor offset from getCursorOffset. Returns true for
- * empty containers.
+ * True if the selection inside `el` sits on the first visual line.
+ * `fallbackOffset` is consulted when geometry measurement fails and should
+ * be the cursor offset from getCursorOffset. Empty containers return true.
  */
 export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): boolean {
 	const sel = window.getSelection();
@@ -119,7 +105,6 @@ export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): bo
 	return Math.abs(cursorTop - startTop) < lineHeight * 0.8;
 }
 
-/** Symmetric counterpart. `textLen` is the block's full textContent length. */
 export function isAtLastVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,

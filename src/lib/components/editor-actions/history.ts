@@ -1,7 +1,7 @@
 /**
- * HistoryActions factory: requestUndo / requestRedo. Captures the
- * current state for the redo-stack swap, replays the entry's snapshot,
- * re-parses inline content, and restores the saved selection.
+ * HistoryActions factory. requestUndo/requestRedo capture current state
+ * for the redo swap, replay the entry's snapshot, re-parse inline content,
+ * and restore the saved selection.
  */
 
 import { tick } from 'svelte';

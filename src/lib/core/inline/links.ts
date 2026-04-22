@@ -1,25 +1,15 @@
 /**
- * Stage 1.5 of the inline parser pipeline: link, image, and autolink scanning.
- * Consumes the text regions left untouched by backtick scanning and emits
- * link / image / autolink nodes. Used as input to the emphasis stage.
+ * Inline pipeline stage 1.5: link, image, and autolink scanning over the text
+ * regions left by backtick scanning.
+ *
+ * The links.ts ↔ index.ts module cycle is benign: parseInline is called at
+ * runtime (not module-init) and RefResolver is a type-only import.
  */
 
 import type { InlineNode } from '../nodes';
 import { parseInline } from './index';
 import type { RefResolver } from './index';
 
-// links.ts ↔ index.ts module cycle is benign — the call to parseInline is
-// runtime-deferred, not module-init. The `import type { RefResolver }` is
-// erased at compile time and carries no runtime cycle risk.
-
-/**
- * Scan text regions (not occupied by code spans) for links, images, and autolinks.
- * Returns an updated node list where link/image/autolink nodes are spliced in
- * and the surrounding text nodes are trimmed accordingly.
- *
- * Occupied ranges (code spans + found links/images/autolinks) are used to ensure
- * Stage 2 treats their ranges as non-text.
- */
 export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
@@ -27,7 +17,6 @@ export function scanLinksAndAutolinks(
 	codeSpans: InlineNode[],
 	resolver?: RefResolver
 ): InlineNode[] {
-	// Build list of occupied ranges from code spans
 	const occupied: Array<{ start: number; end: number }> = codeSpans
 		.filter((n) => n.kind === 'inlineCode')
 		.map((n) => ({ start: n.start, end: n.end }));
@@ -43,13 +32,11 @@ export function scanLinksAndAutolinks(
 
 	if (found.length === 0) return codeSpans;
 
-	// Merge code spans and found nodes, sorted by start position
 	const allOccupied: InlineNode[] = [
 		...codeSpans.filter((n) => n.kind === 'inlineCode'),
 		...found
 	].sort((a, b) => a.start - b.start);
 
-	// Rebuild the node list: text gaps + occupied nodes
 	const result: InlineNode[] = [];
 	let cursor = start;
 
@@ -78,9 +65,9 @@ export function scanLinksAndAutolinks(
 }
 
 /**
- * Attempt to parse a link/image destination `(url "title")` starting at pos.
- * pos must point at the `(` character.
- * Returns { url, title, end } on success (end is past the closing `)`), or null.
+ * Parse `(url "title")` starting at `(`. Angle-bracket URLs (`<url>`) are
+ * NOT decoded: the brackets survive in the url field. Safe because url is
+ * a rendering cache — never re-serialized.
  */
 function parseDestination(
 	raw: string,
@@ -88,16 +75,10 @@ function parseDestination(
 	limit: number
 ): { url: string; title: string | undefined; end: number } | null {
 	if (pos >= limit || raw[pos] !== '(') return null;
-	pos++; // consume '('
+	pos++;
 
-	// Skip optional leading whitespace
 	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
 
-	// Read URL — stop at whitespace, '"', "'", or ')'.
-	// Angle-bracket URLs (`<url>`) are not specially decoded here: the opening '<'
-	// and closing '>' are treated as part of the URL text. The url field is a
-	// rendering cache and never re-serialized, so the brackets surviving in it
-	// is cosmetic, not a round-trip concern.
 	const urlStart = pos;
 	while (
 		pos < limit &&
@@ -111,34 +92,27 @@ function parseDestination(
 	}
 	const url = raw.slice(urlStart, pos);
 
-	// Skip whitespace between url and optional title
 	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
 
-	// Optional title: "..." or '...'
 	let title: string | undefined;
 	if (pos < limit && (raw[pos] === '"' || raw[pos] === "'")) {
 		const quote = raw[pos];
-		pos++; // consume opening quote
+		pos++;
 		const titleStart = pos;
 		while (pos < limit && raw[pos] !== quote) pos++;
-		if (pos >= limit) return null; // unterminated title
+		if (pos >= limit) return null;
 		title = raw.slice(titleStart, pos);
-		pos++; // consume closing quote
+		pos++;
 	}
 
-	// Skip trailing whitespace
 	while (pos < limit && (raw[pos] === ' ' || raw[pos] === '\t')) pos++;
 
 	if (pos >= limit || raw[pos] !== ')') return null;
-	pos++; // consume ')'
+	pos++;
 
 	return { url, title, end: pos };
 }
 
-/**
- * Scan a single unoccupied text region for link, image, and autolink patterns.
- * Appends any found nodes to `out`.
- */
 function scanRegionForLinksAndAutolinks(
 	raw: string,
 	start: number,
@@ -151,7 +125,6 @@ function scanRegionForLinksAndAutolinks(
 	while (pos < end) {
 		const ch = raw[pos];
 
-		// Check for image: ![
 		if (ch === '!' && pos + 1 < end && raw[pos + 1] === '[') {
 			const bracketOpen = pos + 1;
 			const bracketClose = findMatchingBracket(raw, bracketOpen, end);
@@ -175,13 +148,11 @@ function scanRegionForLinksAndAutolinks(
 			continue;
 		}
 
-		// Check for link: [
 		if (ch === '[') {
 			const bracketClose = findMatchingBracket(raw, pos, end);
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
-					// Recursively parse the link text for emphasis etc.
 					const children = parseInline(raw, pos + 1, bracketClose, resolver);
 					out.push({
 						kind: 'link',
@@ -199,7 +170,6 @@ function scanRegionForLinksAndAutolinks(
 			continue;
 		}
 
-		// Check for angle-bracket autolink: <https://...> or <http://...>
 		if (ch === '<') {
 			const closeAngle = raw.indexOf('>', pos + 1);
 			if (closeAngle !== -1 && closeAngle < end) {
@@ -219,7 +189,6 @@ function scanRegionForLinksAndAutolinks(
 			continue;
 		}
 
-		// Check for bare URL autolink: https:// or http://
 		if (ch === 'h' || ch === 'H') {
 			const lower = raw.slice(pos, pos + 8).toLowerCase();
 			const schemeLen = lower.startsWith('https://') ? 8 : lower.startsWith('http://') ? 7 : 0;
@@ -244,9 +213,6 @@ function scanRegionForLinksAndAutolinks(
 	}
 }
 
-/**
- * Find the matching `]` for the `[` at bracketStart. Handles nested brackets.
- */
 function findMatchingBracket(raw: string, bracketStart: number, limit: number): number {
 	let depth = 0;
 	let pos = bracketStart;

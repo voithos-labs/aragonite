@@ -132,12 +132,7 @@
 		node.inlineContent = parseInline(node.raw, range.start, range.end);
 	}
 
-	/**
-	 * Get the block-level marker prefix that is NOT covered by inline content.
-	 * For headings this is "# " / "## " etc. For paragraphs it's empty.
-	 * This prefix must be rendered as a dimmed span before inline content
-	 * so that el.textContent matches getDisplayText().
-	 */
+	// Heading/etc. marker rendered as a dimmed span before inline content so el.textContent === getDisplayText().
 	function getBlockMarkerPrefix(): string {
 		if (!isProseKind(node.kind)) return '';
 		const range = getContentRange(node);
@@ -173,11 +168,6 @@
 		setCursorOffsetHelper(el, Math.max(0, offset));
 	}
 
-	/**
-	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * on this block's first or last visual line (depending on `from`).
-	 * Implementation of the BlockComponent.focusAtColumn? contract.
-	 */
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!el) return;
 		el.focus();
@@ -246,7 +236,6 @@
 
 		ensureBr();
 
-		// Restore cursor if a handler requested it
 		if (pendingCursorOffset !== null) {
 			setCursorOffsetHelper(el, pendingCursorOffset);
 			pendingCursorOffset = null;
@@ -270,7 +259,6 @@
 		blockEdit.updateBlockContent(index, text + '\n', savedOffset);
 
 		// Signal the $effect to restore cursor after it rebuilds the DOM.
-		// The $effect computes inline content locally — no refreshInlineContent needed.
 		pendingCursorOffset = savedOffset;
 	}
 
@@ -292,7 +280,6 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// Ctrl+B / Ctrl+I — toggle bold / italic formatting on selection
 		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
 			e.preventDefault();
 			toggleFormat('strong');
@@ -305,11 +292,7 @@
 			return;
 		}
 
-		// Ctrl+1..6 — set heading level, or (Ctrl+0) convert back to paragraph.
-		// Replaces any existing `#` prefix run so repeated shortcuts cycle levels.
-		// The cursor remaps by stripping the old prefix length and re-adding the
-		// new prefix length — `level + 1 + preEditOffset` used to double-count
-		// the old marker whenever the caret sat past it.
+		// Ctrl+0..6: replace any existing `#` prefix so repeated shortcuts cycle heading levels.
 		if ((e.ctrlKey || e.metaKey) && /^[0-6]$/.test(e.key) && !e.shiftKey && !e.altKey) {
 			e.preventDefault();
 			const level = parseInt(e.key, 10);
@@ -345,17 +328,13 @@
 				const displayText = getDisplayText();
 				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
 				blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-				// $effect handles inline re-render — no refreshInlineContent needed
 				pendingCursorOffset = offset + 1;
 			}
 			return;
 		}
 
-		// Tab inserts a literal tab character at the cursor. Without this the
-		// browser's default moves focus out of the editor entirely. Shift+Tab
-		// stays as the browser default (reverse focus) since prose blocks have
-		// no block-level indent semantics today. Inside a list item this is
-		// skipped — the enclosing ListItemBlock handles Tab as indent/outdent.
+		// Insert a literal tab; the browser default would move focus out of the editor.
+		// Skipped inside a list item — ListItemBlock owns Tab there.
 		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
 			e.preventDefault();
 			const offset = getCursorOffsetHelper(el!) ?? 0;
@@ -388,9 +367,7 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		// insertLineBreak from a soft keyboard / IME path: Shift+Enter is the
-		// hard-break shortcut handled in onKeyDown, so just swallow any
-		// insertLineBreak that slipped through without a preceding keydown.
+		// Soft-keyboard/IME insertLineBreak slipped past onKeyDown — swallow; Shift+Enter there owns hard breaks.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
 			return;
@@ -400,10 +377,8 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		// Cross-block copy: write the collected cross-block text synchronously
-		// via e.clipboardData. Previously used navigator.clipboard.writeText
-		// in the keydown handler — async, permission-gated, unreliable in
-		// tauri's wry webview.
+		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
+		// and unreliable in Tauri's wry webview.
 		if (selection.isCrossBlock && selection.anchor && selection.focus) {
 			e.clipboardData?.setData(
 				'text/plain',
@@ -418,10 +393,7 @@
 		stickyColumn.reset();
 		e.preventDefault();
 
-		// Cross-block cut: write synchronously via clipboardData, then trigger
-		// the cross-block delete asynchronously. The sync write completes
-		// before the event returns, so the clipboard is populated even if the
-		// delete is interrupted.
+		// Sync clipboard write, then async delete — clipboard is populated even if the delete is interrupted.
 		if (selection.isCrossBlock && selection.anchor && selection.focus) {
 			e.clipboardData?.setData(
 				'text/plain',
@@ -468,10 +440,7 @@
 			}
 		);
 
-		// For inline paste, the dispatcher returns the target caret offset
-		// so we can set pendingCursorOffset synchronously alongside the raw
-		// mutation. Both land in one reactive flush, so the re-rendered
-		// block positions the cursor correctly.
+		// Land caret set and raw mutation in one reactive flush so the re-rendered block positions correctly.
 		if (result.inlineCaretOffset !== undefined) {
 			pendingCursorOffset = result.inlineCaretOffset;
 		}

@@ -1,7 +1,3 @@
-/**
- * List Enter key tests — new item, split, and exit behaviors.
- * Requirements: e2e/requirements/blocks/list/enter.md
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
@@ -27,7 +23,6 @@ test.describe('list Enter', () => {
 		await editor.loadContent('- HelloWorld\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
 		await item.click();
-		// Place cursor between Hello and World (offset 5 from start of "HelloWorld")
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.pressEnter();
@@ -37,9 +32,7 @@ test.describe('list Enter', () => {
 		expect(source).toContain('- World');
 	});
 
-	// Regression: mid-item Enter used to push TWO undo snapshots (one for the item
-	// split, one for the sibling insert). The fix collapses both into a single
-	// commitMultiScope, so one Ctrl+Z restores the original single-item state.
+	// Regression: mid-item Enter used to push two undo snapshots; must collapse to one.
 	test('Enter in middle of item: one Ctrl+Z restores original item', async () => {
 		await editor.loadContent('- HelloWorld\n');
 		const before = await editor.getSource();
@@ -49,9 +42,7 @@ test.describe('list Enter', () => {
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Confirm split happened.
 		expect(await editor.getSource()).toContain('- Hello');
-		// ONE undo press must restore the pre-split state.
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toBe(before);
@@ -64,7 +55,6 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Now in empty second item. Press Enter to exit.
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('After');
@@ -72,7 +62,6 @@ test.describe('list Enter', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('Only');
 		expect(source).toContain('After');
-		// "After" should not be inside a list marker
 		const afterIdx = source.indexOf('After');
 		const lineStart = source.lastIndexOf('\n', afterIdx) + 1;
 		expect(source.slice(lineStart, lineStart + 2)).not.toBe('- ');
@@ -85,7 +74,6 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Now empty first item. Go back to it.
 		await editor.pressArrowUp();
 		await editor.page.waitForTimeout(100);
 		await editor.pressEnter();
@@ -119,17 +107,12 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
-		// New item has empty paragraph + nested list. Press Enter — the
-		// nested list items must be promoted to sibling level rather than
-		// silently dropped by the exit-list path.
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		expect(source).toContain('Item');
 		expect(source).toContain('Nested');
-		// Nested must now sit at the outer-list indent.
 		expect(source).toMatch(/^- Nested$/m);
-		// And it must NOT be at the nested indent anymore.
 		expect(source).not.toMatch(/^ {2,}- Nested$/m);
 	});
 
@@ -156,43 +139,29 @@ test.describe('list Enter', () => {
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// Should have 3 ordered items with sequential numbering
 		expect(source).toMatch(/1\./);
 		expect(source).toContain('First');
-		// No duplicate numbers
 		const numbers = (source.match(/^(\d+)\./gm) || []).map(Number);
 		const unique = new Set(numbers);
 		expect(unique.size).toBe(numbers.length);
 	});
 
-	// Regression: Enter inside an empty first item of an ordered list must
-	// (a) exit the list by creating a paragraph before it and (b) renumber
-	// the remaining items starting at 1. exitListAtItem deletes the item
-	// but must also call renumberOrderedList.
 	test('ordered: Enter on empty first item renumbers remaining list', async () => {
 		await editor.loadContent('1. First\n2. Second\n');
-		// Blank the first item in place so the caret sits in an empty "1. " item
-		// without creating an extra item via Enter.
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		// Press Enter on the now-empty first item — should exit the list.
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
-		// "Second" remains but is now the sole item and must be renumbered to 1.
 		expect(source).toMatch(/^1\. Second$/m);
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
 
-	// Enter on an empty middle item exits the list and renumbers the second
-	// half so the sequence continues uninterrupted from the first half —
-	// Google Docs / Obsidian semantics, where the exit paragraph is treated
-	// as a description that doesn't consume a marker number. Reverses the
-	// earlier "preserve second-half markers" direction (commit 17727fd).
+	// Google Docs / Obsidian semantics: exit paragraph doesn't consume a marker number.
 	test('ordered: Enter on empty middle item renumbers second half continuously', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n4. four\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
@@ -204,21 +173,13 @@ test.describe('list Enter', () => {
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
-		// First half preserved.
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
-		// Second half continues the sequence — "four" becomes "3." (skipping
-		// only the exited item's slot), not "4." (pre-exit marker) and not
-		// "1." (fresh restart).
 		expect(source).toMatch(/^3\. four$/m);
 		expect(source).not.toMatch(/^4\. four$/m);
 		expect(source).not.toMatch(/^1\. four$/m);
 	});
 
-	// Case 1 from the paste/list-numbering design discussion: Enter-Enter from
-	// the end of a middle item (produces an empty middle item, then exits it)
-	// must leave the trailing item renumbered as if the exited slot never
-	// existed.
 	test('ordered: double-Enter at end of middle item exits with continuous numbering', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
@@ -231,15 +192,10 @@ test.describe('list Enter', () => {
 		const source = await editor.getSource();
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
-		// "three" returns to "3." — the inserted-then-exited empty item
-		// doesn't advance the sequence.
 		expect(source).toMatch(/^3\. three$/m);
 		expect(source).not.toMatch(/^4\. three$/m);
 	});
 
-	// Covers the requirement "Empty last item: deleted, paragraph created
-	// after the list" — pressing Enter on an empty final list item removes
-	// that item and drops a plain paragraph below the list.
 	test('Enter on empty last item creates paragraph after the list', async () => {
 		await editor.loadContent('- First\n- Last\n');
 		const last = editor.page.locator('[contenteditable="true"]', { hasText: 'Last' });
@@ -253,16 +209,13 @@ test.describe('list Enter', () => {
 		await editor.typeText('After');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// First is still a list item; "After" is a plain paragraph following the list
 		expect(source).toMatch(/^- First$/m);
 		expect(source).not.toMatch(/^- Last/m);
 		expect(source).toContain('After');
 		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
 	});
 
-	// Regression: trailing nested list of a MISMATCHED type (e.g. ordered
-	// inside an unordered parent) used to vanish when the empty item exited.
-	// Now it lifts to top level as a separate block.
+	// Regression: trailing mismatched-type nested list used to vanish on exit.
 	test('Enter on empty item with mismatched-type nested list lifts the sub-list', async () => {
 		await editor.loadContent('- Item\n  1. NestedOrdered\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
@@ -270,22 +223,18 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
-		// Now on the new empty item carrying [empty paragraph, ordered sub-list].
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		expect(source).toContain('Item');
 		expect(source).toContain('NestedOrdered');
-		// Ordered sub-list must survive at top-level (no longer indented).
 		expect(source).toMatch(/^1\. NestedOrdered$/m);
 		expect(source).not.toMatch(/^ {2,}1\. NestedOrdered$/m);
 	});
 
-	// Regression: non-list trailing children (e.g. extra paragraphs in a loose
-	// list item) used to be dropped by exitListAtItem. They now lift.
+	// Regression: non-list trailing children in loose items used to be dropped.
 	test('Enter on emptied loose item lifts trailing paragraph as top-level block', async () => {
 		await editor.loadContent('- First\n\n  second\n');
-		// Blank "First" in place so the only item has [empty paragraph, paragraph "second"].
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
 		await first.click();
 		await editor.page.keyboard.press('Home');
@@ -297,17 +246,12 @@ test.describe('list Enter', () => {
 		await editor.typeText('lead');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// "second" must still exist, lifted to top-level (no list marker, no indent).
 		expect(source).toContain('second');
 		expect(source).not.toMatch(/^- second$/m);
 		expect(source).not.toMatch(/^ {2,}second$/m);
-		// The exit paragraph (where the user typed "lead") sits above "second".
 		expect(source.indexOf('lead')).toBeLessThan(source.indexOf('second'));
 	});
 
-	// Loose list (blank line between items) still treats Enter at the end of
-	// the last item as an append — the blank line is descriptive trivia, not
-	// a list terminator — so the new item continues the sequence.
 	test('ordered: Enter at end of last item in loose list appends continuing item', async () => {
 		await editor.loadContent('1. one\n2. two\n\n3. three\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });

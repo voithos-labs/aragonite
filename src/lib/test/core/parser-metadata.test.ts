@@ -118,9 +118,7 @@ describe('metadata: blockquotes', () => {
 		expect(node.children![0].kind).toBe('heading');
 	});
 
-	// CommonMark §5.1: a blockquote paragraph may continue onto a line
-	// without `>` as long as the line is not itself a new block opener
-	// and the blockquote's current inner block is an open paragraph.
+	// CommonMark §5.1 lazy continuation.
 	it('absorbs a lazy continuation line into an open paragraph', () => {
 		const doc = parse('> First line\nlazy continuation\n');
 		expect(doc.children).toHaveLength(1);
@@ -151,8 +149,6 @@ describe('metadata: blockquotes', () => {
 	});
 
 	it('lazy continuation does not absorb a new block opener', () => {
-		// `# heading` is a block opener, so it ends the blockquote rather
-		// than lazy-continuing the paragraph.
 		const doc = parse('> quoted\n# heading\n');
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('blockquote');
@@ -206,11 +202,9 @@ describe('metadata: nested lists', () => {
 		expect(list.children).toHaveLength(1);
 		const item = list.children![0];
 		expect(item.kind).toBe('listItem');
-		// Item has two children: paragraph "Item" and nested list
 		expect(item.children).toHaveLength(2);
 		expect(item.children![0].kind).toBe('paragraph');
 		expect(item.children![1].kind).toBe('list');
-		// Nested list has one item
 		const nested = item.children![1];
 		expect(nested.children).toHaveLength(1);
 		expect(nested.children![0].kind).toBe('listItem');
@@ -256,7 +250,6 @@ describe('metadata: nested lists', () => {
 		const doc = parse('- L1\n  - L2\n    - L3\n');
 		const l1List = doc.children[0];
 		const l1Item = l1List.children![0];
-		// L1 item has paragraph "L1" and nested list
 		const l2List = l1Item.children!.find((c) => c.kind === 'list');
 		expect(l2List).toBeDefined();
 		const l2Item = l2List!.children![0];

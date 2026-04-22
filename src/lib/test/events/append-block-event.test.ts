@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { EditEvent } from '$lib/editor/events/editor-events';
 
 describe('moveFocus past the last block', () => {
-	it('emits op=appendBlock and no op=split (0.5.5.4)', async () => {
+	it('emits op=appendBlock and no op=split', async () => {
 		const { createEditorEvents } = await import('$lib/editor/events/editor-events');
 		const { createUndoController } =
 			await import('$lib/editor/components/editor-actions/undo-controller');
@@ -59,7 +59,6 @@ describe('moveFocus past the last block', () => {
 		const controller = createUndoController(deps);
 		const focus = createFocusActions(deps, controller);
 
-		// Move focus past the last block (index 1 when doc has 1 child).
 		await focus.moveFocus(doc.children.length, 'start');
 
 		const appendEvents = captured.filter((e) => e.op === 'appendBlock');
@@ -67,7 +66,6 @@ describe('moveFocus past the last block', () => {
 
 		expect(appendEvents).toHaveLength(1);
 		expect(splitEvents).toHaveLength(0);
-		// The new block lands at the end; path reflects the appended index.
 		expect(appendEvents[0].path).toEqual([1]);
 	});
 });

@@ -1,11 +1,7 @@
 /**
- * Reactive state class for the cross-block selection layer.
- * Lazy by design: `anchor`, `focus`, and `dragStart` are null in single-block
- * mode (the browser's native selection handles single-block editing). These
- * fields become non-null only when the selection crosses block boundaries.
- *
- * See docs/design/editor/editor.md — Selection section for the state
- * machine and transition rules.
+ * Reactive state for cross-block selection. `anchor`, `focus`, `dragStart`
+ * are null in single-block mode — the native browser selection handles
+ * single-block editing. See editor.md Selection section for transitions.
  */
 
 import type { SelectionPoint, SelectionDragStart } from './primitives';
@@ -15,10 +11,9 @@ import { normalize } from './primitives';
 
 export interface SelectionStateOptions {
 	/**
-	 * Fired after any state mutation (anchor/focus/dragStart/selectAllCount).
-	 * No payload — subscribers call `editor.getSelection()` to read the new
-	 * value. Used by Editor.svelte to bridge SelectionState mutations onto
-	 * the `selectionChange` event on `editor.events`.
+	 * Fired after any state mutation. No payload — subscribers call
+	 * `editor.getSelection()` to read the new value. Bridged onto
+	 * `editor.events.selectionChange` by Editor.svelte.
 	 */
 	onChange?: () => void;
 }

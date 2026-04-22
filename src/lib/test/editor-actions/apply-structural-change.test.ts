@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { applyStructuralChangeToIdsRefs } from '$lib/editor/components/editor-actions/undo-controller';
 import type { BlockComponent } from '$lib/editor/contracts';
 
-// Minimal ref sentinel — the helper only stores/moves slots, never calls methods.
 function mockRef(): BlockComponent {
 	return { focus: () => {}, getCursorOffset: () => null, editable: true, focusable: true } as BlockComponent;
 }
@@ -25,13 +24,11 @@ describe('applyStructuralChangeToIdsRefs', () => {
 			applyStructuralChangeToIdsRefs({ op: 'insert', at: 1, count: 2 }, ids, refs);
 			expect(ids).toHaveLength(5);
 			expect(ids[0]).toBe('a');
-			expect(ids[3]).toBe('b'); // shifted right by count
+			expect(ids[3]).toBe('b');
 			expect(ids[4]).toBe('c');
-			// Inserted ids at positions 1 and 2 are fresh non-empty strings
 			expect(ids[1]).toBeTruthy();
 			expect(ids[2]).toBeTruthy();
-			expect(ids[1]).not.toBe(ids[2]); // each insert gets its own fresh id
-			// Inserted refs are undefined placeholders
+			expect(ids[1]).not.toBe(ids[2]);
 			expect(refs[1]).toBeUndefined();
 			expect(refs[2]).toBeUndefined();
 			expect(refs).toHaveLength(5);
@@ -73,11 +70,9 @@ describe('applyStructuralChangeToIdsRefs', () => {
 			expect(ids).toHaveLength(4);
 			expect(ids[0]).toBe('a');
 			expect(ids[3]).toBe('c');
-			// New positions 1 and 2 are fresh ids
 			expect(ids[1]).not.toBe('b');
 			expect(ids[2]).not.toBe('b');
 			expect(ids[1]).not.toBe(ids[2]);
-			// New refs are undefined
 			expect(refs[1]).toBeUndefined();
 			expect(refs[2]).toBeUndefined();
 		});
@@ -94,11 +89,11 @@ describe('applyStructuralChangeToIdsRefs', () => {
 				refs
 			);
 			expect(ids).toHaveLength(3);
-			expect(ids[0]).toBe('original'); // preserved via idMap
-			expect(ids[1]).not.toBe('original'); // fresh
-			expect(ids[2]).toBe('b'); // shifted right
-			expect(refs[0]).toBe(originalRef); // ref preserved
-			expect(refs[1]).toBeUndefined(); // new slot
+			expect(ids[0]).toBe('original');
+			expect(ids[1]).not.toBe('original');
+			expect(ids[2]).toBe('b');
+			expect(refs[0]).toBe(originalRef);
+			expect(refs[1]).toBeUndefined();
 		});
 	});
 

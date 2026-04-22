@@ -1,17 +1,3 @@
-<!--
-	Cross-block selection overlay rendered inside a BlockHost wrapper.
-	Decides whether the current block is outside the selection, an
-	endpoint (start/end), or an entirely-covered middle block, and paints
-	the matching visual:
-
-	- middle: a single full-bleed rectangle filling the wrapper
-	- start / end: one rectangle per DOMRect reported by the block's
-	  measurePartialRects?, translated into wrapper-local coordinates
-	- outside / single-block: nothing (native selection handles single-block)
-
-	Positioning is absolute, and all overlay nodes carry contenteditable="false"
-	so they never interfere with text editing inside the underlying block.
--->
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { SELECTION_KEY, type BlockComponent } from '../contracts';
@@ -29,11 +15,9 @@
 		isContainer = false
 	}: {
 		path: number[];
-		/** Ref to the block component, used for partial-rect measurement. */
 		blockRef: BlockComponent | undefined;
-		/** The block's DOM element, used to translate viewport rects to wrapper-local. */
 		blockEl: HTMLElement | null | undefined;
-		/** Container blocks (blockquote, list, listItem) skip overlays — children handle it. */
+		/** Container blocks skip overlays — their children paint their own. */
 		isContainer?: boolean;
 	} = $props();
 
@@ -95,8 +79,6 @@
 
 		const { start, end } = normalize({ anchor: selection.anchor, focus: selection.focus });
 
-		// Start blocks run from the selection's start offset to the end of
-		// their content; end blocks run from 0 to the selection's end offset.
 		// MAX_SAFE_INTEGER leans on createRangeFromOffsets' clamping behavior.
 		const startOffset = classification === 'start' ? start.offset : 0;
 		const endOffset = classification === 'start' ? Number.MAX_SAFE_INTEGER : end.offset;

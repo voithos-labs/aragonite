@@ -1,8 +1,7 @@
 /**
- * ContainerEditActions factory: snapshot bookends invoked by container
- * blocks (lists, blockquotes) around their internal mutations, plus the
- * unified `commitContainer` entry that routes structural mutations
- * through the commit primitive.
+ * ContainerEditActions factory — snapshot bookends for container blocks
+ * plus the unified `commitContainer` entry that routes structural
+ * mutations through the commit primitive.
  */
 
 import type { ContainerEditActions } from '../../contracts';
@@ -26,10 +25,8 @@ export function createContainerEditActions(
 		},
 
 		endContainerEdit(): void {
-			// Reactivity nudge for paths that don't go through commitContainer
-			// (e.g. list-context.ts indentItem, which spans multiple container
-			// states). Direct reassignment on the $state proxy triggers the
-			// reactive signal without the indirection of a setter.
+			// Reactivity nudge for paths that bypass commitContainer (e.g.
+			// list-context.ts indentItem spanning multiple container states).
 			deps.doc.children = [...deps.doc.children];
 		},
 
@@ -40,10 +37,8 @@ export function createContainerEditActions(
 				snapshot,
 				mutate,
 				afterTick,
-				// The public interface uses `string` for op.kind; narrow to the
-				// internal OperationKind union here. Callers pass known kinds
-				// ('split' | 'merge' | 'delete' | 'updateContent' | 'paste' |
-				// 'replaceBlock'); the cast can be tightened post-0.5.4.
+				// Public interface widens to `string` for ergonomics; OperationKind
+				// is the internal source of truth.
 				op
 					? {
 							kind: op.kind as OperationKind,
