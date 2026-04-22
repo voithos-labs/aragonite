@@ -23,7 +23,10 @@ import { getSelectionFocusOffset } from './cursor-utils';
 
 export interface SharedKeydownContext {
 	getEl(): HTMLElement | null;
+	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
 	getCursorOffset(): number | null;
+	/** textContent length in raw-content coordinates (ambient marker excluded). */
+	getTextLen(): number;
 	getMyPath(): number[];
 	getIndex(): number;
 	crossBlock: CrossBlockHandlers;
@@ -112,7 +115,7 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowDown') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		const textLen = (el.textContent ?? '').length;
+		const textLen = ctx.getTextLen();
 		if (isAtLastVisualLine(el, offset, textLen)) {
 			// Cross the boundary only when focus is already at textLen, so
 			// native Shift+ArrowDown extension has nowhere left to go.
@@ -146,7 +149,7 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowRight') {
-		const textLen = (el.textContent ?? '').length;
+		const textLen = ctx.getTextLen();
 		const offset = ctx.getCursorOffset();
 		if (offset === textLen) {
 			if (e.shiftKey) {

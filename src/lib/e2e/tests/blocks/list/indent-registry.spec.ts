@@ -29,7 +29,7 @@ test.describe('list indent — ref alignment via registry', () => {
 	test('Tab-indent into a fresh nested list focuses the moved item', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 
-		const two = editor.page.locator('[contenteditable="true"]', { hasText: /^two$/ });
+		const two = editor.page.locator('[contenteditable="true"]', { hasText: /two$/ });
 		await two.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
