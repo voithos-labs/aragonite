@@ -11,6 +11,7 @@
 		BLOCK_EL_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
+		EDITOR_LIFETIME_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
 		type ContainerEditActions,
@@ -69,6 +70,7 @@
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -84,6 +86,7 @@
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
+		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
 		containerEdit,
 		blockEdit,
