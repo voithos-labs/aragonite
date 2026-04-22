@@ -127,7 +127,39 @@ test.describe('list marker inside contenteditable', () => {
 
 		await editor.waitForCrossBlock(true);
 
-		const overlayCount = await editor.page.locator('.selection-overlay').count();
+		const markerBox = await editor.page
+			.locator('.list-item-block [contenteditable="true"] > span.md-marker')
+			.boundingBox();
+		if (!markerBox) throw new Error('marker not visible');
+
+		const overlays = editor.page.locator('.selection-overlay');
+		const overlayCount = await overlays.count();
 		expect(overlayCount).toBeGreaterThan(0);
+
+		let covered = false;
+		for (let i = 0; i < overlayCount; i++) {
+			const box = await overlays.nth(i).boundingBox();
+			if (!box) continue;
+			if (box.x <= markerBox.x + 1 && box.x + box.width >= markerBox.x + markerBox.width - 1) {
+				covered = true;
+				break;
+			}
+		}
+		expect(covered).toBe(true);
+	});
+
+	test('empty list item renders ambient marker plus <br> fallback', async () => {
+		await editor.loadContent('- \n');
+		const item = editor.page.locator('.list-item-block [contenteditable="true"]').first();
+		const marker = item.locator('> span.md-marker[contenteditable="false"]');
+		await expect(marker).toHaveText('- ');
+
+		const br = item.locator('> br');
+		await expect(br).toHaveCount(1);
+
+		await item.click();
+		await editor.typeText('X');
+		await editor.page.waitForTimeout(200);
+		expect(await editor.getSource()).toBe('- X\n');
 	});
 });

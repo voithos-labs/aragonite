@@ -13,7 +13,6 @@ The list item marker (`- ` / `1. `) renders as an atomic `.md-marker` span insid
 - Typing at raw offset 0 (Home key from inside content): inserts at start of content. `- Hello` + Home + `X` → `- XHello`.
 - Click in the marker region (leftmost pixels before the `-`): cursor lands at raw offset 0. Typing after the click inserts at start of content.
 - Ctrl+A inside first child: selects only the raw content, not the marker. Typing after Ctrl+A replaces content only; marker preserved.
-- ArrowLeft at raw offset 0: exits to previous block (existing boundary behavior).
 - Backspace at raw offset 0 of first item: U1 unwrap (paragraph lifts out).
 - Backspace at raw offset 0 of non-first item: M1 merge into previous item's deepest prose leaf.
 
