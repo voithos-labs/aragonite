@@ -42,7 +42,7 @@ export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
 /** Getter-wrapped so block components always read the latest reactive Document. */
 export const DOC_KEY = Symbol('editor-doc');
 
-// ── Cursor sentinels ───────────────────────────────────────────────────────
+// ── Sentinels ──────────────────────────────────────────────────────────────
 
 /** "Place cursor at end of content." focus() clamps to content length. */
 export const CURSOR_END = 999999;
@@ -53,6 +53,22 @@ export const CURSOR_END = 999999;
  * cursor at offset 0 on the leaf.
  */
 export const FOCUS_LAST_START = -1;
+
+/**
+ * "End of this block's measurable range" for measurePartialRects' endOffset.
+ * Interpretation per surface:
+ * - Text contenteditable: end of textContent. Passed to createRangeFromOffsets,
+ *   which clamps naturally.
+ * - Cell-based (tables, future grid surfaces): cellCount — all cells from
+ *   startOffset through the last cell.
+ * - Opaque single-unit (image block, thematic break, embeds): any non-empty
+ *   range returns the surface's bounding rect; SELECTION_END is treated the
+ *   same as any endOffset > 0.
+ *
+ * Value is Number.MAX_SAFE_INTEGER so text surfaces rely on the existing
+ * range-clamping behavior with zero migration.
+ */
+export const SELECTION_END = Number.MAX_SAFE_INTEGER;
 
 // ── Helper types ───────────────────────────────────────────────────────────
 
@@ -94,7 +110,10 @@ export interface BlockComponent {
 	focusByPath?(path: number[], offset: number): void;
 	/**
 	 * Viewport-space rects covering [startOffset, endOffset) in this block's
-	 * visible text, for cross-block selection painting.
+	 * visible text, for cross-block selection painting. Accepts SELECTION_END
+	 * as endOffset to mean "from startOffset through the last measurable
+	 * position in this block"; surfaces interpret per their coordinate
+	 * system (see the SELECTION_END docstring).
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
 	readonly editable: boolean;
