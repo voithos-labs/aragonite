@@ -328,6 +328,7 @@ async function handlePaste(
 		{
 			doc,
 			blockEdit: ctx.blockEdit,
+			controller: ctx.controller,
 			skipSnapshot: true
 		}
 	);
