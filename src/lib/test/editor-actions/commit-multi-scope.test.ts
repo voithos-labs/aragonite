@@ -77,18 +77,13 @@ describe('commitMultiScope', () => {
 			{ kind: 'appendBlock', eventPath: [0, 2] }
 		);
 
-		// children grew by 1
 		expect(containerNode.children).toHaveLength(3);
-		// ids grew by 1
 		expect(state.innerBlockIds).toHaveLength(3);
-		// new id is a fresh non-empty string
 		expect(state.innerBlockIds[2]).toBeTruthy();
 		expect(state.innerBlockIds[2]).not.toBe('id-a');
 		expect(state.innerBlockIds[2]).not.toBe('id-b');
-		// exactly one edit event
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		expect(editHandler.mock.calls[0][0]).toMatchObject({ op: 'appendBlock', path: [0, 2] });
-		// one undo snapshot pushed
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 	});
 
@@ -110,9 +105,7 @@ describe('commitMultiScope', () => {
 			],
 			{ blockIndex: 0, offset: 0 },
 			([scopeA, scopeB]) => {
-				// Insert into A
 				scopeA.children.push({ kind: 'listItem', raw: '- d\n' });
-				// Delete from B
 				scopeB.children.splice(1, 1);
 				return [
 					{ op: 'insert', at: 3, count: 1 },
@@ -127,7 +120,6 @@ describe('commitMultiScope', () => {
 		expect(nodeB.children).toHaveLength(1);
 		expect(stateB.innerBlockIds).toHaveLength(1);
 		expect(stateB.innerBlockIds[0]).toBe('b0');
-		// Still one undo snapshot and one edit event
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
@@ -144,7 +136,7 @@ describe('commitMultiScope', () => {
 			controller.commitMultiScope(
 				[{ node: nodeA, state: stateA }, { node: nodeB, state: stateB }],
 				{ blockIndex: 0, offset: 0 },
-				() => [{ op: 'noop' }] // only 1 change for 2 scopes
+				() => [{ op: 'noop' }]
 			)
 		).rejects.toThrow('commitMultiScope: mutate returned 1 changes for 2 scopes');
 	});
@@ -180,7 +172,6 @@ describe('commitMultiScope', () => {
 			[{ node: containerNode, state }],
 			{ blockIndex: 0, offset: 0 },
 			([scope]) => {
-				// Split: replace 1 item with 2, first new item inherits old id
 				const original = scope.children[0];
 				scope.children.splice(0, 1, original, { kind: 'listItem', raw: '- a2\n' });
 				return [{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } }];
@@ -188,7 +179,7 @@ describe('commitMultiScope', () => {
 		);
 
 		expect(state.innerBlockIds).toHaveLength(2);
-		expect(state.innerBlockIds[0]).toBe(originalId); // preserved via idMap
-		expect(state.innerBlockIds[1]).not.toBe(originalId); // fresh
+		expect(state.innerBlockIds[0]).toBe(originalId);
+		expect(state.innerBlockIds[1]).not.toBe(originalId);
 	});
 });

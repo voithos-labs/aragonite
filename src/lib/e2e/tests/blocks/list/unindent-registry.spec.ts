@@ -22,8 +22,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 		await editor.page.waitForTimeout(200);
 
 		const src = await editor.getSource();
-		// "nested a" should now sit at the outer list level between "one" and
-		// "three". "X" at its start.
 		expect(src).toMatch(/- one\n.*- Xnested a\n/s);
 	});
 
@@ -41,7 +39,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 
 		const src = await editor.getSource();
 		expect(src).toMatch(/- one\n- Xlonely nested\n- three/);
-		// No stray empty nested list residue.
 		expect(src).not.toMatch(/- one\n  -\s*\n/);
 	});
 });

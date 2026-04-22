@@ -1,14 +1,7 @@
 /**
- * Pure toggle logic for bold/italic formatting inside prose blocks. Given a
- * display string, a selection range, and a format name, returns the new
- * display string plus the updated selection bounds. No DOM, no editor
- * coupling — the calling block wires display/selection in and the result
- * back out.
- *
- * Flanking-marker detection: when markers surround the selection OUTSIDE
- * the selected range (selection is `word` and display is `**word**`),
- * toggle strips the flanking markers rather than double-wrapping to
- * `****word****`. Matches Obsidian / VS Code / Google Docs expectations.
+ * Toggle bold/italic formatting over a selection inside a prose block.
+ * Strips flanking markers when selection is already wrapped (either inside
+ * or outside the range); otherwise wraps the selection.
  */
 
 export interface ToggleInlineFormatResult {
@@ -27,8 +20,7 @@ export function toggleInlineFormat(
 	const { start, end } = selection;
 	const selectedSlice = display.slice(start, end);
 
-	// Case A: selection itself includes flanking markers (user selected
-	// `**word**`). Strip them.
+	// Selection itself includes flanking markers (e.g. user selected `**word**`).
 	const selfWrapped =
 		selectedSlice.startsWith(markers) &&
 		selectedSlice.endsWith(markers) &&
@@ -42,8 +34,7 @@ export function toggleInlineFormat(
 		};
 	}
 
-	// Case B: selection is flanked by markers OUTSIDE the range (user
-	// selected `word` inside `**word**`). Strip the surrounding markers.
+	// Selection flanked by markers outside the range (e.g. `word` inside `**word**`).
 	const flankBefore = display.slice(start - mLen, start);
 	const flankAfter = display.slice(end, end + mLen);
 	if (flankBefore === markers && flankAfter === markers) {
@@ -54,7 +45,6 @@ export function toggleInlineFormat(
 		};
 	}
 
-	// Case C: no flanking markers anywhere. Wrap the selection.
 	return {
 		newDisplay: display.slice(0, start) + markers + selectedSlice + markers + display.slice(end),
 		newSelStart: start,

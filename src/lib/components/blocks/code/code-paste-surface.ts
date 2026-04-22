@@ -1,12 +1,7 @@
 /**
- * PasteSurface for fenced code blocks. All paste into a code block is
- * treated as literal text; the structural hook is intentionally omitted
- * so pasteDispatch falls through to the inline path.
- *
- * The inline hook delegates to computeCodePaste, which handles the
- * fence-bump invariant (outer fence grows one longer than the longest
- * fence run in the paste, so pasted backtick/tilde runs stay literal
- * inside the block).
+ * PasteSurface for fenced code blocks. Paste is always literal text, so the
+ * structural hook is omitted — pasteDispatch falls through to the inline path
+ * and computeCodePaste handles the fence-bump invariant.
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';

@@ -1,11 +1,6 @@
 /**
- * Pure dispatchers for container focus operations. Each container component
- * currently inlines an identical copy of these three functions; they live
- * here so containers can call them instead.
- *
- * None of these functions touch Svelte context or reactivity directly —
- * they take the inputs they need (refs, parent actions, sticky column state)
- * as parameters. Pure logic, unit-testable in isolation.
+ * Pure dispatchers for container focus — moveFocus, focusByPath, focusAtColumn.
+ * No Svelte context or reactivity; inputs are passed in as parameters.
  */
 
 import type {
@@ -18,15 +13,13 @@ import { CURSOR_END } from '../../../contracts';
 import type { StickyColumnState } from '../../../contenteditable/sticky-column';
 
 /**
- * Move focus within a container's inner children, or delegate upward to
- * the parent when the target index is out of range. Handles numeric offsets,
- * 'start'/'end' positions, and the sticky-column variant.
+ * Move focus within a container, or delegate upward when out of range.
  *
  * `childCount`, when supplied, overrides `refs.length` for the upper-bound
- * guard. Pass `node.children.length` from containers whose child count may
+ * guard. Pass `node.children.length` from containers whose child count can
  * diverge from `refs.length` for one render cycle after a structural op
- * (bind:this fires asynchronously). Without it, delegation could fire
- * prematurely and the cursor would escape the container by mistake.
+ * (bind:this fires asynchronously). Without it, delegation fires prematurely
+ * and the cursor escapes the container.
  */
 export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
@@ -65,13 +58,6 @@ export async function dispatchMoveFocus(
 	else block.focus(CURSOR_END);
 }
 
-/**
- * Cascade focus down a path of child indices inside a container. Peels
- * path[0], delegates to the child at that index via focus(offset) if the
- * path ends here, or recursively via focusByPath?(rest, offset) if further
- * descent is needed. Used by cross-container merge and M1 merge target
- * cascades.
- */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
 	path: number[],
@@ -91,12 +77,6 @@ export function dispatchFocusByPath(
 	}
 }
 
-/**
- * Position the cursor at the editor-relative pixel X inside a container's
- * first (from='above') or last (from='below') inner child. Delegates to
- * the chosen child's focusAtColumn? if available, else falls back to
- * focus(0) / focus(CURSOR_END).
- */
 export function dispatchFocusAtColumn(
 	refs: (BlockComponent | undefined)[],
 	x: number,

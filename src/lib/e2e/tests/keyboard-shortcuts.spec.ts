@@ -1,8 +1,3 @@
-/**
- * Keyboard shortcuts in prose blocks: Shift+Enter hard break, Tab tab-insert,
- * Ctrl+1..6 heading shortcuts, and Escape for collapsing cross-block
- * selection.
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
@@ -19,8 +14,6 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.pressKey('Shift+Enter');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// Hard break: backslash + newline, so "hello" remains in the same block
-		// (no split), and "\" appears in the source before the newline.
 		expect(source).toContain('hello\\');
 		expect(source).toContain('world');
 	});
@@ -64,11 +57,7 @@ test.describe('prose keyboard shortcuts', () => {
 	});
 
 	test('Ctrl+3 on a heading preserves cursor position relative to content', async () => {
-		// Regression: the old cursor formula (level + 1 + preEditOffset) double-counted
-		// the old marker length whenever the caret sat past the prefix. After
-		// converting `## hello` (caret at end, offset 8) to `### hello`, the caret
-		// should land at offset 9 (end of new display) so a subsequent keystroke
-		// appends at the end — not past the end, where it clamps invisibly.
+		// Regression: old cursor formula (level + 1 + preEditOffset) double-counted old marker length past the prefix.
 		await editor.loadContent('## hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressKey('Control+3');

@@ -1,7 +1,3 @@
-/**
- * Shared dependency + controller types for the editor-actions factories.
- */
-
 import type { Document, CstNode } from '../../core/nodes';
 import type {
 	BlockComponent,
@@ -19,15 +15,12 @@ import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';
 export type { MultiScopeTarget, MultiScopeMutable };
 
 export interface EditorActionsDeps {
-	// Reactive state — getters read the live value from Svelte's $state.
 	get doc(): Document;
 	get blockIds(): string[];
 	get blockRefs(): (BlockComponent | undefined)[];
-	// Setters for reassignment from inside factories.
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	// Services.
 	undoManager: UndoManager;
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
@@ -71,14 +64,13 @@ export interface UndoController {
 		afterTick?: () => void
 	): Promise<void>;
 	/**
-	 * Adapter that exposes the document root as a MultiScopeTarget so
-	 * commitMultiScope callers can include doc-level splices alongside
-	 * container scopes — e.g., a cross-block delete whose LCA is the
-	 * document root.
+	 * Expose the document root as a MultiScopeTarget so commitMultiScope
+	 * callers can include doc-level splices alongside container scopes
+	 * (e.g., a cross-block delete whose LCA is the document root).
 	 */
 	getDocScope(): MultiScopeTarget;
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
-	/** Clear the pending keystroke-debounce timer + force the next edit to start a new batch. */
+	/** Clear the pending keystroke-debounce timer; next edit starts a new batch. */
 	clearDebouncedCheckpoint(): void;
 }

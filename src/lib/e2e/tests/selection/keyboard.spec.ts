@@ -27,16 +27,10 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.waitForCrossBlock(true);
 	});
 
-	// Regression (docs/issues.md — "Shift+ArrowDown from mid-block anchor"):
-	// when a non-collapsed selection starts mid-block and the focus sits at
-	// the end of content, Shift+ArrowDown must enter cross-block mode. The
-	// pre-fix boundary check read the range start (anchor), which was
-	// mid-block, so the boundary never tripped.
 	test('Shift+ArrowDown from mid-block anchor with focus at end extends cross-block', async () => {
 		await editor.loadContent('first paragraph\n\nsecond\n');
 		await editor.focusBlock(0, 5);
 		await editor.pressKey('Shift+End');
-		// Anchor=5, focus=length-of-block. Next Shift+ArrowDown should cross.
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
@@ -117,7 +111,6 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.getSelectionPaths();
 		expect(sel).not.toBeNull();
-		// Anchor is in paragraph [0], focus is inside blockquote [1, 0]
 		expect(sel!.anchor.path).toEqual([0]);
 		expect(sel!.focus.path[0]).toBe(1);
 	});
@@ -130,7 +123,6 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.page.waitForTimeout(200);
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(200);
-		// Document content unchanged -- double Ctrl+A is safe on empty docs
 		expect(await editor.getSource()).toBe(before);
 	});
 

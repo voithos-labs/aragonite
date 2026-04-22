@@ -13,24 +13,19 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 		const original = 'Alpha\n\nBeta\n\nGamma\n';
 		await editor.loadContent(original);
 
-		// Select across all 3 blocks via keyboard: focus start of block 0,
-		// Shift+Ctrl+End to extend to doc end.
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Control+Shift+End');
 
-		// Put 2 paragraphs on the clipboard via setSource + select + copy.
 		const pasteMd = 'One\n\nTwo\n';
 		await editor.page.evaluate(async (md) => {
 			await navigator.clipboard.writeText(md);
 		}, pasteMd);
 
 		await editor.page.keyboard.press('Control+v');
-		// Allow reactivity + post-tick focus to settle.
 		await editor.page.waitForFunction((expected) => {
 			return (window as any).__test.getSource().trim() === expected.trim();
 		}, pasteMd);
 
-		// Single undo restores the original doc.
 		await editor.undo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),

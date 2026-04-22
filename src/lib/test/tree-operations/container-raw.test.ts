@@ -1,4 +1,3 @@
-// src/lib/editor/test/container-raw.test.ts
 import { describe, it, expect } from 'vitest';
 import {
 	rebuildBlockquoteRaw,
@@ -62,7 +61,6 @@ describe('rebuildBlockquoteRaw', () => {
 			innerSuffix: ''
 		};
 		rebuildBlockquoteRaw(node);
-		// An empty line inside a blockquote is just '>' (blank prefix, no content)
 		expect(node.raw).toBe('>\n');
 	});
 });
@@ -124,9 +122,6 @@ describe('rebuildListItemRaw', () => {
 			innerSuffix: ''
 		};
 		rebuildListItemRaw(node);
-		// Blank line between paragraphs in a list item is preserved as
-		// an empty line (no indent). The GFM spec treats this as a "loose"
-		// list item where paragraphs are separated by blank lines.
 		expect(node.raw).toBe('- Para 1\n\n  Para 2\n');
 	});
 });
@@ -199,9 +194,7 @@ describe('parse + rebuild round-trip', () => {
 		const list = doc.children[0];
 		const item1 = list.children![0];
 
-		// Rebuild item 1 raw from its children
 		rebuildListItemRaw(item1);
-		// Rebuild list raw from its items
 		rebuildListRaw(list);
 
 		expect(serialize(doc)).toBe(source);

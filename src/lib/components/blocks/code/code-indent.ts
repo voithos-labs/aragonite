@@ -1,17 +1,7 @@
 /**
- * Pure tab-indent and tab-dedent operations for code-block text surfaces.
- * Both functions take a flat string and a selection range, and return the
- * new text plus the new selection. No DOM, no Svelte — the orchestration
- * layer reads textContent / selection from the contenteditable, calls these,
- * and writes the result back via updateBlockContent.
- *
- * Conventions:
- * - A "selection" is a `{ start, end }` pair with `start <= end`. A collapsed
- *   selection (cursor) has `start === end`.
- * - Multi-line selections indent / dedent every line the selection touches.
- *   A line is touched when any of its offsets falls inside `[start, end)`.
- * - Dedent removes at most one tab OR up to four leading spaces per line,
- *   preferring tab. Lines with no leading whitespace are left alone.
+ * Pure tab-indent / tab-dedent for code-block text.
+ * Multi-line selections touch every line whose offsets fall in [start, end).
+ * Dedent removes one tab OR up to four leading spaces per line, preferring tab.
  */
 
 export interface Selection {
@@ -26,10 +16,6 @@ export interface IndentResult {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * Insert a leading `\t` at the start of every line the selection touches.
- * A collapsed selection inserts a single `\t` at the cursor.
- */
 export function indentLines(text: string, selection: Selection): IndentResult {
 	if (selection.start === selection.end) {
 		const at = selection.start;
@@ -54,12 +40,6 @@ export function indentLines(text: string, selection: Selection): IndentResult {
 	};
 }
 
-/**
- * Remove one leading tab (or up to four leading spaces) from every line the
- * selection touches. A collapsed selection dedents only the current line.
- * Lines with no leading whitespace are left alone — the function is a no-op
- * on already-left-flush lines.
- */
 export function dedentLines(text: string, selection: Selection): IndentResult {
 	if (selection.start === selection.end) {
 		const lineStart = text.lastIndexOf('\n', selection.start - 1) + 1;
@@ -98,12 +78,8 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Line-start offsets for every line the selection touches. The first entry
- * is the start of the line containing `selection.start`. Each subsequent
- * entry follows a `\n` that sits strictly before `selection.end`, so a
- * selection ending exactly at a line boundary does not pull in the next
- * line — preserving the "touch only lines with content inside the range"
- * rule tab-indent suites expect.
+ * Line-start offsets for every line the selection touches. A selection ending
+ * exactly at a line boundary does not pull in the next line.
  */
 function collectLineStarts(text: string, selection: Selection): number[] {
 	const first = text.lastIndexOf('\n', selection.start - 1) + 1;
@@ -118,7 +94,6 @@ function collectLineStarts(text: string, selection: Selection): number[] {
 	return starts;
 }
 
-/** 1 for a leading `\t`, up to 4 for leading spaces, 0 otherwise. */
 function computeDedentCount(text: string, lineStart: number): number {
 	if (text[lineStart] === '\t') return 1;
 	let spaces = 0;

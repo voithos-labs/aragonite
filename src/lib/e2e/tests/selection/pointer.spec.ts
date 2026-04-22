@@ -64,16 +64,13 @@ test.describe('selection — pointer: edge cases', () => {
 		await editor.pressKey('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// Click into the second block (beta)
 		await editor.clickBlock(1);
 		await editor.waitForCrossBlock(false);
 
-		// Typing should insert into "beta", proving the native caret was restored
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
 		expect(source).toContain('beta');
-		// "X" should be in the same block as "beta"
 		const betaBlock = source.split('\n\n').find((s) => s.includes('beta'));
 		expect(betaBlock).toContain('X');
 	});

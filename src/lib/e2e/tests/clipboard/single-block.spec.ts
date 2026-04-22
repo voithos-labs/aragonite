@@ -12,10 +12,8 @@ test.describe('single-block clipboard: happy paths', () => {
 	test('select text with Shift+Arrow then copy+paste duplicates text', async () => {
 		await editor.loadContent('abcdef\n');
 		await editor.focusBlockStart(0);
-		// Select "abc"
 		for (let i = 0; i < 3; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+c');
-		// Move to end and paste
 		await editor.pressKey('End');
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
@@ -27,7 +25,6 @@ test.describe('single-block clipboard: happy paths', () => {
 	test('select text then cut removes selected text', async () => {
 		await editor.loadContent('HelloWorld\n');
 		await editor.focusBlockStart(0);
-		// Select "Hello"
 		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(200);
@@ -40,13 +37,10 @@ test.describe('single-block clipboard: happy paths', () => {
 	test('select text then paste replaces selection', async () => {
 		await editor.loadContent('AAABBB\n');
 		await editor.focusBlockStart(0);
-		// Select "AAA" and copy
 		for (let i = 0; i < 3; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+c');
-		// Collapse selection to end, then select "BBB"
 		await editor.pressKey('ArrowRight');
 		for (let i = 0; i < 3; i++) await editor.pressKey('Shift+ArrowRight');
-		// Paste "AAA" over "BBB"
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
 
@@ -58,7 +52,6 @@ test.describe('single-block clipboard: happy paths', () => {
 	test('select text then type replaces selection with typed text', async () => {
 		await editor.loadContent('OldText\n');
 		await editor.focusBlockStart(0);
-		// Select "Old"
 		for (let i = 0; i < 3; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.typeText('New');
 		await editor.page.waitForTimeout(200);
@@ -80,7 +73,6 @@ test.describe('single-block clipboard: edge cases', () => {
 	test('cut then undo restores text', async () => {
 		await editor.loadContent('Restore me\n');
 		await editor.focusBlockStart(0);
-		// Select "Restore"
 		for (let i = 0; i < 7; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(200);
@@ -93,11 +85,9 @@ test.describe('single-block clipboard: edge cases', () => {
 
 	test('paste at end of block appends text', async () => {
 		await editor.loadContent('Start\n');
-		// Put known text on clipboard: select all, copy
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+c');
-		// Collapse selection, move to end, paste
 		await editor.pressKey('End');
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
@@ -108,11 +98,9 @@ test.describe('single-block clipboard: edge cases', () => {
 
 	test('paste at start of block prepends text', async () => {
 		await editor.loadContent('End\n');
-		// Copy "End" to clipboard
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 3; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+c');
-		// Move to start and paste
 		await editor.pressKey('Home');
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
@@ -137,7 +125,6 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.loadContent('NoChange\n');
 		const sourceBefore = await editor.getSource();
 		await editor.focusBlockEnd(0);
-		// No selection — just cursor
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(200);
 
@@ -168,13 +155,11 @@ test.describe('single-block clipboard: user interactions', () => {
 	test('select word via Shift+Arrow then cut+paste elsewhere', async () => {
 		await editor.loadContent('First\n\nSecond\n');
 		await editor.focusBlockStart(0);
-		// Select "First"
 		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
 		await editor.pressKey('Control+x');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).not.toContain('First');
 
-		// Paste into second block at end
 		await editor.focusBlockEnd(1);
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);

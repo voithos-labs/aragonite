@@ -29,7 +29,6 @@ describe('unwrapFirstChildFromBlockquote', () => {
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('Hello world');
-		// Input not mutated
 		expect(JSON.stringify(bq)).toBe(snapshot);
 	});
 
@@ -42,7 +41,6 @@ describe('unwrapFirstChildFromBlockquote', () => {
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('First');
 		expect(result[1].kind).toBe('blockquote');
-		// The remaining blockquote still serializes with its prefix.
 		const remainingRaw = result[1].raw ?? '';
 		expect(remainingRaw).toMatch(/^> /m);
 		expect(remainingRaw).toContain('Second');
@@ -131,8 +129,6 @@ describe('unwrapFirstItemFromList', () => {
 
 		const result = unwrapFirstItemFromList(list);
 
-		// Lifted: paragraph "First"
-		// Remaining list: [Nested, Second] (both at top level of the shrunk list)
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('First');
@@ -151,15 +147,12 @@ describe('unwrapFirstItemFromList', () => {
 
 		const result = unwrapFirstItemFromList(list);
 
-		// Lifted: paragraph "First", then the mismatched sub-list, then the shrunk parent list
 		expect(result.length).toBeGreaterThanOrEqual(3);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('First');
 		expect(result[1].kind).toBe('list');
-		// The mismatched (ordered) sub-list
 		expect((result[1].metadata as { ordered: boolean }).ordered).toBe(true);
 		expect(result[1].children?.[0].raw ?? '').toContain('OrderedNested');
-		// The remaining (unordered) parent list
 		const remaining = result[result.length - 1];
 		expect(remaining.kind).toBe('list');
 		expect((remaining.metadata as { ordered: boolean }).ordered).toBe(false);
@@ -171,8 +164,6 @@ describe('unwrapFirstItemFromList', () => {
 
 		const result = unwrapFirstItemFromList(list);
 
-		// Lifted: paragraph "Only"
-		// Remaining list: [Nested1, Nested2]
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('Only');
@@ -199,7 +190,6 @@ describe('unwrapFirstItemFromList', () => {
 		expect((result[0].raw ?? '').trim()).toBe('First');
 		expect(result[1].kind).toBe('list');
 		const remaining = result[1];
-		// After unwrap: [Second, Third] should be renumbered 1, 2
 		const secondMarker = (remaining.children?.[0].metadata as { marker: string }).marker;
 		const thirdMarker = (remaining.children?.[1].metadata as { marker: string }).marker;
 		expect(secondMarker).toMatch(/^1\./);
@@ -211,7 +201,6 @@ describe('unwrapFirstItemFromList', () => {
 
 		const result = unwrapFirstItemFromList(list);
 
-		// First paragraph + additional paragraph + remaining list
 		expect(result.length).toBeGreaterThanOrEqual(3);
 		expect(result[0].kind).toBe('paragraph');
 		expect((result[0].raw ?? '').trim()).toBe('First');
@@ -261,7 +250,6 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(list.children?.length).toBe(1);
 		const mergedRaw = list.children?.[0].raw ?? '';
 		expect(mergedRaw).toContain('AB');
-		// Target path is [0, 0] — first item's first (only) paragraph. Offset = length of "A".
 		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
 	});
@@ -271,16 +259,12 @@ describe('mergeListItemIntoPrevious', () => {
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
-		// Result: [- AB\n  - C\n]
 		expect(list.children?.length).toBe(1);
 		const mergedItem = list.children?.[0];
-		// First child is paragraph with merged text
 		expect(mergedItem?.children?.[0].kind).toBe('paragraph');
 		expect((mergedItem?.children?.[0].raw ?? '').trim()).toBe('AB');
-		// Second child is the absorbed nested list containing C
 		expect(mergedItem?.children?.[1].kind).toBe('list');
 		expect(mergedItem?.children?.[1].children?.[0].raw ?? '').toContain('C');
-		// Target: [0, 0] — first item's first paragraph. Offset = length of "A".
 		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
 	});
@@ -290,79 +274,53 @@ describe('mergeListItemIntoPrevious', () => {
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
-		// Result: [- A\n  - AAB\n  - C\n]
 		expect(list.children?.length).toBe(1);
 		const parentItem = list.children?.[0];
-		// Parent item's first child is paragraph "A"
 		expect((parentItem?.children?.[0].raw ?? '').trim()).toBe('A');
-		// Parent item's second child is the nested list containing [AAB, C]
 		const nestedList = parentItem?.children?.[1];
 		expect(nestedList?.kind).toBe('list');
 		expect(nestedList?.children?.length).toBe(2);
-		// First nested item: "AAB"
 		expect((nestedList?.children?.[0].children?.[0].raw ?? '').trim()).toBe('AAB');
-		// Second nested item: "C" (moved from being B's child)
 		expect((nestedList?.children?.[1].children?.[0].raw ?? '').trim()).toBe('C');
-		// Target "AA" lives in A (0) → nestedList (1) → item AA (0) → paragraph (0).
-		// Uniform path through the paragraph leaf: [0, 1, 0, 0].
 		expect(mergePoint.targetPath).toEqual([0, 1, 0, 0]);
 		expect(mergePoint.offset).toBe('AA'.length);
 	});
 
 	it('row 4: deep target (depth 2) — E stays at depth 1 (preserve-absolute-indent)', () => {
-		// Input: - A / - B / - C / - D / - E
-		// where B is nested in A, C is nested in B, E is nested in D.
-		// This is the spec-mandated row 4 case: merging D into the deepest target (C)
-		// should preserve E at its ORIGINAL absolute depth 1 (not deepen it to match C's depth 2).
+		// Spec row 4: merging D into the deepest target (C) must preserve E at
+		// its original absolute depth 1, not deepen it to match C's depth 2.
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
-		// Result:
-		//   - A
-		//     - B
-		//       - CD
-		//     - E   ← E is at depth 1 alongside B, not under CD at depth 2
 		expect(list.children?.length).toBe(1);
 		const aItem = list.children?.[0];
-		// A's nested list has [B, E]
 		const depth1List = aItem?.children?.find((c) => c.kind === 'list');
 		expect(depth1List?.children?.length).toBe(2);
-		// First: B (with its nested list containing CD)
 		const bItem = depth1List?.children?.[0];
 		const depth2List = bItem?.children?.find((c) => c.kind === 'list');
 		expect((depth2List?.children?.[0]?.children?.[0]?.raw ?? '').trim()).toBe('CD');
-		// Second: E (at depth 1 as sibling of B)
 		expect((depth1List?.children?.[1]?.children?.[0]?.raw ?? '').trim()).toBe('E');
-		// Uniform path through the paragraph leaf:
-		// [0 (A) → 1 (nestedList) → 0 (B) → 1 (nestedList) → 0 (C) → 0 (para)]
 		expect(mergePoint.targetPath).toEqual([0, 1, 0, 1, 0, 0]);
 		expect(mergePoint.offset).toBe('C'.length);
 	});
 
 	it('row 5: current has non-listItem extra paragraph; absorbed into target item children', () => {
-		// Loose item: B has two paragraphs (paragraph "B" and paragraph "extra")
 		const list = parseList('- A\n- B\n\n  extra\n');
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
-		// Result: [- AB\n\n  extra\n] — the "extra" paragraph is absorbed as
-		// the second child of the target item, after the merged paragraph.
 		expect(list.children?.length).toBe(1);
 		const target = list.children?.[0];
 		expect((target?.children?.[0].raw ?? '').trim()).toBe('AB');
 		expect((target?.children?.[1]?.raw ?? '').trim()).toBe('extra');
-		// Target A is not loose — its first paragraph is the leaf: [0, 0].
 		expect(mergePoint.targetPath).toEqual([0, 0]);
 		expect(mergePoint.offset).toBe('A'.length);
 	});
 
 	it('row 5b: target item is loose — trailing paragraph index is not 0', () => {
-		// Loose target: A has two paragraphs (para "A", para "extra").
-		// findDeepestVisibleTextTarget walks to A's LAST paragraph, so the
-		// merge point sits on A.children[1], not A.children[0]. The old
-		// `targetPath.slice(0,-1)` + `[...restPath, 0]` dance dropped this
-		// index and cascaded focus to A.children[0] — the wrong paragraph.
+		// Regression: loose target has findDeepestVisibleTextTarget landing on
+		// A.children[1]; a prior path-slice bug cascaded focus to A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
@@ -372,7 +330,6 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(target?.children?.length).toBe(2);
 		expect((target?.children?.[0].raw ?? '').trim()).toBe('A');
 		expect((target?.children?.[1].raw ?? '').trim()).toBe('extraB');
-		// Uniform path through the appended-into paragraph leaf: [0, 1].
 		expect(mergePoint.targetPath).toEqual([0, 1]);
 		expect(mergePoint.offset).toBe('extra'.length);
 	});
@@ -382,7 +339,6 @@ describe('mergeListItemIntoPrevious', () => {
 
 		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
 
-		// Result: [1. FirstSecond\n2. Third\n]
 		expect(list.children?.length).toBe(2);
 		expect((list.children?.[0].children?.[0].raw ?? '').trim()).toBe('FirstSecond');
 		const thirdMarker = (list.children?.[1].metadata as { marker: string }).marker;

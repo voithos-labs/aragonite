@@ -1,8 +1,3 @@
-/**
- * Fenced code block parser. Matches ``` and ~~~ fences, scans until a
- * matching close fence or EOF.
- */
-
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw } from '../parser';

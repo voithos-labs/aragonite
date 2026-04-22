@@ -1,9 +1,5 @@
 import { type Page, type Locator } from '@playwright/test';
 
-/**
- * Page object for the Limestone editor test harness.
- * Wraps Playwright Page with editor-specific helpers.
- */
 export class EditorPage {
 	readonly editorContainer: Locator;
 
@@ -25,10 +21,7 @@ export class EditorPage {
 		await this.page.evaluate((content) => {
 			(window as any).__test.setSource(content);
 		}, md);
-		// Poll the test bridge until Svelte reactivity has published the new
-		// source — deterministic replacement for a fixed sleep. The editor
-		// round-trips through serialize(), which normalizes trailing
-		// whitespace, so compare on trimmed forms.
+		// serialize() normalizes trailing whitespace; compare on trimmed forms.
 		await this.page.waitForFunction(
 			(expected) => {
 				const actual = (window as any).__test.getSource() as string;
@@ -42,7 +35,6 @@ export class EditorPage {
 
 	// ── Cross-Block Selection Queries ───────────────────────────────────
 
-	/** Wait for cross-block mode to become active or inactive. */
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
@@ -88,7 +80,6 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
-	/** Get the nth top-level block element in the editor. */
 	getBlock(index: number): Locator {
 		return this.page
 			.locator('.block-list > .block-host')
@@ -97,45 +88,32 @@ export class EditorPage {
 			.first();
 	}
 
-	/** Get all top-level block elements. */
 	getBlocks(): Locator {
 		return this.page.locator('.block-list > .block-host > *:not(.selection-overlay)');
 	}
 
-	/** Get the text content of the nth block from the DOM. */
 	async getBlockText(index: number): Promise<string> {
 		return (await this.getBlock(index).textContent()) ?? '';
 	}
 
-	/** Count blocks via DOM (reflects editor internal state, including empty blocks). */
 	async getDomBlockCount(): Promise<number> {
 		return this.getBlocks().count();
 	}
 
 	// ── Cursor Positioning ──────────────────────────────────────────────
 
-	/** Focus a block and place the cursor at the end of its content. */
 	async focusBlockEnd(index: number) {
 		await this.placeCaretInBlock(index, 'end');
 	}
 
-	/** Focus a block and place the cursor at a specific offset within its content. */
 	async focusBlock(index: number, offset: number) {
 		await this.placeCaretInBlock(index, offset);
 	}
 
-	/** Focus a block and place the cursor at the start of its content. */
 	async focusBlockStart(index: number) {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
-	/**
-	 * Shared caret placement for {@link focusBlockEnd}, {@link focusBlockStart},
-	 * and {@link focusBlock}. Resolves the nth top-level block element, focuses
-	 * it, and collapses a range at the requested position. A numeric position
-	 * walks text nodes to find the matching character offset; `'end'` falls
-	 * back to the block's end if the offset overruns the content.
-	 */
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
@@ -185,7 +163,6 @@ export class EditorPage {
 		);
 	}
 
-	/** Focus a block by its CST path and place the cursor at a character offset. */
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset }) => {
@@ -230,19 +207,14 @@ export class EditorPage {
 		await this.getBlock(index).click();
 	}
 
-	/**
-	 * Insert text at the current cursor position.
-	 * Uses insertText to avoid per-character re-render issues.
-	 */
 	async typeText(text: string) {
 		await this.page.keyboard.insertText(text);
 	}
 
 	/**
-	 * Type text character-by-character via keyboard.type().
-	 * Each character fires its own keydown/input/keyup cycle.
-	 * Use for tests where per-keystroke behavior matters (formatting, kind changes).
-	 * Only works after the single-render-path fix (otherwise causes reversed text).
+	 * Type text character-by-character via keyboard.type(). Each character fires its
+	 * own keydown/input/keyup cycle. Use for tests where per-keystroke behavior
+	 * matters (formatting, kind changes).
 	 */
 	async typeSlowly(text: string) {
 		await this.page.keyboard.type(text);
@@ -273,9 +245,7 @@ export class EditorPage {
 		await this.pressKey('ArrowDown');
 	}
 
-	// macOS binds undo/redo/select-all to Cmd; every other platform uses
-	// Ctrl. Using the wrong modifier is a silent no-op on the host OS,
-	// so pick the modifier from the runner's platform.
+	// macOS binds undo/redo/select-all to Cmd; every other platform uses Ctrl.
 	async undo() {
 		await this.page.keyboard.press(`${this.primaryModifier}+z`);
 	}
@@ -298,10 +268,6 @@ export class EditorPage {
 
 	// ── Drag & Shift+Click Helpers ─────────────────────────────────────
 
-	/**
-	 * Simulate a pointer drag from one block offset to another. Uses
-	 * mouse.down / mouse.move / mouse.up for a realistic drag sequence.
-	 */
 	async dragFromTo(
 		startPath: number[],
 		startOffset: number,
@@ -332,11 +298,6 @@ export class EditorPage {
 		await this.page.waitForTimeout(100);
 	}
 
-	/**
-	 * Resolve a block path + character offset to viewport coordinates via
-	 * Range measurement inside the browser. Returns null if the block or
-	 * offset can't be found.
-	 */
 	private async pointForOffset(
 		path: number[],
 		offset: number
@@ -360,7 +321,6 @@ export class EditorPage {
 					}
 					remaining -= len;
 				}
-				// Offset beyond content — place at end.
 				const rect = editable.getBoundingClientRect();
 				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
 			},
@@ -368,14 +328,6 @@ export class EditorPage {
 		);
 	}
 
-	/**
-	 * Returns the viewport-absolute pixel X of the current selection's caret.
-	 * Returns NaN if no range is present. Used for sticky column proximity
-	 * assertions in E2E tests — tests accept the cursor landing at a nearby
-	 * offset (tolerance ~5 px) rather than a pixel-exact match, because
-	 * proportional fonts mean the target offset's pixel X may not exactly
-	 * equal the source X.
-	 */
 	async getCaretPixelX(): Promise<number> {
 		return this.page.evaluate(() => {
 			const sel = window.getSelection();

@@ -37,8 +37,6 @@ describe('code-paste-surface', () => {
 	});
 
 	it('onInlinePaste bumps the fence when paste contains a run ≥ fenceLength', () => {
-		// Three-backtick fence; paste containing a three-backtick run needs the
-		// outer fence bumped to at least four.
 		const node = makeFencedCode('```\nbody\n```\n');
 		const result = codePasteSurface.onInlinePaste!(node, 0, '```\ninner\n```');
 		expect(result.newRaw).toMatch(/^````/);
@@ -46,7 +44,6 @@ describe('code-paste-surface', () => {
 
 	it('onInlinePaste with preDelete replaces the specified range', () => {
 		const node = makeFencedCode('```\nfoo bar\n```\n');
-		// display = "```\nfoo bar\n```"; replace "bar" (offsets 8..11 in display)
 		const fooBarStart = '```\nfoo '.length;
 		const fooBarEnd = fooBarStart + 'bar'.length;
 		const result = codePasteSurface.onInlinePaste!(node, fooBarStart, 'BAZ', {

@@ -1,23 +1,12 @@
 /**
- * Single entry point for paste operations. Parses the clipboard, picks a
- * strategy (inline vs structural), looks up the target block's
- * PasteSurface, invokes the appropriate hook to get a pure data result,
- * and routes the mutation through the existing mutation APIs (top-level
- * `BlockEditActions` or nested `BlockListState.commitChildrenEdit`).
+ * Single entry point for paste. Parses the clipboard, picks inline vs
+ * structural, looks up the target's PasteSurface, and routes the mutation.
+ * Surfaces are stateless data transforms; this module owns parsing,
+ * strategy selection, mutation routing, and focus landing.
  *
- * Surfaces are stateless — they transform (node, offset, text/blocks)
- * into result data. This module owns parsing, strategy selection,
- * mutation routing, and focus landing so surface authors never need to
- * understand the reactive / undo architecture.
- *
- * Inline paste is special: the target block's own reactive rendering
- * pipeline is responsible for cursor placement via `pendingCursorOffset`.
- * The dispatcher returns the caret offset so the caller can set
- * `pendingCursorOffset` synchronously alongside the raw mutation, keeping
- * both writes in a single Svelte reactivity flush. Cross-block inline
- * paste (skipSnapshot) bypasses updateBlockContent entirely and uses
- * DOM-level focus because the originating block's pendingCursorOffset
- * may address a block that's about to be unmounted by the range delete.
+ * Cross-block inline paste (skipSnapshot) bypasses updateBlockContent and
+ * uses DOM-level focus because the originating block's pendingCursorOffset
+ * may address a block about to be unmounted by the range delete.
  */
 
 import { tick } from 'svelte';
@@ -58,34 +47,23 @@ export interface PasteDispatchInput {
 
 export interface PasteDispatchContext {
 	doc: Document;
-	/** Action bundle for the target's level (top-level or nested). Used
-	 * for single-block paste to route updates through updateBlockContent
-	 * / replaceBlock. Not used in cross-block (skipSnapshot) mode because
-	 * the originating block's bundle may not match the target's level. */
+	/** Action bundle for the target's level. Not used in cross-block (skipSnapshot) mode. */
 	blockEdit: BlockEditActions;
-	/** Skip pushing an undo snapshot and bypass updateBlockContent's
-	 * debounce. Set by cross-block callers that already pushed a
-	 * snapshot via beginContainerEdit. */
+	/** Skip undo snapshot + updateBlockContent debounce. Cross-block callers push the snapshot themselves. */
 	skipSnapshot?: boolean;
 }
 
 export interface PasteDispatchResult {
-	/** For inline paste: caret offset to restore after the raw mutation
-	 * settles. Callers should:
-	 * - Single-block: set the block's `pendingCursorOffset` to this value
-	 *   synchronously with the updateBlockContent call (so both land in
-	 *   one reactive flush).
-	 * - Cross-block: use for DOM-level caret restoration via
-	 *   applyCollapsedCaret + el.focus() after awaiting reactivity.
-	 * Undefined for structural paste — focus is handled internally. */
+	/**
+	 * Inline-paste caret offset. Single-block callers set `pendingCursorOffset`
+	 * synchronously with the raw mutation so both land in one reactive flush;
+	 * cross-block callers restore the DOM caret after reactivity settles.
+	 * Undefined for structural paste (focus handled internally).
+	 */
 	inlineCaretOffset?: number;
 }
 
-/**
- * Execute a paste at the specified target position. Parses the clipboard,
- * picks inline vs structural based on the parsed shape, looks up the
- * target's PasteSurface, and routes the resulting mutation.
- */
+/** Execute a paste at the specified target position. */
 export async function pasteDispatch(
 	input: PasteDispatchInput,
 	ctx: PasteDispatchContext
@@ -98,19 +76,9 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	// ── Container-matching unwrap ─────────────────────────────────────────
-	// When the clipboard is a single list/blockquote of kind K and an
-	// ancestor of the target is also kind K (with matching ordered flag
-	// for lists), splice the clipboard's items into the matching ancestor
-	// instead of nesting a sub-container inside the target descendant.
-	// Two shapes:
-	//   - Empty target descendant (post-cross-block-delete stub, or a
-	//     blank list item): replace the stub with all clipboard items.
-	//   - Non-empty descendant, cross-block context only (skipSnapshot):
-	//     merge the first clipboard item's content into the target leaf
-	//     at the caret, splice the remainder as siblings, and reattach
-	//     any trailing residue to the last spliced item. This handles the
-	//     Ctrl+C → Ctrl+V round-trip for partial-item selections.
+	// Container-matching unwrap: when the clipboard is a list/blockquote of
+	// kind K and an ancestor is also K (matching ordered flag), splice items
+	// into the matching ancestor instead of nesting a sub-container.
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
 		input.targetPath,
@@ -126,12 +94,8 @@ export async function pasteDispatch(
 	const surface = getPasteSurface(targetNode.kind);
 	const clipboardStrategy = pickPasteStrategy(parsed);
 
-	// A surface that explicitly omits `onStructuralPaste` (e.g. the code
-	// block surface) opts out of structural paste entirely — all paste
-	// becomes literal text via the inline hook, regardless of clipboard
-	// shape. This is the right behavior for surfaces where pasted
-	// markdown should stay verbatim (code blocks treat "```" on the
-	// clipboard as body text, not a fence).
+	// Surfaces that omit `onStructuralPaste` (e.g. code blocks) force all
+	// paste into the inline hook so markdown stays verbatim.
 	const surfaceForcesInline = surface !== undefined && surface.onStructuralPaste === undefined;
 	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
 
@@ -150,20 +114,11 @@ export async function pasteDispatch(
 }
 
 /**
- * Convert blank-line trivia on top-level pasted blocks into explicit
- * empty-paragraph blocks. Keyboard typing (Enter-Enter) produces an empty
- * paragraph block that renders as a visible blank-line row; the parser
- * collapses the same semantic into `leadingTrivia` on the following block
- * (which serializes the same but doesn't render as a visible row). Without
- * this normalization, pasting content like "one\n\ntwo" produces two
- * blocks visually touching, while typing the same content shows a blank
- * line — same serialized source, different rendered structure.
- *
- * Rule: for each block after the first whose leadingTrivia contains N
- * newlines (N >= 1 indicates a blank line preceded), prepend N empty
- * paragraph blocks and clear the trivia. Non-recursive — only applies to
- * the top-level block sequence, not nested container children (list
- * items don't carry blank-line semantics in their own trivia).
+ * Convert blank-line trivia into explicit empty-paragraph blocks so pasted
+ * "one\n\ntwo" renders the same visible blank-line row that typing the same
+ * source produces. The parser collapses blank lines into leadingTrivia,
+ * which serializes the same but doesn't render as a row. Top-level only —
+ * list items don't carry blank-line semantics in their own trivia.
  */
 function materializeBlankLines(blocks: CstNode[]): CstNode[] {
 	if (blocks.length <= 1) return blocks;
@@ -184,7 +139,6 @@ function materializeBlankLines(blocks: CstNode[]): CstNode[] {
 	return out;
 }
 
-/** Parse a parsed-document shape into the dispatch strategy. */
 export function pickPasteStrategy(parsed: Document): PasteStrategy {
 	if (parsed.children.length === 1 && parsed.children[0].kind === 'paragraph') {
 		return 'inline';
@@ -194,11 +148,7 @@ export function pickPasteStrategy(parsed: Document): PasteStrategy {
 
 // ── Default hooks ──────────────────────────────────────────────────────────
 
-/**
- * Default inline hook — splice text (optionally after preDelete) into raw
- * at offset. Used by any surface that doesn't supply its own
- * `onInlinePaste`.
- */
+/** Splice `text` into `node.raw` at `offset` (after optional preDelete). */
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
@@ -224,10 +174,7 @@ export function defaultInlineHook(
 	};
 }
 
-/**
- * Default structural hook — delegate to `buildPastedReplacement`. Used by
- * any surface that doesn't supply its own `onStructuralPaste`.
- */
+/** Delegate to `buildPastedReplacement`. */
 export function defaultStructuralHook(
 	node: CstNode,
 	offset: number,
@@ -255,13 +202,9 @@ export function defaultStructuralHook(
 
 // ── Default surface registration ───────────────────────────────────────────
 
-// Every inline-capable kind shares paste semantics unless a kind-specific
-// surface (e.g. code-paste-surface) registers over the default. The list
-// is the source of truth for WHICH kinds register a default surface at
-// module load (the descriptor registry is built at the same module-load
-// phase, so iterating the registry here would be ordering-hazardous).
 // Adding a new inline-capable block kind: add it here AND set
 // supportsInline: true on its descriptor in block-kind-descriptor.ts.
+// (Iterating the registry at module load is ordering-hazardous.)
 const INLINE_CAPABLE_KINDS: BlockKind[] = ['paragraph', 'heading', 'setextHeading'];
 
 for (const kind of INLINE_CAPABLE_KINDS) {
@@ -272,7 +215,7 @@ for (const kind of INLINE_CAPABLE_KINDS) {
 	});
 }
 
-/** Test-only: produce a default text surface descriptor (for unit tests). */
+/** Test-only: produce a default text surface descriptor. */
 export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {
 	return {
 		kind,
@@ -284,16 +227,12 @@ export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurfac
 // ── Mutation routing ───────────────────────────────────────────────────────
 
 /**
- * Apply an inline paste synchronously. For single-block paste, routes
- * through the target's own `updateBlockContent` (which handles snapshot,
- * inline re-parse, and kind-change focus). For cross-block paste
- * (skipSnapshot), mutates raw directly because the originating bundle
- * may not match the target's level.
+ * Apply an inline paste. Single-block routes through updateBlockContent
+ * (snapshot + inline re-parse + kind-change focus); cross-block mutates raw
+ * directly because the originating bundle may not match the target's level.
  *
- * Intentionally synchronous (no `await`): the caller must set cursor
- * state (`pendingCursorOffset` for single-block, DOM caret for
- * cross-block) before the first Svelte reactivity flush, so this
- * function returns before any microtask boundary.
+ * Intentionally synchronous: the caller must set cursor state before the
+ * first Svelte reactivity flush, so we return before any microtask boundary.
  */
 function applyInlineResult(
 	targetPath: number[],
@@ -301,10 +240,6 @@ function applyInlineResult(
 	ctx: PasteDispatchContext
 ): void {
 	if (ctx.skipSnapshot) {
-		// Cross-block: caller owns snapshot bracket. Mutate raw, re-parse
-		// inline for prose kinds, rebuild ancestry so container raw
-		// reflects the change. Caller awaits reactivity and restores
-		// DOM caret.
 		const targetNode = nodeAt(ctx.doc, targetPath) as CstNode | null;
 		if (!targetNode) return;
 		targetNode.raw = result.newRaw;
@@ -318,13 +253,8 @@ function applyInlineResult(
 		return;
 	}
 
-	// Single-block inline paste: target is the originating block, so
-	// ctx.blockEdit is its own bundle (top-level or nested via Svelte
-	// context walking). updateBlockContent handles snapshot +
-	// inline re-parse + kind-change focus. Called unawaited — the sync
-	// side effects (raw mutation via performUpdate, snapshot debounce)
-	// fire immediately, and the caller sets pendingCursorOffset next in
-	// the same synchronous block so both land in one reactive flush.
+	// Unawaited: the caller sets pendingCursorOffset in the same synchronous
+	// block so both land in one reactive flush.
 	const blockIndex = targetPath[targetPath.length - 1];
 	ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
 }
@@ -348,16 +278,14 @@ async function applyStructuralResult(
 		return;
 	}
 
-	// Nested structural: splice through the parent container's
-	// BlockListState so ids/refs stay aligned (same as the 0.5.1
-	// registry-rewritten path).
+	// Nested: splice through the parent's BlockListState so ids/refs stay aligned.
 	const parentPath = targetPath.slice(0, -1);
 	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
 	const innerIndex = targetPath[targetPath.length - 1];
 	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) return;
 
 	const parentState = getStateForNode(parent)!;
-	// TODO(0.5.5.3): migrate via multi-scope commit primitive
+	// TODO: migrate via multi-scope commit primitive
 	parentState.commitChildrenEdit((children, ids, refs) => {
 		children.splice(innerIndex, 1, ...result.replacement);
 		ids.splice(innerIndex, 1, ...result.replacement.map(() => generateBlockId()));
@@ -381,37 +309,27 @@ function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
 // ── Container-matching unwrap ────────────────────────────────────────────
 
 interface ContainerUnwrap {
-	/** Path to the matching outer container (list or blockquote). */
 	outerPath: number[];
-	/** Index within outerPath.children of the target descendant. */
+	/** Index within outer.children of the target descendant. */
 	spliceIndex: number;
-	/** Items from the clipboard's top-level container. */
 	items: CstNode[];
 	/**
-	 * When set, the target descendant is non-empty: merge the first
-	 * clipboard item's content into the target leaf at `offset`, splice
-	 * the remaining items as siblings after the descendant, and reattach
-	 * any post-caret residue to the last spliced item. When absent, the
-	 * descendant is empty and gets replaced in-place by all items.
+	 * Non-empty-target variant: merge the first clipboard item's content
+	 * into the target leaf at `offset`, splice the rest as siblings, and
+	 * reattach post-caret residue to the last spliced item. Absent means
+	 * the descendant is empty and gets replaced wholesale.
 	 */
 	merge?: {
-		/** Path of the leaf to merge into. */
 		targetLeafPath: number[];
-		/** Cursor offset within the target leaf's display. */
 		offset: number;
 	};
 }
 
 /**
- * Detect whether a paste should be flattened into a matching ancestor
- * container. Returns null if no rewrite applies; otherwise returns the
- * splice target.
- *
- * Empty target descendants always unwrap (replaces the stub with all
- * items). Non-empty targets unwrap only in cross-block context
- * (`skipSnapshot` — i.e. after a range delete), so single-block pastes
- * into a partially-filled item keep the nested-sub-container behavior
- * users expect from a deliberate paste.
+ * Detect whether to flatten the paste into a matching ancestor container.
+ * Empty target descendants always unwrap. Non-empty targets unwrap only in
+ * cross-block context (post-range-delete), so single-block pastes into a
+ * partially-filled item keep the nested-sub-container behavior.
  */
 function findContainerMatchingUnwrap(
 	doc: Document,
@@ -445,11 +363,8 @@ function findContainerMatchingUnwrap(
 			return { outerPath: ancestorPath, spliceIndex, items: topBlock.children };
 		}
 
-		// Non-empty: only unwrap in cross-block context, and only when
-		// the first & last clipboard items each have a single paragraph
-		// child — otherwise the merge-first / trailing-residue semantics
-		// aren't well-defined and we fall through to nested structural
-		// paste.
+		// Non-empty unwrap requires single-paragraph first/last items —
+		// otherwise merge-first / trailing-residue semantics aren't well-defined.
 		if (!crossBlockContext) return null;
 		if (!hasSingleParagraphChild(topBlock.children[0])) return null;
 		if (!hasSingleParagraphChild(topBlock.children[topBlock.children.length - 1])) return null;
@@ -464,8 +379,7 @@ function findContainerMatchingUnwrap(
 	return null;
 }
 
-/** Empty in the "cross-block delete just cleared this" sense: one leaf
- * child whose raw has no visible content. */
+/** One leaf child whose raw has no visible content (post-cross-block-delete stub). */
 function isEmptyContainerChild(node: CstNode): boolean {
 	if (!node.children || node.children.length === 0) return true;
 	if (node.children.length !== 1) return false;
@@ -494,31 +408,25 @@ async function applyContainerMatchingPaste(
 		return;
 	}
 
-	// TODO(0.5.5.3): migrate via multi-scope commit primitive
+	// TODO: migrate via multi-scope commit primitive
 	outerState.commitChildrenEdit((children, ids, refs) => {
 		children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
 		ids.splice(unwrap.spliceIndex, 1, ...unwrap.items.map(() => generateBlockId()));
 		refs.splice(unwrap.spliceIndex, 1, ...new Array(unwrap.items.length).fill(undefined));
 	});
 
-	// Rebuild the outer container's raw (and any enclosing ancestors)
-	// from the newly-spliced children.
 	const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
 	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
 	await tick();
 
-	// Focus lands at the end of the last inserted item — matches the
-	// structural-paste convention elsewhere.
 	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
 }
 
 /**
- * Non-empty-target path: merge the first clipboard item's leaf content
- * into the target leaf at the caret, splice the rest as siblings of the
- * target descendant, and reattach trailing residue (display characters
- * after the caret) to the last spliced item's leaf. When the clipboard
- * has only one item, all content (including residue) lands in the
- * target leaf and no splice happens.
+ * Non-empty-target path: merge first item's content into the target leaf
+ * at the caret, splice remaining items as siblings, reattach post-caret
+ * residue to the last spliced item. Single-item clipboards keep everything
+ * in the target leaf.
  */
 async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
@@ -565,27 +473,25 @@ async function applyContainerMatchingMerge(
 		}
 	}
 
-	// Rebuild raw up from the mutated target leaf so its enclosing
-	// listItem reflects the merged content before we splice siblings.
+	// Rebuild up from the mutated target leaf so its enclosing listItem
+	// reflects the merged content before we splice siblings.
 	rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
 
 	if (remainingItems.length === 0) {
-		// No structural change on outer — just force a reactivity publish
-		// so its children bind update with the new target-leaf content.
-		// TODO(0.5.5.3): migrate via multi-scope commit primitive
+		// Force a reactivity publish so the bind updates with the new target-leaf content.
+		// TODO: migrate via multi-scope commit primitive
 		outerState.commitChildrenEdit(() => {});
 		await tick();
 		outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
 		return;
 	}
 
-	// The last remaining item's paragraph raw was mutated above; its
-	// enclosing listItem's own raw still reflects the pre-mutation
-	// paragraph. Rebuild it before splicing so the published children
-	// carry correct raws in one reactive flush.
+	// The last remaining item's enclosing listItem raw still reflects the
+	// pre-mutation paragraph. Rebuild before splicing so the published
+	// children carry correct raws in one reactive flush.
 	rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
-	// TODO(0.5.5.3): migrate via multi-scope commit primitive
+	// TODO: migrate via multi-scope commit primitive
 	outerState.commitChildrenEdit((children, ids, refs) => {
 		children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
 		ids.splice(unwrap.spliceIndex + 1, 0, ...remainingItems.map(() => generateBlockId()));
@@ -593,10 +499,6 @@ async function applyContainerMatchingMerge(
 	});
 
 	const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-	// Rebuild the outer container and any enclosing ancestors of it now
-	// that its children array is complete. Pass the last-inserted leaf
-	// path so the walk starts one level above the outer (skipping the
-	// listItem we already rebuilt).
 	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
 	await tick();
 

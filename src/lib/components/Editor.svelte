@@ -41,11 +41,9 @@
 
 	function initDocument(src: string): Document {
 		const d = parse(src);
-		// Ensure there's always at least one block to edit
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 		}
-		// Ensure every container has at least one child (editing surface)
 		for (const child of d.children) {
 			ensureEditableContainers(child);
 		}
@@ -67,13 +65,11 @@
 	const stickyColumn = createStickyColumnState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
-	// SelectionState emits `selectionChange` on every mutation; callback reads
-	// the fresh snapshot via getSelection() (function-hoisted below).
+	// getSelection is function-hoisted below — callback reads the fresh snapshot each time.
 	const selectionState = createSelectionState({
 		onChange: () => events.emit('selectionChange', getSelection())
 	});
 
-	// Op-log subscribes to edit events. Scoped to editor lifetime via $effect.
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
 			operationsLog?.record({
@@ -134,12 +130,8 @@
 		};
 	});
 
-	// Block path → DOM lookup. Walks from the editor root to the .block-host
-	// wrapper carrying the matching data-block-path, then returns the wrapper's
-	// first non-overlay child (the block component's outermost element, used
-	// as the measurement surface for cross-block caret math). Container blocks
-	// have their own nested BlockList, so the element returned for a container
-	// path is the container's root, not any child leaf.
+	// Returns the block's outermost element (first non-overlay child of the wrapper)
+	// — used as the measurement surface for cross-block caret math.
 	const getBlockElByPath: BlockElLookup = (path) => {
 		if (!editorEl) return null;
 		const attr = JSON.stringify(path);

@@ -1,7 +1,3 @@
-/**
- * List Backspace tests — delete, merge, promote, and Delete-at-end.
- * Requirements: e2e/requirements/blocks/list/backspace.md
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
@@ -32,11 +28,8 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "Item one" should now be a plain paragraph, not a list item
 		expect(source).toMatch(/^Item one/m);
-		// "Item two" should still be a list item
 		expect(source).toMatch(/^- Item two/m);
-		// "Before" should still be present, unchanged (no auto-merge)
 		expect(source).toContain('Before');
 	});
 
@@ -49,11 +42,9 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// List gone, plain paragraph remains
 		expect(source).not.toMatch(/^- /m);
 		expect(source).toContain('Solo');
 
-		// Cursor at start of "Solo" — typing lands at start
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		const after = await editor.getSource();
@@ -69,9 +60,7 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "First" is now a plain paragraph before the list
 		expect(source).toMatch(/^First/m);
-		// "Nested" and "Second" are both top-level list items
 		expect(source).toMatch(/^- Nested/m);
 		expect(source).toMatch(/^- Second/m);
 	});
@@ -85,11 +74,8 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "First" as plain paragraph
 		expect(source).toMatch(/^First/m);
-		// Ordered sub-list still exists as a top-level block
 		expect(source).toMatch(/^1\. OrderedNested/m);
-		// Unordered parent list still contains "Second"
 		expect(source).toMatch(/^- Second/m);
 	});
 
@@ -102,7 +88,6 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "First" as plain paragraph, then ordered list with [Second=1, Third=2]
 		expect(source).toMatch(/^First/m);
 		expect(source).not.toMatch(/^1\. First/m);
 		expect(source).toMatch(/^1\. Second/m);
@@ -116,7 +101,6 @@ test.describe('list Backspace', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Now in empty third item. Press Backspace.
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
@@ -132,9 +116,7 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "Item two" text should be merged into "Item one"
 		expect(source).toContain('Item oneItem two');
-		// Only one list item should remain
 		expect((source.match(/^- /gm) ?? []).length).toBe(1);
 	});
 
@@ -147,7 +129,6 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Result: - AB\n  - C
 		expect(source).toContain('- AB');
 		expect(source).toMatch(/^\s+- C/m);
 	});
@@ -161,13 +142,8 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Expected:
-		//   - A
-		//     - AAB
-		//     - C
 		expect(source).toContain('- A');
 		expect(source).toMatch(/- AAB/);
-		// C should now be at the same level as AAB (sibling in A's nested list)
 		expect(source).toMatch(/- AAB\s*\n\s+- C/);
 	});
 
@@ -181,13 +157,6 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Expected:
-		//   - A
-		//     - B
-		//       - CD
-		//     - E
-		// Strong assertions: CD at depth 2 (4 spaces), B at depth 1 (2 spaces),
-		// E also at depth 1 (2 spaces, sibling of B, not under CD).
 		expect(source).toMatch(/^    - CD/m);
 		expect(source).toMatch(/^  - B/m);
 		expect(source).toMatch(/^  - E/m);
@@ -202,7 +171,6 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Result: - AB with "extra" somewhere in the merged content
 		expect(source).toContain('- AB');
 		expect(source).toMatch(/extra/);
 	});
@@ -216,7 +184,6 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// Result: 1. FirstSecond\n2. Third
 		expect(source).toMatch(/^1\. FirstSecond/m);
 		expect(source).toMatch(/^2\. Third/m);
 	});
@@ -229,7 +196,6 @@ test.describe('list Backspace', () => {
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
 
-		// Cursor should be at the merge point — between "Alpha" and "Beta"
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
@@ -255,9 +221,7 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// The list should be gone entirely — no `- ` markers remain
 		expect(source).not.toMatch(/^- /m);
-		// And focus should be on the block before (Above)
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toContain('AboveZ');
@@ -271,18 +235,12 @@ test.describe('list Backspace', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// The list should be gone
 		expect(source).not.toMatch(/^- /m);
-		// "After" should still be present
 		expect(source).toContain('After');
 	});
 
-	// Contract: forward-delete at the end of a non-last list item is a
-	// silent no-op. List items are structural peers, not prose continuations,
-	// so pressing Delete at the end of one item does not concat text with
-	// the next item. This is symmetric with the cross-container Backspace
-	// merge behavior and pins the current contract; a future requirement
-	// change would need to explicitly update this test.
+	// Contract pin: forward-delete at end of a non-last item is a silent no-op.
+	// List items are structural peers, not prose continuations.
 	test('Delete at end of non-last item is a no-op (list items do not concat via forward delete)', async () => {
 		await editor.loadContent('- first\n- middle\n- last\n');
 		const middle = editor.page.locator('[contenteditable="true"]', { hasText: 'middle' });
@@ -291,11 +249,9 @@ test.describe('list Backspace', () => {
 		await editor.pressKey('Delete');
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// Unchanged — three separate items, no concatenation
 		expect(source).toMatch(/^- first$/m);
 		expect(source).toMatch(/^- middle$/m);
 		expect(source).toMatch(/^- last$/m);
-		// Explicitly NOT middle+last concatenated
 		expect(source).not.toMatch(/middlelast/);
 	});
 
@@ -318,20 +274,15 @@ test.describe('list Backspace', () => {
 		await editor.page.keyboard.press('End');
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
-		// Empty item 3. Backspace to delete it.
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// Should still be 1, 2, 3 — no gaps
 		expect(source).toMatch(/1\.\s*First/);
 		expect(source).toMatch(/2\.\s*Second/);
 		expect(source).toMatch(/3\.\s*Third/);
 	});
 
-	// Backspace at the start of the first item of a list that follows a
-	// blank-separated prior list promotes that item to a plain paragraph and
-	// the remaining items continue the visual sequence uninterrupted (Google
-	// Docs semantics, not Obsidian-style restart).
+	// Google Docs semantics: post-blank item promotes to paragraph, remaining items continue the sequence (no Obsidian restart).
 	test('ordered: Backspace on post-blank item promotes to paragraph and continues numbering', async () => {
 		await editor.loadContent('1. one\n2. two\n\n3. three\n4. four\n');
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });

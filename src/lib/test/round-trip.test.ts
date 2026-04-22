@@ -1,8 +1,3 @@
-/**
- * Round-trip tests: parse(source) → serialize → assert exact equality.
- * Organized by block type.
- */
-
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';

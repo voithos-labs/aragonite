@@ -1,15 +1,6 @@
 /**
- * Bridge between the browser's native Selection API and our SelectionPoint
- * type. Responsibilities:
- *   1. Read a native caret/range inside a block element and map to SelectionPoint.
- *   2. Apply a SelectionPoint or single-block range to the native selection.
- *   3. Clear the native selection entirely.
- *   4. Map a viewport coordinate to a character offset inside a block.
- *   5. Read the effective selection (cross-block or native) for undo snapshots.
- *   6. Classify and restore an EditorSelection to DOM / SelectionState.
- *
- * This module has no tree-walking logic — callers provide the target block
- * element and its path.
+ * Bridge between the browser's native Selection API and SelectionPoint.
+ * Pure: callers provide target block elements and paths; no tree walking.
  */
 
 import type { SelectionPoint, EditorSelection } from './primitives';
@@ -20,9 +11,8 @@ import { createRangeFromOffsets, getCursorOffset } from '../contenteditable/curs
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
 /**
- * Read the collapsed native caret inside `blockEl` and return a
- * SelectionPoint carrying the block's path. Returns null if the caret is
- * not inside this element.
+ * Read the collapsed caret inside `blockEl` into a SelectionPoint. Returns
+ * null when the caret isn't inside this element.
  */
 export function readNativeCaretInBlock(
 	blockEl: HTMLElement,
@@ -35,7 +25,6 @@ export function readNativeCaretInBlock(
 
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
 
-/** Place a collapsed native caret inside `blockEl` at `point.offset`. */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const range = createRangeFromOffsets(blockEl, point.offset, point.offset);
 	if (!range) return;
@@ -44,7 +33,6 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	sel?.addRange(range);
 }
 
-/** Apply a single-block range selection inside `blockEl`. */
 export function applySingleBlockRange(
 	blockEl: HTMLElement,
 	startOffset: number,
@@ -57,7 +45,6 @@ export function applySingleBlockRange(
 	sel?.addRange(range);
 }
 
-/** Clear the browser's native selection entirely. */
 export function clearNativeSelection(): void {
 	window.getSelection()?.removeAllRanges();
 }
@@ -65,9 +52,9 @@ export function clearNativeSelection(): void {
 // ── Selection read/restore for undo ─────────────────────────────────────────
 
 /**
- * Read the effective editor selection: cross-block from SelectionState if
- * active, otherwise collapsed from the native caret. Returns null when no
- * block reports a cursor (editor unfocused).
+ * Effective editor selection: cross-block from SelectionState if active,
+ * otherwise collapsed from the native caret. Null when the editor is
+ * unfocused (no block reports a cursor).
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
@@ -87,10 +74,9 @@ export function readCurrentSelection(
 }
 
 /**
- * Classify a restored EditorSelection and apply it to the DOM:
- * - Collapsed (same path and offset): place a native caret
- * - Single-block range (same path, different offsets): native range selection
- * - Cross-block (different paths): enter SelectionState cross-block mode
+ * Apply a restored EditorSelection to the DOM / SelectionState:
+ * collapsed → native caret, single-block range → native range,
+ * cross-block → SelectionState cross-block mode.
  */
 export function applySelectionToDom(
 	selection: EditorSelection,
@@ -120,9 +106,8 @@ export function applySelectionToDom(
 		return;
 	}
 
-	// Cross-block: populate SelectionState and park a collapsed caret in the
-	// focus block as a paste-dispatch anchor. Without it, Chromium routes
-	// paste events to <body>.
+	// Park a collapsed caret in the focus block as a paste-dispatch anchor;
+	// without it, Chromium routes paste events to <body>.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	const focusBlockEl = getBlockElByPath(selection.focus.path);
 	if (focusBlockEl) {
@@ -137,8 +122,7 @@ export function applySelectionToDom(
 
 /**
  * Convert a viewport coordinate to a character offset inside a block.
- * Used by pointer drag for hit-testing and by shift-click for anchor
- * recovery. Returns null if the point is not inside `blockEl`.
+ * Returns null when the point is outside `blockEl`.
  */
 export function offsetFromViewportPoint(
 	blockEl: HTMLElement,
@@ -146,8 +130,8 @@ export function offsetFromViewportPoint(
 	clientY: number
 ): number | null {
 	const doc = blockEl.ownerDocument;
-	// caretRangeFromPoint is the Chromium/WebKit API (all Tauri webviews).
-	// Fall back to caretPositionFromPoint for defensive compat (Firefox-style).
+	// caretRangeFromPoint is Chromium/WebKit (all Tauri webviews);
+	// caretPositionFromPoint is the Firefox-style fallback.
 	const rangeFromPoint = (
 		doc as Document & {
 			caretRangeFromPoint?: (x: number, y: number) => Range | null;

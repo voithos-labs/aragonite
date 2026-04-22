@@ -28,7 +28,6 @@ describe('indentLines — collapsed selection', () => {
 describe('indentLines — multi-line selection', () => {
 	it('inserts a tab at every line-start the selection touches', () => {
 		const text = 'alpha\nbeta\ngamma';
-		// Selection spans "lpha\nbeta\ngam" — touches all three lines.
 		const result = indentLines(text, { start: 1, end: 14 });
 		expect(result.text).toBe('\talpha\n\tbeta\n\tgamma');
 	});
@@ -36,8 +35,6 @@ describe('indentLines — multi-line selection', () => {
 	it('shifts the start offset by one for the first line insert', () => {
 		const text = 'alpha\nbeta';
 		const result = indentLines(text, { start: 2, end: 8 });
-		// Both lines touched. Start moves from 2 → 3 (one tab added before it).
-		// End moves from 8 → 10 (two tabs added before it).
 		expect(result.selection).toEqual({ start: 3, end: 10 });
 	});
 
@@ -48,10 +45,6 @@ describe('indentLines — multi-line selection', () => {
 	});
 
 	it('indents a line whose start the selection ends at', () => {
-		// Selection `[0, 6)` spans "alpha\n" and touches offset 6, which is
-		// the position right before `b` of "beta". The existing tab behavior
-		// treats offset 6 as "inside line 2" and indents both lines — this
-		// test pins that contract so the extraction preserves it.
 		const text = 'alpha\nbeta';
 		const result = indentLines(text, { start: 0, end: 6 });
 		expect(result.text).toBe('\talpha\n\tbeta');
@@ -86,7 +79,6 @@ describe('dedentLines — collapsed selection', () => {
 	});
 
 	it('prefers a leading tab over spaces when both are present', () => {
-		// Rule: first char is a tab → remove only the tab.
 		const result = dedentLines('\t    foo', { start: 6, end: 6 });
 		expect(result.text).toBe('    foo');
 		expect(result.selection).toEqual({ start: 5, end: 5 });
@@ -94,15 +86,12 @@ describe('dedentLines — collapsed selection', () => {
 
 	it('dedents the correct line inside a multi-line string', () => {
 		const text = 'alpha\n\tbeta\ngamma';
-		// Cursor in "beta" — offset 8 is between 'b' and 'e'.
 		const result = dedentLines(text, { start: 8, end: 8 });
 		expect(result.text).toBe('alpha\nbeta\ngamma');
 		expect(result.selection).toEqual({ start: 7, end: 7 });
 	});
 
 	it('clamps cursor to the line start when dedent would move it earlier', () => {
-		// Cursor on the whitespace itself. After removing the tab the cursor
-		// should sit at the new line start, not go negative.
 		const result = dedentLines('\tfoo', { start: 1, end: 1 });
 		expect(result.text).toBe('foo');
 		expect(result.selection).toEqual({ start: 0, end: 0 });
@@ -127,7 +116,6 @@ describe('dedentLines — multi-line selection', () => {
 	it('adjusts selection offsets for every removed char', () => {
 		const text = '\talpha\n\tbeta';
 		const result = dedentLines(text, { start: 1, end: 12 });
-		// Two tabs removed — end shifts left by 2.
 		expect(result.selection.end).toBe(10);
 	});
 

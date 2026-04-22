@@ -8,7 +8,6 @@ import { EditorPage } from '../../editor-page';
 // [7]=unordered list ([7,0,0],[7,1,0],[7,1,1,0,0],[7,2,0])
 // [8]=ordered list ([8,0,0],[8,1,0],[8,2,0])
 // [9]=code block  [10]="A final paragraph."
-
 test.describe('clipboard — inline formatting preservation', () => {
 	let editor: EditorPage;
 
@@ -18,9 +17,8 @@ test.describe('clipboard — inline formatting preservation', () => {
 	});
 
 	test('copy across formatted + link paragraphs preserves all markers', async () => {
-		// Anchor at start of block 3, extend selection past end of block 4
 		await editor.focusBlockStart(3);
-		await editor.shiftClickBlock([4], 67); // full link paragraph
+		await editor.shiftClickBlock([4], 67);
 		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
@@ -34,9 +32,8 @@ test.describe('clipboard — inline formatting preservation', () => {
 	});
 
 	test('copy heading through formatted paragraph preserves heading marker', async () => {
-		// Anchor at start of "### Heading 3", extend to end of block 3
 		await editor.focusBlockStart(2);
-		await editor.shiftClickBlock([3], 70); // near end of formatted paragraph
+		await editor.shiftClickBlock([3], 70);
 		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
@@ -57,9 +54,8 @@ test.describe('clipboard — container boundary scenarios', () => {
 	});
 
 	test('copy last unordered + first ordered item excludes other items', async () => {
-		// Anchor at "Item three" [7,2,0], extend to "First" [8,0,0]
 		await editor.focusBlockAtPath([7, 2, 0], 0);
-		await editor.shiftClickBlock([8, 0, 0], 5); // end of "First"
+		await editor.shiftClickBlock([8, 0, 0], 5);
 		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+c');
@@ -74,7 +70,6 @@ test.describe('clipboard — container boundary scenarios', () => {
 	});
 
 	test('copy from blockquote second paragraph to end collects list markers', async () => {
-		// Start inside blockquote [6,1], Ctrl+Shift+End to select through end
 		await editor.focusBlockAtPath([6, 1], 0);
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
@@ -90,7 +85,6 @@ test.describe('clipboard — container boundary scenarios', () => {
 	});
 
 	test('copy from ordered list last item across code block to final paragraph', async () => {
-		// "Third" = [8,2,0]
 		await editor.focusBlockAtPath([8, 2, 0], 0);
 		await editor.pressKey('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
@@ -136,7 +130,6 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.pressKey('Control+c');
 		await editor.page.waitForTimeout(200);
 
-		// Anchor is at offset 0 of block 1, so only block 0 content is selected.
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Heading 1');
 		expect(clip).not.toContain('Heading 2');
@@ -154,9 +147,8 @@ test.describe('clipboard — cut three blocks then undo', () => {
 	test('cut headings then undo restores all three', async () => {
 		const before = await editor.getSource();
 
-		// Select from "# Heading 1" start to "### Heading 3" end via shift-click
 		await editor.focusBlockStart(0);
-		await editor.shiftClickBlock([2], 13); // end of "### Heading 3"
+		await editor.shiftClickBlock([2], 13);
 		await editor.waitForCrossBlock(true);
 
 		await editor.pressKey('Control+x');

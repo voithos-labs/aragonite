@@ -19,8 +19,6 @@ test.describe('inline editing', () => {
 		await editor.loadContent(INLINE_CONTENT);
 	});
 
-	// ── Happy paths: inline formatting renders correct HTML elements ────
-
 	test('bold text renders with <strong> element', async () => {
 		const block = editor.getBlock(0);
 		await expect(block.locator('strong')).toHaveCount(1);
@@ -37,7 +35,6 @@ test.describe('inline editing', () => {
 		const block = editor.getBlock(1);
 		await expect(block.locator('code.inline-code-content')).toHaveCount(1);
 		await expect(block.locator('code.inline-code-content')).toHaveText('inline code');
-		// Backtick markers rendered as .md-marker spans
 		const markers = block.locator('.md-marker');
 		const count = await markers.count();
 		expect(count).toBeGreaterThanOrEqual(2);
@@ -49,13 +46,10 @@ test.describe('inline editing', () => {
 		await expect(block.locator('a.md-link-content')).toHaveText('link');
 	});
 
-	// ── Edge cases: editing near inline formatting ──────────────────────────────
-
 	test('typing after bold span preserves formatting in source', async () => {
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' tail');
 		const src = await editor.getSource();
-		// The bold markers must still be intact
 		expect(src).toContain('**bold text**');
 		expect(src).toContain('tail');
 	});
@@ -64,13 +58,11 @@ test.describe('inline editing', () => {
 		await editor.focusBlockEnd(1);
 		await editor.typeText(' more');
 		const src = await editor.getSource();
-		// Inline code markers preserved
 		expect(src).toContain('`inline code`');
 		expect(src).toContain('more');
 	});
 
 	test('editing does not corrupt inline bold markers', async () => {
-		// Type at the start of the formatted block
 		await editor.focusBlockStart(0);
 		await editor.typeText('Prefix: ');
 		const src = await editor.getSource();
@@ -88,8 +80,6 @@ test.describe('inline editing', () => {
 		await expect(block.locator('strong em')).toHaveText('and italic');
 	});
 
-	// ── User interactions ───────────────────────────────────────────────────────
-
 	test('click into formatted paragraph, type at end, source updates', async () => {
 		await editor.clickBlock(0);
 		await editor.focusBlockEnd(0);
@@ -100,14 +90,12 @@ test.describe('inline editing', () => {
 	});
 
 	test('typing bold in a split-created block renders strong element', async () => {
-		// Regression: blocks created by Enter split had no inlineContent,
-		// so typed formatting was never rendered (appeared as plain **text**)
+		// Regression: split-created blocks had no inlineContent, so bold rendered as plain **text**.
 		await editor.loadContent('First paragraph.\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(200);
 
-		// Now in the new (split-created) block — type bold syntax
 		await editor.typeSlowly('**bold**');
 		await editor.page.waitForTimeout(200);
 
@@ -117,8 +105,7 @@ test.describe('inline editing', () => {
 	});
 
 	test('heading markers are dimmed after typing # to convert', async () => {
-		// Regression: typing # at start of a split-created paragraph converted
-		// it to a heading but the marker wasn't rendered as .md-marker
+		// Regression: split-created paragraph converted to heading but marker lacked .md-marker class.
 		await editor.loadContent('Some text.\n');
 		await editor.focusBlockEnd(0);
 		await editor.pressEnter();
@@ -134,8 +121,7 @@ test.describe('inline editing', () => {
 	});
 
 	test('character-by-character typing produces correct bold rendering', async () => {
-		// Regression: keyboard.type() (per-character) caused reversed text due to
-		// double DOM rebuild. The single render path fix resolves this.
+		// Regression: per-character keyboard.type() reversed text via double DOM rebuild.
 		await editor.loadContent('Hello.\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' **bold**');
@@ -151,7 +137,6 @@ test.describe('inline editing', () => {
 	test('Ctrl+B wraps selection with **', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 6);
-		// Select "world" — need to select from offset 6 to 11
 		for (let i = 0; i < 5; i++) {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
@@ -164,7 +149,6 @@ test.describe('inline editing', () => {
 	test('Ctrl+B on already-bold text removes **', async () => {
 		await editor.loadContent('Hello **world**\n');
 		await editor.focusBlock(0, 6);
-		// Select "**world**" (9 chars)
 		for (let i = 0; i < 9; i++) {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
@@ -200,13 +184,9 @@ test.describe('inline editing', () => {
 		expect(source).not.toContain('*');
 	});
 
-	// Regression: selecting the word inside `**word**` (excluding the markers,
-	// e.g. via double-click) and pressing Ctrl+B used to double-wrap the text
-	// to `****word****`. The toggle now detects markers flanking the selection
-	// and strips them — matches Obsidian / VS Code / Google Docs.
+	// Regression: selecting inner word of `**word**` and pressing Ctrl+B used to double-wrap to `****word****`.
 	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
 		await editor.loadContent('Hello **world** today\n');
-		// Select "world" only (offsets 8..13 in "Hello **world** today").
 		await editor.focusBlock(0, 8);
 		for (let i = 0; i < 5; i++) {
 			await editor.page.keyboard.press('Shift+ArrowRight');
@@ -228,11 +208,8 @@ test.describe('inline editing', () => {
 	});
 
 	test('split paragraph with inline formatting preserves both halves', async () => {
-		// Load a block with bold in the middle for a clean split
 		await editor.loadContent(`before **bold** after\n`);
-		// Place cursor right after "before " (offset 7)
 		await editor.focusBlockStart(0);
-		// Move cursor to offset 7 via selection
 		await editor.page.evaluate(() => {
 			const block = document.querySelector(
 				'.block-list > .block-host > :not(.selection-overlay)'

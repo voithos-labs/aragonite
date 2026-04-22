@@ -1,8 +1,6 @@
 /**
- * Code-block renderer. Given a fencedCode CstNode, produces a DocumentFragment
- * with dimmed marker spans for the opener/closer lines and tokenized spans for
- * the body (via highlight.js). Invariant:
- *
+ * Code-block renderer. Produces a DocumentFragment with dimmed marker spans
+ * for fences and tokenized spans for the body. Invariant:
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
@@ -19,10 +17,6 @@ export interface FencedCodeSlice {
 	infoString: string;
 }
 
-/**
- * Split a fencedCode node's raw into opener / body / closer regions using
- * metadata.fenceMarker, metadata.fenceLength, metadata.info, and metadata.closed.
- */
 export function sliceFencedCode(node: CstNode): FencedCodeSlice {
 	const meta = node.metadata as FencedCodeMetadata;
 	const raw = node.raw;
@@ -97,7 +91,6 @@ const HLJS_CLASS_MAP: Record<string, string> = {
 	'hljs-subst': 'code-tok-subst'
 };
 
-/** Unknown classes fall through to `code-tok-unknown` — preserves textContent with no color. */
 export function mapHljsClass(hljsClass: string): string {
 	const first = hljsClass.split(/\s+/)[0];
 	return HLJS_CLASS_MAP[first] ?? 'code-tok-unknown';
@@ -105,11 +98,6 @@ export function mapHljsClass(hljsClass: string): string {
 
 // ── hljs output walker ────────────────────────────────────────────────────
 
-/**
- * Walk parsed hljs HTML, emitting `.code-tok-*` spans. Text nodes pass
- * through; element nodes are renamed via `mapHljsClass`. Recursive for
- * nested spans (e.g. template literal interpolations).
- */
 export function walkHljsNodes(source: Node, target: DocumentFragment | HTMLElement): void {
 	for (const child of source.childNodes) {
 		if (child.nodeType === Node.TEXT_NODE) {
@@ -128,11 +116,7 @@ export function walkHljsNodes(source: Node, target: DocumentFragment | HTMLEleme
 
 const registeredWithHljs = new Set<string>();
 
-/**
- * Tokenize a code-block body via highlight.js. Returns a single-text-node
- * fragment for empty/unknown languages. Uses `ignoreIllegals` so mid-typing
- * invalid syntax does not throw.
- */
+/** `ignoreIllegals` is set so mid-typing invalid syntax doesn't throw. */
 export function tokenizeBody(body: string, infoString: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	if (body.length === 0) return frag;
@@ -186,12 +170,11 @@ function renderOpenerLine(
 		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
 	}
 
-	// Trailing opener newline lives as a bare text node sibling, not inside a
-	// marker span. Chromium with `white-space: pre` mis-routes `insertText`
-	// when the caret sits at the end of a `\n` text node nested inside a
-	// styled span (the typed character lands BEFORE the \n). Hosting the \n
-	// at the contenteditable's top level keeps the caret in a position the
-	// browser can extend correctly.
+	// Trailing opener newline lives as a bare text node, not inside a span:
+	// Chromium with `white-space: pre` mis-routes `insertText` when the caret
+	// sits at the end of a `\n` nested inside a styled span — the typed char
+	// lands BEFORE the \n. Top-level keeps the caret in a position the browser
+	// can extend correctly.
 	if (hasTrailingNewline) {
 		frag.appendChild(document.createTextNode('\n'));
 	}
@@ -208,10 +191,6 @@ function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
-/**
- * Render a fencedCode CST node into a DocumentFragment. Holds the invariant
- * `fragment.textContent === trimTrailingLineEnding(node.raw)`.
- */
 export function renderCodeBlock(node: CstNode): DocumentFragment {
 	const slice = sliceFencedCode(node);
 	const meta = node.metadata as FencedCodeMetadata;
@@ -221,11 +200,9 @@ export function renderCodeBlock(node: CstNode): DocumentFragment {
 	const bodyFrag = tokenizeBody(slice.body, slice.infoString);
 	const closerFrag = renderCloserLine(slice);
 
-	// Preserve textContent === trimTrailingLineEnding(raw): if raw ends with
-	// \n, strip exactly one trailing \n from whichever fragment carries the
-	// tail. Closer wins; then body; then opener (its trailing-newline marker
-	// span) for the fresh-unclosed-fence case `"```\n"` where body and closer
-	// are both empty.
+	// Preserve textContent === trimTrailingLineEnding(raw): strip one trailing
+	// \n from whichever fragment carries the tail — closer first, then body,
+	// then opener (covers the fresh-unclosed case `"```\n"`).
 	if (node.raw.endsWith('\n')) {
 		stripTrailingNewline(closerFrag) ||
 			stripTrailingNewline(bodyFrag) ||
@@ -240,10 +217,10 @@ export function renderCodeBlock(node: CstNode): DocumentFragment {
 }
 
 /**
- * Strip one trailing `\n` from the last text-bearing child of `frag`. Returns
- * true when a strip happened so callers can chain priorities. Removes empty
- * text nodes after the strip so the cursor walker doesn't land in a zero-
- * length node Chromium treats as a non-target.
+ * Strip one trailing `\n` from the last text-bearing child. Returns true on
+ * success so callers can chain priorities. Also removes the now-empty text
+ * node so the cursor walker doesn't land in a zero-length node Chromium
+ * treats as a non-target.
  */
 function stripTrailingNewline(frag: DocumentFragment): boolean {
 	const last = frag.lastChild;

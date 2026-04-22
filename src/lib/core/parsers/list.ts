@@ -1,14 +1,7 @@
-/**
- * List parser. Handles ordered and unordered lists, task checkboxes, and
- * multi-paragraph items with continuation indentation. Recursively parses
- * inner item content via parseBlocks.
- */
-
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 
-/** Match an ordered or unordered list item on `text`. Returns marker + indent metadata, or null. */
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {
@@ -39,12 +32,9 @@ function matchTaskCheckbox(text: string): { checked: boolean } | null {
 }
 
 /**
- * Per CommonMark §5.2, a list marker can interrupt an open paragraph only
- * if the marker is a bullet or an ordered marker starting with `1` — this
- * prevents hard-wrapped numerals like "the fifth item is 2. bananas" from
- * being mistaken for a list start. Used by paragraph-continuation scans;
- * standalone list parsing (outside paragraph continuation) still accepts
- * any ordered number.
+ * CommonMark §5.2: a list marker interrupts a paragraph only if it's a
+ * bullet or starts at `1` — avoids misreading "... is 2. bananas" as a
+ * list. Standalone list parsing still accepts any ordered number.
  */
 export function canInterruptParagraph(text: string): boolean {
 	if (/^ {0,3}[-*+]\s+/.test(text)) return true;
@@ -70,8 +60,7 @@ export function parseList(
 		const itemStartIndex = i;
 		i++;
 
-		// Collect continuation lines: indented by at least contentIndent spaces.
-		// Blank lines are included if followed by indented content (multi-paragraph items).
+		// Blank lines are absorbed if followed by indented content — multi-paragraph items.
 		while (i < endIndex) {
 			if (isBlankLine(lines[i].text)) {
 				let j = i;
@@ -88,15 +77,12 @@ export function parseList(
 			}
 		}
 
-		// Lines [itemStartIndex, i) belong to this item
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
 		const strippedLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		// Detect task checkbox from first stripped line
 		const firstStrippedText = strippedLines.length > 0 ? strippedLines[0].text : '';
 		const task = matchTaskCheckbox(firstStrippedText);
 
-		// Parse inner content recursively
 		const inner = parseBlocks(strippedLines, 0, strippedLines.length);
 
 		items.push({
@@ -143,8 +129,7 @@ function stripListItemLines(
 ): ParsedLine[] {
 	let offset = 0;
 	return lines.slice(startIndex, endIndex).map((line, i) => {
-		// First line: strip the full marker prefix
-		// Other lines: strip up to contentIndent spaces of indentation
+		// First line strips the marker prefix; continuation lines strip up to contentIndent.
 		const stripCount = i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
 		const stripped = line.text.slice(stripCount);
 		const lineEnding = line.lineEnding;

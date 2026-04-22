@@ -116,7 +116,6 @@ describe('createStandardNestedActions', () => {
 		const parent = {
 			blockEdit: fakeParentBundles().blockEdit,
 			focus: fakeParentBundles().focus
-			// containerEdit omitted
 		};
 
 		const bundle = createStandardNestedActions(state, {

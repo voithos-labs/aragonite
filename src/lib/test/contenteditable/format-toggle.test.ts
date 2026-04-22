@@ -17,7 +17,6 @@ describe('toggleInlineFormat', () => {
 	});
 
 	it('strips flanking markers when selection excludes them (double-click case)', () => {
-		// display is `**word**`, user double-clicks to select `word` (offsets 2..6).
 		const r = toggleInlineFormat('**word**', { start: 2, end: 6 }, 'strong');
 		expect(r.newDisplay).toBe('word');
 		expect(r.newSelStart).toBe(0);
@@ -32,7 +31,6 @@ describe('toggleInlineFormat', () => {
 	});
 
 	it('does not strip flanking markers when only one side is present', () => {
-		// display starts with `**` but doesn't end with it — wrap, don't strip.
 		const r = toggleInlineFormat('**word', { start: 2, end: 6 }, 'strong');
 		expect(r.newDisplay).toBe('****word**');
 		expect(r.newSelStart).toBe(2);

@@ -46,8 +46,6 @@
 	{:else if node.kind === 'list'}
 		<ListBlock {node} {index} {myPath} bind:this={ref} />
 	{:else}
-		<!-- All other leaf types: raw editable (indentedCode, htmlBlock,
-			 linkReferenceDefinition, table, unrecognized) -->
 		<TextEditableBlock {node} {index} {myPath} bind:this={ref} blockClass="raw-block" />
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only

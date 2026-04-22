@@ -1,7 +1,3 @@
-/**
- * Deep-clone helpers for documents and CST nodes (used by undo snapshots).
- */
-
 import type { CstNode, Document } from '../core/nodes';
 
 // ── Document ────────────────────────────────────────────────────────────────

@@ -1,14 +1,10 @@
 /**
- * Stage 1 of the inline parser pipeline: balanced backtick code spans.
- * Emits text + inlineCode nodes for the scanned range.
+ * Inline pipeline stage 1: balanced backtick code spans. Emits text +
+ * inlineCode nodes; later stages treat inlineCode ranges as occupied.
  */
 
 import type { InlineNode } from '../nodes';
 
-/**
- * Returns resolved InlineNodes (text + inlineCode) for the range.
- * Used as input to the emphasis stage; code spans mark occupied ranges.
- */
 export function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[] {
 	const nodes: InlineNode[] = [];
 	let pos = start;
@@ -20,7 +16,6 @@ export function scanBacktickSpans(raw: string, start: number, end: number): Inli
 			while (pos < end && raw[pos] === '`') pos++;
 			const tickLen = pos - tickStart;
 
-			// Search for matching closing backtick sequence
 			let closeStart = -1;
 			let searchPos = pos;
 			while (searchPos < end) {

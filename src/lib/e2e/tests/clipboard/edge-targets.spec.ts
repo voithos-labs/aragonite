@@ -1,11 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-/**
- * Paste / cut into unusual target positions: empty document, thematic
- * break neighbors, start/end of document, mid-list with heterogeneous
- * clipboard content.
- */
 test.describe('clipboard exploration: edge targets', () => {
 	let editor: EditorPage;
 
@@ -46,7 +41,6 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Big Heading\n'));
 		await editor.page.waitForTimeout(100);
 
-		// Select the list item's text entirely, then paste.
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 0], 'list item'.length);
 		await editor.pressKey('Control+v');
@@ -71,7 +65,6 @@ test.describe('clipboard exploration: edge targets', () => {
 		expect(afterCut).not.toContain('two');
 		expect(afterCut).toContain('three');
 
-		// Clipboard should hold the cut content.
 		const clipContent = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clipContent).toContain('one');
 		expect(clipContent).toContain('two');
@@ -80,7 +73,6 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('cut then paste round-trip: content returns to same position', async () => {
 		await editor.loadContent('alpha beta gamma\n');
 
-		// Select "beta" in the middle.
 		const betaStart = 'alpha '.length;
 		const betaEnd = betaStart + 'beta'.length;
 		await editor.focusBlockAtPath([0], betaStart);
@@ -92,7 +84,6 @@ test.describe('clipboard exploration: edge targets', () => {
 		const afterCut = await editor.getSource();
 		expect(afterCut.trim()).toBe('alpha  gamma');
 
-		// Paste right back at the collapsed caret.
 		await editor.pressKey('Control+v');
 		await editor.page.waitForTimeout(200);
 

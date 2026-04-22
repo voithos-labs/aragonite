@@ -1,6 +1,5 @@
-/**
- * HTML block parser (simplified — continues until a blank line).
- */
+// Simplified HTML block: continues until a blank line, ignoring CommonMark's
+// per-kind close conditions.
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
@@ -21,7 +20,6 @@ export function parseHtmlBlock(
 ): { node: CstNode; nextIndex: number } {
 	let i = startIndex + 1;
 
-	// Simplified: HTML blocks continue until a blank line
 	while (i < endIndex && !isBlankLine(lines[i].text)) {
 		i++;
 	}

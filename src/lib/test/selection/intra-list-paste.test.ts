@@ -1,9 +1,5 @@
-/**
- * Isolation tests for the "Paste into cross-list-item selection does nothing"
- * bug (see docs/issues.md). These drive the pure layers — rangeDelete plus
- * the raw mutation + ancestry rebuild that handlePaste performs — so we can
- * tell where the pipeline breaks independent of Svelte reactivity.
- */
+// Regression: cross-list-item paste (see docs/issues.md). Drives pure layers
+// independent of Svelte reactivity.
 
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';

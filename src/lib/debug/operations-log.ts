@@ -33,7 +33,7 @@ export interface OperationsLog {
 
 // ── Factory ──────────────────────────────────────────────────────────────────
 
-/** Bounded FIFO log. Oldest entries are evicted once `capacity` is exceeded. */
+/** Bounded FIFO; oldest entries evicted past `capacity`. */
 export function createOperationsLog(capacity = 100): OperationsLog {
 	const buf: OperationEntry[] = [];
 	const listeners = new Set<(entry: OperationEntry) => void>();

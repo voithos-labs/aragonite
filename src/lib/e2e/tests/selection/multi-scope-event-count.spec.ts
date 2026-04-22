@@ -1,16 +1,10 @@
-/**
- * Regression tests: exactly one edit event per structural op for every
- * site migrated to commitMultiScope in 0.5.5.3. Pre-migration, several of
- * these ops could fire zero or two events depending on the code path taken.
- *
- * Requirements: e2e/requirements/selection/multi-scope-event-count.md
- */
+// Exactly one edit event per structural op for every site using commitMultiScope.
+// Requirements: e2e/requirements/selection/multi-scope-event-count.md
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-/** Subscribe to edit events, perform the async action, return the count. */
 async function countEditEvents(
 	editor: EditorPage,
 	action: () => Promise<void>
@@ -80,9 +74,6 @@ test.describe('one edit event per op — splitItemAtOffset', () => {
 		await editor.goto();
 	});
 
-	// Pre-fix (before 4c07577) mid-item Enter emitted TWO events: one from the
-	// item-content replace and one from the outer-list sibling insert. This test
-	// fails on the pre-migration code and passes on the commitMultiScope version.
 	test('Enter mid-item emits exactly one edit event', async () => {
 		await editor.loadContent('- HelloWorld\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
@@ -134,12 +125,8 @@ test.describe('one edit event per op — blockquote splitBlock exit', () => {
 		await editor.goto();
 	});
 
-	// The blockquote exit path (Enter on empty trailing paragraph when the
-	// blockquote has more than one child) routes through commitMultiScope and
-	// must fire exactly one event. A two-child blockquote is the minimal case.
 	test('Enter on empty trailing blockquote paragraph emits exactly one edit event', async () => {
 		await editor.loadContent('> first\n>\n> \n');
-		// The last paragraph inside the blockquote is empty — click into it.
 		const paras = editor.page.locator('.blockquote-block [contenteditable="true"]');
 		await paras.last().click();
 		await editor.pressKey('Home');
@@ -179,7 +166,6 @@ test.describe('one edit event per op — cross-block delete', () => {
 
 	test('Backspace on cross-block selection spanning list and paragraph emits one edit event', async () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
-		// Click into the last list item and extend selection into the paragraph.
 		const lastItem = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
 		await lastItem.click();
 		await editor.pressKey('End');
@@ -205,28 +191,19 @@ test.describe('cross-block delete — list item id identity', () => {
 		await editor.goto();
 	});
 
-	// Mixed cross-scope delete (start descends into the list, end is at top
-	// level). computeScopeDescriptor now extends the touched range to cover
-	// cascade-removed siblings in the XOR-descent case, so idMap[0]=0
-	// preserves the real surviving item's id instead of inheriting a deleted
-	// sibling's.
 	test(
 		'surviving list item keeps start-item id after mixed cross-scope delete',
 		async () => {
 			await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 
-			// Record id of the first list item (alpha) before the delete.
 			const idsBefore: string[] = await editor.page.evaluate(() =>
 				(window as any).__test.getListItemIds(0)
 			);
 			const alphaId = idsBefore[0];
 			expect(alphaId).toBeTruthy();
 
-			// Select from offset 1 inside alpha's paragraph to the top-level
-			// paragraph "follow". One Shift+ArrowDown only reaches beta (still
-			// inside the list); a second Shift+ArrowDown crosses the list
-			// boundary to the top-level block. This makes it a mixed-scope
-			// selection — start descends into the list, end is at the top level.
+			// Two Shift+ArrowDown creates a mixed-scope selection: start descends
+			// into the list, end is the top-level paragraph.
 			await editor.focusBlockAtPath([0, 0, 0], 1);
 			await editor.pressKey('Shift+ArrowDown');
 			await editor.pressKey('Shift+ArrowDown');
@@ -234,12 +211,10 @@ test.describe('cross-block delete — list item id identity', () => {
 			await editor.pressBackspace();
 			await editor.page.waitForTimeout(300);
 
-			// After delete the list still has one item ("alfollow" or similar).
 			const idsAfter: string[] = await editor.page.evaluate(() =>
 				(window as any).__test.getListItemIds(0)
 			);
 			expect(idsAfter.length).toBe(1);
-			// The surviving item must keep alpha's id (not beta's).
 			expect(idsAfter[0]).toBe(alphaId);
 		}
 	);

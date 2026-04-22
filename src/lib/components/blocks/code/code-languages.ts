@@ -1,13 +1,11 @@
 /**
- * Language registry for code-block tokenization. All tokenizer access goes
- * through here — nothing outside `code-surface/` imports highlight.js directly.
- * Plugin seam: static vs. dynamic loading is a policy on top of `registerLanguage`.
+ * Language registry for code-block tokenization. Nothing outside this directory
+ * imports highlight.js directly; static vs. dynamic loading is a policy on top.
  */
 
 import type { LanguageFn } from 'highlight.js';
 
 export interface LanguageGrammar {
-	/** Lowercased canonical name — always the first-registration form. */
 	readonly name: string;
 	readonly definition: LanguageFn;
 }
@@ -15,7 +13,7 @@ export interface LanguageGrammar {
 const grammars = new Map<string, LanguageGrammar>();
 const aliases = new Map<string, string>();
 
-/** Idempotent — calls after the first with the same name are no-ops. */
+/** Idempotent — repeat calls with the same name are no-ops. */
 export function registerLanguage(
 	name: string,
 	definition: LanguageFn,

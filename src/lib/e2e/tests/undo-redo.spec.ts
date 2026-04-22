@@ -11,8 +11,6 @@ test.describe('undo and redo', () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 	});
 
-	// ── Happy paths ─────────────────────────────────────────────────────
-
 	test('undo reverts a split (Enter then Ctrl+Z restores single block)', async () => {
 		const before = await editor.getSource();
 		await editor.focusBlockEnd(0);
@@ -47,8 +45,6 @@ test.describe('undo and redo', () => {
 		await editor.undo();
 		expect(await editor.getSource()).toBe(before);
 	});
-
-	// ── Edge cases ──────────────────────────────────────────────────────
 
 	test('undo reverts a merge (Backspace at start of block)', async () => {
 		const before = await editor.getSource();

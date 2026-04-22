@@ -1,9 +1,3 @@
-/**
- * Code block creation via typing ``` — behavior in the immediate aftermath
- * of a paragraph re-parsing as an unclosed fenced code block.
- *
- * See e2e/requirements/blocks/code/creation.md.
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
@@ -26,14 +20,11 @@ test.describe('code block creation — Enter after typing ```', () => {
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(150);
 
-		// Typing after Enter must land on a new body line inside the fence.
 		await editor.typeText('body');
 		await editor.page.waitForTimeout(150);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
 
-		// Source must contain the opener followed by a newline and "body".
-		// Bug 4a would have swallowed Enter and landed "body" on the opener line,
-		// producing "```body\n" with no intervening newline.
+		// Regression: swallowed Enter would land "body" on the opener line ("```body").
 		const source = await editor.getSource();
 		expect(source).toMatch(/```\n+body/);
 	});
@@ -54,8 +45,7 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		await editor.page.waitForTimeout(150);
 		expect(await editor.getBlockKind(0)).toBe('fencedCode');
 
-		// Type one more backtick — user is trying to close/extend the fence.
-		// Auto-pair must not fire (would produce `` ``, yielding 5 backticks total).
+		// Auto-pair must not fire while the fence is unclosed (would yield 5 backticks).
 		await editor.typeSlowly('`');
 		await editor.page.waitForTimeout(150);
 
@@ -70,8 +60,6 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		await editor.typeSlowly('```');
 		await editor.page.waitForTimeout(150);
 
-		// Move into the body. Enter inside an unclosed fence inserts a newline
-		// (also the bug 4a behavior under test).
 		await editor.pressEnter();
 		await editor.page.waitForTimeout(150);
 
@@ -80,17 +68,13 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 
 		const source = await editor.getSource();
 		const backticks = (source.match(/`/g) ?? []).length;
-		// Opener ``` (3) + one typed ` (1) = 4. Auto-pair would produce 5.
 		expect(backticks).toBe(4);
 	});
 
 	test('backtick inside a closed fence still auto-pairs', async () => {
-		// Regression guard: the auto-pair suppression must be scoped to
-		// unclosed fences only. Inside a closed fence, ` pairs normally.
 		await editor.loadContent('```\n\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
-		// Walk past the opener (4 chars: "```\n") onto the empty body line.
 		for (let i = 0; i < 4; i++) {
 			await editor.page.keyboard.press('ArrowRight');
 		}
@@ -98,7 +82,6 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		await editor.page.waitForTimeout(150);
 
 		const source = await editor.getSource();
-		// Body should now contain ``, not a lone `.
 		const match = source.match(/^```\n([\s\S]*?)\n```\s*$/);
 		expect(match, `could not parse body from:\n${source}`).not.toBeNull();
 		expect(match![1]).toBe('``');

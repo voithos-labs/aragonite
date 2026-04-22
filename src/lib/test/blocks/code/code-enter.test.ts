@@ -25,13 +25,10 @@ describe('computeCodeEnter — normal mode', () => {
 	});
 
 	it('uses the indent of the line containing the selection start, not the end', () => {
-		// Range crosses from a 4-space line into an unindented line — Enter
-		// deletes the range, so the surviving line is "    foo" and its indent
-		// must be preserved.
 		const display = '    foo\nbar';
 		const result = computeCodeEnter({
 			display,
-			selection: { start: 7, end: 11 }, // from end of "    foo" through end of "bar"
+			selection: { start: 7, end: 11 },
 			mode: 'normal'
 		});
 		expect(result.newText).toBe('    foo\n    ');
@@ -61,7 +58,7 @@ describe('computeCodeEnter — normal mode', () => {
 	it('replaces a non-empty selection with a newline + start-line indent', () => {
 		const result = computeCodeEnter({
 			display: '  hello world',
-			selection: { start: 7, end: 13 }, // "world"
+			selection: { start: 7, end: 13 },
 			mode: 'normal'
 		});
 		expect(result.newText).toBe('  hello\n  ');
@@ -71,7 +68,7 @@ describe('computeCodeEnter — normal mode', () => {
 	it('uses no indent when the cursor sits on an empty line', () => {
 		const result = computeCodeEnter({
 			display: 'a\n\nb',
-			selection: { start: 2, end: 2 }, // on the empty middle line
+			selection: { start: 2, end: 2 },
 			mode: 'normal'
 		});
 		expect(result.newText).toBe('a\n\n\nb');
@@ -95,7 +92,7 @@ describe('computeCodeEnter — soft mode', () => {
 	it('splits mid-line without copying indent', () => {
 		const result = computeCodeEnter({
 			display: '\tfoo\tbar',
-			selection: { start: 4, end: 4 }, // between "foo" and "\tbar"
+			selection: { start: 4, end: 4 },
 			mode: 'soft'
 		});
 		expect(result.newText).toBe('\tfoo\n\tbar');

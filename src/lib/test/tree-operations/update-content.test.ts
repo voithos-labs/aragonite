@@ -50,11 +50,8 @@ describe('updateNodeContent', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
 		const result = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
-		// The raw is stored as-is (the full multi-block text)
 		expect(doc.children[0].raw).toBe('# Heading\n\nParagraph\n');
-		// But kind is determined by re-parsing — only the first block matters
 		expect(doc.children[0].kind).toBe('heading');
-		// Document still has 1 child (updateNodeContent doesn't split)
 		expect(doc.children).toHaveLength(1);
 	});
 

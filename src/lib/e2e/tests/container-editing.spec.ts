@@ -1,7 +1,3 @@
-/**
- * Container block editing — focuses on blockquote behavior and cross-container
- * interactions. Single-container list behavior lives in blocks/list/rendering.spec.ts.
- */
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
@@ -47,7 +43,6 @@ test.describe('blockquote editing', () => {
 	});
 
 	test('blockquote exit via double-Enter keeps caret visible', async () => {
-		// Regression: pressing Enter twice in a blockquote lost the caret.
 		await editor.loadContent('> Line one.\n>\n> Line two.\n');
 		const editables = editor.getBlock(0).locator('[contenteditable="true"]');
 		await editables.last().click();
@@ -92,9 +87,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "First" should be plain paragraph (no > prefix on its line)
 		expect(source).toMatch(/^First/m);
-		// "Second" should still be inside a blockquote
 		expect(source).toMatch(/^> Second/m);
 	});
 
@@ -109,8 +102,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// After one press: cursor is still inside the outer blockquote, but the
-		// inner blockquote is gone. Expect one level of > prefix, not two.
 		expect(source).toContain('> Deep');
 		expect(source).not.toContain('> > ');
 	});
@@ -124,7 +115,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.getSource();
-		// "Above" and "Hello" should be separate paragraphs, not merged.
 		expect(source).toContain('Above paragraph.');
 		expect(source).toContain('Hello');
 		expect(source).not.toContain('Above paragraph.Hello');
@@ -132,8 +122,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 	});
 
 	test('blockquote containing a list: Backspace at start of list item unwraps inside blockquote', async () => {
-		// Cross-container: U1 (list first-item unwrap) runs against the inner
-		// list while the outer blockquote stays intact.
 		await editor.loadContent('> - Item\n');
 		const item = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await item.click();
@@ -147,8 +135,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 	});
 
 	test('Backspace at non-zero offset inside blockquote does character delete, not unwrap (U2 negative)', async () => {
-		// U2 must only fire at offset 0. At any other offset inside the first
-		// paragraph, Backspace is a normal character delete.
 		await editor.loadContent('> Hello world\n');
 		const bq = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await bq.click();
@@ -156,7 +142,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// Blockquote still exists (prefix preserved), content lost one char.
 		expect(source).toMatch(/^> Hello worl/m);
 		expect(source).not.toMatch(/^Hello/m);
 	});
@@ -171,16 +156,13 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 	});
 
 	test('flat blockquote: Backspace at start of following paragraph merges into inner paragraph', async () => {
-		// Blank-line separator is required now that CommonMark §5.1 lazy
-		// continuation is implemented — without the blank line, "text2"
-		// would be absorbed into the blockquote's paragraph at parse time.
+		// Blank-line separator is required due to CommonMark §5.1 lazy continuation.
 		await editor.loadContent('> text\n\ntext2\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
 		await para.click();
 		await editor.pressKey('Home');
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
-		// The outer paragraph is gone; blockquote's inner paragraph is now "texttext2"
 		const source = await editor.getSource();
 		expect(source).toMatch(/^> texttext2$/m);
 		expect(source).not.toMatch(/^text2$/m);
@@ -193,15 +175,12 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.pressKey('Home');
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
-		// Typing Z should splice into the join point: texttext2 → textZtext2
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 		expect(await editor.getSource()).toMatch(/^> textZtext2$/m);
 	});
 
 	test('multi-paragraph blockquote: only the last inner paragraph receives the merge', async () => {
-		// Blank-line separator required to keep "text" as a separate top-level
-		// paragraph after the lazy-continuation fix.
 		await editor.loadContent('> first\n>\n> second\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
@@ -245,25 +224,14 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.pressKey('Home');
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
-		// No merge happened — the blockquote and the following paragraph stay separate
 		const source = await editor.getSource();
 		expect(source).toMatch(/^> para$/m);
 		expect(source).toMatch(/^text$/m);
-		// The fenced code block is still there
 		expect(source).toContain('```');
 		expect(source).toContain('code');
 	});
 });
 
-// Covers the factory mergeWithPrevious container+prose path. When an inner
-// container block (blockquote or list) sits before a paragraph inside a
-// BlockList, Backspace at the start of that paragraph triggers the factory's
-// mergeWithPrevious with an eligible container+prose pair. The factory calls
-// performMerge(trimmed prev raw + curr raw) and re-parses — the re-parser
-// naturally extends the container's last prose leaf with the trailing text,
-// producing the same result a walker-based approach would. This test pins
-// that the concat+reparse approach merges trailing text into the deepest
-// reachable prose leaf for every nested scenario exercised below.
 test.describe('inner container+paragraph merge inside a blockquote', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
@@ -272,7 +240,6 @@ test.describe('inner container+paragraph merge inside a blockquote', () => {
 	});
 
 	test('Backspace in trailing paragraph inside blockquote merges into deepest prose leaf of preceding nested blockquote', async () => {
-		// Outer blockquote children = [paragraph "one", nested-blockquote "nested", paragraph "three"]
 		await editor.loadContent('> one\n>\n> > nested\n>\n> three\n');
 		const three = editor.page.locator('[contenteditable="true"]', { hasText: /^three$/ });
 		await three.click();
@@ -280,7 +247,6 @@ test.describe('inner container+paragraph merge inside a blockquote', () => {
 		await editor.pressBackspace();
 		await editor.page.waitForTimeout(200);
 		const source = await editor.getSource();
-		// "three" is merged into "nested" (deepest reachable prose leaf inside the preceding nested blockquote)
 		expect(source).toMatch(/nestedthree/);
 		expect(source).toMatch(/^> one$/m);
 		expect(source).not.toMatch(/^three$/m);

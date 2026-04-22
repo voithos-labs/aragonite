@@ -39,9 +39,6 @@
 	const bundle = createStandardNestedActions(
 		state,
 		{
-			// Reactive props via getters — factory closures always read the
-			// current values (resilient to parent splitBlock shifting index or
-			// undo/redo cloning the tree).
 			get index() {
 				return index;
 			},

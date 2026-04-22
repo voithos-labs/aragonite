@@ -34,15 +34,10 @@
 	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
-	// Read parent's ListContext before wrapping — reads methods like
-	// exitListAtItem/insertItemAfter that come from the parent list.
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
-	// Wrap parent's ListContext with a getContainingItemIndex that returns
-	// this item's index. A nested ListBlock rendered inside this item reads
-	// the wrapped version, so its call to getContainingItemIndex() returns
-	// *this* item's position in the outer list — what promoteNestedItem
-	// needs as the parentItemIndex coordinate.
+	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
+	// this item's index in the outer list — the coordinate promoteNestedItem needs.
 	const wrappedListContext: ListContext = {
 		...listContext,
 		getContainingItemIndex: () => index
@@ -74,20 +69,12 @@
 		},
 		() => ({
 			blockEdit: {
-				// List-item Enter semantics:
-				// 1. Empty item — exit list via listContext.exitListAtItem.
-				// 2. At end of last child — insert new empty sibling item.
-				// 3. In middle — split content across two items via splitItemAtOffset.
 				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
 					if (!node.children) return;
 
-					// Empty item — exit list. An item is "user-empty" (for Enter's
-					// purposes) if its first child is an empty paragraph, even when
-					// trailing structural children exist. Per the requirements spec,
-					// those trailing children should be relocated to adjacent items
-					// by exitListAtItem — a fix tracked in docs/issues.md. The
-					// shallower check here is the correct Enter-path intent; the
-					// deeper recursive walker (isItemUserEmpty) is Backspace semantics.
+					// Enter-empty: first child is an empty paragraph. Deliberately shallower than
+					// isItemUserEmpty (used by Backspace) — trailing structural children stay
+					// until exitListAtItem relocates them (see docs/issues.md).
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 					if (isEmptyItem) {
@@ -104,12 +91,9 @@
 						return;
 					}
 
-					// In middle — split content across two items.
 					await listContext.splitItemAtOffset(index, innerIndex, offset);
 				}
-				// mergeWithPrevious at innerIndex <= 0 delegates to
-				// parentBlockEdit.mergeWithPrevious(index) — that is already
-				// the factory default, so no override is needed.
+				// mergeWithPrevious at innerIndex <= 0 is the factory default — no override needed.
 			}
 		})
 	);
@@ -142,22 +126,10 @@
 		return null;
 	}
 
-	/**
-	 * Cascade focus down a path of child indices inside this list item.
-	 * Used by ListBlock.focusByPath when the next path element addresses
-	 * a nested list inside this item.
-	 */
 	export function focusByPath(path: number[], offset: number): void {
 		dispatchFocusByPath(state.innerBlockRefs, path, offset);
 	}
 
-	/**
-	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * inside this list item's first (from='above') or last (from='below')
-	 * inner block. Delegates to the child block's focusAtColumn? if available,
-	 * else falls back to focus(0) / focus(CURSOR_END). List item itself does
-	 * no pixel math — it just picks the right child and forwards.
-	 */
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!node.children || node.children.length === 0) return;
 		dispatchFocusAtColumn(state.innerBlockRefs, x, from);

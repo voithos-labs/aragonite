@@ -1,9 +1,7 @@
 /**
- * Paragraph parser — the fallback for any line that doesn't match a more
- * specific block opener. Also owns setext heading detection (when the next
- * line is `===` or `---` underline) and table detection (when the second line
- * is a delimiter row). These emerge from inside paragraph parsing rather than
- * having their own top-level matchers, which is why they live here.
+ * Paragraph fallback. Also owns setext heading and table detection — both
+ * emerge from paragraph continuation (next-line lookahead) rather than
+ * having their own top-level matchers.
  */
 
 import type { CstNode } from '../nodes';
@@ -21,7 +19,6 @@ export function parseParagraph(
 	endIndex: number,
 	leadingTrivia: string
 ): { node: CstNode; nextIndex: number } {
-	// Check for table: first line has a pipe and second line is a delimiter row
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
 		if (delimiter && lines[startIndex].text.includes('|')) {
@@ -32,7 +29,6 @@ export function parseParagraph(
 	let i = startIndex + 1;
 
 	while (i < endIndex && !isBlankLine(lines[i].text) && !startsNewBlock(lines[i].text)) {
-		// Check if this line is a setext underline for the paragraph above
 		const setext = matchSetextUnderline(lines[i].text);
 		if (setext) {
 			const raw = joinRaw(lines, startIndex, i + 1);
@@ -92,14 +88,9 @@ function parseTable(
 }
 
 /**
- * Continuation-scan interruption check. A paragraph stops absorbing lines
- * when the next line starts a new block.
- *
- * Thematic breaks here are restricted to `***` and `___` — `---` is
- * deliberately excluded because it is ambiguous with a setext level-2
- * underline, and the setext check in the paragraph-continuation loop has
- * first claim on it. `***` and `___` have no such ambiguity and must
- * interrupt per CommonMark §4.8.
+ * Paragraph-interrupt check. Thematic breaks are restricted to `***` and
+ * `___` — `---` is ambiguous with a setext L2 underline, and the setext
+ * branch above has first claim on it.
  */
 export function startsNewBlock(text: string): boolean {
 	if (matchFenceOpen(text)) return true;

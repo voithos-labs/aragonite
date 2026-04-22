@@ -1,18 +1,12 @@
 /**
- * Static bootstrap for the 17 starter code-block languages. Called from
- * Editor.svelte onMount; idempotent across multiple editor mounts.
- *
- * Also registers the code-block PasteSurface so pasteDispatch knows how
- * to handle paste into fencedCode nodes.
- *
- * Adding a language = one import + one registerLanguage call here.
+ * Idempotent bootstrap for code-block languages + the fencedCode PasteSurface.
+ * Adding a language = one import + one registerLanguage call.
  */
 
 import { registerLanguage } from './code-languages';
 import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
 
-// Tier 1 — the 11 core languages
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
 import python from 'highlight.js/lib/languages/python';
@@ -25,7 +19,6 @@ import sql from 'highlight.js/lib/languages/sql';
 import xml from 'highlight.js/lib/languages/xml';
 import css from 'highlight.js/lib/languages/css';
 
-// Tier 2 — the 6 additional common languages
 import java from 'highlight.js/lib/languages/java';
 import c from 'highlight.js/lib/languages/c';
 import cpp from 'highlight.js/lib/languages/cpp';
@@ -39,7 +32,6 @@ export function bootstrapCodeLanguages(): void {
 	if (booted) return;
 	booted = true;
 
-	// Tier 1
 	registerLanguage('javascript', javascript, ['js']);
 	registerLanguage('typescript', typescript, ['ts']);
 	registerLanguage('python', python, ['py']);
@@ -52,7 +44,6 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('html', xml, ['htm']); // hljs 'xml' grammar handles HTML
 	registerLanguage('css', css);
 
-	// Tier 2
 	registerLanguage('java', java);
 	registerLanguage('c', c);
 	registerLanguage('cpp', cpp, ['c++']);
