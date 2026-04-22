@@ -5,10 +5,7 @@ import { EditorPage } from '../../editor-page';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function countEditEvents(
-	editor: EditorPage,
-	action: () => Promise<void>
-): Promise<number> {
+async function countEditEvents(editor: EditorPage, action: () => Promise<void>): Promise<number> {
 	await editor.page.evaluate(() => (window as any).__test.startEditCount());
 	await action();
 	return editor.page.evaluate(() => (window as any).__test.stopEditCount());
@@ -191,31 +188,55 @@ test.describe('cross-block delete — list item id identity', () => {
 		await editor.goto();
 	});
 
-	test(
-		'surviving list item keeps start-item id after mixed cross-scope delete',
-		async () => {
-			await editor.loadContent('- alpha\n- beta\n\nfollow\n');
+	test('surviving list item keeps start-item id after mixed cross-scope delete', async () => {
+		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 
-			const idsBefore: string[] = await editor.page.evaluate(() =>
-				(window as any).__test.getListItemIds(0)
-			);
-			const alphaId = idsBefore[0];
-			expect(alphaId).toBeTruthy();
+		const idsBefore: string[] = await editor.page.evaluate(() =>
+			(window as any).__test.getListItemIds(0)
+		);
+		const alphaId = idsBefore[0];
+		expect(alphaId).toBeTruthy();
 
-			// Two Shift+ArrowDown creates a mixed-scope selection: start descends
-			// into the list, end is the top-level paragraph.
-			await editor.focusBlockAtPath([0, 0, 0], 1);
-			await editor.pressKey('Shift+ArrowDown');
-			await editor.pressKey('Shift+ArrowDown');
-			await editor.waitForCrossBlock(true);
-			await editor.pressBackspace();
+		// Two Shift+ArrowDown creates a mixed-scope selection: start descends
+		// into the list, end is the top-level paragraph.
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await editor.pressBackspace();
+		await editor.page.waitForTimeout(300);
+
+		const idsAfter: string[] = await editor.page.evaluate(() =>
+			(window as any).__test.getListItemIds(0)
+		);
+		expect(idsAfter.length).toBe(1);
+		expect(idsAfter[0]).toBe(alphaId);
+	});
+});
+
+// ── nested paste (paste-dispatch applyStructuralResult) ─────────────────────
+
+test.describe('one edit event per op — nested paste', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('paste multi-block content inside a list item emits exactly one edit event', async () => {
+		await editor.loadContent('- Item 1\n- Item 2\n');
+		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item 1' });
+		await first.click();
+		await editor.pressKey('End');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo\n'));
+
+		const count = await countEditEvents(editor, async () => {
+			await editor.pressKey(process.platform === 'darwin' ? 'Meta+KeyV' : 'Control+KeyV');
 			await editor.page.waitForTimeout(300);
+		});
 
-			const idsAfter: string[] = await editor.page.evaluate(() =>
-				(window as any).__test.getListItemIds(0)
-			);
-			expect(idsAfter.length).toBe(1);
-			expect(idsAfter[0]).toBe(alphaId);
-		}
-	);
+		expect(count).toBe(1);
+	});
 });
