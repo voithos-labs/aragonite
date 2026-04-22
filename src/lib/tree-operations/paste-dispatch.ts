@@ -9,7 +9,6 @@
  * may address a block about to be unmounted by the range delete.
  */
 
-import { tick } from 'svelte';
 import type { UndoController } from '../components/editor-actions/deps';
 import type { BlockKind, CstNode, Document } from '../core/nodes';
 import type { BlockEditActions } from '../contracts';
@@ -20,7 +19,6 @@ import { isProseKind, parseInline, getContentRange } from '../core/inline';
 import { buildPastedReplacement } from './paste-replacement';
 import { nodeAt } from './node-ops';
 import { rebuildContainerRawIfContainer } from './container-raw';
-import { generateBlockId } from './block-id';
 import { getStateForNode } from '../components/blocks/container-state/state-registry';
 import {
 	registerPasteSurface,
@@ -427,18 +425,29 @@ async function applyContainerMatchingPaste(
 		return;
 	}
 
-	// TODO: migrate via multi-scope commit primitive
-	outerState.commitChildrenEdit((children, ids, refs) => {
-		children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
-		ids.splice(unwrap.spliceIndex, 1, ...unwrap.items.map(() => generateBlockId()));
-		refs.splice(unwrap.spliceIndex, 1, ...new Array(unwrap.items.length).fill(undefined));
-	});
-
-	const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
-	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
-	await tick();
-
-	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+	await ctx.controller.commitMultiScope(
+		[{ node: outer, state: outerState }],
+		ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		(scopeChildren) => {
+			const children = scopeChildren[0].children;
+			children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
+			outer.children = children;
+			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
+			rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
+			return [
+				{ op: 'replace', at: unwrap.spliceIndex, count: 1, newCount: unwrap.items.length }
+			];
+		},
+		{
+			kind: 'paste',
+			detail: { source: 'container-matching', outerPath: unwrap.outerPath },
+			eventPath: unwrap.outerPath
+		},
+		() => {
+			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
+			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+		}
+	);
 }
 
 /**
@@ -497,11 +506,21 @@ async function applyContainerMatchingMerge(
 	rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
 
 	if (remainingItems.length === 0) {
-		// Force a reactivity publish so the bind updates with the new target-leaf content.
-		// TODO: migrate via multi-scope commit primitive
-		outerState.commitChildrenEdit(() => {});
-		await tick();
-		outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
+		// Publish a noop structural change to flush reactivity after the in-place
+		// raw mutation on targetLeaf; otherwise the bind doesn't observe the update.
+		await ctx.controller.commitMultiScope(
+			[{ node: outer, state: outerState }],
+			ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+			() => [{ op: 'noop' }],
+			{
+				kind: 'paste',
+				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
+				eventPath: unwrap.outerPath
+			},
+			() => {
+				outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
+			}
+		);
 		return;
 	}
 
@@ -510,16 +529,25 @@ async function applyContainerMatchingMerge(
 	// children carry correct raws in one reactive flush.
 	rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
-	// TODO: migrate via multi-scope commit primitive
-	outerState.commitChildrenEdit((children, ids, refs) => {
-		children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
-		ids.splice(unwrap.spliceIndex + 1, 0, ...remainingItems.map(() => generateBlockId()));
-		refs.splice(unwrap.spliceIndex + 1, 0, ...new Array(remainingItems.length).fill(undefined));
-	});
-
-	const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-	rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
-	await tick();
-
-	outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+	await ctx.controller.commitMultiScope(
+		[{ node: outer, state: outerState }],
+		ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		(scopeChildren) => {
+			const children = scopeChildren[0].children;
+			children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
+			outer.children = children;
+			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
+			rebuildAncestryForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
+			return [{ op: 'insert', at: unwrap.spliceIndex + 1, count: remainingItems.length }];
+		},
+		{
+			kind: 'paste',
+			detail: { source: 'container-matching-merge', outerPath: unwrap.outerPath },
+			eventPath: unwrap.outerPath
+		},
+		() => {
+			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
+			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+		}
+	);
 }

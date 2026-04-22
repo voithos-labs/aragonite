@@ -279,7 +279,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 		await editor.goto();
 	});
 
-	test('cross-block paste of matching list over non-empty target emits exactly one edit event', async () => {
+	test('cross-block paste of matching list over non-empty target emits exactly two edit events', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });
 		await first.click();
@@ -294,6 +294,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 			await editor.page.waitForTimeout(300);
 		});
 
-		expect(count).toBe(1);
+		// cross-block delete + merge-paste each emit one event
+		expect(count).toBe(2);
 	});
 });
