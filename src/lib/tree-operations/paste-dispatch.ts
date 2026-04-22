@@ -93,6 +93,13 @@ export async function pasteDispatch(
 	}
 
 	const surface = getPasteSurface(targetNode.kind);
+	if (import.meta.env.DEV && surface === undefined) {
+		console.warn(
+			`[paste-dispatch] No paste surface registered for kind`,
+			targetNode.kind,
+			`— falling through to default hooks. Register via registerPasteSurface() if this kind has its own paste semantics.`
+		);
+	}
 	const clipboardStrategy = pickPasteStrategy(parsed);
 
 	// Surfaces that omit `onStructuralPaste` (e.g. code blocks) force all
