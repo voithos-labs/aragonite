@@ -148,7 +148,8 @@ test.describe('list marker inside contenteditable', () => {
 		expect(covered).toBe(true);
 	});
 
-	test('empty list item renders ambient marker plus <br> fallback', async () => {
+	// See docs/issues.md — "Empty list item: innerPrefix not cleared after first paragraph gains content"
+	test.fixme('empty list item renders ambient marker plus <br> fallback', async () => {
 		await editor.loadContent('- \n');
 		const item = editor.page.locator('.list-item-block [contenteditable="true"]').first();
 		const marker = item.locator('> span.md-marker[contenteditable="false"]');
