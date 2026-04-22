@@ -66,7 +66,7 @@ Kind-to-DOM mapping:
 | autolink      | styled span for URL                                                              |
 | hardLineBreak | marker span for `\` or spaces + text node `\n` (not `<br>`)                      |
 
-**Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. The contenteditable's `textContent` equals `raw` (minus trailing line ending), preserving the input → textContent → raw flow.
+**Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. The contenteditable's textContent equals `ambientPrefix + raw` (minus trailing line ending), where `ambientPrefix` is a read-only string contributed by a parent container to its first prose child (e.g., a list item contributes its `- ` marker). `ambientPrefix === ''` for every block that is not a container's first prose child, recovering the simple textContent-equals-raw equality. Cursor offsets at the block boundary translate between DOM and raw via a single translation pair (`domToRawOffset` / `rawToDomOffset` in `contenteditable/ambient-offset.ts`).
 
 **Design rules:**
 
