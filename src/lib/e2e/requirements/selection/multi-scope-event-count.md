@@ -15,6 +15,9 @@ mutations, which could fire zero or two events depending on code path.
 - `insertItemAfter` (Enter at end of item) — one edit event
 - `blockquote splitBlock exit` (Enter on empty trailing paragraph inside blockquote) — one edit event
 - `cross-block delete` (Backspace/Delete spanning two containers) — one edit event
+- Paste structural content inside a list item (nested paste): exactly one edit event per op.
+- Paste a matching list into a list with a matching ancestor and empty target (container-matching paste): exactly one edit event per op.
+- Paste a matching list over a non-empty target in a cross-block context (container-matching merge): exactly one edit event per op.
 
 ## Identity preservation (cross-block delete, mixed scope)
 
