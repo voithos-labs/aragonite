@@ -422,6 +422,33 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getRawCursorOffset() ?? 0;
 
+		// Exclude the ambient marker from Ctrl+A selection — marker belongs to the container.
+		// Chromium clips a range whose start sits inside the contenteditable="false" ambient
+		// text node, so anchor the start after the ambient span and build the end with the
+		// offset-walking helper (which skips the ambient text and lands in raw content).
+		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey && ambientLength > 0 && el) {
+			const textLen = (el.textContent ?? '').length;
+			if (textLen > ambientLength) {
+				e.preventDefault();
+				const endRange = createRangeFromOffsets(el, textLen, textLen);
+				const ambientSpan = el.firstChild;
+				if (endRange && ambientSpan) {
+					const range = document.createRange();
+					const textAfter = firstTextNodeAfter(ambientSpan);
+					if (textAfter) {
+						range.setStart(textAfter, 0);
+					} else {
+						range.setStartAfter(ambientSpan);
+					}
+					range.setEnd(endRange.endContainer, endRange.endOffset);
+					const sel = window.getSelection();
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
+				return;
+			}
+		}
+
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
