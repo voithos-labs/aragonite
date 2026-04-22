@@ -193,7 +193,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
-		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
+		getCursorOffset: () => getRawCursorOffset(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
@@ -401,9 +401,7 @@
 	function isAmbientSpan(node: Node): boolean {
 		if (node.nodeType !== Node.ELEMENT_NODE) return false;
 		const span = node as HTMLElement;
-		return (
-			span.classList.contains('md-marker') && span.getAttribute('contenteditable') === 'false'
-		);
+		return span.classList.contains('md-marker') && span.getAttribute('contenteditable') === 'false';
 	}
 
 	function onCompositionStart(): void {
