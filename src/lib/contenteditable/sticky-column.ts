@@ -1,8 +1,26 @@
 /**
  * Sticky column: the intended horizontal cursor position (editor-relative
  * pixel X) that persists across multiple vertical arrow key presses, surviving
- * intermediate clamping on shorter visual lines. Captured on the first
- * vertical arrow after a reset, used at every cross-block focus transition.
+ * intermediate clamping on shorter visual lines.
+ *
+ * Two-axis contract for participating surfaces (a surface that implements
+ * focusAtColumn):
+ *
+ * 1. Capture (source-block responsibility). The block that holds focus when
+ *    the user presses ArrowUp/ArrowDown MUST call stickyColumn.capture(x) with
+ *    the cursor's editor-relative pixel X, before any cross-block focus
+ *    transition. handleSharedKeydown performs this capture in its prelude;
+ *    blocks that route their keydown through it participate automatically.
+ *    Surfaces that bypass handleSharedKeydown (future plugins with custom
+ *    arrow handling) MUST replicate the capture call themselves.
+ *
+ * 2. Consumption (caller-reads-and-passes). When a cross-block focus
+ *    transition runs through moveFocus({ stickyColumnFrom }), the focus
+ *    dispatcher (editor-actions/focus.ts or container-state/focus-dispatch.ts)
+ *    reads stickyColumn.get(), null-checks, and either invokes
+ *    focusAtColumn(x, from) with the finite x or falls back to
+ *    focus(0) / focus(CURSOR_END). Target blocks' focusAtColumn is a pure
+ *    receiver — x is always finite; null-handling lives in the dispatcher.
  */
 
 export interface StickyColumnState {
