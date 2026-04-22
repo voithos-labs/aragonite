@@ -48,19 +48,22 @@
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
+	import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
 
 	let {
 		node,
 		index,
 		myPath = [],
 		blockClass = 'paragraph-block',
-		splitOnEnter = true
+		splitOnEnter = true,
+		ambientPrefix = ''
 	}: {
 		node: CstNode;
 		index: number;
 		myPath?: number[];
 		blockClass?: string;
 		splitOnEnter?: boolean;
+		ambientPrefix?: string;
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -81,10 +84,33 @@
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
-	/** Last raw string the $effect rendered — prevents spurious rebuilds. */
-	let lastRenderedRaw = '';
+	/** Last (ambientPrefix, raw) pair the $effect rendered — prevents spurious rebuilds. */
+	let lastRenderedKey = '';
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
+
+	const ambientLength = $derived(ambientPrefix.length);
+
+	function getRawCursorOffset(): number | null {
+		if (!el) return null;
+		const dom = getCursorOffsetHelper(el);
+		return dom === null ? null : domToRawOffset(dom, ambientLength);
+	}
+
+	function setRawCursorOffset(offset: number): void {
+		if (!el) return;
+		setCursorOffsetHelper(el, rawToDomOffset(Math.max(0, offset), ambientLength));
+	}
+
+	function getRawSelectionOffsets(): { start: number; end: number } | null {
+		if (!el) return null;
+		const dom = getSelectionOffsetsHelper(el);
+		if (!dom) return null;
+		return {
+			start: domToRawOffset(dom.start, ambientLength),
+			end: domToRawOffset(dom.end, ambientLength)
+		};
+	}
 
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => el ?? null,
@@ -140,17 +166,25 @@
 	}
 
 	/**
-	 * Build the DOM fragment for inline content, including the block-level marker.
+	 * Build the DOM fragment for inline content, prepending the ambient marker
+	 * (container-owned, contenteditable="false" island) and the block-own marker.
 	 * Takes content as parameter to avoid reading node.inlineContent (which would
 	 * require mutating the node prop and trigger Svelte 5 ownership cascades).
 	 */
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
-		const prefix = getBlockMarkerPrefix();
-		if (prefix) {
+		if (ambientPrefix) {
+			const ambientSpan = document.createElement('span');
+			ambientSpan.className = 'md-marker';
+			ambientSpan.setAttribute('contenteditable', 'false');
+			ambientSpan.textContent = ambientPrefix;
+			frag.appendChild(ambientSpan);
+		}
+		const blockOwnPrefix = getBlockMarkerPrefix();
+		if (blockOwnPrefix) {
 			const span = document.createElement('span');
 			span.className = 'md-marker';
-			span.textContent = prefix;
+			span.textContent = blockOwnPrefix;
 			frag.appendChild(span);
 		}
 		frag.appendChild(renderInlineNodes(content, node.raw));
@@ -165,19 +199,18 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		setCursorOffsetHelper(el, Math.max(0, offset));
+		setRawCursorOffset(offset);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!el) return;
 		el.focus();
-		const targetOffset = findOffsetNearestX(el, x, from);
-		setCursorOffsetHelper(el, targetOffset);
+		const domOffset = findOffsetNearestX(el, x, from);
+		setRawCursorOffset(domToRawOffset(domOffset, ambientLength));
 	}
 
 	export function getCursorOffset(): number | null {
-		if (!el) return null;
-		return getCursorOffsetHelper(el);
+		return getRawCursorOffset();
 	}
 
 	export function getSelectedText(): string {
@@ -189,7 +222,11 @@
 
 	export function setSelection(start: number, end: number): void {
 		if (!el) return;
-		const range = createRangeFromOffsets(el, start, end);
+		const range = createRangeFromOffsets(
+			el,
+			rawToDomOffset(start, ambientLength),
+			rawToDomOffset(end, ambientLength)
+		);
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
@@ -198,7 +235,9 @@
 
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		if (!el) return [];
-		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
+		const domStart = startOffset === 0 ? 0 : rawToDomOffset(startOffset, ambientLength);
+		const domEnd = rawToDomOffset(endOffset, ambientLength);
+		return measurePartialRectsInContentEditable(el, domStart, domEnd);
 	}
 
 	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
@@ -212,11 +251,10 @@
 	$effect(() => {
 		if (!el) return;
 
+		const renderKey = `${ambientPrefix}\0${node.raw}`;
+
 		if (isProseKind(node.kind)) {
-			// Guard: skip rebuild if raw hasn't changed (spurious re-run).
-			// This also covers kind changes — updateNodeContent always sets
-			// node.raw when kind changes, so raw change implies kind change.
-			if (node.raw === lastRenderedRaw && pendingCursorOffset === null) return;
+			if (renderKey === lastRenderedKey && pendingCursorOffset === null) return;
 
 			// Compute inline content locally — do NOT write to node.inlineContent.
 			// Mutating the node prop triggers Svelte 5's ownership system, which causes
@@ -225,19 +263,19 @@
 			const range = getContentRange(node);
 			const content = parseInline(node.raw, range.start, range.end);
 			el.replaceChildren(buildInlineDOM(content));
-			lastRenderedRaw = node.raw;
+			lastRenderedKey = renderKey;
 		} else {
 			const display = getDisplayText();
 			if (el.textContent !== display) {
 				el.textContent = display;
-				lastRenderedRaw = node.raw;
+				lastRenderedKey = renderKey;
 			}
 		}
 
 		ensureBr();
 
 		if (pendingCursorOffset !== null) {
-			setCursorOffsetHelper(el, pendingCursorOffset);
+			setRawCursorOffset(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});
@@ -254,12 +292,13 @@
 	function onInput(): void {
 		stickyColumn.reset();
 		if (composing || !el) return;
-		const text = el.textContent ?? '';
-		const savedOffset = getCursorOffsetHelper(el) ?? 0;
-		blockEdit.updateBlockContent(index, text + '\n', savedOffset);
+		const domText = el.textContent ?? '';
+		const text = ambientLength > 0 ? domText.slice(ambientLength) : domText;
+		const savedRawOffset = getRawCursorOffset() ?? 0;
+		blockEdit.updateBlockContent(index, text + '\n', savedRawOffset);
 
 		// Signal the $effect to restore cursor after it rebuilds the DOM.
-		pendingCursorOffset = savedOffset;
+		pendingCursorOffset = savedRawOffset;
 	}
 
 	function onCompositionStart(): void {
@@ -276,7 +315,7 @@
 		if (composing) return;
 
 		// Save cursor position before the browser modifies the DOM
-		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
+		preEditOffset = getRawCursorOffset() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
@@ -311,7 +350,7 @@
 		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
 		if (e.key === 'Enter' && e.shiftKey) {
 			e.preventDefault();
-			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const offset = getRawCursorOffset() ?? 0;
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, offset) + '\\\n' + displayText.slice(offset);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
@@ -321,7 +360,7 @@
 
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const offset = getRawCursorOffset() ?? 0;
 			if (splitOnEnter) {
 				blockEdit.splitBlock(index, offset);
 			} else {
@@ -337,7 +376,7 @@
 		// Skipped inside a list item — ListItemBlock owns Tab there.
 		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
 			e.preventDefault();
-			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const offset = getRawCursorOffset() ?? 0;
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, offset) + '\t' + displayText.slice(offset);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
@@ -346,7 +385,7 @@
 		}
 
 		if (e.key === 'Backspace') {
-			const offset = getCursorOffsetHelper(el!);
+			const offset = getRawCursorOffset();
 			if (offset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithPrevious(index);
@@ -355,9 +394,9 @@
 		}
 
 		if (e.key === 'Delete') {
-			const offset = getCursorOffsetHelper(el!);
-			const textLen = (el?.textContent ?? '').length;
-			if (offset === textLen && !hasSelectionHelper()) {
+			const offset = getRawCursorOffset();
+			const rawLen = getDisplayText().length;
+			if (offset === rawLen && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithNext(index);
 				return;
@@ -407,7 +446,7 @@
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
 
-		const selOffsets = getSelectionOffsetsHelper(el!);
+		const selOffsets = getRawSelectionOffsets();
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
@@ -424,8 +463,8 @@
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
-		const offset = getCursorOffsetHelper(el!) ?? 0;
-		const selOffsets = getSelectionOffsetsHelper(el!);
+		const offset = getRawCursorOffset() ?? 0;
+		const selOffsets = getRawSelectionOffsets();
 
 		const result = await pasteDispatch(
 			{
@@ -454,7 +493,7 @@
 
 	function toggleFormat(format: 'strong' | 'emphasis'): void {
 		if (!el) return;
-		const offsets = getSelectionOffsetsHelper(el);
+		const offsets = getRawSelectionOffsets();
 		if (!offsets) return;
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
@@ -473,7 +512,7 @@
 	// ── Helpers ─────────────────────────────────────────────────────────
 
 	function getSelectedTextFromRaw(): string {
-		const offsets = getSelectionOffsetsHelper(el!);
+		const offsets = getRawSelectionOffsets();
 		if (!offsets) return '';
 		return node.raw.slice(offsets.start, offsets.end);
 	}
