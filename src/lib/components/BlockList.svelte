@@ -6,18 +6,26 @@
 		children,
 		blockIds,
 		blockRefs = $bindable([]),
-		parentPath = []
+		parentPath = [],
+		ambientPrefixForFirst = ''
 	}: {
 		children: CstNode[];
 		blockIds: string[];
 		blockRefs?: (BlockComponent | undefined)[];
 		parentPath?: number[];
+		ambientPrefixForFirst?: string;
 	} = $props();
 </script>
 
 <div class="block-list">
 	{#each children as node, i (blockIds[i])}
-		<BlockHost {node} index={i} {parentPath} bind:ref={blockRefs[i]} />
+		<BlockHost
+			{node}
+			index={i}
+			{parentPath}
+			ambientPrefix={i === 0 ? ambientPrefixForFirst : ''}
+			bind:ref={blockRefs[i]}
+		/>
 	{/each}
 </div>
 
