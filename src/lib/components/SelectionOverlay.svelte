@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_KEY, type BlockComponent } from '../contracts';
+	import { SELECTION_KEY, SELECTION_END, type BlockComponent } from '../contracts';
 	import type { SelectionState } from '../selection/selection-state.svelte';
 	import {
 		normalize,
@@ -79,9 +79,8 @@
 
 		const { start, end } = normalize({ anchor: selection.anchor, focus: selection.focus });
 
-		// MAX_SAFE_INTEGER leans on createRangeFromOffsets' clamping behavior.
 		const startOffset = classification === 'start' ? start.offset : 0;
-		const endOffset = classification === 'start' ? Number.MAX_SAFE_INTEGER : end.offset;
+		const endOffset = classification === 'start' ? SELECTION_END : end.offset;
 
 		const viewportRects: DOMRect[] = blockRef.measurePartialRects(startOffset, endOffset);
 		const blockRect = blockEl.getBoundingClientRect();
