@@ -34,6 +34,7 @@
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
 		getCursorOffset as getCursorOffsetHelper,
+		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../contenteditable/cursor-utils';
@@ -208,6 +209,11 @@
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
 		getCursorOffset: () => getRawCursorOffset(),
+		getFocusOffset: () => {
+			if (!el) return null;
+			const dom = getSelectionFocusOffsetHelper(el);
+			return dom === null ? null : domToRawOffset(dom, ambientLength);
+		},
 		getTextLen: () => getDisplayText().length,
 		getMyPath: () => myPath,
 		getIndex: () => index,
