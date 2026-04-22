@@ -13,6 +13,7 @@ import type { SelectionState } from './selection-state.svelte';
 import { comparePaths } from './primitives';
 import { createRangeFromOffsets, getCursorOffset } from '../contenteditable/cursor-utils';
 import { domToRawOffset, rawToDomOffset } from '../contenteditable/ambient-offset';
+import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ export function readNativeCaretInBlock(
 ): SelectionPoint | null {
 	const domOffset = getCursorOffset(blockEl);
 	if (domOffset === null) return null;
-	return { path: path.slice(), offset: domToRawOffset(domOffset, ambientLengthInBlock(blockEl)) };
+	return { path: path.slice(), offset: domToRawOffset(domOffset, ambientLengthOf(blockEl)) };
 }
 
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
@@ -40,7 +41,7 @@ export function readNativeCaretInBlock(
  * scope. Mirrors TextEditableBlock.setCursorToAmbientBoundary.
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
-	const ambient = ambientLengthInBlock(blockEl);
+	const ambient = ambientLengthOf(blockEl);
 	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
 	const dom = rawToDomOffset(point.offset, ambient);
 	const range = createRangeFromOffsets(blockEl, dom, dom);
@@ -55,7 +56,7 @@ export function applySingleBlockRange(
 	startOffset: number,
 	endOffset: number
 ): void {
-	const ambient = ambientLengthInBlock(blockEl);
+	const ambient = ambientLengthOf(blockEl);
 	const range = createRangeFromOffsets(
 		blockEl,
 		rawToDomOffset(startOffset, ambient),
@@ -154,7 +155,7 @@ export function offsetFromViewportPoint(
 	const doc = blockEl.ownerDocument;
 	// caretRangeFromPoint is Chromium/WebKit (all Tauri webviews);
 	// caretPositionFromPoint is the Firefox-style fallback.
-	const ambient = ambientLengthInBlock(blockEl);
+	const ambient = ambientLengthOf(blockEl);
 	const rangeFromPoint = (
 		doc as Document & {
 			caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -187,68 +188,4 @@ function domToCharOffset(root: HTMLElement, node: Node, nodeOffset: number): num
 	range.setStart(root, 0);
 	range.setEnd(node, nodeOffset);
 	return range.toString().length;
-}
-
-/**
- * Length of the ambient marker span contributed by a list-item container to
- * its first prose child's contenteditable. Zero when no marker is present.
- * Mirrors the `<span class="md-marker" contenteditable="false">` shape
- * `TextEditableBlock.buildInlineDOM` produces.
- */
-function ambientLengthInBlock(blockEl: HTMLElement): number {
-	const span = ambientSpanOf(blockEl);
-	return span ? (span.textContent?.length ?? 0) : 0;
-}
-
-function ambientSpanOf(blockEl: HTMLElement): HTMLElement | null {
-	const first = blockEl.firstChild;
-	if (!first || first.nodeType !== Node.ELEMENT_NODE) return null;
-	const span = first as HTMLElement;
-	if (!span.classList.contains('md-marker')) return null;
-	if (span.getAttribute('contenteditable') !== 'false') return null;
-	return span;
-}
-
-/**
- * Place a collapsed caret at the sibling boundary immediately after the
- * ambient marker span. Prefer the start of the first text node past the span
- * so visual-line geometry returns real rects; fall back to setStartAfter when
- * the span is the only child (empty-item state).
- */
-function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
-	const span = ambientSpanOf(blockEl);
-	if (!span) return false;
-	const range = document.createRange();
-	const textAfter = firstTextNodeAfter(span);
-	if (textAfter) {
-		range.setStart(textAfter, 0);
-	} else {
-		range.setStartAfter(span);
-	}
-	range.collapse(true);
-	const sel = window.getSelection();
-	sel?.removeAllRanges();
-	sel?.addRange(range);
-	return true;
-}
-
-function firstTextNodeAfter(node: Node): Text | null {
-	let sibling = node.nextSibling;
-	while (sibling) {
-		const text = firstTextDescendant(sibling);
-		if (text) return text;
-		sibling = sibling.nextSibling;
-	}
-	return null;
-}
-
-function firstTextDescendant(node: Node): Text | null {
-	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-		return node as Text;
-	}
-	for (const child of node.childNodes) {
-		const found = firstTextDescendant(child);
-		if (found) return found;
-	}
-	return null;
 }
