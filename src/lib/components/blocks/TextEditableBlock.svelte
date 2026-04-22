@@ -319,6 +319,12 @@
 	$effect(() => {
 		if (!el) return;
 
+		if (import.meta.env.DEV && ambientPrefix && !isProseKind(node.kind)) {
+			console.warn(
+				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
+			);
+		}
+
 		const renderKey = `${ambientPrefix}\0${node.raw}`;
 
 		if (isProseKind(node.kind)) {
