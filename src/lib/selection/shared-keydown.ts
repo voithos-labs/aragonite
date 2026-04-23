@@ -6,17 +6,17 @@
  */
 
 import type { BlockElLookup, DocumentGetter, FocusActions, HistoryActions } from '../contracts';
-import type { StickyColumnState } from './sticky-column';
-import { PRESERVE_KEYS_NON_ARROW } from './sticky-column';
-import type { SelectionState } from '../selection/selection-state.svelte';
-import type { CrossBlockHandlers } from '../selection/cross-block-dispatch';
+import type { StickyColumnState } from '../contenteditable/sticky-column';
+import { PRESERVE_KEYS_NON_ARROW } from '../contenteditable/sticky-column';
+import type { SelectionState } from './selection-state.svelte';
+import type { CrossBlockHandlers } from './cross-block-dispatch';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
 	scrollFocusBlockIntoView
-} from '../selection/keyboard-extend';
-import { getCurrentCursorEditorRelativeX } from './sticky-measure';
-import { isAtFirstVisualLine, isAtLastVisualLine } from './visual-lines';
+} from './keyboard-extend';
+import { getCurrentCursorEditorRelativeX } from '../contenteditable/sticky-measure';
+import { isAtFirstVisualLine, isAtLastVisualLine } from '../contenteditable/visual-lines';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
