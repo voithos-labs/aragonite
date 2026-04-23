@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent } from '../contracts';
+	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import { getBlockKindDescriptor } from '../tree-operations/block-kind-descriptor';
 	import { getBlockComponent } from '../block-component-registry';
@@ -15,7 +15,7 @@
 		node: CstNode;
 		index: number;
 		parentPath?: number[];
-		ambientPrefix?: string;
+		ambientPrefix?: AmbientPrefix;
 		ref?: BlockComponent;
 	} = $props();
 
