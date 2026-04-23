@@ -112,10 +112,13 @@ async function commitPureTopLevelDelete(
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
 
-	await ctx.controller.commitStructural(
-		start.path[0],
-		start.offset,
-		(topLevelChildren) => {
+	const snapshot = options?.skipSnapshot
+		? ('skip' as const)
+		: { blockIndex: start.path[0], offset: start.offset };
+
+	await ctx.controller.commitStructural({
+		snapshot,
+		mutate: (topLevelChildren) => {
 			const proxyDoc = { children: topLevelChildren } as Document;
 			const beforeLen = topLevelChildren.length;
 			const result = rangeDelete(proxyDoc, start, end);
@@ -124,12 +127,9 @@ async function commitPureTopLevelDelete(
 			ctx.selection.collapse();
 			return topLevelStructuralChange(start.path, end.path, beforeLen, afterLen);
 		},
-		caretRestore ? () => caretRestore(collapsedCaret) : undefined,
-		{
-			skipSnapshot: options?.skipSnapshot,
-			op: { kind: 'delete', detail: { crossBlock: true } }
-		}
-	);
+		op: { kind: 'delete', detail: { crossBlock: true } },
+		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+	});
 
 	return collapsedCaret;
 }
@@ -169,10 +169,10 @@ async function commitCrossContainerDelete(
 
 	let collapsedCaret: SelectionPoint | null = null;
 
-	await ctx.controller.commitMultiScope(
+	await ctx.controller.commitMultiScope({
 		scopes,
-		options?.skipSnapshot ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
-		(scopeChildren) => {
+		snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
+		mutate: (scopeChildren) => {
 			// Read lengths by node reference BEFORE mutation. Paths go stale
 			// as rangeDelete splices (middle top-level block shifts indices);
 			// node references stay valid because splices happen in place.
@@ -201,9 +201,9 @@ async function commitCrossContainerDelete(
 				)
 			);
 		},
-		{ kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
-		caretRestore ? () => caretRestore(collapsedCaret) : undefined
-	);
+		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
+		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+	});
 
 	return collapsedCaret;
 }

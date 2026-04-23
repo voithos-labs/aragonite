@@ -38,22 +38,22 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					if (node.children.length <= 1) {
 						parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
-						await deps.controller.commitMultiScope(
-							[{ node, state }],
-							{ blockIndex: index, offset: 0 },
-							(scopeChildren) => {
+						await deps.controller.commitMultiScope({
+							scopes: [{ node, state }],
+							snapshot: { blockIndex: index, offset: 0 },
+							mutate: (scopeChildren) => {
 								const change = performDelete(scopeChildren[0], innerIndex);
 								// Sync before rebuild — rebuildBlockquoteRaw reads node.children directly.
 								node.children = scopeChildren[0].children;
 								rebuildBlockquoteRaw(node);
 								return [change];
 							},
-							{
+							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },
 								eventPath: [index]
 							}
-						);
+						});
 						await tick();
 						parentFocus.moveFocus(index + 1, 'start');
 					}

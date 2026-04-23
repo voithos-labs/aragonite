@@ -112,10 +112,10 @@ export async function applyContainerMatchingPaste(
 		return;
 	}
 
-	await ctx.controller.commitMultiScope(
-		[{ node: outer, state: outerState }],
-		ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		(scopeChildren) => {
+	await ctx.controller.commitMultiScope({
+		scopes: [{ node: outer, state: outerState }],
+		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		mutate: (scopeChildren) => {
 			const children = scopeChildren[0].children;
 			children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
 			outer.children = children;
@@ -123,16 +123,16 @@ export async function applyContainerMatchingPaste(
 			rebuildAncestryRawForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
 			return [{ op: 'replace', at: unwrap.spliceIndex, count: 1, newCount: unwrap.items.length }];
 		},
-		{
+		op: {
 			kind: 'paste',
 			detail: { source: 'container-matching', outerPath: unwrap.outerPath },
 			eventPath: unwrap.outerPath
 		},
-		() => {
+		afterTick: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
 			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
 		}
-	);
+	});
 }
 
 /**
@@ -164,10 +164,10 @@ async function applyContainerMatchingMerge(
 	const remainingItems = unwrap.items.slice(1);
 
 	if (remainingItems.length === 0) {
-		await ctx.controller.commitMultiScope(
-			[{ node: outer, state: outerState }],
-			ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-			() => {
+		await ctx.controller.commitMultiScope({
+			scopes: [{ node: outer, state: outerState }],
+			snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+			mutate: () => {
 				targetLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
 				if (isProseKind(targetLeaf.kind)) {
 					const range = getContentRange(targetLeaf);
@@ -176,15 +176,15 @@ async function applyContainerMatchingMerge(
 				rebuildAncestryRawForLeaf(ctx.doc, merge.targetLeafPath);
 				return [{ op: 'noop' }];
 			},
-			{
+			op: {
 				kind: 'paste',
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
 				eventPath: unwrap.outerPath
 			},
-			() => {
+			afterTick: () => {
 				outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
 			}
-		);
+		});
 		return;
 	}
 
@@ -193,10 +193,10 @@ async function applyContainerMatchingMerge(
 	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
-	await ctx.controller.commitMultiScope(
-		[{ node: outer, state: outerState }],
-		ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		(scopeChildren) => {
+	await ctx.controller.commitMultiScope({
+		scopes: [{ node: outer, state: outerState }],
+		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		mutate: (scopeChildren) => {
 			targetLeaf.raw = displayBefore + firstItemText + targetLineEnding;
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
 			if (isProseKind(targetLeaf.kind)) {
@@ -222,14 +222,14 @@ async function applyContainerMatchingMerge(
 			rebuildAncestryRawForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
 			return [{ op: 'insert', at: unwrap.spliceIndex + 1, count: remainingItems.length }];
 		},
-		{
+		op: {
 			kind: 'paste',
 			detail: { source: 'container-matching-merge', outerPath: unwrap.outerPath },
 			eventPath: unwrap.outerPath
 		},
-		() => {
+		afterTick: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
 			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
 		}
-	);
+	});
 }

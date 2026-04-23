@@ -32,23 +32,23 @@ export function createContainerEditActions(
 			deps.doc.children = [...deps.doc.children];
 		},
 
-		commitContainer(containerNode, state, snapshot, mutate, afterTick, op): Promise<void> {
-			return controller.commitContainerStructural(
+		commitContainer({ containerNode, state, snapshot, mutate, op, afterTick }): Promise<void> {
+			return controller.commitContainerStructural({
 				containerNode,
 				state,
 				snapshot,
 				mutate,
-				afterTick,
 				// Public interface widens to `string` for ergonomics; OperationKind
 				// is the internal source of truth.
-				op
+				op: op
 					? {
 							kind: op.kind as OperationKind,
 							detail: op.detail,
 							eventPath: op.eventPath
 						}
-					: undefined
-			);
+					: undefined,
+				afterTick
+			});
 		}
 	};
 }

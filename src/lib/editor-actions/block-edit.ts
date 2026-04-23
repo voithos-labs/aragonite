@@ -28,13 +28,12 @@ export function createBlockEditActions(
 		// ── Structural split / merge / delete ─────────────────────────────────
 
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
-			await controller.commitStructural(
-				blockIndex,
-				offset,
-				(children) => performSplit({ children }, blockIndex, offset),
-				() => deps.blockRefs[blockIndex + 1]?.focus(0),
-				{ op: { kind: 'split', detail: { at: offset } } }
-			);
+			await controller.commitStructural({
+				snapshot: { blockIndex, offset },
+				mutate: (children) => performSplit({ children }, blockIndex, offset),
+				op: { kind: 'split', detail: { at: offset } },
+				afterTick: () => deps.blockRefs[blockIndex + 1]?.focus(0)
+			});
 		},
 
 		async mergeWithPrevious(blockIndex: number): Promise<void> {
@@ -48,13 +47,12 @@ export function createBlockEditActions(
 
 			if (!isMergeEligible(prevKind, currKind)) {
 				if (!isBlockEditable(prevKind)) {
-					await controller.commitStructural(
-						blockIndex,
-						0,
-						(children) => performDelete({ children }, blockIndex - 1),
-						() => deps.blockRefs[blockIndex - 1]?.focus(0),
-						{ op: { kind: 'delete' } }
-					);
+					await controller.commitStructural({
+						snapshot: { blockIndex, offset: 0 },
+						mutate: (children) => performDelete({ children }, blockIndex - 1),
+						op: { kind: 'delete' },
+						afterTick: () => deps.blockRefs[blockIndex - 1]?.focus(0)
+					});
 				} else {
 					deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
 				}
@@ -80,10 +78,9 @@ export function createBlockEditActions(
 			const joinOffset = targetText.length;
 			const mergedRaw = targetText + currText + lineEnding;
 
-			await controller.commitStructural(
-				blockIndex,
-				0,
-				(children) => {
+			await controller.commitStructural({
+				snapshot: { blockIndex, offset: 0 },
+				mutate: (children) => {
 					// `target` references into the shallow-copied tree shared with
 					// childrenCopy, so this write reaches the committed children.
 					target.raw = mergedRaw;
@@ -101,15 +98,15 @@ export function createBlockEditActions(
 
 					return performDelete({ children }, blockIndex);
 				},
-				() => {
+				op: { kind: 'merge', detail: { direction: 'prev' } },
+				afterTick: () => {
 					if (mergeTarget.path.length === 0) {
 						deps.blockRefs[blockIndex - 1]?.focus(joinOffset);
 					} else {
 						deps.blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
 					}
-				},
-				{ op: { kind: 'merge', detail: { direction: 'prev' } } }
-			);
+				}
+			});
 		},
 
 		async mergeWithNext(blockIndex: number): Promise<void> {
@@ -121,13 +118,12 @@ export function createBlockEditActions(
 
 			if (!isMergeEligible(currKind, nextKind)) {
 				if (!isBlockEditable(nextKind)) {
-					await controller.commitStructural(
-						blockIndex,
-						CURSOR_END,
-						(children) => performDelete({ children }, blockIndex + 1),
-						() => deps.blockRefs[blockIndex]?.focus(CURSOR_END),
-						{ op: { kind: 'delete' } }
-					);
+					await controller.commitStructural({
+						snapshot: { blockIndex, offset: CURSOR_END },
+						mutate: (children) => performDelete({ children }, blockIndex + 1),
+						op: { kind: 'delete' },
+						afterTick: () => deps.blockRefs[blockIndex]?.focus(CURSOR_END)
+					});
 				} else {
 					deps.blockRefs[blockIndex + 1]?.focus(0);
 				}
@@ -136,28 +132,26 @@ export function createBlockEditActions(
 
 			const mergeOffset = displayLength(deps.doc.children[blockIndex].raw);
 
-			await controller.commitStructural(
-				blockIndex,
-				CURSOR_END,
-				(children) => performMergeNext({ children }, blockIndex),
-				() => deps.blockRefs[blockIndex]?.focus(mergeOffset),
-				{ op: { kind: 'merge', detail: { direction: 'next' } } }
-			);
+			await controller.commitStructural({
+				snapshot: { blockIndex, offset: CURSOR_END },
+				mutate: (children) => performMergeNext({ children }, blockIndex),
+				op: { kind: 'merge', detail: { direction: 'next' } },
+				afterTick: () => deps.blockRefs[blockIndex]?.focus(mergeOffset)
+			});
 		},
 
 		async deleteBlock(blockIndex: number): Promise<void> {
-			await controller.commitStructural(
-				blockIndex,
-				0,
-				(children) => performDelete({ children }, blockIndex),
-				() => {
+			await controller.commitStructural({
+				snapshot: { blockIndex, offset: 0 },
+				mutate: (children) => performDelete({ children }, blockIndex),
+				op: { kind: 'delete' },
+				afterTick: () => {
 					const focusIndex = Math.min(blockIndex, deps.doc.children.length - 1);
 					if (focusIndex >= 0) {
 						deps.blockRefs[focusIndex]?.focus(0);
 					}
-				},
-				{ op: { kind: 'delete' } }
-			);
+				}
+			});
 		},
 
 		// ── Content update ────────────────────────────────────────────────────
@@ -175,15 +169,14 @@ export function createBlockEditActions(
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				// performUpdate mutated the tree in place; commitStructural swaps the
 				// children array atomically so Svelte remounts at the new kind.
-				await controller.commitStructural(
-					blockIndex,
-					preEditOffset ?? 0,
-					() => ({ op: 'noop' }),
-					() => {
+				await controller.commitStructural({
+					snapshot: 'skip',
+					mutate: () => ({ op: 'noop' }),
+					op: { kind: 'updateContent', detail: { length: text.length } },
+					afterTick: () => {
 						deps.blockRefs[blockIndex]?.focus(focusOffset);
-					},
-					{ skipSnapshot: true, op: { kind: 'updateContent', detail: { length: text.length } } }
-				);
+					}
+				});
 			}
 			// Non-kindChanged: routine typing. The debounced snapshot above holds
 			// the undo seam; `input` edit events fire at debounce-flush time.
@@ -198,20 +191,17 @@ export function createBlockEditActions(
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
 
-			await controller.commitStructural(
-				blockIndex,
-				0,
-				() => {
+			const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex, offset: 0 };
+
+			await controller.commitStructural({
+				snapshot,
+				mutate: () => {
 					const node = deps.doc.children[blockIndex];
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					return { op: 'noop' };
 				},
-				undefined,
-				{
-					...options,
-					op: { kind: 'metadataUpdate', detail: { fields } }
-				}
-			);
+				op: { kind: 'metadataUpdate', detail: { fields } }
+			});
 		},
 
 		// ── Paste / replace ───────────────────────────────────────────────────
@@ -243,10 +233,11 @@ export function createBlockEditActions(
 			const newNodes = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
-			await controller.commitStructural(
-				blockIndex,
-				offset,
-				(children) => {
+			const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex, offset };
+
+			await controller.commitStructural({
+				snapshot,
+				mutate: (children) => {
 					children.splice(blockIndex, 1, ...newNodes);
 					// First replacement inherits the original block's id + ref.
 					return {
@@ -257,11 +248,11 @@ export function createBlockEditActions(
 						idMap: { 0: 0 }
 					};
 				},
-				() => {
+				op: { kind: 'paste', detail: { count: newNodes.length } },
+				afterTick: () => {
 					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
-				},
-				{ ...options, op: { kind: 'paste', detail: { count: newNodes.length } } }
-			);
+				}
+			});
 		},
 
 		async replaceBlock(
@@ -281,10 +272,13 @@ export function createBlockEditActions(
 				parseAllInlineContent(normalizedReplacement);
 			}
 
-			await controller.commitStructural(
-				blockIndex,
-				focus?.offset ?? 0,
-				(children) => {
+			const snapshot = options?.skipSnapshot
+				? ('skip' as const)
+				: { blockIndex, offset: focus?.offset ?? 0 };
+
+			await controller.commitStructural({
+				snapshot,
+				mutate: (children) => {
 					if (normalizedReplacement.length === 0) {
 						children.splice(blockIndex, 1);
 						return { op: 'delete', at: blockIndex, count: 1 };
@@ -301,17 +295,14 @@ export function createBlockEditActions(
 						idMap: { 0: 0 }
 					};
 				},
-				() => {
+				op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } },
+				afterTick: () => {
 					if (focus && normalizedReplacement.length > 0) {
 						const targetIndex = blockIndex + focus.replacementIndex;
 						deps.blockRefs[targetIndex]?.focus(focus.offset);
 					}
-				},
-				{
-					...options,
-					op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } }
 				}
-			);
+			});
 		}
 	};
 }

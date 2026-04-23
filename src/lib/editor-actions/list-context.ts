@@ -63,10 +63,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				destList = existingNestedList;
 			}
 
-			await deps.controller.commitMultiScope(
+			await deps.controller.commitMultiScope({
 				scopes,
-				{ blockIndex: deps.index, offset: 0 },
-				(scopeChildren) => {
+				snapshot: { blockIndex: deps.index, offset: 0 },
+				mutate: (scopeChildren) => {
 					const [outerScope, destScope] = scopeChildren;
 
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
@@ -105,15 +105,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						{ op: 'insert', at: destScope.children.length - 1, count: 1 }
 					];
 				},
-				{
+				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'indentItem', itemIndex },
 					eventPath: [deps.index]
 				},
-				() => {
+				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
 				}
-			);
+			});
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
@@ -145,10 +145,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				rebuildListItemRaw(newItem);
 			}
 
-			await deps.controller.commitMultiScope(
-				[{ node, state: deps.state }],
-				{ blockIndex: deps.index, offset: 0 },
-				(scopeChildren) => {
+			await deps.controller.commitMultiScope({
+				scopes: [{ node, state: deps.state }],
+				snapshot: { blockIndex: deps.index, offset: 0 },
+				mutate: (scopeChildren) => {
 					scopeChildren[0].children.splice(itemIndex + 1, 0, newItem!);
 					// Sync before rebuild — rebuildListRaw reads node.children directly.
 					node.children = scopeChildren[0].children;
@@ -156,15 +156,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					rebuildListRaw(node);
 					return [{ op: 'insert', at: itemIndex + 1, count: 1 }];
 				},
-				{
+				op: {
 					kind: 'appendBlock',
 					detail: { itemIndex },
 					eventPath: [deps.index]
 				},
-				() => {
+				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 				}
-			);
+			});
 		},
 
 		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
@@ -179,13 +179,13 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Scope 0 = outer list (new sibling inserted).
 			// Scope 1 = this item (content split, second half moves to sibling).
 			// Combining both into one commit gives mid-item Enter a single undo entry.
-			await deps.controller.commitMultiScope(
-				[
+			await deps.controller.commitMultiScope({
+				scopes: [
 					{ node: outerList, state: deps.state },
 					{ node: item, state: itemState }
 				],
-				{ blockIndex: deps.index, offset },
-				(scopeChildren) => {
+				snapshot: { blockIndex: deps.index, offset },
+				mutate: (scopeChildren) => {
 					const outerChildren = scopeChildren[0].children;
 					const itemChildren = scopeChildren[1].children;
 
@@ -239,11 +239,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						} as StructuralChange
 					];
 				},
-				{ kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] },
-				() => {
+				op: { kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] },
+				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 				}
-			);
+			});
 		},
 
 		async promoteNestedItem(
@@ -275,10 +275,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				scopes.push({ node: parentItem, state: expectStateForNode(parentItem) });
 			}
 
-			await deps.controller.commitMultiScope(
+			await deps.controller.commitMultiScope({
 				scopes,
-				{ blockIndex: deps.index, offset: 0 },
-				(scopeChildren) => {
+				snapshot: { blockIndex: deps.index, offset: 0 },
+				mutate: (scopeChildren) => {
 					const outerChildren = scopeChildren[0].children;
 					const nestedChildren = scopeChildren[1].children;
 
@@ -321,15 +321,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 					return changes;
 				},
-				{
+				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
 					eventPath: [deps.index]
 				},
-				() => {
+				afterTick: () => {
 					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
 				}
-			);
+			});
 		},
 
 		getContainingItemIndex(): number {

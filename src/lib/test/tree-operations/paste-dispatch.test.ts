@@ -225,10 +225,10 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 
 		const controller = {
 			...makeStubController(),
-			commitMultiScope: vi.fn(async (_scopes, _snapshot, mutate) => {
+			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommitInvocation = targetLeaf.raw;
 				captured.mutate = mutate;
-				mutate(_scopes.map(() => ({ children: [] })));
+				mutate(scopes.map(() => ({ children: [] })));
 			})
 		} as unknown as UndoController;
 
@@ -265,7 +265,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 		let rawAtCommit: string | null = null;
 		const controller = {
 			...makeStubController(),
-			commitMultiScope: vi.fn(async (scopes, _snapshot, mutate) => {
+			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommit = targetLeaf.raw;
 				const scopeViews = scopes.map((s) => ({ children: [...(s.node.children ?? [])] }));
 				mutate(scopeViews);
