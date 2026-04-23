@@ -261,6 +261,17 @@ function pathHasPrefix(path: number[], prefix: number[]): boolean {
 	return true;
 }
 
+/** Exported for unit tests; internal-only — do not import outside test/. */
+export function __computeScopeDescriptorForTests(
+	ancestorPath: number[],
+	startPath: number[],
+	endPath: number[],
+	beforeLen: number,
+	afterLen: number
+): StructuralChange {
+	return computeScopeDescriptor(ancestorPath, startPath, endPath, beforeLen, afterLen);
+}
+
 /**
  * Compute a StructuralChange for one scope. Generalization of
  * topLevelStructuralChange to arbitrary depth.
