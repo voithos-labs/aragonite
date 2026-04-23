@@ -4,7 +4,6 @@
  * `commitMultiScope`.
  */
 
-import { tick } from 'svelte';
 import type { CstNode } from '../../../core/nodes';
 import {
 	FOCUS_LAST_START,
@@ -110,10 +109,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					kind: 'replaceBlock',
 					detail: { action: 'indentItem', itemIndex },
 					eventPath: [deps.index]
+				},
+				() => {
+					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
 				}
 			);
-
-			deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
@@ -160,10 +160,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					kind: 'appendBlock',
 					detail: { itemIndex },
 					eventPath: [deps.index]
+				},
+				() => {
+					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 				}
 			);
-			await tick();
-			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 		},
 
 		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
@@ -238,10 +239,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						} as StructuralChange
 					];
 				},
-				{ kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] }
+				{ kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] },
+				() => {
+					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
+				}
 			);
-			await tick();
-			deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 		},
 
 		async promoteNestedItem(
@@ -323,10 +325,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
 					eventPath: [deps.index]
+				},
+				() => {
+					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
 				}
 			);
-
-			deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
 		},
 
 		getContainingItemIndex(): number {
