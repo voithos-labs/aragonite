@@ -129,13 +129,13 @@ describe('findMergeTarget', () => {
 		expect(result!.path).toEqual([0, 1, 0, 0]);
 	});
 
-	it('blockquote with opaque deepest leaf (fenced code) returns null', () => {
+	it('blockquote with not-mergeable deepest leaf (fenced code) returns null', () => {
 		const prev = parseBlock('> before\n>\n> ```\n> code\n> ```\n');
 		const result = findMergeTarget(prev);
 		expect(result).toBeNull();
 	});
 
-	it('thematic break as prev returns null (opaque)', () => {
+	it('thematic break as prev returns null (not-mergeable)', () => {
 		const prev = parseBlock('---\n');
 		const result = findMergeTarget(prev);
 		expect(result).toBeNull();
@@ -188,7 +188,7 @@ describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
 		expect(result).toBe('- a\n  - btext\n');
 	});
 
-	it('blockquote with opaque deepest leaf: simulateMerge returns unchanged (walker returned null)', () => {
+	it('blockquote with not-mergeable deepest leaf: simulateMerge returns unchanged (walker returned null)', () => {
 		const input = '> para\n>\n> ```\n> code\n> ```\n';
 		const result = simulateMerge(input, 'text');
 		expect(result).toBe(input);

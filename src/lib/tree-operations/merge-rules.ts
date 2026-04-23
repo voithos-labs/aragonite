@@ -48,7 +48,7 @@ export interface MergeTarget {
 
 /**
  * Descend `node` into its last child at every step until landing on a prose
- * / prose-absorber leaf, or returning null on an opaque leaf / empty container.
+ * / prose-absorber leaf, or returning null on a not-mergeable leaf / empty container.
  * Uniform last-child descent works because blockquote, list, and list-item
  * children all place the visually-last element at children[length-1].
  */
@@ -68,7 +68,7 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
  * Find the leaf that should receive text merged into `prev`:
  *   prose / prose-absorber / self-merge → prev itself (empty path)
  *   container                           → deepest prose leaf in the subtree
- *   opaque                              → null (caller falls back to move-focus)
+ *   not-mergeable                       → null (caller falls back to move-focus)
  */
 export function findMergeTarget(prev: CstNode): MergeTarget | null {
 	const role = getMergeRole(prev.kind);
