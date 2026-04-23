@@ -21,7 +21,8 @@
 		type HistoryActions,
 		type CstNode,
 		type BlockComponent,
-		type StickyColumnDirection
+		type StickyColumnDirection,
+		type AmbientPrefix
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
@@ -63,8 +64,14 @@
 		myPath?: number[];
 		blockClass?: string;
 		splitOnEnter?: boolean;
-		ambientPrefix?: string;
+		ambientPrefix?: AmbientPrefix;
 	} = $props();
+
+	// Normalized plain-text view of ambientPrefix; Task 4 replaces body usages
+	// with a buildAmbientSpan helper that consumes the union directly.
+	const ambientPrefixText = $derived(
+		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
+	);
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
@@ -89,7 +96,7 @@
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
 
-	const ambientLength = $derived(ambientPrefix.length);
+	const ambientLength = $derived(ambientPrefixText.length);
 
 	const cursor = createAmbientCursorIO({
 		getEl: () => el ?? null,
@@ -158,11 +165,11 @@
 	 */
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
-		if (ambientPrefix) {
+		if (ambientPrefixText) {
 			const ambientSpan = document.createElement('span');
 			ambientSpan.className = 'md-marker';
 			ambientSpan.setAttribute('contenteditable', 'false');
-			ambientSpan.textContent = ambientPrefix;
+			ambientSpan.textContent = ambientPrefixText;
 			frag.appendChild(ambientSpan);
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
@@ -237,13 +244,13 @@
 	$effect(() => {
 		if (!el) return;
 
-		if (import.meta.env.DEV && ambientPrefix && !isProseKind(node.kind)) {
+		if (import.meta.env.DEV && ambientPrefixText && !isProseKind(node.kind)) {
 			console.warn(
 				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
 			);
 		}
 
-		const renderKey = `${ambientPrefix}\0${node.raw}`;
+		const renderKey = `${ambientPrefixText}\0${node.raw}`;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && pendingCursorOffset === null) return;
@@ -548,8 +555,8 @@
 	class="text-editable-block {blockClass}"
 	contenteditable="true"
 	role="textbox"
-	style:text-indent={ambientPrefix ? `-${ambientLength}ch` : null}
-	style:padding-left={ambientPrefix ? `${ambientLength}ch` : null}
+	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
+	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
