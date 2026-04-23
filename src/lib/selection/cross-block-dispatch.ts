@@ -152,6 +152,20 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
+	// Delete-then-redispatch: Enter, Shift+Enter, Tab, Ctrl+B, Ctrl+I, Ctrl+0..6
+	// are transformative operations the block-level handler resolves at the
+	// collapsed caret. Without this, the originating block's onKeyDown runs
+	// the op on a stale single-block raw while the cross-block selection
+	// visually persists. Delete the range first, then re-dispatch the same
+	// key to the newly-focused block so its handler resolves normally.
+	if (isDeleteThenRedispatchKey(e)) {
+		e.preventDefault();
+		await performCrossBlockDelete(mutCtx);
+		await ctx.afterReactivity();
+		redispatchKeyToActiveElement(e);
+		return true;
+	}
+
 	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
 	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
 
@@ -222,6 +236,51 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
 }
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
+
+/**
+ * Keys whose behavior is owned by the block-level handler at the caret and
+ * which must run at a collapsed caret, not while a cross-block selection
+ * visually persists over stale block indices.
+ */
+function isDeleteThenRedispatchKey(e: KeyboardEvent): boolean {
+	// Enter / Shift+Enter — block split, hard line break.
+	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
+	// Tab / Shift+Tab — list indent/unindent, paragraph literal tab.
+	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
+	// Ctrl+B, Ctrl+I — inline format toggles.
+	if (
+		(e.ctrlKey || e.metaKey) &&
+		!e.shiftKey &&
+		!e.altKey &&
+		(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
+	)
+		return true;
+	// Ctrl+0..6 — heading-level shortcut.
+	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
+	return false;
+}
+
+/**
+ * Re-fire the keydown at the post-delete active element. The collapsed caret
+ * restore focuses the merge target synchronously, so document.activeElement
+ * points at the block whose onKeyDown should handle the key.
+ */
+function redispatchKeyToActiveElement(e: KeyboardEvent): void {
+	const active = document.activeElement;
+	if (!(active instanceof HTMLElement)) return;
+	active.dispatchEvent(
+		new KeyboardEvent('keydown', {
+			key: e.key,
+			code: e.code,
+			shiftKey: e.shiftKey,
+			ctrlKey: e.ctrlKey,
+			metaKey: e.metaKey,
+			altKey: e.altKey,
+			bubbles: true,
+			cancelable: true
+		})
+	);
+}
 
 /**
  * Select the block's content for the first Ctrl+A press. When a container
