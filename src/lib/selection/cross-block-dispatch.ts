@@ -5,19 +5,16 @@
  */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './primitives';
 import type {
 	BlockElLookup,
 	BlockEditActions,
 	ContainerEditActions,
 	DocumentGetter
 } from '../contracts';
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import type { UndoController } from '../editor-actions/deps';
-import { collectCrossBlockText } from './clipboard-text';
-import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
 import {
 	collapseCrossBlock,
@@ -29,19 +26,12 @@ import {
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
 import { findBlockPathForElement } from './path-lookup';
-import { nodeAt } from '../tree-operations/node-ops';
-import {
-	applyCollapsedCaret,
-	clearNativeSelection,
-	offsetFromViewportPoint
-} from './native-bridge';
+import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
 import { installDragListener } from './drag-pointer';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
 import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
-import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
-import { pasteDispatch } from '../tree-operations/paste/dispatch';
-import { getStateForNode } from '../state-registry';
-import type { BlockListState } from '../block-list-state.svelte';
+import { handleCrossBlockPaste } from './cross-block-paste';
+import { handleCrossBlockTypeReplace } from './cross-block-type-replace';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -103,8 +93,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	return {
 		handleKeyDown: (e) => handleKeyDown(ctx, mutationCtx, e),
 		handlePointerDown: (e) => handlePointerDown(ctx, e),
-		handlePaste: (e) => handlePaste(ctx, mutationCtx, e),
-		handleBeforeInput: (e) => handleBeforeInput(ctx, mutationCtx, e),
+		handlePaste: (e) => handleCrossBlockPaste(ctx, mutationCtx, e),
+		handleBeforeInput: (e) => handleCrossBlockTypeReplace(ctx, mutationCtx, e),
 		handleCompositionStart: () => handleCompositionStart(ctx, mutationCtx),
 		performCrossBlockDeleteFromEvent: async () => {
 			await performCrossBlockDelete(mutationCtx);
@@ -243,11 +233,8 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
  * visually persists over stale block indices.
  */
 function isDeleteThenRedispatchKey(e: KeyboardEvent): boolean {
-	// Enter / Shift+Enter — block split, hard line break.
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	// Tab / Shift+Tab — list indent/unindent, paragraph literal tab.
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	// Ctrl+B, Ctrl+I — inline format toggles.
 	if (
 		(e.ctrlKey || e.metaKey) &&
 		!e.shiftKey &&
@@ -255,7 +242,6 @@ function isDeleteThenRedispatchKey(e: KeyboardEvent): boolean {
 		(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
 	)
 		return true;
-	// Ctrl+0..6 — heading-level shortcut.
 	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
 	return false;
 }
@@ -383,154 +369,6 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 	}
 
 	return false;
-}
-
-// ── Paste ──────────────────────────────────────────────────────────────────
-
-async function handlePaste(
-	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext,
-	e: ClipboardEvent
-): Promise<boolean> {
-	if (!ctx.selection.isCrossBlock) return false;
-
-	ctx.stickyColumn.reset();
-	e.preventDefault();
-	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-	if (!pasted) return true;
-
-	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave
-	// an intermediate "selection-deleted but blocks-not-inserted" state.
-	mutCtx.pushUndoSnapshot();
-
-	const doc = ctx.getDoc();
-	const caret = await performCrossBlockDelete(mutCtx, {
-		skipSnapshot: true,
-		skipCaretRestore: true
-	});
-	if (!caret) return true;
-
-	const result = await pasteDispatch(
-		{
-			pastedText: pasted,
-			targetPath: caret.path,
-			offset: caret.offset
-		},
-		{
-			doc,
-			blockEdit: ctx.blockEdit,
-			controller: ctx.controller,
-			skipSnapshot: true
-		}
-	);
-	ctx.containerEdit.nudgeReactivity();
-
-	// Place the caret via DOM rather than pendingCursor — the originating
-	// block may have been removed by the cross-block delete, leaving a
-	// pendingCursor write addressed to an unmounted component.
-	if (result.inlineCaretOffset !== undefined) {
-		await ctx.afterReactivity();
-		const inlineEl = ctx.getBlockElByPath(caret.path);
-		if (inlineEl) {
-			applyCollapsedCaret(inlineEl, {
-				path: caret.path,
-				offset: result.inlineCaretOffset
-			});
-			inlineEl.focus();
-		}
-	}
-	return true;
-}
-
-// ── BeforeInput ────────────────────────────────────────────────────────────
-
-async function handleBeforeInput(
-	ctx: CrossBlockDispatchContext,
-	mutCtx: CrossBlockMutationContext,
-	e: InputEvent
-): Promise<boolean> {
-	if (!ctx.selection.isCrossBlock || e.inputType !== 'insertText') return false;
-
-	e.preventDefault();
-	const typed = e.data ?? '';
-	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
-	if (!caret) return true;
-	if (!typed) {
-		applyCaretAtPath(ctx, caret);
-		return true;
-	}
-
-	const doc = ctx.getDoc();
-	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
-	if (!targetNode || !('raw' in targetNode)) {
-		applyCaretAtPath(ctx, caret);
-		return true;
-	}
-
-	// Route the splice through commitMultiScope so the mutation lands inside
-	// the commit primitive: parallel ids/refs reactivity contract honored,
-	// op:'input' event emitted symmetrically with the single-block path
-	// (block-edit.ts updateBlockContent → debounced flush). skipSnapshot keeps
-	// the typed character in the same undo unit as performCrossBlockDelete.
-	const scope = resolveTypedCharScope(ctx, caret.path);
-	if (!scope) {
-		applyCaretAtPath(ctx, caret);
-		return true;
-	}
-
-	await ctx.controller.commitMultiScope(
-		[scope],
-		'skip',
-		() => {
-			targetNode.raw =
-				targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
-			ctx.afterRawMutated?.(targetNode);
-			if (caret.path.length >= 2) rebuildAncestryRawForLeaf(doc, caret.path);
-			return [{ op: 'noop' }];
-		},
-		{
-			kind: 'input',
-			detail: { byteLength: typed.length },
-			eventPath: caret.path
-		},
-		() => applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })
-	);
-	return true;
-}
-
-function applyCaretAtPath(
-	ctx: CrossBlockDispatchContext,
-	point: { path: number[]; offset: number }
-): void {
-	const blockEl = ctx.getBlockElByPath(point.path);
-	if (blockEl) {
-		applyCollapsedCaret(blockEl, point);
-		blockEl.focus();
-	}
-}
-
-/**
- * Pick the smallest commit scope covering the typed-char target. Doc-scope
- * for top-level leaves; nearest container ancestor with a registered
- * BlockListState for nested leaves. Returns null when no scope is mounted —
- * caller falls back to direct caret restore.
- */
-function resolveTypedCharScope(
-	ctx: CrossBlockDispatchContext,
-	leafPath: number[]
-): { node: CstNode; state: BlockListState } | null {
-	if (leafPath.length === 1) {
-		const docScope = ctx.controller.getDocScope();
-		return { node: docScope.node, state: docScope.state };
-	}
-	const doc = ctx.getDoc();
-	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, leafPath.slice(0, depth)) as CstNode | null;
-		if (!ancestor) continue;
-		const state = getStateForNode(ancestor);
-		if (state) return { node: ancestor, state };
-	}
-	return null;
 }
 
 // ── CompositionStart ───────────────────────────────────────────────────────
