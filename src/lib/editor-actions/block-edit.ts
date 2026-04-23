@@ -13,6 +13,7 @@ import {
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
 	rebuildAncestryRaw,
+	rebuildContainerRawIfContainer,
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../tree-operations';
@@ -198,6 +199,9 @@ export function createBlockEditActions(
 				mutate: () => {
 					const node = deps.doc.children[blockIndex];
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
+					// Metadata feeds raw for list items (taskMarker) — resync so
+					// serialize/reconciliation sees the new source.
+					rebuildContainerRawIfContainer(node);
 					return { op: 'noop' };
 				},
 				op: { kind: 'metadataUpdate', detail: { fields } }
