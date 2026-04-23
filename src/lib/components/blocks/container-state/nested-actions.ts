@@ -272,14 +272,14 @@ export function createStandardNestedActions(
 			// Routine typing — debounced undo path, no structural commit. Pass
 			// the inner leaf's id as the batch key so focus moves between
 			// sibling leaves inside this container break the typing batch.
-			parent.containerEdit.beginContainerEditDebounced(
+			parent.containerEdit.pushDebouncedCheckpoint(
 				deps.index,
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
 			performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
-			parent.containerEdit.endContainerEdit();
+			parent.containerEdit.nudgeReactivity();
 		},
 
 		async updateBlockMetadata(
@@ -422,21 +422,21 @@ export function createStandardNestedActions(
 	};
 
 	const containerEdit: ContainerEditActions = {
-		beginContainerEdit(_innerIndex: number, offset: number): void {
-			parent.containerEdit.beginContainerEdit(deps.index, offset);
+		pushCheckpoint(_innerIndex: number, offset: number): void {
+			parent.containerEdit.pushCheckpoint(deps.index, offset);
 		},
 
-		beginContainerEditDebounced(
+		pushDebouncedCheckpoint(
 			_innerIndex: number,
 			offset: number,
 			batchKey?: string | number
 		): void {
-			parent.containerEdit.beginContainerEditDebounced(deps.index, offset, batchKey);
+			parent.containerEdit.pushDebouncedCheckpoint(deps.index, offset, batchKey);
 		},
 
-		endContainerEdit(): void {
+		nudgeReactivity(): void {
 			rebuildRaw();
-			parent.containerEdit.endContainerEdit();
+			parent.containerEdit.nudgeReactivity();
 		},
 
 		commitContainer(containerNode, innerState, snapshot, mutate, afterTick, op): Promise<void> {
