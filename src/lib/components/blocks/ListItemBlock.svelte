@@ -54,6 +54,17 @@
 	function ambientPrefix(): AmbientPrefix {
 		const meta = node.metadata as ListItemMetadata | undefined;
 		const listMarker = meta?.marker ?? '- ';
+
+		if (import.meta.env.DEV && meta) {
+			const taskMarkerPresent = meta.taskMarker !== null && meta.taskMarker !== undefined;
+			if (meta.taskItem !== taskMarkerPresent) {
+				console.warn(
+					'[ListItemBlock] taskItem / taskMarker inconsistent — rendering as plain list item',
+					{ taskItem: meta.taskItem, taskMarker: meta.taskMarker }
+				);
+			}
+		}
+
 		if (!meta?.taskItem || !meta.taskMarker) {
 			return listMarker;
 		}
