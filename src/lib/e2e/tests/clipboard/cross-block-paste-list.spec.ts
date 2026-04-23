@@ -1,0 +1,174 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../editor-page';
+
+test.describe('cross-block clipboard: paste into list selections', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('paste into cross-block selection spanning two items within a list', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	test('paste into cross-block selection covering two of three list items', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+		expect(source).toContain('three');
+	});
+
+	test('paste into cross-block selection covering items 2 and 3 of a 3-item list', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('one');
+		expect(source).toContain('HELLO');
+		expect(source).not.toContain('two');
+		expect(source).not.toContain('three');
+	});
+
+	test('paste MULTI-BLOCK content into cross-block selection spanning two list items', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('alpha');
+		expect(source).toContain('beta');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	test('copy across list items, paste across list items reinserts content', async () => {
+		await editor.loadContent('1. one\n2. two\n3. three\n');
+
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 1, 0], 2);
+		await editor.waitForCrossBlock(true);
+		await editor.pressKey('Control+c');
+		await editor.page.waitForTimeout(200);
+
+		await editor.clickBlock(2);
+		await editor.page.waitForTimeout(100);
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.shiftClickBlock([0, 2, 0], 5);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('ne');
+		expect(source).toContain('tw');
+		expect(source).toMatch(/\bone\b/);
+	});
+
+	// Regression: drag selection leaves the native selection empty, so Chromium
+	// dispatched paste to <body> instead of any block. Fixed by parking a
+	// collapsed caret in the focus block when entering cross-block.
+	test('drag selection across list items: paste single-block text lands', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+		await editor.page.evaluate(() => navigator.clipboard.writeText('text'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toContain('text');
+		expect(source).not.toContain('one');
+		expect(source).not.toContain('two');
+	});
+
+	test('paste into cross-block selection with mid-paragraph offsets in two list items', async () => {
+		await editor.loadContent('1. one\n2. two\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await editor.shiftClickBlock([0, 1, 0], 2);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+		expect(source).toMatch(/^1\. oHELLOo$/m);
+	});
+
+	test('paste into cross-block selection covering entire list replaces it', async () => {
+		await editor.loadContent('Before list\n\n- Item one\n- Item two\n- Item three\n\nAfter list\n');
+
+		await editor.page.evaluate(() => navigator.clipboard.writeText('REPLACEMENT'));
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([1, 0, 0], 0);
+		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
+		await editor.waitForCrossBlock(true);
+
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const source = await editor.getSource();
+
+		expect(source).toContain('Before list');
+		expect(source).toContain('REPLACEMENT');
+		expect(source).toContain('After list');
+		expect(source).not.toContain('Item one');
+		expect(source).not.toContain('Item two');
+		expect(source).not.toContain('Item three');
+	});
+});

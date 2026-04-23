@@ -6,7 +6,6 @@
 
 import { tick } from 'svelte';
 import type {
-	BlockComponent,
 	CstNode,
 	EditorSelection,
 	SelectionPoint,
@@ -23,8 +22,7 @@ import type {
 } from './deps';
 import type { OpDescriptor } from '../debug/operations-log';
 import type { EditEvent } from '../events/editor-events';
-import type { StructuralChange } from '../tree-operations/structural-change';
-import { generateBlockId } from '../tree-operations/block-id';
+import { applyStructuralChangeToIdsRefs } from '../tree-operations/structural-change';
 import type { BlockListState } from '../block-list-state.svelte';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────
@@ -51,50 +49,6 @@ export interface MultiScopeMutable {
  * / Google Docs) is a potential refinement.
  */
 const UNDO_DEBOUNCE_MS = 250;
-
-// ── StructuralChange applicator ──────────────────────────────────────────────
-
-/**
- * Re-shape the parallel ids/refs arrays to match the mutated children.
- * Inserts get fresh IDs + undefined refs; `idMap` on replace preserves
- * specified old-index IDs for split/merge semantics.
- */
-export function applyStructuralChangeToIdsRefs(
-	change: StructuralChange,
-	ids: string[],
-	refs: (BlockComponent | undefined)[]
-): void {
-	switch (change.op) {
-		case 'noop':
-			return;
-		case 'insert': {
-			const newIds = Array.from({ length: change.count }, generateBlockId);
-			const newRefs = new Array<BlockComponent | undefined>(change.count).fill(undefined);
-			ids.splice(change.at, 0, ...newIds);
-			refs.splice(change.at, 0, ...newRefs);
-			return;
-		}
-		case 'delete': {
-			ids.splice(change.at, change.count);
-			refs.splice(change.at, change.count);
-			return;
-		}
-		case 'replace': {
-			const oldIds = ids.slice(change.at, change.at + change.count);
-			const oldRefs = refs.slice(change.at, change.at + change.count);
-			const idMap = change.idMap ?? {};
-			const newIds = Array.from({ length: change.newCount }, (_, i) =>
-				idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
-			);
-			const newRefs = Array.from({ length: change.newCount }, (_, i) =>
-				idMap[i] !== undefined ? oldRefs[idMap[i]] : undefined
-			);
-			ids.splice(change.at, change.count, ...newIds);
-			refs.splice(change.at, change.count, ...newRefs);
-			return;
-		}
-	}
-}
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
