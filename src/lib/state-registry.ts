@@ -3,7 +3,7 @@
  * entries collect automatically when the node becomes unreachable.
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { CstNode } from './core/nodes';
 import type { BlockListState } from './block-list-state.svelte';
 
 const stateRegistry = new WeakMap<CstNode, BlockListState>();
@@ -12,7 +12,7 @@ const stateRegistry = new WeakMap<CstNode, BlockListState>();
 export function registerBlockListState(node: CstNode, state: BlockListState): void {
 	if (import.meta.env.DEV && stateRegistry.has(node)) {
 		console.warn(
-			`[container-state] double register for ${node.kind} — overwriting. ` +
+			`[state-registry] double register for ${node.kind} — overwriting. ` +
 				`Likely two components believe they own the same node, or cloneDocument ` +
 				`is preserving node identity across snapshots unexpectedly.`
 		);
@@ -35,7 +35,7 @@ export function expectStateForNode(node: CstNode): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {
 		throw new Error(
-			`[container-state] no BlockListState registered for ${node.kind} — ` +
+			`[state-registry] no BlockListState registered for ${node.kind} — ` +
 				`caller assumed a mounted container. If this path can visit non-container ` +
 				`nodes, use getStateForNode and guard on undefined.`
 		);

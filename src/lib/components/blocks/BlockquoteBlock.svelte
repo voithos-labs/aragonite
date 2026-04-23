@@ -14,16 +14,16 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../contracts';
-	import type { UndoController } from '../editor-actions/deps';
+	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
-	import { createBlockquoteOverrides } from './container-state/blockquote-context';
-	import { createBlockListState } from './container-state/block-list-state.svelte';
+	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-context';
+	import { createBlockListState } from '../../block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from './container-state/nested-actions';
-	import { dispatchFocusByPath, dispatchFocusAtColumn } from './container-state/focus-dispatch';
+	} from '../../editor-actions/nested-actions';
+	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

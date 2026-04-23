@@ -11,15 +11,15 @@ import type {
 	EditorSelection,
 	SelectionPoint,
 	UndoEntry
-} from '../../contracts';
-import { cloneDocument } from '../../tree-operations/clone';
-import { readCurrentSelection } from '../../selection/native-bridge';
+} from '../contracts';
+import { cloneDocument } from '../tree-operations/clone';
+import { readCurrentSelection } from '../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
-import type { OpDescriptor, OperationKind } from '../../debug/operations-log';
-import type { EditEvent } from '../../events/editor-events';
-import type { StructuralChange } from '../../tree-operations/structural-change';
-import { generateBlockId } from '../../tree-operations/block-id';
-import type { BlockListState } from '../blocks/container-state/block-list-state.svelte';
+import type { OpDescriptor, OperationKind } from '../debug/operations-log';
+import type { EditEvent } from '../events/editor-events';
+import type { StructuralChange } from '../tree-operations/structural-change';
+import { generateBlockId } from '../tree-operations/block-id';
+import type { BlockListState } from '../block-list-state.svelte';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────
 

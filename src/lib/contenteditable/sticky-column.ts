@@ -16,7 +16,7 @@
  *
  * 2. Consumption (caller-reads-and-passes). When a cross-block focus
  *    transition runs through moveFocus({ stickyColumnFrom }), the focus
- *    dispatcher (editor-actions/focus.ts or container-state/focus-dispatch.ts)
+ *    dispatcher (editor-actions/focus.ts or editor-actions/focus-dispatch.ts)
  *    reads stickyColumn.get(), null-checks, and either invokes
  *    focusAtColumn(x, from) with the finite x or falls back to
  *    focus(0) / focus(CURSOR_END). Target blocks' focusAtColumn is a pure

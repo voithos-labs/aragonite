@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/components/editor-actions/undo-controller';
-import { createBlockEditActions } from '$lib/editor/components/editor-actions/block-edit';
+import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/events/editor-events';

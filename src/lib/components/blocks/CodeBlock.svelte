@@ -22,7 +22,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../contracts';
-	import type { UndoController } from '../editor-actions/deps';
+	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		createRangeFromOffsets,

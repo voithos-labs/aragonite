@@ -4,7 +4,7 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Container state and focus helpers live in `src/lib/editor/components/blocks/container-state/` (co-located with the container block components that consume them). Pure contenteditable DOM helpers live in `src/lib/editor/contenteditable/`.
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Editor action bundles and the container helpers they compose (nested-actions, list-context, blockquote-context, focus-dispatch) live in `src/lib/editor/editor-actions/`; the shared reactive state bundle (`block-list-state`) and its `state-registry` sit at the editor root. Pure contenteditable DOM helpers live in `src/lib/editor/contenteditable/`.
 
 ## Two Categories
 
@@ -40,14 +40,14 @@ Two registration steps per new block kind:
 
 ## Container Blocks
 
-Containers build their reactive state and default action bundle through the `container-state/` primitives, then override only the methods that need kind-specific behavior.
+Containers build their reactive state and default action bundle through the `editor-actions/` primitives, then override only the methods that need kind-specific behavior.
 
 - `createBlockListState(node)` — reactive `innerBlockIds` / `innerBlockRefs`. Structural mutations on the container's children go through the commit primitives on the editor's `UndoController` (`commitContainer` via the `ContainerEditActions` context, or `commitMultiScope` via `CONTROLLER_KEY` for cross-container ops) — both apply `StructuralChange` descriptors to keep ids/refs aligned with children.
 - `createStandardNestedActions(state, deps, overrideFactory?)` — generates a complete `{ blockEdit, focus, containerEdit }` bundle from the state bundle plus a `rebuildRaw` callback. Methods in the bundle handle the split/merge/delete/updateContent/replaceBlock ceremony uniformly; containers with kind-specific behavior pass an optional `overrideFactory` as the third argument. The factory receives the fully-built default bundle and returns per-sub-interface partial overrides; overrides chain to the default by calling `defaults.blockEdit.splitBlock(...)` etc. directly.
 - `dispatchFocusByPath` / `dispatchFocusAtColumn` — the pure dispatchers a container's `focusByPath` / `focusAtColumn` exports delegate to.
 - `setNestedActionsContexts(bundle)` — the three-setContext helper that publishes the bundle to nested descendants.
 
-A trivial container (future admonition block, collapsible section, etc.) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial container (list, blockquote) passes an `overrideFactory` that returns only the methods it customizes — see the blockquote and list context files under `container-state/` for canonical extracted examples. The override set is visible at the call site, type-checked against each sub-interface, and stable references to the defaults are captured in a closure the overrides control — no post-construction method reassignment.
+A trivial container (future admonition block, collapsible section, etc.) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial container (list, blockquote) passes an `overrideFactory` that returns only the methods it customizes — see the blockquote and list context files under `editor-actions/` for canonical extracted examples. The override set is visible at the call site, type-checked against each sub-interface, and stable references to the defaults are captured in a closure the overrides control — no post-construction method reassignment.
 
 Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root directly.
 

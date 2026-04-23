@@ -15,7 +15,7 @@ import type {
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../contenteditable/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
-import type { UndoController } from '../components/editor-actions/deps';
+import type { UndoController } from '../editor-actions/deps';
 import { collectCrossBlockText } from './clipboard-text';
 import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
@@ -40,8 +40,8 @@ import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/am
 import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 import { pasteDispatch } from '../tree-operations/paste-dispatch';
-import { getStateForNode } from '../components/blocks/container-state/state-registry';
-import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
+import { getStateForNode } from '../state-registry';
+import type { BlockListState } from '../block-list-state.svelte';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

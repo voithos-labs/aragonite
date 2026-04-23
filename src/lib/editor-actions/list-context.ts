@@ -4,24 +4,24 @@
  * `commitMultiScope`.
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { CstNode } from '../core/nodes';
 import {
 	FOCUS_LAST_START,
 	type BlockEditActions,
 	type FocusActions,
 	type ListContext
-} from '../../../contracts';
-import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
-import type { StructuralChange } from '../../../tree-operations/structural-change';
-import { splitNode as performSplit } from '../../../tree-operations';
-import { rebuildListRaw, rebuildListItemRaw } from '../../../tree-operations/container-raw';
+} from '../contracts';
+import type { MultiScopeTarget, UndoController } from './deps';
+import type { StructuralChange } from '../tree-operations/structural-change';
+import { splitNode as performSplit } from '../tree-operations';
+import { rebuildListRaw, rebuildListItemRaw } from '../tree-operations/container-raw';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList,
 	buildExitReplacement
-} from '../../../tree-operations/list-ops';
-import type { BlockListState } from './block-list-state.svelte';
-import { expectStateForNode } from './state-registry';
+} from '../tree-operations/list-ops';
+import type { BlockListState } from '../block-list-state.svelte';
+import { expectStateForNode } from '../state-registry';
 
 export interface ListContextDeps {
 	get index(): number;

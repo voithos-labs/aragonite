@@ -25,7 +25,7 @@ Unit tests can be scoped to a single concept area:
 | ----------------------------- | ----------------------------------------- |
 | `test:editor:core`            | Parser, serializer, round-trip invariants |
 | `test:editor:tree-ops`        | Tree mutation helpers                     |
-| `test:editor:container`       | Container-state transitions               |
+| `test:editor:editor-actions`  | Editor action bundles and commit primitives |
 | `test:editor:contenteditable` | Contenteditable normalization helpers     |
 | `test:editor:selection`       | Selection-state logic                     |
 | `test:editor:blocks`          | Per-block unit tests (code block, etc.)   |
@@ -48,7 +48,7 @@ E2E tests are grouped into Playwright projects:
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/`, `test/editor-actions/`, `test/events/` — keyed to the source area it covers. Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. Only seven of these areas have a dedicated `test:editor:<area>` script today (see `package.json`); `test/editor-actions/` and `test/events/` run only via the full `test:editor` suite.
+Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/editor-actions/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/`, `test/events/` — keyed to the source area it covers. Cross-cutting tests and tests for top-level editor services (`round-trip`, `round-trip-complex`, `undo-manager`, `block-list-state`, `state-registry`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. `test/events/` and the top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
 ## E2E Tests (Playwright)
 

@@ -3,7 +3,7 @@
  * vertical traversal, and trailing-paragraph creation past document end.
  */
 
-import { CURSOR_END, type FocusActions, type FocusPosition, type CstNode } from '../../contracts';
+import { CURSOR_END, type FocusActions, type FocusPosition, type CstNode } from '../contracts';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createFocusActions(

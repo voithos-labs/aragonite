@@ -19,12 +19,12 @@
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../core/lines';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
-	import { createBlockListState } from './container-state/block-list-state.svelte';
+	import { createBlockListState } from '../../block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from './container-state/nested-actions';
-	import { dispatchFocusByPath, dispatchFocusAtColumn } from './container-state/focus-dispatch';
+	} from '../../editor-actions/nested-actions';
+	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
