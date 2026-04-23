@@ -97,7 +97,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		notifyDocMutated: () => ctx.containerEdit.endContainerEdit()
+		notifyDocMutated: () => ctx.containerEdit.nudgeReactivity()
 	};
 
 	return {
@@ -423,7 +423,7 @@ async function handlePaste(
 			skipSnapshot: true
 		}
 	);
-	ctx.containerEdit.endContainerEdit();
+	ctx.containerEdit.nudgeReactivity();
 
 	// Place the caret via DOM rather than pendingCursor — the originating
 	// block may have been removed by the cross-block delete, leaving a

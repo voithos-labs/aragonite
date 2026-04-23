@@ -199,27 +199,33 @@ export interface HistoryActions {
 
 export interface ContainerEditActions {
 	/**
-	 * Bracketing snapshot — pushes one undo entry, no debounce. Survives outside
-	 * the commit primitive because cross-block dispatch's typing path mutates
-	 * raw directly and then nudges reactivity through the bracket. v0.7 cleanup
-	 * candidate: rename to reflect actual scope (snapshot bookend, not "edit").
+	 * Push an undo snapshot now (no debounce) and invalidate any pending
+	 * debounced batch. Used by paths that mutate raw outside the commit
+	 * primitive — IME composition entry, cross-block typing, drag/clipboard
+	 * sync mutates — where the snapshot must bracket the raw change.
 	 */
-	beginContainerEdit(blockIndex: number, offset: number): void;
+	pushCheckpoint(blockIndex: number, offset: number): void;
 	/**
-	 * Debounced undo snapshot for text input. `batchKey` (when supplied)
-	 * identifies the leaf block being typed in so focus moves between sibling
-	 * leaves inside one container break the undo batch — without it, all
-	 * siblings share the outer container's blockIndex and one undo entry
-	 * spans typing across multiple inner blocks.
+	 * Push a debounced undo snapshot for routine text input. `batchKey`
+	 * (when supplied) identifies the leaf block being typed in so focus
+	 * moves between sibling leaves inside one container break the undo
+	 * batch — without it, all siblings share the outer container's
+	 * blockIndex and one undo entry spans typing across multiple inner
+	 * blocks.
 	 */
-	beginContainerEditDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
+	pushDebouncedCheckpoint(
+		blockIndex: number,
+		offset: number,
+		batchKey?: string | number
+	): void;
 	/**
-	 * Reactivity nudge (`doc.children = [...doc.children]`) for paths that
-	 * mutate the document outside the commit primitive — cross-block typing,
-	 * IME composition entry, drag/clipboard mutate notify. v0.7 cleanup
-	 * candidate: rename to describe the nudge, not an "end of edit."
+	 * Publish a raw change the caller made outside the commit primitive.
+	 * At the editor root this is a `doc.children = [...doc.children]`
+	 * reactivity nudge; at a nested container it rebuilds this container's
+	 * raw from its children and forwards upward so every ancestor raw
+	 * stays in sync, then the root nudge runs once at the top.
 	 */
-	endContainerEdit(): void;
+	nudgeReactivity(): void;
 	/**
 	 * Preferred entry for structural container mutations. Routes through the
 	 * unified commit primitive: snapshot + publish + edit event + post-tick.

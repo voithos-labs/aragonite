@@ -12,5 +12,5 @@
 
 ## Regression notes
 
-- Exercises `beginContainerEditDebounced` path; distinct from top-level typing debouncer.
+- Exercises `pushDebouncedCheckpoint` path; distinct from top-level typing debouncer.
 - Sibling-leaf batch breaks key on the leaf block's id, not the outer container's index — without that, all leaves inside one container share a batch.

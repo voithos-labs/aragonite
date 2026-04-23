@@ -37,9 +37,9 @@ function fakeParentBundles() {
 	};
 	const focus: FocusActions = { moveFocus: vi.fn() };
 	const containerEdit: ContainerEditActions = {
-		beginContainerEdit: vi.fn(),
-		beginContainerEditDebounced: vi.fn(),
-		endContainerEdit: vi.fn(),
+		pushCheckpoint: vi.fn(),
+		pushDebouncedCheckpoint: vi.fn(),
+		nudgeReactivity: vi.fn(),
 		commitContainer: vi.fn()
 	};
 	return { blockEdit, focus, containerEdit };
@@ -67,7 +67,7 @@ describe('createStandardNestedActions', () => {
 		expect('history' in bundle).toBe(false);
 	});
 
-	it('containerEdit.beginContainerEdit translates inner index to container index', () => {
+	it('containerEdit.pushCheckpoint translates inner index to container index', () => {
 		const node = makeNode([makePara('a\n')]);
 		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
@@ -82,12 +82,12 @@ describe('createStandardNestedActions', () => {
 			parent
 		});
 
-		bundle.containerEdit.beginContainerEdit(0, 3);
+		bundle.containerEdit.pushCheckpoint(0, 3);
 
-		expect(parent.containerEdit.beginContainerEdit).toHaveBeenCalledWith(5, 3);
+		expect(parent.containerEdit.pushCheckpoint).toHaveBeenCalledWith(5, 3);
 	});
 
-	it('containerEdit.endContainerEdit calls rebuildRaw and forwards to parent', () => {
+	it('containerEdit.nudgeReactivity calls rebuildRaw and forwards to parent', () => {
 		const rebuildRaw = vi.fn();
 		const node = makeNode([makePara('a\n')]);
 		const state = createBlockListState(() => node);
@@ -103,10 +103,10 @@ describe('createStandardNestedActions', () => {
 			parent
 		});
 
-		bundle.containerEdit.endContainerEdit();
+		bundle.containerEdit.nudgeReactivity();
 
 		expect(rebuildRaw).toHaveBeenCalledOnce();
-		expect(parent.containerEdit.endContainerEdit).toHaveBeenCalledOnce();
+		expect(parent.containerEdit.nudgeReactivity).toHaveBeenCalledOnce();
 	});
 
 	it('focus.moveFocus delegates upward when innerIndex is out of range', async () => {
