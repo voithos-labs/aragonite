@@ -96,6 +96,21 @@ export type StickyColumnDirection = 'above' | 'below';
  */
 export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
+// ── Ambient prefix ─────────────────────────────────────────────────────────
+
+export interface AmbientInteractiveRange {
+	start: number;
+	end: number;
+	className: string;
+	role?: string;
+	ariaChecked?: boolean;
+	onClick: () => void;
+}
+
+export type AmbientPrefix =
+	| string
+	| { text: string; interactive?: AmbientInteractiveRange[] };
+
 // ── BlockComponent ─────────────────────────────────────────────────────────
 
 export interface BlockComponent {
