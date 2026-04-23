@@ -19,6 +19,7 @@ export async function handleCrossBlockPaste(
 	if (!ctx.selection.isCrossBlock) return false;
 
 	ctx.stickyColumn.reset();
+	ctx.selection.resetSelectAllCount();
 	e.preventDefault();
 	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
