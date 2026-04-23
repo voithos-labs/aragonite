@@ -12,13 +12,13 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
-import type { MultiScopeTarget, UndoController } from '../components/editor-actions/deps';
+import type { MultiScopeTarget, UndoController } from '../editor-actions/deps';
 import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { nodeAt } from '../tree-operations/node-ops';
-import { getStateForNode } from '../components/blocks/container-state/state-registry';
-import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
+import { getStateForNode } from '../state-registry';
+import type { BlockListState } from '../block-list-state.svelte';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

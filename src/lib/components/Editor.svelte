@@ -29,7 +29,7 @@
 	import { parseAllInlineContent } from '../core/inline';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../events/editor-events';
-	import { createEditorActions } from './editor-actions';
+	import { createEditorActions } from '../editor-actions';
 	import { createOperationsLog } from '../debug/operations-log';
 	import BlockList from './BlockList.svelte';
 

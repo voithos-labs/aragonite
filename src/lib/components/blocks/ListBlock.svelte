@@ -17,7 +17,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../contracts';
-	import type { UndoController } from '../editor-actions/deps';
+	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import {
 		deleteNode as performDelete,
@@ -29,13 +29,13 @@
 	} from '../../tree-operations';
 	import { parseAllInlineContent } from '../../core/inline';
 	import { rebuildListRaw } from '../../tree-operations/container-raw';
-	import { createListContext } from './container-state/list-context';
-	import { createBlockListState } from './container-state/block-list-state.svelte';
+	import { createListContext } from '../../editor-actions/list-context';
+	import { createBlockListState } from '../../block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from './container-state/nested-actions';
-	import { dispatchFocusByPath, dispatchFocusAtColumn } from './container-state/focus-dispatch';
+	} from '../../editor-actions/nested-actions';
+	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

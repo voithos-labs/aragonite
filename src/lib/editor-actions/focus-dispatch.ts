@@ -8,9 +8,9 @@ import type {
 	FocusActions,
 	FocusPosition,
 	StickyColumnDirection
-} from '../../../contracts';
-import { CURSOR_END } from '../../../contracts';
-import type { StickyColumnState } from '../../../contenteditable/sticky-column';
+} from '../contracts';
+import { CURSOR_END } from '../contracts';
+import type { StickyColumnState } from '../contenteditable/sticky-column';
 
 /**
  * Move focus within a container, or delegate upward when out of range.

@@ -7,9 +7,9 @@
  * children.
  */
 
-import type { CstNode } from '../../../core/nodes';
-import type { BlockComponent } from '../../../contracts';
-import { assignIds } from '../../../tree-operations/block-id';
+import type { CstNode } from './core/nodes';
+import type { BlockComponent } from './contracts';
+import { assignIds } from './tree-operations/block-id';
 import { registerBlockListState } from './state-registry';
 
 export interface BlockListState {

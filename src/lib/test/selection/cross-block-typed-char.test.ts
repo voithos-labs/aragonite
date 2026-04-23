@@ -2,9 +2,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block-dispatch';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createUndoController } from '$lib/editor/components/editor-actions/undo-controller';
-import { createBlockEditActions } from '$lib/editor/components/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/components/editor-actions/container-edit';
+import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createEditorEvents } from '$lib/editor/events/editor-events';
 import { parse } from '$lib/editor/core/parser';

@@ -3,10 +3,10 @@ import {
 	registerBlockListState,
 	getStateForNode,
 	expectStateForNode
-} from '../../components/blocks/container-state/state-registry';
-import { createBlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
-import type { BlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
-import type { CstNode } from '../../core/nodes';
+} from '../state-registry';
+import { createBlockListState } from '../block-list-state.svelte';
+import type { BlockListState } from '../block-list-state.svelte';
+import type { CstNode } from '../core/nodes';
 
 function makeFakeState(): BlockListState {
 	return {
