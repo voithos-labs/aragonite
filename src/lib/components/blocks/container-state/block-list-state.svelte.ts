@@ -1,12 +1,10 @@
 /**
  * Reactive state bundle for a container's inner BlockList children.
- *
- * `commitChildrenEdit` publishes children + ids + refs atomically: splicing
- * directly on $state proxies during a keyed {#each} re-render interleaves
- * reactivity with mutation and leaves `innerBlockRefs` out of sync (bind:ref
- * in a keyed each fires only on mount, so shifted children can't rebind an
- * already-populated slot). One atomic commit gives Svelte a consistent
- * snapshot to diff against.
+ * innerBlockIds / innerBlockRefs are the Svelte keyed-each source and the
+ * component-ref slot array; structural mutations route through the commit
+ * primitives on UndoController (commitContainerStructural / commitMultiScope),
+ * which apply StructuralChange descriptors to keep ids/refs aligned with
+ * children.
  */
 
 import type { CstNode } from '../../../core/nodes';
@@ -17,12 +15,6 @@ import { registerBlockListState } from './state-registry';
 export interface BlockListState {
 	innerBlockIds: string[];
 	innerBlockRefs: (BlockComponent | undefined)[];
-	/**
-	 * Mutate plain-array copies, then publish children + ids + refs atomically.
-	 */
-	commitChildrenEdit(
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
-	): void;
 }
 
 /**
@@ -32,19 +24,6 @@ export interface BlockListState {
 export function createBlockListState(getNode: () => CstNode): BlockListState {
 	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
-
-	function commitChildrenEdit(
-		mutate: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void
-	): void {
-		const node = getNode();
-		const childrenCopy = [...(node.children ?? [])];
-		const idsCopy = [...innerBlockIds];
-		const refsCopy = [...innerBlockRefs];
-		mutate(childrenCopy, idsCopy, refsCopy);
-		node.children = childrenCopy;
-		innerBlockIds = idsCopy;
-		innerBlockRefs = refsCopy;
-	}
 
 	const state: BlockListState = {
 		get innerBlockIds() {
@@ -58,8 +37,7 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		},
 		set innerBlockRefs(value) {
 			innerBlockRefs = value;
-		},
-		commitChildrenEdit
+		}
 	};
 
 	registerBlockListState(getNode(), state);

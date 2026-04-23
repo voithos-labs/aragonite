@@ -202,8 +202,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 function makeStubBlockListState(node: CstNode) {
 	const state: any = {
 		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined),
-		commitChildrenEdit: () => {}
+		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
 	};
 	registerBlockListState(node, state);
 	return state;

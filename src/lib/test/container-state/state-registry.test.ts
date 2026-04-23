@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	registerBlockListState,
-	getStateForNode
+	getStateForNode,
+	expectStateForNode
 } from '../../components/blocks/container-state/state-registry';
 import { createBlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
 import type { BlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
@@ -10,8 +11,7 @@ import type { CstNode } from '../../core/nodes';
 function makeFakeState(): BlockListState {
 	return {
 		innerBlockIds: [],
-		innerBlockRefs: [],
-		commitChildrenEdit: () => {}
+		innerBlockRefs: []
 	};
 }
 
@@ -51,6 +51,20 @@ describe('state-registry', () => {
 			registerBlockListState(nodeB, stateB);
 			expect(getStateForNode(nodeA)).toBe(stateA);
 			expect(getStateForNode(nodeB)).toBe(stateB);
+		});
+	});
+
+	describe('expectStateForNode', () => {
+		it('returns the registered state when present', () => {
+			const node = makeFakeNode();
+			const state = makeFakeState();
+			registerBlockListState(node, state);
+			expect(expectStateForNode(node)).toBe(state);
+		});
+
+		it('throws with the node kind when no state is registered', () => {
+			const node = makeFakeNode('list');
+			expect(() => expectStateForNode(node)).toThrowError(/list/);
 		});
 	});
 

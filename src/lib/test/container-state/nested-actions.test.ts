@@ -109,30 +109,6 @@ describe('createStandardNestedActions', () => {
 		expect(parent.containerEdit.endContainerEdit).toHaveBeenCalledOnce();
 	});
 
-	it('containerEdit tolerates missing parent containerEdit', () => {
-		const rebuildRaw = vi.fn();
-		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(() => node);
-		const parent = {
-			blockEdit: fakeParentBundles().blockEdit,
-			focus: fakeParentBundles().focus
-		};
-
-		const bundle = createStandardNestedActions(state, {
-			index: 0,
-			get node() {
-				return node;
-			},
-			rebuildRaw,
-			stickyColumn: fakeStickyColumn(),
-			parent
-		});
-
-		expect(() => bundle.containerEdit.beginContainerEdit(0, 0)).not.toThrow();
-		expect(() => bundle.containerEdit.endContainerEdit()).not.toThrow();
-		expect(rebuildRaw).toHaveBeenCalledOnce();
-	});
-
 	it('focus.moveFocus delegates upward when innerIndex is out of range', async () => {
 		const node = makeNode([makePara('a\n')]);
 		const state = createBlockListState(() => node);

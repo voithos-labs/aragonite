@@ -17,8 +17,8 @@
  * (descendants found during targeting, ancestors during cascade cleanup) remain
  * in-place. The commit primitive's cloneDocument snapshot covers the whole
  * subtree regardless of walk direction. Ops that need to mutate discovered
- * descendants structurally should route through that container's registered
- * BlockListState via `commitChildrenEdit`.
+ * descendants structurally should route through that container's scope via
+ * `commitMultiScope` (or `commitContainerStructural` for a single scope).
  */
 
 import type { CstNode, Document } from '../core/nodes';

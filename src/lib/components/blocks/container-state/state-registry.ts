@@ -23,3 +23,22 @@ export function registerBlockListState(node: CstNode, state: BlockListState): vo
 export function getStateForNode(node: CstNode): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
+
+/**
+ * Strict variant — throws when `node` has no registered state. Use when the
+ * caller holds a node from the live tree whose container must be mounted
+ * (structural traversal through a known container). `getStateForNode` stays
+ * for the "walk ancestors, skip non-containers" pattern where absence is a
+ * valid signal.
+ */
+export function expectStateForNode(node: CstNode): BlockListState {
+	const state = stateRegistry.get(node);
+	if (!state) {
+		throw new Error(
+			`[container-state] no BlockListState registered for ${node.kind} — ` +
+				`caller assumed a mounted container. If this path can visit non-container ` +
+				`nodes, use getStateForNode and guard on undefined.`
+		);
+	}
+	return state;
+}

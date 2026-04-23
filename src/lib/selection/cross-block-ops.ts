@@ -18,6 +18,7 @@ import { rangeDelete } from './range-delete';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { nodeAt } from '../tree-operations/node-ops';
 import { getStateForNode } from '../components/blocks/container-state/state-registry';
+import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -217,11 +218,11 @@ function collectTouchedContainers(
 	doc: Document,
 	startPath: number[],
 	endPath: number[]
-): Array<{ path: number[]; node: CstNode; state: ReturnType<typeof getStateForNode> & {} }> {
+): Array<{ path: number[]; node: CstNode; state: BlockListState }> {
 	const touched: Array<{
 		path: number[];
 		node: CstNode;
-		state: ReturnType<typeof getStateForNode> & {};
+		state: BlockListState;
 	}> = [];
 	const seen = new Set<string>();
 
