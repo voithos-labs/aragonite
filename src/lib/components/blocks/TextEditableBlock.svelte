@@ -299,10 +299,8 @@
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && pendingCursorOffset === null) return;
 
-			// Compute inline content locally — do NOT write to node.inlineContent.
-			// Mutating the node prop triggers Svelte 5's ownership system, which causes
-			// a reactivity cascade that corrupts keyed {#each} index assignments after
-			// structural operations like splitBlock.
+			// Compute locally — writing to `node.inlineContent` breaks keyed {#each} after structural ops.
+			// See `docs/design/editor/editor.md` § Reactive State Plumbing.
 			const range = getContentRange(node);
 			const content = parseInline(node.raw, range.start, range.end);
 			el.replaceChildren(buildInlineDOM(content));

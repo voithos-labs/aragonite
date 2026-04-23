@@ -49,8 +49,8 @@ describe('block-kind-descriptor registry', () => {
 		expect(getBlockKindDescriptor('heading').mergeRole).toBe('prose-absorber');
 		expect(getBlockKindDescriptor('setextHeading').mergeRole).toBe('prose-absorber');
 		expect(getBlockKindDescriptor('unrecognized').mergeRole).toBe('self-merge');
-		expect(getBlockKindDescriptor('thematicBreak').mergeRole).toBe('opaque');
-		expect(getBlockKindDescriptor('fencedCode').mergeRole).toBe('opaque');
+		expect(getBlockKindDescriptor('thematicBreak').mergeRole).toBe('not-mergeable');
+		expect(getBlockKindDescriptor('fencedCode').mergeRole).toBe('not-mergeable');
 		expect(getBlockKindDescriptor('blockquote').mergeRole).toBe('container');
 		expect(getBlockKindDescriptor('list').mergeRole).toBe('container');
 		expect(getBlockKindDescriptor('listItem').mergeRole).toBe('container');

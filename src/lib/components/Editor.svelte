@@ -81,11 +81,7 @@
 		return () => dispose();
 	});
 
-	// Re-initialize when source prop changes (e.g., async document load).
-	// The `source !== lastSource` check is load-bearing: after the first
-	// re-init reads `doc.children` (via assignIds), doc.children becomes
-	// a tracked dependency of this effect, so subsequent user edits would
-	// retrigger the effect and wipe their work without this guard.
+	// `source !== lastSource` guard is load-bearing — see `docs/design/editor/editor.md` § Reactive State Plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {

@@ -3,19 +3,17 @@ import { displayLength } from '../core/lines';
 
 /**
  * A block's merge role classifies its behavior for Backspace-merge purposes.
- *
- *   prose           — leaf text block that can merge with or absorb other prose
- *   prose-absorber  — prose leaf that retains its kind when absorbing prose
- *                     (e.g. heading stays a heading)
- *   container       — block whose merge target is its deepest reachable prose leaf
- *   self-merge      — merges only with another block of the same role
- *   opaque          — not mergeable; Backspace either deletes (if non-editable)
- *                     or moves focus
+ * See `docs/design/editor/editor.md` — Structural Operations — for the full role spec.
  *
  * Declared here rather than in `merge-rules.ts` so the descriptor registry
  * can reference it without creating an import cycle.
  */
-export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'opaque';
+export type MergeRole =
+	| 'prose'
+	| 'prose-absorber'
+	| 'container'
+	| 'self-merge'
+	| 'not-mergeable';
 
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
@@ -131,37 +129,37 @@ registerBlockKind('setextHeading', {
 	getContentRange: setextHeadingContentRange
 });
 registerBlockKind('fencedCode', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
 	supportsInline: false
 });
 registerBlockKind('thematicBreak', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: false,
 	isContainer: false,
 	supportsInline: false
 });
 registerBlockKind('indentedCode', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
 	supportsInline: false
 });
 registerBlockKind('htmlBlock', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
 	supportsInline: false
 });
 registerBlockKind('linkReferenceDefinition', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
 	supportsInline: false
 });
 registerBlockKind('table', {
-	mergeRole: 'opaque',
+	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
 	supportsInline: false
