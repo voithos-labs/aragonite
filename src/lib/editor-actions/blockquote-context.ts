@@ -4,7 +4,6 @@
  * `createStandardNestedActions`.
  */
 
-import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, CstNode } from '../contracts';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
@@ -52,10 +51,11 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },
 								eventPath: [index]
+							},
+							afterTick: () => {
+								parentFocus.moveFocus(index + 1, 'start');
 							}
 						});
-						await tick();
-						parentFocus.moveFocus(index + 1, 'start');
 					}
 					return;
 				}

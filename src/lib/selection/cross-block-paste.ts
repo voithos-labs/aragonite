@@ -47,7 +47,6 @@ export async function handleCrossBlockPaste(
 			skipSnapshot: true
 		}
 	);
-	ctx.containerEdit.nudgeReactivity();
 
 	// Place the caret via DOM rather than pendingCursor — the originating
 	// block may have been removed by the cross-block delete, leaving a
@@ -62,6 +61,19 @@ export async function handleCrossBlockPaste(
 			});
 			inlineEl.focus();
 		}
+		return true;
+	}
+
+	// Structural paste: pasteDispatch's internal afterTick focuses the last
+	// spliced block via its parent state. If cascade cleanup destroyed that
+	// parent state, the focus silently no-ops. Detect by checking whether
+	// focus landed in the editor; if not, DOM-focus caret.path (post-paste)
+	// as a fallback so the user isn't left without a caret.
+	await ctx.afterReactivity();
+	const editorRoot = ctx.getEditorRoot();
+	if (editorRoot && !editorRoot.contains(document.activeElement)) {
+		const fallbackEl = ctx.getBlockElByPath(caret.path);
+		fallbackEl?.focus();
 	}
 	return true;
 }
