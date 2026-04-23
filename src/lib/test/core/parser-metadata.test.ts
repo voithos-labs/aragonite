@@ -191,6 +191,38 @@ describe('metadata: lists', () => {
 		expect((items[1].metadata as ListItemMetadata).taskChecked).toBe(true);
 	});
 
+	it('populates taskMarker with the parsed source fragment', () => {
+		const doc = parse('- [x] task\n');
+		const list = doc.children[0];
+		const item = list.children![0];
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(true);
+		expect(meta.taskChecked).toBe(true);
+		expect(meta.taskMarker).toBe('[x] ');
+	});
+
+	it('preserves uppercase X in taskMarker', () => {
+		const doc = parse('- [X] task\n');
+		const item = doc.children[0].children![0];
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskMarker).toBe('[X] ');
+	});
+
+	it('preserves multi-space whitespace in taskMarker', () => {
+		const doc = parse('- [x]  task\n');
+		const item = doc.children[0].children![0];
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskMarker).toBe('[x]  ');
+	});
+
+	it('taskMarker is null for non-task list items', () => {
+		const doc = parse('- plain item\n');
+		const item = doc.children[0].children![0];
+		const meta = item.metadata as ListItemMetadata;
+		expect(meta.taskItem).toBe(false);
+		expect(meta.taskMarker).toBeNull();
+	});
+
 	it('extracts list item markers', () => {
 		const doc = parse('+ Item\n');
 		const list = doc.children[0];
