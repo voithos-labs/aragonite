@@ -39,8 +39,7 @@ function makeBlockListState(node: any, ids: string[]): any {
 		},
 		set innerBlockRefs(v: (BlockComponent | undefined)[]) {
 			innerBlockRefs = v;
-		},
-		commitChildrenEdit: vi.fn()
+		}
 	};
 }
 

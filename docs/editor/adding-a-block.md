@@ -42,7 +42,7 @@ Two registration steps per new block kind:
 
 Containers build their reactive state and default action bundle through the `container-state/` primitives, then override only the methods that need kind-specific behavior.
 
-- `createBlockListState(node)` — reactive `innerBlockIds` / `innerBlockRefs` plus a `commitChildrenEdit` helper for atomic triple-splice operations on children, ids, and refs.
+- `createBlockListState(node)` — reactive `innerBlockIds` / `innerBlockRefs`. Structural mutations on the container's children go through the commit primitives on the editor's `UndoController` (`commitContainer` via the `ContainerEditActions` context, or `commitMultiScope` via `CONTROLLER_KEY` for cross-container ops) — both apply `StructuralChange` descriptors to keep ids/refs aligned with children.
 - `createStandardNestedActions(state, deps, overrideFactory?)` — generates a complete `{ blockEdit, focus, containerEdit }` bundle from the state bundle plus a `rebuildRaw` callback. Methods in the bundle handle the split/merge/delete/updateContent/replaceBlock ceremony uniformly; containers with kind-specific behavior pass an optional `overrideFactory` as the third argument. The factory receives the fully-built default bundle and returns per-sub-interface partial overrides; overrides chain to the default by calling `defaults.blockEdit.splitBlock(...)` etc. directly.
 - `dispatchFocusByPath` / `dispatchFocusAtColumn` — the pure dispatchers a container's `focusByPath` / `focusAtColumn` exports delegate to.
 - `setNestedActionsContexts(bundle)` — the three-setContext helper that publishes the bundle to nested descendants.

@@ -10,7 +10,6 @@ import {
 	FOCUS_LAST_START,
 	type BlockEditActions,
 	type FocusActions,
-	type ContainerEditActions,
 	type ListContext
 } from '../../../contracts';
 import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
@@ -23,7 +22,7 @@ import {
 	buildExitReplacement
 } from '../../../tree-operations/list-ops';
 import type { BlockListState } from './block-list-state.svelte';
-import { getStateForNode } from './state-registry';
+import { expectStateForNode } from './state-registry';
 
 export interface ListContextDeps {
 	get index(): number;
@@ -31,7 +30,6 @@ export interface ListContextDeps {
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
-	parentContainerEdit: ContainerEditActions | undefined;
 	parentListContext: ListContext | undefined;
 	controller: UndoController;
 }
@@ -56,9 +54,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const scopes: MultiScopeTarget[] = [{ node, state: deps.state }];
 
 			if (existingNestedList && existingNestedList.children) {
-				scopes.push({ node: existingNestedList, state: getStateForNode(existingNestedList)! });
+				scopes.push({ node: existingNestedList, state: expectStateForNode(existingNestedList) });
 			} else {
-				scopes.push({ node: prevItem, state: getStateForNode(prevItem)! });
+				scopes.push({ node: prevItem, state: expectStateForNode(prevItem) });
 			}
 
 			let destList: CstNode | null = null;
@@ -175,8 +173,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const item = outerList.children[itemIndex];
 			if (!item.children) return;
 
-			const itemState = getStateForNode(item);
-			if (!itemState) return;
+			const itemState = expectStateForNode(item);
 
 			// Scope 0 = outer list (new sibling inserted).
 			// Scope 1 = this item (content split, second half moves to sibling).
@@ -261,12 +258,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Scope 2 (conditional) = parentItem (empty nested list removed).
 			const scopes: MultiScopeTarget[] = [
 				{ node, state: deps.state },
-				{ node: nestedListNode, state: getStateForNode(nestedListNode)! }
+				{ node: nestedListNode, state: expectStateForNode(nestedListNode) }
 			];
 			let parentItemScopeIdx = -1;
 			if (nestedListWillEmpty) {
 				parentItemScopeIdx = scopes.length;
-				scopes.push({ node: parentItem, state: getStateForNode(parentItem)! });
+				scopes.push({ node: parentItem, state: expectStateForNode(parentItem) });
 			}
 
 			await deps.controller.commitMultiScope(

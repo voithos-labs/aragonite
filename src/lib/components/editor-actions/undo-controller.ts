@@ -378,7 +378,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * Expose the document root as a MultiScopeTarget so cross-scope ops with
 	 * an LCA at doc level can include it. The synthetic BlockListState forwards
 	 * ids/refs through deps setters so publish-time assignments reach the
-	 * Svelte $state proxies. `commitChildrenEdit` is unused and throws.
+	 * Svelte $state proxies.
 	 */
 	function getDocScope(): MultiScopeTarget {
 		return {
@@ -395,9 +395,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				},
 				set innerBlockRefs(v: (BlockComponent | undefined)[]) {
 					deps.setBlockRefs(v);
-				},
-				commitChildrenEdit: () => {
-					throw new Error('doc scope: commitChildrenEdit is not supported');
 				}
 			}
 		};
