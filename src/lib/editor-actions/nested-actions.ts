@@ -26,7 +26,8 @@ import {
 	updateNodeContent as performUpdate,
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
-	ensureEditableContainers
+	ensureEditableContainers,
+	rebuildContainerRawIfContainer
 } from '../tree-operations';
 import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
 import { parseAllInlineContent } from '../core/inline';
@@ -298,6 +299,10 @@ export function createStandardNestedActions(
 				mutate: () => {
 					const node = deps.node.children![innerIndex];
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
+					// Metadata feeds raw for list items (taskMarker) — resync child
+					// then container so serialize/reconciliation sees the new source.
+					rebuildContainerRawIfContainer(node);
+					rebuildRaw();
 					return { op: 'noop' };
 				},
 				op: {
