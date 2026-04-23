@@ -87,7 +87,8 @@ test.describe('cross-block clipboard: copy', () => {
 
 		const firstCount = afterSource.split('first block').length - 1;
 		const secondCount = afterSource.split('second block').length - 1;
-		expect(firstCount + secondCount).toBeGreaterThanOrEqual(3);
+		expect(firstCount).toBe(2);
+		expect(secondCount).toBe(2);
 	});
 });
 
@@ -144,7 +145,7 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.waitForCrossBlock(false);
 		const source = await editor.getSource();
 		expect(source).toContain('hello');
-		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('Delete key deletes cross-block range', async () => {
@@ -154,7 +155,7 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.pressKey('Delete');
 		await editor.waitForCrossBlock(false);
-		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('cross-block delete spanning three blocks leaves merged result', async () => {
@@ -334,7 +335,7 @@ test.describe('cross-block clipboard: paste', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('ne');
 		expect(source).toContain('tw');
-		expect(source).toContain('one');
+		expect(source).toMatch(/\bone\b/);
 	});
 
 	test('multi-block paste with selection is one undo unit', async () => {
@@ -434,7 +435,7 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		const source = await editor.getSource();
 		expect(source).toContain('# Heading');
 		expect(source).toContain('New paragraph');
-		expect(await editor.getBlockCount()).toBeGreaterThan(1);
+		expect(await editor.getBlockCount()).toBe(3);
 	});
 
 	test('multi-block paste replaces selected text', async () => {
@@ -565,7 +566,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		const source = await editor.getSource();
 		expect(source).toContain('foo');
 		expect(source).toContain('bar');
-		expect(await editor.getBlockCount()).toBeGreaterThanOrEqual(2);
+		expect(await editor.getBlockCount()).toBe(2);
 	});
 
 	test('pasting a list inside a list item preserves all pasted items', async () => {
@@ -591,7 +592,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.page.waitForTimeout(300);
 		const source = await editor.getSource();
 		expect(source).toContain('## A heading');
-		expect(await editor.getBlockCount()).toBeGreaterThanOrEqual(2);
+		expect(await editor.getBlockCount()).toBe(2);
 	});
 
 	test('cross-block paste of multi-block content into list items lands content', async () => {

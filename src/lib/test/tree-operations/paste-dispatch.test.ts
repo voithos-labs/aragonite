@@ -286,3 +286,49 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 		expect(targetLeaf.raw).toContain('ALPHA');
 	});
 });
+
+// ── pasteDispatch end-to-end routing ────────────────────────────────────────
+
+describe('pasteDispatch — strategy routing end-to-end', () => {
+	// Earlier describes call __resetPasteSurfacesForTests; re-register the
+	// paragraph default so routing sees the same surface it would in the app.
+	beforeEach(() => {
+		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	});
+
+	it('inline strategy: single-paragraph clipboard routes through blockEdit.updateBlockContent', async () => {
+		const doc = parse('hello world\n');
+		const blockEdit = makeStubBlockEdit();
+
+		await pasteDispatch(
+			{ pastedText: 'XYZ', targetPath: [0], offset: 6 },
+			{ doc, blockEdit, controller: makeStubController() }
+		);
+
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
+		const call = (blockEdit.updateBlockContent as ReturnType<typeof vi.fn>).mock.calls[0];
+		expect(call[0]).toBe(0);
+		expect(call[1]).toBe('hello XYZworld\n');
+		expect(call[2]).toBe(9);
+		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
+	});
+
+	it('structural strategy: multi-block clipboard routes through blockEdit.replaceBlock', async () => {
+		const doc = parse('target\n');
+		const blockEdit = makeStubBlockEdit();
+
+		await pasteDispatch(
+			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
+			{ doc, blockEdit, controller: makeStubController() }
+		);
+
+		expect(blockEdit.replaceBlock).toHaveBeenCalledOnce();
+		const [index, replacement] = (blockEdit.replaceBlock as ReturnType<typeof vi.fn>).mock
+			.calls[0];
+		expect(index).toBe(0);
+		expect(replacement.length).toBeGreaterThanOrEqual(2);
+		const kinds = (replacement as CstNode[]).map((n) => n.kind);
+		expect(kinds).toContain('heading');
+		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+});
