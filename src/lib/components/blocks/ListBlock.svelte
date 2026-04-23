@@ -42,7 +42,7 @@
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
@@ -104,7 +104,7 @@
 
 						if (firstChildEmpty && node.children.length > 1) {
 							// Empty first item with siblings — delete just the item.
-							await parentContainerEdit!.commitContainer(
+							await parentContainerEdit.commitContainer(
 								node,
 								state,
 								{ blockIndex: index, offset: 0 },
@@ -139,7 +139,7 @@
 					const item = node.children[itemIndex];
 					if (isItemUserEmpty(item)) {
 						// Empty non-first item — delete it, renumber, focus previous end.
-						await parentContainerEdit!.commitContainer(
+						await parentContainerEdit.commitContainer(
 							node,
 							state,
 							{ blockIndex: index, offset: 0 },
@@ -160,7 +160,7 @@
 
 					// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
 					let mergePoint!: { targetPath: number[]; offset: number };
-					await parentContainerEdit!.commitContainer(
+					await parentContainerEdit.commitContainer(
 						node,
 						state,
 						{ blockIndex: index, offset: 0 },
@@ -188,7 +188,7 @@
 						await parentBlockEdit.deleteBlock(index);
 						return;
 					}
-					await parentContainerEdit!.commitContainer(
+					await parentContainerEdit.commitContainer(
 						node,
 						state,
 						{ blockIndex: index, offset: 0 },
@@ -220,7 +220,7 @@
 						? ('skip' as const)
 						: { blockIndex: index, offset: 0 };
 
-					await parentContainerEdit!.commitContainer(
+					await parentContainerEdit.commitContainer(
 						node,
 						state,
 						snapshot,
@@ -275,7 +275,6 @@
 		state,
 		parentBlockEdit,
 		parentFocus,
-		parentContainerEdit,
 		parentListContext,
 		controller
 	});

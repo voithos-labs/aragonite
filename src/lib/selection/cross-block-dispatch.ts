@@ -41,6 +41,7 @@ import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 import { pasteDispatch } from '../tree-operations/paste-dispatch';
 import { getStateForNode } from '../components/blocks/container-state/state-registry';
+import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -466,7 +467,7 @@ function applyCaretAtPath(
 function resolveTypedCharScope(
 	ctx: CrossBlockDispatchContext,
 	leafPath: number[]
-): { node: CstNode; state: ReturnType<typeof getStateForNode> & {} } | null {
+): { node: CstNode; state: BlockListState } | null {
 	if (leafPath.length === 1) {
 		const docScope = ctx.controller.getDocScope();
 		return { node: docScope.node, state: docScope.state };

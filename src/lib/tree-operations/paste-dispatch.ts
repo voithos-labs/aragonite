@@ -19,7 +19,11 @@ import { isProseKind, parseInline, getContentRange } from '../core/inline';
 import { buildPastedReplacement } from './paste-replacement';
 import { nodeAt } from './node-ops';
 import { rebuildContainerRawIfContainer } from './container-raw';
-import { getStateForNode } from '../components/blocks/container-state/state-registry';
+import {
+	getStateForNode,
+	expectStateForNode
+} from '../components/blocks/container-state/state-registry';
+import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
 import {
 	registerPasteSurface,
 	getPasteSurface,
@@ -292,7 +296,7 @@ async function applyStructuralResult(
 	const innerIndex = targetPath[targetPath.length - 1];
 	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) return;
 
-	const parentState = getStateForNode(parent)!;
+	const parentState = expectStateForNode(parent);
 
 	await ctx.controller.commitMultiScope(
 		[{ node: parent, state: parentState }],
@@ -465,7 +469,7 @@ async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
 	merge: NonNullable<ContainerUnwrap['merge']>,
 	outer: CstNode,
-	outerState: NonNullable<ReturnType<typeof getStateForNode>>,
+	outerState: BlockListState,
 	ctx: PasteDispatchContext
 ): Promise<void> {
 	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;

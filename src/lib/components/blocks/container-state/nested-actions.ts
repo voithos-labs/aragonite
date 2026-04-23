@@ -46,7 +46,7 @@ export interface NestedActionsDeps {
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
-		containerEdit?: ContainerEditActions;
+		containerEdit: ContainerEditActions;
 	};
 }
 
@@ -74,7 +74,7 @@ export function createStandardNestedActions(
 	const blockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!deps.node.children) return;
-			await parent.containerEdit!.commitContainer(
+			await parent.containerEdit.commitContainer(
 				deps.node,
 				state,
 				{ blockIndex: deps.index, offset },
@@ -109,7 +109,7 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex - 1].raw);
-				await parent.containerEdit!.commitContainer(
+				await parent.containerEdit.commitContainer(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
@@ -129,7 +129,7 @@ export function createStandardNestedActions(
 					}
 				);
 			} else if (!isBlockEditable(prevKind)) {
-				await parent.containerEdit!.commitContainer(
+				await parent.containerEdit.commitContainer(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
@@ -162,7 +162,7 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
-				await parent.containerEdit!.commitContainer(
+				await parent.containerEdit.commitContainer(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
@@ -182,7 +182,7 @@ export function createStandardNestedActions(
 					}
 				);
 			} else if (!isBlockEditable(nextKind)) {
-				await parent.containerEdit!.commitContainer(
+				await parent.containerEdit.commitContainer(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: 0 },
@@ -210,7 +210,7 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			await parent.containerEdit!.commitContainer(
+			await parent.containerEdit.commitContainer(
 				deps.node,
 				state,
 				{ blockIndex: deps.index, offset: 0 },
@@ -247,7 +247,7 @@ export function createStandardNestedActions(
 
 			if (preview.kindChanged) {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
-				await parent.containerEdit!.commitContainer(
+				await parent.containerEdit.commitContainer(
 					deps.node,
 					state,
 					{ blockIndex: deps.index, offset: preEditOffset ?? 0 },
@@ -272,14 +272,14 @@ export function createStandardNestedActions(
 			// Routine typing — debounced undo path, no structural commit. Pass
 			// the inner leaf's id as the batch key so focus moves between
 			// sibling leaves inside this container break the typing batch.
-			parent.containerEdit?.beginContainerEditDebounced(
+			parent.containerEdit.beginContainerEditDebounced(
 				deps.index,
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
 			performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
-			parent.containerEdit?.endContainerEdit();
+			parent.containerEdit.endContainerEdit();
 		},
 
 		async updateBlockMetadata(
@@ -291,7 +291,7 @@ export function createStandardNestedActions(
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
 
-			await parent.containerEdit!.commitContainer(
+			await parent.containerEdit.commitContainer(
 				deps.node,
 				state,
 				options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
@@ -358,7 +358,7 @@ export function createStandardNestedActions(
 				? ('skip' as const)
 				: { blockIndex: deps.index, offset: 0 };
 
-			await parent.containerEdit!.commitContainer(
+			await parent.containerEdit.commitContainer(
 				deps.node,
 				state,
 				snapshot,
@@ -423,7 +423,7 @@ export function createStandardNestedActions(
 
 	const containerEdit: ContainerEditActions = {
 		beginContainerEdit(_innerIndex: number, offset: number): void {
-			parent.containerEdit?.beginContainerEdit(deps.index, offset);
+			parent.containerEdit.beginContainerEdit(deps.index, offset);
 		},
 
 		beginContainerEditDebounced(
@@ -431,12 +431,12 @@ export function createStandardNestedActions(
 			offset: number,
 			batchKey?: string | number
 		): void {
-			parent.containerEdit?.beginContainerEditDebounced(deps.index, offset, batchKey);
+			parent.containerEdit.beginContainerEditDebounced(deps.index, offset, batchKey);
 		},
 
 		endContainerEdit(): void {
 			rebuildRaw();
-			parent.containerEdit?.endContainerEdit();
+			parent.containerEdit.endContainerEdit();
 		},
 
 		commitContainer(containerNode, innerState, snapshot, mutate, afterTick, op): Promise<void> {
@@ -445,7 +445,6 @@ export function createStandardNestedActions(
 			// `deps.index` to the edit event path. Inner containerNode/innerState/
 			// mutate/afterTick pass through unchanged — they describe the inner
 			// mutation, not the ancestry.
-			if (!parent.containerEdit) return Promise.resolve();
 			const remappedSnapshot =
 				snapshot === 'skip' ? snapshot : { blockIndex: deps.index, offset: snapshot.offset };
 			const remappedOp = op

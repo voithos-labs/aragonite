@@ -30,7 +30,7 @@
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions | undefined>(CONTAINER_EDIT_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
