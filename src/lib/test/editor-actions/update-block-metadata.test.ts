@@ -268,4 +268,12 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(editHandler).not.toHaveBeenCalled();
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
+
+	it('shallow-merge preserves untouched fields', async () => {
+		const { bundle, innerNode } = makeContainerSetup(1);
+
+		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
+
+		expect(innerNode.metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
+	});
 });

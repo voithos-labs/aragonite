@@ -62,7 +62,6 @@ test.describe('select-all clipboard round-trip', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
 		await item.click();
 
-		// First press: selects the item's content only (marker excluded).
 		await editor.pressKey('Control+a');
 		await editor.page.waitForTimeout(100);
 		expect(await editor.isCrossBlockActive()).toBe(false);
@@ -71,9 +70,23 @@ test.describe('select-all clipboard round-trip', () => {
 		);
 		expect(firstSelection).toBe('Hello');
 
-		// Second press: escalates to whole-document cross-block selection.
 		await editor.pressKey('Control+a');
 		await editor.waitForCrossBlock(true);
+
+		const paths = await editor.getSelectionPaths();
+		expect(paths).not.toBeNull();
+		expect(paths!.anchor.path[0]).toBe(0);
+		expect(paths!.focus.path[0]).toBe(2);
+
+		await editor.pressBackspace();
+		await editor.waitForCrossBlock(false);
+		await editor.page.waitForTimeout(200);
+
+		const source = await editor.getSource();
+		expect(source).not.toContain('Before');
+		expect(source).not.toContain('Hello');
+		expect(source).not.toContain('After');
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('select-all cut then paste replaces with clipboard', async () => {
