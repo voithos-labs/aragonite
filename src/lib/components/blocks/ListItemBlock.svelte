@@ -230,4 +230,23 @@
 	.list-item-content :global(.list-block) {
 		padding-left: 1em;
 	}
+
+	:global(.task-checkbox) {
+		cursor: pointer;
+		border-radius: 2px;
+		transition: background-color 60ms ease-out;
+	}
+
+	:global(.task-checkbox:hover) {
+		background-color: var(--md-marker-hover-bg, rgba(128, 128, 128, 0.15));
+	}
+
+	.list-item-block[data-task-checked='true']
+		> .list-item-content
+		> :global(.block-list)
+		> :global(.block-host)
+		> :global(.paragraph-block) {
+		text-decoration: line-through;
+		color: var(--text-muted, rgba(128, 128, 128, 0.7));
+	}
 </style>
