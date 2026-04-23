@@ -71,10 +71,10 @@ export async function applyStructuralResult(
 
 	const parentState = expectStateForNode(parent);
 
-	await ctx.controller.commitMultiScope(
-		[{ node: parent, state: parentState }],
-		ctx.skipSnapshot ? 'skip' : { blockIndex: targetPath[0], offset: 0 },
-		(scopeChildren) => {
+	await ctx.controller.commitMultiScope({
+		scopes: [{ node: parent, state: parentState }],
+		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: targetPath[0], offset: 0 },
+		mutate: (scopeChildren) => {
 			const children = scopeChildren[0].children;
 			children.splice(innerIndex, 1, ...result.replacement);
 			// Sync before rebuild — rebuildAncestryForLeaf reads node.children directly.
@@ -89,14 +89,14 @@ export async function applyStructuralResult(
 				}
 			];
 		},
-		{
+		op: {
 			kind: 'replaceBlock',
 			detail: { source: 'paste-dispatch', path: targetPath },
 			eventPath: targetPath
 		},
-		() => {
+		afterTick: () => {
 			const lastIdx = innerIndex + result.focusReplacementIndex;
 			parentState.innerBlockRefs[lastIdx]?.focus(result.focusOffset);
 		}
-	);
+	});
 }

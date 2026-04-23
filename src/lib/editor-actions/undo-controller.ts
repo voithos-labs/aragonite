@@ -14,8 +14,14 @@ import type {
 } from '../contracts';
 import { cloneDocument } from '../tree-operations/clone';
 import { readCurrentSelection } from '../selection/native-bridge';
-import type { EditorActionsDeps, UndoController } from './deps';
-import type { OpDescriptor, OperationKind } from '../debug/operations-log';
+import type {
+	CommitContainerStructuralArgs,
+	CommitMultiScopeArgs,
+	CommitStructuralArgs,
+	EditorActionsDeps,
+	UndoController
+} from './deps';
+import type { OpDescriptor } from '../debug/operations-log';
 import type { EditEvent } from '../events/editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { generateBlockId } from '../tree-operations/block-id';
@@ -261,28 +267,25 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	// ── Structural-mutation ceremony ─────────────────────────────────────────
-	/** `skipSnapshot` lets composite operations share a single undo entry. */
+	/** `snapshot: 'skip'` lets composite operations share a single undo entry. */
 
-	async function commitStructural(
-		snapshotBlockIndex: number,
-		snapshotOffset: number,
-		mutate: (children: CstNode[]) => StructuralChange,
-		afterTick?: () => void,
-		options?: { skipSnapshot?: boolean; op?: OpDescriptor }
-	): Promise<void> {
+	async function commitStructural(args: CommitStructuralArgs): Promise<void> {
+		const { snapshot, mutate, op, afterTick } = args;
+		// eventPath derives from the snapshot when one is pushed; 'skip' means a
+		// caller already owns the event path, so fall back to [] when no snapshot
+		// coordinate is available.
+		const eventPath = snapshot === 'skip' ? [] : [snapshot.blockIndex];
 		await __commit({
 			kind: 'document',
-			snapshot: options?.skipSnapshot
-				? 'skip'
-				: { blockIndex: snapshotBlockIndex, offset: snapshotOffset },
+			snapshot,
 			mutate,
 			publish: (children, ids, refs) => {
 				deps.doc.children = children;
 				deps.setBlockIds(ids);
 				deps.setBlockRefs(refs);
 			},
-			op: options?.op,
-			eventPath: [snapshotBlockIndex],
+			op,
+			eventPath,
 			afterTick
 		});
 	}
@@ -293,21 +296,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * Ancestry raw rebuild lives inside `mutate` — the caller owns it so the
 	 * atomic publish sees a rebuilt tree.
 	 */
-	async function commitContainerStructural(
-		containerNode: CstNode,
-		state: {
-			innerBlockIds: string[];
-			innerBlockRefs: (BlockComponent | undefined)[];
-		},
-		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (children: CstNode[]) => StructuralChange,
-		afterTick?: () => void,
-		op?: {
-			kind: OpDescriptor['kind'];
-			detail?: OpDescriptor['detail'];
-			eventPath: number[];
-		}
-	): Promise<void> {
+	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
+		const { containerNode, state, snapshot, mutate, op, afterTick } = args;
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -344,13 +334,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * the rebuild sees the pre-mutation tree. See `list-context.ts` /
 	 * `nested-actions.ts` for the sync-before-rebuild pattern.
 	 */
-	async function commitMultiScope(
-		scopes: MultiScopeTarget[],
-		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (scopeChildren: MultiScopeMutable[]) => StructuralChange[],
-		op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] },
-		afterTick?: () => void
-	): Promise<void> {
+	async function commitMultiScope(args: CommitMultiScopeArgs): Promise<void> {
+		const { scopes, snapshot, mutate, op, afterTick } = args;
 		await __commit({
 			kind: 'container',
 			snapshot,

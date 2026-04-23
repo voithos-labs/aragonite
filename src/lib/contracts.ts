@@ -226,21 +226,21 @@ export interface ContainerEditActions {
 	 * Preferred entry for structural container mutations. Routes through the
 	 * unified commit primitive: snapshot + publish + edit event + post-tick.
 	 */
-	commitContainer(
-		containerNode: CstNode,
+	commitContainer(args: {
+		containerNode: CstNode;
 		state: {
 			innerBlockIds: string[];
 			innerBlockRefs: (BlockComponent | undefined)[];
-		},
-		snapshot: { blockIndex: number; offset: number } | 'skip',
-		mutate: (children: CstNode[]) => StructuralChange,
-		afterTick?: () => void,
+		};
+		snapshot: { blockIndex: number; offset: number } | 'skip';
+		mutate: (children: CstNode[]) => StructuralChange;
 		op?: {
 			kind: string;
 			detail?: Record<string, unknown>;
 			eventPath: number[];
-		}
-	): Promise<void>;
+		};
+		afterTick?: () => void;
+	}): Promise<void>;
 }
 
 // ── List context ───────────────────────────────────────────────────────────

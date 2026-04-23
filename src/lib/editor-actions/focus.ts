@@ -18,20 +18,19 @@ export function createFocusActions(
 				// primitive so the append participates in undo history and edit
 				// events like every other structural mutation.
 				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
-				await controller.commitStructural(
-					deps.doc.children.length,
-					0,
-					(children) => {
+				await controller.commitStructural({
+					snapshot: { blockIndex: deps.doc.children.length, offset: 0 },
+					mutate: (children) => {
 						const at = children.length;
 						children.push(newBlock);
 						return { op: 'insert', at, count: 1 };
 					},
-					() => {
+					op: { kind: 'appendBlock' },
+					afterTick: () => {
 						const lastIdx = deps.doc.children.length - 1;
 						deps.blockRefs[lastIdx]?.focus(0);
-					},
-					{ op: { kind: 'appendBlock' } }
-				);
+					}
+				});
 				return;
 			}
 			const block = deps.blockRefs[blockIndex];
