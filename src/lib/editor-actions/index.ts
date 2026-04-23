@@ -10,7 +10,7 @@ import type {
 	HistoryActions,
 	ContainerEditActions,
 	UndoEntry
-} from '../../contracts';
+} from '../contracts';
 import { createUndoController } from './undo-controller';
 import { createBlockEditActions } from './block-edit';
 import { createFocusActions } from './focus';

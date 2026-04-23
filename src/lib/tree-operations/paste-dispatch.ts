@@ -9,7 +9,7 @@
  * may address a block about to be unmounted by the range delete.
  */
 
-import type { UndoController } from '../components/editor-actions/deps';
+import type { UndoController } from '../editor-actions/deps';
 import type { BlockKind, CstNode, Document } from '../core/nodes';
 import type { BlockEditActions } from '../contracts';
 import { CURSOR_END } from '../contracts';
@@ -19,11 +19,8 @@ import { isProseKind, parseInline, getContentRange } from '../core/inline';
 import { buildPastedReplacement } from './paste-replacement';
 import { nodeAt } from './node-ops';
 import { rebuildContainerRawIfContainer } from './container-raw';
-import {
-	getStateForNode,
-	expectStateForNode
-} from '../components/blocks/container-state/state-registry';
-import type { BlockListState } from '../components/blocks/container-state/block-list-state.svelte';
+import { getStateForNode, expectStateForNode } from '../state-registry';
+import type { BlockListState } from '../block-list-state.svelte';
 import {
 	registerPasteSurface,
 	getPasteSurface,

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/components/editor-actions/undo-controller';
-import { createBlockEditActions } from '$lib/editor/components/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/components/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor/components/editor-actions/history';
-import { createStandardNestedActions } from '$lib/editor/components/blocks/container-state/nested-actions';
-import { createBlockListState } from '$lib/editor/components/blocks/container-state/block-list-state.svelte';
+import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
+import { createHistoryActions } from '$lib/editor/editor-actions/history';
+import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
+import { createBlockListState } from '$lib/editor/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/events/editor-events';

@@ -12,10 +12,10 @@ import {
 	registerPasteSurface
 } from '../../tree-operations/paste-surfaces';
 import { parse } from '../../core/parser';
-import { registerBlockListState } from '../../components/blocks/container-state/state-registry';
+import { registerBlockListState } from '../../state-registry';
 import type { BlockKind, CstNode, Document } from '../../core/nodes';
 import type { BlockComponent, BlockEditActions } from '../../contracts';
-import type { UndoController } from '../../components/editor-actions/deps';
+import type { UndoController } from '../../editor-actions/deps';
 
 function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };

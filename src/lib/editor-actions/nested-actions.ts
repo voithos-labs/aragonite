@@ -13,10 +13,10 @@ import type {
 	ContainerEditActions,
 	FocusPosition,
 	CstNode
-} from '../../../contracts';
-import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../../../contracts';
-import type { StickyColumnState } from '../../../contenteditable/sticky-column';
-import type { BlockListState } from './block-list-state.svelte';
+} from '../contracts';
+import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../contracts';
+import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { BlockListState } from '../block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import {
 	splitNode as performSplit,
@@ -27,10 +27,10 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
 	ensureEditableContainers
-} from '../../../tree-operations';
-import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
-import { parseAllInlineContent } from '../../../core/inline';
-import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
+} from '../tree-operations';
+import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
+import { parseAllInlineContent } from '../core/inline';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;

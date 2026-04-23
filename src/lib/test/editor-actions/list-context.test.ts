@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createListContext } from '../../components/blocks/container-state/list-context';
-import { registerBlockListState } from '../../components/blocks/container-state/state-registry';
-import { createUndoController } from '../../components/editor-actions/undo-controller';
+import { createListContext } from '../../editor-actions/list-context';
+import { registerBlockListState } from '../../state-registry';
+import { createUndoController } from '../../editor-actions/undo-controller';
 import { createUndoManager } from '../../undo-manager';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { createEditorEvents } from '../../events/editor-events';
@@ -12,7 +12,7 @@ import type {
 	FocusActions,
 	CstNode
 } from '../../contracts';
-import type { EditorActionsDeps } from '../../components/editor-actions/deps';
+import type { EditorActionsDeps } from '../../editor-actions/deps';
 
 // ── Harness helpers ──────────────────────────────────────────────────────────
 

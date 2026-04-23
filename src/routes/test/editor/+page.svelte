@@ -13,7 +13,7 @@
 	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
 	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
 	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
-	import { getStateForNode } from '$lib/editor/components/blocks/container-state/state-registry';
+	import { getStateForNode } from '$lib/editor/state-registry';
 	import type { CstNode } from '$lib/editor/core/nodes';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createBlockListState } from '../../components/blocks/container-state/block-list-state.svelte';
-import type { CstNode } from '../../core/nodes';
+import { createBlockListState } from '../block-list-state.svelte';
+import type { CstNode } from '../core/nodes';
 
 function makeNode(children: CstNode[]): CstNode {
 	return {

@@ -3,7 +3,7 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '../../components/blocks/container-state/focus-dispatch';
+} from '../../editor-actions/focus-dispatch';
 import type { BlockComponent, FocusActions } from '../../contracts';
 import { CURSOR_END } from '../../contracts';
 import type { StickyColumnState } from '../../contenteditable/sticky-column';

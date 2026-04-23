@@ -4,8 +4,8 @@
  * in one place.
  */
 
-import { CURSOR_END, type BlockEditActions, type CstNode } from '../../contracts';
-import { trimTrailingLineEnding, displayLength } from '../../core/lines';
+import { CURSOR_END, type BlockEditActions, type CstNode } from '../contracts';
+import { trimTrailingLineEnding, displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,
 	mergeWithNext as performMergeNext,
@@ -15,18 +15,18 @@ import {
 	rebuildAncestryRaw,
 	buildPastedReplacement,
 	normalizeReplacementTrivia
-} from '../../tree-operations';
+} from '../tree-operations';
 import {
 	isMergeEligible,
 	isBlockEditable,
 	findMergeTarget
-} from '../../tree-operations/merge-rules';
+} from '../tree-operations/merge-rules';
 import {
 	parseInline,
 	getContentRange,
 	isProseKind,
 	parseAllInlineContent
-} from '../../core/inline';
+} from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
