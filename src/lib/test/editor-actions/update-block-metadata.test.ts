@@ -147,6 +147,54 @@ describe('updateBlockMetadata', () => {
 
 		expect(node.metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
 	});
+
+	it('multi-field patch updates taskChecked and taskMarker atomically', async () => {
+		const node = makeNode('listItem', '- [ ] pending\n', {
+			marker: '- ',
+			taskItem: true,
+			taskChecked: false,
+			taskMarker: '[ ] '
+		});
+		const { deps, events } = makeDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+
+		const editHandler = vi.fn();
+		events.on('edit', editHandler);
+
+		await actions.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
+
+		expect(node.metadata).toMatchObject({
+			taskItem: true,
+			taskChecked: true,
+			taskMarker: '[x] '
+		});
+		expect(editHandler).toHaveBeenCalledTimes(1);
+		const evt = editHandler.mock.calls[0][0];
+		expect(evt.op).toBe('metadataUpdate');
+		expect(evt.detail.fields).toEqual(expect.arrayContaining(['taskChecked', 'taskMarker']));
+	});
+
+	it('undo after multi-field task patch restores both fields', async () => {
+		const node = makeNode('listItem', '- [ ] pending\n', {
+			marker: '- ',
+			taskItem: true,
+			taskChecked: false,
+			taskMarker: '[ ] '
+		});
+		const { deps } = makeDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+		const history = createHistoryActions(deps, controller);
+
+		await actions.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
+		await history.requestUndo();
+
+		expect(deps.doc.children[0].metadata).toMatchObject({
+			taskChecked: false,
+			taskMarker: '[ ] '
+		});
+	});
 });
 
 // ── Container scope ───────────────────────────────────────────────────────────
