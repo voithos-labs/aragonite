@@ -38,7 +38,7 @@
 		handleSharedKeydown,
 		handleSharedBeforeInput,
 		type SharedKeydownContext
-	} from '../../contenteditable/shared-keydown';
+	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
