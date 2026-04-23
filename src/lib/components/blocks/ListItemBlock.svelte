@@ -6,6 +6,7 @@
 		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
+		SELECTION_KEY,
 		CURSOR_END,
 		FOCUS_LAST_START,
 		type BlockEditActions,
@@ -14,8 +15,11 @@
 		type StickyColumnDirection,
 		type ListContext,
 		type CstNode,
-		type BlockComponent
+		type BlockComponent,
+		type AmbientPrefix
 	} from '../../contracts';
+	import type { ListItemMetadata } from '../../core/nodes';
+	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../core/lines';
 	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
@@ -33,6 +37,7 @@
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
@@ -46,9 +51,51 @@
 
 	const state = createBlockListState(() => node);
 
-	function marker(): string {
-		return (node.metadata as { marker?: string })?.marker ?? '- ';
+	function ambientPrefix(): AmbientPrefix {
+		const meta = node.metadata as ListItemMetadata | undefined;
+		const listMarker = meta?.marker ?? '- ';
+		if (!meta?.taskItem || !meta.taskMarker) {
+			return listMarker;
+		}
+		const text = listMarker + meta.taskMarker;
+		const boxStart = listMarker.length;
+		const boxEnd = boxStart + 3;
+		return {
+			text,
+			interactive: [
+				{
+					start: boxStart,
+					end: boxEnd,
+					className: 'task-checkbox',
+					role: 'checkbox',
+					ariaChecked: meta.taskChecked,
+					onClick: toggleTask
+				}
+			]
+		};
 	}
+
+	function toggleTask(): void {
+		const meta = node.metadata as ListItemMetadata | undefined;
+		if (!meta?.taskItem) return;
+
+		if (selection?.isCrossBlock) {
+			selection.clear();
+		}
+
+		const nextChecked = !meta.taskChecked;
+		const nextMarker = nextChecked ? '[x] ' : '[ ] ';
+		parentBlockEdit.updateBlockMetadata(index, {
+			taskChecked: nextChecked,
+			taskMarker: nextMarker
+		});
+	}
+
+	const taskCheckedAttr = $derived.by(() => {
+		const meta = node.metadata as ListItemMetadata | undefined;
+		if (!meta?.taskItem) return undefined;
+		return meta.taskChecked ? 'true' : 'false';
+	});
 
 	const bundle = createStandardNestedActions(
 		state,
@@ -156,7 +203,7 @@
 	}
 </script>
 
-<div class="list-item-block">
+<div class="list-item-block" data-task-checked={taskCheckedAttr}>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="list-item-content" onkeydown={handleKeydown}>
 		<BlockList
@@ -164,7 +211,7 @@
 			blockIds={state.innerBlockIds}
 			bind:blockRefs={state.innerBlockRefs}
 			parentPath={myPath}
-			ambientPrefixForFirst={marker()}
+			ambientPrefixForFirst={ambientPrefix()}
 		/>
 	</div>
 </div>
