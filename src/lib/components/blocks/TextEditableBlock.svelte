@@ -377,22 +377,6 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = getRawCursorOffset() ?? 0;
 
-		// Exclude the ambient marker from Ctrl+A selection — marker belongs to the container.
-		// Chromium clips a range whose start sits inside the contenteditable="false" ambient
-		// text node, so anchor at raw offset 0 (sibling boundary after the ambient span) and
-		// extend to end of content.
-		if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey && ambientLength > 0 && el) {
-			const textLen = (el.textContent ?? '').length;
-			if (textLen > ambientLength) {
-				e.preventDefault();
-				const endRange = createRangeFromOffsets(el, textLen, textLen);
-				if (endRange && placeCaretAfterAmbientSpan(el)) {
-					window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
-				}
-				return;
-			}
-		}
-
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
@@ -614,6 +598,8 @@
 	class="text-editable-block {blockClass}"
 	contenteditable="true"
 	role="textbox"
+	style:text-indent={ambientPrefix ? `-${ambientLength}ch` : null}
+	style:padding-left={ambientPrefix ? `${ambientLength}ch` : null}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}

@@ -200,6 +200,11 @@ export function ensureEditableContainers(node: CstNode): void {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+			// The synthesized paragraph's '\n' already represents the trailing
+			// blank that parseBlocks routed into innerPrefix when there were no
+			// children. Leaving both in place double-counts the line on rebuild
+			// — `- \n` + edit produces `- \n  X\n` instead of `- X\n`.
+			node.innerPrefix = '';
 		}
 		for (const child of node.children) {
 			ensureEditableContainers(child);
