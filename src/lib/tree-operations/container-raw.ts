@@ -33,7 +33,9 @@ export function rebuildBlockquoteRaw(node: CstNode): void {
 export function rebuildListItemRaw(node: CstNode): void {
 	if (!node.children || !node.metadata) return;
 
-	const marker = (node.metadata as { marker?: string }).marker ?? '- ';
+	const meta = node.metadata as { marker?: string; taskMarker?: string | null };
+	const marker = meta.marker ?? '- ';
+	const taskMarker = meta.taskMarker ?? '';
 	const indent = ' '.repeat(marker.length);
 
 	const innerContent =
@@ -45,7 +47,7 @@ export function rebuildListItemRaw(node: CstNode): void {
 	node.raw = lines
 		.map((line, i) => {
 			if (i === lines.length - 1 && line === '') return '';
-			if (i === 0) return marker + line;
+			if (i === 0) return marker + taskMarker + line;
 			if (line === '') return '';
 			return indent + line;
 		})
