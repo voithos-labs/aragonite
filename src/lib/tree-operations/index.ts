@@ -16,14 +16,10 @@ export {
 	rebuildContainerRawIfContainer
 } from './container-raw';
 
-export {
-	unwrapFirstItemFromList,
-	mergeListItemIntoPrevious,
-	renumberOrderedList,
-	normalizeItemMarkerToList,
-	isItemUserEmpty,
-	buildExitReplacement
-} from './list-ops';
+export { unwrapFirstItemFromList, mergeListItemIntoPrevious } from './list/unwrap-merge';
+export { renumberOrderedList, normalizeItemMarkerToList } from './list/ordered-markers';
+export { isItemUserEmpty } from './list/empty-check';
+export { buildExitReplacement } from './list/exit-replacement';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';
 

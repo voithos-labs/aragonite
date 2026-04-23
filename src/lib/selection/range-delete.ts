@@ -128,4 +128,3 @@ function lowestCommonAncestor(a: number[], b: number[]): number[] {
 	}
 	return result;
 }
-

@@ -1,0 +1,25 @@
+/**
+ * Predicate for whether a list item is "user-empty" — every leaf descendant's
+ * raw is blank — used by list-item Backspace and list-exit flows to distinguish
+ * a shallow empty-first-paragraph from a genuinely empty item.
+ */
+
+import type { CstNode } from '../../core/nodes';
+
+/**
+ * A list item is "user-empty" when every leaf descendant's raw is blank.
+ * Stronger than "first child is an empty paragraph" — the shallow check
+ * dropped trailing content (extra paragraphs, nested lists) when the first
+ * paragraph happened to be empty.
+ */
+export function isItemUserEmpty(item: CstNode): boolean {
+	if (!item.children || item.children.length === 0) return true;
+	for (const child of item.children) {
+		if (child.children && child.children.length > 0) {
+			if (!isItemUserEmpty(child)) return false;
+		} else if ((child.raw ?? '').trim() !== '') {
+			return false;
+		}
+	}
+	return true;
+}
