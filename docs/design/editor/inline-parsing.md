@@ -30,11 +30,11 @@ Each node carries `start`/`end` byte offsets into the parent block's `raw`, cove
 
 The inline parser operates on the content range within a block's `raw` — after block-level markers (e.g., after `## ` for headings). The content range is determined via the block-kind descriptor's `getContentRange` hook, so prose-kind registration is the single source. Returned nodes carry offsets relative to the full `raw`.
 
-`parseInline` accepts an optional `RefResolver` parameter for document-level reference resolution (link reference definitions). Currently accepted but not consulted; filled by the reference-style link milestone.
+`parseInline` accepts an optional `RefResolver` parameter for document-level reference resolution (link reference definitions); the reference-style link milestone fills it.
 
 ### Parsing pipeline
 
-1. **Pre-escape** — reserved stage for CommonMark backslash-punctuation escape handling; currently a no-op pass. Downstream scanners can assume escapes are resolved before they run.
+1. **Pre-escape** — reserved stage for CommonMark backslash-punctuation escape handling. Downstream scanners can assume escapes are resolved before they run.
 2. **Backtick code spans** — match balanced backtick sequences; content is literal
 3. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
 4. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting

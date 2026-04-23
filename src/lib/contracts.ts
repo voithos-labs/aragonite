@@ -44,7 +44,14 @@ export const DOC_KEY = Symbol('editor-doc');
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
-/** "Place cursor at end of content." focus() clamps to content length. */
+/**
+ * "Place cursor at end of content." focus() clamps to content length, so the
+ * exact value just needs to exceed any plausible block size. Kept distinct
+ * from SELECTION_END below: this travels as a numeric offset that callers
+ * compare and arithmetic on, while SELECTION_END travels as an opt-in
+ * sentinel surfaces interpret in their own coordinate system. Sentinel-vs-
+ * arithmetic distinction is the reason the values diverge.
+ */
 export const CURSOR_END = 999999;
 
 /**
@@ -185,15 +192,19 @@ export interface HistoryActions {
 
 export interface ContainerEditActions {
 	/**
-	 * @deprecated Use `commitMultiScope` on the UndoController instead.
-	 * Retained for `paste-dispatch.ts` until its migration lands.
+	 * Bracketing snapshot — pushes one undo entry, no debounce. Survives outside
+	 * the commit primitive because cross-block dispatch's typing path mutates
+	 * raw directly and then nudges reactivity through the bracket. v0.7 cleanup
+	 * candidate: rename to reflect actual scope (snapshot bookend, not "edit").
 	 */
 	beginContainerEdit(blockIndex: number, offset: number): void;
 	/** Debounced undo snapshot for text input. */
 	beginContainerEditDebounced(blockIndex: number, offset: number): void;
 	/**
-	 * @deprecated Use `commitMultiScope` on the UndoController instead.
-	 * Retained for `paste-dispatch.ts` until its migration lands.
+	 * Reactivity nudge (`doc.children = [...doc.children]`) for paths that
+	 * mutate the document outside the commit primitive — cross-block typing,
+	 * IME composition entry, drag/clipboard mutate notify. v0.7 cleanup
+	 * candidate: rename to describe the nudge, not an "end of edit."
 	 */
 	endContainerEdit(): void;
 	/**

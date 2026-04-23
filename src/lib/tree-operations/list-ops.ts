@@ -1,3 +1,9 @@
+/**
+ * List-kind tree operations: emptiness predicates, ordered-marker bookkeeping,
+ * U1 first-item unwrap, M1 non-first-item merge, and exit-conversion replacement
+ * for Enter-on-empty-item. Pure tree mutations — no Svelte, no DOM.
+ */
+
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from './clone';
 import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from './container-raw';
