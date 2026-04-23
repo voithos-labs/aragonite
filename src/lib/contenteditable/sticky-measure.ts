@@ -45,21 +45,28 @@ export function getOffsetRect(container: HTMLElement, offset: number): DOMRect |
  * left coordinate is closest to the target X. Linear scan because
  * getClientRects left values are non-monotonic along logical offsets on BiDi
  * lines, so binary search is invalid.
+ *
+ * `minOffset` excludes an ambient-marker prefix (e.g. a list item's `- `
+ * rendered as a contenteditable="false" span inside the block). Without it,
+ * the scan can pick a marker-region offset whose rect happens to be closest
+ * to the target X, silently landing the caret at start-of-content when a
+ * non-zero raw offset was the actual nearest column.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,
 	editorRelativeX: number,
-	from: StickyColumnDirection
+	from: StickyColumnDirection,
+	minOffset = 0
 ): number {
 	const text = container.textContent ?? '';
 	const textLen = text.length;
-	if (textLen === 0) return 0;
+	if (textLen <= minOffset) return minOffset;
 
 	const editor = container.closest('.editor') as HTMLElement | null;
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
 	const targetViewportX = editorRelativeX + editorLeft;
 
-	const probeOffset = from === 'above' ? 0 : textLen;
+	const probeOffset = from === 'above' ? minOffset : textLen;
 	const probeRect = getOffsetRect(container, probeOffset);
 	if (!probeRect) return probeOffset;
 
@@ -71,7 +78,7 @@ export function findOffsetNearestX(
 	let bestOffset = probeOffset;
 	let bestDelta = Math.abs(probeRect.left - targetViewportX);
 
-	for (let offset = 0; offset <= textLen; offset++) {
+	for (let offset = minOffset; offset <= textLen; offset++) {
 		const rect = getOffsetRect(container, offset);
 		if (!rect) continue;
 		if (rect.top > lineBottom + tolerance) continue;

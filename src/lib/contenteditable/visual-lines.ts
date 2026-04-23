@@ -71,10 +71,16 @@ export function findLastTextNode(node: Node): Text | null {
  * True if the selection inside `el` sits on the first visual line.
  * `fallbackOffset` is consulted when geometry measurement fails and should
  * be the cursor offset from getCursorOffset. Empty containers return true.
+ *
+ * `rangeCount === 0` means there's no selection to measure — typically the
+ * race window between `focus()` and the browser installing its selection
+ * range. Return false so the caller doesn't cross the block boundary based
+ * on a missing-but-imminent selection; the next keystroke lands inside this
+ * block once the range arrives.
  */
 export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): boolean {
 	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return true;
+	if (!sel || sel.rangeCount === 0) return false;
 	if ((el.textContent ?? '').length === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
@@ -111,7 +117,8 @@ export function isAtLastVisualLine(
 	textLen: number
 ): boolean {
 	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return true;
+	// See isAtFirstVisualLine — missing range = don't cross the boundary.
+	if (!sel || sel.rangeCount === 0) return false;
 	if (textLen === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
