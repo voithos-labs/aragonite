@@ -1,0 +1,57 @@
+/**
+ * Built-in block component registrations. Imported for side effects — each
+ * `import` of this module (BlockHost, Editor) populates the registry
+ * idempotently. Plugin authors at v1.2 mirror this shape for their own kinds.
+ */
+
+import type { CstNode } from './core/nodes';
+import TextEditableBlock from './components/blocks/TextEditableBlock.svelte';
+import CodeBlock from './components/blocks/CodeBlock.svelte';
+import ThematicBreakBlock from './components/blocks/ThematicBreakBlock.svelte';
+import BlockquoteBlock from './components/blocks/BlockquoteBlock.svelte';
+import ListBlock from './components/blocks/ListBlock.svelte';
+import { registerBlockComponent, type BlockComponentEntry } from './block-component-registry';
+
+function headingExtraProps(node: CstNode): Record<string, unknown> {
+	const level = (node.metadata as { level?: number } | undefined)?.level ?? 1;
+	return { blockClass: `heading-${level}` };
+}
+
+const textAsRawBlock: BlockComponentEntry = {
+	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
+	extraProps: () => ({ blockClass: 'raw-block' })
+};
+
+registerBlockComponent('paragraph', {
+	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
+	extraProps: () => ({ blockClass: 'paragraph-block' })
+});
+registerBlockComponent('heading', {
+	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
+	extraProps: headingExtraProps
+});
+registerBlockComponent('setextHeading', {
+	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
+	extraProps: headingExtraProps
+});
+registerBlockComponent('thematicBreak', {
+	component: ThematicBreakBlock as unknown as BlockComponentEntry['component']
+});
+registerBlockComponent('fencedCode', {
+	component: CodeBlock as unknown as BlockComponentEntry['component']
+});
+registerBlockComponent('blockquote', {
+	component: BlockquoteBlock as unknown as BlockComponentEntry['component']
+});
+registerBlockComponent('list', {
+	component: ListBlock as unknown as BlockComponentEntry['component']
+});
+
+// Kinds without a dedicated component fall back to raw-block rendering via
+// TextEditableBlock (contenteditable on `raw`, no inline parsing / marker
+// styling). Graduates to a dedicated component when one is added.
+registerBlockComponent('indentedCode', textAsRawBlock);
+registerBlockComponent('htmlBlock', textAsRawBlock);
+registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
+registerBlockComponent('table', textAsRawBlock);
+registerBlockComponent('unrecognized', textAsRawBlock);

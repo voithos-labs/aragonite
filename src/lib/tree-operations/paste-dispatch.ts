@@ -10,7 +10,7 @@
  */
 
 import type { UndoController } from '../editor-actions/deps';
-import type { BlockKind, CstNode, Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { BlockEditActions } from '../contracts';
 import { CURSOR_END } from '../contracts';
 import { parse } from '../core/parser';
@@ -19,6 +19,10 @@ import { isProseKind, parseInline, getContentRange } from '../core/inline';
 import { buildPastedReplacement } from './paste-replacement';
 import { nodeAt } from './node-ops';
 import { rebuildContainerRawIfContainer } from './container-raw';
+import {
+	getAllRegisteredKinds,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';
 import { getStateForNode, expectStateForNode } from '../state-registry';
 import type { BlockListState } from '../block-list-state.svelte';
 import {
@@ -211,17 +215,20 @@ export function defaultStructuralHook(
 
 // ── Default surface registration ───────────────────────────────────────────
 
-// Adding a new inline-capable block kind: add it here AND set
-// supportsInline: true on its descriptor in block-kind-descriptor.ts.
-// (Iterating the registry at module load is ordering-hazardous.)
-const INLINE_CAPABLE_KINDS: BlockKind[] = ['paragraph', 'heading', 'setextHeading'];
-
-for (const kind of INLINE_CAPABLE_KINDS) {
-	registerPasteSurface({
-		kind,
-		onInlinePaste: defaultInlineHook,
-		onStructuralPaste: defaultStructuralHook
-	});
+// Every `supportsInline` kind on the descriptor registry gets the default
+// inline + structural hooks. Built-in kinds register on block-kind-descriptor
+// import, which is transitively completed before this module's top-level
+// executes — the registry is populated when we iterate. Plugin kinds
+// registering after this point must register their own paste surface (or
+// rely on a v1.2 registration hook, not in scope for v0.5).
+for (const kind of getAllRegisteredKinds()) {
+	if (tryGetBlockKindDescriptor(kind)?.supportsInline) {
+		registerPasteSurface({
+			kind,
+			onInlinePaste: defaultInlineHook,
+			onStructuralPaste: defaultStructuralHook
+		});
+	}
 }
 
 /** Test-only: produce a default text surface descriptor. */

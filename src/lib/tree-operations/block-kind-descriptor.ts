@@ -29,6 +29,12 @@ export interface BlockKindDescriptor {
 	 * markers; otherwise the default (start=0, end=displayLength) is used.
 	 */
 	getContentRange?: (node: CstNode) => { start: number; end: number };
+	/**
+	 * Recompute `raw` from children + container metadata. Container kinds supply
+	 * this; leaves omit it. Patched in from `tree-operations/container-raw.ts` at
+	 * that file's module load to keep the descriptor cycle-free.
+	 */
+	rebuildRaw?: (node: CstNode) => void;
 }
 
 // ── Content-range helpers (used by built-in registrations) ─────────────────
@@ -65,6 +71,23 @@ export function registerBlockKind(kind: BlockKind, descriptor: BlockKindDescript
 	registry.set(kind, descriptor);
 }
 
+/**
+ * Merge fields into an existing registration. Used by sibling modules
+ * (e.g. container-raw.ts) to patch in behavior that can't live in this file
+ * without creating an import cycle. Throws when the kind isn't already
+ * registered — no accidental creation via partial data.
+ */
+export function augmentBlockKind(kind: BlockKind, fields: Partial<BlockKindDescriptor>): void {
+	const existing = registry.get(kind);
+	if (!existing) {
+		throw new Error(
+			`augmentBlockKind: cannot augment "${kind}" — no base descriptor. ` +
+				`Call registerBlockKind first.`
+		);
+	}
+	registry.set(kind, { ...existing, ...fields });
+}
+
 export function getBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor {
 	const d = registry.get(kind);
 	if (!d) {
@@ -78,6 +101,11 @@ export function getBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor {
 
 export function tryGetBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor | undefined {
 	return registry.get(kind);
+}
+
+/** Every kind currently registered. Caller must not mutate. */
+export function getAllRegisteredKinds(): BlockKind[] {
+	return Array.from(registry.keys());
 }
 
 // ── Built-in registrations ──────────────────────────────────────────────────
