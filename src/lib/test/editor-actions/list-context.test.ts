@@ -6,12 +6,7 @@ import { createUndoManager } from '../../undo-manager';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { createEditorEvents } from '../../events/editor-events';
 import { parse } from '../../core/parser';
-import type {
-	BlockComponent,
-	BlockEditActions,
-	FocusActions,
-	CstNode
-} from '../../contracts';
+import type { BlockComponent, BlockEditActions, FocusActions, CstNode } from '../../contracts';
 import type { EditorActionsDeps } from '../../editor-actions/deps';
 
 // ── Harness helpers ──────────────────────────────────────────────────────────

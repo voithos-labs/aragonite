@@ -213,11 +213,7 @@ export interface ContainerEditActions {
 	 * blockIndex and one undo entry spans typing across multiple inner
 	 * blocks.
 	 */
-	pushDebouncedCheckpoint(
-		blockIndex: number,
-		offset: number,
-		batchKey?: string | number
-	): void;
+	pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void;
 	/**
 	 * Publish a raw change the caller made outside the commit primitive.
 	 * At the editor root this is a `doc.children = [...doc.children]`

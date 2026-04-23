@@ -11,7 +11,7 @@ import { parse } from '../core/parser';
 import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
-import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
+import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ export function rangeDelete(
 		// Ancestor rebuild is still needed — this block may be nested inside
 		// a blockquote/list/listItem whose raw depends on descendant raws.
 		(startBlock as CstNode).raw = mergedRaw;
-		rebuildAncestryContainerRaw(doc, start.path);
+		rebuildAncestryRawForLeaf(doc, start.path);
 		return {
 			newDoc: doc,
 			collapsedCaret: { path: start.path.slice(), offset: start.offset }
@@ -85,9 +85,9 @@ export function rangeDelete(
 
 	// Rebuild both chains: start-path (replacement changed contents) and
 	// deletion-path ancestors (children arrays shrank, possibly via cascade).
-	rebuildAncestryContainerRaw(doc, start.path);
+	rebuildAncestryRawForLeaf(doc, start.path);
 	for (const path of deletionPaths) {
-		rebuildAncestryContainerRaw(doc, path);
+		rebuildAncestryRawForLeaf(doc, path);
 	}
 
 	// replacement[0] occupies start.path's slot, so the caret lands at
@@ -129,16 +129,3 @@ function lowestCommonAncestor(a: number[], b: number[]): number[] {
 	return result;
 }
 
-/**
- * Rebuild `raw` for every container ancestor of `leafPath`, innermost-first.
- * Stops at depth 1 (a direct child of doc root, possibly itself a container).
- * Doc root is never rebuilt — serialization reads its children directly.
- */
-function rebuildAncestryContainerRaw(doc: Document, leafPath: number[]): void {
-	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestorPath = leafPath.slice(0, depth);
-		const ancestor = nodeAt(doc, ancestorPath);
-		if (!ancestor || !('kind' in ancestor)) break;
-		rebuildContainerRawIfContainer(ancestor as CstNode);
-	}
-}

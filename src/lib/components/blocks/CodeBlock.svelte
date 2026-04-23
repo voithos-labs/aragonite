@@ -55,7 +55,7 @@
 	import { computeCodeEnter } from './code/code-enter';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
-	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
+	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 

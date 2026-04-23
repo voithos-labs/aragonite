@@ -38,8 +38,8 @@ import {
 import { installDragListener } from './drag-pointer';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
 import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
-import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
-import { pasteDispatch } from '../tree-operations/paste-dispatch';
+import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
+import { pasteDispatch } from '../tree-operations/paste/dispatch';
 import { getStateForNode } from '../state-registry';
 import type { BlockListState } from '../block-list-state.svelte';
 
@@ -442,14 +442,6 @@ async function handlePaste(
 	return true;
 }
 
-function rebuildAncestryForLeaf(doc: Document, leafPath: number[]): void {
-	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
-		if (!ancestor || !('kind' in ancestor)) break;
-		rebuildContainerRawIfContainer(ancestor as CstNode);
-	}
-}
-
 // ── BeforeInput ────────────────────────────────────────────────────────────
 
 async function handleBeforeInput(
@@ -493,7 +485,7 @@ async function handleBeforeInput(
 			targetNode.raw =
 				targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
 			ctx.afterRawMutated?.(targetNode);
-			if (caret.path.length >= 2) rebuildAncestryForLeaf(doc, caret.path);
+			if (caret.path.length >= 2) rebuildAncestryRawForLeaf(doc, caret.path);
 			return [{ op: 'noop' }];
 		},
 		{

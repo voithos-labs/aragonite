@@ -6,7 +6,7 @@ import {
 	defaultInlineHook,
 	defaultStructuralHook,
 	__getDefaultTextSurface
-} from '../../tree-operations/paste-dispatch';
+} from '../../tree-operations/paste/dispatch';
 import {
 	__resetPasteSurfacesForTests,
 	registerPasteSurface

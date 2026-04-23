@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-	registerBlockListState,
-	getStateForNode,
-	expectStateForNode
-} from '../state-registry';
+import { registerBlockListState, getStateForNode, expectStateForNode } from '../state-registry';
 import { createBlockListState } from '../block-list-state.svelte';
 import type { BlockListState } from '../block-list-state.svelte';
 import type { CstNode } from '../core/nodes';
