@@ -1,4 +1,16 @@
+/**
+ * Per-container-kind raw-rebuild helpers plus ancestry dispatch. Each kind's
+ * rebuild function is registered on its `BlockKindDescriptor` at this module's
+ * load — `rebuildContainerRaw` looks up `descriptor.rebuildRaw` rather than
+ * switching on kind, so plugin containers at 1.2 participate by supplying a
+ * rebuildRaw on their descriptor.
+ */
+
 import type { CstNode } from '../core/nodes';
+import {
+	augmentBlockKind,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -47,6 +59,12 @@ export function rebuildListRaw(node: CstNode): void {
 	node.raw = node.children.map((c) => c.leadingTrivia + c.raw).join('');
 }
 
+// ── Descriptor wiring ────────────────────────────────────────────────────────
+
+augmentBlockKind('blockquote', { rebuildRaw: rebuildBlockquoteRaw });
+augmentBlockKind('list', { rebuildRaw: rebuildListRaw });
+augmentBlockKind('listItem', { rebuildRaw: rebuildListItemRaw });
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function prefixLines(text: string, contentPrefix: string, blankPrefix: string): string {
@@ -87,40 +105,21 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 }
 
 /**
- * Dispatch to the correct per-kind rebuild helper. Throws when `node` isn't a
- * container — callers that walk ancestry chains and may encounter leaves should
+ * Dispatch via the kind's descriptor `rebuildRaw`. Throws when the kind has
+ * no rebuildRaw (i.e. is a leaf) — callers that walk ancestry chains should
  * use {@link rebuildContainerRawIfContainer} instead.
- *
- * Not dispatched via BlockKindDescriptor: plugging rebuildRaw into the registry
- * would create a module cycle between this file and block-kind-descriptor.ts.
  */
 export function rebuildContainerRaw(node: CstNode): void {
-	switch (node.kind) {
-		case 'blockquote':
-			rebuildBlockquoteRaw(node);
-			return;
-		case 'list':
-			rebuildListRaw(node);
-			return;
-		case 'listItem':
-			rebuildListItemRaw(node);
-			return;
-		default:
-			throw new Error(
-				`rebuildContainerRaw: unexpected kind "${node.kind}" — only container kinds (blockquote, list, listItem) are valid`
-			);
+	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
+	if (!rebuild) {
+		throw new Error(
+			`rebuildContainerRaw: kind "${node.kind}" has no rebuildRaw — only container kinds are valid`
+		);
 	}
+	rebuild(node);
 }
 
-/** Rebuild `raw` when `node` is a container kind; no-op on leaves. */
+/** Rebuild `raw` when `node` has a rebuildRaw on its descriptor; no-op otherwise. */
 export function rebuildContainerRawIfContainer(node: CstNode): void {
-	switch (node.kind) {
-		case 'blockquote':
-		case 'list':
-		case 'listItem':
-			rebuildContainerRaw(node);
-			return;
-		default:
-			return;
-	}
+	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node);
 }

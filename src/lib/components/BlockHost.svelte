@@ -1,12 +1,9 @@
 <script lang="ts">
 	import type { CstNode, BlockComponent } from '../contracts';
-	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
-	import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
-	import CodeBlock from './blocks/CodeBlock.svelte';
-	import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
-	import ListBlock from './blocks/ListBlock.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import { getBlockKindDescriptor } from '../tree-operations/block-kind-descriptor';
+	import { getBlockComponent } from '../block-component-registry';
+	import '../block-components';
 
 	let {
 		node,
@@ -28,47 +25,19 @@
 
 	let hostEl: HTMLElement | null = $state(null);
 
-	function headingClass(): string {
-		const level = (node.metadata as { level?: number })?.level ?? 1;
-		return `heading-${level}`;
-	}
+	let entry = $derived(getBlockComponent(node.kind));
 </script>
 
 <div class="block-host" data-block-path={JSON.stringify(myPath)} bind:this={hostEl}>
-	{#if node.kind === 'paragraph'}
-		<TextEditableBlock
+	{#if entry}
+		{@const Comp = entry.component}
+		<Comp
 			{node}
 			{index}
 			{myPath}
 			{ambientPrefix}
 			bind:this={ref}
-			blockClass="paragraph-block"
-		/>
-	{:else if node.kind === 'heading' || node.kind === 'setextHeading'}
-		<TextEditableBlock
-			{node}
-			{index}
-			{myPath}
-			{ambientPrefix}
-			bind:this={ref}
-			blockClass={headingClass()}
-		/>
-	{:else if node.kind === 'thematicBreak'}
-		<ThematicBreakBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'fencedCode'}
-		<CodeBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'blockquote'}
-		<BlockquoteBlock {node} {index} {myPath} bind:this={ref} />
-	{:else if node.kind === 'list'}
-		<ListBlock {node} {index} {myPath} bind:this={ref} />
-	{:else}
-		<TextEditableBlock
-			{node}
-			{index}
-			{myPath}
-			{ambientPrefix}
-			bind:this={ref}
-			blockClass="raw-block"
+			{...(entry.extraProps?.(node) ?? {})}
 		/>
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only
