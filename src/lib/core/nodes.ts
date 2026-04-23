@@ -44,6 +44,8 @@ export interface ThematicBreakMetadata {
 
 export interface LinkReferenceDefinitionMetadata {
 	label: string;
+	url?: string;
+	title?: string;
 }
 
 export interface TableMetadata {

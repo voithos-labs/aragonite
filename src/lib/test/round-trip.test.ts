@@ -198,7 +198,16 @@ describe('round-trip: link reference definitions', () => {
 		{ name: 'with title parens', source: '[ref]: https://example.com (Title)\n' },
 		{ name: 'with angle bracket url', source: '[ref]: <https://example.com>\n' },
 		{ name: 'multi-word label', source: '[my ref]: https://example.com\n' },
-		{ name: 'after paragraph', source: 'Paragraph.\n\n[ref]: https://example.com\n' }
+		{ name: 'after paragraph', source: 'Paragraph.\n\n[ref]: https://example.com\n' },
+		{ name: 'multi-line: url on continuation', source: '[ref]:\n  https://example.com\n' },
+		{
+			name: 'multi-line: url + title on continuation',
+			source: '[ref]:\n  https://example.com\n  "Title"\n'
+		},
+		{
+			name: 'multi-line: url inline + title on continuation',
+			source: '[ref]: https://example.com\n  "Title"\n'
+		}
 	];
 
 	for (const { name, source } of cases) {

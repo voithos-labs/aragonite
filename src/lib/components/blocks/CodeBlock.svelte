@@ -214,6 +214,8 @@
 	}
 
 	function onCompositionStart(): void {
+		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
+		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
 		crossBlock.handleCompositionStart();
 		composing = true;
 	}
@@ -228,12 +230,14 @@
 		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak without a preceding keydown.
 		if (e.inputType === 'insertLineBreak' && el) {
 			e.preventDefault();
+			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
+			const branchPreEditOffset = getCursorOffsetHelper(el) ?? 0;
 			const result = computeCodeEnter({
 				display: getDisplayText(),
 				selection: currentRange(),
 				mode: 'soft'
 			});
-			blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
+			blockEdit.updateBlockContent(index, result.newText + '\n', branchPreEditOffset);
 			pendingCursorOffset = result.newCursor;
 			return;
 		}

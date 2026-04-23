@@ -282,6 +282,36 @@ test.describe('list Backspace', () => {
 		expect(source).toMatch(/3\.\s*Third/);
 	});
 
+	// J3 regression: nested mergeWithPrevious for innerIndex<=0 must await the
+	// upward delegation. Pre-fix, the typed marker raced the merge — landing on
+	// a stale block before the parent merge published.
+	test('Backspace at start of nested-list item then immediate type lands character at merge boundary', async () => {
+		await editor.loadContent('- Outer\n  - Inner one\n  - Inner two\n');
+		const innerTwo = editor.page.locator('[contenteditable="true"]', { hasText: 'Inner two' });
+		await innerTwo.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('Inner oneZInner two');
+	});
+
+	// J3 regression: same shape, flat list — Backspace then type with no settle
+	// pause. The character must land at the merge boundary, not race to a stale
+	// block.
+	test('Backspace at start of non-first item then immediate type lands at merge boundary (no settle wait)', async () => {
+		await editor.loadContent('- Alpha\n- Beta\n');
+		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });
+		await beta.click();
+		await editor.page.keyboard.press('Home');
+		await editor.pressBackspace();
+		await editor.typeText('Z');
+		await editor.page.waitForTimeout(200);
+		const source = await editor.getSource();
+		expect(source).toContain('AlphaZBeta');
+	});
+
 	// Google Docs semantics: post-blank item promotes to paragraph, remaining items continue the sequence (no Obsidian restart).
 	test('ordered: Backspace on post-blank item promotes to paragraph and continues numbering', async () => {
 		await editor.loadContent('1. one\n2. two\n\n3. three\n4. four\n');

@@ -135,7 +135,13 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowLeft') {
-		const offset = ctx.getCursorOffset();
+		// Shift+Arrow reads focus, not anchor: a forward selection's anchor
+		// stays mid-block while focus advances to the boundary. Reading
+		// getCursorOffset() (range start = anchor for forward, focus for
+		// backward) would (a) trigger cross-block extension on Shift+ArrowLeft
+		// while focus is contracting toward a non-zero anchor, and (b) misfire
+		// for backward selections where range start sits at 0 but focus does not.
+		const offset = e.shiftKey ? (ctx.getFocusOffset() ?? 0) : ctx.getCursorOffset();
 		if (offset === 0) {
 			if (e.shiftKey) {
 				e.preventDefault();
@@ -151,7 +157,7 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowRight') {
 		const textLen = ctx.getTextLen();
-		const offset = ctx.getCursorOffset();
+		const offset = e.shiftKey ? (ctx.getFocusOffset() ?? textLen) : ctx.getCursorOffset();
 		if (offset === textLen) {
 			if (e.shiftKey) {
 				e.preventDefault();

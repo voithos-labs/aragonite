@@ -58,6 +58,27 @@ describe('installDragListener — lifetime cleanup', () => {
 		controller.abort();
 		expect(() => handle.dispose()).not.toThrow();
 	});
+
+	it('pointercancel disposes listeners just like pointerup', () => {
+		const before = countDocListeners();
+		installDragListener(makeCtx(), { path: [0], offset: 0 });
+		expect(countDocListeners()).toBeGreaterThan(before);
+
+		document.dispatchEvent(new Event('pointercancel'));
+
+		expect(countDocListeners()).toBe(before);
+	});
+
+	it('pointercancel teardown is symmetric across signal/no-signal contexts', () => {
+		const controller = new AbortController();
+		const before = countDocListeners();
+		installDragListener(makeCtx(controller.signal), { path: [0], offset: 0 });
+		expect(countDocListeners()).toBeGreaterThan(before);
+
+		document.dispatchEvent(new Event('pointercancel'));
+
+		expect(countDocListeners()).toBe(before);
+	});
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,11 +88,11 @@ let currentCount = 0;
 const origAdd = document.addEventListener.bind(document);
 const origRemove = document.removeEventListener.bind(document);
 document.addEventListener = ((type: string, ...rest: unknown[]) => {
-	if (type === 'pointermove' || type === 'pointerup') currentCount++;
+	if (type === 'pointermove' || type === 'pointerup' || type === 'pointercancel') currentCount++;
 	return origAdd(type, ...(rest as [EventListenerOrEventListenerObject]));
 }) as typeof document.addEventListener;
 document.removeEventListener = ((type: string, ...rest: unknown[]) => {
-	if (type === 'pointermove' || type === 'pointerup') currentCount--;
+	if (type === 'pointermove' || type === 'pointerup' || type === 'pointercancel') currentCount--;
 	return origRemove(type, ...(rest as [EventListenerOrEventListenerObject]));
 }) as typeof document.removeEventListener;
 

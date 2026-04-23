@@ -271,7 +271,7 @@
 
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		if (!el) return [];
-		const domStart = startOffset === 0 ? 0 : rawToDomOffset(startOffset, ambientLength);
+		const domStart = rawToDomOffset(startOffset, ambientLength);
 		const domEnd = rawToDomOffset(endOffset, ambientLength);
 		return measurePartialRectsInContentEditable(el, domStart, domEnd);
 	}
@@ -337,9 +337,9 @@
 		if (composing || !el) return;
 		const text = readRawText();
 		const savedRawOffset = getRawCursorOffset() ?? 0;
-		blockEdit.updateBlockContent(index, text + '\n', savedRawOffset);
-
-		// Signal the $effect to restore cursor after it rebuilds the DOM.
+		// preEdit drives the undo snapshot anchor; postEdit drives focus when typing
+		// (e.g. `# `) triggers a kind change and the block remounts.
+		blockEdit.updateBlockContent(index, text + '\n', preEditOffset, savedRawOffset);
 		pendingCursorOffset = savedRawOffset;
 	}
 
@@ -362,6 +362,8 @@
 	}
 
 	function onCompositionStart(): void {
+		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
+		preEditOffset = getRawCursorOffset() ?? 0;
 		crossBlock.handleCompositionStart();
 		composing = true;
 	}
@@ -411,7 +413,7 @@
 			const newPrefix = level === 0 ? '' : '#'.repeat(level) + ' ';
 			const newDisplay = newPrefix + stripped;
 			const cursor = newPrefix.length + Math.max(0, (preEditOffset ?? 0) - oldPrefixLen);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', cursor);
+			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset, cursor);
 			pendingCursorOffset = cursor;
 			return;
 		}

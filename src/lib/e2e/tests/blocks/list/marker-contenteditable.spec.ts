@@ -114,7 +114,7 @@ test.describe('list marker inside contenteditable', () => {
 		await expect(markers.nth(1)).toHaveText('- ');
 	});
 
-	test('cross-block selection from previous block covers marker region', async () => {
+	test('C1: cross-block selection ending in list item — overlay starts at content edge, not marker edge', async () => {
 		await editor.loadContent('Before.\n\n- Hello\n');
 		const before = editor.page.locator('[contenteditable="true"]', { hasText: 'Before' });
 		await before.click();
@@ -131,21 +131,22 @@ test.describe('list marker inside contenteditable', () => {
 			.locator('.list-item-block [contenteditable="true"] > span.md-marker')
 			.boundingBox();
 		if (!markerBox) throw new Error('marker not visible');
+		const markerRight = markerBox.x + markerBox.width;
 
 		const overlays = editor.page.locator('.selection-overlay');
 		const overlayCount = await overlays.count();
 		expect(overlayCount).toBeGreaterThan(0);
 
-		let covered = false;
+		// No selection-overlay rect should bleed left of the marker's right edge.
+		// Pre-fix, measurePartialRects(0, n) emitted DOM offset 0, painting over the marker;
+		// the fix translates raw offset 0 → DOM offset = ambientLength.
 		for (let i = 0; i < overlayCount; i++) {
 			const box = await overlays.nth(i).boundingBox();
 			if (!box) continue;
-			if (box.x <= markerBox.x + 1 && box.x + box.width >= markerBox.x + markerBox.width - 1) {
-				covered = true;
-				break;
-			}
+			// Skip overlays not in the list item's vertical band.
+			if (box.y + box.height < markerBox.y || box.y > markerBox.y + markerBox.height) continue;
+			expect(box.x).toBeGreaterThanOrEqual(markerRight - 1);
 		}
-		expect(covered).toBe(true);
 	});
 
 	test('first child has hanging-indent style scoped by ambient length', async () => {

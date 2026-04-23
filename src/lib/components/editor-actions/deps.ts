@@ -30,7 +30,7 @@ export interface EditorActionsDeps {
 
 export interface UndoController {
 	pushUndoSnapshot(blockIndex: number, offset: number): void;
-	pushUndoSnapshotDebounced(blockIndex: number, offset: number): void;
+	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
 	commitStructural(
 		snapshotBlockIndex: number,
 		snapshotOffset: number,

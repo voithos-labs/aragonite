@@ -95,12 +95,15 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				break;
 
 			case 'hardLineBreak': {
-				// Text node for \n (not <br>): white-space: pre-wrap handles the visual
-				// break, and a text node guarantees textContent === raw across browsers.
+				// Text node carries the line ending (LF or CRLF) so textContent equals
+				// raw byte-for-byte; <br> would diverge across browsers.
 				const breakRaw = raw.slice(node.start, node.end);
 				const nlIdx = breakRaw.indexOf('\n');
-				if (nlIdx > 0) frag.appendChild(markerSpan(breakRaw.slice(0, nlIdx)));
-				frag.appendChild(document.createTextNode('\n'));
+				const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
+				if (lineEndingStart > 0) {
+					frag.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
+				}
+				frag.appendChild(document.createTextNode(breakRaw.slice(lineEndingStart)));
 				break;
 			}
 

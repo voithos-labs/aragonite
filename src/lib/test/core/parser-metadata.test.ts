@@ -342,6 +342,80 @@ describe('metadata: link reference definitions', () => {
 		const doc = parse('[^1]: Footnote content.\n');
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
 	});
+
+	const cases: Array<{
+		name: string;
+		source: string;
+		label: string;
+		url?: string;
+		title?: string;
+	}> = [
+		{
+			name: 'single-line url only',
+			source: '[ref]: http://example.com\n',
+			label: 'ref',
+			url: 'http://example.com'
+		},
+		{
+			name: 'single-line url + title',
+			source: '[ref]: http://example.com "title"\n',
+			label: 'ref',
+			url: 'http://example.com',
+			title: 'title'
+		},
+		{
+			name: 'url on continuation line',
+			source: '[ref]:\n  http://example.com\n',
+			label: 'ref',
+			url: 'http://example.com'
+		},
+		{
+			name: 'url + title on continuation lines',
+			source: '[ref]:\n  http://example.com\n  "title"\n',
+			label: 'ref',
+			url: 'http://example.com',
+			title: 'title'
+		},
+		{
+			name: 'url inline + title on continuation',
+			source: '[ref]: http://example.com\n  "title"\n',
+			label: 'ref',
+			url: 'http://example.com',
+			title: 'title'
+		},
+		{
+			name: 'angle-bracket url + continuation title',
+			source: '[ref]: <http://example.com>\n  "title"\n',
+			label: 'ref',
+			url: 'http://example.com',
+			title: 'title'
+		}
+	];
+
+	for (const c of cases) {
+		it(`parses + round-trips: ${c.name}`, () => {
+			const doc = parse(c.source);
+			const node = doc.children[0];
+			expect(node.kind).toBe('linkReferenceDefinition');
+			const meta = node.metadata as LinkReferenceDefinitionMetadata;
+			expect(meta.label).toBe(c.label);
+			expect(meta.url).toBe(c.url);
+			if (c.title !== undefined) expect(meta.title).toBe(c.title);
+			else expect(meta.title).toBeUndefined();
+			expect(serialize(doc)).toBe(c.source);
+			expect(node.raw).toBe(c.source);
+		});
+	}
+
+	it('rejects label-only with no following content', () => {
+		const doc = parse('[ref]:\n');
+		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
+	});
+
+	it('rejects label-only with blank continuation', () => {
+		const doc = parse('[ref]:\n\nparagraph\n');
+		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
+	});
 });
 
 describe('metadata: tables', () => {

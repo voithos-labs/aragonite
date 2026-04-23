@@ -57,4 +57,38 @@ test.describe('nested list item — typing + undo', () => {
 		);
 		expect(await editor.getSource()).toBe(before);
 	});
+
+	// B7 regression: focus change between sibling items must break the debounce
+	// batch even when the focus move happens before the 250ms debounce flush.
+	// Pre-fix, the outer container's blockIndex was the only batch key — sibling
+	// leaves shared a batch and one undo collapsed both typing runs.
+	test('focus change between sibling items inside debounce window still breaks the batch', async () => {
+		const before = await editor.getSource();
+
+		const firstItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item one' });
+		await firstItem.click();
+		await editor.page.keyboard.press('End');
+		await editor.typeSlowly(' A');
+
+		// No waitForTimeout — switch focus before the 250ms debounce fires.
+		const secondItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item two' });
+		await secondItem.click();
+		await editor.page.keyboard.press('End');
+		await editor.typeSlowly(' B');
+		await editor.page.waitForTimeout(400);
+
+		// One undo: only the ' B' batch reverts; ' A' stays.
+		await editor.undo();
+		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
+		expect((await editor.getSource()).includes(' B')).toBe(false);
+		expect((await editor.getSource()).includes(' A')).toBe(true);
+
+		// Second undo: ' A' batch reverts; back to original.
+		await editor.undo();
+		await editor.page.waitForFunction(
+			(expected) => (window as any).__test.getSource() === expected,
+			before
+		);
+		expect(await editor.getSource()).toBe(before);
+	});
 });

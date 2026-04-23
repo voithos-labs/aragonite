@@ -111,12 +111,23 @@ export function installDragListener(
 		}
 	}
 
+	// Touch/stylus and Tauri WebView2 surface gestures fire pointercancel
+	// instead of pointerup when the OS reclaims the pointer; without this
+	// listener pointermove + raf would leak until editor unmount.
+	function onPointerCancel(): void {
+		dispose();
+		if (ctx.selection.isCrossBlock) {
+			parkCaretInFocusBlock(ctx);
+		}
+	}
+
 	let disposed = false;
 	function dispose(): void {
 		if (disposed) return;
 		disposed = true;
 		document.removeEventListener('pointermove', onPointerMove);
 		document.removeEventListener('pointerup', onPointerUp);
+		document.removeEventListener('pointercancel', onPointerCancel);
 		if (ctx.lifetimeSignal) {
 			ctx.lifetimeSignal.removeEventListener('abort', dispose);
 		}
@@ -140,6 +151,7 @@ export function installDragListener(
 
 	document.addEventListener('pointermove', onPointerMove);
 	document.addEventListener('pointerup', onPointerUp);
+	document.addEventListener('pointercancel', onPointerCancel);
 
 	return { dispose };
 }

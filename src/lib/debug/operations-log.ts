@@ -43,7 +43,14 @@ export function createOperationsLog(capacity = 100): OperationsLog {
 			const stamped: OperationEntry = { ...entry, t: Date.now() };
 			buf.push(stamped);
 			if (buf.length > capacity) buf.splice(0, buf.length - capacity);
-			for (const l of listeners) l(stamped);
+			// Snapshot before iterating so a self-disposing subscriber doesn't abort the loop.
+			for (const l of [...listeners]) {
+				try {
+					l(stamped);
+				} catch (err) {
+					console.error('[OperationsLog] subscriber threw while handling entry:', err);
+				}
+			}
 		},
 
 		snapshot() {

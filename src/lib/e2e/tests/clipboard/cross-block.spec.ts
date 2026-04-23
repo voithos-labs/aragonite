@@ -189,6 +189,27 @@ test.describe('cross-block clipboard: type-replace', () => {
 		expect(source).toContain('X');
 		expect(await editor.isCrossBlockActive()).toBe(false);
 	});
+
+	// A2/A3: cross-block typed character + range delete is a single undo unit.
+	test('typing over cross-block selection then undo restores original document', async () => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		const before = await editor.getSource();
+
+		await editor.focusBlockEnd(0);
+		await editor.pressKey('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Z');
+		await editor.page.waitForTimeout(300);
+
+		const afterType = await editor.getSource();
+		expect(afterType).not.toBe(before);
+		expect(afterType).toContain('Z');
+
+		await editor.pressKey('Control+z');
+		await editor.page.waitForTimeout(300);
+		const afterUndo = await editor.getSource();
+		expect(afterUndo.trim()).toBe(before.trim());
+	});
 });
 
 test.describe('cross-block clipboard: paste', () => {

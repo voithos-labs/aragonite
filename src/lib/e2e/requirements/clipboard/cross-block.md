@@ -16,6 +16,7 @@
 - Backspace merges endpoint blocks into one (start block survives)
 - Cross-block delete spanning three blocks leaves only the merged result
 - Type-replace inserts the character at the correct offset in the merged block
+- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (delete + typed character share the same undo seam, with op:'delete' followed by op:'input' on the event stream)
 - Cross-block copy of a list with nested items does not duplicate content (container+leaf regression)
 - Cross-block copy of an ordered list preserves all item markers (start/end boundary promotion regression)
 - Selecting last list item + content below copies only that item, not entire list (over-promotion regression)

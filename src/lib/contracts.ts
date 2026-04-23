@@ -134,10 +134,17 @@ export interface BlockEditActions {
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
+	/**
+	 * `preEditOffset` is the cursor anchor for the undo snapshot — restored on Ctrl+Z.
+	 * `postEditFocusOffset` is where the caret lands when a kind change remounts the
+	 * block (e.g. typing `# ` converts paragraph → heading). Defaults to preEditOffset
+	 * for callers that don't trigger kind transitions.
+	 */
 	updateBlockContent(
 		blockIndex: number,
 		text: string,
-		preEditOffset?: number
+		preEditOffset?: number,
+		postEditFocusOffset?: number
 	): void | Promise<void>;
 	/**
 	 * Mutate block metadata without touching raw. For adornments that express
@@ -198,8 +205,14 @@ export interface ContainerEditActions {
 	 * candidate: rename to reflect actual scope (snapshot bookend, not "edit").
 	 */
 	beginContainerEdit(blockIndex: number, offset: number): void;
-	/** Debounced undo snapshot for text input. */
-	beginContainerEditDebounced(blockIndex: number, offset: number): void;
+	/**
+	 * Debounced undo snapshot for text input. `batchKey` (when supplied)
+	 * identifies the leaf block being typed in so focus moves between sibling
+	 * leaves inside one container break the undo batch — without it, all
+	 * siblings share the outer container's blockIndex and one undo entry
+	 * spans typing across multiple inner blocks.
+	 */
+	beginContainerEditDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
 	/**
 	 * Reactivity nudge (`doc.children = [...doc.children]`) for paths that
 	 * mutate the document outside the commit primitive — cross-block typing,
