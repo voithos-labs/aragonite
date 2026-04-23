@@ -83,6 +83,16 @@ export function parseList(
 		const firstStrippedText = strippedLines.length > 0 ? strippedLines[0].text : '';
 		const task = matchTaskCheckbox(firstStrippedText);
 
+		if (task && strippedLines.length > 0) {
+			const first = strippedLines[0];
+			const newText = firstStrippedText.slice(task.rawMarker.length);
+			strippedLines[0] = {
+				...first,
+				text: newText,
+				raw: newText + first.lineEnding
+			};
+		}
+
 		const inner = parseBlocks(strippedLines, 0, strippedLines.length);
 
 		items.push({

@@ -223,6 +223,20 @@ describe('metadata: lists', () => {
 		expect(meta.taskMarker).toBeNull();
 	});
 
+	it('strips taskMarker from the first paragraph raw', () => {
+		const doc = parse('- [x] task content\n');
+		const item = doc.children[0].children![0];
+		const firstChild = item.children![0];
+		expect(firstChild.kind).toBe('paragraph');
+		expect(firstChild.raw).toBe('task content\n');
+	});
+
+	it('strips uppercase variant from first paragraph raw', () => {
+		const doc = parse('- [X] uppercase\n');
+		const firstChild = doc.children[0].children![0].children![0];
+		expect(firstChild.raw).toBe('uppercase\n');
+	});
+
 	it('extracts list item markers', () => {
 		const doc = parse('+ Item\n');
 		const list = doc.children[0];
@@ -273,14 +287,14 @@ describe('metadata: nested lists', () => {
 		expect((item.metadata as { marker: string }).marker).toBe('1. ');
 	});
 
-	it('task item preserves checkbox in inner content', () => {
+	it('task item strips checkbox from inner content', () => {
 		const doc = parse('- [x] Done\n');
 		const list = doc.children[0];
 		const item = list.children![0];
 		expect((item.metadata as { taskItem: boolean }).taskItem).toBe(true);
 		expect((item.metadata as { taskChecked: boolean }).taskChecked).toBe(true);
 		expect(item.children).toHaveLength(1);
-		expect(item.children![0].raw).toBe('[x] Done\n');
+		expect(item.children![0].raw).toBe('Done\n');
 	});
 
 	it('deeply nested list', () => {
