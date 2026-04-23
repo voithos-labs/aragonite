@@ -106,6 +106,13 @@ This means:
 - Undo takes deep CST snapshots before mutations
 - `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
+### Reactive State Plumbing (Svelte 5)
+
+Two invariants govern how the editor passes CST state through Svelte's reactivity system. Both exist to avoid silent corruption; neither is discoverable from the types.
+
+- **Reactive state crosses module boundaries as getters, never values.** Re-init effects and bootstrap helpers read mutable state (`doc`, `blockIds`) through `() => state` closures or getter properties. A plain value-read would snapshot at effect-run time and also register the state as a dependency, re-firing the effect on every subsequent mutation — wiping unrelated work. The `source !== lastSource` guard in `Editor.svelte` exists for the same reason: without it, the first re-init reads `doc.children`, turning that read into a tracked dependency of the effect.
+- **Do not write to `node.inlineContent`.** `inlineContent` is a rendering cache derived from `raw`; prose blocks compute it locally and build the styled DOM from it each input. Assigning to the node prop triggers Svelte 5's ownership tracking, which in turn triggers a reactivity cascade that corrupts keyed `{#each}` index assignments after structural operations like `splitBlock`. The cache is transient — there is no reason to persist it on the node.
+
 ## CST ↔ DOM Synchronization
 
 The CST is the document-level source of truth. Within a single block during active editing, the DOM leads and the CST follows.
@@ -165,7 +172,7 @@ Merge eligibility is derived from per-kind **merge roles** rather than an enumer
 - `prose-absorber` — prose leaf that keeps its kind when absorbing prose (heading, setextHeading)
 - `container` — block whose merge target is its deepest reachable prose leaf (blockquote, list, listItem)
 - `self-merge` — merges only with another block of the same role (unrecognized)
-- `opaque` — not mergeable; Backspace either deletes (if non-editable) or moves focus (fencedCode, indentedCode, htmlBlock, linkReferenceDefinition, table, thematicBreak)
+- `not-mergeable` — Backspace either deletes (if non-editable) or moves focus (fencedCode, indentedCode, htmlBlock, linkReferenceDefinition, table, thematicBreak)
 
 The role-pair switch for eligibility:
 
@@ -175,7 +182,7 @@ The role-pair switch for eligibility:
 - `self-merge + self-merge` → eligible, concatenate raw
 - everything else → not eligible
 
-When `container + prose` is eligible but the walker cannot find a prose leaf (the container's deepest leaf is opaque, or the container is empty), the caller falls back to the same behavior as an ineligible pair: move focus to the end of the deepest reachable block.
+When `container + prose` is eligible but the walker cannot find a prose leaf (the container's deepest leaf is not-mergeable, or the container is empty), the caller falls back to the same behavior as an ineligible pair: move focus to the end of the deepest reachable block.
 
 When merge is not eligible, Backspace at the start of a block has three possible outcomes depending on context:
 
@@ -222,8 +229,6 @@ Cross-block caret column memory. Vertical arrow presses capture the cursor's edi
 - **Participating blocks** (text-editable blocks, code blocks): capture sticky X on vertical arrow presses and implement `focusAtColumn(x, from)`. The only difference between prose and code blocks is the rendered content — both share the `contenteditable/` helpers and the same capture/reset policy.
 
 **Capture and consumption are split.** The source block captures sticky X; a separate focus dispatcher reads it at cross-block transitions and either invokes `focusAtColumn` or falls back to start/end focus. Participating surfaces implement `focusAtColumn` as a pure receiver — null-handling lives in the dispatcher. See the `contenteditable/sticky-column.ts` header for the authoritative two-axis contract, including which files dispatch.
-
-> **"Opaque" disambiguation.** The term "opaque" also appears in `merge-rules.ts` to mean "not mergeable via Backspace." That is a completely separate concept from sticky-column behavior. A block can be `MergeRole.opaque` (like `fencedCode`) and still be a participating sticky-column block. Do not conflate the two.
 
 Each editor instance owns its own sticky column state, provided to block components via Svelte context. Cross-block vertical moves carry a "from above / from below" direction through the focus-dispatch chain; target blocks that support pixel-column positioning use it to land the cursor at the nearest column on the appropriate visual line. Blocks that don't participate fall back to start-of-block or end-of-block focus.
 
