@@ -245,6 +245,50 @@ describe('parseInline — hard line breaks (Stage 2)', () => {
 		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
 		expect(breakNode).toBeUndefined();
 	});
+
+	it('CRLF backslash hard line break', () => {
+		const input = 'line1\\\r\nline2';
+		const nodes = inlineOf(input);
+		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
+		expect(breakNode).toBeDefined();
+		expect(breakNode!.start).toBe(5);
+		expect(breakNode!.end).toBe(8);
+		const textNodes = nodes.filter((n) => n.kind === 'text');
+		expect(textNodes[0]).toEqual({ kind: 'text', start: 0, end: 5, text: 'line1' });
+		expect(textNodes[1]).toEqual({ kind: 'text', start: 8, end: 13, text: 'line2' });
+	});
+
+	it('CRLF two spaces before newline', () => {
+		const input = 'line1  \r\nline2';
+		const nodes = inlineOf(input);
+		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
+		expect(breakNode).toBeDefined();
+		expect(breakNode!.start).toBe(5);
+		expect(breakNode!.end).toBe(9);
+	});
+});
+
+describe('parseInline — fast path post-processing (I4)', () => {
+	it('fast path output has no adjacent text siblings', () => {
+		const input = 'before  \nhttps://example.com after';
+		const nodes = inlineOf(input);
+		for (let i = 1; i < nodes.length; i++) {
+			const prev = nodes[i - 1];
+			const cur = nodes[i];
+			if (cur.kind === 'text' && prev.kind === 'text') {
+				throw new Error(
+					`adjacent text nodes at indices ${i - 1}, ${i}: ${JSON.stringify([prev, cur])}`
+				);
+			}
+		}
+	});
+
+	it('fast path: text+autolink+text reconstructs raw', () => {
+		const input = 'pre https://example.com post';
+		const nodes = inlineOf(input);
+		const reconstructed = nodes.map((n) => input.slice(n.start, n.end)).join('');
+		expect(reconstructed).toBe(input);
+	});
 });
 
 describe('parseInline — links and images (Stage 3)', () => {

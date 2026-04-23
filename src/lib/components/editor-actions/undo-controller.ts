@@ -92,7 +92,11 @@ export function applyStructuralChangeToIdsRefs(
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let lastUndoBlockIndex = -1;
+	// Per-leaf identity for batch-break detection. Stable string id (preferred,
+	// supplied for container scopes) or numeric blockIndex (top-level fallback).
+	// Container typing must not key on the outer container's index — sibling
+	// leaves inside one container would share a batch across focus moves.
+	let lastUndoBatchKey: string | number = -1;
 	// When true, the next keystroke captures a "before" snapshot.
 	let needsUndoCheckpoint = true;
 	// Batch tracking for input-event emission on debounce flush.
@@ -129,10 +133,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * ordering. `await tick()` is microtask-grained and can't express "user
 	 * has stopped typing for ~250ms."
 	 */
-	function pushUndoSnapshotDebounced(blockIndex: number, offset: number): void {
-		if (lastUndoBlockIndex !== blockIndex || needsUndoCheckpoint) {
+	function pushUndoSnapshotDebounced(
+		blockIndex: number,
+		offset: number,
+		batchKey?: string | number
+	): void {
+		const key = batchKey ?? blockIndex;
+		if (lastUndoBatchKey !== key || needsUndoCheckpoint) {
 			pushUndoSnapshot(blockIndex, offset);
-			lastUndoBlockIndex = blockIndex;
+			lastUndoBatchKey = key;
 			batchBlockIndex = blockIndex;
 			batchByteLength = 0;
 			needsUndoCheckpoint = false;
@@ -182,6 +191,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (undoDebounceTimer) {
 			clearTimeout(undoDebounceTimer);
 			undoDebounceTimer = null;
+			// Flush the pending typing batch as one input event before we drop
+			// the batch state — otherwise observers under-count keystrokes when
+			// a structural commit (split, merge, etc.) follows mid-batch typing.
+			if (batchByteLength > 0 && batchBlockIndex >= 0) {
+				deps.events.emit('edit', {
+					op: 'input',
+					path: [batchBlockIndex],
+					detail: { byteLength: batchByteLength },
+					timestamp: Date.now()
+				});
+			}
 			batchBlockIndex = -1;
 			batchByteLength = 0;
 		}
