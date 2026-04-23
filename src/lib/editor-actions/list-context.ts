@@ -137,7 +137,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					kind: 'listItem',
 					leadingTrivia: '',
 					raw: '',
-					metadata: { marker, taskItem: false, taskChecked: false },
+					metadata: { marker, taskItem: false, taskChecked: false, taskMarker: null },
 					innerPrefix: '',
 					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
 					innerSuffix: ''
@@ -209,7 +209,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						metadata: {
 							marker: newMarker,
 							taskItem: (item.metadata as { taskItem?: boolean }).taskItem ?? false,
-							taskChecked: false
+							taskChecked: false,
+							taskMarker: null
 						},
 						innerPrefix: '',
 						children: secondHalf,
