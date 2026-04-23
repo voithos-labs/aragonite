@@ -193,6 +193,27 @@
 				(window as any).__test._editCountDispose = null;
 				return (window as any).__test._editCount ?? 0;
 			},
+			/**
+			 * Accumulate structural edit op names (op !== 'input') until
+			 * `stopEditOpCapture()` returns them. One session at a time.
+			 */
+			startEditOpCapture: (): void => {
+				if ((window as any).__test._editOpCaptureDispose) {
+					(window as any).__test._editOpCaptureDispose();
+				}
+				(window as any).__test._editOps = [] as string[];
+				(window as any).__test._editOpCaptureDispose = editor
+					.getEvents()
+					.on('edit', (e: { op: string }) => {
+						if (e.op !== 'input') (window as any).__test._editOps.push(e.op);
+					});
+			},
+			stopEditOpCapture: (): string[] => {
+				const dispose = (window as any).__test._editOpCaptureDispose;
+				if (dispose) dispose();
+				(window as any).__test._editOpCaptureDispose = null;
+				return (window as any).__test._editOps ?? [];
+			},
 			// ── List item id probe ────────────────────────────────────────────
 			/**
 			 * Return the innerBlockIds array for the first list node found at
