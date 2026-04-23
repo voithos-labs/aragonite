@@ -47,7 +47,7 @@ Containers build their reactive state and default action bundle through the `con
 - `dispatchFocusByPath` / `dispatchFocusAtColumn` — the pure dispatchers a container's `focusByPath` / `focusAtColumn` exports delegate to.
 - `setNestedActionsContexts(bundle)` — the three-setContext helper that publishes the bundle to nested descendants.
 
-A trivial container (future admonition block, collapsible section, etc.) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial container (list, blockquote) passes an `overrideFactory` that returns only the methods it customizes — see `tree-operations/blockquote-context.ts` for the canonical extracted example. The override set is visible at the call site, type-checked against each sub-interface, and stable references to the defaults are captured in a closure the overrides control — no post-construction method reassignment.
+A trivial container (future admonition block, collapsible section, etc.) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial container (list, blockquote) passes an `overrideFactory` that returns only the methods it customizes — see the blockquote and list context files under `container-state/` for canonical extracted examples. The override set is visible at the call site, type-checked against each sub-interface, and stable references to the defaults are captured in a closure the overrides control — no post-construction method reassignment.
 
 Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root directly.
 

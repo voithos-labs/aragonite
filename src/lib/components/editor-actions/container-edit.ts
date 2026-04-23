@@ -25,8 +25,9 @@ export function createContainerEditActions(
 		},
 
 		endContainerEdit(): void {
-			// Reactivity nudge for paths that bypass commitContainer (e.g.
-			// list-context.ts indentItem spanning multiple container states).
+			// Reactivity nudge for paths that mutate the document outside the
+			// commit primitive — cross-block typing, IME composition entry,
+			// drag/clipboard mutate notify.
 			deps.doc.children = [...deps.doc.children];
 		},
 

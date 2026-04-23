@@ -48,7 +48,7 @@ E2E tests are grouped into Playwright projects:
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/` — keyed to the source area it covers. Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed.
+Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/container-state/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/`, `test/editor-actions/`, `test/events/` — keyed to the source area it covers. Cross-cutting tests (`round-trip`, `round-trip-complex`, `undo-manager`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. Only seven of these areas have a dedicated `test:editor:<area>` script today (see `package.json`); `test/editor-actions/` and `test/events/` run only via the full `test:editor` suite.
 
 ## E2E Tests (Playwright)
 
@@ -116,9 +116,9 @@ test.describe('my feature', () => {
 
 **Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous — the wait is for reactivity and render flush, not for a debouncer.
 
-**Block selectors drill through the `.block-host` wrapper.** The editor renders as `.editor > .block-list > .block-host > [block element + selection overlay]`. Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling. Helpers resolve the actual block with `.block-list > .block-host > :not(.selection-overlay)`.
+**Selector helpers live in `EditorPage`.** Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling — `getBlock(i)` skips the overlay sibling. Write tests against the helpers; reach for raw selectors only when adding a new helper.
 
-**Heading contenteditables include the `## ` prefix.** The block marker is rendered as a dimmed `.md-marker` span inside the contenteditable. `getBlockText(i)` returns the full text including the marker prefix.
+**Marker prefixes count toward block text.** Headings, list items, and other ambient-marker blocks render their markers as dimmed spans inside the contenteditable. `getBlockText(i)` returns the full text including the marker.
 
 ## Debug Panel
 
@@ -141,7 +141,7 @@ Six collapsible sections:
 
 **Copy all:** The header button concatenates every section into a fenced Markdown snapshot (timestamped) and writes it to the clipboard — paste directly into bug reports or AI conversations.
 
-The underlying debug engine (`src/lib/editor/debug/`) is internal at 0.5.3 and is not exported from `src/lib/editor/index.ts`.
+The underlying debug engine (`src/lib/editor/debug/`) is internal — not exported from `src/lib/editor/index.ts`.
 
 ### Debug engine from the console
 
