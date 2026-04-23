@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyStructuralChangeToIdsRefs } from '$lib/editor/editor-actions/undo-controller';
+import { applyStructuralChangeToIdsRefs } from '$lib/editor/tree-operations/structural-change';
 import type { BlockComponent } from '$lib/editor/contracts';
 
 function mockRef(): BlockComponent {

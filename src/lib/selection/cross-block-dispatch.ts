@@ -351,10 +351,13 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
 		const lifetimeSignal = ctx.getEditorLifetime();
-		if (!lifetimeSignal && import.meta.env.DEV) {
-			console.warn(
-				'[cross-block-dispatch] editor lifetime signal unavailable; drag cleanup may leak on unmount'
-			);
+		if (!lifetimeSignal) {
+			if (import.meta.env.DEV) {
+				console.warn(
+					'[cross-block-dispatch] editor lifetime signal unavailable; skipping drag install to avoid document-listener leak on unmount'
+				);
+			}
+			return false;
 		}
 		installDragListener(
 			{
@@ -362,7 +365,7 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 				scrollContainer: root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
-				lifetimeSignal: lifetimeSignal ?? undefined
+				lifetimeSignal
 			},
 			{ path: myPath.slice(), offset }
 		);

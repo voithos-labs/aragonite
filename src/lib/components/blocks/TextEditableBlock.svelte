@@ -32,10 +32,7 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import {
 		createRangeFromOffsets,
-		setCursorOffset as setCursorOffsetHelper,
-		getCursorOffset as getCursorOffsetHelper,
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
-		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../contenteditable/cursor-utils';
 	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
@@ -50,7 +47,8 @@
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
-	import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../contenteditable/ambient-dom';
+	import { ambientSpanOf } from '../../contenteditable/ambient-dom';
+	import { createAmbientCursorIO } from '../../contenteditable/ambient-cursor';
 
 	let {
 		node,
@@ -93,53 +91,10 @@
 
 	const ambientLength = $derived(ambientPrefix.length);
 
-	function getRawCursorOffset(): number | null {
-		if (!el) return null;
-		const dom = getCursorOffsetHelper(el);
-		return dom === null ? null : domToRawOffset(dom, ambientLength);
-	}
-
-	function setRawCursorOffset(offset: number): void {
-		if (!el) return;
-		// Raw offset 0 under an ambient marker: a container-level DOM offset of
-		// ambientLength walks createRangeFromOffsets INTO the marker's text
-		// node (which sits inside a contenteditable="false" island) and
-		// Chromium bounces the caret out in front of the span. Use a sibling
-		// boundary instead.
-		if (ambientLength > 0 && offset <= 0) {
-			setCursorToAmbientBoundary();
-			return;
-		}
-		setCursorOffsetHelper(el, rawToDomOffset(offset, ambientLength));
-	}
-
-	function setCursorToAmbientBoundary(): void {
-		if (el) placeCaretAfterAmbientSpan(el);
-	}
-
-	/** After a click or Home, the caret may land inside [0, ambientLength).
-	 * Move it to raw offset 0 so the next keystroke inserts into raw, not into
-	 * a stray text node sibling of the marker.
-	 */
-	function clampCursorOutOfAmbient(): void {
-		if (!el || ambientLength === 0) return;
-		if (document.activeElement !== el) return;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
-		const dom = getCursorOffsetHelper(el);
-		if (dom === null || dom >= ambientLength) return;
-		setCursorToAmbientBoundary();
-	}
-
-	function getRawSelectionOffsets(): { start: number; end: number } | null {
-		if (!el) return null;
-		const dom = getSelectionOffsetsHelper(el);
-		if (!dom) return null;
-		return {
-			start: domToRawOffset(dom.start, ambientLength),
-			end: domToRawOffset(dom.end, ambientLength)
-		};
-	}
+	const cursor = createAmbientCursorIO({
+		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength
+	});
 
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => el ?? null,
@@ -154,7 +109,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
-		getCursorOffset: () => getRawCursorOffset(),
+		getCursorOffset: () => cursor.getRaw(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
@@ -169,7 +124,7 @@
 
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
-		getCursorOffset: () => getRawCursorOffset(),
+		getCursorOffset: () => cursor.getRaw(),
 		getFocusOffset: () => {
 			if (!el) return null;
 			const dom = getSelectionFocusOffsetHelper(el);
@@ -186,12 +141,6 @@
 		getDoc,
 		getBlockElByPath
 	};
-
-	function refreshInlineContent(): void {
-		if (!isProseKind(node.kind)) return;
-		const range = getContentRange(node);
-		node.inlineContent = parseInline(node.raw, range.start, range.end);
-	}
 
 	// Heading/etc. own-marker prefix slice. Rendered as a dimmed span before inline
 	// content so el.textContent === ambientPrefix + getDisplayText() holds.
@@ -235,7 +184,7 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		setRawCursorOffset(offset);
+		cursor.setRaw(offset);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -243,11 +192,11 @@
 		el.focus();
 		// minOffset = ambientLength keeps the scan out of the marker region.
 		const domOffset = findOffsetNearestX(el, x, from, ambientLength);
-		setRawCursorOffset(domToRawOffset(domOffset, ambientLength));
+		cursor.setRaw(domToRawOffset(domOffset, ambientLength));
 	}
 
 	export function getCursorOffset(): number | null {
-		return getRawCursorOffset();
+		return cursor.getRaw();
 	}
 
 	export function getSelectedText(): string {
@@ -316,7 +265,7 @@
 		ensureBr();
 
 		if (pendingCursorOffset !== null) {
-			setRawCursorOffset(pendingCursorOffset);
+			cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});
@@ -335,7 +284,7 @@
 		stickyColumn.reset();
 		if (composing || !el) return;
 		const text = readRawText();
-		const savedRawOffset = getRawCursorOffset() ?? 0;
+		const savedRawOffset = cursor.getRaw() ?? 0;
 		// preEdit drives the undo snapshot anchor; postEdit drives focus when typing
 		// (e.g. `# `) triggers a kind change and the block remounts.
 		blockEdit.updateBlockContent(index, text + '\n', preEditOffset, savedRawOffset);
@@ -362,7 +311,7 @@
 
 	function onCompositionStart(): void {
 		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
-		preEditOffset = getRawCursorOffset() ?? 0;
+		preEditOffset = cursor.getRaw() ?? 0;
 		crossBlock.handleCompositionStart();
 		composing = true;
 	}
@@ -376,7 +325,7 @@
 		if (composing) return;
 
 		// Save cursor position before the browser modifies the DOM
-		preEditOffset = getRawCursorOffset() ?? 0;
+		preEditOffset = cursor.getRaw() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
@@ -385,7 +334,7 @@
 		// position immediately after the ambient span.
 		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
 			e.preventDefault();
-			setCursorToAmbientBoundary();
+			cursor.setToAmbientBoundary();
 			return;
 		}
 
@@ -420,7 +369,7 @@
 		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
 		if (e.key === 'Enter' && e.shiftKey) {
 			e.preventDefault();
-			const offset = getRawCursorOffset() ?? 0;
+			const offset = cursor.getRaw() ?? 0;
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, offset) + '\\\n' + displayText.slice(offset);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
@@ -430,7 +379,7 @@
 
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			const offset = getRawCursorOffset() ?? 0;
+			const offset = cursor.getRaw() ?? 0;
 			if (splitOnEnter) {
 				blockEdit.splitBlock(index, offset);
 			} else {
@@ -446,7 +395,7 @@
 		// Skipped inside a list item — ListItemBlock owns Tab there.
 		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
 			e.preventDefault();
-			const offset = getRawCursorOffset() ?? 0;
+			const offset = cursor.getRaw() ?? 0;
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, offset) + '\t' + displayText.slice(offset);
 			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
@@ -455,7 +404,7 @@
 		}
 
 		if (e.key === 'Backspace') {
-			const offset = getRawCursorOffset();
+			const offset = cursor.getRaw();
 			if (offset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithPrevious(index);
@@ -464,7 +413,7 @@
 		}
 
 		if (e.key === 'Delete') {
-			const offset = getRawCursorOffset();
+			const offset = cursor.getRaw();
 			const rawLen = getDisplayText().length;
 			if (offset === rawLen && !hasSelectionHelper()) {
 				e.preventDefault();
@@ -516,7 +465,7 @@
 		if (!selectedText) return;
 		e.clipboardData?.setData('text/plain', selectedText);
 
-		const selOffsets = getRawSelectionOffsets();
+		const selOffsets = cursor.getRawSelection();
 		if (selOffsets) {
 			const displayText = getDisplayText();
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
@@ -533,8 +482,8 @@
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
-		const offset = getRawCursorOffset() ?? 0;
-		const selOffsets = getRawSelectionOffsets();
+		const offset = cursor.getRaw() ?? 0;
+		const selOffsets = cursor.getRawSelection();
 
 		const result = await pasteDispatch(
 			{
@@ -561,14 +510,14 @@
 	}
 
 	function onClick(): void {
-		clampCursorOutOfAmbient();
+		cursor.clampOutOfAmbient();
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
 
 	function toggleFormat(format: 'strong' | 'emphasis'): void {
 		if (!el) return;
-		const offsets = getRawSelectionOffsets();
+		const offsets = cursor.getRawSelection();
 		if (!offsets) return;
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
@@ -587,7 +536,7 @@
 	// ── Helpers ─────────────────────────────────────────────────────────
 
 	function getSelectedTextFromRaw(): string {
-		const offsets = getRawSelectionOffsets();
+		const offsets = cursor.getRawSelection();
 		if (!offsets) return '';
 		return node.raw.slice(offsets.start, offsets.end);
 	}
