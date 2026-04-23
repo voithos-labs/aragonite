@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent } from '../contracts';
+	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
 	import BlockHost from './BlockHost.svelte';
 
 	let {
@@ -13,7 +13,7 @@
 		blockIds: string[];
 		blockRefs?: (BlockComponent | undefined)[];
 		parentPath?: number[];
-		ambientPrefixForFirst?: string;
+		ambientPrefixForFirst?: AmbientPrefix;
 	} = $props();
 </script>
 
