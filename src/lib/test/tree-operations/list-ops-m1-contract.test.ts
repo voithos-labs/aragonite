@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/editor/core/parser';
-import { mergeListItemIntoPrevious } from '$lib/editor/tree-operations/list-ops';
+import { mergeListItemIntoPrevious } from '$lib/editor/tree-operations/list/unwrap-merge';
 
 describe('mergeListItemIntoPrevious — children-array contract', () => {
 	it('mutates the caller-owned children copy, not a hidden internal array', () => {

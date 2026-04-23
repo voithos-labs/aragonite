@@ -17,9 +17,9 @@ import { splitNode as performSplit } from '../tree-operations';
 import { rebuildListRaw, rebuildListItemRaw } from '../tree-operations/container-raw';
 import {
 	renumberOrderedList,
-	normalizeItemMarkerToList,
-	buildExitReplacement
-} from '../tree-operations/list-ops';
+	normalizeItemMarkerToList
+} from '../tree-operations/list/ordered-markers';
+import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../block-list-state.svelte';
 import { expectStateForNode } from '../state-registry';
 
