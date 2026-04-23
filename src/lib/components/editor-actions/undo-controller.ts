@@ -166,25 +166,51 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 	/**
-	 * Universal commit ceremony: snapshot push, mutation on copies, atomic
-	 * publish, edit event emission, tick, post-tick callback. Public wrappers
-	 * (`commitStructural`, `commitContainerStructural`) delegate here.
+	 * Universal commit ceremony: snapshot push, mutation, atomic publish, edit
+	 * event emission, tick, post-tick callback. Public wrappers
+	 * (`commitStructural`, `commitContainerStructural`, `commitMultiScope`)
+	 * delegate here via one of the two kind-specific shapes. Document-kind
+	 * owns top-level children/ids/refs and auto-syncs them from the returned
+	 * StructuralChange; container-kind owns its own per-scope state inside
+	 * the mutate callback and only needs the ceremony to fire the snapshot,
+	 * event, and reactivity nudge around it.
 	 */
 
-	interface CommitArgs {
-		kind: 'document' | 'container';
-		snapshot: { blockIndex: number; offset: number } | 'skip';
-		/**
-		 * Mutate `children` in place; return a StructuralChange describing the
-		 * array-shape mutation. The primitive auto-syncs ids/refs from the
-		 * descriptor — do NOT splice them inside `mutate`.
-		 */
-		mutate: (children: CstNode[]) => StructuralChange;
-		publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
-		op?: OpDescriptor;
-		eventPath: number[];
-		afterTick?: () => void;
-	}
+	type CommitArgs =
+		| {
+				kind: 'document';
+				snapshot: { blockIndex: number; offset: number } | 'skip';
+				/**
+				 * Mutate `children` in place; return a StructuralChange describing the
+				 * array-shape mutation. The primitive auto-syncs ids/refs from the
+				 * descriptor — do NOT splice them inside `mutate`.
+				 */
+				mutate: (children: CstNode[]) => StructuralChange;
+				publish: (
+					children: CstNode[],
+					ids: string[],
+					refs: (BlockComponent | undefined)[]
+				) => void;
+				op?: OpDescriptor;
+				eventPath: number[];
+				afterTick?: () => void;
+		  }
+		| {
+				kind: 'container';
+				snapshot: { blockIndex: number; offset: number } | 'skip';
+				/**
+				 * Apply the inner mutation directly to container state. Callbacks own
+				 * their own scope copies + atomic publish back to node.children and
+				 * the scope's BlockListState. No StructuralChange is returned to the
+				 * primitive — descriptor application happens inside the callback.
+				 */
+				mutate: () => void;
+				/** Post-mutation reactivity nudge (e.g. doc.children = [...doc.children]). */
+				publish: () => void;
+				op?: OpDescriptor;
+				eventPath: number[];
+				afterTick?: () => void;
+		  };
 
 	async function __commit(args: CommitArgs): Promise<void> {
 		deps.stickyColumn.reset();
@@ -211,15 +237,19 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 		needsUndoCheckpoint = true;
 
-		const srcChildren = args.kind === 'document' ? deps.doc.children : [];
-		const childrenCopy = [...srcChildren];
-		const idsCopy = [...deps.blockIds];
-		const refsCopy = [...deps.blockRefs];
+		if (args.kind === 'document') {
+			const childrenCopy = [...deps.doc.children];
+			const idsCopy = [...deps.blockIds];
+			const refsCopy = [...deps.blockRefs];
 
-		const change = args.mutate(childrenCopy);
-		applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
+			const change = args.mutate(childrenCopy);
+			applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 
-		args.publish(childrenCopy, idsCopy, refsCopy);
+			args.publish(childrenCopy, idsCopy, refsCopy);
+		} else {
+			args.mutate();
+			args.publish();
+		}
 
 		if (args.op) {
 			deps.events.emit('edit', {
@@ -282,10 +312,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			eventPath: number[];
 		}
 	): Promise<void> {
-		// The container path applies the descriptor inside its custom mutate that
-		// reaches into the container node + state bundle. The outer __commit's
-		// mutate is used purely for snapshot/event ceremony; its StructuralChange
-		// return is 'noop' because effects were already applied to inner state.
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -298,7 +324,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				containerNode.children = childrenCopy;
 				state.innerBlockIds = idsCopy;
 				state.innerBlockRefs = refsCopy;
-				return { op: 'noop' };
 			},
 			publish: () => {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
@@ -359,8 +384,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					p.target.state.innerBlockIds = p.ids;
 					p.target.state.innerBlockRefs = p.refs;
 				}
-
-				return { op: 'noop' };
 			},
 			publish: () => {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
