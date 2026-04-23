@@ -1,0 +1,51 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+// Paste into a code block: fence-length bumping when clipboard content
+// contains matching fence runs, and literal absorption of multi-block
+// markdown (no structural splitting, no kind change).
+
+test.describe('code block paste — fence bumping', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('paste containing ``` into a code block bumps outer fence to ````', async ({ page }) => {
+		await editor.loadContent('```\nfirst\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockEnd(0);
+
+		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
+		await editor.pressKey('Control+v');
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		expect(source).toMatch(/^````/m);
+		expect(source).toContain('```pasted code```');
+		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+	});
+
+	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
+		await editor.loadContent('```\ncontent\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlock(0, 11);
+
+		await page.evaluate(
+			(text) => navigator.clipboard.writeText(text),
+			'\n# Heading\n\n- list item\n\nparagraph\n'
+		);
+		await editor.pressKey('Control+v');
+		await page.waitForTimeout(100);
+
+		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		const source = await editor.getSource();
+		expect(source).toContain('# Heading');
+		expect(source).toContain('- list item');
+		expect(source).toContain('paragraph');
+	});
+});
