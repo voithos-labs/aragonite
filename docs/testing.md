@@ -21,15 +21,15 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                        | Covers                                    |
-| ----------------------------- | ----------------------------------------- |
-| `test:editor:core`            | Parser, serializer, round-trip invariants |
-| `test:editor:tree-ops`        | Tree mutation helpers                     |
+| Script                        | Covers                                      |
+| ----------------------------- | ------------------------------------------- |
+| `test:editor:core`            | Parser, serializer, round-trip invariants   |
+| `test:editor:tree-ops`        | Tree mutation helpers                       |
 | `test:editor:editor-actions`  | Editor action bundles and commit primitives |
-| `test:editor:contenteditable` | Contenteditable normalization helpers     |
-| `test:editor:selection`       | Selection-state logic                     |
-| `test:editor:blocks`          | Per-block unit tests (code block, etc.)   |
-| `test:editor:debug`           | Debug engine helpers and operations log   |
+| `test:editor:contenteditable` | Contenteditable normalization helpers       |
+| `test:editor:selection`       | Selection-state logic                       |
+| `test:editor:blocks`          | Per-block unit tests (code block, etc.)     |
+| `test:editor:debug`           | Debug engine helpers and operations log     |
 
 E2E tests are grouped into Playwright projects:
 

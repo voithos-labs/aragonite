@@ -27,7 +27,7 @@
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
-	import { pasteDispatch } from '../../tree-operations/paste-dispatch';
+	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import {

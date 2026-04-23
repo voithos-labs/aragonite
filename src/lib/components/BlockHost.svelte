@@ -37,7 +37,7 @@
 			{myPath}
 			{ambientPrefix}
 			bind:this={ref}
-			{...(entry.extraProps?.(node) ?? {})}
+			{...entry.extraProps?.(node) ?? {}}
 		/>
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only

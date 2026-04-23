@@ -16,17 +16,8 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../tree-operations';
-import {
-	isMergeEligible,
-	isBlockEditable,
-	findMergeTarget
-} from '../tree-operations/merge-rules';
-import {
-	parseInline,
-	getContentRange,
-	isProseKind,
-	parseAllInlineContent
-} from '../core/inline';
+import { isMergeEligible, isBlockEditable, findMergeTarget } from '../tree-operations/merge-rules';
+import { parseInline, getContentRange, isProseKind, parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
