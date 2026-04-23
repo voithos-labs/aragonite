@@ -115,15 +115,30 @@ test.describe('selection — keyboard: edge cases', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
-	test('empty document: double Ctrl+A does not crash', async () => {
+	test('empty document: double Ctrl+A then typed char replaces the empty block without crashing', async () => {
+		// Empty doc = single blank paragraph. The earlier version of this test
+		// only asserted `getSource() === before` after two Ctrl+A presses,
+		// which was trivially true — Ctrl+A doesn't mutate source. The real
+		// invariant: after the double Ctrl+A, pressing a character key should
+		// replace the (empty) selected content with that character, leaving
+		// exactly one block whose raw contains the typed char. Regressions in
+		// the double-press escalation or the cross-block type-replace path
+		// would either crash, produce extra blocks, or lose the char.
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
-		const before = await editor.getSource();
+
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
+		await editor.page.waitForTimeout(50);
 		await editor.pressKey('Control+a');
-		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
+		await editor.page.waitForTimeout(50);
+
+		await editor.typeText('X');
+		await editor.page.waitForTimeout(100);
+
+		expect(await editor.getDomBlockCount()).toBe(1);
+		// The typed char must land in the surviving block. Exact line-ending
+		// shape is browser-controlled and not the regression we're guarding.
+		expect(await editor.getSource()).toContain('X');
 	});
 
 	test('thematic break between endpoints gets overlay, no crash', async () => {
