@@ -209,35 +209,7 @@ test.describe('inline editing', () => {
 
 	test('split paragraph with inline formatting preserves both halves', async () => {
 		await editor.loadContent(`before **bold** after\n`);
-		await editor.focusBlockStart(0);
-		await editor.page.evaluate(() => {
-			const block = document.querySelector(
-				'.block-list > .block-host > :not(.selection-overlay)'
-			) as HTMLElement;
-			if (!block) return;
-			const range = document.createRange();
-			let charCount = 0;
-			function walk(n: Node): boolean {
-				if (n.nodeType === Node.TEXT_NODE) {
-					const len = n.textContent?.length ?? 0;
-					if (charCount + len >= 7) {
-						range.setStart(n, 7 - charCount);
-						range.collapse(true);
-						return true;
-					}
-					charCount += len;
-				} else {
-					for (const child of n.childNodes) {
-						if (walk(child)) return true;
-					}
-				}
-				return false;
-			}
-			walk(block);
-			const sel = window.getSelection()!;
-			sel.removeAllRanges();
-			sel.addRange(range);
-		});
+		await editor.focusBlock(0, 7);
 
 		await editor.pressEnter();
 		expect(await editor.getDomBlockCount()).toBe(2);
