@@ -3,6 +3,8 @@
 ## Happy paths
 
 - Select across 3 paragraphs, paste 2 paragraphs of content, press Ctrl+Z once: original 3 paragraphs restored exactly, cross-block selection restored.
+- Cross-block top-level multi-block paste is one undo unit: a single Ctrl+Z restores the pre-paste document rather than an intermediate "selection-deleted but blocks-not-inserted" state.
+- Cross-block multi-block paste across list items is one undo unit: a single Ctrl+Z restores the pre-paste document.
 
 ## Edge cases
 
