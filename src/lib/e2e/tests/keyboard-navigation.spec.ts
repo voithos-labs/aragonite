@@ -58,8 +58,10 @@ test.describe('keyboard navigation', () => {
 		await editor.typeText('A');
 		await editor.page.waitForTimeout(200);
 
+		// Pre-tightened, this regex accepted the regression case where ArrowUp
+		// moved the caret to end-of-block. Anchor to start-of-source.
 		const source = await editor.getSource();
-		expect(source).toMatch(/A.*First paragraph|First paragraphA/);
+		expect(source.startsWith('AFirst paragraph')).toBe(true);
 	});
 
 	test('ArrowDown into container block enters first child', async () => {
