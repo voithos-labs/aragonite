@@ -1,0 +1,108 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+// Tab / Shift+Tab behavior inside a code block: literal-tab insertion,
+// single-line dedent of tabs or up-to-4 leading spaces, and multi-line
+// selection indent/dedent.
+
+test.describe('code block tab / indent', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Tab with no selection inserts a literal tab', async ({ page }) => {
+		await editor.loadContent('```\nhello\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 7; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('hel\tlo');
+	});
+
+	test('Tab with multi-line selection indents every covered line', async ({ page }) => {
+		await editor.loadContent('```\nline1\nline2\nline3\n```\n');
+		await editor.getBlock(0).click();
+
+		await editor.focusBlock(0, 4);
+		for (let i = 0; i < 11; i++) {
+			await editor.pressKey('Shift+ArrowRight');
+		}
+
+		await page.keyboard.press('Tab');
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		expect(source).toContain('\tline1');
+		expect(source).toContain('\tline2');
+		expect(source).toMatch(/^line3$/m);
+	});
+
+	test('Shift+Tab removes leading tab from current line', async ({ page }) => {
+		await editor.loadContent('```\n\tindented\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 6; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('indented');
+		expect(source).not.toContain('\tindented');
+	});
+
+	test('Shift+Tab removes up to 4 leading spaces', async ({ page }) => {
+		await editor.loadContent('```\n    spaced\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 9; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const source = await editor.getSource();
+		expect(source).toContain('spaced');
+		expect(source).not.toContain('    spaced');
+	});
+
+	test('Shift+Tab is a no-op on a line with no leading whitespace', async ({ page }) => {
+		await editor.loadContent('```\nline\n```\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 6; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		const sourceBefore = await editor.getSource();
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+		const sourceAfter = await editor.getSource();
+		expect(sourceAfter).toBe(sourceBefore);
+	});
+
+	test('Shift+Tab with multi-line selection dedents every covered line', async ({ page }) => {
+		await editor.loadContent('```\n\tline1\n\tline2\nline3\n```\n');
+		await editor.getBlock(0).click();
+
+		await editor.focusBlock(0, 4);
+		for (let i = 0; i < 18; i++) {
+			await editor.pressKey('Shift+ArrowRight');
+		}
+
+		await page.keyboard.press('Shift+Tab');
+		await page.waitForTimeout(100);
+
+		const source = await editor.getSource();
+		expect(source).toContain('line1');
+		expect(source).toContain('line2');
+		expect(source).not.toContain('\tline1');
+		expect(source).not.toContain('\tline2');
+		expect(source).toContain('line3');
+	});
+});
