@@ -64,6 +64,7 @@ export interface ListItemMetadata {
 	marker: string;
 	taskItem: boolean;
 	taskChecked: boolean;
+	taskMarker: string | null;
 }
 
 export type BlockMetadata =

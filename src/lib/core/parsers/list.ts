@@ -26,9 +26,9 @@ export function matchListItem(
 	return null;
 }
 
-function matchTaskCheckbox(text: string): { checked: boolean } | null {
+function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
 	const m = text.match(/^\[( |x|X)\]\s+/);
-	return m ? { checked: m[1].toLowerCase() === 'x' } : null;
+	return m ? { checked: m[1].toLowerCase() === 'x', rawMarker: m[0] } : null;
 }
 
 /**
@@ -92,7 +92,8 @@ export function parseList(
 			metadata: {
 				marker: itemMatch.marker,
 				taskItem: task !== null,
-				taskChecked: task?.checked ?? false
+				taskChecked: task?.checked ?? false,
+				taskMarker: task?.rawMarker ?? null
 			},
 			innerPrefix: inner.prefix,
 			children: inner.children,
