@@ -36,6 +36,8 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { installDragListener } from './drag-pointer';
+import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
+import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 import { pasteDispatch } from '../tree-operations/paste-dispatch';
 
@@ -207,11 +209,7 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
 		e.preventDefault();
 		selection.incrementSelectAllCount();
 		if (selection.selectAllCount === 1) {
-			const range = document.createRange();
-			range.selectNodeContents(el);
-			const sel = window.getSelection();
-			sel?.removeAllRanges();
-			sel?.addRange(range);
+			selectFirstPressContent(el);
 			return true;
 		}
 		selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
@@ -222,6 +220,32 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
 }
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────
+
+/**
+ * Select the block's content for the first Ctrl+A press. When a container
+ * contributes an ambient marker (e.g. a list item's `- `), anchor after the
+ * marker so type-replace doesn't corrupt the contenteditable="false" island.
+ */
+function selectFirstPressContent(el: HTMLElement): void {
+	const ambient = ambientSpanOf(el);
+	const ambientLen = ambient?.textContent?.length ?? 0;
+	const textLen = el.textContent?.length ?? 0;
+
+	if (ambient && textLen > ambientLen) {
+		if (!placeCaretAfterAmbientSpan(el)) return;
+		const endRange = createRangeFromOffsets(el, textLen, textLen);
+		if (endRange) {
+			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
+		}
+		return;
+	}
+
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	const sel = window.getSelection();
+	sel?.removeAllRanges();
+	sel?.addRange(range);
+}
 
 function handleDocEdgeExtend(
 	ctx: CrossBlockDispatchContext,
