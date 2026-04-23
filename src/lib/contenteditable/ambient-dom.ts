@@ -24,6 +24,15 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	let cursor = 0;
 
 	for (const range of ranges) {
+		if (import.meta.env.DEV) {
+			if (range.start < 0 || range.end > normalized.text.length || range.start >= range.end) {
+				console.warn('[ambient-span] interactive range out of bounds or empty', {
+					range,
+					textLength: normalized.text.length
+				});
+				continue;
+			}
+		}
 		if (range.start > cursor) {
 			outer.appendChild(document.createTextNode(normalized.text.slice(cursor, range.start)));
 		}
