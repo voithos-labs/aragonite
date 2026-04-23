@@ -104,22 +104,22 @@
 
 						if (firstChildEmpty && node.children.length > 1) {
 							// Empty first item with siblings — delete just the item.
-							await parentContainerEdit.commitContainer(
-								node,
+							await parentContainerEdit.commitContainer({
+								containerNode: node,
 								state,
-								{ blockIndex: index, offset: 0 },
-								(children) => {
+								snapshot: { blockIndex: index, offset: 0 },
+								mutate: (children) => {
 									const change = performDelete({ children }, 0);
 									node.children = children;
 									renumberOrderedList(node, 0);
 									rebuildListRaw(node);
 									return change;
 								},
-								() => {
+								op: { kind: 'delete', eventPath: [index, 0] },
+								afterTick: () => {
 									state.innerBlockRefs[0]?.focus(0);
-								},
-								{ kind: 'delete', eventPath: [index, 0] }
-							);
+								}
+							});
 						} else if (firstChildEmpty && node.children.length === 1) {
 							// Empty only item — delete the list, focus block before it.
 							await parentBlockEdit.deleteBlock(index);
@@ -139,47 +139,47 @@
 					const item = node.children[itemIndex];
 					if (isItemUserEmpty(item)) {
 						// Empty non-first item — delete it, renumber, focus previous end.
-						await parentContainerEdit.commitContainer(
-							node,
+						await parentContainerEdit.commitContainer({
+							containerNode: node,
 							state,
-							{ blockIndex: index, offset: 0 },
-							(children) => {
+							snapshot: { blockIndex: index, offset: 0 },
+							mutate: (children) => {
 								const change = performDelete({ children }, itemIndex);
 								node.children = children;
 								renumberOrderedList(node, itemIndex);
 								rebuildListRaw(node);
 								return change;
 							},
-							() => {
+							op: { kind: 'delete', eventPath: [index, itemIndex] },
+							afterTick: () => {
 								state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
-							},
-							{ kind: 'delete', eventPath: [index, itemIndex] }
-						);
+							}
+						});
 						return;
 					}
 
 					// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
 					let mergePoint!: { targetPath: number[]; offset: number };
-					await parentContainerEdit.commitContainer(
-						node,
+					await parentContainerEdit.commitContainer({
+						containerNode: node,
 						state,
-						{ blockIndex: index, offset: 0 },
-						(children) => {
+						snapshot: { blockIndex: index, offset: 0 },
+						mutate: (children) => {
 							const result = mergeListItemIntoPrevious(node, children, itemIndex);
 							mergePoint = result.mergePoint;
 							// mergeListItemIntoPrevious removes itemIndex from children.
 							return { op: 'delete', at: itemIndex, count: 1 };
 						},
-						() => {
-							const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-							state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
-						},
-						{
+						op: {
 							kind: 'merge',
 							detail: { direction: 'prev' },
 							eventPath: [index, itemIndex]
+						},
+						afterTick: () => {
+							const [firstPathIdx, ...restPath] = mergePoint.targetPath;
+							state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
 						}
-					);
+					});
 				},
 
 				deleteBlock: async (itemIndex: number): Promise<void> => {
@@ -188,22 +188,22 @@
 						await parentBlockEdit.deleteBlock(index);
 						return;
 					}
-					await parentContainerEdit.commitContainer(
-						node,
+					await parentContainerEdit.commitContainer({
+						containerNode: node,
 						state,
-						{ blockIndex: index, offset: 0 },
-						(children) => {
+						snapshot: { blockIndex: index, offset: 0 },
+						mutate: (children) => {
 							const change = performDelete({ children }, itemIndex);
 							node.children = children;
 							rebuildListRaw(node);
 							return change;
 						},
-						() => {
+						op: { kind: 'delete', eventPath: [index, itemIndex] },
+						afterTick: () => {
 							const focusIdx = Math.min(itemIndex, (node.children?.length ?? 1) - 1);
 							state.innerBlockRefs[focusIdx]?.focus(0);
-						},
-						{ kind: 'delete', eventPath: [index, itemIndex] }
-					);
+						}
+					});
 				},
 
 				// U1/U2 typically replace on the list's parent; this list-level path is rare but symmetric.
@@ -220,11 +220,11 @@
 						? ('skip' as const)
 						: { blockIndex: index, offset: 0 };
 
-					await parentContainerEdit.commitContainer(
-						node,
+					await parentContainerEdit.commitContainer({
+						containerNode: node,
 						state,
 						snapshot,
-						(children) => {
+						mutate: (children) => {
 							if (replacement.length === 0) {
 								children.splice(itemIndex, 1);
 								node.children = children;
@@ -246,18 +246,18 @@
 								newCount: normalizedReplacement.length
 							};
 						},
-						() => {
+						op: {
+							kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
+							detail: { count: replacement.length },
+							eventPath: [index, itemIndex]
+						},
+						afterTick: () => {
 							if (focus && replacement.length > 0) {
 								const targetIdx = itemIndex + focus.replacementIndex;
 								state.innerBlockRefs[targetIdx]?.focus(focus.offset);
 							}
-						},
-						{
-							kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
-							detail: { count: replacement.length },
-							eventPath: [index, itemIndex]
 						}
-					);
+					});
 				}
 			}
 		})

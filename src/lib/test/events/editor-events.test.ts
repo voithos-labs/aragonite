@@ -137,17 +137,16 @@ describe('createEditorEvents', () => {
 			innerBlockRefs: [undefined, undefined] as (any | undefined)[]
 		};
 
-		await controller.commitContainerStructural(
+		await controller.commitContainerStructural({
 			containerNode,
 			state,
-			{ blockIndex: 0, offset: 0 },
-			(children) => {
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: (children) => {
 				children.splice(1, 1);
 				return { op: 'delete', at: 1, count: 1 };
 			},
-			undefined,
-			{ kind: 'delete', eventPath: [0, 1] }
-		);
+			op: { kind: 'delete', eventPath: [0, 1] }
+		});
 
 		expect(editCount).toBe(1);
 	});

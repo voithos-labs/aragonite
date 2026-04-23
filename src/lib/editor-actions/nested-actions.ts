@@ -74,22 +74,22 @@ export function createStandardNestedActions(
 	const blockEdit: BlockEditActions = {
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!deps.node.children) return;
-			await parent.containerEdit.commitContainer(
-				deps.node,
+			await parent.containerEdit.commitContainer({
+				containerNode: deps.node,
 				state,
-				{ blockIndex: deps.index, offset },
-				(children) => {
+				snapshot: { blockIndex: deps.index, offset },
+				mutate: (children) => {
 					const change = performSplit({ children }, innerIndex, offset);
 					// Sync before rebuildRaw — it reads deps.node.children directly.
 					deps.node.children = children;
 					rebuildRaw();
 					return change;
 				},
-				() => {
+				op: { kind: 'split', eventPath: [deps.index, innerIndex] },
+				afterTick: () => {
 					state.innerBlockRefs[innerIndex + 1]?.focus(0);
-				},
-				{ kind: 'split', eventPath: [deps.index, innerIndex] }
-			);
+				}
+			});
 		},
 
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
@@ -109,41 +109,41 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(prevKind, currKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex - 1].raw);
-				await parent.containerEdit.commitContainer(
-					deps.node,
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
 					state,
-					{ blockIndex: deps.index, offset: 0 },
-					(children) => {
+					snapshot: { blockIndex: deps.index, offset: 0 },
+					mutate: (children) => {
 						const change = performMerge({ children }, innerIndex);
 						deps.node.children = children;
 						rebuildRaw();
 						return change;
 					},
-					() => {
-						state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
-					},
-					{
+					op: {
 						kind: 'merge',
 						detail: { direction: 'prev' },
 						eventPath: [deps.index, innerIndex]
+					},
+					afterTick: () => {
+						state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
 					}
-				);
+				});
 			} else if (!isBlockEditable(prevKind)) {
-				await parent.containerEdit.commitContainer(
-					deps.node,
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
 					state,
-					{ blockIndex: deps.index, offset: 0 },
-					(children) => {
+					snapshot: { blockIndex: deps.index, offset: 0 },
+					mutate: (children) => {
 						const change = performDelete({ children }, innerIndex - 1);
 						deps.node.children = children;
 						rebuildRaw();
 						return change;
 					},
-					() => {
+					op: { kind: 'delete', eventPath: [deps.index, innerIndex - 1] },
+					afterTick: () => {
 						state.innerBlockRefs[innerIndex - 1]?.focus(0);
-					},
-					{ kind: 'delete', eventPath: [deps.index, innerIndex - 1] }
-				);
+					}
+				});
 			} else {
 				state.innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
 			}
@@ -162,41 +162,41 @@ export function createStandardNestedActions(
 
 			if (isMergeEligible(currKind, nextKind)) {
 				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
-				await parent.containerEdit.commitContainer(
-					deps.node,
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
 					state,
-					{ blockIndex: deps.index, offset: 0 },
-					(children) => {
+					snapshot: { blockIndex: deps.index, offset: 0 },
+					mutate: (children) => {
 						const change = performMergeNext({ children }, innerIndex);
 						deps.node.children = children;
 						rebuildRaw();
 						return change;
 					},
-					() => {
-						state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
-					},
-					{
+					op: {
 						kind: 'merge',
 						detail: { direction: 'next' },
 						eventPath: [deps.index, innerIndex]
+					},
+					afterTick: () => {
+						state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
 					}
-				);
+				});
 			} else if (!isBlockEditable(nextKind)) {
-				await parent.containerEdit.commitContainer(
-					deps.node,
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
 					state,
-					{ blockIndex: deps.index, offset: 0 },
-					(children) => {
+					snapshot: { blockIndex: deps.index, offset: 0 },
+					mutate: (children) => {
 						const change = performDelete({ children }, innerIndex + 1);
 						deps.node.children = children;
 						rebuildRaw();
 						return change;
 					},
-					() => {
+					op: { kind: 'delete', eventPath: [deps.index, innerIndex + 1] },
+					afterTick: () => {
 						state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
-					},
-					{ kind: 'delete', eventPath: [deps.index, innerIndex + 1] }
-				);
+					}
+				});
 			} else {
 				state.innerBlockRefs[innerIndex + 1]?.focus(0);
 			}
@@ -210,22 +210,22 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			await parent.containerEdit.commitContainer(
-				deps.node,
+			await parent.containerEdit.commitContainer({
+				containerNode: deps.node,
 				state,
-				{ blockIndex: deps.index, offset: 0 },
-				(children) => {
+				snapshot: { blockIndex: deps.index, offset: 0 },
+				mutate: (children) => {
 					const change = performDelete({ children }, innerIndex);
 					deps.node.children = children;
 					rebuildRaw();
 					return change;
 				},
-				() => {
+				op: { kind: 'delete', eventPath: [deps.index, innerIndex] },
+				afterTick: () => {
 					const focusIdx = Math.min(innerIndex, (deps.node.children?.length ?? 1) - 1);
 					state.innerBlockRefs[focusIdx]?.focus(0);
-				},
-				{ kind: 'delete', eventPath: [deps.index, innerIndex] }
-			);
+				}
+			});
 		},
 
 		async updateBlockContent(
@@ -247,25 +247,25 @@ export function createStandardNestedActions(
 
 			if (preview.kindChanged) {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
-				await parent.containerEdit.commitContainer(
-					deps.node,
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
 					state,
-					{ blockIndex: deps.index, offset: preEditOffset ?? 0 },
-					(children) => {
+					snapshot: { blockIndex: deps.index, offset: preEditOffset ?? 0 },
+					mutate: (children) => {
 						performUpdate({ children }, innerIndex, text);
 						deps.node.children = children;
 						rebuildRaw();
 						return { op: 'noop' };
 					},
-					() => {
-						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
-					},
-					{
+					op: {
 						kind: 'updateContent',
 						detail: { length: text.length },
 						eventPath: [deps.index, innerIndex]
+					},
+					afterTick: () => {
+						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
 					}
-				);
+				});
 				return;
 			}
 
@@ -291,22 +291,21 @@ export function createStandardNestedActions(
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
 
-			await parent.containerEdit.commitContainer(
-				deps.node,
+			await parent.containerEdit.commitContainer({
+				containerNode: deps.node,
 				state,
-				options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
-				() => {
+				snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
+				mutate: () => {
 					const node = deps.node.children![innerIndex];
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					return { op: 'noop' };
 				},
-				undefined,
-				{
+				op: {
 					kind: 'metadataUpdate',
 					detail: { fields },
 					eventPath: [deps.index, innerIndex]
 				}
-			);
+			});
 		},
 
 		async insertParsedBlocks(
@@ -358,11 +357,11 @@ export function createStandardNestedActions(
 				? ('skip' as const)
 				: { blockIndex: deps.index, offset: 0 };
 
-			await parent.containerEdit.commitContainer(
-				deps.node,
+			await parent.containerEdit.commitContainer({
+				containerNode: deps.node,
 				state,
 				snapshot,
-				(children) => {
+				mutate: (children) => {
 					if (replacement.length === 0) {
 						children.splice(innerIndex, 1);
 						deps.node.children = children;
@@ -389,17 +388,17 @@ export function createStandardNestedActions(
 						idMap: { 0: 0 }
 					};
 				},
-				() => {
+				op: {
+					kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
+					eventPath: [deps.index, innerIndex]
+				},
+				afterTick: () => {
 					if (focus && replacement.length > 0) {
 						const targetIdx = innerIndex + focus.replacementIndex;
 						state.innerBlockRefs[targetIdx]?.focus(focus.offset);
 					}
-				},
-				{
-					kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
-					eventPath: [deps.index, innerIndex]
 				}
-			);
+			});
 		}
 	};
 
@@ -435,7 +434,14 @@ export function createStandardNestedActions(
 			parent.containerEdit.nudgeReactivity();
 		},
 
-		commitContainer(containerNode, innerState, snapshot, mutate, afterTick, op): Promise<void> {
+		commitContainer({
+			containerNode,
+			state: innerState,
+			snapshot,
+			mutate,
+			op,
+			afterTick
+		}): Promise<void> {
 			// Forward to the enclosing container, remapping the snapshot's
 			// blockIndex to this container's own doc-relative index and prepending
 			// `deps.index` to the edit event path. Inner containerNode/innerState/
@@ -457,14 +463,14 @@ export function createStandardNestedActions(
 				rebuildRaw();
 				return change;
 			};
-			return parent.containerEdit.commitContainer(
+			return parent.containerEdit.commitContainer({
 				containerNode,
-				innerState,
-				remappedSnapshot,
-				wrappedMutate,
-				afterTick,
-				remappedOp
-			);
+				state: innerState,
+				snapshot: remappedSnapshot,
+				mutate: wrappedMutate,
+				op: remappedOp,
+				afterTick
+			});
 		}
 	};
 

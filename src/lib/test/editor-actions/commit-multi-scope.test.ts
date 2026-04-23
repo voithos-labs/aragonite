@@ -93,15 +93,15 @@ describe('commitMultiScope', () => {
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
-		await controller.commitMultiScope(
-			[{ node: containerNode, state }],
-			{ blockIndex: 0, offset: 0 },
-			([scope]) => {
+		await controller.commitMultiScope({
+			scopes: [{ node: containerNode, state }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scope]) => {
 				scope.children.push({ kind: 'listItem', raw: '- c\n' });
 				return [{ op: 'insert', at: 2, count: 1 }];
 			},
-			{ kind: 'appendBlock', eventPath: [0, 2] }
-		);
+			op: { kind: 'appendBlock', eventPath: [0, 2] }
+		});
 
 		expect(containerNode.children).toHaveLength(3);
 		expect(state.innerBlockIds).toHaveLength(3);
@@ -124,13 +124,13 @@ describe('commitMultiScope', () => {
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
-		await controller.commitMultiScope(
-			[
+		await controller.commitMultiScope({
+			scopes: [
 				{ node: nodeA, state: stateA },
 				{ node: nodeB, state: stateB }
 			],
-			{ blockIndex: 0, offset: 0 },
-			([scopeA, scopeB]) => {
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scopeA, scopeB]) => {
 				scopeA.children.push({ kind: 'listItem', raw: '- d\n' });
 				scopeB.children.splice(1, 1);
 				return [
@@ -138,8 +138,8 @@ describe('commitMultiScope', () => {
 					{ op: 'delete', at: 1, count: 1 }
 				];
 			},
-			{ kind: 'split', eventPath: [0, 1] }
-		);
+			op: { kind: 'split', eventPath: [0, 1] }
+		});
 
 		expect(nodeA.children).toHaveLength(4);
 		expect(stateA.innerBlockIds).toHaveLength(4);
@@ -159,14 +159,14 @@ describe('commitMultiScope', () => {
 		const controller = createUndoController(deps);
 
 		await expect(
-			controller.commitMultiScope(
-				[
+			controller.commitMultiScope({
+				scopes: [
 					{ node: nodeA, state: stateA },
 					{ node: nodeB, state: stateB }
 				],
-				{ blockIndex: 0, offset: 0 },
-				() => [{ op: 'noop' }]
-			)
+				snapshot: { blockIndex: 0, offset: 0 },
+				mutate: () => [{ op: 'noop' }]
+			})
 		).rejects.toThrow('commitMultiScope: mutate returned 1 changes for 2 scopes');
 	});
 
@@ -179,12 +179,12 @@ describe('commitMultiScope', () => {
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
-		await controller.commitMultiScope(
-			[{ node: containerNode, state }],
-			{ blockIndex: 0, offset: 0 },
-			() => [{ op: 'noop' }],
-			{ kind: 'delete', eventPath: [0] }
-		);
+		await controller.commitMultiScope({
+			scopes: [{ node: containerNode, state }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: () => [{ op: 'noop' }],
+			op: { kind: 'delete', eventPath: [0] }
+		});
 
 		expect(state.innerBlockIds).toEqual(['id-a']);
 		expect(editHandler).toHaveBeenCalledTimes(1);
@@ -197,15 +197,15 @@ describe('commitMultiScope', () => {
 		const { deps } = makeDeps([containerNode]);
 		const controller = createUndoController(deps);
 
-		await controller.commitMultiScope(
-			[{ node: containerNode, state }],
-			{ blockIndex: 0, offset: 0 },
-			([scope]) => {
+		await controller.commitMultiScope({
+			scopes: [{ node: containerNode, state }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scope]) => {
 				const original = scope.children[0];
 				scope.children.splice(0, 1, original, { kind: 'listItem', raw: '- a2\n' });
 				return [{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } }];
 			}
-		);
+		});
 
 		expect(state.innerBlockIds).toHaveLength(2);
 		expect(state.innerBlockIds[0]).toBe(originalId);

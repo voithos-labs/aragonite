@@ -50,23 +50,24 @@ export async function handleCrossBlockTypeReplace(
 		return true;
 	}
 
-	await ctx.controller.commitMultiScope(
-		[scope],
-		'skip',
-		() => {
+	await ctx.controller.commitMultiScope({
+		scopes: [scope],
+		snapshot: 'skip',
+		mutate: () => {
 			targetNode.raw =
 				targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
 			ctx.afterRawMutated?.(targetNode);
 			if (caret.path.length >= 2) rebuildAncestryRawForLeaf(doc, caret.path);
 			return [{ op: 'noop' }];
 		},
-		{
+		op: {
 			kind: 'input',
 			detail: { byteLength: typed.length },
 			eventPath: caret.path
 		},
-		() => applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })
-	);
+		afterTick: () =>
+			applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })
+	});
 	return true;
 }
 
