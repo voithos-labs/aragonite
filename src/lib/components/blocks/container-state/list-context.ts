@@ -188,6 +188,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const outerChildren = scopeChildren[0].children;
 					const itemChildren = scopeChildren[1].children;
 
+					// Pre-splice length — descriptor must report how many children
+					// we actually removed from this scope (everything from innerIndex
+					// onward), not just the one we split.
+					const preSpliceLen = itemChildren.length;
+
 					performSplit({ children: itemChildren }, innerIndex, offset);
 					const secondHalf = itemChildren.splice(innerIndex + 1);
 					if (secondHalf.length > 0) {
@@ -220,12 +225,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					renumberOrderedList(outerList, itemIndex + 1);
 					rebuildListRaw(outerList);
 
+					// Net scope-1 change: [innerIndex .. preSpliceLen) replaced by
+					// the single first-half leaf. idMap preserves the split leaf's id.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
 						{
 							op: 'replace',
 							at: innerIndex,
-							count: 1,
+							count: preSpliceLen - innerIndex,
 							newCount: 1,
 							idMap: { 0: 0 }
 						} as StructuralChange
