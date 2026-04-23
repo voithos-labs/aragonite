@@ -241,7 +241,8 @@
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!el) return;
 		el.focus();
-		const domOffset = findOffsetNearestX(el, x, from);
+		// minOffset = ambientLength keeps the scan out of the marker region.
+		const domOffset = findOffsetNearestX(el, x, from, ambientLength);
 		setRawCursorOffset(domToRawOffset(domOffset, ambientLength));
 	}
 

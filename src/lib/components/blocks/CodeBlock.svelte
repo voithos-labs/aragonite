@@ -92,7 +92,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
-		getCursorOffset: () => getCursorOffsetHelper(el!) ?? null,
+		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
@@ -214,8 +214,9 @@
 	}
 
 	function onCompositionStart(): void {
+		if (!el) return;
 		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
-		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
+		preEditOffset = getCursorOffsetHelper(el) ?? 0;
 		crossBlock.handleCompositionStart();
 		composing = true;
 	}
@@ -291,8 +292,9 @@
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
+		if (!el) return;
 
-		preEditOffset = getCursorOffsetHelper(el!) ?? 0;
+		preEditOffset = getCursorOffsetHelper(el) ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
@@ -306,7 +308,7 @@
 		}
 
 		if (e.key === 'Backspace') {
-			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const offset = getCursorOffsetHelper(el) ?? 0;
 			if (offset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
@@ -330,7 +332,7 @@
 		// that don't affect textContent, so the CST never sees the edit.
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			const offset = getCursorOffsetHelper(el!) ?? 0;
+			const offset = getCursorOffsetHelper(el) ?? 0;
 			const text = getDisplayText();
 			const meta = node.metadata as FencedCodeMetadata;
 
@@ -396,9 +398,10 @@
 	}
 
 	function currentRange(): { start: number; end: number } {
-		const sel = getSelectionOffsetsHelper(el!);
+		if (!el) return { start: 0, end: 0 };
+		const sel = getSelectionOffsetsHelper(el);
 		if (sel) return sel;
-		const cursor = getCursorOffsetHelper(el!) ?? 0;
+		const cursor = getCursorOffsetHelper(el) ?? 0;
 		return { start: cursor, end: cursor };
 	}
 
@@ -458,7 +461,8 @@
 		}
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 
-		const selOffsets = getSelectionOffsetsHelper(el!);
+		if (!el) return;
+		const selOffsets = getSelectionOffsetsHelper(el);
 		if (selOffsets) {
 			const display = getDisplayText();
 			const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
