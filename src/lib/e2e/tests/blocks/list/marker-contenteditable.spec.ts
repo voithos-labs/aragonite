@@ -148,8 +148,39 @@ test.describe('list marker inside contenteditable', () => {
 		expect(covered).toBe(true);
 	});
 
-	// See docs/issues.md — "Empty list item: innerPrefix not cleared after first paragraph gains content"
-	test.fixme('empty list item renders ambient marker plus <br> fallback', async () => {
+	test('first child has hanging-indent style scoped by ambient length', async () => {
+		await editor.loadContent('- Hello\n\n1. one\n\n10. ten\n');
+		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
+
+		const styles = await items.evaluateAll((els) =>
+			els.map((el) => ({
+				textIndent: (el as HTMLElement).style.textIndent,
+				paddingLeft: (el as HTMLElement).style.paddingLeft
+			}))
+		);
+
+		expect(styles).toEqual([
+			{ textIndent: '-2ch', paddingLeft: '2ch' },
+			{ textIndent: '-3ch', paddingLeft: '3ch' },
+			{ textIndent: '-4ch', paddingLeft: '4ch' }
+		]);
+	});
+
+	test('non-first paragraph in a loose list item has no hanging-indent style', async () => {
+		await editor.loadContent('- first\n\n  second\n');
+		const blocks = editor.page.locator('.list-item-block .text-editable-block');
+		const styles = await blocks.evaluateAll((els) =>
+			els.map((el) => ({
+				textIndent: (el as HTMLElement).style.textIndent,
+				paddingLeft: (el as HTMLElement).style.paddingLeft
+			}))
+		);
+
+		expect(styles[0]).toEqual({ textIndent: '-2ch', paddingLeft: '2ch' });
+		expect(styles[1]).toEqual({ textIndent: '', paddingLeft: '' });
+	});
+
+	test('empty list item renders ambient marker plus <br> fallback', async () => {
 		await editor.loadContent('- \n');
 		const item = editor.page.locator('.list-item-block [contenteditable="true"]').first();
 		const marker = item.locator('> span.md-marker[contenteditable="false"]');

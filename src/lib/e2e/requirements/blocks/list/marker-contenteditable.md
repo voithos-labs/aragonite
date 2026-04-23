@@ -18,6 +18,7 @@ The list item marker (`- ` / `1. `) renders as an atomic `.md-marker` span insid
 
 ## Edge cases
 
-- Empty list item (`- \n`): first child is an empty paragraph; contenteditable renders the ambient marker span and an empty content region. `ensureBr` fallback still adds a `<br>` to keep the block focusable.
+- Empty list item (`- \n`): first child is an empty paragraph; contenteditable renders the ambient marker span and an empty content region. `ensureBr` fallback still adds a `<br>` to keep the block focusable. Typing into it produces `- X\n`, not `- \n  X\n` (parser routes the trailing newline into innerPrefix; the backfilled paragraph subsumes that role).
 - Multi-digit ordered marker (`10. `): ambient prefix is 4 chars; cursor math uses `ambientLength=4` correctly.
+- First prose child of an ambient-wearing list item has hanging-indent style (`text-indent: -<ambientLength>ch; padding-left: <ambientLength>ch`) so wrapped lines and continuation paragraphs hang under the content rather than under the marker. Non-first children carry no such style. Values track `ambientLength` so they stay correct as the marker widens (e.g. task checkboxes at 0.6.1).
 - Nested list: parent's first child gets ambient `- `; nested list's first child gets its own ambient `- `. Independence verified via typed-marker assertion in each.

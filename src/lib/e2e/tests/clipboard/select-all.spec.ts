@@ -56,6 +56,26 @@ test.describe('select-all clipboard round-trip', () => {
 		expect(source).not.toContain('gamma');
 	});
 
+	test('Ctrl+A from inside a list item escalates to whole document on second press', async () => {
+		await editor.loadContent('Before\n\n- Hello\n\nAfter\n');
+
+		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
+		await item.click();
+
+		// First press: selects the item's content only (marker excluded).
+		await editor.pressKey('Control+a');
+		await editor.page.waitForTimeout(100);
+		expect(await editor.isCrossBlockActive()).toBe(false);
+		const firstSelection = await editor.page.evaluate(
+			() => window.getSelection()?.toString() ?? ''
+		);
+		expect(firstSelection).toBe('Hello');
+
+		// Second press: escalates to whole-document cross-block selection.
+		await editor.pressKey('Control+a');
+		await editor.waitForCrossBlock(true);
+	});
+
 	test('select-all cut then paste replaces with clipboard', async () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(0);

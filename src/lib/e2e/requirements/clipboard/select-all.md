@@ -9,3 +9,4 @@
 
 - Select-all copy on single-block document: paste appends entire block content
 - Select-all then paste replaces entire document with clipboard content
+- Ctrl+A inside a list item: first press selects the item's content only (ambient marker excluded); second press escalates to whole-document cross-block selection. Marker exclusion happens in the cross-block dispatcher so the escalation counter still increments.
