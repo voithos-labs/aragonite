@@ -8,6 +8,7 @@ import { createBlockListState } from '$lib/editor/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/events/editor-events';
+import { rebuildListRaw } from '$lib/editor/tree-operations/container-raw';
 import type { BlockComponent, BlockEditActions, FocusActions } from '$lib/editor/contracts';
 import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
 
@@ -24,6 +25,21 @@ function mockRef(): BlockComponent {
 
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
 	return { kind, leadingTrivia: '', raw, metadata };
+}
+
+// Shape matters: rebuildListItemRaw no-ops without `children`, so raw-assertion
+// tests need a paragraph child for the rebuild to actually emit.
+function makeTaskListItem(text: string, taskMarker: string): any {
+	const checked = taskMarker.trim().toLowerCase() === '[x]';
+	return {
+		kind: 'listItem',
+		leadingTrivia: '',
+		raw: `- ${taskMarker}${text}\n`,
+		metadata: { marker: '- ', taskItem: true, taskChecked: checked, taskMarker },
+		innerPrefix: '',
+		innerSuffix: '',
+		children: [{ kind: 'paragraph', leadingTrivia: '', raw: `${text}\n` }]
+	};
 }
 
 function makeStickyColumn(): StickyColumnState {
@@ -149,12 +165,7 @@ describe('updateBlockMetadata', () => {
 	});
 
 	it('multi-field patch updates taskChecked and taskMarker atomically', async () => {
-		const node = makeNode('listItem', '- [ ] pending\n', {
-			marker: '- ',
-			taskItem: true,
-			taskChecked: false,
-			taskMarker: '[ ] '
-		});
+		const node = makeTaskListItem('pending', '[ ] ');
 		const { deps, events } = makeDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
@@ -169,6 +180,8 @@ describe('updateBlockMetadata', () => {
 			taskChecked: true,
 			taskMarker: '[x] '
 		});
+		// taskMarker in metadata must propagate to raw via rebuildListItemRaw.
+		expect(node.raw).toBe('- [x] pending\n');
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
 		expect(evt.op).toBe('metadataUpdate');
@@ -176,12 +189,7 @@ describe('updateBlockMetadata', () => {
 	});
 
 	it('undo after multi-field task patch restores both fields', async () => {
-		const node = makeNode('listItem', '- [ ] pending\n', {
-			marker: '- ',
-			taskItem: true,
-			taskChecked: false,
-			taskMarker: '[ ] '
-		});
+		const node = makeTaskListItem('pending', '[ ] ');
 		const { deps } = makeDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
@@ -194,6 +202,8 @@ describe('updateBlockMetadata', () => {
 			taskChecked: false,
 			taskMarker: '[ ] '
 		});
+		// Post-undo raw reflects restored taskMarker.
+		expect(deps.doc.children[0].raw).toBe('- [ ] pending\n');
 	});
 });
 
@@ -324,4 +334,93 @@ describe('updateBlockMetadata — container scope', () => {
 
 		expect(innerNode.metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
 	});
+
+	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
+		// The parent-container staleness guard: without parent rebuildRaw, the
+		// inner listItem.raw updates but the list's composite raw stays stale.
+		const { bundle, innerNode, containerNode } = makeListContainerSetup(1);
+
+		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
+
+		expect(innerNode.raw).toBe('- [x] pending\n');
+		expect(containerNode.raw).toBe('- [x] pending\n');
+	});
 });
+
+// ── List-container scope helper ──────────────────────────────────────────────
+
+function makeListContainerSetup(containerIndex: number) {
+	const innerNode = makeTaskListItem('pending', '[ ] ');
+	const containerNode: any = {
+		kind: 'list',
+		leadingTrivia: '',
+		raw: '- [ ] pending\n',
+		metadata: { ordered: false },
+		innerPrefix: '',
+		innerSuffix: '',
+		children: [innerNode]
+	};
+
+	const padNode = makeNode('paragraph', 'pad\n', {});
+	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
+
+	const doc: any = { kind: 'document', children: docNodes };
+	const blockIds = docNodes.map((_, i) => `block-${i}`);
+	const blockRefs: (BlockComponent | undefined)[] = docNodes.map(() => mockRef());
+	const events = createEditorEvents();
+	const deps = {
+		get doc() {
+			return doc;
+		},
+		get blockIds() {
+			return blockIds;
+		},
+		get blockRefs() {
+			return blockRefs;
+		},
+		setDoc: (v: any) => {
+			Object.assign(doc, v);
+		},
+		setBlockIds: vi.fn(),
+		setBlockRefs: vi.fn(),
+		undoManager: createUndoManager(),
+		stickyColumn: makeStickyColumn(),
+		selectionState: createSelectionState(),
+		getBlockElByPath: () => null,
+		events
+	};
+
+	const controller = createUndoController(deps);
+	const containerEditActions = createContainerEditActions(deps, controller);
+
+	const parentBlockEdit: BlockEditActions = {
+		splitBlock: vi.fn(),
+		mergeWithPrevious: vi.fn(),
+		mergeWithNext: vi.fn(),
+		deleteBlock: vi.fn(),
+		updateBlockContent: vi.fn(),
+		updateBlockMetadata: vi.fn(),
+		insertParsedBlocks: vi.fn(),
+		replaceBlock: vi.fn()
+	};
+	const parentFocus: FocusActions = { moveFocus: vi.fn() };
+
+	const containerState = createBlockListState(() => containerNode);
+	const bundle = createStandardNestedActions(containerState, {
+		index: containerIndex,
+		get node() {
+			return containerNode;
+		},
+		// Wire real rebuild so parent-container raw assertion is meaningful —
+		// a vi.fn() stub would pass even if the bug returned.
+		rebuildRaw: () => rebuildListRaw(containerNode),
+		stickyColumn: makeStickyColumn(),
+		parent: {
+			blockEdit: parentBlockEdit,
+			focus: parentFocus,
+			containerEdit: containerEditActions
+		}
+	});
+
+	return { bundle, innerNode, containerNode, deps, events, controller };
+}
