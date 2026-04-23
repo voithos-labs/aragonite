@@ -1,7 +1,8 @@
 /**
- * ContainerEditActions factory — snapshot bookends for container blocks
- * plus the unified `commitContainer` entry that routes structural
- * mutations through the commit primitive.
+ * ContainerEditActions factory — checkpoint pushers for paths that mutate
+ * raw outside the commit primitive, the doc-root reactivity nudge, and the
+ * unified `commitContainer` entry that routes structural mutations through
+ * the commit primitive.
  */
 
 import type { ContainerEditActions } from '../../contracts';
@@ -13,13 +14,13 @@ export function createContainerEditActions(
 	controller: UndoController
 ): ContainerEditActions {
 	return {
-		beginContainerEdit(blockIndex: number, offset: number): void {
+		pushCheckpoint(blockIndex: number, offset: number): void {
 			deps.stickyColumn.reset();
 			controller.clearDebouncedCheckpoint();
 			controller.pushUndoSnapshot(blockIndex, offset);
 		},
 
-		beginContainerEditDebounced(
+		pushDebouncedCheckpoint(
 			blockIndex: number,
 			offset: number,
 			batchKey?: string | number
@@ -28,10 +29,10 @@ export function createContainerEditActions(
 			controller.pushUndoSnapshotDebounced(blockIndex, offset, batchKey);
 		},
 
-		endContainerEdit(): void {
-			// Reactivity nudge for paths that mutate the document outside the
-			// commit primitive — cross-block typing, IME composition entry,
-			// drag/clipboard mutate notify.
+		nudgeReactivity(): void {
+			// Out-of-commit-primitive raw mutations (cross-block typing, IME
+			// composition entry, drag/clipboard sync mutate) surface through this
+			// nudge so Svelte re-reads doc.children.
 			deps.doc.children = [...deps.doc.children];
 		},
 

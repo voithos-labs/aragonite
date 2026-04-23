@@ -2,9 +2,10 @@
 
 Regression guard for 0.5.5.3: every structural operation that was migrated
 to `commitMultiScope` must fire exactly one `edit` event per user action.
-Pre-migration, several list-context and cross-block ops called
-`beginContainerEdit` + `endContainerEdit` as a bracket pair around multiple
-mutations, which could fire zero or two events depending on code path.
+Pre-migration, several list-context and cross-block ops ran under the
+legacy `pushCheckpoint` + `nudgeReactivity` bracket pair (formerly
+`beginContainerEdit` / `endContainerEdit`) around multiple mutations,
+which could fire zero or two events depending on code path.
 
 ## Migrated sites covered
 
