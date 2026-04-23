@@ -19,9 +19,13 @@ export function createContainerEditActions(
 			controller.pushUndoSnapshot(blockIndex, offset);
 		},
 
-		beginContainerEditDebounced(blockIndex: number, offset: number): void {
+		beginContainerEditDebounced(
+			blockIndex: number,
+			offset: number,
+			batchKey?: string | number
+		): void {
 			deps.stickyColumn.reset();
-			controller.pushUndoSnapshotDebounced(blockIndex, offset);
+			controller.pushUndoSnapshotDebounced(blockIndex, offset, batchKey);
 		},
 
 		endContainerEdit(): void {

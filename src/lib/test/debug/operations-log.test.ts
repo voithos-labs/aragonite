@@ -37,4 +37,36 @@ describe('operations-log', () => {
 		log.record({ op: 'split', path: [2], detail: { at: 0 } });
 		expect(listener).toHaveBeenCalledTimes(2);
 	});
+
+	it('continues notifying remaining subscribers when one throws', () => {
+		const log = createOperationsLog(10);
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const throwing = vi.fn(() => {
+			throw new Error('boom');
+		});
+		const second = vi.fn();
+		log.subscribe(throwing);
+		log.subscribe(second);
+
+		log.record({ op: 'split', path: [0], detail: { at: 0 } });
+
+		expect(throwing).toHaveBeenCalledTimes(1);
+		expect(second).toHaveBeenCalledTimes(1);
+		expect(errSpy).toHaveBeenCalled();
+		errSpy.mockRestore();
+	});
+
+	it('tolerates a subscriber that unsubscribes itself during notification', () => {
+		const log = createOperationsLog(10);
+		const second = vi.fn();
+		const unsubFirst = log.subscribe(() => {
+			unsubFirst();
+		});
+		log.subscribe(second);
+
+		log.record({ op: 'split', path: [0], detail: { at: 0 } });
+		log.record({ op: 'delete', path: [1], detail: {} });
+
+		expect(second).toHaveBeenCalledTimes(2);
+	});
 });

@@ -1,6 +1,131 @@
-/** Matches `[label]: url "title"`. Footnote labels (`[^...]:`) are excluded. */
-export function matchLinkReferenceDefinition(text: string): { label: string } | null {
-	const m = text.match(/^ {0,3}\[([^\]]+)\]:\s+/);
-	if (!m || m[1].startsWith('^')) return null;
-	return { label: m[1] };
+/**
+ * Link reference definition parser. CommonMark §4.7 — `[label]: url "title"`,
+ * with URL and optional title allowed on continuation lines.
+ *
+ * Footnote labels (`[^...]:`) are excluded; they parse as paragraph for now
+ * and become first-class blocks at the footnote milestone.
+ */
+
+import type { CstNode } from '../nodes';
+import type { ParsedLine } from '../lines';
+import { joinRaw } from '../parser';
+
+export function parseLinkReferenceDefinition(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	leadingTrivia: string
+): { node: CstNode; nextIndex: number } | null {
+	const first = lines[startIndex];
+	const openMatch = first.text.match(/^ {0,3}\[([^\]]+)\]:(.*)$/);
+	if (!openMatch) return null;
+	const label = openMatch[1];
+	if (label.startsWith('^')) return null;
+
+	const segment = openMatch[2].replace(/^[ \t]*/, '');
+	let url: string | undefined;
+	let title: string | undefined;
+	let lineCursor = startIndex;
+
+	if (segment.length > 0) {
+		const urlResult = parseUrl(segment);
+		if (urlResult) {
+			url = urlResult.url;
+			const afterUrl = segment.slice(urlResult.consumed).replace(/^[ \t]*/, '');
+			if (afterUrl.length > 0) {
+				title = parseTrailingTitle(afterUrl);
+			} else {
+				const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
+				if (next) {
+					title = next.title;
+					lineCursor = next.lineIndex;
+				}
+			}
+		}
+	} else {
+		// URL must be on a continuation line; bare `[label]:` with no URL is not a definition.
+		if (lineCursor + 1 >= endIndex) return null;
+		const nextLine = lines[lineCursor + 1];
+		const stripped = nextLine.text.replace(/^[ \t]*/, '');
+		if (stripped.length === 0) return null;
+		const urlResult = parseUrl(stripped);
+		if (!urlResult) return null;
+		url = urlResult.url;
+		lineCursor++;
+		const afterUrl = stripped.slice(urlResult.consumed).replace(/^[ \t]*/, '');
+		if (afterUrl.length > 0) {
+			title = parseTrailingTitle(afterUrl);
+		} else {
+			const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
+			if (next) {
+				title = next.title;
+				lineCursor = next.lineIndex;
+			}
+		}
+	}
+
+	const raw = joinRaw(lines, startIndex, lineCursor + 1);
+	return {
+		node: {
+			kind: 'linkReferenceDefinition',
+			leadingTrivia,
+			raw,
+			metadata: {
+				label,
+				...(url !== undefined ? { url } : {}),
+				...(title !== undefined ? { title } : {})
+			}
+		},
+		nextIndex: lineCursor + 1
+	};
+}
+
+function parseUrl(s: string): { url: string; consumed: number } | null {
+	if (s.length === 0) return null;
+	if (s[0] === '<') {
+		const close = s.indexOf('>', 1);
+		if (close === -1) return null;
+		return { url: s.slice(1, close), consumed: close + 1 };
+	}
+	const m = s.match(/^(\S+)/);
+	if (!m) return null;
+	return { url: m[1], consumed: m[1].length };
+}
+
+function matchTitleSingleLine(s: string): { title: string; consumed: number } | null {
+	if (s.length === 0) return null;
+	const ch = s[0];
+	if (ch === '"' || ch === "'") {
+		const close = s.indexOf(ch, 1);
+		if (close === -1) return null;
+		return { title: s.slice(1, close), consumed: close + 1 };
+	}
+	if (ch === '(') {
+		const close = s.indexOf(')', 1);
+		if (close === -1) return null;
+		return { title: s.slice(1, close), consumed: close + 1 };
+	}
+	return null;
+}
+
+function parseTrailingTitle(afterUrl: string): string | undefined {
+	const t = matchTitleSingleLine(afterUrl);
+	if (!t) return undefined;
+	const trailing = afterUrl.slice(t.consumed).replace(/^[ \t]*/, '');
+	return trailing.length === 0 ? t.title : undefined;
+}
+
+function consumeContinuationTitle(
+	lines: ParsedLine[],
+	lineIndex: number,
+	endIndex: number
+): { title: string; lineIndex: number } | null {
+	if (lineIndex >= endIndex) return null;
+	const stripped = lines[lineIndex].text.replace(/^[ \t]*/, '');
+	if (stripped.length === 0) return null;
+	const t = matchTitleSingleLine(stripped);
+	if (!t) return null;
+	const trailing = stripped.slice(t.consumed).replace(/^[ \t]*/, '');
+	if (trailing.length !== 0) return null;
+	return { title: t.title, lineIndex };
 }

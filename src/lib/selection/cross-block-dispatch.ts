@@ -40,6 +40,7 @@ import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/am
 import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
 import { rebuildContainerRawIfContainer } from '../tree-operations/container-raw';
 import { pasteDispatch } from '../tree-operations/paste-dispatch';
+import { getStateForNode } from '../components/blocks/container-state/state-registry';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -303,13 +304,19 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		if (!root) return false;
 		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
+		const lifetimeSignal = ctx.getEditorLifetime();
+		if (!lifetimeSignal && import.meta.env.DEV) {
+			console.warn(
+				'[cross-block-dispatch] editor lifetime signal unavailable; drag cleanup may leak on unmount'
+			);
+		}
 		installDragListener(
 			{
 				editorRoot: root,
 				scrollContainer: root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
-				lifetimeSignal: ctx.getEditorLifetime() ?? undefined
+				lifetimeSignal: lifetimeSignal ?? undefined
 			},
 			{ path: myPath.slice(), offset }
 		);
@@ -394,22 +401,84 @@ async function handleBeforeInput(
 
 	e.preventDefault();
 	const typed = e.data ?? '';
-	const caret = await performCrossBlockDelete(mutCtx);
-	if (!caret || !typed) return true;
+	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
+	if (!caret) return true;
+	if (!typed) {
+		applyCaretAtPath(ctx, caret);
+		return true;
+	}
 
 	const doc = ctx.getDoc();
 	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
-	if (!targetNode || !('raw' in targetNode)) return true;
-	targetNode.raw =
-		targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
-	ctx.afterRawMutated?.(targetNode);
-	// Originating block's containerEdit bracket may not share the merge
-	// target's ancestry; rebuild directly so list/blockquote raws reflect
-	// the typed character.
-	rebuildAncestryForLeaf(doc, caret.path);
-	ctx.containerEdit.endContainerEdit();
-	ctx.setPendingCursor(caret.offset + typed.length);
+	if (!targetNode || !('raw' in targetNode)) {
+		applyCaretAtPath(ctx, caret);
+		return true;
+	}
+
+	// Route the splice through commitMultiScope so the mutation lands inside
+	// the commit primitive: parallel ids/refs reactivity contract honored,
+	// op:'input' event emitted symmetrically with the single-block path
+	// (block-edit.ts updateBlockContent → debounced flush). skipSnapshot keeps
+	// the typed character in the same undo unit as performCrossBlockDelete.
+	const scope = resolveTypedCharScope(ctx, caret.path);
+	if (!scope) {
+		applyCaretAtPath(ctx, caret);
+		return true;
+	}
+
+	await ctx.controller.commitMultiScope(
+		[scope],
+		'skip',
+		() => {
+			targetNode.raw =
+				targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
+			ctx.afterRawMutated?.(targetNode);
+			if (caret.path.length >= 2) rebuildAncestryForLeaf(doc, caret.path);
+			return [{ op: 'noop' }];
+		},
+		{
+			kind: 'input',
+			detail: { byteLength: typed.length },
+			eventPath: caret.path
+		},
+		() => applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })
+	);
 	return true;
+}
+
+function applyCaretAtPath(
+	ctx: CrossBlockDispatchContext,
+	point: { path: number[]; offset: number }
+): void {
+	const blockEl = ctx.getBlockElByPath(point.path);
+	if (blockEl) {
+		applyCollapsedCaret(blockEl, point);
+		blockEl.focus();
+	}
+}
+
+/**
+ * Pick the smallest commit scope covering the typed-char target. Doc-scope
+ * for top-level leaves; nearest container ancestor with a registered
+ * BlockListState for nested leaves. Returns null when no scope is mounted —
+ * caller falls back to direct caret restore.
+ */
+function resolveTypedCharScope(
+	ctx: CrossBlockDispatchContext,
+	leafPath: number[]
+): { node: CstNode; state: ReturnType<typeof getStateForNode> & {} } | null {
+	if (leafPath.length === 1) {
+		const docScope = ctx.controller.getDocScope();
+		return { node: docScope.node, state: docScope.state };
+	}
+	const doc = ctx.getDoc();
+	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
+		const ancestor = nodeAt(doc, leafPath.slice(0, depth)) as CstNode | null;
+		if (!ancestor) continue;
+		const state = getStateForNode(ancestor);
+		if (state) return { node: ancestor, state };
+	}
+	return null;
 }
 
 // ── CompositionStart ───────────────────────────────────────────────────────

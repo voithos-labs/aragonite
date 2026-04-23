@@ -12,8 +12,9 @@ import {
 	registerPasteSurface
 } from '../../tree-operations/paste-surfaces';
 import { parse } from '../../core/parser';
+import { registerBlockListState } from '../../components/blocks/container-state/state-registry';
 import type { BlockKind, CstNode, Document } from '../../core/nodes';
-import type { BlockEditActions } from '../../contracts';
+import type { BlockComponent, BlockEditActions } from '../../contracts';
 import type { UndoController } from '../../components/editor-actions/deps';
 
 function makePara(raw: string): CstNode {
@@ -193,5 +194,96 @@ describe('paste-dispatch opaque-fallback warning', () => {
 
 		expect(warn).not.toHaveBeenCalled();
 		warn.mockRestore();
+	});
+});
+
+// ── B6: container-matching merge runs its raw mutation inside commitMultiScope ─
+
+function makeStubBlockListState(node: CstNode) {
+	const state: any = {
+		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
+		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined),
+		commitChildrenEdit: () => {}
+	};
+	registerBlockListState(node, state);
+	return state;
+}
+
+describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit invariant', () => {
+	it('singleton-merge: targetLeaf.raw is unchanged until commitMultiScope.mutate runs', async () => {
+		const doc = parse('1. one\n2. two\n');
+		const list = doc.children[0] as CstNode;
+		const firstItem = list.children![0] as CstNode;
+		const targetLeaf = firstItem.children![0] as CstNode;
+		const rawBefore = targetLeaf.raw;
+		makeStubBlockListState(list);
+
+		// Singleton clipboard: one matching ordered-list item with one paragraph.
+		const pastedText = '1. INSERTED\n';
+
+		let rawAtCommitInvocation: string | null = null;
+		const captured: { mutate: ((scopes: any[]) => any[]) | null } = { mutate: null };
+
+		const controller = {
+			...makeStubController(),
+			commitMultiScope: vi.fn(async (_scopes, _snapshot, mutate) => {
+				rawAtCommitInvocation = targetLeaf.raw;
+				captured.mutate = mutate;
+				mutate(_scopes.map(() => ({ children: [] })));
+			})
+		} as unknown as UndoController;
+
+		await pasteDispatch(
+			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },
+			{
+				doc,
+				blockEdit: makeStubBlockEdit(),
+				controller,
+				skipSnapshot: true
+			}
+		);
+
+		expect(captured.mutate).not.toBeNull();
+		// commitMultiScope was invoked with the pre-mutation raw — proves the
+		// snapshot would capture pre-mutation state (B6 fix).
+		expect(rawAtCommitInvocation).toBe(rawBefore);
+		// After mutate ran inside the stub's call, the raw is now updated.
+		expect(targetLeaf.raw).not.toBe(rawBefore);
+		expect(targetLeaf.raw).toContain('INSERTED');
+	});
+
+	it('multi-item merge: target and last leaves unchanged until commitMultiScope.mutate runs', async () => {
+		const doc = parse('1. one\n2. two\n');
+		const list = doc.children[0] as CstNode;
+		const firstItem = list.children![0] as CstNode;
+		const targetLeaf = firstItem.children![0] as CstNode;
+		const rawBefore = targetLeaf.raw;
+		makeStubBlockListState(list);
+
+		// Two-item matching clipboard exercises the multi-item path.
+		const pastedText = '1. ALPHA\n2. BETA\n';
+
+		let rawAtCommit: string | null = null;
+		const controller = {
+			...makeStubController(),
+			commitMultiScope: vi.fn(async (scopes, _snapshot, mutate) => {
+				rawAtCommit = targetLeaf.raw;
+				const scopeViews = scopes.map((s) => ({ children: [...(s.node.children ?? [])] }));
+				mutate(scopeViews);
+			})
+		} as unknown as UndoController;
+
+		await pasteDispatch(
+			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },
+			{
+				doc,
+				blockEdit: makeStubBlockEdit(),
+				controller,
+				skipSnapshot: true
+			}
+		);
+
+		expect(rawAtCommit).toBe(rawBefore);
+		expect(targetLeaf.raw).toContain('ALPHA');
 	});
 });

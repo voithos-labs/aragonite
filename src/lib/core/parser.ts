@@ -13,7 +13,7 @@ import { matchBlockquote, parseBlockquote } from './parsers/blockquote';
 import { matchListItem, parseList } from './parsers/list';
 import { matchIndentedCode, parseIndentedCode } from './parsers/indented-code';
 import { matchHtmlBlock, parseHtmlBlock } from './parsers/html-block';
-import { matchLinkReferenceDefinition } from './parsers/link-reference';
+import { parseLinkReferenceDefinition } from './parsers/link-reference';
 import { parseParagraph } from './parsers/paragraph';
 
 // ── Public entry point ──────────────────────────────────────────────────
@@ -122,18 +122,8 @@ function parseNextBlock(
 		return parseHtmlBlock(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	const linkRef = matchLinkReferenceDefinition(line.text);
-	if (linkRef) {
-		return {
-			node: {
-				kind: 'linkReferenceDefinition',
-				leadingTrivia,
-				raw: line.raw,
-				metadata: { label: linkRef.label }
-			},
-			nextIndex: startIndex + 1
-		};
-	}
+	const linkRef = parseLinkReferenceDefinition(lines, startIndex, endIndex, leadingTrivia);
+	if (linkRef) return linkRef;
 
 	// Paragraph fallback also detects setext headings and tables.
 	return parseParagraph(lines, startIndex, endIndex, leadingTrivia);

@@ -76,7 +76,7 @@ export function parseInline(
 	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans, resolver);
 
 	if (!hasDelimiterChars(raw, start, end, withLinks)) {
-		return processHardLineBreaks(withLinks, raw);
+		return processHardLineBreaks(mergeAdjacentText(withLinks), raw);
 	}
 
 	const segments = buildSegments(raw, start, end, withLinks);

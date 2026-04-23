@@ -25,7 +25,8 @@ import {
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
 	buildPastedReplacement,
-	normalizeReplacementTrivia
+	normalizeReplacementTrivia,
+	ensureEditableContainers
 } from '../../../tree-operations';
 import { isMergeEligible, isBlockEditable } from '../../../tree-operations/merge-rules';
 import { parseAllInlineContent } from '../../../core/inline';
@@ -96,8 +97,10 @@ export function createStandardNestedActions(
 
 			// innerIndex === 0: delegate upward. Unwrap-style containers
 			// (BlockquoteBlock U2, ListBlock U1/M1) override this whole method.
+			// Await so caller continuations (focus placement) run after the
+			// upward chain settles.
 			if (innerIndex <= 0) {
-				parent.blockEdit.mergeWithPrevious(deps.index);
+				await parent.blockEdit.mergeWithPrevious(deps.index);
 				return;
 			}
 
@@ -228,7 +231,8 @@ export function createStandardNestedActions(
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,
-			preEditOffset?: number
+			preEditOffset?: number,
+			postEditFocusOffset?: number
 		): Promise<void> {
 			if (!deps.node.children) return;
 
@@ -242,6 +246,7 @@ export function createStandardNestedActions(
 			);
 
 			if (preview.kindChanged) {
+				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				await parent.containerEdit!.commitContainer(
 					deps.node,
 					state,
@@ -253,7 +258,7 @@ export function createStandardNestedActions(
 						return { op: 'noop' };
 					},
 					() => {
-						state.innerBlockRefs[innerIndex]?.focus(preEditOffset ?? 0);
+						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
 					},
 					{
 						kind: 'updateContent',
@@ -264,8 +269,14 @@ export function createStandardNestedActions(
 				return;
 			}
 
-			// Routine typing — debounced undo path, no structural commit.
-			parent.containerEdit?.beginContainerEditDebounced(deps.index, preEditOffset ?? 0);
+			// Routine typing — debounced undo path, no structural commit. Pass
+			// the inner leaf's id as the batch key so focus moves between
+			// sibling leaves inside this container break the typing batch.
+			parent.containerEdit?.beginContainerEditDebounced(
+				deps.index,
+				preEditOffset ?? 0,
+				state.innerBlockIds[innerIndex]
+			);
 			performUpdate({ children: deps.node.children }, innerIndex, text);
 			rebuildRaw();
 			parent.containerEdit?.endContainerEdit();
@@ -362,15 +373,20 @@ export function createStandardNestedActions(
 						children[innerIndex],
 						replacement
 					);
+					for (const node of normalizedReplacement) ensureEditableContainers(node);
 					parseAllInlineContent(normalizedReplacement);
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					deps.node.children = children;
 					rebuildRaw();
+					// First replacement inherits the original block's id + ref;
+					// matches top-level replaceBlock contract so Svelte's keyed
+					// {#each} doesn't remount the leaf and lose IME state.
 					return {
 						op: 'replace',
 						at: innerIndex,
 						count: 1,
-						newCount: normalizedReplacement.length
+						newCount: normalizedReplacement.length,
+						idMap: { 0: 0 }
 					};
 				},
 				() => {
@@ -410,8 +426,12 @@ export function createStandardNestedActions(
 			parent.containerEdit?.beginContainerEdit(deps.index, offset);
 		},
 
-		beginContainerEditDebounced(_innerIndex: number, offset: number): void {
-			parent.containerEdit?.beginContainerEditDebounced(deps.index, offset);
+		beginContainerEditDebounced(
+			_innerIndex: number,
+			offset: number,
+			batchKey?: string | number
+		): void {
+			parent.containerEdit?.beginContainerEditDebounced(deps.index, offset, batchKey);
 		},
 
 		endContainerEdit(): void {

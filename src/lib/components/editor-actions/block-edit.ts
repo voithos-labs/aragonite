@@ -174,21 +174,22 @@ export function createBlockEditActions(
 		async updateBlockContent(
 			blockIndex: number,
 			text: string,
-			preEditOffset?: number
+			preEditOffset?: number,
+			postEditFocusOffset?: number
 		): Promise<void> {
 			deps.stickyColumn.reset();
 			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
 			const result = performUpdate(deps.doc, blockIndex, text);
 			if (result.kindChanged) {
-				// Structural republish sharing the debounced snapshot via skipSnapshot.
-				// performUpdate already mutated the tree in place; commitStructural
-				// swaps the children array atomically so Svelte remounts at the new kind.
+				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
+				// performUpdate mutated the tree in place; commitStructural swaps the
+				// children array atomically so Svelte remounts at the new kind.
 				await controller.commitStructural(
 					blockIndex,
 					preEditOffset ?? 0,
 					() => ({ op: 'noop' }),
 					() => {
-						deps.blockRefs[blockIndex]?.focus(preEditOffset ?? 0);
+						deps.blockRefs[blockIndex]?.focus(focusOffset);
 					},
 					{ skipSnapshot: true, op: { kind: 'updateContent', detail: { length: text.length } } }
 				);
@@ -298,11 +299,15 @@ export function createBlockEditActions(
 						return { op: 'delete', at: blockIndex, count: 1 };
 					}
 					children.splice(blockIndex, 1, ...normalizedReplacement);
+					// First replacement inherits the original block's id + ref so
+					// Svelte's keyed {#each} doesn't destroy+recreate the component
+					// — preserves IME composition state and pending input.
 					return {
 						op: 'replace',
 						at: blockIndex,
 						count: 1,
-						newCount: normalizedReplacement.length
+						newCount: normalizedReplacement.length,
+						idMap: { 0: 0 }
 					};
 				},
 				() => {

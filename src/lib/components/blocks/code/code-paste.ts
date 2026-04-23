@@ -82,12 +82,16 @@ function bumpFenceLines(
 	closed: boolean
 ): string {
 	const lines = spliced.split('\n');
-	lines[0] = lines[0].replace(new RegExp('^' + escapeForRegex(oldFence)), newFence);
+	// GFM permits up to 3 spaces of indent before the opener; preserve it when bumping.
+	lines[0] = lines[0].replace(new RegExp('^( {0,3})' + escapeForRegex(oldFence)), '$1' + newFence);
 
 	if (closed) {
 		for (let i = lines.length - 1; i >= 0; i--) {
 			if (lines[i].trim().length === 0) continue;
-			lines[i] = lines[i].replace(new RegExp('^\\s*' + escapeForRegex(oldFence)), newFence);
+			lines[i] = lines[i].replace(
+				new RegExp('^(\\s*)' + escapeForRegex(oldFence)),
+				'$1' + newFence
+			);
 			break;
 		}
 	}

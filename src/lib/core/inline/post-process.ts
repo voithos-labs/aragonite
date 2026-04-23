@@ -33,8 +33,11 @@ function splitTextOnHardBreaks(node: InlineNode, raw: string): InlineNode[] {
 
 		const absNl = start + nlIdx;
 
-		if (nlIdx > 0 && text[nlIdx - 1] === '\\') {
-			const breakerStart = absNl - 1;
+		// Skip the '\r' of CRLF so the backslash check lands on the actual char before the break.
+		const isCrLf = nlIdx > 0 && text[nlIdx - 1] === '\r';
+		const backslashIdx = isCrLf ? nlIdx - 2 : nlIdx - 1;
+		if (backslashIdx >= 0 && text[backslashIdx] === '\\') {
+			const breakerStart = start + backslashIdx;
 			if (segStart < breakerStart) {
 				result.push({
 					kind: 'text',

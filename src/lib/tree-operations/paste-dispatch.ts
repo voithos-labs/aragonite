@@ -484,39 +484,18 @@ async function applyContainerMatchingMerge(
 	const remainingItems = unwrap.items.slice(1);
 
 	if (remainingItems.length === 0) {
-		targetLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
-	} else {
-		targetLeaf.raw = displayBefore + firstItemText + targetLineEnding;
-		const lastItem = remainingItems[remainingItems.length - 1];
-		const lastLeaf = lastItem.children![0];
-		const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
-		lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
-	}
-
-	if (isProseKind(targetLeaf.kind)) {
-		const range = getContentRange(targetLeaf);
-		targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
-	}
-	if (remainingItems.length > 0) {
-		const lastLeaf = remainingItems[remainingItems.length - 1].children![0];
-		if (isProseKind(lastLeaf.kind)) {
-			const range = getContentRange(lastLeaf);
-			lastLeaf.inlineContent = parseInline(lastLeaf.raw, range.start, range.end);
-		}
-	}
-
-	// Rebuild up from the mutated target leaf so its enclosing listItem
-	// reflects the merged content before we splice siblings.
-	rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
-
-	if (remainingItems.length === 0) {
-		// Publish a noop structural change to flush reactivity after the in-place
-		// raw mutation on targetLeaf; otherwise the bind doesn't observe the update.
 		await ctx.controller.commitMultiScope(
 			[{ node: outer, state: outerState }],
 			ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-			() => [{ op: 'noop' }],
+			() => {
+				targetLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
+				if (isProseKind(targetLeaf.kind)) {
+					const range = getContentRange(targetLeaf);
+					targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
+				}
+				rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
+				return [{ op: 'noop' }];
+			},
 			{
 				kind: 'paste',
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
@@ -529,15 +508,33 @@ async function applyContainerMatchingMerge(
 		return;
 	}
 
-	// The last remaining item's enclosing listItem raw still reflects the
-	// pre-mutation paragraph. Rebuild before splicing so the published
-	// children carry correct raws in one reactive flush.
-	rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
+	const lastItem = remainingItems[remainingItems.length - 1];
+	const lastLeaf = lastItem.children![0];
+	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
 	await ctx.controller.commitMultiScope(
 		[{ node: outer, state: outerState }],
 		ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
 		(scopeChildren) => {
+			targetLeaf.raw = displayBefore + firstItemText + targetLineEnding;
+			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
+			if (isProseKind(targetLeaf.kind)) {
+				const range = getContentRange(targetLeaf);
+				targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
+			}
+			if (isProseKind(lastLeaf.kind)) {
+				const range = getContentRange(lastLeaf);
+				lastLeaf.inlineContent = parseInline(lastLeaf.raw, range.start, range.end);
+			}
+			// Rebuild target's ancestry so the enclosing listItem reflects the
+			// merged paragraph before siblings splice in.
+			rebuildAncestryForLeaf(ctx.doc, merge.targetLeafPath);
+			// Last remaining item's enclosing listItem raw still reflects the
+			// pre-mutation paragraph; rebuild before splicing so the published
+			// children carry correct raws in one reactive flush.
+			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
+
 			const children = scopeChildren[0].children;
 			children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
 			outer.children = children;

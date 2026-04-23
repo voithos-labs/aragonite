@@ -185,7 +185,7 @@
 				deleteBlock: async (itemIndex: number): Promise<void> => {
 					if (!node.children) return;
 					if (node.children.length <= 1) {
-						parentBlockEdit.deleteBlock(index);
+						await parentBlockEdit.deleteBlock(index);
 						return;
 					}
 					await parentContainerEdit!.commitContainer(
