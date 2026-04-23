@@ -6,11 +6,9 @@
  * rebuildRaw on their descriptor.
  */
 
-import type { CstNode } from '../core/nodes';
-import {
-	augmentBlockKind,
-	tryGetBlockKindDescriptor
-} from './block-kind-descriptor';
+import type { CstNode, Document } from '../core/nodes';
+import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { nodeAt } from './node-ops';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -122,4 +120,18 @@ export function rebuildContainerRaw(node: CstNode): void {
 /** Rebuild `raw` when `node` has a rebuildRaw on its descriptor; no-op otherwise. */
 export function rebuildContainerRawIfContainer(node: CstNode): void {
 	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node);
+}
+
+/**
+ * Rebuild `raw` for every container ancestor of `leafPath`, innermost-first.
+ * The leaf itself is not rebuilt — callers mutate the leaf's raw before
+ * calling. Stops at depth 1 (document root is never rebuilt; serialization
+ * reads its children directly).
+ */
+export function rebuildAncestryRawForLeaf(doc: Document, leafPath: number[]): void {
+	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
+		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
+		if (!ancestor || !('kind' in ancestor)) break;
+		rebuildContainerRawIfContainer(ancestor as CstNode);
+	}
 }

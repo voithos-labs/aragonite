@@ -20,11 +20,7 @@ export function createContainerEditActions(
 			controller.pushUndoSnapshot(blockIndex, offset);
 		},
 
-		pushDebouncedCheckpoint(
-			blockIndex: number,
-			offset: number,
-			batchKey?: string | number
-		): void {
+		pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void {
 			deps.stickyColumn.reset();
 			controller.pushUndoSnapshotDebounced(blockIndex, offset, batchKey);
 		},

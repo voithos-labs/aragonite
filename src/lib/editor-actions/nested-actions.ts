@@ -426,11 +426,7 @@ export function createStandardNestedActions(
 			parent.containerEdit.pushCheckpoint(deps.index, offset);
 		},
 
-		pushDebouncedCheckpoint(
-			_innerIndex: number,
-			offset: number,
-			batchKey?: string | number
-		): void {
+		pushDebouncedCheckpoint(_innerIndex: number, offset: number, batchKey?: string | number): void {
 			parent.containerEdit.pushDebouncedCheckpoint(deps.index, offset, batchKey);
 		},
 

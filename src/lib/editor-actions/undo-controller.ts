@@ -186,11 +186,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				 * descriptor — do NOT splice them inside `mutate`.
 				 */
 				mutate: (children: CstNode[]) => StructuralChange;
-				publish: (
-					children: CstNode[],
-					ids: string[],
-					refs: (BlockComponent | undefined)[]
-				) => void;
+				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 				op?: OpDescriptor;
 				eventPath: number[];
 				afterTick?: () => void;
