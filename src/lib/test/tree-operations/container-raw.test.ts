@@ -200,3 +200,41 @@ describe('parse + rebuild round-trip', () => {
 		expect(serialize(doc)).toBe(source);
 	});
 });
+
+describe('rebuildListItemRaw: task items', () => {
+	it('emits taskMarker between list marker and content', () => {
+		const doc = parse('- [x] hello\n');
+		const item = doc.children[0].children![0];
+
+		rebuildListItemRaw(item);
+
+		expect(item.raw).toBe('- [x] hello\n');
+	});
+
+	it('preserves uppercase X across rebuild', () => {
+		const doc = parse('- [X] upper\n');
+		const item = doc.children[0].children![0];
+
+		rebuildListItemRaw(item);
+
+		expect(item.raw).toBe('- [X] upper\n');
+	});
+
+	it('preserves multi-space across rebuild', () => {
+		const doc = parse('- [x]  extra\n');
+		const item = doc.children[0].children![0];
+
+		rebuildListItemRaw(item);
+
+		expect(item.raw).toBe('- [x]  extra\n');
+	});
+
+	it('non-task list item rebuild emits no task fragment', () => {
+		const doc = parse('- plain\n');
+		const item = doc.children[0].children![0];
+
+		rebuildListItemRaw(item);
+
+		expect(item.raw).toBe('- plain\n');
+	});
+});
