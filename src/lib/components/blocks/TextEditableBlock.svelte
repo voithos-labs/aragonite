@@ -48,7 +48,7 @@
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
-	import { ambientSpanOf } from '../../contenteditable/ambient-dom';
+	import { ambientSpanOf, buildAmbientSpan } from '../../contenteditable/ambient-dom';
 	import { createAmbientCursorIO } from '../../contenteditable/ambient-cursor';
 
 	let {
@@ -67,8 +67,8 @@
 		ambientPrefix?: AmbientPrefix;
 	} = $props();
 
-	// Normalized plain-text view of ambientPrefix; Task 4 replaces body usages
-	// with a buildAmbientSpan helper that consumes the union directly.
+	// Plain-string view of the prefix for length/equality/display use;
+	// `buildAmbientSpan` consumes the union directly for DOM construction.
 	const ambientPrefixText = $derived(
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
 	);
@@ -166,11 +166,7 @@
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const frag = document.createDocumentFragment();
 		if (ambientPrefixText) {
-			const ambientSpan = document.createElement('span');
-			ambientSpan.className = 'md-marker';
-			ambientSpan.setAttribute('contenteditable', 'false');
-			ambientSpan.textContent = ambientPrefixText;
-			frag.appendChild(ambientSpan);
+			frag.appendChild(buildAmbientSpan(ambientPrefix));
 		}
 		const blockOwnPrefix = getBlockMarkerPrefix();
 		if (blockOwnPrefix) {

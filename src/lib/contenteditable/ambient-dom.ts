@@ -6,6 +6,46 @@
  * land-after this span.
  */
 
+import type { AmbientPrefix } from '../contracts';
+
+/**
+ * Construct the ambient marker span for `prefix`. String inputs produce a
+ * text-only span; object inputs wrap each interactive range in a nested span
+ * that carries its className, ARIA hints, and click handler, with the gaps
+ * between ranges rendered as plain text nodes.
+ */
+export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
+	const normalized = typeof prefix === 'string' ? { text: prefix } : prefix;
+	const outer = document.createElement('span');
+	outer.className = 'md-marker';
+	outer.setAttribute('contenteditable', 'false');
+
+	const ranges = normalized.interactive ?? [];
+	let cursor = 0;
+
+	for (const range of ranges) {
+		if (range.start > cursor) {
+			outer.appendChild(document.createTextNode(normalized.text.slice(cursor, range.start)));
+		}
+		const inner = document.createElement('span');
+		inner.className = range.className;
+		if (range.role) inner.setAttribute('role', range.role);
+		if (range.ariaChecked !== undefined) {
+			inner.setAttribute('aria-checked', String(range.ariaChecked));
+		}
+		inner.textContent = normalized.text.slice(range.start, range.end);
+		inner.addEventListener('click', range.onClick);
+		outer.appendChild(inner);
+		cursor = range.end;
+	}
+
+	if (cursor < normalized.text.length) {
+		outer.appendChild(document.createTextNode(normalized.text.slice(cursor)));
+	}
+
+	return outer;
+}
+
 /** Returns the ambient marker span if `blockEl` leads with one; null otherwise. */
 export function ambientSpanOf(blockEl: HTMLElement): HTMLElement | null {
 	const first = blockEl.firstChild;
