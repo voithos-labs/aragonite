@@ -3,19 +3,17 @@
  * regions left by backtick scanning.
  *
  * The links.ts ↔ index.ts module cycle is benign: parseInline is called at
- * runtime (not module-init) and RefResolver is a type-only import.
+ * runtime, not module-init.
  */
 
 import type { InlineNode } from '../nodes';
 import { parseInline } from './index';
-import type { RefResolver } from './index';
 
 export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	codeSpans: InlineNode[],
-	resolver?: RefResolver
+	codeSpans: InlineNode[]
 ): InlineNode[] {
 	const occupied: Array<{ start: number; end: number }> = codeSpans
 		.filter((n) => n.kind === 'inlineCode')
@@ -25,10 +23,10 @@ export function scanLinksAndAutolinks(
 
 	let pos = start;
 	for (const occ of occupied) {
-		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found, resolver);
+		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found);
 		pos = occ.end;
 	}
-	scanRegionForLinksAndAutolinks(raw, pos, end, found, resolver);
+	scanRegionForLinksAndAutolinks(raw, pos, end, found);
 
 	if (found.length === 0) return codeSpans;
 
@@ -117,8 +115,7 @@ function scanRegionForLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	out: InlineNode[],
-	resolver?: RefResolver
+	out: InlineNode[]
 ): void {
 	let pos = start;
 
@@ -153,7 +150,7 @@ function scanRegionForLinksAndAutolinks(
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
-					const children = parseInline(raw, pos + 1, bracketClose, resolver);
+					const children = parseInline(raw, pos + 1, bracketClose);
 					out.push({
 						kind: 'link',
 						start: pos,
