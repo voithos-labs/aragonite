@@ -118,8 +118,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 			{
 				kind,
 				leadingTrivia: '',
-				raw,
-				metadata: {}
+				raw
 			}
 		]
 	};
@@ -267,7 +266,9 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 			...makeStubController(),
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommit = targetLeaf.raw;
-				const scopeViews = scopes.map((s) => ({ children: [...(s.node.children ?? [])] }));
+				const scopeViews = scopes.map((s: { node: { children?: CstNode[] } }) => ({
+					children: [...(s.node.children ?? [])]
+				}));
 				mutate(scopeViews);
 			})
 		} as unknown as UndoController;
