@@ -19,6 +19,7 @@ import { pickPasteStrategy, materializeBlankLines } from './strategy';
 import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { findContainerMatchingUnwrap, applyContainerMatchingPaste } from './container-match';
+import { findListBreakOut, applyListBreakOut } from './list-break-out';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -75,6 +76,16 @@ export async function pasteDispatch(
 	);
 	if (unwrap) {
 		await applyContainerMatchingPaste(unwrap, ctx);
+		return {};
+	}
+
+	// List break-out: when a mismatched-type list is pasted into a list item,
+	// lift the paste to the enclosing list's parent level rather than nesting
+	// it as a sub-list. Runs after container-match so matching-type pastes
+	// still flatten into the ancestor list.
+	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, input.offset);
+	if (breakOut) {
+		await applyListBreakOut(breakOut, parsed.children, ctx);
 		return {};
 	}
 
