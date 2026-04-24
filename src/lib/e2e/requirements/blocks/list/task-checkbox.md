@@ -34,3 +34,4 @@ Interactive `[x]` / `[ ]` toggling on GFM task list items. Click toggles via met
 - Toggle does not emit typing-style keyboard events; emitted edit event has `op: 'metadataUpdate'`.
 - Undo after toggle pushes one snapshot (not zero, not two).
 - Nested task sub-lists render independently — toggling an outer task item does not strike through its nested task sub-list's text.
+- Enter at end of a task list item creates a new unchecked task item (inherits task-ness from source); plain list items stay plain.

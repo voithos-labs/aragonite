@@ -4,7 +4,7 @@
  * `commitMultiScope`.
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, ListItemMetadata } from '../core/nodes';
 import {
 	FOCUS_LAST_START,
 	type BlockEditActions,
@@ -130,14 +130,20 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			if (!node.children) return;
 
 			if (!newItem) {
-				const prevMarker =
-					(node.children[itemIndex]?.metadata as { marker?: string })?.marker ?? '- ';
+				const prevMeta = node.children[itemIndex]?.metadata as ListItemMetadata | undefined;
+				const prevMarker = prevMeta?.marker ?? '- ';
 				const marker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
+				const inheritTask = prevMeta?.taskItem === true;
 				newItem = {
 					kind: 'listItem',
 					leadingTrivia: '',
 					raw: '',
-					metadata: { marker, taskItem: false, taskChecked: false, taskMarker: null },
+					metadata: {
+						marker,
+						taskItem: inheritTask,
+						taskChecked: false,
+						taskMarker: inheritTask ? '[ ] ' : null
+					},
 					innerPrefix: '',
 					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
 					innerSuffix: ''
