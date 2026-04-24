@@ -10,16 +10,6 @@ import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
 
-// ── Reference resolver ─────────────────────────────────────────────────────
-
-/**
- * Resolves a link reference label to its destination. Returns null when no
- * `linkReferenceDefinition` matches. Threaded through the parser so reference-
- * style links/images can be resolved at parse time; currently unused at every
- * call site (optional parameter).
- */
-export type RefResolver = (label: string) => { url: string; title?: string } | null;
-
 // ── Content Range ──────────────────────────────────────────────────────────
 
 export interface ContentRange {
@@ -45,14 +35,14 @@ export function isProseKind(kind: CstNode['kind']): boolean {
  * Refresh `inlineContent` on every prose node in the tree. Used after
  * structural mutations that bypass the per-input reactive pipeline.
  */
-export function parseAllInlineContent(nodes: CstNode[], resolver?: RefResolver): void {
+export function parseAllInlineContent(nodes: CstNode[]): void {
 	for (const node of nodes) {
 		if (isProseKind(node.kind)) {
 			const range = getContentRange(node);
-			node.inlineContent = parseInline(node.raw, range.start, range.end, resolver);
+			node.inlineContent = parseInline(node.raw, range.start, range.end);
 		}
 		if (node.children) {
-			parseAllInlineContent(node.children, resolver);
+			parseAllInlineContent(node.children);
 		}
 	}
 }
@@ -66,11 +56,10 @@ export function parseAllInlineContent(nodes: CstNode[], resolver?: RefResolver):
 export function parseInline(
 	raw: string,
 	start: number,
-	end: number,
-	resolver?: RefResolver
+	end: number
 ): InlineNode[] {
 	const codeSpans = scanBacktickSpans(raw, start, end);
-	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans, resolver);
+	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans);
 
 	if (!hasDelimiterChars(raw, start, end, withLinks)) {
 		return processHardLineBreaks(mergeAdjacentText(withLinks), raw);
