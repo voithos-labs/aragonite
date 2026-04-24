@@ -35,8 +35,8 @@ A block reads only the sub-interfaces it actually uses. Containers set only the 
 
 Two registration steps per new block kind:
 
-1. **Descriptor** — call `registerBlockKind(kind, { mergeRole, editable, isContainer, supportsInline, getContentRange?, rebuildRaw? })` in `tree-operations/block-kind-descriptor.ts`. `supportsInline` marks prose kinds that carry an inline tree; `getContentRange` returns the content offset range within `raw` for the inline parser; `rebuildRaw` is required for container kinds and is patched in from `container-raw.ts` via `augmentBlockKind`.
-2. **Component** — call `registerBlockComponent(kind, { component, extraProps? })` in `block-components.ts`. `extraProps` returns any per-node props beyond the standard `{ node, index, myPath, ambientPrefix, ref }` set (e.g. TextEditableBlock's `blockClass`). BlockHost looks up by kind via the registry.
+1. **Descriptor** — call `registerBlockKind(kind, { mergeRole, editable, isContainer, supportsInline, getContentRange?, rebuildRaw? })` in `schema/block-kind-descriptor.ts`. `supportsInline` marks prose kinds that carry an inline tree; `getContentRange` returns the content offset range within `raw` for the inline parser; `rebuildRaw` is required for container kinds and is patched in from `schema/container-raw.ts` via `augmentBlockKind`.
+2. **Component** — call `registerBlockComponent(kind, { component, extraProps? })` in `schema/block-components.ts`. `extraProps` returns any per-node props beyond the standard `{ node, index, myPath, ambientPrefix, ref }` set (e.g. TextEditableBlock's `blockClass`). BlockHost looks up by kind via the registry.
 
 Consumers (merge-rules, BlockHost, SelectionOverlay, paste-dispatch, inline pipeline, container-raw dispatch) read from these two registries rather than each maintaining their own per-kind list.
 
