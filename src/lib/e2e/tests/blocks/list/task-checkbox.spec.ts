@@ -152,6 +152,30 @@ test.describe('task checkbox — toggle and rendering', () => {
 		expect((await editor.getSource()).trim()).toBe('- [x] first\n- [ ] second');
 	});
 
+	test('Enter at end of checked task item creates a new unchecked task item', async () => {
+		await editor.loadContent('- [x] done\n');
+		await editor.focusBlockAtPath([0, 0, 0], 'done'.length);
+		await editor.pressKey('Enter');
+		await waitForSourceContains(editor, '- [x] done\n- [ ] ');
+		expect((await editor.getSource()).trim()).toBe('- [x] done\n- [ ]');
+	});
+
+	test('Enter at end of unchecked task item creates a new unchecked task item', async () => {
+		await editor.loadContent('- [ ] pending\n');
+		await editor.focusBlockAtPath([0, 0, 0], 'pending'.length);
+		await editor.pressKey('Enter');
+		await waitForSourceContains(editor, '- [ ] pending\n- [ ] ');
+		expect((await editor.getSource()).trim()).toBe('- [ ] pending\n- [ ]');
+	});
+
+	test('Enter at end of plain list item stays plain (control)', async () => {
+		await editor.loadContent('- plain\n');
+		await editor.focusBlockAtPath([0, 0, 0], 'plain'.length);
+		await editor.pressKey('Enter');
+		await waitForSourceContains(editor, '- plain\n- ');
+		expect((await editor.getSource()).trim()).toBe('- plain\n-');
+	});
+
 	test('toggle emits exactly one metadataUpdate edit event', async () => {
 		await editor.loadContent('- [ ] task\n');
 		await editor.page.evaluate(() => (window as any).__test.startEditOpCapture());
