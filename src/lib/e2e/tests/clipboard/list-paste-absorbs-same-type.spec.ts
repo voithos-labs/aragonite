@@ -151,6 +151,31 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		expect(src).not.toMatch(/^6\. Ordered7\./m);
 	});
 
+	// Regression: Svelte 5's $state proxies wrap entries lazily on access.
+	// Mutations to freshly-inserted (un-proxied) items bypass the set trap,
+	// so a post-splice renumberOrderedList didn't propagate to the DOM —
+	// the source reflected new markers (1..7) but rendered ambient prefixes
+	// stayed on the cloned-original values (1,2,3,1,2,3,3). Pre-computing
+	// final markers before splice keeps all reactive mutations on existing
+	// (already-proxied) items.
+	test('DOM ambient markers match source markers after absorb', async () => {
+		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
+		await editor.page.evaluate(() =>
+			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered\n')
+		);
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(500);
+
+		const domMarkers = await editor.page.evaluate(() => {
+			const items = document.querySelectorAll('.list-item-block');
+			return Array.from(items).map((it) => it.querySelector('.md-marker')?.textContent ?? '?');
+		});
+		expect(domMarkers).toEqual(['1. ', '2. ', '3. ', '4. ', '5. ', '6. ', '7. ']);
+	});
+
 	test('single-item ordered paste at end of ordered item absorbs as one sibling', async () => {
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. only\n'));

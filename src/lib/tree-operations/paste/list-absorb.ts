@@ -124,8 +124,24 @@ export async function applyListAbsorb(
 
 	const outerOrdered =
 		(outer.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const templateSuffix = outerOrdered ? readOrderedSuffix(outer) : null;
 	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
+
+	// Pre-compute final markers on the replacement items BEFORE splice. Svelte 5's
+	// $state proxies wrap entries lazily on access, and mutations to newly-spliced
+	// items bypass reactivity unless they go through the proxy's set trap. By
+	// assigning final markers before splice, we only need to renumber already-
+	// proxied existing items after the splice region — which does propagate.
+	if (outerOrdered) {
+		const suffix = readOrderedSuffix(outer);
+		for (let i = 0; i < replacement.length; i++) {
+			const item = replacement[i];
+			const meta = item.metadata as { marker?: string } | undefined;
+			if (meta) {
+				meta.marker = String(plan.itemIndex + 1 + i) + suffix;
+				rebuildListItemRaw(item);
+			}
+		}
+	}
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState }],
@@ -135,16 +151,13 @@ export async function applyListAbsorb(
 			children.splice(plan.itemIndex, 1, ...replacement);
 			outer.children = children;
 
-			// Normalize pasted item markers to match outer's style. Ordered:
-			// rewrite suffix to match outer's template; renumber restarts the
-			// sequence from 1. Unordered: markers already match (both use
-			// bullet syntax); leave as-is.
-			if (outerOrdered && templateSuffix !== null) {
-				for (let i = 0; i < pastedItems.length; i++) {
-					coerceOrderedSuffix(children[pastedStart + i], templateSuffix);
-				}
+			// Renumber only items AFTER the replacement region. Their proxies
+			// already exist (they were in the list before paste), so marker
+			// mutations propagate to the DOM.
+			const afterReplacementIdx = plan.itemIndex + replacement.length;
+			if (outerOrdered && afterReplacementIdx < outer.children.length) {
+				renumberOrderedList(outer, afterReplacementIdx);
 			}
-			renumberOrderedList(outer, 0);
 			rebuildListRaw(outer);
 			rebuildAncestryRawForLeaf(ctx.doc, [...plan.listPath, plan.itemIndex]);
 
@@ -239,14 +252,4 @@ function readOrderedSuffix(list: CstNode): string {
 	if (!first) return '. ';
 	const marker = (first.metadata as { marker?: string } | undefined)?.marker ?? '1. ';
 	return marker.replace(/^\d+/, '') || '. ';
-}
-
-function coerceOrderedSuffix(item: CstNode, suffix: string): void {
-	const meta = item.metadata as { marker?: string } | undefined;
-	if (!meta?.marker) return;
-	const num = parseInt(meta.marker, 10) || 1;
-	const next = String(num) + suffix;
-	if (next === meta.marker) return;
-	meta.marker = next;
-	rebuildListItemRaw(item);
 }
