@@ -88,12 +88,16 @@ export function getSelectionOffsets(container: HTMLElement): { start: number; en
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
 	const range = sel.getRangeAt(0);
-	const preRange = document.createRange();
-	preRange.selectNodeContents(container);
-	preRange.setEnd(range.startContainer, range.startOffset);
-	const start = preRange.toString().length;
-	const end = start + sel.toString().length;
-	return { start, end };
+	// Measure end via preRange (not sel.toString().length): selection stringification
+	// skips text inside contenteditable="false" islands, making the length
+	// unreliable when a range crosses an ambient marker span.
+	const preStart = document.createRange();
+	preStart.selectNodeContents(container);
+	preStart.setEnd(range.startContainer, range.startOffset);
+	const preEnd = document.createRange();
+	preEnd.selectNodeContents(container);
+	preEnd.setEnd(range.endContainer, range.endOffset);
+	return { start: preStart.toString().length, end: preEnd.toString().length };
 }
 
 export function hasSelection(): boolean {
