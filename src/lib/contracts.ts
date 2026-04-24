@@ -46,11 +46,10 @@ export const DOC_KEY = Symbol('editor-doc');
 
 /**
  * "Place cursor at end of content." focus() clamps to content length, so the
- * exact value just needs to exceed any plausible block size. Kept distinct
- * from SELECTION_END below: this travels as a numeric offset that callers
- * compare and arithmetic on, while SELECTION_END travels as an opt-in
- * sentinel surfaces interpret in their own coordinate system. Sentinel-vs-
- * arithmetic distinction is the reason the values diverge.
+ * exact value just needs to exceed any plausible block size. Distinct from
+ * SELECTION_END because callers do arithmetic on this offset, whereas
+ * SELECTION_END is an opt-in sentinel each surface interprets in its own
+ * coordinate system.
  */
 export const CURSOR_END = 999999;
 
@@ -63,17 +62,9 @@ export const FOCUS_LAST_START = -1;
 
 /**
  * "End of this block's measurable range" for measurePartialRects' endOffset.
- * Interpretation per surface:
- * - Text contenteditable: end of textContent. Passed to createRangeFromOffsets,
- *   which clamps naturally.
- * - Cell-based (tables, future grid surfaces): cellCount — all cells from
- *   startOffset through the last cell.
- * - Opaque single-unit (image block, thematic break, embeds): any non-empty
- *   range returns the surface's bounding rect; SELECTION_END is treated the
- *   same as any endOffset > 0.
- *
- * Value is Number.MAX_SAFE_INTEGER so text surfaces rely on the existing
- * range-clamping behavior with zero migration.
+ * Each surface interprets it in its own coordinate system; the value is
+ * Number.MAX_SAFE_INTEGER so text surfaces fall through to native range
+ * clamping without special-casing.
  */
 export const SELECTION_END = Number.MAX_SAFE_INTEGER;
 
