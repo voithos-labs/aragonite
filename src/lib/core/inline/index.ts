@@ -9,7 +9,6 @@ import { scanBacktickSpans } from './backticks';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
-import { preEscapeInline } from './pre-escape';
 
 // ── Reference resolver ─────────────────────────────────────────────────────
 
@@ -70,8 +69,6 @@ export function parseInline(
 	end: number,
 	resolver?: RefResolver
 ): InlineNode[] {
-	preEscapeInline(raw, start, end);
-
 	const codeSpans = scanBacktickSpans(raw, start, end);
 	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans, resolver);
 
