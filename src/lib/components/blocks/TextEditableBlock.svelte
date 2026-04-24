@@ -37,7 +37,7 @@
 		hasSelection as hasSelectionHelper
 	} from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
-	import { toggleInlineFormat } from '../../contenteditable/format-toggle';
+	import { toggleInlineFormat } from './text/format-toggle';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
