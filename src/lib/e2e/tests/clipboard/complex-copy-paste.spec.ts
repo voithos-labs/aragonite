@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { DEFAULT_CONTENT } from '../../test-content';
 
 // DEFAULT_CONTENT CST paths:
 // [0]="# Heading 1"  [1]="## Heading 2"  [2]="### Heading 3"
@@ -14,6 +15,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
+		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
 	test('copy across formatted + link paragraphs preserves all markers', async () => {
@@ -51,6 +53,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
+		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
 	test('copy last unordered + first ordered item excludes other items', async () => {
@@ -107,6 +110,7 @@ test.describe('clipboard — code block boundary and direction', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
+		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
 	test('select inside code block across boundary into final paragraph', async () => {
@@ -142,6 +146,7 @@ test.describe('clipboard — cut three blocks then undo', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
+		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
 	test('cut headings then undo restores all three', async () => {

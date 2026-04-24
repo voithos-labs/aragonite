@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
+import { DEFAULT_CONTENT } from '../test-content';
 
 function modifier(): string {
 	return process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -20,6 +21,7 @@ test.describe('debug panel', () => {
 		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000
 		});
+		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
 	test('hotkey opens panel from closed state then closes it again', async () => {
