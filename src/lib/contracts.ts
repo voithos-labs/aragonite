@@ -102,7 +102,7 @@ export interface AmbientInteractiveRange {
 	start: number;
 	end: number;
 	className: string;
-	role?: string;
+	role?: 'checkbox';
 	ariaChecked?: boolean;
 	onClick: () => void;
 }
