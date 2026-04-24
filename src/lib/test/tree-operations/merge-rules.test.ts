@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { isMergeEligible, findMergeTarget } from '../../tree-operations/merge-rules';
+import { isMergeEligible, findMergeTarget } from '../../schema/merge-rules';
 import { parse } from '../../core/parser';
 import type { BlockKind, CstNode } from '../../core/nodes';
-import { rebuildAncestryRaw } from '../../tree-operations';
+import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { serialize } from '../../core/serializer';
 
 describe('isMergeEligible', () => {

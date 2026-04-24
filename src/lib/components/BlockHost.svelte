@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
 	import SelectionOverlay from './SelectionOverlay.svelte';
-	import { getBlockKindDescriptor } from '../tree-operations/block-kind-descriptor';
-	import { getBlockComponent } from '../block-component-registry';
-	import '../block-components';
+	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+	import { getBlockComponent } from '../schema/block-component-registry';
+	import '../schema/block-components';
 
 	let {
 		node,

@@ -4,7 +4,7 @@
 
 import type { CstNode, InlineNode } from '../nodes';
 import { displayLength } from '../lines';
-import { getBlockKindDescriptor } from '../../tree-operations/block-kind-descriptor';
+import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { scanBacktickSpans } from './backticks';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';

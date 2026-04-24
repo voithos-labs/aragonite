@@ -16,7 +16,7 @@
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
-	import { rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
+	import { rebuildBlockquoteRaw } from '../../schema/container-raw';
 	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-context';
 	import { createBlockListState } from '../../block-list-state.svelte';
 	import {

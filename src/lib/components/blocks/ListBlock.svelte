@@ -28,7 +28,7 @@
 		normalizeReplacementTrivia
 	} from '../../tree-operations';
 	import { parseAllInlineContent } from '../../core/inline';
-	import { rebuildListRaw } from '../../tree-operations/container-raw';
+	import { rebuildListRaw } from '../../schema/container-raw';
 	import { createListContext } from '../../editor-actions/list-context';
 	import { createBlockListState } from '../../block-list-state.svelte';
 	import {

@@ -21,7 +21,7 @@
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../contenteditable/sticky-column';
 	import { displayLength } from '../../core/lines';
-	import { rebuildListItemRaw } from '../../tree-operations/container-raw';
+	import { rebuildListItemRaw } from '../../schema/container-raw';
 	import { createBlockListState } from '../../block-list-state.svelte';
 	import {
 		createStandardNestedActions,

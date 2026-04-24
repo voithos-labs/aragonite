@@ -7,7 +7,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { cloneNode } from '../clone';
-import { rebuildListRaw, rebuildListItemRaw } from '../container-raw';
+import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-raw';
 import { renumberOrderedList } from './ordered-markers';
 
 /**

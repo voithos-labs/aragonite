@@ -5,7 +5,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { rebuildListItemRaw } from '../container-raw';
+import { rebuildListItemRaw } from '../../schema/container-raw';
 
 /**
  * Renumber an ordered list's items in place starting at `fromIndex`. No-op

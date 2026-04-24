@@ -1,15 +1,15 @@
 /**
- * Built-in block component registrations. Imported for side effects — each
- * `import` of this module (BlockHost, Editor) populates the registry
- * idempotently. Plugin authors at v1.2 mirror this shape for their own kinds.
+ * Built-in block component registrations. Imported for side effects — the
+ * `import` populates the registry idempotently. Plugin authors mirror this
+ * shape for their own kinds.
  */
 
-import type { CstNode } from './core/nodes';
-import TextEditableBlock from './components/blocks/TextEditableBlock.svelte';
-import CodeBlock from './components/blocks/CodeBlock.svelte';
-import ThematicBreakBlock from './components/blocks/ThematicBreakBlock.svelte';
-import BlockquoteBlock from './components/blocks/BlockquoteBlock.svelte';
-import ListBlock from './components/blocks/ListBlock.svelte';
+import type { CstNode } from '../core/nodes';
+import TextEditableBlock from '../components/blocks/TextEditableBlock.svelte';
+import CodeBlock from '../components/blocks/CodeBlock.svelte';
+import ThematicBreakBlock from '../components/blocks/ThematicBreakBlock.svelte';
+import BlockquoteBlock from '../components/blocks/BlockquoteBlock.svelte';
+import ListBlock from '../components/blocks/ListBlock.svelte';
 import { registerBlockComponent, type BlockComponentEntry } from './block-component-registry';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {

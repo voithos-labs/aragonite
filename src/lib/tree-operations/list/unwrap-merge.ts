@@ -7,8 +7,8 @@
 
 import type { CstNode } from '../../core/nodes';
 import { cloneNode } from '../clone';
-import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../container-raw';
-import { walkToDeepestMergeLeaf } from '../merge-rules';
+import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../schema/container-raw';
+import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 
 /**

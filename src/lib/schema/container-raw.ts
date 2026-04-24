@@ -8,7 +8,6 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { nodeAt } from './node-ops';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -131,9 +130,14 @@ export function rebuildContainerRawIfContainer(node: CstNode): void {
  * reads its children directly).
  */
 export function rebuildAncestryRawForLeaf(doc: Document, leafPath: number[]): void {
-	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, leafPath.slice(0, depth));
-		if (!ancestor || !('kind' in ancestor)) break;
-		rebuildContainerRawIfContainer(ancestor as CstNode);
+	const ancestors: CstNode[] = [];
+	let cur: CstNode | Document = doc;
+	for (let depth = 0; depth < leafPath.length - 1; depth++) {
+		if (!cur.children || leafPath[depth] >= cur.children.length) break;
+		cur = cur.children[leafPath[depth]];
+		ancestors.push(cur as CstNode);
+	}
+	for (let i = ancestors.length - 1; i >= 0; i--) {
+		rebuildContainerRawIfContainer(ancestors[i]);
 	}
 }

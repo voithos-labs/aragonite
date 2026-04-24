@@ -27,10 +27,10 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
 	ensureEditableContainers,
-	rebuildContainerRawIfContainer,
 	reconcileTaskMetadata
 } from '../tree-operations';
-import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
+import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { parseAllInlineContent } from '../core/inline';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 
