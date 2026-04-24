@@ -24,6 +24,7 @@ import {
 	rebuildAncestryRawForLeaf
 } from '../container-raw';
 import { renumberOrderedList } from '../list/ordered-markers';
+import { ensureListItemNewlineTerminated } from '../list/terminator';
 import { parseAllInlineContent } from '../../core/inline';
 import { parse } from '../../core/parser';
 import { expectStateForNode } from '../../state-registry';
@@ -113,7 +114,12 @@ export async function applyListAbsorb(
 	for (const p of pastedItems) replacement.push(p);
 	if (trailingItem) replacement.push(trailingItem);
 
-	for (const node of replacement) ensureEditableContainers(node);
+	for (const node of replacement) {
+		ensureEditableContainers(node);
+		// Pasted items from clipboards without trailing newlines have no-\n raw;
+		// splicing them mid-list would mash adjacent items during rebuildListRaw.
+		ensureListItemNewlineTerminated(node);
+	}
 	parseAllInlineContent(replacement);
 
 	const outerOrdered =

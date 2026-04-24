@@ -124,6 +124,33 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		expect(src).not.toMatch(/^\d+\) /m);
 	});
 
+	// Regression: when the clipboard lacks a trailing newline, the parser
+	// produces a last pasted item whose raw has no trailing \n. Splicing that
+	// item into a non-tail position caused rebuildListRaw to concatenate it
+	// with the next sibling, mashing them into one item like "6. Ordered7. third".
+	test('ordered paste without trailing newline still absorbs as separate items', async () => {
+		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
+		await editor.page.evaluate(() =>
+			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered')
+		);
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		expect(src).toMatch(/^1\. Ordered first$/m);
+		expect(src).toMatch(/^2\. Ordered second$/m);
+		expect(src).toMatch(/^3\. Ordered$/m);
+		expect(src).toMatch(/^4\. first$/m);
+		expect(src).toMatch(/^5\. Ordered second$/m);
+		expect(src).toMatch(/^6\. Ordered$/m);
+		expect(src).toMatch(/^7\. third$/m);
+		// Buggy state produced "6. Ordered7. third" as a merged line.
+		expect(src).not.toMatch(/^6\. Ordered7\./m);
+	});
+
 	test('single-item ordered paste at end of ordered item absorbs as one sibling', async () => {
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. only\n'));
