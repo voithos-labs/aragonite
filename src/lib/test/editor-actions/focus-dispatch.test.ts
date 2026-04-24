@@ -6,7 +6,7 @@ import {
 } from '../../editor-actions/focus-dispatch';
 import type { BlockComponent, FocusActions } from '../../contracts';
 import { CURSOR_END } from '../../contracts';
-import type { StickyColumnState } from '../../contenteditable/sticky-column';
+import type { StickyColumnState } from '../../cursor/sticky-column';
 
 function fakeBlock(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {

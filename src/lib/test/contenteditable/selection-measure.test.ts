@@ -3,7 +3,7 @@
 // only verifies boundary handling — real pixel measurement is covered by e2e specs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
+import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 
 describe('measurePartialRectsInContentEditable', () => {
 	let el: HTMLDivElement;

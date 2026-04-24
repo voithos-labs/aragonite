@@ -19,7 +19,7 @@
 	} from '../../contracts';
 	import type { ListItemMetadata } from '../../core/nodes';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import type { StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { displayLength } from '../../core/lines';
 	import { rebuildListItemRaw } from '../../schema/container-raw';
 	import { createBlockListState } from '../../block-list-state.svelte';

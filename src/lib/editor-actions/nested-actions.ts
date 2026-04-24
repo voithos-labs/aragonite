@@ -15,7 +15,7 @@ import type {
 	CstNode
 } from '../contracts';
 import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../contracts';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockListState } from '../block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import {

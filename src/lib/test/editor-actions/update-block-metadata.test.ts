@@ -10,7 +10,7 @@ import { createSelectionState } from '$lib/editor/selection/selection-state.svel
 import { createEditorEvents } from '$lib/editor/events/editor-events';
 import { rebuildListRaw } from '$lib/editor/schema/container-raw';
 import type { BlockComponent, BlockEditActions, FocusActions } from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
+import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
 
 // ── Harness helpers ───────────────────────────────────────────────────────────
 

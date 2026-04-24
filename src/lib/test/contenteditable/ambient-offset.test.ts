@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
+import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
 
 describe('ambient-offset translation', () => {
 	describe('domToRawOffset', () => {

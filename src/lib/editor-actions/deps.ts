@@ -6,7 +6,7 @@ import type {
 	UndoEntry,
 	UndoManager
 } from '../contracts';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { OperationKind, OpDescriptor } from '../debug/operations-log';
 import type { EditorEvents } from '../events/editor-events';
