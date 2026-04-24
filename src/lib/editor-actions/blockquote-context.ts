@@ -8,7 +8,7 @@ import type { BlockEditActions, FocusActions, CstNode } from '../contracts';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import { unwrapFirstChildFromBlockquote } from '../tree-operations/blockquote';
-import { rebuildBlockquoteRaw } from '../tree-operations/container-raw';
+import { rebuildBlockquoteRaw } from '../schema/container-raw';
 import type { BlockListState } from '../block-list-state.svelte';
 import type { NestedActionsBundle } from './nested-actions';
 import type { UndoController } from './deps';

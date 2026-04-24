@@ -1,6 +1,6 @@
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from './clone';
-import { rebuildBlockquoteRaw } from './container-raw';
+import { rebuildBlockquoteRaw } from '../schema/container-raw';
 
 /**
  * Compute the result of unwrapping a blockquote's first child (Rule U2).

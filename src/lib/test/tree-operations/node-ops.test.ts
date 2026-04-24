@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { ensureEditableContainers } from '../../tree-operations/node-ops';
-import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../tree-operations/container-raw';
+import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-raw';
 import type { CstNode } from '../../core/nodes';
 
 describe('ensureEditableContainers', () => {

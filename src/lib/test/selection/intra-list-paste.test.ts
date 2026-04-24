@@ -6,7 +6,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { nodeAt } from '../../tree-operations/node-ops';
-import { rebuildContainerRawIfContainer } from '../../tree-operations/container-raw';
+import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 

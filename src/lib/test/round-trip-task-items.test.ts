@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
+import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
 
 describe('round-trip — task items', () => {
 	it('fresh parse + serialize preserves canonical lowercase [x]', () => {

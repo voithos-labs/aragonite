@@ -3,7 +3,7 @@ import type { BlockKind } from '../../core/nodes';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
-} from '../../tree-operations/block-kind-descriptor';
+} from '../../schema/block-kind-descriptor';
 
 const ALL_KINDS: BlockKind[] = [
 	'paragraph',

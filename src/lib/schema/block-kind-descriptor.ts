@@ -29,8 +29,8 @@ export interface BlockKindDescriptor {
 	getContentRange?: (node: CstNode) => { start: number; end: number };
 	/**
 	 * Recompute `raw` from children + container metadata. Container kinds supply
-	 * this; leaves omit it. Patched in from `tree-operations/container-raw.ts` at
-	 * that file's module load to keep the descriptor cycle-free.
+	 * this; leaves omit it. Patched in from `schema/container-raw.ts` at that
+	 * file's module load to keep the descriptor cycle-free.
 	 */
 	rebuildRaw?: (node: CstNode) => void;
 }

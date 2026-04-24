@@ -8,7 +8,7 @@ import { createBlockListState } from '$lib/editor/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/events/editor-events';
-import { rebuildListRaw } from '$lib/editor/tree-operations/container-raw';
+import { rebuildListRaw } from '$lib/editor/schema/container-raw';
 import type { BlockComponent, BlockEditActions, FocusActions } from '$lib/editor/contracts';
 import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
 
