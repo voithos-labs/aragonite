@@ -13,7 +13,7 @@ Interactive `[x]` / `[ ]` toggling on GFM task list items. Click toggles via met
 
 - Clicking the checkbox does not change the caret position when the caret was elsewhere (click region is non-editable, browser preserves selection).
 - Clicking the checkbox with an active cross-block selection collapses the selection first, then applies the toggle; only the clicked item is affected.
-- Typing `[ ] ` at the start of a plain list-item paragraph auto-converts the item to a task item on next parse (ambient region renders a checkbox).
+- Typing `[ ] ` (or `[x] ` / `[X] `) at the start of a plain list-item paragraph promotes the item to a task item live — the checkbox renders immediately, no reload required.
 - The `[x]` characters inside the ambient region cannot be edited via keyboard (contenteditable="false" island).
 - Keyboard caret navigation through the list item skips the ambient region cleanly (Home / ArrowLeft / ArrowRight at boundary).
 
@@ -35,3 +35,4 @@ Interactive `[x]` / `[ ]` toggling on GFM task list items. Click toggles via met
 - Undo after toggle pushes one snapshot (not zero, not two).
 - Nested task sub-lists render independently — toggling an outer task item does not strike through its nested task sub-list's text.
 - Enter at end of a task list item creates a new unchecked task item (inherits task-ness from source); plain list items stay plain.
+- listItem metadata reconciles live on inner-paragraph typing: promotion on gaining `[ ] ` / `[x] ` / `[X] ` prefix happens immediately; demotion on losing the prefix is a defensive path covered by unit tests on the reconcile helper.
