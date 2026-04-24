@@ -40,16 +40,10 @@ export interface UndoStackLike {
 }
 
 export function dumpUndoStack(stack: UndoStackLike, n = 10): string {
-	const now = Date.now();
 	const entries = stack.undo.slice(-n).reverse();
-	// UndoEntry doesn't declare `type` / `t`; the undo manager adds them at
-	// runtime. Fall through to defaults when absent.
 	const lines = entries.map((e, i) => {
-		const typeTag = (e as { type?: string }).type ?? 'structural';
 		const selStr = e.selection ? formatUndoSelection(e.selection) : 'selection=null';
-		const t = (e as { t?: number }).t;
-		const dt = typeof t === 'number' ? `t=${now - t}ms` : 't=?';
-		return `[${i}] type=${typeTag} ${selStr} ${dt}`;
+		return `[${i}] ${selStr}`;
 	});
 	lines.push(`undo-depth=${stack.undo.length} redo-depth=${stack.redo.length}`);
 	return lines.join('\n');
@@ -109,12 +103,6 @@ function renderDetail(e: OperationEntry): string {
 			return typeof d.length === 'number' ? `length=${d.length}` : '';
 		case 'replaceBlock':
 			return typeof d.count === 'number' ? `count=${d.count}` : '';
-		case 'paste':
-			return `strategy=${d.strategy ?? '?'} count=${d.count ?? 0}`;
-		case 'undo':
-		case 'redo':
-			return typeof d.toDepth === 'number' ? `to-depth=${d.toDepth}` : '';
-		case 'delete':
 		default:
 			return '';
 	}
