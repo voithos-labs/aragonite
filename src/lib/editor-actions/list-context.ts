@@ -348,6 +348,18 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const node = deps.node;
 			if (!node.children) return;
 
+			// Nested list: one Enter outdents one level (Shift+Tab semantics), matching
+			// Backspace-on-first-child-of-nested-list in ListBlock. Only the outermost
+			// list escapes straight to a paragraph.
+			if (deps.parentListContext) {
+				await deps.parentListContext.promoteNestedItem(
+					deps.parentListContext.getContainingItemIndex(),
+					node,
+					itemIndex
+				);
+				return;
+			}
+
 			const replacement = buildExitReplacement(node, itemIndex);
 			await deps.parentBlockEdit.replaceBlock(deps.index, replacement.blocks, {
 				replacementIndex: replacement.paragraphIndex,

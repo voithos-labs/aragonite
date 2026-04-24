@@ -17,6 +17,7 @@ Covers list behavior when Enter creates a new item, splits content, or exits the
   - Mismatched-type nested lists (e.g. ordered inside unordered) lift out as a separate top-level block
   - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks
   - Order: lifted blocks appear immediately after the new exit paragraph, preserving the document order they had inside the exited item
+- Enter on an empty item inside a **nested** list outdents one level (Shift+Tab semantics) instead of escaping to a paragraph. Each press promotes one level outward; only the outermost list escapes to a paragraph at the parent container level. Parallels Backspace at the start of a first-child of a nested list.
 
 ### Undo after Enter mid-item
 
