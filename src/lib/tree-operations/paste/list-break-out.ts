@@ -20,6 +20,7 @@ import {
 	rebuildAncestryRawForLeaf
 } from '../container-raw';
 import { renumberOrderedList } from '../list/ordered-markers';
+import { ensureListItemNewlineTerminated } from '../list/terminator';
 import { parseAllInlineContent } from '../../core/inline';
 import { parse } from '../../core/parser';
 import { expectStateForNode } from '../../state-registry';
@@ -210,7 +211,17 @@ export function buildListBreakOutReplacement(
 	if (firstHalfItems.length > 0) {
 		replacement.push(buildListHalf(list, firstHalfItems, 1));
 	}
-	for (const block of pastedBlocks) replacement.push(cloneNode(block));
+	for (const block of pastedBlocks) {
+		const cloned = cloneNode(block);
+		// Clipboards without a trailing newline leave the last pasted item's
+		// raw un-terminated; when concatenated with the next block, the two
+		// mash (e.g. "3. Ordered" + "- third" → "3. Ordered- third").
+		if (cloned.kind === 'list' && cloned.children) {
+			for (const item of cloned.children) ensureListItemNewlineTerminated(item);
+			rebuildListRaw(cloned);
+		}
+		replacement.push(cloned);
+	}
 	if (secondHalfItems.length > 0) {
 		// Continue numbering across the paste gap — the split item consumes
 		// one slot in each half, so second half starts at firstHalfItems.length + 1.

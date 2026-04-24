@@ -77,6 +77,26 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src.indexOf('1. a')).toBeLessThan(src.indexOf('- Unordered'));
 	});
 
+	// Regression: clipboards without a trailing newline otherwise leave the
+	// last pasted item un-terminated, concatenating with the next block on
+	// serialization ("3. Ordered" + "- third" → "3. Ordered- third").
+	test('ordered list without trailing newline pastes cleanly into unordered item', async () => {
+		await editor.loadContent('- Unordered first\n- Unordered second\n- Unordered third\n');
+		await editor.page.evaluate(() =>
+			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered')
+		);
+		await editor.page.waitForTimeout(100);
+
+		await editor.focusBlockAtPath([0, 2, 0], 'Unordered'.length);
+		await editor.pressKey('Control+v');
+		await editor.page.waitForTimeout(300);
+
+		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		expect(src).toMatch(/^3\. Ordered$/m);
+		expect(src).toMatch(/^- third$/m);
+		expect(src).not.toMatch(/^3\. Ordered-/m);
+	});
+
 	test('unordered list pasted into ordered list item also breaks out (symmetry)', async () => {
 		await editor.loadContent('1. First target\n');
 		await editor.page.evaluate(() =>
