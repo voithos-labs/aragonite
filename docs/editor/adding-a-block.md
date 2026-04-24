@@ -55,6 +55,15 @@ Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root dir
 
 Containers rebuild their `raw` from their inner children after every structural mutation. The `rebuildRaw` callback passed to `createStandardNestedActions` is the kind-specific rebuild helper (`rebuildBlockquoteRaw`, `rebuildListRaw`, etc.).
 
+### Interactive Ambient Markers
+
+A container's `ambientPrefix` can be inert text (the default) or carry interactive character ranges — clickable regions inside the read-only prefix. See the `AmbientPrefix` contract in `docs/design/editor/editor.md`.
+
+- For inert markers, return a string from the component's prefix getter — the list-item's `- `, the blockquote's `> `.
+- For markers with embedded interactive elements, return the object form with `text` plus one or more interactive ranges (character offsets, className, optional role/ARIA, click handler).
+
+Keep the component thin: define a pure `buildXAmbient(metadata, onAction)` helper alongside the component and call it from the prefix getter. Task checkboxes follow this pattern — `buildTaskItemAmbient` in `src/lib/editor/editor-actions/task-checkbox.ts` is the canonical example. The helper is unit-testable without mounting the component, and render-path DEV warnings for malformed metadata live in the helper.
+
 ## Sticky column participation
 
 Every editable block (prose or code) participates in the pixel-X sticky column system. When adding a new block type with its own editing surface:
