@@ -19,6 +19,7 @@ import { pickPasteStrategy, materializeBlankLines } from './strategy';
 import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { findContainerMatchingUnwrap, applyContainerMatchingPaste } from './container-match';
+import { findListAbsorb, applyListAbsorb } from './list-absorb';
 import { findListBreakOut, applyListBreakOut } from './list-break-out';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -79,10 +80,19 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	// List break-out: when a mismatched-type list is pasted into a list item,
-	// lift the paste to the enclosing list's parent level rather than nesting
-	// it as a sub-list. Runs after container-match so matching-type pastes
-	// still flatten into the ancestor list.
+	// Paste-into-list family (same-type absorb + mismatched break-out). Runs
+	// after container-match, which handles empty-target and cross-block flatten;
+	// these two cover single-block non-empty targets.
+	//
+	//   - Absorb (types match): splice items as siblings in the enclosing list,
+	//     renumber from 1. Matches Obsidian / Google Docs convention.
+	//   - Break-out (types mismatch): split the enclosing list at the target,
+	//     splice the pasted list at the parent level, preserving its type.
+	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, input.offset);
+	if (absorb) {
+		await applyListAbsorb(absorb, parsed.children[0], ctx);
+		return {};
+	}
 	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, input.offset);
 	if (breakOut) {
 		await applyListBreakOut(breakOut, parsed.children, ctx);
