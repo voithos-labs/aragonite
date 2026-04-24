@@ -56,14 +56,12 @@
 		index,
 		myPath = [],
 		blockClass = 'paragraph-block',
-		splitOnEnter = true,
 		ambientPrefix = ''
 	}: {
 		node: CstNode;
 		index: number;
 		myPath?: number[];
 		blockClass?: string;
-		splitOnEnter?: boolean;
 		ambientPrefix?: AmbientPrefix;
 	} = $props();
 
@@ -383,14 +381,7 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			const offset = cursor.getRaw() ?? 0;
-			if (splitOnEnter) {
-				blockEdit.splitBlock(index, offset);
-			} else {
-				const displayText = getDisplayText();
-				const newDisplay = displayText.slice(0, offset) + '\n' + displayText.slice(offset);
-				blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-				pendingCursorOffset = offset + 1;
-			}
+			blockEdit.splitBlock(index, offset);
 			return;
 		}
 
