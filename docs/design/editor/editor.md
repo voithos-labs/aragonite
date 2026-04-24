@@ -106,6 +106,10 @@ This means:
 - Undo takes deep CST snapshots before mutations
 - `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
+### Metadata-Driven Raw Invariant
+
+Some container metadata fields feed the container's `rebuildRaw` — e.g. a list item's `taskMarker` is emitted back into the list-item's serialized text. Writes to such fields must trigger the rebuild in the same commit, or raw drifts from metadata. The `updateBlockMetadata` primitive honors this by running the container's raw rebuild after the shallow-merge. New metadata-driven-raw fields inherit the guarantee by routing through the same primitive.
+
 ### Reactive State Plumbing (Svelte 5)
 
 Two invariants govern how the editor passes CST state through Svelte's reactivity system. Both exist to avoid silent corruption; neither is discoverable from the types.
@@ -275,6 +279,12 @@ The nested `BlockList` inside a container block provides its own scoped editor-a
 - **Deleting all children of a container**: removes the entire container from the parent.
 - **Backspace at start of first child**: unwraps (see "Container Unwrap" above). Rules U1 / U2 / M1 cover list first-item, blockquote first-child, and list non-first item respectively.
 - **Enter in a list item**: Creates a new sibling list item. Enter at the end of a list item's content inserts a new item below; Enter in the middle splits the content across two items. Enter in an empty list item exits the list — matching-type nested sub-list items promote into the surviving list, while mismatched-type nested lists and any non-list trailing children lift out as top-level siblings rather than being dropped. Ordered markers renumber across the exit gap.
+
+### Ambient Markers
+
+Containers contribute a read-only prefix to the first prose child's rendered content — the list-item's `- ` / `1. `, the blockquote's `> `. This is the `ambientPrefix` prop. The inline pipeline concatenates it with the child's content so `textContent(block) === ambientPrefix + raw`; cursor translation between DOM and raw passes through a single offset-pair helper. See `docs/design/editor/inline-parsing.md` for the textContent invariant.
+
+The prop is a union: a plain string for inert markers, or an object carrying `text` plus a list of interactive ranges — each range a character offset span with a className, optional ARIA, and a click handler. Interactive ranges let a marker embed clickable elements (today: task checkbox toggles) without fragmenting the text contract; the offset-pair translation still sees one contiguous string. A single render helper, `buildAmbientSpan`, consumes both shapes — consumers don't branch on the variant. Future container widgets (callout badges, collapsible toggles, plugin-authored markers) extend the same contract without further widening.
 
 ### Impact on Block Identity and Selection
 
