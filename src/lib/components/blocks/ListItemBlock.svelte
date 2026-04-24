@@ -15,8 +15,7 @@
 		type StickyColumnDirection,
 		type ListContext,
 		type CstNode,
-		type BlockComponent,
-		type AmbientPrefix
+		type BlockComponent
 	} from '../../contracts';
 	import type { ListItemMetadata } from '../../core/nodes';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
@@ -29,6 +28,7 @@
 		setNestedActionsContexts
 	} from '../../editor-actions/nested-actions';
 	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
+	import { buildTaskItemAmbient } from '../../editor-actions/task-checkbox';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -50,41 +50,6 @@
 	setContext(LIST_CONTEXT_KEY, wrappedListContext);
 
 	const state = createBlockListState(() => node);
-
-	function ambientPrefix(): AmbientPrefix {
-		const meta = node.metadata as ListItemMetadata | undefined;
-		const listMarker = meta?.marker ?? '- ';
-
-		if (import.meta.env.DEV && meta) {
-			const taskMarkerPresent = meta.taskMarker !== null && meta.taskMarker !== undefined;
-			if (meta.taskItem !== taskMarkerPresent) {
-				console.warn(
-					'[ListItemBlock] taskItem / taskMarker inconsistent — rendering as plain list item',
-					{ taskItem: meta.taskItem, taskMarker: meta.taskMarker }
-				);
-			}
-		}
-
-		if (!meta?.taskItem || !meta.taskMarker) {
-			return listMarker;
-		}
-		const text = listMarker + meta.taskMarker;
-		const boxStart = listMarker.length;
-		const boxEnd = boxStart + 3;
-		return {
-			text,
-			interactive: [
-				{
-					start: boxStart,
-					end: boxEnd,
-					className: 'task-checkbox',
-					role: 'checkbox',
-					ariaChecked: meta.taskChecked,
-					onClick: toggleTask
-				}
-			]
-		};
-	}
 
 	function toggleTask(): void {
 		const meta = node.metadata as ListItemMetadata | undefined;
@@ -222,7 +187,10 @@
 			blockIds={state.innerBlockIds}
 			bind:blockRefs={state.innerBlockRefs}
 			parentPath={myPath}
-			ambientPrefixForFirst={ambientPrefix()}
+			ambientPrefixForFirst={buildTaskItemAmbient(
+				node.metadata as ListItemMetadata | undefined,
+				toggleTask
+			)}
 		/>
 	</div>
 </div>
@@ -252,11 +220,14 @@
 		background-color: var(--md-marker-hover-bg, rgba(128, 128, 128, 0.15));
 	}
 
+	/* :first-child scopes strikethrough to this item's own leading block;
+	   :not(.list-block) avoids cascading into nested sub-lists, which carry
+	   their own data-task-checked state per item. */
 	.list-item-block[data-task-checked='true']
 		> .list-item-content
 		> :global(.block-list)
-		> :global(.block-host)
-		> :global(.paragraph-block) {
+		> :global(.block-host:first-child)
+		> :global(:not(.list-block)) {
 		text-decoration: line-through;
 		color: var(--text-muted, rgba(128, 128, 128, 0.7));
 	}
