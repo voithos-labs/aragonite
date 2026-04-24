@@ -39,9 +39,3 @@ export type {
 	EditorEventMap,
 	SelectionChangeEvent
 } from './events/editor-events';
-
-// Internal-only (no external export): block-list-state, state-registry,
-// editor-actions, debug engine, commit primitives, selection-write APIs.
-// These surfaces will be shaped against 1.2's plugin requirements; the
-// EditorEvents type above is the only read-only subscription seam exposed
-// pre-1.2.
