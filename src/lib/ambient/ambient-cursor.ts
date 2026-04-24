@@ -12,7 +12,7 @@ import {
 	setCursorOffset as setCursorOffsetHelper,
 	getCursorOffset as getCursorOffsetHelper,
 	getSelectionOffsets as getSelectionOffsetsHelper
-} from './cursor-utils';
+} from '../cursor/cursor-utils';
 import { domToRawOffset, rawToDomOffset } from './ambient-offset';
 import { placeCaretAfterAmbientSpan } from './ambient-dom';
 

@@ -12,7 +12,7 @@ import type {
 	DocumentGetter
 } from '../contracts';
 import type { CstNode } from '../core/nodes';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import type { UndoController } from '../editor-actions/deps';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
@@ -28,8 +28,8 @@ import {
 import { findBlockPathForElement } from './path-lookup';
 import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
 import { installDragListener } from './drag-pointer';
-import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
-import { createRangeFromOffsets } from '../contenteditable/cursor-utils';
+import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
+import { createRangeFromOffsets } from '../cursor/cursor-utils';
 import { handleCrossBlockPaste } from './cross-block-paste';
 import { handleCrossBlockTypeReplace } from './cross-block-type-replace';
 

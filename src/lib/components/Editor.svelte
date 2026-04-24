@@ -19,7 +19,7 @@
 		type Document,
 		type EditorSelection
 	} from '../contracts';
-	import { createStickyColumnState } from '../contenteditable/sticky-column';
+	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../tree-operations/block-id';

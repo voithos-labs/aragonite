@@ -10,7 +10,7 @@ import { createEditorEvents } from '$lib/editor/events/editor-events';
 import { parse } from '$lib/editor/core/parser';
 import type { BlockComponent, CstNode } from '$lib/editor/contracts';
 import type { EditEvent } from '$lib/editor/events/editor-events';
-import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
+import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
 import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
 
 // ── Harness ──────────────────────────────────────────────────────────────────

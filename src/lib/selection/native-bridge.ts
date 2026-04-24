@@ -11,9 +11,9 @@
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import { comparePaths } from './primitives';
-import { createRangeFromOffsets, getCursorOffset } from '../contenteditable/cursor-utils';
-import { domToRawOffset, rawToDomOffset } from '../contenteditable/ambient-offset';
-import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../contenteditable/ambient-dom';
+import { createRangeFromOffsets, getCursorOffset } from '../cursor/cursor-utils';
+import { domToRawOffset, rawToDomOffset } from '../ambient/ambient-offset';
+import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 

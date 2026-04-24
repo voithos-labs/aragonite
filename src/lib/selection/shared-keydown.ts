@@ -6,8 +6,8 @@
  */
 
 import type { BlockElLookup, DocumentGetter, FocusActions, HistoryActions } from '../contracts';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
-import { PRESERVE_KEYS_NON_ARROW } from '../contenteditable/sticky-column';
+import type { StickyColumnState } from '../cursor/sticky-column';
+import { PRESERVE_KEYS_NON_ARROW } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block-dispatch';
 import {
@@ -15,8 +15,8 @@ import {
 	extendFocusToPreviousBlock,
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
-import { getCurrentCursorEditorRelativeX } from '../contenteditable/sticky-measure';
-import { isAtFirstVisualLine, isAtLastVisualLine } from '../contenteditable/visual-lines';
+import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
+import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

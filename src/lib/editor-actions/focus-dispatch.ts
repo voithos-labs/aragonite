@@ -10,7 +10,7 @@ import type {
 	StickyColumnDirection
 } from '../contracts';
 import { CURSOR_END } from '../contracts';
-import type { StickyColumnState } from '../contenteditable/sticky-column';
+import type { StickyColumnState } from '../cursor/sticky-column';
 
 /**
  * Move focus within a container, or delegate upward when out of range.

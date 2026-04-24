@@ -1,6 +1,7 @@
 /**
- * Partial-rect measurement for contenteditable surfaces, used when a block
- * is an endpoint of a cross-block selection.
+ * DOMRect helpers for partial-selection overlay paint. Produces the
+ * client rects a block contributes when it is an endpoint of a
+ * cross-block selection.
  */
 
 import { createRangeFromOffsets } from './cursor-utils';
