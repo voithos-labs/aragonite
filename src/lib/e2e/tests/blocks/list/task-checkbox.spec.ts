@@ -98,16 +98,26 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await expect(checkbox).toHaveAttribute('aria-checked', 'true');
 	});
 
-	test('typing `[ ] ` at start of plain list item auto-converts on next parse', async () => {
-		// Requirement § Edge cases: "on next parse (ambient region renders a checkbox)".
-		// Mid-session typing writes the marker; a subsequent parse promotes the item.
+	test('typing `[ ] ` at start of plain list item promotes to task item live', async () => {
+		// Regression: listItem task metadata reconciles on live typing so the
+		// checkbox renders immediately, no reload required.
 		await editor.loadContent('- plain\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('[ ] ');
 		await waitForSourceContains(editor, '[ ] plain');
-
-		await editor.loadContent(await editor.getSource());
 		await editor.page.waitForSelector('.task-checkbox', { timeout: 2000 });
+		expect((await editor.getSource()).trim()).toBe('- [ ] plain');
+	});
+
+	test('typing `[x] ` at start of plain list item promotes to checked task item live', async () => {
+		await editor.loadContent('- work\n');
+		await editor.focusBlockAtPath([0, 0, 0], 0);
+		await editor.typeSlowly('[x] ');
+		await waitForSourceContains(editor, '[x] work');
+		await editor.page.waitForSelector('.list-item-block[data-task-checked="true"]', {
+			timeout: 2000
+		});
+		expect((await editor.getSource()).trim()).toBe('- [x] work');
 	});
 
 	test('checkbox characters cannot be edited via keyboard', async () => {

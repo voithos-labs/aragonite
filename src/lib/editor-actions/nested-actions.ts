@@ -27,7 +27,8 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
 	ensureEditableContainers,
-	rebuildContainerRawIfContainer
+	rebuildContainerRawIfContainer,
+	reconcileTaskMetadata
 } from '../tree-operations';
 import { isMergeEligible, isBlockEditable } from '../tree-operations/merge-rules';
 import { parseAllInlineContent } from '../core/inline';
@@ -279,6 +280,12 @@ export function createStandardNestedActions(
 				state.innerBlockIds[innerIndex]
 			);
 			performUpdate({ children: deps.node.children }, innerIndex, text);
+			// listItem's taskItem metadata is extracted at parse time from the
+			// first stripped line; live typing into the inner paragraph would
+			// otherwise leave metadata frozen while serialized source drifts.
+			if (deps.node.kind === 'listItem' && innerIndex === 0) {
+				reconcileTaskMetadata(deps.node);
+			}
 			rebuildRaw();
 			parent.containerEdit.nudgeReactivity();
 		},
