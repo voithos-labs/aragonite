@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '../../contenteditable/format-toggle';
+import { toggleInlineFormat } from '$lib/editor/components/blocks/text/format-toggle';
 
 describe('toggleInlineFormat', () => {
 	it('wraps a bare selection with the marker pair', () => {
