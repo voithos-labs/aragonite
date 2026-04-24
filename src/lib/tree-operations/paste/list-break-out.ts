@@ -1,14 +1,12 @@
 /**
  * Paste break-out: lift a pasted list out of an enclosing list instead of
  * nesting it as a sub-list. Triggers when the clipboard's top block is a
- * list and the target is a direct leaf of a listItem, and no ancestor list
- * of matching type exists (container-match handles matching-type flattening
- * earlier in the pipeline).
+ * list whose ordered flag does NOT match the nearest list ancestor, and
+ * the target is a direct leaf of a listItem.
  *
- * The nearest-enclosing list is split at the target item; pasted blocks
- * splice between the halves at the list's parent level. Avoids the
- * surprising "ordered list becomes nested sub-list of unordered item"
- * behavior the default structural path would otherwise produce.
+ * Same-type pastes go through `list-absorb` (flatten into the enclosing
+ * list with renumbering); this module covers only the mismatched case,
+ * where keeping the pasted list separate preserves its semantic type.
  */
 
 import type { CstNode, Document } from '../../core/nodes';
@@ -43,14 +41,10 @@ export interface ListBreakOut {
 
 /**
  * Detect whether to break out of an enclosing list for this paste. Returns
- * the plan or null. Does not consider matching-ancestor flattening — the
- * caller dispatches `findContainerMatchingUnwrap` first, so this only sees
- * pastes that would otherwise nest.
- *
- * Only fires when the target is a direct leaf of a listItem (innerPath has
- * length 1). Deeper nestings fall through to the default structural path —
- * they're rarer and the current behavior, while imperfect, isn't the
- * reported surprise.
+ * a plan only when the clipboard's top-list ordered flag differs from the
+ * nearest list ancestor's — same-type pastes are handled by `list-absorb`
+ * and must not also trigger here. Target must be a direct leaf of the
+ * listItem (simple shape); deeper targets fall through.
  */
 export function findListBreakOut(
 	doc: Document,
@@ -59,23 +53,29 @@ export function findListBreakOut(
 	offset: number
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
-	if (parsed.children[0].kind !== 'list') return null;
+	const topBlock = parsed.children[0];
+	if (topBlock.kind !== 'list') return null;
 	if (targetPath.length < 3) return null;
 
-	// Nearest list ancestor — walk from deepest to root.
 	let listDepth = -1;
+	let list: CstNode | null = null;
 	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
 		const ancestor = nodeAt(doc, targetPath.slice(0, depth)) as CstNode | null;
 		if (!ancestor) return null;
 		if (ancestor.kind === 'list') {
 			listDepth = depth;
+			list = ancestor;
 			break;
 		}
 	}
-	if (listDepth === -1) return null;
+	if (listDepth === -1 || !list) return null;
 
-	// Target must be a direct leaf of the listItem under this list.
 	if (targetPath.length !== listDepth + 2) return null;
+
+	const listOrdered = (list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const pastedOrdered =
+		(topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	if (listOrdered === pastedOrdered) return null;
 
 	return {
 		listPath: targetPath.slice(0, listDepth),
