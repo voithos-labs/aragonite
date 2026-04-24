@@ -2,6 +2,7 @@
 // Requirements: e2e/requirements/selection/multi-scope-event-count.md
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { primaryModifier } from '../../platform';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ test.describe('one edit event per op — nested paste', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(process.platform === 'darwin' ? 'Meta+KeyV' : 'Control+KeyV');
+			await editor.pressKey(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -261,7 +262,7 @@ test.describe('one edit event per op — container-matching paste', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- one\n- two\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(process.platform === 'darwin' ? 'Meta+KeyV' : 'Control+KeyV');
+			await editor.pressKey(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -290,7 +291,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(process.platform === 'darwin' ? 'Meta+KeyV' : 'Control+KeyV');
+			await editor.pressKey(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 
