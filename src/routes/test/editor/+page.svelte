@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import Editor from '$lib/editor/components/Editor.svelte';
 	import { parse } from '$lib/editor/core/parser';
-	import { DEFAULT_CONTENT } from '$lib/editor/e2e/test-content';
+	import { SHOWCASE_CONTENT } from '$lib/editor/e2e/test-content';
 	import { applyTheme, DEFAULT_THEME } from '$lib/theme';
 	import {
 		dumpTree,
@@ -17,7 +17,7 @@
 	import type { CstNode } from '$lib/editor/core/nodes';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 
-	let source = $state(DEFAULT_CONTENT);
+	let source = $state(SHOWCASE_CONTENT);
 	let editor: ReturnType<typeof Editor>;
 
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
