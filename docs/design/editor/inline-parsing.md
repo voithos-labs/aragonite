@@ -32,11 +32,10 @@ The inline parser operates on the content range within a block's `raw` — after
 
 ### Parsing pipeline
 
-1. **Pre-escape** — reserved stage for CommonMark backslash-punctuation escape handling. Downstream scanners can assume escapes are resolved before they run.
-2. **Backtick code spans** — match balanced backtick sequences; content is literal
-3. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
-4. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
-5. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
+1. **Backtick code spans** — match balanced backtick sequences; content is literal
+2. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
+3. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
+4. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
 
 ### Separation from block parser
 
