@@ -8,7 +8,8 @@ import { createContainerEditActions } from '$lib/editor/editor-actions/container
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createEditorEvents } from '$lib/editor/events/editor-events';
 import { parse } from '$lib/editor/core/parser';
-import type { BlockComponent, CstNode, EditEvent } from '$lib/editor/contracts';
+import type { BlockComponent, CstNode } from '$lib/editor/contracts';
+import type { EditEvent } from '$lib/editor/events/editor-events';
 import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
 import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
 

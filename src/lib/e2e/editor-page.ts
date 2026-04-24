@@ -1,4 +1,5 @@
 import { type Page, type Locator } from '@playwright/test';
+import { primaryModifier } from './platform';
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -269,7 +270,7 @@ export class EditorPage {
 	}
 
 	private get primaryModifier(): 'Meta' | 'Control' {
-		return process.platform === 'darwin' ? 'Meta' : 'Control';
+		return primaryModifier;
 	}
 
 	async screenshot(name: string) {

@@ -19,8 +19,9 @@ function mockRef(): BlockComponent {
 function makeContainerNode(childRaws: string[]): any {
 	return {
 		kind: 'list',
+		leadingTrivia: '',
 		raw: childRaws.join(''),
-		children: childRaws.map((r) => ({ kind: 'listItem', raw: r }))
+		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r }))
 	};
 }
 
@@ -66,11 +67,9 @@ function makeDeps(containerNodes: any[]) {
 			setBlockRefs: vi.fn(),
 			undoManager: createUndoManager(),
 			stickyColumn: {
+				get: () => null,
 				reset: vi.fn(),
-				capture: vi.fn(),
-				get current() {
-					return null;
-				}
+				capture: vi.fn()
 			},
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
@@ -97,7 +96,7 @@ describe('commitMultiScope', () => {
 			scopes: [{ node: containerNode, state }],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', raw: '- c\n' });
+				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
 				return [{ op: 'insert', at: 2, count: 1 }];
 			},
 			op: { kind: 'appendBlock', eventPath: [0, 2] }
@@ -131,7 +130,7 @@ describe('commitMultiScope', () => {
 			],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scopeA, scopeB]) => {
-				scopeA.children.push({ kind: 'listItem', raw: '- d\n' });
+				scopeA.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- d\n' });
 				scopeB.children.splice(1, 1);
 				return [
 					{ op: 'insert', at: 3, count: 1 },
@@ -202,7 +201,7 @@ describe('commitMultiScope', () => {
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scope]) => {
 				const original = scope.children[0];
-				scope.children.splice(0, 1, original, { kind: 'listItem', raw: '- a2\n' });
+				scope.children.splice(0, 1, original, { kind: 'listItem', leadingTrivia: '', raw: '- a2\n' });
 				return [{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } }];
 			}
 		});

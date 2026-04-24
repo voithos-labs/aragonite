@@ -6,6 +6,7 @@
 
 import { tick } from 'svelte';
 import type {
+	BlockComponent,
 	CstNode,
 	EditorSelection,
 	SelectionPoint,
@@ -22,7 +23,10 @@ import type {
 } from './deps';
 import type { OpDescriptor } from '../debug/operations-log';
 import type { EditEvent } from '../events/editor-events';
-import { applyStructuralChangeToIdsRefs } from '../tree-operations/structural-change';
+import {
+	applyStructuralChangeToIdsRefs,
+	type StructuralChange
+} from '../tree-operations/structural-change';
 import type { BlockListState } from '../block-list-state.svelte';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────

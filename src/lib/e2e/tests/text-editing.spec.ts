@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
+import { primaryModifier } from '../platform';
 
 test.describe('undo cursor anchoring (C2 / C3)', () => {
 	let editor: EditorPage;
@@ -25,8 +26,7 @@ test.describe('undo cursor anchoring (C2 / C3)', () => {
 	test('C3: undo after Ctrl+1 heading returns caret to pre-edit position', async () => {
 		await editor.loadContent('Title\n');
 		await editor.focusBlockStart(0);
-		const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-		await editor.page.keyboard.press(`${modifier}+1`);
+		await editor.page.keyboard.press(`${primaryModifier}+1`);
 		await editor.page.waitForTimeout(50);
 		await editor.undo();
 		await editor.page.waitForTimeout(100);

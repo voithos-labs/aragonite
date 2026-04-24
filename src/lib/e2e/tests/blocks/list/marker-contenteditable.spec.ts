@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { primaryModifier } from '../../../platform';
 
 test.describe('list marker inside contenteditable', () => {
 	let editor: EditorPage;
@@ -61,8 +62,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.loadContent('- Hello\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
 		await first.click();
-		const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-		await editor.page.keyboard.press(`${modifier}+KeyA`);
+		await editor.page.keyboard.press(`${primaryModifier}+KeyA`);
 
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selectedText).toBe('Hello');

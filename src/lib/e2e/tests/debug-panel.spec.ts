@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 import { DEFAULT_CONTENT } from '../test-content';
-
-function modifier(): string {
-	return process.platform === 'darwin' ? 'Meta' : 'Control';
-}
+import { primaryModifier } from '../platform';
 
 function toggleKey(): string {
-	return `${modifier()}+Shift+D`;
+	return `${primaryModifier}+Shift+D`;
 }
 
 test.describe('debug panel', () => {
