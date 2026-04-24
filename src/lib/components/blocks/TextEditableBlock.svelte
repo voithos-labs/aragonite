@@ -25,7 +25,7 @@
 		type AmbientPrefix
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
-	import type { StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
@@ -35,10 +35,10 @@
 		createRangeFromOffsets,
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		hasSelection as hasSelectionHelper
-	} from '../../contenteditable/cursor-utils';
-	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
+	} from '../../cursor/cursor-utils';
+	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from '../../contenteditable/format-toggle';
-	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
+	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
 		handleSharedBeforeInput,
@@ -47,9 +47,9 @@
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { collectCrossBlockText } from '../../selection/clipboard-text';
-	import { domToRawOffset, rawToDomOffset } from '../../contenteditable/ambient-offset';
-	import { ambientSpanOf, buildAmbientSpan } from '../../contenteditable/ambient-dom';
-	import { createAmbientCursorIO } from '../../contenteditable/ambient-cursor';
+	import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
+	import { ambientSpanOf, buildAmbientSpan } from '../../ambient/ambient-dom';
+	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 
 	let {
 		node,

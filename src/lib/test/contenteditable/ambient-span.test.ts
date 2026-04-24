@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { buildAmbientSpan } from '../../contenteditable/ambient-dom';
+import { buildAmbientSpan } from '../../ambient/ambient-dom';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {

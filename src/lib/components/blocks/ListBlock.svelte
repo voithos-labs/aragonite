@@ -18,7 +18,7 @@
 		type BlockComponent
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
-	import type { StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import {
 		deleteNode as performDelete,
 		unwrapFirstItemFromList,

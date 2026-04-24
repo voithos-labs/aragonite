@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createStickyColumnState } from '../../contenteditable/sticky-column';
+import { createStickyColumnState } from '../../cursor/sticky-column';
 
 describe('createStickyColumnState', () => {
 	it('produces independent instances', () => {

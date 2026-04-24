@@ -5,7 +5,7 @@ import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/events/editor-events';
 import type { BlockComponent, CstNode } from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/contenteditable/sticky-column';
+import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
 import type { EditEvent } from '$lib/editor/events/editor-events';
 
 function mockRef(): BlockComponent {

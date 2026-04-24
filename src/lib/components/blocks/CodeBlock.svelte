@@ -23,7 +23,7 @@
 		type StickyColumnDirection
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
-	import type { StickyColumnState } from '../../contenteditable/sticky-column';
+	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -31,9 +31,9 @@
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
-	} from '../../contenteditable/cursor-utils';
-	import { findOffsetNearestX } from '../../contenteditable/sticky-measure';
-	import { measurePartialRectsInContentEditable } from '../../contenteditable/selection-measure';
+	} from '../../cursor/cursor-utils';
+	import { findOffsetNearestX } from '../../cursor/sticky-measure';
+	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
 		handleSharedBeforeInput,
