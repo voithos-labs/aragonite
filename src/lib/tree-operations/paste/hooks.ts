@@ -8,7 +8,7 @@ import type { CstNode } from '../../core/nodes';
 import { CURSOR_END } from '../../contracts';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
-import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from '../block-kind-descriptor';
+import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
 	registerPasteSurface,
 	type PasteSurface,

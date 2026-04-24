@@ -14,7 +14,7 @@ import {
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
-import { rebuildListRaw, rebuildListItemRaw } from '../tree-operations/container-raw';
+import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-raw';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList

@@ -10,8 +10,8 @@
  */
 
 import type { Component } from 'svelte';
-import type { BlockKind, CstNode } from './core/nodes';
-import type { BlockComponent } from './contracts';
+import type { BlockKind, CstNode } from '../core/nodes';
+import type { BlockComponent } from '../contracts';
 
 export interface BlockComponentEntry {
 	/**

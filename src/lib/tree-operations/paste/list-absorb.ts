@@ -22,7 +22,7 @@ import {
 	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildAncestryRawForLeaf
-} from '../container-raw';
+} from '../../schema/container-raw';
 import { renumberOrderedList } from '../list/ordered-markers';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import { parseAllInlineContent } from '../../core/inline';

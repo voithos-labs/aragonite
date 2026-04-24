@@ -11,7 +11,7 @@ import { parse } from '../core/parser';
 import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
-import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
+import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

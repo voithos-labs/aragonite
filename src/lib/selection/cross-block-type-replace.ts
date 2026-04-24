@@ -13,7 +13,7 @@ import type { CrossBlockMutationContext } from './cross-block-ops';
 import { performCrossBlockDelete } from './cross-block-ops';
 import { nodeAt } from '../tree-operations/node-ops';
 import { applyCollapsedCaret } from './native-bridge';
-import { rebuildAncestryRawForLeaf } from '../tree-operations/container-raw';
+import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
 import { getStateForNode } from '../state-registry';
 
 export async function handleCrossBlockTypeReplace(

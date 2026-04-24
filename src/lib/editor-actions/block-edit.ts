@@ -12,12 +12,11 @@ import {
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
-	rebuildAncestryRaw,
-	rebuildContainerRawIfContainer,
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../tree-operations';
-import { isMergeEligible, isBlockEditable, findMergeTarget } from '../tree-operations/merge-rules';
+import { rebuildAncestryRaw, rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { isMergeEligible, isBlockEditable, findMergeTarget } from '../schema/merge-rules';
 import { parseInline, getContentRange, isProseKind, parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 

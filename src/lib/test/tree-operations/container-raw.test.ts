@@ -3,7 +3,7 @@ import {
 	rebuildBlockquoteRaw,
 	rebuildListItemRaw,
 	rebuildListRaw
-} from '../../tree-operations/container-raw';
+} from '../../schema/container-raw';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
