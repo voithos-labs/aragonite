@@ -406,6 +406,31 @@
 			return;
 		}
 
+		// Selections whose DOM range extends into the contenteditable="false"
+		// ambient span block native Backspace/Delete silently — the browser
+		// refuses to modify any range overlapping non-editable content, and
+		// no beforeinput fires. Perform the delete via the CST path instead.
+		if ((e.key === 'Backspace' || e.key === 'Delete') && hasSelectionHelper() && el && ambientLength > 0) {
+			const ambient = ambientSpanOf(el);
+			const sel = window.getSelection();
+			const touchesAmbient =
+				!!ambient &&
+				!!sel &&
+				sel.rangeCount > 0 &&
+				(ambient.contains(sel.anchorNode) || ambient.contains(sel.focusNode));
+			if (touchesAmbient) {
+				e.preventDefault();
+				const range = cursor.getRawSelection();
+				if (range && range.start < range.end) {
+					const display = getDisplayText();
+					const newDisplay = display.slice(0, range.start) + display.slice(range.end);
+					blockEdit.updateBlockContent(index, newDisplay + '\n', range.start, range.start);
+					pendingCursorOffset = range.start;
+				}
+				return;
+			}
+		}
+
 		if (e.key === 'Backspace') {
 			const offset = cursor.getRaw();
 			if (offset === 0 && !hasSelectionHelper()) {
