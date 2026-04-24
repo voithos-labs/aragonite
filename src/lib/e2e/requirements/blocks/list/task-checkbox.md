@@ -36,3 +36,4 @@ Interactive `[x]` / `[ ]` toggling on GFM task list items. Click toggles via met
 - Nested task sub-lists render independently — toggling an outer task item does not strike through its nested task sub-list's text.
 - Enter at end of a task list item creates a new unchecked task item (inherits task-ness from source); plain list items stay plain.
 - listItem metadata reconciles live on inner-paragraph typing: promotion on gaining `[ ] ` / `[x] ` / `[X] ` prefix happens immediately; demotion on losing the prefix is a defensive path covered by unit tests on the reconcile helper.
+- Selection extending into the checkbox region: Backspace and Delete correctly remove the selected editable text (intercepted because native delete silently fails on ranges that overlap contenteditable="false" content).
