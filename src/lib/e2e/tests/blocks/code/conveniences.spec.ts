@@ -7,6 +7,13 @@ async function focusCodeBlockAtEnd(editor: EditorPage) {
 }
 
 async function expectBody(editor: EditorPage, expectedBody: string) {
+	await editor.bridge.waitForSourceWith(
+		(s, expected) => {
+			const m = s.match(/^```[^\n]*\n([\s\S]*?)\n```\s*$/);
+			return m !== null && m[1] === expected;
+		},
+		expectedBody
+	);
 	const source = await editor.bridge.getSource();
 	const match = source.match(/^```[^\n]*\n([\s\S]*?)\n```\s*$/);
 	expect(match, `could not parse code block body from source:\n${source}`).not.toBeNull();
@@ -26,7 +33,6 @@ test.describe('code block auto-indent on Enter', () => {
 		await focusCodeBlockAtEnd(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '\tfoo\n\tbar');
 	});
 
@@ -35,7 +41,6 @@ test.describe('code block auto-indent on Enter', () => {
 		await focusCodeBlockAtEnd(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '    foo\n    bar');
 	});
 
@@ -44,7 +49,6 @@ test.describe('code block auto-indent on Enter', () => {
 		await focusCodeBlockAtEnd(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo\nbar');
 	});
 
@@ -54,7 +58,6 @@ test.describe('code block auto-indent on Enter', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 10; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '    fo\n    o');
 	});
 });
@@ -73,7 +76,6 @@ test.describe('code block electric indent', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 8; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'f(){\n\t\n}');
 	});
 
@@ -83,7 +85,6 @@ test.describe('code block electric indent', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 9; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '\tf(){\n\t\t\n\t}');
 	});
 
@@ -93,7 +94,6 @@ test.describe('code block electric indent', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"\n"');
 	});
 });
@@ -112,10 +112,8 @@ test.describe('code block auto-close brackets', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '()');
 		await editor.typeSlowly('x');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(x)');
 	});
 
@@ -125,9 +123,7 @@ test.describe('code block auto-close brackets', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('[');
-		await editor.page.waitForTimeout(50);
 		await editor.typeSlowly('{');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '[{}]');
 	});
 
@@ -135,7 +131,6 @@ test.describe('code block auto-close brackets', () => {
 		await editor.loadContent('```\nfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo()');
 	});
 
@@ -145,7 +140,6 @@ test.describe('code block auto-close brackets', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo');
 	});
 
@@ -156,7 +150,6 @@ test.describe('code block auto-close brackets', () => {
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo)');
 	});
 });
@@ -175,10 +168,8 @@ test.describe('code block auto-close quotes', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('"');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '""');
 		await editor.typeText('hi');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"');
 	});
 
@@ -188,7 +179,6 @@ test.describe('code block auto-close quotes', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly("'");
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, "don't");
 	});
 
@@ -196,7 +186,6 @@ test.describe('code block auto-close quotes', () => {
 		await editor.loadContent("```\n'don\n```\n");
 		await focusCodeBlockAtEnd(editor);
 		await editor.typeSlowly("'");
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, "'don'");
 	});
 
@@ -206,7 +195,6 @@ test.describe('code block auto-close quotes', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('`');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '``');
 	});
 });
@@ -225,14 +213,10 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(50);
 		await editor.typeText('foo');
-		await editor.page.waitForTimeout(50);
 		await editor.typeSlowly(')');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo)');
 		await editor.typeSlowly('X');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '(foo)X');
 	});
 
@@ -242,14 +226,10 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('"');
-		await editor.page.waitForTimeout(50);
 		await editor.typeText('hi');
-		await editor.page.waitForTimeout(50);
 		await editor.typeSlowly('"');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"');
 		await editor.typeSlowly('Y');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"hi"Y');
 	});
 
@@ -259,9 +239,7 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(50);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '');
 	});
 
@@ -271,11 +249,8 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(50);
 		await editor.typeSlowly('[');
-		await editor.page.waitForTimeout(50);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '()');
 	});
 });
@@ -292,10 +267,8 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 		await editor.loadContent('```\nfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo()');
 		await editor.undo();
-		await editor.page.waitForTimeout(150);
 		await expectBody(editor, 'foo');
 	});
 
@@ -304,7 +277,6 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 		await focusCodeBlockAtEnd(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('const y = 2;');
-		await editor.page.waitForTimeout(150);
 		await expectBody(editor, '\tconst x = 1;\n\tconst y = 2;');
 	});
 
@@ -312,7 +284,6 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 		await editor.loadContent('```js\nfunction f\n```\n');
 		await focusCodeBlockAtEnd(editor);
 		await editor.typeSlowly('(');
-		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'function f()');
 	});
 });
