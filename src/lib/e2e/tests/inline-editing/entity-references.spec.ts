@@ -84,8 +84,6 @@ test.describe('inline editing — entity references', () => {
 
 	for (const sample of ['&copy;', '&amp;', '&#39;', '&#x22;', '&notreal;']) {
 		test(`round-trips ${JSON.stringify(sample)} unchanged`, async () => {
-			await editor.loadContent('');
-			await editor.focusBlockAtPath([0], 0);
 			await editor.typeText(sample);
 			await editor.bridge.waitForSourceContains(sample);
 			expect((await editor.bridge.getSource()).trim()).toBe(sample);
