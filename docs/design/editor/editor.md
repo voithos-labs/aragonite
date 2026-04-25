@@ -296,6 +296,14 @@ Containers contribute a read-only prefix to the first prose child's rendered con
 
 The prop is a union: a plain string for inert markers, or an object carrying `text` plus a list of interactive ranges — each range a character offset span with a className, optional ARIA, and a click handler. Interactive ranges let a marker embed clickable elements (today: task checkbox toggles) without fragmenting the text contract; the offset-pair translation still sees one contiguous string. A single render helper, `buildAmbientSpan`, consumes both shapes — consumers don't branch on the variant. Future container widgets (callout badges, collapsible toggles, plugin-authored markers) extend the same contract without further widening.
 
+#### Ambient marker DOM translation
+
+Three files in `ambient/` collaborate to keep the textContent-vs-raw contract:
+
+- **`ambient/ambient-dom.ts`** — DOM construction and lookup for the `md-marker` span (inert string form, or interactive form with embedded ranges).
+- **`ambient/ambient-cursor.ts`** — wraps the cursor IO factory so DOM-offset reads and writes account for the ambient prefix that contributes to textContent but not to raw.
+- **`ambient/ambient-offset.ts`** — the single offset-pair translation (DOM offset ↔ raw offset) through which all cursor-state-change paths route.
+
 ### Impact on Block Identity and Selection
 
 Block identity (`blockIds`) is maintained per `BlockList` — each nesting level has its own ID array. Cross-block selection within a container uses the same `EditorSelection` model scoped to that container's `BlockList`. Cross-container selection (selecting from inside a blockquote to outside it) requires the cross-block selection system.
@@ -451,6 +459,12 @@ The ID array is updated atomically with every children array mutation:
 - **Delete**: Remove the ID at the deleted block's index.
 - **Reorder**: Move the ID to match the new position.
 - **Re-parse** (block type change): The ID at that index does not change — only the node object is swapped.
+
+### State registry
+
+Cross-block paste, cross-block delete, and multi-scope commit need to look up a `BlockListState` (keyed-id array + ref array) from a CstNode reference. The mapping is held in `reactivity/state-registry.ts` as a module-global WeakMap. Each `BlockList` registers its state on mount and deregisters on destroy. Lookups split between a strict variant (throws if absent — for paths that must succeed) and a nullable variant.
+
+The registry is module-global, which means multiple editor instances on the same page share it. Today's app mounts one editor at a time; multi-instance isolation is a future-roadmap concern.
 
 ## Node Type Coverage
 
