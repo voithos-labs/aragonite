@@ -1,6 +1,6 @@
-# Feature: Sticky column — reset vs preserve triggers
+# Feature: Sticky Column — Reset Triggers
 
-Which user actions clear the captured sticky column and which leave it intact. Anything other than plain or shifted vertical arrows resets; vertical arrows (plain or shifted) and IME composition preserve.
+User actions that clear the captured sticky column. Anything other than plain or shifted vertical arrows resets.
 
 ## Reset triggers
 
@@ -11,7 +11,3 @@ Which user actions clear the captured sticky column and which leave it intact. A
 - End resets sticky column: the next ArrowDown captures from the end-of-line caret X
 - Enter (structural split) resets sticky column: the next ArrowDown captures from the post-split caret X
 - Undo resets sticky column: the next ArrowDown captures from the undo-restored caret X
-
-## Preserve triggers
-
-- Shift+ArrowDown (selection extension) does not reset sticky — a subsequent plain ArrowDown still lands at the originally captured column
