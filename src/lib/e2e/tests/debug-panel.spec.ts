@@ -141,7 +141,7 @@ test.describe('debug panel', () => {
 		await editor.page.keyboard.press(toggleKey());
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const linesWithStrayD = source.split('\n').filter((l) => l.trim() === 'd' || l.trim() === 'D');
 		expect(linesWithStrayD).toHaveLength(0);
 	});

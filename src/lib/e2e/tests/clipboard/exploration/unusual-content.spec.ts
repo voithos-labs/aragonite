@@ -15,10 +15,10 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('one');
 		expect(src).toContain('two');
 	});
@@ -29,10 +29,10 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('actual content');
 	});
 
@@ -45,10 +45,10 @@ test.describe('clipboard exploration: unusual content', () => {
 		await hr.click();
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		// Paste on a thematic break may no-op or create a paragraph; either is ok
 		// as long as the document isn't corrupted.
 		expect(src).toMatch(/above/);
@@ -62,10 +62,10 @@ test.describe('clipboard exploration: unusual content', () => {
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/^````/m);
 	});
 
@@ -77,15 +77,15 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+a');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+a');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('replacement content');
 		expect(src).not.toContain('existing para one');
 		expect(src).not.toContain('existing para two');

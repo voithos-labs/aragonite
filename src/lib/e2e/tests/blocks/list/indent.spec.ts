@@ -14,7 +14,7 @@ test.describe('list Tab', () => {
 		await items.nth(1).click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
-		expect(await editor.getSource()).toContain('- Item 1\n  - Item 2\n');
+		expect(await editor.bridge.getSource()).toContain('- Item 1\n  - Item 2\n');
 	});
 
 	test('Tab on first item is no-op', async () => {
@@ -23,7 +23,7 @@ test.describe('list Tab', () => {
 		await items.nth(0).click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- Item 1\n- Item 2\n');
+		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
 
 	test('Tab keeps cursor in indented item', async () => {
@@ -35,7 +35,7 @@ test.describe('list Tab', () => {
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('ZItem 2');
+		expect(await editor.bridge.getSource()).toContain('ZItem 2');
 	});
 
 	test('Tab appends to existing nested list', async () => {
@@ -44,7 +44,7 @@ test.describe('list Tab', () => {
 		await item2.click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('  - Nested\n  - Item 2');
 	});
 
@@ -54,7 +54,7 @@ test.describe('list Tab', () => {
 		await second.click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/\s+1\.\s*Second/);
 		expect(source).toMatch(/^2\.\s*Third/m);
 	});
@@ -65,7 +65,7 @@ test.describe('list Tab', () => {
 		await b.click();
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^\s+1\. AA$/m);
 		expect(source).toMatch(/^\s+2\. AB$/m);
 		expect(source).toMatch(/^\s+3\. B$/m);
@@ -88,7 +88,7 @@ test.describe('list Shift+Tab', () => {
 		await nested.first().click();
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		expect(await editor.getSource()).toContain('- Item 1\n- Nested\n- Item 2\n');
+		expect(await editor.bridge.getSource()).toContain('- Item 1\n- Nested\n- Item 2\n');
 	});
 
 	test('Shift+Tab on top-level item is no-op', async () => {
@@ -97,7 +97,7 @@ test.describe('list Shift+Tab', () => {
 		await items.nth(0).click();
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- Item 1\n- Item 2\n');
+		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
 
 	test('ordered: promoting only nested item renumbers parent list', async () => {
@@ -107,7 +107,7 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. First$/m);
 		expect(source).toMatch(/^2\. Nested$/m);
 		expect(source).toMatch(/^3\. Second$/m);
@@ -121,7 +121,7 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. P A$/m);
 		expect(source).toMatch(/^\s+1\. N B$/m);
 		expect(source).not.toMatch(/^\s+2\. N B$/m);
@@ -136,7 +136,7 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^\s+1\. N2$/m);
 		expect(source).not.toMatch(/^\s+2\. N2$/m);
 		expect(source).toMatch(/^- N1$/m);
@@ -152,7 +152,7 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^\s+- N2$/m);
 		expect(source).toMatch(/^2\. N1$/m);
 		expect(source).not.toMatch(/^- N1$/m);
@@ -167,15 +167,15 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.page.waitForTimeout(300);
-		const afterPromote = await editor.getSource();
+		const afterPromote = await editor.bridge.getSource();
 		expect(afterPromote).toMatch(/^1\. one$/m);
 		expect(afterPromote).toMatch(/^2\. two$/m);
 		expect(afterPromote).toMatch(/^3\. three$/m);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. .*Z.*one|^1\. oneZ/m);
 		expect(source).not.toMatch(/^2\. .*Z.*two|^2\. Ztwo/m);
 	});

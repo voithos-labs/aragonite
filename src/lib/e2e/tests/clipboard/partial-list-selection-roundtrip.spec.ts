@@ -14,14 +14,14 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 2, 0], 5);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
 	});
 
@@ -30,14 +30,14 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 2, 0], 4);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
 	});
 
@@ -46,14 +46,14 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 3);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
 	});
 });

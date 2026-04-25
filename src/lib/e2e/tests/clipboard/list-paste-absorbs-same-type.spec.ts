@@ -21,10 +21,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
 		expect(src).toMatch(/^2\. x$/m);
 		expect(src).toMatch(/^3\. y$/m);
@@ -41,10 +41,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
 		expect(src).toMatch(/^2\. x$/m);
 		expect(src).toMatch(/^3\. y$/m);
@@ -58,10 +58,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. x$/m);
 		expect(src).toMatch(/^2\. y$/m);
 		expect(src).toMatch(/^3\. alpha$/m);
@@ -74,10 +74,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 1, 0], 'b'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. a$/m);
 		expect(src).toMatch(/^2\. b$/m);
 		expect(src).toMatch(/^3\. x$/m);
@@ -91,10 +91,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'a'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^- a$/m);
 		expect(src).toMatch(/^- x$/m);
 		expect(src).toMatch(/^- y$/m);
@@ -112,10 +112,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
 		expect(src).toMatch(/^2\. x$/m);
 		expect(src).toMatch(/^3\. y$/m);
@@ -136,10 +136,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. Ordered first$/m);
 		expect(src).toMatch(/^2\. Ordered second$/m);
 		expect(src).toMatch(/^3\. Ordered$/m);
@@ -166,7 +166,7 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(500);
 
 		const domMarkers = await editor.page.evaluate(() => {
@@ -182,10 +182,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
 		expect(src).toMatch(/^2\. only$/m);
 		expect(src).toMatch(/^3\. beta$/m);

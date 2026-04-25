@@ -13,22 +13,22 @@ test.describe('selection undo — cross-block restore', () => {
 
 	test('undo after cross-block cut restores document and cross-block selection', async () => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).not.toBe(before);
+		expect(await editor.bridge.getSource()).not.toBe(before);
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
-		const sel = await editor.getSelectionPaths();
+		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual([0]);
 		expect(sel!.focus.path).toEqual([1]);
@@ -36,84 +36,84 @@ test.describe('selection undo — cross-block restore', () => {
 
 	test('undo after cross-block backspace restores document and selection', async () => {
 		await editor.loadContent('first\n\nsecond\n\nthird\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).not.toBe(before);
+		expect(await editor.bridge.getSource()).not.toBe(before);
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
 	test('redo after undoing a cross-block cut re-applies deletion', async () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(200);
-		const afterCut = await editor.getSource();
+		const afterCut = await editor.bridge.getSource();
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 
 		await editor.redo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(afterCut);
+		expect(await editor.bridge.getSource()).toBe(afterCut);
 	});
 
 	// ── Edge cases ──────────────────────────────────────────────────────
 
 	test('undo after type-replace restores selection and removes typed chars in one step', async () => {
 		await editor.loadContent('hello\n\nworld\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
 		await editor.typeText('xyz');
 		await editor.page.waitForTimeout(200);
-		const afterType = await editor.getSource();
+		const afterType = await editor.bridge.getSource();
 		expect(afterType).toContain('xyz');
 		expect(afterType).not.toBe(before);
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
 	test('selection-only changes push no undo entries', async () => {
 		await editor.loadContent('line1\n\nline2\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
 		await editor.typeText('!');
 		await editor.page.waitForTimeout(600);
-		const afterEdit = await editor.getSource();
+		const afterEdit = await editor.bridge.getSource();
 
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await editor.pressKey('Shift+ArrowDown');
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressKey('ArrowLeft');
-		await editor.waitForCrossBlock(false);
+		await editor.page.keyboard.press('ArrowLeft');
+		await editor.bridge.waitForCrossBlock(false);
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

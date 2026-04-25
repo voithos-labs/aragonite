@@ -14,11 +14,11 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 
 		await editor.focusBlockEnd(0);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('XSecond paragraph');
 	});
 
@@ -26,27 +26,27 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 
 		await editor.focusBlockStart(1);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Y');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('YFirst paragraph.');
 	});
 
 	test('ArrowDown at end of last block creates new paragraph', async () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 
-		const countBefore = await editor.getDomBlockCount();
+		const countBefore = await editor.bridge.getDomBlockCount();
 		const lastIndex = countBefore - 1;
 		await editor.focusBlockEnd(lastIndex);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 
-		const countAfter = await editor.getDomBlockCount();
+		const countAfter = await editor.bridge.getDomBlockCount();
 		expect(countAfter).toBe(countBefore + 1);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Z');
 	});
 
@@ -54,13 +54,13 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 
 		await editor.focusBlockStart(0);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('A');
 		await editor.page.waitForTimeout(200);
 
 		// Pre-tightened, this regex accepted the regression case where ArrowUp
 		// moved the caret to end-of-block. Anchor to start-of-source.
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source.startsWith('AFirst paragraph')).toBe(true);
 	});
 
@@ -68,11 +68,11 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent('Before\n\n> Inside quote\n');
 
 		await editor.focusBlockEnd(0);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Q');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/> .*Inside quoteQ|> .*QInside quote/);
 	});
 
@@ -82,26 +82,26 @@ test.describe('keyboard navigation', () => {
 		const bqEditable = editor.getBlock(1).locator('[contenteditable="true"]').first();
 		await bqEditable.click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('B');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^[^>].*B/m);
 	});
 
 	test('ArrowDown on empty block moves to the next block', async () => {
 		await editor.loadContent('Above.\n\nBelow.\n');
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('XBelow.');
 	});
 
@@ -109,14 +109,14 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent('Block one.\n\nBlock two.\n\nBlock three.\n');
 
 		await editor.focusBlockEnd(0);
-		await editor.pressArrowDown();
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown');
 
 		await editor.page.keyboard.press('End');
 		await editor.typeText('!');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const hasExcl = source.includes('Block two.!') || source.includes('Block three.!');
 		expect(hasExcl).toBe(true);
 	});
@@ -125,11 +125,11 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent('Hello.\n\nWorld.\n');
 
 		await editor.focusBlockStart(1);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('hi ');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('hi Hello.');
 	});
 });
@@ -170,7 +170,7 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.loadContent(content);
 
 		await editor.focusBlockEnd(1);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 
 		const bqBlock = editor.getBlock(4);
@@ -179,13 +179,13 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/- .*Item one.*Z|Z.*Item one/m);
 	});
 
@@ -207,7 +207,7 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.loadContent(content);
 
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 
 		const listBlock = editor.getBlock(2);
@@ -217,13 +217,13 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
 		expect(source).not.toMatch(/ZAfter code/);
 	});
@@ -246,7 +246,7 @@ test.describe('focus traversal after block insertion', () => {
 		const itemTwo = editor.page.locator('[contenteditable="true"]', { hasText: 'Item two' });
 		await itemTwo.click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
 
 		const listBlock = editor.getBlock(0);
@@ -255,13 +255,13 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
 		expect(source).not.toMatch(/ZFinal/);
 	});
@@ -276,21 +276,21 @@ test.describe('focus traversal after block insertion', () => {
 
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
 
 		const bqEditable = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await bqEditable.click();
-		await editor.pressKey('End');
+		await editor.page.keyboard.press('End');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
 		expect(source).not.toMatch(/ZFinal/);
 		expect(source).toContain('> quote linetext');
@@ -312,7 +312,7 @@ test.describe('geometry-based focus traversal', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('!');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('!# Title');
 	});
 
@@ -323,7 +323,7 @@ test.describe('geometry-based focus traversal', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('!');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('!Second line.');
 	});
 });

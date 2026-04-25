@@ -19,13 +19,13 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(150);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		const source = await editor.getSource();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const source = await editor.bridge.getSource();
 		// Merge concatenates "al" + "ta"; Enter splits it after "al".
 		expect(source).toMatch(/al\s*\n\s*ta/);
 	});
@@ -35,13 +35,13 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Shift+Enter');
+		await editor.page.keyboard.press('Shift+Enter');
 		await editor.page.waitForTimeout(150);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		const source = await editor.getSource();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('al\\');
 	});
 
@@ -50,13 +50,13 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+b');
+		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(150);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		const source = await editor.getSource();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const source = await editor.bridge.getSource();
 		// Range deleted ("pha" and "be" removed), merged to "al" + "ta".
 		expect(source).not.toContain('pha');
 		expect(source).not.toContain('be');
@@ -67,14 +67,14 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+2');
+		await editor.page.keyboard.press('Control+2');
 		await editor.page.waitForTimeout(200);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		expect(await editor.getBlockKind(0)).toBe('heading');
-		const source = await editor.getSource();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('## ');
 	});
 
@@ -83,13 +83,13 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 4);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+0');
+		await editor.page.keyboard.press('Control+0');
 		await editor.page.waitForTimeout(200);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		expect(await editor.getBlockKind(0)).toBe('paragraph');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 	});
 
 	test('Tab in a plain paragraph selection collapses cross-block and inserts a literal tab', async () => {
@@ -97,13 +97,13 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Tab');
+		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(150);
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		const source = await editor.getSource();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('\t');
 	});
 });

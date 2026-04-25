@@ -19,14 +19,14 @@ test.describe('code block paste — fence bumping', () => {
 		await editor.focusBlockEnd(0);
 
 		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await page.waitForTimeout(100);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^````/m);
 		expect(source).toContain('```pasted code```');
-		expect(await editor.getBlockCount()).toBe(1);
-		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
 	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
@@ -38,12 +38,12 @@ test.describe('code block paste — fence bumping', () => {
 			(text) => navigator.clipboard.writeText(text),
 			'\n# Heading\n\n- list item\n\nparagraph\n'
 		);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await page.waitForTimeout(100);
 
-		expect(await editor.getBlockCount()).toBe(1);
-		expect(await editor.getBlockKind(0)).toBe('fencedCode');
-		const source = await editor.getSource();
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('# Heading');
 		expect(source).toContain('- list item');
 		expect(source).toContain('paragraph');

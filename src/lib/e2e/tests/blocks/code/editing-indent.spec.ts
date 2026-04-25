@@ -22,7 +22,7 @@ test.describe('code block tab / indent', () => {
 		}
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(100);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('hel\tlo');
 	});
 
@@ -32,13 +32,13 @@ test.describe('code block tab / indent', () => {
 
 		await editor.focusBlock(0, 4);
 		for (let i = 0; i < 11; i++) {
-			await editor.pressKey('Shift+ArrowRight');
+			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(100);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('\tline1');
 		expect(source).toContain('\tline2');
 		expect(source).toMatch(/^line3$/m);
@@ -53,7 +53,7 @@ test.describe('code block tab / indent', () => {
 		}
 		await page.keyboard.press('Shift+Tab');
 		await page.waitForTimeout(100);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('indented');
 		expect(source).not.toContain('\tindented');
 	});
@@ -67,7 +67,7 @@ test.describe('code block tab / indent', () => {
 		}
 		await page.keyboard.press('Shift+Tab');
 		await page.waitForTimeout(100);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('spaced');
 		expect(source).not.toContain('    spaced');
 	});
@@ -79,10 +79,10 @@ test.describe('code block tab / indent', () => {
 		for (let i = 0; i < 6; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		const sourceBefore = await editor.getSource();
+		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Tab');
 		await page.waitForTimeout(100);
-		const sourceAfter = await editor.getSource();
+		const sourceAfter = await editor.bridge.getSource();
 		expect(sourceAfter).toBe(sourceBefore);
 	});
 
@@ -92,13 +92,13 @@ test.describe('code block tab / indent', () => {
 
 		await editor.focusBlock(0, 4);
 		for (let i = 0; i < 18; i++) {
-			await editor.pressKey('Shift+ArrowRight');
+			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 
 		await page.keyboard.press('Shift+Tab');
 		await page.waitForTimeout(100);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('line1');
 		expect(source).toContain('line2');
 		expect(source).not.toContain('\tline1');

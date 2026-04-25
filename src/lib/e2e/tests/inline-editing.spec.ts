@@ -49,7 +49,7 @@ test.describe('inline editing', () => {
 	test('typing after bold span preserves formatting in source', async () => {
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' tail');
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('**bold text**');
 		expect(src).toContain('tail');
 	});
@@ -57,7 +57,7 @@ test.describe('inline editing', () => {
 	test('source round-trips after editing formatted content', async () => {
 		await editor.focusBlockEnd(1);
 		await editor.typeText(' more');
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('`inline code`');
 		expect(src).toContain('more');
 	});
@@ -65,7 +65,7 @@ test.describe('inline editing', () => {
 	test('editing does not corrupt inline bold markers', async () => {
 		await editor.focusBlockStart(0);
 		await editor.typeText('Prefix: ');
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('**bold text**');
 		expect(src).toContain('*italic text*');
 		expect(src).toContain('Prefix: ');
@@ -84,7 +84,7 @@ test.describe('inline editing', () => {
 		await editor.clickBlock(0);
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' appended');
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('**bold text**');
 		expect(src).toContain('appended');
 	});
@@ -93,7 +93,7 @@ test.describe('inline editing', () => {
 		// Regression: split-created blocks had no inlineContent, so bold rendered as plain **text**.
 		await editor.loadContent('First paragraph.\n');
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 
 		await editor.typeSlowly('**bold**');
@@ -108,7 +108,7 @@ test.describe('inline editing', () => {
 		// Regression: split-created paragraph converted to heading but marker lacked .md-marker class.
 		await editor.loadContent('Some text.\n');
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 
 		await editor.typeSlowly('# New heading');
@@ -130,7 +130,7 @@ test.describe('inline editing', () => {
 		const block = editor.getBlock(0);
 		await expect(block.locator('strong')).toHaveCount(1);
 		await expect(block.locator('strong')).toContainText('bold');
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello. **bold**');
 	});
 
@@ -142,7 +142,7 @@ test.describe('inline editing', () => {
 		}
 		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello **world**');
 	});
 
@@ -154,7 +154,7 @@ test.describe('inline editing', () => {
 		}
 		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world');
 		expect(source).not.toContain('**');
 	});
@@ -167,7 +167,7 @@ test.describe('inline editing', () => {
 		}
 		await editor.page.keyboard.press('Control+i');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello *world*');
 	});
 
@@ -179,7 +179,7 @@ test.describe('inline editing', () => {
 		}
 		await editor.page.keyboard.press('Control+i');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world');
 		expect(source).not.toContain('*');
 	});
@@ -193,7 +193,7 @@ test.describe('inline editing', () => {
 		}
 		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world today');
 		expect(source).not.toContain('****');
 	});
@@ -203,7 +203,7 @@ test.describe('inline editing', () => {
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toBe('Hello world\n');
 	});
 
@@ -211,9 +211,9 @@ test.describe('inline editing', () => {
 		await editor.loadContent(`before **bold** after\n`);
 		await editor.focusBlock(0, 7);
 
-		await editor.pressEnter();
-		expect(await editor.getDomBlockCount()).toBe(2);
-		const src = await editor.getSource();
+		await editor.page.keyboard.press('Enter');
+		expect(await editor.bridge.getDomBlockCount()).toBe(2);
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('before');
 		expect(src).toContain('**bold** after');
 	});

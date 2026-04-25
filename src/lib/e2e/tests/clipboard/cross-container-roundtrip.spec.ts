@@ -15,14 +15,14 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([0, 0], 'inside bq'.length);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([1], 'target para'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('target parainside bq');
 		expect(src).toMatch(/> inside bq/);
 	});
@@ -33,14 +33,14 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([0], 'outer para'.length);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([1, 0], 'target inside bq'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/> target inside bqouter para/);
 	});
 
@@ -49,17 +49,17 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([1], 'outer para'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.loadContent('destination\n');
 		await editor.focusBlockAtPath([0], 'destination'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('bq content');
 		expect(src).toContain('outer para');
 	});

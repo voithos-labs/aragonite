@@ -16,24 +16,24 @@ test.describe('needsUndoCheckpoint — typing / structural / typing', () => {
 		// Wait past the 250ms debounce so the batch flushes.
 		await editor.page.waitForTimeout(400);
 
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 
 		await editor.typeSlowly('two');
 		await editor.page.waitForTimeout(400);
 
 		await editor.undo();
-		expect((await editor.getSource()).includes('two')).toBe(false);
-		expect((await editor.getSource()).includes('Hello one')).toBe(true);
+		expect((await editor.bridge.getSource()).includes('two')).toBe(false);
+		expect((await editor.bridge.getSource()).includes('Hello one')).toBe(true);
 
 		await editor.undo();
-		expect(await editor.getDomBlockCount()).toBe(1);
-		expect((await editor.getSource()).trim()).toBe('Hello one');
+		expect(await editor.bridge.getDomBlockCount()).toBe(1);
+		expect((await editor.bridge.getSource()).trim()).toBe('Hello one');
 
 		await editor.undo();
-		expect((await editor.getSource()).trim()).toBe('Hello');
+		expect((await editor.bridge.getSource()).trim()).toBe('Hello');
 
-		const afterThreeUndos = await editor.getSource();
+		const afterThreeUndos = await editor.bridge.getSource();
 		await editor.undo();
-		expect(await editor.getSource()).toBe(afterThreeUndos);
+		expect(await editor.bridge.getSource()).toBe(afterThreeUndos);
 	});
 });

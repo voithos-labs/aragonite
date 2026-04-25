@@ -11,7 +11,7 @@ test.describe('nested list item — typing + undo', () => {
 	});
 
 	test('type into a list item → Ctrl+Z reverts the batch exactly', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		const firstItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item one' });
 		await firstItem.click();
@@ -20,18 +20,18 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.typeSlowly(' extra');
 		await editor.page.waitForTimeout(400);
 
-		expect(await editor.getSource()).toContain('item one extra');
+		expect(await editor.bridge.getSource()).toContain('item one extra');
 
 		await editor.undo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource() === expected,
 			before
 		);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('typing in two different items produces two batches', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		const firstItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item one' });
 		await firstItem.click();
@@ -47,15 +47,15 @@ test.describe('nested list item — typing + undo', () => {
 
 		await editor.undo();
 		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
-		expect((await editor.getSource()).includes(' B')).toBe(false);
-		expect((await editor.getSource()).includes(' A')).toBe(true);
+		expect((await editor.bridge.getSource()).includes(' B')).toBe(false);
+		expect((await editor.bridge.getSource()).includes(' A')).toBe(true);
 
 		await editor.undo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource() === expected,
 			before
 		);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	// B7 regression: focus change between sibling items must break the debounce
@@ -63,7 +63,7 @@ test.describe('nested list item — typing + undo', () => {
 	// Pre-fix, the outer container's blockIndex was the only batch key — sibling
 	// leaves shared a batch and one undo collapsed both typing runs.
 	test('focus change between sibling items inside debounce window still breaks the batch', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		const firstItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item one' });
 		await firstItem.click();
@@ -80,8 +80,8 @@ test.describe('nested list item — typing + undo', () => {
 		// One undo: only the ' B' batch reverts; ' A' stays.
 		await editor.undo();
 		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
-		expect((await editor.getSource()).includes(' B')).toBe(false);
-		expect((await editor.getSource()).includes(' A')).toBe(true);
+		expect((await editor.bridge.getSource()).includes(' B')).toBe(false);
+		expect((await editor.bridge.getSource()).includes(' A')).toBe(true);
 
 		// Second undo: ' A' batch reverts; back to original.
 		await editor.undo();
@@ -89,6 +89,6 @@ test.describe('nested list item — typing + undo', () => {
 			(expected) => (window as any).__test.getSource() === expected,
 			before
 		);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

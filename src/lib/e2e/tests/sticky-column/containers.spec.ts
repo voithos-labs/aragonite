@@ -23,12 +23,12 @@ test.describe('sticky column: container traversal', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		const insideX = await editor.getCaretPixelX();
 		expect(Math.abs(insideX - sourceX)).toBeLessThan(30);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		const afterX = await editor.getCaretPixelX();
 		expect(Math.abs(afterX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -46,13 +46,13 @@ test.describe('sticky column: container traversal', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
@@ -80,10 +80,10 @@ test.describe('sticky column: transparent blocks', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
@@ -106,7 +106,7 @@ test.describe('sticky column: edge cases', () => {
 		const count = await editables.count();
 		if (count >= 3) {
 			await editables.nth(1).click();
-			await editor.pressArrowDown();
+			await editor.page.keyboard.press('ArrowDown');
 			await editor.page.waitForTimeout(100);
 
 			const targetX = await editor.getCaretPixelX();
@@ -128,7 +128,7 @@ test.describe('sticky column: edge cases', () => {
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 20; i++) await editor.page.keyboard.press('ArrowRight');
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.page.evaluate(() => (document.body as HTMLElement).focus());
@@ -138,7 +138,7 @@ test.describe('sticky column: edge cases', () => {
 		await editor.page.keyboard.press('Home');
 		const postRefocusX = await editor.getCaretPixelX();
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();

@@ -12,9 +12,9 @@ test.describe('code block partial copy: literal clipboard', () => {
 	test('Ctrl+A copy of full code block preserves both fences verbatim', async () => {
 		await editor.loadContent('```\n1\n2\n```\n');
 		await editor.getBlock(0).click();
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -28,7 +28,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -44,7 +44,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -60,7 +60,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		for (let i = 0; i < 3; i++) {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -70,19 +70,19 @@ test.describe('code block partial copy: literal clipboard', () => {
 	test('full code block copy, paste into another code block: outer fence bumps, body stays literal', async () => {
 		await editor.loadContent('```\nhello\n```\n\n```\n\n```\n');
 		await editor.getBlock(0).click();
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		// Caret between the second (empty) code block's fences.
 		await editor.getBlock(1).click();
 		await editor.focusBlockStart(1);
-		for (let i = 0; i < 4; i++) await editor.pressKey('ArrowRight');
-		await editor.pressKey('Control+v');
+		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^```\nhello\n```$/m);
 		expect(source).toContain('````\n```\nhello\n```\n````');
 	});

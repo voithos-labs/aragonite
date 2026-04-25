@@ -14,14 +14,14 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
 	});
 
@@ -30,14 +30,14 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two');
 	});
 
@@ -46,14 +46,14 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'beta'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('- alpha\n- beta\n- gamma');
 	});
 
@@ -64,12 +64,12 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		// Windows clipboard stores CRLF even when written with LF.
 		const normalized = src.replace(/\r\n/g, '\n').trim();
 		expect(normalized).toBe('- pasted a\n- pasted b');

@@ -26,14 +26,14 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await editor.loadContent('- [ ] pending\n');
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[x]');
-		expect((await editor.getSource()).trim()).toBe('- [x] pending');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [x] pending');
 	});
 
 	test('clicking checked checkbox toggles to unchecked', async () => {
 		await editor.loadContent('- [x] done\n');
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[ ]');
-		expect((await editor.getSource()).trim()).toBe('- [ ] done');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] done');
 	});
 
 	test('toggle then Ctrl+Z restores pre-toggle source', async () => {
@@ -43,7 +43,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 
 		await editor.undo();
 		await waitForSourceContains(editor, '[ ]');
-		expect((await editor.getSource()).trim()).toBe('- [ ] task');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] task');
 	});
 
 	test('toggle → undo → redo returns to checked state', async () => {
@@ -55,14 +55,14 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await waitForSourceContains(editor, '[ ]');
 		await editor.redo();
 		await waitForSourceContains(editor, '[x]');
-		expect((await editor.getSource()).trim()).toBe('- [x] task');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [x] task');
 	});
 
 	test('uppercase [X] variant parses checked; toggle normalizes to lowercase', async () => {
 		await editor.loadContent('- [X] upper\n');
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[ ]');
-		expect((await editor.getSource()).trim()).toBe('- [ ] upper');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] upper');
 	});
 
 	test('completed task renders with strikethrough', async () => {
@@ -106,7 +106,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await editor.typeSlowly('[ ] ');
 		await waitForSourceContains(editor, '[ ] plain');
 		await editor.page.waitForSelector('.task-checkbox', { timeout: 2000 });
-		expect((await editor.getSource()).trim()).toBe('- [ ] plain');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] plain');
 	});
 
 	test('typing `[x] ` at start of plain list item promotes to checked task item live', async () => {
@@ -117,7 +117,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await editor.page.waitForSelector('.list-item-block[data-task-checked="true"]', {
 			timeout: 2000
 		});
-		expect((await editor.getSource()).trim()).toBe('- [x] work');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [x] work');
 	});
 
 	test('checkbox characters cannot be edited via keyboard', async () => {
@@ -125,7 +125,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('Z');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('[Zx]');
 		expect(source).not.toContain('[xZ]');
 		expect(source).toContain('[x]');
@@ -153,37 +153,37 @@ test.describe('task checkbox — toggle and rendering', () => {
 		// Shift+ArrowDown from mid-block crosses into the sibling item; from
 		// offset 0 it stays inside the first block on most platforms.
 		await editor.focusBlockAtPath([0, 0, 0], 5);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[x] first');
-		expect(await editor.isCrossBlockActive()).toBe(false);
-		expect((await editor.getSource()).trim()).toBe('- [x] first\n- [ ] second');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect((await editor.bridge.getSource()).trim()).toBe('- [x] first\n- [ ] second');
 	});
 
 	test('Enter at end of checked task item creates a new unchecked task item', async () => {
 		await editor.loadContent('- [x] done\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'done'.length);
-		await editor.pressKey('Enter');
+		await editor.page.keyboard.press('Enter');
 		await waitForSourceContains(editor, '- [x] done\n- [ ] ');
-		expect((await editor.getSource()).trim()).toBe('- [x] done\n- [ ]');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [x] done\n- [ ]');
 	});
 
 	test('Enter at end of unchecked task item creates a new unchecked task item', async () => {
 		await editor.loadContent('- [ ] pending\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'pending'.length);
-		await editor.pressKey('Enter');
+		await editor.page.keyboard.press('Enter');
 		await waitForSourceContains(editor, '- [ ] pending\n- [ ] ');
-		expect((await editor.getSource()).trim()).toBe('- [ ] pending\n- [ ]');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] pending\n- [ ]');
 	});
 
 	test('Enter at end of plain list item stays plain (control)', async () => {
 		await editor.loadContent('- plain\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'plain'.length);
-		await editor.pressKey('Enter');
+		await editor.page.keyboard.press('Enter');
 		await waitForSourceContains(editor, '- plain\n- ');
-		expect((await editor.getSource()).trim()).toBe('- plain\n-');
+		expect((await editor.bridge.getSource()).trim()).toBe('- plain\n-');
 	});
 
 	test('toggle emits exactly one metadataUpdate edit event', async () => {
@@ -229,7 +229,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		});
 		expect(selState.collapsed).toBe(false);
 
-		await editor.pressKey('Backspace');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForFunction(
 			() => !((window as any).__test.getSource() as string).includes('pending'),
 			undefined,
@@ -237,7 +237,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		);
 		// The raw-offset range clamps the ambient-crossing endpoint to raw 0,
 		// so the delete removes the full content "pending". Marker survives.
-		expect((await editor.getSource()).trim()).toBe('- [ ]');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ]');
 	});
 
 	test('Delete with selection extending into ambient checkbox region deletes text', async () => {
@@ -266,23 +266,23 @@ test.describe('task checkbox — toggle and rendering', () => {
 		});
 		expect(selState.collapsed).toBe(false);
 
-		await editor.pressKey('Delete');
+		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForFunction(
 			() => !((window as any).__test.getSource() as string).includes('pending'),
 			undefined,
 			{ timeout: 5000 }
 		);
-		expect((await editor.getSource()).trim()).toBe('- [ ]');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ]');
 	});
 
 	test('Backspace with selection entirely within editable content still uses native (control)', async () => {
 		await editor.loadContent('- [ ] pending\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.pressKey('Shift+End');
-		await editor.pressKey('Backspace');
+		await editor.page.keyboard.press('Shift+End');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForFunction(
 			() => !((window as any).__test.getSource() as string).includes('pending')
 		);
-		expect((await editor.getSource()).trim()).toBe('- [ ]');
+		expect((await editor.bridge.getSource()).trim()).toBe('- [ ]');
 	});
 });
