@@ -21,15 +21,18 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                        | Covers                                      |
-| ----------------------------- | ------------------------------------------- |
-| `test:editor:core`            | Parser, serializer, round-trip invariants   |
-| `test:editor:tree-ops`        | Tree mutation helpers                       |
-| `test:editor:editor-actions`  | Editor action bundles and commit primitives |
-| `test:editor:contenteditable` | Contenteditable normalization helpers       |
-| `test:editor:selection`       | Selection-state logic                       |
-| `test:editor:blocks`          | Per-block unit tests (code block, etc.)     |
-| `test:editor:debug`           | Debug engine helpers and operations log     |
+| Script                       | Covers                                                     |
+| ---------------------------- | ---------------------------------------------------------- |
+| `test:editor:core`           | Parser, serializer, round-trip invariants                  |
+| `test:editor:tree-ops`       | Tree mutation helpers                                      |
+| `test:editor:editor-actions` | Editor action bundles and commit primitives                |
+| `test:editor:ambient`        | Ambient-marker DOM and offset translation                  |
+| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement  |
+| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules |
+| `test:editor:reactivity`     | Block-list state and state registry                        |
+| `test:editor:selection`      | Selection-state logic                                      |
+| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                    |
+| `test:editor:debug`          | Debug engine helpers and operations log                    |
 
 E2E tests are grouped into Playwright projects:
 
@@ -48,7 +51,7 @@ E2E tests are grouped into Playwright projects:
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`. Each concept area gets its own subdirectory — `test/editor-actions/`, `test/contenteditable/`, `test/tree-operations/`, `test/core/`, `test/selection/`, `test/blocks/`, `test/debug/`, `test/events/` — keyed to the source area it covers. Cross-cutting tests and tests for top-level editor services (`round-trip`, `round-trip-complex`, `undo-manager`, `block-list-state`, `state-registry`) stay at `test/` root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. `test/events/` and the top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
+Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `undo-manager`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
 ## E2E Tests (Playwright)
 

@@ -6,16 +6,16 @@ import {
 	defaultInlineHook,
 	defaultStructuralHook,
 	__getDefaultTextSurface
-} from '../../tree-operations/paste/dispatch';
+} from '../../../tree-operations/paste/dispatch';
 import {
 	__resetPasteSurfacesForTests,
 	registerPasteSurface
-} from '../../tree-operations/paste-surfaces';
-import { parse } from '../../core/parser';
-import { registerBlockListState } from '../../reactivity/state-registry';
-import type { BlockKind, CstNode, Document } from '../../core/nodes';
-import type { BlockComponent, BlockEditActions } from '../../contracts';
-import type { UndoController } from '../../editor-actions/deps';
+} from '../../../tree-operations/paste-surfaces';
+import { parse } from '../../../core/parser';
+import { registerBlockListState } from '../../../reactivity/state-registry';
+import type { BlockKind, CstNode, Document } from '../../../core/nodes';
+import type { BlockComponent, BlockEditActions } from '../../../contracts';
+import type { UndoController } from '../../../editor-actions/deps';
 
 function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
