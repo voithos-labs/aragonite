@@ -17,6 +17,7 @@ import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { nodeAt } from '../tree-operations/node-ops';
+import { pathHasPrefix } from './path-math';
 import { getStateForNode } from '../reactivity/state-registry';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
@@ -251,14 +252,6 @@ function collectTouchedContainers(
 		return 0;
 	});
 	return touched;
-}
-
-function pathHasPrefix(path: number[], prefix: number[]): boolean {
-	if (prefix.length > path.length) return false;
-	for (let i = 0; i < prefix.length; i++) {
-		if (path[i] !== prefix[i]) return false;
-	}
-	return true;
 }
 
 /** Exported for unit tests; internal-only — do not import outside test/. */
