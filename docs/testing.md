@@ -53,6 +53,8 @@ Pure TypeScript — no DOM, no browser. The most important invariant: `serialize
 
 Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `undo-manager`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
+Tests that import a sub-path directly (e.g. `tree-operations/list/m1-contract` rather than the `tree-operations` barrel) mirror at the deeper path — `test/tree-operations/list/m1-contract.test.ts`. Test directory depth follows import depth, not just the directory the SUT lives in.
+
 ## E2E Tests (Playwright)
 
 Tests the editor component in a real Chromium browser. No Tauri backend needed — the editor is self-contained.
@@ -71,6 +73,7 @@ Editor.svelte (production component, unchanged)
 
 - **Test route** (`src/routes/test/editor/+page.svelte`): renders the Editor with a test bridge on `window.__test` exposing source and block queries.
 - **EditorPage**: page object wrapping Playwright with editor-specific helpers for cursor positioning, text insertion, key presses, and state queries.
+- **EditorBridge** (`editor.bridge`): polled-state accessor on `EditorPage`. Hosts `getSource` / `getBlockCount` / `getBlockKind` plus the `waitForSource*` / `waitForBlockCount` settling predicates. Reach for these instead of `waitForTimeout` whenever the test waits on document state.
 - **Test suites**: organized by feature area at the top level, and per-block inside `tests/blocks/`.
 
 ### Test Suites
@@ -117,7 +120,7 @@ test.describe('my feature', () => {
 
 **Use "type and check where it appeared" for focus assertions.** `getSource()` serializes the CST, which is always correct regardless of focus state. To verify where focus actually landed after a navigation operation, type a marker character and assert on its position in the source. `getSource()`-only assertions can't detect focus bugs.
 
-**Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), allow Svelte's reactive `$effect`s and post-tick commits to complete before asserting on `getSource()`. In practice, a short `waitForTimeout` (50–200 ms) is a pragmatic hack, but a more deterministic approach is to poll: `await page.waitForFunction(() => window.__test.getSource().includes('expected'))`. Raw rebuilds themselves are synchronous — the wait is for reactivity and render flush, not for a debouncer.
+**Container edits need Svelte's reactivity cycle to settle.** After typing inside a nested container (list item, blockquote), Svelte's reactive `$effect`s and post-tick commits must flush before `getSource()` reflects the new state. Wait via `editor.bridge.waitForSourceContains('expected')` (or one of the other `waitForSource*` / `waitForBlockCount` predicates) — they poll until the assertion would pass and stop immediately. `waitForTimeout` is reserved for genuinely time-dependent waits (sticky-column layout settle, copy-only clipboard verification) and should be commented inline when used. Raw rebuilds themselves are synchronous — the wait is for reactivity and render flush, not for a debouncer.
 
 **Selector helpers live in `EditorPage`.** Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling — `getBlock(i)` skips the overlay sibling. Write tests against the helpers; reach for raw selectors only when adding a new helper.
 
