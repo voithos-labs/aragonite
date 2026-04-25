@@ -10,8 +10,8 @@ test.describe('list rendering', () => {
 
 	test('nested list renders as single top-level block', async () => {
 		await editor.loadContent('- Parent\n  - Child\n- Sibling\n');
-		expect(await editor.getBlockKind(0)).toBe('list');
-		expect(await editor.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('list');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
 	test('editing item preserves source with correct marker', async () => {
@@ -20,7 +20,7 @@ test.describe('list rendering', () => {
 		await first.click();
 		await editor.typeText(' ok');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('- Item A ok');
 		expect(source).toContain('- Item B');
 	});
@@ -33,13 +33,13 @@ test.describe('list rendering', () => {
 		await nested.first().click();
 		await editor.typeText(' more');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('  - Nested more');
+		expect(await editor.bridge.getSource()).toContain('  - Nested more');
 	});
 
 	test('ordered list displays correct markers', async () => {
 		await editor.loadContent('1. First\n2. Second\n3. Third\n');
-		expect(await editor.getBlockCount()).toBe(1);
-		const source = await editor.getSource();
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		const source = await editor.bridge.getSource();
 		expect(source).toBe('1. First\n2. Second\n3. Third\n');
 	});
 });
@@ -56,11 +56,11 @@ test.describe('list arrow navigation', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Last item' });
 		await item.click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^[^-].*Z/m);
+		expect(await editor.bridge.getSource()).toMatch(/^[^-].*Z/m);
 	});
 
 	test('ArrowUp from first item exits list to previous block', async () => {
@@ -68,11 +68,11 @@ test.describe('list arrow navigation', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'First item' });
 		await item.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('Before.Z');
+		expect(await editor.bridge.getSource()).toContain('Before.Z');
 	});
 
 	test('ArrowLeft at start of item content moves to end of previous item', async () => {
@@ -84,7 +84,7 @@ test.describe('list arrow navigation', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('- AlphaZ\n- Beta');
+		expect(await editor.bridge.getSource()).toContain('- AlphaZ\n- Beta');
 	});
 
 	test('ArrowRight at end of item content moves to start of next item', async () => {
@@ -96,6 +96,6 @@ test.describe('list arrow navigation', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('- Alpha\n- ZBeta');
+		expect(await editor.bridge.getSource()).toContain('- Alpha\n- ZBeta');
 	});
 });

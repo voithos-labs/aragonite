@@ -14,12 +14,12 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('foo');
 		expect(source).toContain('bar');
-		expect(await editor.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
 	test('pasting a list inside a list item preserves all pasted items', async () => {
@@ -27,9 +27,9 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 'one'.length);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('foo');
 		expect(source).toContain('bar');
 		expect(source).toContain('two');
@@ -41,11 +41,11 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('## A heading\n'));
 		await editor.page.waitForTimeout(100);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('## A heading');
-		expect(await editor.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
 	test('cross-block paste of multi-block content into list items lands content', async () => {
@@ -55,11 +55,11 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
-		await editor.pressKey('Control+v');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('alpha');
 		expect(source).toContain('beta');
 		expect(source).toContain('gamma');

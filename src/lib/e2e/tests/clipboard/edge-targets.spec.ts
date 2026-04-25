@@ -15,10 +15,10 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('hello world');
 	});
 
@@ -28,10 +28,10 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('Heading');
 		expect(src).toContain('para');
 	});
@@ -43,10 +43,10 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 0], 'list item'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('Big Heading');
 	});
 
@@ -55,12 +55,12 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);
 
-		const afterCut = await editor.getSource();
+		const afterCut = await editor.bridge.getSource();
 		expect(afterCut).not.toContain('one');
 		expect(afterCut).not.toContain('two');
 		expect(afterCut).toContain('three');
@@ -78,16 +78,16 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.focusBlockAtPath([0], betaStart);
 		await editor.shiftClickBlock([0], betaEnd);
 
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(200);
 
-		const afterCut = await editor.getSource();
+		const afterCut = await editor.bridge.getSource();
 		expect(afterCut.trim()).toBe('alpha  gamma');
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(200);
 
-		const afterPaste = await editor.getSource();
+		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste.trim()).toBe('alpha beta gamma');
 	});
 
@@ -97,10 +97,10 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([1], 'line two'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(200);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('line two APPENDED');
 	});
 
@@ -110,9 +110,9 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(200);
 
-		expect(await editor.getSource()).toContain('unchanged');
+		expect(await editor.bridge.getSource()).toContain('unchanged');
 	});
 });

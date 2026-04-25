@@ -17,12 +17,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('HELLO');
 		expect(source).not.toContain('one');
 		expect(source).not.toContain('two');
@@ -36,12 +36,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('HELLO');
 		expect(source).not.toContain('one');
 		expect(source).not.toContain('two');
@@ -56,12 +56,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('one');
 		expect(source).toContain('HELLO');
 		expect(source).not.toContain('two');
@@ -76,12 +76,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('alpha');
 		expect(source).toContain('beta');
 		expect(source).not.toContain('one');
@@ -93,20 +93,20 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
-		await editor.waitForCrossBlock(true);
-		await editor.pressKey('Control+c');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		await editor.clickBlock(2);
 		await editor.page.waitForTimeout(100);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 5);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('ne');
 		expect(source).toContain('tw');
 		expect(source).toMatch(/\bone\b/);
@@ -121,12 +121,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('text');
 		expect(source).not.toContain('one');
 		expect(source).not.toContain('two');
@@ -140,12 +140,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. oHELLOo$/m);
 	});
 
@@ -157,12 +157,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([1, 0, 0], 0);
 		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 
 		expect(source).toContain('Before list');
 		expect(source).toContain('REPLACEMENT');

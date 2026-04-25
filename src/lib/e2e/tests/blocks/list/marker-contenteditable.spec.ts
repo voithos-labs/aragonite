@@ -32,7 +32,7 @@ test.describe('list marker inside contenteditable', () => {
 
 	test('source round-trips after load', async () => {
 		await editor.loadContent('- Hello\n');
-		expect(await editor.getSource()).toBe('- Hello\n');
+		expect(await editor.bridge.getSource()).toBe('- Hello\n');
 	});
 
 	test('Home then typing inserts at raw offset 0', async () => {
@@ -42,7 +42,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- XHello\n');
+		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
 	test('click in marker region lands cursor at raw offset 0', async () => {
@@ -55,7 +55,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.mouse.click(box.x + 1, box.y + box.height / 2);
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- XHello\n');
+		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
 	test('Ctrl+A selects content only, marker preserved on replace', async () => {
@@ -69,7 +69,7 @@ test.describe('list marker inside contenteditable', () => {
 
 		await editor.typeText('World');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- World\n');
+		expect(await editor.bridge.getSource()).toBe('- World\n');
 	});
 
 	test('Backspace at raw 0 of first item performs U1 unwrap', async () => {
@@ -79,7 +79,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('Hello\n');
+		expect(await editor.bridge.getSource()).toBe('Hello\n');
 	});
 
 	test('Backspace at raw 0 of non-first item performs M1 merge', async () => {
@@ -89,7 +89,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- AlphaBeta\n');
+		expect(await editor.bridge.getSource()).toBe('- AlphaBeta\n');
 	});
 
 	test('multi-digit ordered marker cursor math works', async () => {
@@ -101,7 +101,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('10. Xten');
+		expect(await editor.bridge.getSource()).toContain('10. Xten');
 	});
 
 	test('nested list: each level gets its own ambient marker', async () => {
@@ -125,7 +125,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.up('Shift');
 
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
 		const markerBox = await editor.page
 			.locator('.list-item-block [contenteditable="true"] > span.md-marker')
@@ -193,6 +193,6 @@ test.describe('list marker inside contenteditable', () => {
 		await item.click();
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe('- X\n');
+		expect(await editor.bridge.getSource()).toBe('- X\n');
 	});
 });

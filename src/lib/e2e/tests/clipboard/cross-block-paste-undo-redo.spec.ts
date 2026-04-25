@@ -26,21 +26,21 @@ test.describe('cross-block paste — undo / redo round-trip', () => {
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
 			pasteMd
 		);
-		const postPasteSource = (await editor.getSource()).trim();
+		const postPasteSource = (await editor.bridge.getSource()).trim();
 
 		await editor.undo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
 			original
 		);
-		expect((await editor.getSource()).trim()).toBe(original.trim());
+		expect((await editor.bridge.getSource()).trim()).toBe(original.trim());
 
 		await editor.redo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource().trim() === expected,
 			postPasteSource
 		);
-		expect((await editor.getSource()).trim()).toBe(postPasteSource);
+		expect((await editor.bridge.getSource()).trim()).toBe(postPasteSource);
 
 		const isCrossBlock = await editor.page.evaluate(
 			() => (window as any).__test.isCrossBlockSelection?.() ?? false
@@ -58,8 +58,8 @@ test.describe('cross-block paste — undo / redo round-trip', () => {
 		await editor.typeSlowly('x');
 		await editor.page.waitForTimeout(400);
 
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.redo();
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

@@ -12,15 +12,15 @@ test.describe('cross-block clipboard: paste basics', () => {
 	test('Ctrl+V with cross-block selection deletes range and pastes', async () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('PASTED'));
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('PASTED');
 		expect(source).toContain('aaa');
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
 	test('multi-block paste with single-block selection is one undo unit', async () => {
@@ -28,17 +28,17 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
 		await editor.page.waitForTimeout(100);
 		await editor.focusBlock(0, 6);
-		for (let i = 0; i < 5; i++) await editor.pressKey('Shift+ArrowRight');
-		await editor.pressKey('Control+v');
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const afterPaste = await editor.getSource();
+		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');
 		expect(afterPaste).toContain('beta');
 		expect(afterPaste).not.toContain('world');
 
-		await editor.pressKey('Control+z');
+		await editor.page.keyboard.press('Control+z');
 		await editor.page.waitForTimeout(200);
-		const afterUndo = await editor.getSource();
+		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe('hello world');
 	});
 });
@@ -55,12 +55,12 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\nNew paragraph\n'));
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('# Heading');
 		expect(source).toContain('New paragraph');
-		expect(await editor.getBlockCount()).toBe(3);
+		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 
 	test('multi-block paste replaces selected text', async () => {
@@ -70,10 +70,10 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.evaluate(() => navigator.clipboard.writeText('First\n\nSecond'));
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('World');
 		expect(source).toContain('Hello ');
 		expect(source).toContain('First');

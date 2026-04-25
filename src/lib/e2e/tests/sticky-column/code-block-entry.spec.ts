@@ -15,7 +15,7 @@ async function captureEntryFromAbove(editor: EditorPage, codeBlockIndex: number)
 	for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
 	const sourceX = await editor.getCaretPixelX();
 
-	await editor.pressArrowDown();
+	await editor.page.keyboard.press('ArrowDown');
 	await editor.page.waitForTimeout(120);
 
 	const landingX = await editor.getCaretPixelX();
@@ -29,7 +29,7 @@ async function captureEntryFromBelow(editor: EditorPage, codeBlockIndex: number)
 	for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
 	const sourceX = await editor.getCaretPixelX();
 
-	await editor.pressArrowUp();
+	await editor.page.keyboard.press('ArrowUp');
 	await editor.page.waitForTimeout(120);
 
 	const landingX = await editor.getCaretPixelX();
@@ -116,11 +116,11 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await above.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(120);
 		await editor.typeText('A');
 		await editor.page.waitForTimeout(120);
-		const sourceAfterAbove = await editor.getSource();
+		const sourceAfterAbove = await editor.bridge.getSource();
 		await editor.undo();
 		await editor.page.waitForTimeout(120);
 
@@ -128,11 +128,11 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await below.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(120);
 		await editor.typeText('B');
 		await editor.page.waitForTimeout(120);
-		const sourceAfterBelow = await editor.getSource();
+		const sourceAfterBelow = await editor.bridge.getSource();
 
 		const aLine = sourceAfterAbove.split('\n').find((l) => l.includes('A')) ?? '';
 		const bLine = sourceAfterBelow.split('\n').find((l) => l.includes('B')) ?? '';
@@ -160,7 +160,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await aboveBlock.click({ position: { x: aboveBox!.width - 20, y: 10 } });
 		await editor.page.waitForTimeout(50);
 		const capturedAboveX = await editor.getCaretPixelX();
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(150);
 		const landAboveX = await editor.getCaretPixelX();
 
@@ -173,7 +173,7 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await belowBlock.click({ position: { x: clickXInsideBelow, y: 10 } });
 		await editor.page.waitForTimeout(50);
 		const capturedBelowX = await editor.getCaretPixelX();
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(150);
 		const landBelowX = await editor.getCaretPixelX();
 

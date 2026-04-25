@@ -15,10 +15,10 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 'nested target'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('pasted one');
 		expect(src).toContain('pasted two');
 	});
@@ -30,10 +30,10 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0, 0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('Heading');
 		expect(src).toContain('para');
 	});
@@ -45,12 +45,12 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 1, 2, 0], 'B3'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('X1');
 		expect(src).toContain('X2');
 		expect(src).toContain('A');

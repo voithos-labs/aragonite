@@ -1,11 +1,14 @@
 import { type Page, type Locator } from '@playwright/test';
 import { primaryModifier } from './platform';
+import { EditorBridge } from './editor-bridge';
 
 export class EditorPage {
 	readonly editorContainer: Locator;
+	readonly bridge: EditorBridge;
 
 	constructor(public page: Page) {
 		this.editorContainer = page.locator('.editor');
+		this.bridge = new EditorBridge(page);
 	}
 
 	// ── Navigation ──────────────────────────────────────────────────────
@@ -34,51 +37,6 @@ export class EditorPage {
 		await this.editorContainer.waitFor({ state: 'visible' });
 	}
 
-	// ── Cross-Block Selection Queries ───────────────────────────────────
-
-	async waitForCrossBlock(active: boolean): Promise<void> {
-		if (active) {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
-		} else {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
-		}
-	}
-
-	async isCrossBlockActive(): Promise<boolean> {
-		return this.page.evaluate(() => {
-			if ((window as any).__test?.isCrossBlockActive) {
-				return (window as any).__test.isCrossBlockActive();
-			}
-			return document.querySelector('[data-cross-block]') !== null;
-		});
-	}
-
-	async getSelectionPaths(): Promise<{
-		anchor: { path: number[]; offset: number };
-		focus: { path: number[]; offset: number };
-	} | null> {
-		return this.page.evaluate(() => {
-			if ((window as any).__test?.getSelectionPaths) {
-				return (window as any).__test.getSelectionPaths();
-			}
-			return null;
-		});
-	}
-
-	// ── State Queries (via test bridge) ─────────────────────────────────
-
-	async getSource(): Promise<string> {
-		return this.page.evaluate(() => (window as any).__test.getSource());
-	}
-
-	async getBlockCount(): Promise<number> {
-		return this.page.evaluate(() => (window as any).__test.getBlockCount());
-	}
-
-	async getBlockKind(index: number): Promise<string> {
-		return this.page.evaluate((i) => (window as any).__test.getBlockKind(i), index);
-	}
-
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
 	getBlock(index: number): Locator {
@@ -95,10 +53,6 @@ export class EditorPage {
 
 	async getBlockText(index: number): Promise<string> {
 		return (await this.getBlock(index).textContent()) ?? '';
-	}
-
-	async getDomBlockCount(): Promise<number> {
-		return this.getBlocks().count();
 	}
 
 	// ── Cursor Positioning ──────────────────────────────────────────────
@@ -236,41 +190,17 @@ export class EditorPage {
 		await this.page.keyboard.insertText(text);
 	}
 
-	async pressKey(key: string) {
-		await this.page.keyboard.press(key);
-	}
-
-	async pressEnter() {
-		await this.pressKey('Enter');
-	}
-
-	async pressBackspace() {
-		await this.pressKey('Backspace');
-	}
-
-	async pressArrowUp() {
-		await this.pressKey('ArrowUp');
-	}
-
-	async pressArrowDown() {
-		await this.pressKey('ArrowDown');
-	}
-
 	// macOS binds undo/redo/select-all to Cmd; every other platform uses Ctrl.
 	async undo() {
-		await this.page.keyboard.press(`${this.primaryModifier}+z`);
+		await this.page.keyboard.press(`${primaryModifier}+z`);
 	}
 
 	async redo() {
-		await this.page.keyboard.press(`${this.primaryModifier}+Shift+z`);
+		await this.page.keyboard.press(`${primaryModifier}+Shift+z`);
 	}
 
 	async selectAll() {
-		await this.page.keyboard.press(`${this.primaryModifier}+a`);
-	}
-
-	private get primaryModifier(): 'Meta' | 'Control' {
-		return primaryModifier;
+		await this.page.keyboard.press(`${primaryModifier}+a`);
 	}
 
 	async screenshot(name: string) {

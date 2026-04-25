@@ -24,7 +24,7 @@ test.describe('sticky column: basic capture and cross-block', () => {
 		const sourceX = await editor.getCaretPixelX();
 		expect(sourceX).toBeGreaterThan(0);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
@@ -43,7 +43,7 @@ test.describe('sticky column: basic capture and cross-block', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
@@ -72,10 +72,10 @@ test.describe('sticky column: survive intermediate clamping', () => {
 		const sourceX = await editor.getCaretPixelX();
 		expect(sourceX).toBeGreaterThan(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
@@ -94,13 +94,13 @@ test.describe('sticky column: survive intermediate clamping', () => {
 
 		const sourceX = await editor.getCaretPixelX();
 
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(50);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		const targetX = await editor.getCaretPixelX();
