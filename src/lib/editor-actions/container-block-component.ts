@@ -1,8 +1,4 @@
-/**
- * Shared `BlockComponent` shim for container blocks (Blockquote, List, ListItem).
- * Each container's Svelte component delegates focus/cursor methods here so the
- * three container components don't carry duplicated 15-line shim implementations.
- */
+/** Shared `BlockComponent` shim for container blocks (Blockquote, List, ListItem). */
 
 import {
 	CURSOR_END,
@@ -17,12 +13,9 @@ export interface ContainerBlockComponentDeps {
 	readonly nodeChildrenLength: number;
 }
 
-export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): {
-	focus: (offset: number) => void;
-	getCursorOffset: () => number | null;
-	focusByPath: (path: number[], offset: number) => void;
-	focusAtColumn: (x: number, from: StickyColumnDirection) => void;
-} {
+export function createContainerBlockComponent(
+	deps: ContainerBlockComponentDeps
+): Pick<BlockComponent, 'focus' | 'getCursorOffset' | 'focusByPath' | 'focusAtColumn'> {
 	return {
 		focus(offset: number) {
 			if (deps.nodeChildrenLength === 0) return;
