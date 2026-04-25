@@ -140,7 +140,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.typeText('\n    return 42');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/```python/);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/```python/);
 		expect(source).toContain('def hello():');

@@ -19,7 +19,7 @@ test.describe('list unindent — ref alignment via registry', () => {
 		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/- one\n.*- Xnested a\n/s);
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n.*- Xnested a\n/s);
@@ -35,7 +35,7 @@ test.describe('list unindent — ref alignment via registry', () => {
 		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/- one\n- Xlonely nested\n- three/);
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n- Xlonely nested\n- three/);

@@ -59,7 +59,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^````/m);
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/^````/m);
