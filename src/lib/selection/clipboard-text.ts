@@ -6,6 +6,7 @@ import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize } from './primitives';
+import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -104,14 +105,6 @@ export function collectCrossBlockText(
 	return startTail + middle + endLead + endHead;
 }
 
-function pathsEqual(a: number[], b: number[]): boolean {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== b[i]) return false;
-	}
-	return true;
-}
-
 // ── Internal ───────────────────────────────────────────────────────────────
 
 /**
@@ -200,22 +193,4 @@ function promoteToContainer(
 	const node = nodeAt(doc, bestPath);
 	if (!node || !('raw' in node)) return null;
 	return { path: bestPath, raw: (node as CstNode).raw };
-}
-
-/** Number of shared leading indices between two paths. */
-function sharedPrefixLength(a: number[], b: number[]): number {
-	const len = Math.min(a.length, b.length);
-	for (let i = 0; i < len; i++) {
-		if (a[i] !== b[i]) return i;
-	}
-	return len;
-}
-
-/** True if `ancestor` is a strict prefix of `descendant`'s path. */
-function isStrictAncestorOf(ancestor: number[], descendant: number[]): boolean {
-	if (ancestor.length >= descendant.length) return false;
-	for (let i = 0; i < ancestor.length; i++) {
-		if (ancestor[i] !== descendant[i]) return false;
-	}
-	return true;
 }
