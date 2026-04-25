@@ -9,10 +9,10 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
 import { parseAllInlineContent } from '../core/inline';
 import { ensureEditableContainers } from './node-ops';
+import { parseFirstBlock } from './list/list-builders';
 
 export function buildPastedReplacement(
 	leaf: CstNode,
@@ -82,10 +82,4 @@ export function buildPastedReplacement(
 function isEmptyParagraphNode(node: CstNode): boolean {
 	if (node.kind !== 'paragraph') return false;
 	return node.raw === '' || node.raw === '\n' || node.raw === '\r\n';
-}
-
-function parseFirstBlock(raw: string): CstNode {
-	const doc = parse(raw);
-	if (doc.children.length > 0) return doc.children[0];
-	return { kind: 'paragraph', leadingTrivia: '', raw };
 }
