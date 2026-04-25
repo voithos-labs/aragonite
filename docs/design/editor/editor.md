@@ -353,6 +353,20 @@ Copy the selected range, then delete it. For cross-block: truncate the anchor an
 
 Always intercepted. If there is a selection (single or cross-block), delete the selected range first. Parse the pasted text through the CST parser. If the result is a single paragraph, insert the text at the cursor position. Anything else (multiple blocks, or a single non-paragraph block like a list, heading, code block, or blockquote) takes the structural path: split the current block at the cursor, splice in the parsed blocks as their own structural children with blank-line separators, and place the post-cursor remainder as a trailing paragraph. The full delete-then-paste collapses into a single undo entry; focus restores at the end of the pasted content.
 
+#### Paste dispatch pipeline
+
+Paste routes through a single dispatcher (`tree-operations/paste/dispatch.ts`) that consults strategies in priority order:
+
+1. **Container-matching unwrap** — when the clipboard's top block is a list/blockquote of kind K and an ancestor is also K (matching ordered flag), splice items into the matching ancestor instead of nesting a sub-container. Empty target → splice replaces it; non-empty target in cross-block context → merge first item into target leaf, splice remaining items as siblings.
+2. **List absorb** — when the clipboard top block is a list whose ordered flag matches the nearest list ancestor and container-match declined (single-block non-empty target), splice pasted items as siblings in the enclosing list, renumber from 1, and normalize markers to parent style. Final markers are computed before splice (Svelte 5 reactivity invariant).
+3. **List break-out** — when the clipboard top block is a list whose ordered flag does NOT match the nearest list ancestor, split the enclosing list at the target item and splice the pasted list block between the halves at the list's parent level.
+4. **Default structural** — leading slice + pasted blocks + trailing slice replacement.
+5. **Default inline** — single-paragraph clipboard takes the inline raw-splice path.
+
+Pasted listItems are normalized to be `\n`-terminated before splice; clipboards without a trailing newline otherwise mash adjacent items during ancestry raw rebuild.
+
+Paste modules depend on `PasteCommitCoordinator` (in `tree-operations/paste/paste-deps.ts`) — a narrow interface satisfied by an editor-actions factory. This keeps `tree-operations/paste/` from importing back into `editor-actions/`.
+
 ### Delete / Backspace / Type-Replace
 
 When a cross-block selection is active, Backspace, Delete, and typing all delete the selected range first (same path as Cut without the clipboard write), then perform their normal single-block action at the collapsed cursor. IME composition events follow the same delete-then-compose path.
