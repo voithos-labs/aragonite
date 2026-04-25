@@ -9,6 +9,8 @@ describe('HTML5_NAMED_ENTITIES', () => {
 		expect(HTML5_NAMED_ENTITIES.gt).toBe('>');
 		expect(HTML5_NAMED_ENTITIES.nbsp).toBe(String.fromCharCode(0xa0));
 		expect(HTML5_NAMED_ENTITIES.mdash).toBe('—');
+		// Base + combining mark — guards against regenerators that drop trailing code points.
+		expect(HTML5_NAMED_ENTITIES.nLt).toBe('≪⃒');
 	});
 
 	it('is case-sensitive', () => {
@@ -23,11 +25,8 @@ describe('HTML5_NAMED_ENTITIES', () => {
 		expect(count).toBeLessThan(2500);
 	});
 
-	it('keys do not include the leading & or trailing ;', () => {
-		const samples = ['copy', 'amp', 'Aacute'];
-		for (const s of samples) {
-			expect(HTML5_NAMED_ENTITIES).toHaveProperty(s);
-		}
-		expect(HTML5_NAMED_ENTITIES).not.toHaveProperty('&copy;');
+	it('every key is a bare entity name', () => {
+		const malformed = Object.keys(HTML5_NAMED_ENTITIES).filter((k) => /[&;=]/.test(k));
+		expect(malformed).toEqual([]);
 	});
 });
