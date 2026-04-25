@@ -1,3 +1,7 @@
+// Single concern: paste into cross-block selections that span list items. Each test exercises a
+// different selection shape (within one list, across boundaries, with mid-paragraph offsets, drag
+// vs Shift+click) of the one paste-replacement invariant; they parametrize one invariant and
+// belong together.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
