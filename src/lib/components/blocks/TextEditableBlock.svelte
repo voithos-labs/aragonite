@@ -29,8 +29,6 @@
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
-	import { renderInlineNodes } from '../../core/inline-render';
-	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import {
 		createRangeFromOffsets,
@@ -41,6 +39,7 @@
 	import { toggleInlineFormat } from './text/format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
 	import { createTextClipboard } from './text/text-clipboard';
+	import { createTextRender } from './text/text-render';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -50,7 +49,7 @@
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
 	import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
-	import { ambientSpanOf, buildAmbientSpan } from '../../ambient/ambient-dom';
+	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 
 	let {
@@ -92,8 +91,6 @@
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
-	/** Last (ambientPrefix, raw) pair the $effect rendered — prevents spurious rebuilds. */
-	let lastRenderedKey = '';
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
 
@@ -173,35 +170,21 @@
 		getBlockElByPath
 	};
 
-	// Heading/etc. own-marker prefix slice. Rendered as a dimmed span before inline
-	// content so el.textContent === ambientPrefix + getDisplayText() holds.
-	function getBlockMarkerPrefix(): string {
-		if (!isProseKind(node.kind)) return '';
-		const range = getContentRange(node);
-		return node.raw.slice(0, range.start);
-	}
-
-	/**
-	 * Build the DOM fragment for inline content, prepending the ambient marker
-	 * (container-owned, contenteditable="false" island) and the block-own marker.
-	 * Takes content as parameter to avoid reading node.inlineContent (which would
-	 * require mutating the node prop and trigger Svelte 5 ownership cascades).
-	 */
-	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
-		const frag = document.createDocumentFragment();
-		if (ambientPrefixText) {
-			frag.appendChild(buildAmbientSpan(ambientPrefix));
-		}
-		const blockOwnPrefix = getBlockMarkerPrefix();
-		if (blockOwnPrefix) {
-			const span = document.createElement('span');
-			span.className = 'md-marker';
-			span.textContent = blockOwnPrefix;
-			frag.appendChild(span);
-		}
-		frag.appendChild(renderInlineNodes(content, node.raw));
-		return frag;
-	}
+	const textRender = createTextRender({
+		get el() {
+			return el ?? null;
+		},
+		get node() {
+			return node;
+		},
+		get ambientPrefix() {
+			return ambientPrefix;
+		},
+		get ambientPrefixText() {
+			return ambientPrefixText;
+		},
+		getDisplayText: () => getDisplayText()
+	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -262,48 +245,19 @@
 	}
 
 	$effect(() => {
-		if (!el) return;
-
 		if (import.meta.env.DEV && ambientPrefixText && !isProseKind(node.kind)) {
 			console.warn(
 				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
 			);
 		}
 
-		const renderKey = `${ambientPrefixText}\0${node.raw}`;
-
-		if (isProseKind(node.kind)) {
-			if (renderKey === lastRenderedKey && pendingCursorOffset === null) return;
-
-			// Compute locally — writing to `node.inlineContent` breaks keyed {#each} after structural ops.
-			// See `docs/design/editor/editor.md` § Reactive State Plumbing.
-			const range = getContentRange(node);
-			const content = parseInline(node.raw, range.start, range.end);
-			el.replaceChildren(buildInlineDOM(content));
-			lastRenderedKey = renderKey;
-		} else {
-			const display = getDisplayText();
-			if (el.textContent !== display) {
-				el.textContent = display;
-				lastRenderedKey = renderKey;
-			}
-		}
-
-		ensureBr();
+		textRender.render({ forceRebuild: pendingCursorOffset !== null });
 
 		if (pendingCursorOffset !== null) {
 			cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});
-
-	function ensureBr(): void {
-		if (!el) return;
-		const display = getDisplayText();
-		if (display === '' && !el.querySelector('br')) {
-			el.appendChild(document.createElement('br'));
-		}
-	}
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
