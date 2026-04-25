@@ -1,0 +1,43 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Shift+ArrowLeft contracts a forward single-block selection without crossing block boundary', async () => {
+		// Forward selection: anchor=0, focus=5 ("Hello" highlighted left-to-right).
+		// Shift+ArrowLeft should contract to anchor=0, focus=4 ("Hell"); the bug
+		// fired cross-block extension instead because the legacy code read
+		// getCursorOffset() (range start = 0) and treated focus as already at 0.
+		await editor.loadContent('Hello world\n\nbelow\n');
+		await editor.focusBlock(0, 0);
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Shift+ArrowLeft');
+		await editor.page.waitForTimeout(50);
+
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
+		expect(selectedText).toBe('Hell');
+	});
+
+	test('Shift+ArrowRight contracts a backward single-block selection without crossing block boundary', async () => {
+		// Backward selection: anchor=5, focus=0 ("Hello" selected right-to-left).
+		// Shift+ArrowRight should contract to anchor=5, focus=1 ("ello"); the bug
+		// would extend cross-block (focus=0 is at the block start so the legacy
+		// path sent us into extendFocusToPreviousBlock).
+		await editor.loadContent('above\n\nHello world\n');
+		await editor.focusBlock(1, 5);
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowLeft');
+		await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.waitForTimeout(50);
+
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
+		expect(selectedText).toBe('ello');
+	});
+});
