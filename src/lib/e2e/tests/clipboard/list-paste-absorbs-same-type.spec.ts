@@ -18,11 +18,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('ordered paste at end of ordered item: items absorb with continuous numbering', async () => {
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. x\n2. y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^4\. beta$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
@@ -38,11 +37,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('ordered paste in middle of ordered item: item splits and pasted items absorb between halves', async () => {
 		await editor.loadContent('1. alphagamma\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. x\n2. y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^4\. gamma$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
@@ -55,11 +53,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('ordered paste at start of ordered item: items absorb before target', async () => {
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. x\n2. y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^4\. beta$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. x$/m);
@@ -71,11 +68,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('ordered paste at end of middle item: pasted items land between target and rest', async () => {
 		await editor.loadContent('1. a\n2. b\n3. c\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. x\n2. y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 1, 0], 'b'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^5\. c$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. a$/m);
@@ -88,11 +84,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('unordered paste at end of unordered item: items absorb as flat siblings', async () => {
 		await editor.loadContent('- a\n- b\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'a'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => (s.match(/^- /gm) ?? []).length === 4);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^- a$/m);
@@ -109,11 +104,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		// all items should share the parent's "." suffix.
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1) x\n2) y\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^4\. beta$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
@@ -133,11 +127,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.evaluate(() =>
 			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered')
 		);
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^7\. third$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. Ordered first$/m);
@@ -163,11 +156,14 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.page.evaluate(() =>
 			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered\n')
 		);
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(500);
+		await editor.page.waitForFunction(
+			() => document.querySelectorAll('.list-item-block').length === 7,
+			null,
+			{ timeout: 2000 }
+		);
 
 		const domMarkers = await editor.page.evaluate(() => {
 			const items = document.querySelectorAll('.list-item-block');
@@ -179,11 +175,10 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 	test('single-item ordered paste at end of ordered item absorbs as one sibling', async () => {
 		await editor.loadContent('1. alpha\n2. beta\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('1. only\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^3\. beta$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. alpha$/m);
