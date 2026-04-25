@@ -119,6 +119,15 @@ Note: Indented code blocks cannot interrupt a paragraph — there must be a blan
 
 CommonMark defines 7 types of HTML blocks based on opening tags. Block-level tags like `<div>`, `<table>`, `<pre>`, `<script>`, and HTML comments (`<!-- -->`) start HTML blocks. They continue until a blank line (for most types) or until their specific closing tag (for `<pre>`, `<script>`, `<style>`, `<textarea>`, and comments).
 
+**Inline Raw HTML:**
+
+```markdown
+This paragraph contains <span class="hl">inline tags</span> and a <br /> hard break.
+HTML comments like <!-- ignored --> and processing instructions <?php ?> are also recognized.
+```
+
+Per CommonMark §6.10, six tag forms are recognized inside paragraphs and pass through to rendered output: open tags, close tags, comments, processing instructions, declarations, and CDATA sections. The GFM extension in Section 2 (Disallowed Raw HTML) escapes a small dangerous subset as literal text.
+
 **Soft Line Breaks vs Hard Line Breaks:**
 
 A regular newline within a paragraph is a "soft line break" — it is rendered as a space, not a visible line break:
@@ -151,6 +160,16 @@ Next line.
 ```markdown
 I literally want to type \*these asterisks\* without making the text italic.
 ```
+
+**Entity & Character References:**
+
+```markdown
+Named: &nbsp; &copy; &mdash;
+Decimal: &#35; &#1234;
+Hexadecimal: &#x22; &#xE9;
+```
+
+Per CommonMark §6.2, the full HTML5 named entity set plus decimal (`&#NNN;`) and hexadecimal (`&#xNNNN;`) numeric references are recognized in inline content. Sibling pre-pass to backslash escapes — both run before link/image scanning and the delimiter scanner.
 
 ---
 
