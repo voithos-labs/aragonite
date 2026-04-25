@@ -7,12 +7,9 @@
 		STICKY_COLUMN_KEY,
 		LIST_CONTEXT_KEY,
 		SELECTION_KEY,
-		CURSOR_END,
-		FOCUS_LAST_START,
 		type BlockEditActions,
 		type FocusActions,
 		type ContainerEditActions,
-		type StickyColumnDirection,
 		type ListContext,
 		type CstNode,
 		type BlockComponent
@@ -27,7 +24,7 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../editor-actions/nested-actions';
-	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
+	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './list/task-checkbox';
 	import BlockList from '../BlockList.svelte';
 
@@ -128,35 +125,18 @@
 	export const editable = true;
 	export const focusable = true;
 
-	export function focus(offset: number): void {
-		if (!node.children || node.children.length === 0) return;
-		if (offset === FOCUS_LAST_START) {
-			const last = node.children.length - 1;
-			state.innerBlockRefs[last]?.focus(FOCUS_LAST_START);
-		} else if (offset === 0) {
-			state.innerBlockRefs[0]?.focus(0);
-		} else {
-			const last = node.children.length - 1;
-			state.innerBlockRefs[last]?.focus(CURSOR_END);
+	const containerApi = createContainerBlockComponent({
+		get innerBlockRefs() {
+			return state.innerBlockRefs;
+		},
+		get nodeChildrenLength() {
+			return node.children?.length ?? 0;
 		}
-	}
-
-	export function getCursorOffset(): number | null {
-		for (const ref of state.innerBlockRefs) {
-			const offset = ref?.getCursorOffset();
-			if (offset !== null && offset !== undefined) return offset;
-		}
-		return null;
-	}
-
-	export function focusByPath(path: number[], offset: number): void {
-		dispatchFocusByPath(state.innerBlockRefs, path, offset);
-	}
-
-	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		if (!node.children || node.children.length === 0) return;
-		dispatchFocusAtColumn(state.innerBlockRefs, x, from);
-	}
+	});
+	export const focus = containerApi.focus;
+	export const getCursorOffset = containerApi.getCursorOffset;
+	export const focusByPath = containerApi.focusByPath;
+	export const focusAtColumn = containerApi.focusAtColumn;
 
 	void ({
 		editable,
