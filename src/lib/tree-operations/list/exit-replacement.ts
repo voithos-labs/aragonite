@@ -7,8 +7,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { cloneNode } from '../clone';
-import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-raw';
-import { renumberOrderedList } from './ordered-markers';
+import { buildListHalf, orderedBaseOf } from './list-builders';
 
 /**
  * Compute the parent-level replacement when a list item exits the list (Enter
@@ -78,43 +77,4 @@ export function buildExitReplacement(
 	}
 
 	return { blocks, paragraphIndex };
-}
-
-/**
- * Construct a list CST node carrying `items`, mirroring `template`'s metadata
- * and inner-prefix/suffix. Renumbers ordered markers starting at `startNumber`.
- */
-function buildListHalf(template: CstNode, items: CstNode[], startNumber: number): CstNode {
-	const half: CstNode = {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: '',
-		metadata: template.metadata ? { ...template.metadata } : { ordered: false },
-		children: items,
-		innerPrefix: template.innerPrefix ?? '',
-		innerSuffix: template.innerSuffix ?? ''
-	};
-	if (items[0]) items[0].leadingTrivia = '';
-	for (const item of items) rebuildListItemRaw(item);
-
-	// renumberOrderedList's fromIndex=0 path always restarts at 1 — seed
-	// items[0] manually to renumber from an arbitrary base.
-	const ordered = (half.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	if (ordered && items.length > 0) {
-		const firstMeta = items[0].metadata as { marker: string };
-		const suffix = firstMeta.marker.replace(/^\d+/, '') || '. ';
-		firstMeta.marker = String(startNumber) + suffix;
-		rebuildListItemRaw(items[0]);
-		renumberOrderedList(half, 1);
-	}
-	rebuildListRaw(half);
-	return half;
-}
-
-/** Read an item's marker as an integer base, defaulting to 1 for non-numeric markers. */
-function orderedBaseOf(item: CstNode | undefined): number {
-	if (!item) return 1;
-	const marker = (item.metadata as { marker?: string } | undefined)?.marker ?? '';
-	const n = parseInt(marker, 10);
-	return Number.isFinite(n) && n > 0 ? n : 1;
 }
