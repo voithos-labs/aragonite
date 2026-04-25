@@ -19,7 +19,7 @@ test.describe('list rendering', () => {
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item A' });
 		await first.click();
 		await editor.typeText(' ok');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- Item A ok');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('- Item A ok');
 		expect(source).toContain('- Item B');
@@ -32,7 +32,7 @@ test.describe('list rendering', () => {
 		);
 		await nested.first().click();
 		await editor.typeText(' more');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('  - Nested more');
 		expect(await editor.bridge.getSource()).toContain('  - Nested more');
 	});
 
@@ -71,7 +71,7 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Before.Z');
 		expect(await editor.bridge.getSource()).toContain('Before.Z');
 	});
 

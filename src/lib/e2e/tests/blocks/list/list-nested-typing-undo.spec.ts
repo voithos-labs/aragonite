@@ -18,7 +18,7 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.page.keyboard.press('End');
 
 		await editor.typeSlowly(' extra');
-		await editor.page.waitForTimeout(400);
+		await editor.bridge.waitForSourceContains('item one extra');
 
 		expect(await editor.bridge.getSource()).toContain('item one extra');
 

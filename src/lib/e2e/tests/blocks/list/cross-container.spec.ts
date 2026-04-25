@@ -66,7 +66,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('> - itemtext');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> - itemtext');
 		expect(source).not.toMatch(/^text$/m);

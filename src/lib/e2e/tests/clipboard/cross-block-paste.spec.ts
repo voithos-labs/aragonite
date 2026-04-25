@@ -16,7 +16,7 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('PASTED'));
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('PASTED');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('PASTED');
 		expect(source).toContain('aaa');
@@ -26,11 +26,10 @@ test.describe('cross-block clipboard: paste basics', () => {
 	test('multi-block paste with single-block selection is one undo unit', async () => {
 		await editor.loadContent('hello world\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
-		await editor.page.waitForTimeout(100);
 		await editor.focusBlock(0, 6);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');
 		expect(afterPaste).toContain('beta');
@@ -56,7 +55,7 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\nNew paragraph\n'));
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('# Heading');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('# Heading');
 		expect(source).toContain('New paragraph');

@@ -19,7 +19,7 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- nested under two');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('- nested under two');

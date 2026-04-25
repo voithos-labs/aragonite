@@ -20,7 +20,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 
 		await editor.focusBlockAtPath([1], 'target para'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('target parainside bq');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('target parainside bq');
@@ -57,7 +57,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.loadContent('destination\n');
 		await editor.focusBlockAtPath([0], 'destination'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('bq content');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('bq content');

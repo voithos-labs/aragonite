@@ -19,7 +19,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.typeText('\nconst y = 99;');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('const x = 42;');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('const x = 42;');
 		expect(source).toContain('const y = 99;');
