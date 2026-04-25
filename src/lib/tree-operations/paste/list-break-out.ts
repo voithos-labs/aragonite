@@ -24,7 +24,7 @@ import {
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
-import type { MultiScopeTarget } from '../../editor-actions/deps';
+import type { MultiScopeTarget } from './paste-deps';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
