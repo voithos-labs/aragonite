@@ -1,9 +1,4 @@
-/**
- * Shared builders for list / list-item construction used by Enter-exit and
- * paste flows. Three near-identical copies (`exit-replacement`, `paste/list-absorb`,
- * `paste/list-break-out`) collapsed here so split/renumber/marker-suffix
- * behavior cannot drift between paths.
- */
+/** Shared list/list-item construction helpers used by Enter-exit and paste flows. */
 
 import type { CstNode, Document } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
@@ -20,7 +15,7 @@ import { renumberOrderedList } from './ordered-markers';
  * (no-op for unordered lists). Items are mutated in place — pass clones if
  * the caller needs to preserve originals.
  */
-export function buildListHalf(template: CstNode, items: CstNode[], startNumber: number): CstNode {
+export function assembleListHalf(template: CstNode, items: CstNode[], startNumber: number): CstNode {
 	const half: CstNode = {
 		kind: 'list',
 		leadingTrivia: '',
@@ -98,13 +93,13 @@ export function parseFirstBlock(raw: string): CstNode {
 }
 
 /**
- * Slice a leaf's raw at `offset`, returning the leading and trailing halves
- * as freshly-parsed CST nodes (or null when a side is empty). Trims one
- * leading whitespace character from the trailing slice so word-boundary
- * splits don't serialize with a double-space marker. Detected line ending
- * is reported for callers that need to re-terminate.
+ * Slice a leaf's raw at `offset` for a paste-style split: trims one leading
+ * whitespace character from the trailing slice (avoids double-space markers
+ * after word-boundary splits) and re-parses each half as its own block.
+ * Returns null on an empty side; reports the detected line ending so callers
+ * can re-terminate.
  */
-export function splitLeafRawAtCaret(
+export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number
 ): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {

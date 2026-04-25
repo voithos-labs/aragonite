@@ -7,7 +7,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { cloneNode } from '../clone';
-import { buildListHalf, orderedBaseOf } from './list-builders';
+import { assembleListHalf, orderedBaseOf } from './list-builders';
 
 /**
  * Compute the parent-level replacement when a list item exits the list (Enter
@@ -63,7 +63,7 @@ export function buildExitReplacement(
 
 	const blocks: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
-		blocks.push(buildListHalf(list, firstHalfItems, 1));
+		blocks.push(assembleListHalf(list, firstHalfItems, 1));
 	}
 	const paragraphIndex = blocks.length;
 	blocks.push(exitParagraph);
@@ -73,7 +73,7 @@ export function buildExitReplacement(
 		// (the exited slot doesn't burn a number) and not ...1.
 		const secondHalfStart =
 			firstHalfItems.length > 0 ? firstHalfItems.length + 1 : orderedBaseOf(items[0]);
-		blocks.push(buildListHalf(list, secondHalfItems, secondHalfStart));
+		blocks.push(assembleListHalf(list, secondHalfItems, secondHalfStart));
 	}
 
 	return { blocks, paragraphIndex };
