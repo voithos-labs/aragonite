@@ -1,83 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createListContext } from '../../editor-actions/list-context';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import { createUndoController } from '../../editor-actions/undo-controller';
-import { createUndoManager } from '../../undo-manager';
-import { createSelectionState } from '../../selection/selection-state.svelte';
-import { createEditorEvents } from '../../editor-events';
 import { parse } from '../../core/parser';
-import type { BlockComponent, BlockEditActions, FocusActions, CstNode } from '../../contracts';
-import type { EditorActionsDeps } from '../../editor-actions/deps';
+import {
+	makeBlockListState,
+	makeStubBlockEdit,
+	makeStubFocus,
+	makeEditorActionsDeps
+} from '../harness/editor-actions';
+import type { CstNode } from '../../contracts';
 
-// ── Harness helpers ──────────────────────────────────────────────────────────
-
-function makeBlockListState(ids: string[]) {
-	let innerBlockIds = [...ids];
-	let innerBlockRefs: (BlockComponent | undefined)[] = ids.map(() => undefined);
-	return {
-		get innerBlockIds() {
-			return innerBlockIds;
-		},
-		set innerBlockIds(v: string[]) {
-			innerBlockIds = v;
-		},
-		get innerBlockRefs() {
-			return innerBlockRefs;
-		},
-		set innerBlockRefs(v: (BlockComponent | undefined)[]) {
-			innerBlockRefs = v;
-		}
-	};
-}
-
-function makeStubBlockEdit(): BlockEditActions {
-	return {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
-	};
-}
-
-function makeStubFocus(): FocusActions {
-	return { moveFocus: vi.fn() };
-}
-
-function makeDeps(docChildren: CstNode[]): EditorActionsDeps {
-	const doc: any = { kind: 'document', children: docChildren };
-	const blockIds = docChildren.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = blockIds.map(() => undefined);
-	const events = createEditorEvents();
-	return {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		setDoc: vi.fn(),
-		setBlockIds: vi.fn(),
-		setBlockRefs: vi.fn(),
-		undoManager: createUndoManager(),
-		stickyColumn: {
-			reset: vi.fn(),
-			capture: vi.fn(),
-			get current() {
-				return null;
-			}
-		} as any,
-		selectionState: createSelectionState(),
-		getBlockElByPath: () => null,
-		events
-	};
-}
+const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
 // ── splitItemAtOffset descriptor correctness (B1) ──────────────────────────
 

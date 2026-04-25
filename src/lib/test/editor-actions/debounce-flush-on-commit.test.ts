@@ -1,70 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createUndoManager } from '$lib/editor/undo-manager';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/editor-events';
-import type { BlockComponent, CstNode } from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
+import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import type { CstNode } from '$lib/editor/contracts';
 import type { EditEvent } from '$lib/editor/editor-events';
-
-function mockRef(): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
-
-function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
-}
 
 function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;
-}
-
-function makeDeps(nodes: CstNode[]) {
-	const doc: any = { kind: 'document', children: nodes };
-	let blockIds = nodes.map((_, i) => `id-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = nodes.map(() => mockRef());
-	const events = createEditorEvents();
-	return {
-		deps: {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => {
-				Object.assign(doc, v);
-			},
-			setBlockIds: (v: string[]) => {
-				blockIds = v;
-			},
-			setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-				blockRefs = v;
-			},
-			undoManager: createUndoManager(),
-			stickyColumn: makeStickyColumn(),
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			events
-		},
-		events
-	};
 }
 
 // ── B4: pending typing batch must flush as one input event before structural commit ─
 
 describe('debounce flush on structural commit (B4)', () => {
 	it('mid-batch structural commit emits one buffered op:input event before its own op event', async () => {
-		const { deps, events } = makeDeps([makeNode('paragraph', 'hello\n')]);
+		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -99,7 +48,7 @@ describe('debounce flush on structural commit (B4)', () => {
 	});
 
 	it('no-typing structural commit does not emit a phantom input event', async () => {
-		const { deps, events } = makeDeps([makeNode('paragraph', 'hello\n')]);
+		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 

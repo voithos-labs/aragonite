@@ -13,8 +13,9 @@ import {
 } from '../../../tree-operations/paste-surfaces';
 import { parse } from '../../../core/parser';
 import { registerBlockListState } from '../../../reactivity/state-registry';
+import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
-import type { BlockComponent, BlockEditActions } from '../../../contracts';
+import type { BlockComponent } from '../../../contracts';
 import type { UndoController } from '../../../editor-actions/deps';
 
 function makePara(raw: string): CstNode {
@@ -121,19 +122,6 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 				raw
 			}
 		]
-	};
-}
-
-function makeStubBlockEdit(): BlockEditActions {
-	return {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
 	};
 }
 

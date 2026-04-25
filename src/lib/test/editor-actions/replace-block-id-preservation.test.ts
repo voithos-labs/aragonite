@@ -4,71 +4,16 @@ import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { createUndoManager } from '$lib/editor/undo-manager';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/editor-events';
-import type {
-	BlockComponent,
-	BlockEditActions,
-	FocusActions,
-	CstNode
-} from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-
-// ── Harness helpers ───────────────────────────────────────────────────────────
-
-function mockRef(): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
-
-function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
-}
+import {
+	makeStickyColumn,
+	makeStubBlockEdit,
+	makeStubFocus,
+	makeEditorActionsDeps
+} from '$lib/editor/test/harness/editor-actions';
+import type { CstNode } from '$lib/editor/contracts';
 
 function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;
-}
-
-function makeDeps(nodes: CstNode[]) {
-	const doc: any = { kind: 'document', children: nodes };
-	let blockIds = nodes.map((_, i) => `id-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = nodes.map(() => mockRef());
-	const events = createEditorEvents();
-	return {
-		deps: {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => {
-				Object.assign(doc, v);
-			},
-			setBlockIds: (v: string[]) => {
-				blockIds = v;
-			},
-			setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-				blockRefs = v;
-			},
-			undoManager: createUndoManager(),
-			stickyColumn: makeStickyColumn(),
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			events
-		},
-		doc,
-		getBlockIds: () => blockIds,
-		getBlockRefs: () => blockRefs
-	};
 }
 
 // ── B2: top-level replaceBlock preserves id ──────────────────────────────────
@@ -76,7 +21,7 @@ function makeDeps(nodes: CstNode[]) {
 describe('top-level replaceBlock id preservation', () => {
 	it('first replacement inherits the original block id (single replacement)', async () => {
 		const original = makeNode('paragraph', 'hello\n');
-		const { deps, getBlockIds } = makeDeps([original]);
+		const { deps, getBlockIds } = makeEditorActionsDeps([original]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -92,7 +37,7 @@ describe('top-level replaceBlock id preservation', () => {
 	it('first replacement inherits the original block id when expanding to multiple blocks', async () => {
 		const original = makeNode('paragraph', 'a\n');
 		const sibling = makeNode('paragraph', 'b\n');
-		const { deps, getBlockIds } = makeDeps([original, sibling]);
+		const { deps, getBlockIds } = makeEditorActionsDeps([original, sibling]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -111,7 +56,7 @@ describe('top-level replaceBlock id preservation', () => {
 
 	it('preserves the block ref alongside the id (component is not destroyed/recreated)', async () => {
 		const original = makeNode('paragraph', 'a\n');
-		const { deps, getBlockRefs } = makeDeps([original]);
+		const { deps, getBlockRefs } = makeEditorActionsDeps([original]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -125,7 +70,7 @@ describe('top-level replaceBlock id preservation', () => {
 	it('empty replacement (delete) does not need id preservation', async () => {
 		const original = makeNode('paragraph', 'a\n');
 		const sibling = makeNode('paragraph', 'b\n');
-		const { deps, getBlockIds } = makeDeps([original, sibling]);
+		const { deps, getBlockIds } = makeEditorActionsDeps([original, sibling]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -152,21 +97,9 @@ function makeNestedSetup() {
 		innerSuffix: ''
 	} as CstNode;
 
-	const { deps } = makeDeps([containerNode]);
+	const { deps } = makeEditorActionsDeps([containerNode]);
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const parentBlockEdit: BlockEditActions = {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
-	};
-	const parentFocus: FocusActions = { moveFocus: vi.fn() };
 
 	const containerState = createBlockListState(() => containerNode);
 	const bundle = createStandardNestedActions(containerState, {
@@ -177,8 +110,8 @@ function makeNestedSetup() {
 		rebuildRaw: vi.fn(),
 		stickyColumn: makeStickyColumn(),
 		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
+			blockEdit: makeStubBlockEdit(),
+			focus: makeStubFocus(),
 			containerEdit: containerEditActions
 		}
 	});

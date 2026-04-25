@@ -8,25 +8,15 @@ import { createContainerEditActions } from '$lib/editor/editor-actions/container
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createEditorEvents } from '$lib/editor/editor-events';
 import { parse } from '$lib/editor/core/parser';
+import { mockRef, makeStickyColumn } from '$lib/editor/test/harness/editor-actions';
 import type { BlockComponent, CstNode } from '$lib/editor/contracts';
 import type { EditEvent } from '$lib/editor/editor-events';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
 import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
-function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
-}
-
-function makeRef(): BlockComponent {
-	return {
-		focus: vi.fn(),
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
+// Override focus to vi.fn() so cross-block dispatch tests can assert calls.
+const makeRef = () => mockRef({ focus: vi.fn() });
 
 function makeEnv(source: string) {
 	const doc = parse(source);
