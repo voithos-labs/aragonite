@@ -31,7 +31,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('just text\n');
 		await editor.focusBlock(0, 0);
 		await editor.page.keyboard.press('Control+2');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^## just text$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^## just text$/m);
 	});
@@ -40,7 +40,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('# old title\n');
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Control+3');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^### old title$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^### old title$/m);
 		expect(source).not.toMatch(/^# old title$/m);
@@ -63,7 +63,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.page.keyboard.press('Control+3');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^### helloX$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^### helloX$/m);
 	});

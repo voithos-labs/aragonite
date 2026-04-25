@@ -249,7 +249,7 @@ test.describe('list Backspace', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Delete');
 		// wait 200ms — no-op produces no source change; verify state is stable before asserting.
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^- first$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- first$/m);
 		expect(source).toMatch(/^- middle$/m);

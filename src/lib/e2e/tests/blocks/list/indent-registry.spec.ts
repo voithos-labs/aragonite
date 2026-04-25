@@ -36,7 +36,7 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/- one\n  - Xtwo/);
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n  - Xtwo/);

@@ -107,7 +107,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
 		await editor.page.keyboard.press('Control+v');
 		// wait 200ms — empty paste is a no-op for source; verify no spurious change settles in.
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('unchanged');
 
 		expect(await editor.bridge.getSource()).toContain('unchanged');
 	});

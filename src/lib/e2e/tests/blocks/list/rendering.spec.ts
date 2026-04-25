@@ -59,7 +59,7 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^[^-].*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^[^-].*Z/m);
 	});
 

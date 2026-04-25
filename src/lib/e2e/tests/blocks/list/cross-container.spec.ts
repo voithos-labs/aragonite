@@ -15,7 +15,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^- secondtext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- secondtext$/m);
 		expect(source).not.toMatch(/^text$/m);
@@ -27,7 +27,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^1\. first$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. first$/m);
 		expect(source).toMatch(/^2\. secondtext$/m);
@@ -41,7 +41,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^- a$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- a$/m);
 		expect(source).toMatch(/^\s+- btext$/m);
@@ -53,7 +53,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/second paratext/);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/second paratext/);
 		expect(source).toMatch(/^- second item$/m);
@@ -78,7 +78,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^- item$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- item$/m);
 		expect(source).toMatch(/^text$/m);
