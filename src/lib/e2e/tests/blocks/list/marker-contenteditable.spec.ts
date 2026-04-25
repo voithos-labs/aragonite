@@ -100,7 +100,7 @@ test.describe('list marker inside contenteditable', () => {
 		await tenth.click();
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('10. Xten');
 		expect(await editor.bridge.getSource()).toContain('10. Xten');
 	});
 

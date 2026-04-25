@@ -13,9 +13,8 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('foo');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('foo');
 		expect(source).toContain('bar');
@@ -26,9 +25,8 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'one'.length);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- foo\n- bar\n'));
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('foo');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('foo');
 		expect(source).toContain('bar');
@@ -40,9 +38,8 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('## A heading\n'));
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('## A heading');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('## A heading');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
@@ -51,13 +48,12 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 	test('cross-block paste of multi-block content into list items lands content', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n\ngamma\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('alpha');

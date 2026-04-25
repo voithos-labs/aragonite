@@ -101,7 +101,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.page.waitForTimeout(300);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('one');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('one');

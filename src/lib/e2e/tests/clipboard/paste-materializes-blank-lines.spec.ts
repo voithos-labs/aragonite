@@ -25,7 +25,6 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 	test('pasted via clipboard: same source, should produce 3 blocks (matches typed)', async () => {
 		await editor.loadContent('');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));
-		await editor.page.waitForTimeout(100);
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

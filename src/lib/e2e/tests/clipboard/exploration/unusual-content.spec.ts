@@ -12,11 +12,10 @@ test.describe('clipboard exploration: unusual content', () => {
 	test('paste content with CRLF line endings preserves block structure', async () => {
 		await editor.loadContent('target\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\r\n\r\ntwo\r\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('one');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('one');
@@ -26,11 +25,10 @@ test.describe('clipboard exploration: unusual content', () => {
 	test('paste content with leading blank lines does not create empty paragraphs', async () => {
 		await editor.loadContent('target\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('\n\nactual content\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'target'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('actual content');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('actual content');
@@ -39,7 +37,6 @@ test.describe('clipboard exploration: unusual content', () => {
 	test('paste into thematic break (non-editable) — either no-op or creates paragraph', async () => {
 		await editor.loadContent('above\n\n---\n\nbelow\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted'));
-		await editor.page.waitForTimeout(100);
 
 		const hr = editor.page.locator('.block-list > .block-host > :not(.selection-overlay)').nth(1);
 		await hr.click();
@@ -58,7 +55,6 @@ test.describe('clipboard exploration: unusual content', () => {
 	test('paste markdown containing backtick runs into a code block bumps the outer fence', async () => {
 		await editor.loadContent('```\ncontent\n```\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('```\ninner fence\n```'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('End');
@@ -74,7 +70,6 @@ test.describe('clipboard exploration: unusual content', () => {
 	}) => {
 		await editor.loadContent('existing para one\n\nexisting para two\n\nexisting para three\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('replacement content\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+a');
@@ -83,7 +78,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('replacement content');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('replacement content');

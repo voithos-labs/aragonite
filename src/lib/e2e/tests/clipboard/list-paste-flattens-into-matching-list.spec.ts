@@ -60,7 +60,6 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 	test('pasting external list content (pre-staged clipboard) into a list also flattens', async () => {
 		await editor.loadContent('- target one\n- target two\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- pasted a\n- pasted b\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);

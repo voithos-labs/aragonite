@@ -75,7 +75,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.page.keyboard.press('End');
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('first block');
 
 		const afterSource = await editor.bridge.getSource();
 
