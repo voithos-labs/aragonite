@@ -5,23 +5,13 @@ import { createContainerEditActions } from '$lib/editor/editor-actions/container
 import { createHistoryActions } from '$lib/editor/editor-actions/history';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { createUndoManager } from '$lib/editor/undo-manager';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/editor-events';
 import { rebuildListRaw } from '$lib/editor/schema/container-raw';
-import type { BlockComponent, BlockEditActions, FocusActions } from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-
-// ── Harness helpers ───────────────────────────────────────────────────────────
-
-function mockRef(): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
+import {
+	makeStickyColumn,
+	makeStubBlockEdit,
+	makeStubFocus,
+	makeEditorActionsDeps
+} from '$lib/editor/test/harness/editor-actions';
 
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
 	return { kind, leadingTrivia: '', raw, metadata };
@@ -42,48 +32,12 @@ function makeTaskListItem(text: string, taskMarker: string): any {
 	};
 }
 
-function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
-}
-
-function makeDeps(nodes: any[]) {
-	const doc: any = { kind: 'document', children: nodes };
-	const blockIds = nodes.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = nodes.map(() => mockRef());
-	const events = createEditorEvents();
-	return {
-		deps: {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => {
-				Object.assign(doc, v);
-			},
-			setBlockIds: vi.fn(),
-			setBlockRefs: vi.fn(),
-			undoManager: createUndoManager(),
-			stickyColumn: makeStickyColumn(),
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			events
-		},
-		doc,
-		events
-	};
-}
-
 // ── Top-level scope ───────────────────────────────────────────────────────────
 
 describe('updateBlockMetadata', () => {
 	it('merges patch into node.metadata and emits one metadataUpdate event', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeDeps([node]);
+		const { deps, events } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -102,7 +56,7 @@ describe('updateBlockMetadata', () => {
 
 	it('pushes exactly one undo snapshot, and undo/redo flip metadata back and forth', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeDeps([node]);
+		const { deps, events } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 		const history = createHistoryActions(deps, controller);
@@ -122,7 +76,7 @@ describe('updateBlockMetadata', () => {
 
 	it('skipSnapshot: true — no undo snapshot pushed', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeDeps([node]);
+		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -134,7 +88,7 @@ describe('updateBlockMetadata', () => {
 
 	it('empty patch — no snapshot, no event, metadata unchanged', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeDeps([node]);
+		const { deps, events } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -155,7 +109,7 @@ describe('updateBlockMetadata', () => {
 			taskItem: true,
 			taskChecked: false
 		});
-		const { deps } = makeDeps([node]);
+		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -166,7 +120,7 @@ describe('updateBlockMetadata', () => {
 
 	it('multi-field patch updates taskChecked and taskMarker atomically', async () => {
 		const node = makeTaskListItem('pending', '[ ] ');
-		const { deps, events } = makeDeps([node]);
+		const { deps, events } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
@@ -190,7 +144,7 @@ describe('updateBlockMetadata', () => {
 
 	it('undo after multi-field task patch restores both fields', async () => {
 		const node = makeTaskListItem('pending', '[ ] ');
-		const { deps } = makeDeps([node]);
+		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 		const history = createHistoryActions(deps, controller);
@@ -228,46 +182,10 @@ function makeContainerSetup(containerIndex: number) {
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
-	const doc: any = { kind: 'document', children: docNodes };
-	const blockIds = docNodes.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docNodes.map(() => mockRef());
-	const events = createEditorEvents();
-	const deps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		setDoc: (v: any) => {
-			Object.assign(doc, v);
-		},
-		setBlockIds: vi.fn(),
-		setBlockRefs: vi.fn(),
-		undoManager: createUndoManager(),
-		stickyColumn: makeStickyColumn(),
-		selectionState: createSelectionState(),
-		getBlockElByPath: () => null,
-		events
-	};
+	const { deps, events } = makeEditorActionsDeps(docNodes);
 
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const parentBlockEdit: BlockEditActions = {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
-	};
-	const parentFocus: FocusActions = { moveFocus: vi.fn() };
 
 	const containerState = createBlockListState(() => containerNode);
 	const bundle = createStandardNestedActions(containerState, {
@@ -278,8 +196,8 @@ function makeContainerSetup(containerIndex: number) {
 		rebuildRaw: vi.fn(),
 		stickyColumn: makeStickyColumn(),
 		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
+			blockEdit: makeStubBlockEdit(),
+			focus: makeStubFocus(),
 			containerEdit: containerEditActions
 		}
 	});
@@ -364,46 +282,10 @@ function makeListContainerSetup(containerIndex: number) {
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
-	const doc: any = { kind: 'document', children: docNodes };
-	const blockIds = docNodes.map((_, i) => `block-${i}`);
-	const blockRefs: (BlockComponent | undefined)[] = docNodes.map(() => mockRef());
-	const events = createEditorEvents();
-	const deps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		setDoc: (v: any) => {
-			Object.assign(doc, v);
-		},
-		setBlockIds: vi.fn(),
-		setBlockRefs: vi.fn(),
-		undoManager: createUndoManager(),
-		stickyColumn: makeStickyColumn(),
-		selectionState: createSelectionState(),
-		getBlockElByPath: () => null,
-		events
-	};
+	const { deps, events } = makeEditorActionsDeps(docNodes);
 
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const parentBlockEdit: BlockEditActions = {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
-	};
-	const parentFocus: FocusActions = { moveFocus: vi.fn() };
 
 	const containerState = createBlockListState(() => containerNode);
 	const bundle = createStandardNestedActions(containerState, {
@@ -416,8 +298,8 @@ function makeListContainerSetup(containerIndex: number) {
 		rebuildRaw: () => rebuildListRaw(containerNode),
 		stickyColumn: makeStickyColumn(),
 		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
+			blockEdit: makeStubBlockEdit(),
+			focus: makeStubFocus(),
 			containerEdit: containerEditActions
 		}
 	});
