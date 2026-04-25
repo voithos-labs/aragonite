@@ -4,8 +4,6 @@
  * block components produce and consume.
  */
 
-import type { Document } from './core/nodes';
-
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
 /**
@@ -33,10 +31,6 @@ export const FOCUS_LAST_START = -1;
 export const SELECTION_END = Number.MAX_SAFE_INTEGER;
 
 // ── Helper types ───────────────────────────────────────────────────────────
-
-export type BlockElLookup = (path: number[]) => HTMLElement | null;
-
-export type DocumentGetter = () => Document;
 
 /**
  * Direction the cursor is entering a block from for sticky-column moves.
