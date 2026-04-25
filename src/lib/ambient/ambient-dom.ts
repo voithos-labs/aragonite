@@ -1,5 +1,5 @@
 import type { AmbientPrefix } from '../contracts';
-import { devWarn } from '../dev-warn';
+import { devWarn } from '../diagnostics/dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	const normalized = typeof prefix === 'string' ? { text: prefix } : prefix;

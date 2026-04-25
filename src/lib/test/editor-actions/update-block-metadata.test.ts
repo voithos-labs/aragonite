@@ -4,7 +4,7 @@ import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor/editor-actions/history';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createBlockListState } from '$lib/editor/block-list-state.svelte';
+import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/editor-events';

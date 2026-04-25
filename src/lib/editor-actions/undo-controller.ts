@@ -27,7 +27,7 @@ import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import type { BlockListState } from '../block-list-state.svelte';
+import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────
 
