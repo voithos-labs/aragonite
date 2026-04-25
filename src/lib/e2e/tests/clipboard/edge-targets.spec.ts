@@ -12,11 +12,10 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste into empty document places pasted content', async () => {
 		await editor.loadContent('');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('hello world\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('hello world');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('hello world');
@@ -25,11 +24,10 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste multi-block content into empty document', async () => {
 		await editor.loadContent('');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('Heading') && s.includes('para'));
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('Heading');
@@ -39,12 +37,11 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste heading into list item replaces item content (structural path)', async () => {
 		await editor.loadContent('- list item\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Big Heading\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 0], 'list item'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('Big Heading');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('Big Heading');
@@ -58,7 +55,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => !s.includes('one') && !s.includes('two') && s.includes('three'));
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut).not.toContain('one');
@@ -79,13 +76,13 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.shiftClickBlock([0], betaEnd);
 
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => s.trim() === 'alpha  gamma');
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut.trim()).toBe('alpha  gamma');
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => s.trim() === 'alpha beta gamma');
 
 		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste.trim()).toBe('alpha beta gamma');
@@ -94,11 +91,10 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste at end of last block in document appends correctly', async () => {
 		await editor.loadContent('line one\n\nline two\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText(' APPENDED'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([1], 'line two'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('line two APPENDED');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('line two APPENDED');
@@ -107,10 +103,10 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste empty clipboard is no-op', async () => {
 		await editor.loadContent('unchanged\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText(''));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
 		await editor.page.keyboard.press('Control+v');
+		// wait 200ms — empty paste is a no-op for source; verify no spurious change settles in.
 		await editor.page.waitForTimeout(200);
 
 		expect(await editor.bridge.getSource()).toContain('unchanged');
