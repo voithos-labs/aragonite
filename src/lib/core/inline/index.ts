@@ -53,13 +53,11 @@ export function parseAllInlineContent(nodes: CstNode[]): void {
 
 /**
  * Parse inline content over raw[start, end). Returned node offsets are
- * absolute into raw.
+ * absolute into raw. Stage order matters: backticks run first so escapes and
+ * entities skip code-span content; both pre-passes precede emphasis so
+ * neutralized delimiters do not pair.
  */
-export function parseInline(
-	raw: string,
-	start: number,
-	end: number
-): InlineNode[] {
+export function parseInline(raw: string, start: number, end: number): InlineNode[] {
 	const codeSpans = scanBacktickSpans(raw, start, end);
 	const withEscapes = scanEscapes(raw, start, end, codeSpans);
 	const withEntities = scanCharacterReferences(raw, start, end, withEscapes);
