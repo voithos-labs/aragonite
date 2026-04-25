@@ -3,10 +3,10 @@ import { createUndoController } from '$lib/editor/editor-actions/undo-controller
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/events/editor-events';
+import { createEditorEvents } from '$lib/editor/editor-events';
 import type { BlockComponent, CstNode } from '$lib/editor/contracts';
 import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-import type { EditEvent } from '$lib/editor/events/editor-events';
+import type { EditEvent } from '$lib/editor/editor-events';
 
 function mockRef(): BlockComponent {
 	return {

@@ -6,10 +6,10 @@ import { createUndoController } from '$lib/editor/editor-actions/undo-controller
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo-manager';
-import { createEditorEvents } from '$lib/editor/events/editor-events';
+import { createEditorEvents } from '$lib/editor/editor-events';
 import { parse } from '$lib/editor/core/parser';
 import type { BlockComponent, CstNode } from '$lib/editor/contracts';
-import type { EditEvent } from '$lib/editor/events/editor-events';
+import type { EditEvent } from '$lib/editor/editor-events';
 import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
 import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
 

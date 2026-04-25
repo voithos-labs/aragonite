@@ -9,7 +9,7 @@ import type {
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { OperationKind, OpDescriptor } from '../debug/operations-log';
-import type { EditorEvents } from '../events/editor-events';
+import type { EditorEvents } from '../editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';
 export type { MultiScopeTarget, MultiScopeMutable };

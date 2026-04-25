@@ -38,4 +38,4 @@ export type {
 	EditEvent,
 	EditorEventMap,
 	SelectionChangeEvent
-} from './events/editor-events';
+} from './editor-events';
