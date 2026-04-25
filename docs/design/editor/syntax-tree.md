@@ -89,17 +89,19 @@ Inline content is a tree of `InlineNode` objects representing the inline syntax 
 
 **Inline node kinds:**
 
-| Kind            | Fields                      | Description                                                                   |
-| --------------- | --------------------------- | ----------------------------------------------------------------------------- |
-| `text`          | `text`                      | Plain text with no markup                                                     |
-| `emphasis`      | `children`                  | `*text*` or `_text_`                                                          |
-| `strong`        | `children`                  | `**text**` or `__text__`                                                      |
-| `strikethrough` | `children`                  | `~~text~~` (GFM extension)                                                    |
-| `inlineCode`    | `text`                      | `` `code` `` — no nested children                                             |
-| `link`          | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
-| `image`         | `alt`, `url`, `title?`      | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
-| `autolink`      | `url`                       | `<url>` or GFM bare URL                                                       |
-| `hardLineBreak` | —                           | Trailing `\` or two spaces before `\n`                                        |
+| Kind              | Fields                      | Description                                                                   |
+| ----------------- | --------------------------- | ----------------------------------------------------------------------------- |
+| `text`            | `text`                      | Plain text with no markup                                                     |
+| `emphasis`        | `children`                  | `*text*` or `_text_`                                                          |
+| `strong`          | `children`                  | `**text**` or `__text__`                                                      |
+| `strikethrough`   | `children`                  | `~~text~~` (GFM extension)                                                    |
+| `inlineCode`      | `text`                      | `` `code` `` — no nested children                                             |
+| `link`            | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
+| `image`           | `alt`, `url`, `title?`      | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
+| `autolink`        | `url`                       | `<url>` or GFM bare URL                                                       |
+| `hardLineBreak`   | —                           | Trailing `\` or two spaces before `\n`                                        |
+| `escape`          | —                           | `\<punct>` — backslash neutralizes the next ASCII-punctuation character       |
+| `entityReference` | `decoded`                   | `&name;`, `&#dec;`, or `&#xhex;` HTML entity                                  |
 
 Inline nodes nest. For example, `**bold *and italic***` produces a Strong node containing a Text child ("bold ") and an Emphasis child, which itself contains a Text child ("and italic"). Each node (including wrapper nodes like Strong and Emphasis) has `start`/`end` offsets covering the full range in `raw`, including the markers. This allows the editor to map DOM cursor positions to `raw` offsets and vice versa.
 

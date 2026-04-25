@@ -33,9 +33,13 @@ The inline parser operates on the content range within a block's `raw` — after
 ### Parsing pipeline
 
 1. **Backtick code spans** — match balanced backtick sequences; content is literal
-2. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
-3. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
-4. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
+2. **Backslash escapes** — neutralize the next ASCII-punctuation character so it cannot start markup
+3. **Character references** — recognize named, decimal, and hex HTML entities; source remains intact
+4. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
+5. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
+6. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
+
+Stage order is load-bearing. Code spans claim ranges first so escapes and entities stay inert inside them; escapes and entities run before emphasis so a neutralized `*` or `_` cannot pair as a delimiter.
 
 ### Separation from block parser
 
@@ -51,17 +55,19 @@ The renderer takes the inline node array and the block's `raw` string, producing
 
 Kind-to-DOM mapping:
 
-| Kind          | DOM output                                                                       |
-| ------------- | -------------------------------------------------------------------------------- |
-| text          | Text node                                                                        |
-| inlineCode    | marker spans (dim) + text node for content                                       |
-| emphasis      | marker spans (dim) + `<em>` wrapping recursive children                          |
-| strong        | marker spans (dim) + `<strong>` wrapping recursive children                      |
-| strikethrough | marker spans (dim) + `<s>` wrapping recursive children                           |
-| link          | marker from `raw` slice for `[` and `](url)` + `<a>` wrapping recursive children |
-| image         | marker from `raw` slice for `![` and `](url)` + alt text                         |
-| autolink      | styled span for URL                                                              |
-| hardLineBreak | marker span for `\` or spaces + text node `\n` (not `<br>`)                      |
+| Kind            | DOM output                                                                       |
+| --------------- | -------------------------------------------------------------------------------- |
+| text            | Text node                                                                        |
+| inlineCode      | marker spans (dim) + text node for content                                       |
+| emphasis        | marker spans (dim) + `<em>` wrapping recursive children                          |
+| strong          | marker spans (dim) + `<strong>` wrapping recursive children                      |
+| strikethrough   | marker spans (dim) + `<s>` wrapping recursive children                           |
+| link            | marker from `raw` slice for `[` and `](url)` + `<a>` wrapping recursive children |
+| image           | marker from `raw` slice for `![` and `](url)` + alt text                         |
+| autolink        | styled span for URL                                                              |
+| hardLineBreak   | marker span for `\` or spaces + text node `\n` (not `<br>`)                      |
+| escape          | marker span (dim) for `\` + text node for the escaped character                  |
+| entityReference | styled span for the full `&...;` source (named, decimal, or hex)                 |
 
 **Key invariant:** Every character in `raw` has a corresponding text node in the DOM. Markers are visible text in dimmed spans. The contenteditable's textContent equals `ambientPrefix + raw` (minus trailing line ending), where `ambientPrefix` is a read-only string contributed by a parent container to its first prose child (e.g., a list item contributes its `- ` marker). `ambientPrefix === ''` for every block that is not a container's first prose child, recovering the simple textContent-equals-raw equality. Cursor offsets at the block boundary translate between DOM and raw via a single translation pair (`domToRawOffset` / `rawToDomOffset` in `ambient/ambient-offset.ts`).
 
