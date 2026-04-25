@@ -35,10 +35,6 @@ export interface TextClipboardHandlers {
 }
 
 export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandlers {
-	function getDisplayText(): string {
-		return trimTrailingLineEnding(deps.node.raw);
-	}
-
 	function getSelectedTextFromRaw(): string {
 		const offsets = deps.cursor.getRawSelection();
 		if (!offsets) return '';
@@ -80,7 +76,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 
 		const selOffsets = deps.cursor.getRawSelection();
 		if (selOffsets) {
-			const displayText = getDisplayText();
+			const displayText = trimTrailingLineEnding(deps.node.raw);
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
 			deps.blockEdit.updateBlockContent(deps.index, newDisplay + '\n', selOffsets.start);
 			deps.setPendingCursor(selOffsets.start);
