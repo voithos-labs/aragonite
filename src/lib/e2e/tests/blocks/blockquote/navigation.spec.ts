@@ -15,9 +15,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Zsecond$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Zsecond$/m);
 	});
 
@@ -27,9 +26,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await second.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> firstZ$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> firstZ$/m);
 	});
 
@@ -39,9 +37,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await quote.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^[^>].*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^[^>].*Z/m);
 	});
 
@@ -51,9 +48,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await quote.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^beforeZ$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^beforeZ$/m);
 	});
 
@@ -63,9 +59,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await before.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Zquote$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Zquote$/m);
 	});
 
@@ -75,9 +70,8 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await after.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> .*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> .*Z/m);
 	});
 });
@@ -98,11 +92,11 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter inside blockquote splits paragraph; empty middle isn't observable via source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Z2$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 
@@ -112,11 +106,11 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter inside blockquote splits paragraph; empty middle isn't observable via source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Z1$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Z1$/m);
 	});
 });
@@ -135,13 +129,14 @@ test.describe('blockquote navigation — after Backspace (delete empty middle pa
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter splits paragraph; empty middle isn't visible in source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Backspace');
+		// wait 200ms — Backspace removes the empty middle; transient state not observable via source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> [2Z]+$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> [2Z]+$/m);
 	});
 });
@@ -160,11 +155,10 @@ test.describe('blockquote navigation — boundary crossing after U2 unwrap', () 
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => !/^> 1$/m.test(s));
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Z2$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 });
@@ -183,9 +177,8 @@ test.describe('blockquote navigation — nested blockquote', () => {
 		await outer.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> > .*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> > .*Z/m);
 	});
 
@@ -195,9 +188,8 @@ test.describe('blockquote navigation — nested blockquote', () => {
 		await deep.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> [^>].*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> [^>].*Z/m);
 	});
 });
@@ -216,13 +208,13 @@ test.describe('blockquote navigation — long permutations', () => {
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeText(' extra');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains(' extra');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter splits paragraph; empty middle isn't visible in source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Z2$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 });
