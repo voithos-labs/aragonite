@@ -13,14 +13,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('one') && !s.includes('two'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('HELLO');
@@ -32,14 +31,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('one'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('HELLO');
@@ -52,14 +50,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('two'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('one');
@@ -72,14 +69,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('alpha') && s.includes('beta'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('alpha');
@@ -95,16 +91,16 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 1, 0], 2);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
+		// wait 200ms — copy populates clipboard via async writeText; no source change to poll.
 		await editor.page.waitForTimeout(200);
 
 		await editor.clickBlock(2);
-		await editor.page.waitForTimeout(100);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 5);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('ne') && s.includes('tw'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('ne');
@@ -118,13 +114,12 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 	test('drag selection across list items: paste single-block text lands', async () => {
 		await editor.loadContent('1. one\n2. two\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('text'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => s.includes('text') && !s.includes('one'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('text');
@@ -136,14 +131,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('1. one\n2. two\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('HELLO'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^1\. oHELLOo$/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. oHELLOo$/m);
@@ -153,14 +147,13 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.loadContent('Before list\n\n- Item one\n- Item two\n- Item three\n\nAfter list\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('REPLACEMENT'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([1, 0, 0], 0);
 		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('REPLACEMENT');
 
 		const source = await editor.bridge.getSource();
 
