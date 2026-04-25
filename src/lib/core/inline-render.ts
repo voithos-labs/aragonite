@@ -146,6 +146,20 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				frag.appendChild(span);
 				break;
 			}
+
+			case 'escape': {
+				frag.appendChild(markerSpan(raw[node.start]));
+				frag.appendChild(document.createTextNode(raw.slice(node.start + 1, node.end)));
+				break;
+			}
+
+			case 'entityReference': {
+				const span = document.createElement('span');
+				span.className = 'md-entity';
+				span.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(span);
+				break;
+			}
 		}
 	}
 
