@@ -9,8 +9,8 @@
  * may address a block about to be unmounted by the range delete.
  */
 
-import type { UndoController } from '../../editor-actions/deps';
 import type { CstNode, Document } from '../../core/nodes';
+import type { PasteCommitCoordinator } from './paste-deps';
 import type { BlockEditActions } from '../../contracts';
 import { parse } from '../../core/parser';
 import { nodeAt } from '../node-ops';
@@ -39,8 +39,8 @@ export interface PasteDispatchContext {
 	doc: Document;
 	/** Action bundle for the target's level. Not used in cross-block (skipSnapshot) mode. */
 	blockEdit: BlockEditActions;
-	/** Undo controller — required by the multi-scope commit sites inside this module. */
-	controller: UndoController;
+	/** Commit coordinator — required by the multi-scope commit sites inside this module. */
+	controller: PasteCommitCoordinator;
 	/** Skip undo snapshot + updateBlockContent debounce. Cross-block callers push the snapshot themselves. */
 	skipSnapshot?: boolean;
 }
