@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import type { EditEvent } from '$lib/editor/events/editor-events';
+import type { EditEvent } from '$lib/editor/editor-events';
 
 describe('moveFocus past the last block', () => {
 	it('emits op=appendBlock and no op=split', async () => {
-		const { createEditorEvents } = await import('$lib/editor/events/editor-events');
+		const { createEditorEvents } = await import('$lib/editor/editor-events');
 		const { createUndoController } = await import('$lib/editor/editor-actions/undo-controller');
 		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
 		const { createUndoManager } = await import('$lib/editor/undo-manager');
