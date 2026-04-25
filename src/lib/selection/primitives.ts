@@ -1,9 +1,11 @@
 /**
- * Pure primitives for cross-block selection: types, path math,
- * document-order walking, and overlay classification. No DOM, no state.
+ * Pure primitives for cross-block selection: types, document-order
+ * walking, and overlay classification. No DOM, no state. Path-level
+ * predicates live in `./path-math`.
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import { isPathBetween } from './path-math';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,18 +51,6 @@ export function comparePaths(a: number[], b: number[]): number {
 	return 0;
 }
 
-// ── Point equality ─────────────────────────────────────────────────────────
-
-/** Value equality on path + offset. */
-export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
-	if (a.offset !== b.offset) return false;
-	if (a.path.length !== b.path.length) return false;
-	for (let i = 0; i < a.path.length; i++) {
-		if (a.path[i] !== b.path[i]) return false;
-	}
-	return true;
-}
-
 // ── Normalization ──────────────────────────────────────────────────────────
 
 /**
@@ -77,16 +67,6 @@ export function normalize(selection: EditorSelection): {
 	if (cmp > 0) return { start: focus, end: anchor };
 	if (anchor.offset <= focus.offset) return { start: anchor, end: focus };
 	return { start: focus, end: anchor };
-}
-
-// ── Between predicate ──────────────────────────────────────────────────────
-
-/**
- * True if `path` is strictly between `start` and `end` in document order
- * (exclusive of both endpoints).
- */
-export function isPathBetween(path: number[], start: number[], end: number[]): boolean {
-	return comparePaths(path, start) > 0 && comparePaths(path, end) < 0;
 }
 
 // ── Range walk ─────────────────────────────────────────────────────────────

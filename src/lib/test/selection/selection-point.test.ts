@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	comparePaths,
-	pointsEqual,
-	normalize,
-	isPathBetween,
-	type SelectionPoint
-} from '../../selection/primitives';
+import { comparePaths, normalize, type SelectionPoint } from '../../selection/primitives';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -37,21 +31,6 @@ describe('comparePaths', () => {
 	});
 });
 
-describe('pointsEqual', () => {
-	it('matches identical paths and offsets', () => {
-		expect(pointsEqual(P([1, 0], 3), P([1, 0], 3))).toBe(true);
-	});
-
-	it('detects offset mismatch', () => {
-		expect(pointsEqual(P([1], 0), P([1], 1))).toBe(false);
-	});
-
-	it('detects path mismatch', () => {
-		expect(pointsEqual(P([0], 5), P([1], 5))).toBe(false);
-		expect(pointsEqual(P([0, 1], 0), P([0], 0))).toBe(false);
-	});
-});
-
 describe('normalize', () => {
 	it('keeps a forward selection unchanged', () => {
 		const anchor = P([0], 2);
@@ -79,16 +58,3 @@ describe('normalize', () => {
 	});
 });
 
-describe('isPathBetween', () => {
-	it('returns true strictly between two paths', () => {
-		expect(isPathBetween([1], [0], [2])).toBe(true);
-		expect(isPathBetween([1, 0], [0], [2])).toBe(true);
-		expect(isPathBetween([0, 1], [0, 0], [0, 2])).toBe(true);
-	});
-
-	it('returns false at or outside the boundaries', () => {
-		expect(isPathBetween([0], [0], [2])).toBe(false);
-		expect(isPathBetween([2], [0], [2])).toBe(false);
-		expect(isPathBetween([3], [0], [2])).toBe(false);
-	});
-});
