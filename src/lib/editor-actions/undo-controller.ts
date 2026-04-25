@@ -5,13 +5,8 @@
  */
 
 import { tick } from 'svelte';
-import type {
-	BlockComponent,
-	CstNode,
-	EditorSelection,
-	SelectionPoint,
-	UndoEntry
-} from '../contracts';
+import type { BlockComponent, CstNode, EditorSelection, UndoEntry } from '../contracts';
+import type { SelectionPoint } from '../selection/primitives';
 import { cloneDocument } from '../tree-operations/clone';
 import { readCurrentSelection } from '../selection/native-bridge';
 import type {

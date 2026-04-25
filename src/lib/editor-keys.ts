@@ -1,8 +1,10 @@
 /**
- * Svelte context-key symbols shared across the editor tree. Consumers
- * type the value at the getContext site (`getContext<BlockEditActions>(BLOCK_EDIT_KEY)`),
- * so this module carries no type dependencies on the action interfaces.
+ * Svelte context-key symbols shared across the editor tree, plus the
+ * value-shape types for the keys that have a stable contract (lookup
+ * helpers — action interfaces are typed at the getContext site).
  */
+
+import type { Document } from './core/nodes';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
@@ -27,6 +29,8 @@ export const EDITOR_LIFETIME_KEY = Symbol('editor-lifetime');
 export const CONTROLLER_KEY = Symbol('undo-controller');
 
 export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
+export type BlockElLookup = (path: number[]) => HTMLElement | null;
 
 /** Getter-wrapped so block components always read the latest reactive Document. */
 export const DOC_KEY = Symbol('editor-doc');
+export type DocumentGetter = () => Document;
