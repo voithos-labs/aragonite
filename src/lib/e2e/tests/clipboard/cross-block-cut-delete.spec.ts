@@ -14,9 +14,9 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('bbb');
 		expect(source).toContain('aaa');
@@ -27,7 +27,7 @@ test.describe('cross-block clipboard: cut', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);
 		expect(await editor.bridge.getSource()).not.toBe(before);
@@ -49,29 +49,29 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.loadContent('hello\n\nworld\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('hello');
-		expect(await editor.bridge.getDomBlockCount()).toBe(1);
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('Delete key deletes cross-block range', async () => {
 		await editor.loadContent('abc\n\ndef\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForCrossBlock(false);
-		expect(await editor.bridge.getDomBlockCount()).toBe(1);
+		await editor.waitForCrossBlock(false);
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('cross-block delete spanning three blocks leaves merged result', async () => {
 		await editor.loadContent('AAA\n\nBBB\n\nCCC\n');
 		await editor.focusBlock(0, 1);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.bridge.getSource();
@@ -92,7 +92,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		await editor.loadContent('start\n\nend\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('X');
 		await editor.page.waitForTimeout(300);
 		const source = await editor.bridge.getSource();
@@ -107,7 +107,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Z');
 		await editor.page.waitForTimeout(300);
 

@@ -212,7 +212,7 @@ test.describe('inline editing', () => {
 		await editor.focusBlock(0, 7);
 
 		await editor.page.keyboard.press('Enter');
-		expect(await editor.bridge.getDomBlockCount()).toBe(2);
+		expect(await editor.getDomBlockCount()).toBe(2);
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('before');
 		expect(src).toContain('**bold** after');

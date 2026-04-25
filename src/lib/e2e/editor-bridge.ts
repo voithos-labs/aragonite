@@ -15,10 +15,6 @@ export class EditorBridge {
 		return this.page.evaluate((i) => (window as any).__test.getBlockKind(i), index);
 	}
 
-	async getDomBlockCount(): Promise<number> {
-		return this.page.locator('.block-list > .block-host > *:not(.selection-overlay)').count();
-	}
-
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => {
 			if ((window as any).__test?.isCrossBlockActive) {
@@ -38,13 +34,5 @@ export class EditorBridge {
 			}
 			return null;
 		});
-	}
-
-	async waitForCrossBlock(active: boolean): Promise<void> {
-		if (active) {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
-		} else {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
-		}
 	}
 }

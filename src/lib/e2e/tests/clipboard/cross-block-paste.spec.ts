@@ -13,7 +13,7 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('PASTED'));
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

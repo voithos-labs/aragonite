@@ -59,7 +59,7 @@ test.describe('text editing — happy paths', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 		expect(await editor.getBlockText(0)).toContain('Line one');
 	});
@@ -70,7 +70,7 @@ test.describe('text editing — happy paths', () => {
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 
 		const source = await editor.bridge.getSource();
@@ -110,7 +110,7 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 
 		const source = await editor.bridge.getSource();
@@ -193,7 +193,7 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 		// Empty block may be absorbed as trivia by the parser — verify via DOM.
@@ -285,18 +285,18 @@ test.describe('text editing — user interactions', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBe(3);
 	});
 
 	test('Backspace mid-block deletes character, does not merge', async () => {
 		await editor.loadContent('First\n\nSecond\n');
-		const countBefore = await editor.bridge.getDomBlockCount();
+		const countBefore = await editor.getDomBlockCount();
 
 		await editor.focusBlockEnd(1);
 		await editor.page.keyboard.press('Backspace');
 
-		const countAfter = await editor.bridge.getDomBlockCount();
+		const countAfter = await editor.getDomBlockCount();
 		expect(countAfter).toBe(countBefore);
 
 		const source = await editor.bridge.getSource();

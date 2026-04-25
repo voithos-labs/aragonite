@@ -37,14 +37,14 @@ test.describe('keyboard navigation', () => {
 	test('ArrowDown at end of last block creates new paragraph', async () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 
-		const countBefore = await editor.bridge.getDomBlockCount();
+		const countBefore = await editor.getDomBlockCount();
 		const lastIndex = countBefore - 1;
 		await editor.focusBlockEnd(lastIndex);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
 
-		const countAfter = await editor.bridge.getDomBlockCount();
+		const countAfter = await editor.getDomBlockCount();
 		expect(countAfter).toBe(countBefore + 1);
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Z');

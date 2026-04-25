@@ -55,7 +55,7 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);

@@ -72,8 +72,8 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Escape');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 	});
 });
