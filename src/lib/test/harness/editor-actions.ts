@@ -1,16 +1,18 @@
-// Shared mocks for editor-actions / selection unit tests. Eliminates
-// per-file duplication of mockRef / makeStickyColumn / makeBlockListState /
-// stub action bundles / makeDeps across the suite.
+// Shared mocks for editor-actions and selection unit tests.
 
 import { vi } from 'vitest';
 import type {
 	BlockComponent,
 	BlockEditActions,
+	ContainerEditActions,
 	FocusActions,
-	CstNode
+	CstNode,
+	Document
 } from '$lib/editor/contracts';
 import type { EditorActionsDeps } from '$lib/editor/editor-actions/deps';
 import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
+import type { BlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import type { EditorEvents } from '$lib/editor/editor-events';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/editor-events';
@@ -27,16 +29,16 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 	} as BlockComponent;
 }
 
-export function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
+export function makeStickyColumn(x: number | null = null): StickyColumnState {
+	return { get: () => x, reset: vi.fn(), capture: vi.fn() };
 }
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
-// Minimal BlockListState shape used by container-edit and list-context paths:
-// only the inner-id/ref arrays are observed, so the stub doesn't need the
-// full reactivity surface. Cast to `any` at the call site for typed slots.
-export function makeBlockListState(ids: string[]) {
+// Only the inner-id/ref arrays are observed by container-edit and list-context
+// paths, so the stub omits Svelte $state reactivity and structurally satisfies
+// the interface via plain getters/setters.
+export function makeBlockListState(ids: string[]): BlockListState {
 	let innerBlockIds = [...ids];
 	let innerBlockRefs: (BlockComponent | undefined)[] = ids.map(() => undefined);
 	return {
@@ -74,14 +76,30 @@ export function makeStubFocus(): FocusActions {
 	return { moveFocus: vi.fn() };
 }
 
+export function makeStubContainerEdit(): ContainerEditActions {
+	return {
+		commitContainer: vi.fn(),
+		pushCheckpoint: vi.fn(),
+		pushDebouncedCheckpoint: vi.fn(),
+		nudgeReactivity: vi.fn()
+	};
+}
+
 // ── EditorActionsDeps factory ────────────────────────────────────────────────
+
+export interface EditorActionsHarness {
+	deps: EditorActionsDeps;
+	doc: Document;
+	events: EditorEvents;
+	getBlockIds: () => string[];
+	getBlockRefs: () => (BlockComponent | undefined)[];
+}
 
 // Builds an EditorActionsDeps over `docChildren` with the standard mutable
 // id/ref slots (setBlockIds / setBlockRefs reassign internal arrays so tests
-// can read post-mutation state via the returned getters). Returns the deps
-// plus the raw doc / events / id-ref accessors most consumers wrap around.
-export function makeEditorActionsDeps(docChildren: CstNode[]) {
-	const doc: any = { kind: 'document', children: docChildren };
+// can read post-mutation state via the returned getters).
+export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarness {
+	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
 	const events = createEditorEvents();
@@ -95,7 +113,7 @@ export function makeEditorActionsDeps(docChildren: CstNode[]) {
 		get blockRefs() {
 			return blockRefs;
 		},
-		setDoc: (v: any) => {
+		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},
 		setBlockIds: (v: string[]) => {
