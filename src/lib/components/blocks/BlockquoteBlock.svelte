@@ -18,7 +18,7 @@
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../schema/container-raw';
 	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-context';
-	import { createBlockListState } from '../../block-list-state.svelte';
+	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts

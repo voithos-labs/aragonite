@@ -3,7 +3,7 @@
  * entries collect automatically when the node becomes unreachable.
  */
 
-import type { CstNode } from './core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { BlockListState } from './block-list-state.svelte';
 
 const stateRegistry = new WeakMap<CstNode, BlockListState>();

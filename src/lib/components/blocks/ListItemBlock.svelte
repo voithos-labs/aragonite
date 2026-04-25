@@ -22,7 +22,7 @@
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { displayLength } from '../../core/lines';
 	import { rebuildListItemRaw } from '../../schema/container-raw';
-	import { createBlockListState } from '../../block-list-state.svelte';
+	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts

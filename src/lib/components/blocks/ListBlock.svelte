@@ -30,7 +30,7 @@
 	import { parseAllInlineContent } from '../../core/inline';
 	import { rebuildListRaw } from '../../schema/container-raw';
 	import { createListContext } from '../../editor-actions/list-context';
-	import { createBlockListState } from '../../block-list-state.svelte';
+	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createStandardNestedActions } from '../../editor-actions/nested-actions';
-import { createBlockListState } from '../../block-list-state.svelte';
+import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { BlockEditActions, FocusActions, ContainerEditActions } from '../../contracts';
 import type { StickyColumnState } from '../../cursor/sticky-column';

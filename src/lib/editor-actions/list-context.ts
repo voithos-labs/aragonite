@@ -20,8 +20,8 @@ import {
 	normalizeItemMarkerToList
 } from '../tree-operations/list/ordered-markers';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
-import type { BlockListState } from '../block-list-state.svelte';
-import { expectStateForNode } from '../state-registry';
+import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import { expectStateForNode } from '../reactivity/state-registry';
 
 export interface ListContextDeps {
 	get index(): number;

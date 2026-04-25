@@ -8,7 +8,7 @@ import type { CstNode } from '../../core/nodes';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { nodeAt } from '../node-ops';
 import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
-import { expectStateForNode } from '../../state-registry';
+import { expectStateForNode } from '../../reactivity/state-registry';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext } from './dispatch';
 

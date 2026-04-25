@@ -16,7 +16,7 @@ import type {
 } from '../contracts';
 import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY, CURSOR_END } from '../contracts';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import type { BlockListState } from '../block-list-state.svelte';
+import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import {
 	splitNode as performSplit,

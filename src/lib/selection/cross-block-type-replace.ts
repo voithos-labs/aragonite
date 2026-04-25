@@ -7,14 +7,14 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import type { BlockListState } from '../block-list-state.svelte';
+import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { CrossBlockDispatchContext } from './cross-block-dispatch';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import { performCrossBlockDelete } from './cross-block-ops';
 import { nodeAt } from '../tree-operations/node-ops';
 import { applyCollapsedCaret } from './native-bridge';
 import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
-import { getStateForNode } from '../state-registry';
+import { getStateForNode } from '../reactivity/state-registry';
 
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,

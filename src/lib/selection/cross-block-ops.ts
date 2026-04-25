@@ -17,8 +17,8 @@ import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { nodeAt } from '../tree-operations/node-ops';
-import { getStateForNode } from '../state-registry';
-import type { BlockListState } from '../block-list-state.svelte';
+import { getStateForNode } from '../reactivity/state-registry';
+import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

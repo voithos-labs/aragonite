@@ -23,7 +23,7 @@ import { renumberOrderedList } from '../list/ordered-markers';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import { parseAllInlineContent } from '../../core/inline';
 import { parse } from '../../core/parser';
-import { expectStateForNode } from '../../state-registry';
+import { expectStateForNode } from '../../reactivity/state-registry';
 import type { MultiScopeTarget } from '../../editor-actions/deps';
 import type { PasteDispatchContext } from './dispatch';
 
