@@ -53,6 +53,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
 	import { computeCodeEnter } from './code/code-enter';
 	import { computeAutoPair } from './code/code-beforeinput';
+	import { computeFenceExit } from './code/code-fence-exit';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
@@ -320,33 +321,13 @@
 			const text = getDisplayText();
 			const meta = node.metadata as FencedCodeMetadata;
 
-			if (meta.closed) {
-				const fenceChars = meta.fenceMarker.repeat(meta.fenceLength);
-
-				if (offset === text.length) {
-					focusActions.moveFocus(index + 1, 'start');
-					return;
+			const exit = computeFenceExit({ text, offset, meta });
+			if (exit.kind !== 'none') {
+				if (exit.kind === 'exitWithEdit') {
+					blockEdit.updateBlockContent(index, exit.newText + '\n', preEditOffset);
 				}
-
-				// Empty body line before the closer: strip it on exit so the block doesn't keep a trailing blank.
-				const onEmptyLineBeforeCloser =
-					offset >= 1 &&
-					text[offset - 1] === '\n' &&
-					text[offset] === '\n' &&
-					text.slice(offset + 1, offset + 1 + fenceChars.length) === fenceChars;
-				if (onEmptyLineBeforeCloser) {
-					const newText = text.slice(0, offset) + text.slice(offset + 1);
-					blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-					focusActions.moveFocus(index + 1, 'start');
-					return;
-				}
-			} else {
-				// Unclosed fence: exit only when a prior Enter already left a trailing blank line.
-				if (offset === text.length && text.endsWith('\n')) {
-					blockEdit.updateBlockContent(index, text.slice(0, -1) + '\n', preEditOffset);
-					focusActions.moveFocus(index + 1, 'start');
-					return;
-				}
+				focusActions.moveFocus(index + 1, 'start');
+				return;
 			}
 
 			// Electric indent: between an empty bracket pair, expand into three lines
