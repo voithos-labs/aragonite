@@ -15,7 +15,6 @@
 
 import type { CstNode, Document } from '../../core/nodes';
 import { CURSOR_END } from '../../contracts';
-import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import {
@@ -25,8 +24,13 @@ import {
 } from '../../schema/container-raw';
 import { renumberOrderedList } from '../list/ordered-markers';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
+import {
+	buildListItemWithContent,
+	findEnclosingListForPaste,
+	readOrderedSuffix,
+	splitLeafRawAtCaret
+} from '../list/list-builders';
 import { parseAllInlineContent } from '../../core/inline';
-import { parse } from '../../core/parser';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { PasteDispatchContext } from './dispatch';
 
@@ -57,31 +61,20 @@ export function findListAbsorb(
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
 	if (topBlock.kind !== 'list') return null;
-	if (targetPath.length < 3) return null;
 
-	let listDepth = -1;
-	let list: CstNode | null = null;
-	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, targetPath.slice(0, depth)) as CstNode | null;
-		if (!ancestor) return null;
-		if (ancestor.kind === 'list') {
-			listDepth = depth;
-			list = ancestor;
-			break;
-		}
-	}
-	if (listDepth === -1 || !list) return null;
-	if (targetPath.length !== listDepth + 2) return null;
+	const enclosing = findEnclosingListForPaste(doc, targetPath);
+	if (!enclosing) return null;
 
-	const listOrdered = (list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const listOrdered =
+		(enclosing.list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	const pastedOrdered =
 		(topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	if (listOrdered !== pastedOrdered) return null;
 
 	return {
-		listPath: targetPath.slice(0, listDepth),
-		itemIndex: targetPath[listDepth],
-		innerIndex: targetPath[listDepth + 1],
+		listPath: enclosing.listPath,
+		itemIndex: enclosing.itemIndex,
+		innerIndex: enclosing.innerIndex,
 		offset
 	};
 }
@@ -198,22 +191,13 @@ function buildSplitItems(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
-	const lineEnding = targetLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
-	const display = trimTrailingLineEnding(targetLeaf.raw);
-	const leadingText = display.slice(0, offset);
-	// Trim one leading whitespace character from the trailing slice so
-	// word-boundary splits don't serialize with a double-space marker.
-	const trailingText = display.slice(offset).replace(/^[ \t]/, '');
-
-	const leadingLeaf = leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding) : null;
-	const trailingLeaf =
-		trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding) : null;
+	const { leadingNode, trailingNode } = splitLeafRawAtCaret(targetLeaf, offset);
 
 	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
-	if (leadingLeaf) leadingChildren.push(leadingLeaf);
+	if (leadingNode) leadingChildren.push(leadingNode);
 
 	const trailingChildren: CstNode[] = [];
-	if (trailingLeaf) trailingChildren.push(trailingLeaf);
+	if (trailingNode) trailingChildren.push(trailingNode);
 	for (const c of item.children.slice(innerIndex + 1)) trailingChildren.push(cloneNode(c));
 	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
 
@@ -222,34 +206,4 @@ function buildSplitItems(
 		trailingItem:
 			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren) : null
 	};
-}
-
-function buildListItemWithContent(template: CstNode, children: CstNode[]): CstNode {
-	const item: CstNode = {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw: '',
-		metadata: template.metadata ? { ...template.metadata } : { marker: '- ' },
-		innerPrefix: template.innerPrefix ?? '',
-		children,
-		innerSuffix: template.innerSuffix ?? ''
-	};
-	if (children[0]) children[0].leadingTrivia = '';
-	rebuildListItemRaw(item);
-	return item;
-}
-
-function parseFirstBlock(raw: string): CstNode {
-	const doc = parse(raw);
-	if (doc.children.length > 0) return doc.children[0];
-	return { kind: 'paragraph', leadingTrivia: '', raw };
-}
-
-// ── Marker helpers ───────────────────────────────────────────────────────────
-
-function readOrderedSuffix(list: CstNode): string {
-	const first = list.children?.[0];
-	if (!first) return '. ';
-	const marker = (first.metadata as { marker?: string } | undefined)?.marker ?? '1. ';
-	return marker.replace(/^\d+/, '') || '. ';
 }
