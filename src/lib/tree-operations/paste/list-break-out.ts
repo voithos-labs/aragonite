@@ -16,11 +16,11 @@ import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildAncestryRawForLeaf } from '../../schema/container-raw';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import {
-	buildListHalf,
+	assembleListHalf,
 	buildListItemWithContent,
 	findEnclosingListForPaste,
 	orderedBaseOf,
-	splitLeafRawAtCaret
+	splitLeafForPaste
 } from '../list/list-builders';
 import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
@@ -156,7 +156,7 @@ export function buildListBreakOutReplacement(
 	if (!targetLeaf) return [];
 
 	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } =
-		splitLeafRawAtCaret(targetLeaf, offset);
+		splitLeafForPaste(targetLeaf, offset);
 
 	const itemChildrenBefore = item.children.slice(0, innerIndex).map(cloneNode);
 	const itemChildrenAfter = item.children.slice(innerIndex + 1).map(cloneNode);
@@ -186,7 +186,7 @@ export function buildListBreakOutReplacement(
 
 	const replacement: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
-		replacement.push(buildListHalf(list, firstHalfItems, 1));
+		replacement.push(assembleListHalf(list, firstHalfItems, 1));
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
@@ -204,7 +204,7 @@ export function buildListBreakOutReplacement(
 		// one slot in each half, so second half starts at firstHalfItems.length + 1.
 		const startNumber =
 			firstHalfItems.length > 0 ? firstHalfItems.length + 1 : orderedBaseOf(items[0]);
-		replacement.push(buildListHalf(list, secondHalfItems, startNumber));
+		replacement.push(assembleListHalf(list, secondHalfItems, startNumber));
 	}
 
 	return replacement;
