@@ -54,6 +54,15 @@ describe('createContainerBlockComponent', () => {
 		expect(() => c.focus(0)).not.toThrow();
 	});
 
+	it('focusAtColumn is a no-op when no children', () => {
+		const refs: BlockComponent[] = [];
+		const c = createContainerBlockComponent({
+			get innerBlockRefs() { return refs; },
+			get nodeChildrenLength() { return 0; }
+		});
+		expect(() => c.focusAtColumn(100, 'above')).not.toThrow();
+	});
+
 	it('getCursorOffset returns first ref reporting an offset', () => {
 		const r1 = makeRef();
 		const r2 = makeRef();
