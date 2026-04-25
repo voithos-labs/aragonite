@@ -1,12 +1,6 @@
 /**
- * Runtime registry mapping `BlockKind` to the Svelte component that renders
- * it. BlockHost looks up by kind instead of branching on a hardcoded
- * `{#if}` chain, so plugin authors at v1.2 register new kinds by supplying
- * a descriptor plus a component registration here.
- *
- * `extraProps` returns any per-node props the component needs beyond the
- * standard `{ node, index, myPath, ambientPrefix, ref }` set (e.g.
- * TextEditableBlock's `blockClass`).
+ * Runtime `BlockKind → component` map. BlockHost looks up by kind; plugin
+ * kinds register a descriptor plus a component entry.
  */
 
 import type { Component } from 'svelte';
