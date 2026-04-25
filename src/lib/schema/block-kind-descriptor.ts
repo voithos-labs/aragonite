@@ -8,12 +8,7 @@ import { displayLength } from '../core/lines';
  * Declared here rather than in `merge-rules.ts` so the descriptor registry
  * can reference it without creating an import cycle.
  */
-export type MergeRole =
-	| 'prose'
-	| 'prose-absorber'
-	| 'container'
-	| 'self-merge'
-	| 'not-mergeable';
+export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'not-mergeable';
 
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;

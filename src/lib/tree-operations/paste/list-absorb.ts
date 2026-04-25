@@ -67,8 +67,7 @@ export function findListAbsorb(
 
 	const listOrdered =
 		(enclosing.list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const pastedOrdered =
-		(topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const pastedOrdered = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	if (listOrdered !== pastedOrdered) return null;
 
 	return {
@@ -115,8 +114,7 @@ export async function applyListAbsorb(
 	}
 	parseAllInlineContent(replacement);
 
-	const outerOrdered =
-		(outer.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const outerOrdered = (outer.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
 
 	// Pre-compute final markers on the replacement items BEFORE splice. Svelte 5's
@@ -202,7 +200,8 @@ function buildSplitItems(
 	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
 
 	return {
-		leadingItem: leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
+		leadingItem:
+			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
 		trailingItem:
 			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren) : null
 	};

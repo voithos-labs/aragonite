@@ -9,10 +9,7 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import type { NestedActionsDeps } from './nested-actions';
 
-export function createNestedFocus(
-	state: BlockListState,
-	deps: NestedActionsDeps
-): FocusActions {
+export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
 	const { stickyColumn, parent } = deps;
 	return {
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {

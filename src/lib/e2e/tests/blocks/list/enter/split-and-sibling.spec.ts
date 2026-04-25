@@ -14,7 +14,7 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSource((s) => ((s.match(/^- /gm) ?? []).length) >= 3);
+		await editor.bridge.waitForSource((s) => (s.match(/^- /gm) ?? []).length >= 3);
 		const markers = (await editor.bridge.getSource()).match(/^- /gm) ?? [];
 		expect(markers.length).toBeGreaterThanOrEqual(3);
 	});

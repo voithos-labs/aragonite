@@ -30,9 +30,7 @@ test.describe('task checkbox — edit-event shape and cross-block click', () => 
 		await editor.page.evaluate(() => (window as any).__test.startEditOpCapture());
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[x]');
-		const ops = await editor.page.evaluate(() =>
-			(window as any).__test.stopEditOpCapture()
-		);
+		const ops = await editor.page.evaluate(() => (window as any).__test.stopEditOpCapture());
 		expect(ops).toEqual(['metadataUpdate']);
 	});
 });

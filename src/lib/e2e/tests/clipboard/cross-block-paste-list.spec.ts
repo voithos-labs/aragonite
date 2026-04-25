@@ -23,7 +23,9 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('one') && !s.includes('two'));
+		await editor.bridge.waitForSource(
+			(s) => s.includes('HELLO') && !s.includes('one') && !s.includes('two')
+		);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('HELLO');

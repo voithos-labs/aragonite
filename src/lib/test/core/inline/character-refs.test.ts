@@ -65,7 +65,10 @@ describe('scanCharacterReferences', () => {
 		const cases = ['&#abc;', '&#xZZ;', '&#;', '&#x;', '&;', '&amp', '&'];
 		for (const raw of cases) {
 			const result = scanCharacterReferences(raw, 0, raw.length, []);
-			expect(result.every((n) => n.kind === 'text'), raw).toBe(true);
+			expect(
+				result.every((n) => n.kind === 'text'),
+				raw
+			).toBe(true);
 		}
 	});
 
