@@ -226,7 +226,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		// wait 200ms — fall-back move-focus produces no source change; verify state is stable.
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> para$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> para$/m);
 		expect(source).toMatch(/^text$/m);

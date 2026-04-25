@@ -38,7 +38,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 
 		await editor.focusBlockAtPath([1, 0], 'target inside bq'.length);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/> target inside bqouter para/);
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/> target inside bqouter para/);
