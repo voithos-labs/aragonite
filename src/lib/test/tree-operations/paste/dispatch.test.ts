@@ -312,8 +312,7 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		);
 
 		expect(blockEdit.replaceBlock).toHaveBeenCalledOnce();
-		const [index, replacement] = (blockEdit.replaceBlock as ReturnType<typeof vi.fn>).mock
-			.calls[0];
+		const [index, replacement] = (blockEdit.replaceBlock as ReturnType<typeof vi.fn>).mock.calls[0];
 		expect(index).toBe(0);
 		expect(replacement.length).toBeGreaterThanOrEqual(2);
 		const kinds = (replacement as CstNode[]).map((n) => n.kind);

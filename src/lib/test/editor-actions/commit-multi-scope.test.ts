@@ -132,7 +132,11 @@ describe('commitMultiScope', () => {
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scope]) => {
 				const original = scope.children[0];
-				scope.children.splice(0, 1, original, { kind: 'listItem', leadingTrivia: '', raw: '- a2\n' });
+				scope.children.splice(0, 1, original, {
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- a2\n'
+				});
 				return [{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } }];
 			}
 		});

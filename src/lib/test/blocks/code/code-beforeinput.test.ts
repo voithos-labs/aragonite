@@ -86,7 +86,11 @@ describe('computeAutoPair — skip-over', () => {
 
 describe('computeAutoPair — wrap selection', () => {
 	it('wraps a non-collapsed selection with the opener and closer', () => {
-		const r = computeAutoPair({ text: 'hello world', selection: { start: 6, end: 11 }, typed: '(' });
+		const r = computeAutoPair({
+			text: 'hello world',
+			selection: { start: 6, end: 11 },
+			typed: '('
+		});
 		expect(r).toEqual({
 			kind: 'wrap',
 			newText: 'hello (world)',

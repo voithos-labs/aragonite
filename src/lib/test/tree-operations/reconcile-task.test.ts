@@ -118,9 +118,7 @@ describe('reconcileTaskMetadata', () => {
 			leadingTrivia: '',
 			raw: '',
 			metadata: plainMeta(),
-			children: [
-				{ kind: 'list', leadingTrivia: '', raw: '', children: [] }
-			]
+			children: [{ kind: 'list', leadingTrivia: '', raw: '', children: [] }]
 		};
 		reconcileTaskMetadata(item);
 		const meta = item.metadata as ListItemMetadata;

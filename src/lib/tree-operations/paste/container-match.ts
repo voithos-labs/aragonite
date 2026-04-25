@@ -9,7 +9,10 @@ import { CURSOR_END } from '../../contracts';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
-import { rebuildContainerRawIfContainer, rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import {
+	rebuildContainerRawIfContainer,
+	rebuildAncestryRawForLeaf
+} from '../../schema/container-raw';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import type { PasteDispatchContext } from './dispatch';

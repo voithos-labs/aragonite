@@ -17,9 +17,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 	test('ordered list pasted into the middle of an unordered item splits the list', async () => {
 		await editor.loadContent('- Unordered three\n');
 		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText(
-				'1. Ordered first\n2. Ordered second\n3. Ordered third\n'
-			)
+			navigator.clipboard.writeText('1. Ordered first\n2. Ordered second\n3. Ordered third\n')
 		);
 		await editor.page.waitForTimeout(100);
 
@@ -41,9 +39,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('ordered list pasted at the end of an unordered item places paste after it', async () => {
 		await editor.loadContent('- Unordered\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('1. a\n2. b\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('1. a\n2. b\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'Unordered'.length);
@@ -60,9 +56,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('ordered list pasted at the start of an unordered item places paste before it', async () => {
 		await editor.loadContent('- Unordered\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('1. a\n2. b\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('1. a\n2. b\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
@@ -99,9 +93,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('unordered list pasted into ordered list item also breaks out (symmetry)', async () => {
 		await editor.loadContent('1. First target\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('- paste one\n- paste two\n')
-		);
+		await editor.page.evaluate(() => navigator.clipboard.writeText('- paste one\n- paste two\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);

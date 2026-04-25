@@ -7,12 +7,7 @@
  */
 
 import { setContext } from 'svelte';
-import type {
-	BlockEditActions,
-	FocusActions,
-	ContainerEditActions,
-	CstNode
-} from '../contracts';
+import type { BlockEditActions, FocusActions, ContainerEditActions, CstNode } from '../contracts';
 import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY } from '../contracts';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';

@@ -98,10 +98,9 @@ function interleave(
 	occupied: InlineNode[],
 	found: InlineNode[]
 ): InlineNode[] {
-	const all: InlineNode[] = [
-		...occupied.filter((n) => n.kind !== 'text'),
-		...found
-	].sort((a, b) => a.start - b.start);
+	const all: InlineNode[] = [...occupied.filter((n) => n.kind !== 'text'), ...found].sort(
+		(a, b) => a.start - b.start
+	);
 
 	const result: InlineNode[] = [];
 	let cursor = start;

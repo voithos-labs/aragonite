@@ -22,7 +22,14 @@ describe('buildAmbientSpan', () => {
 		const span = buildAmbientSpan({
 			text: '- [x] ',
 			interactive: [
-				{ start: 2, end: 5, className: 'task-checkbox', role: 'checkbox', ariaChecked: true, onClick }
+				{
+					start: 2,
+					end: 5,
+					className: 'task-checkbox',
+					role: 'checkbox',
+					ariaChecked: true,
+					onClick
+				}
 			]
 		});
 		expect(span.textContent).toBe('- [x] ');

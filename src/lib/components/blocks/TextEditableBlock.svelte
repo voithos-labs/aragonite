@@ -370,7 +370,12 @@
 		// ambient span block native Backspace/Delete silently — the browser
 		// refuses to modify any range overlapping non-editable content, and
 		// no beforeinput fires. Perform the delete via the CST path instead.
-		if ((e.key === 'Backspace' || e.key === 'Delete') && hasSelectionHelper() && el && ambientLength > 0) {
+		if (
+			(e.key === 'Backspace' || e.key === 'Delete') &&
+			hasSelectionHelper() &&
+			el &&
+			ambientLength > 0
+		) {
 			const ambient = ambientSpanOf(el);
 			const sel = window.getSelection();
 			const touchesAmbient =
@@ -447,7 +452,6 @@
 			setSelection(newSelStart, newSelEnd);
 		});
 	}
-
 </script>
 
 <div
