@@ -3,9 +3,6 @@
  * between raw offsets (CST-facing) and DOM offsets (browser-facing) while
  * respecting the leading ambient marker span that container blocks (e.g.
  * list items) contribute to their first prose child.
- *
- * Factory shape — component passes reactive state via getters so each call
- * re-reads live values; capturing by value would snapshot at factory-call time.
  */
 
 import {

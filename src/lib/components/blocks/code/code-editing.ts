@@ -1,7 +1,4 @@
-/**
- * Pure editing helpers for code-block conveniences: auto-indent on Enter,
- * auto-close bracket/quote pairs on insertText, stateless skip-over.
- */
+/** Pair tables, leading-whitespace extraction, and stateless predicates for bracket/quote auto-pairing. */
 
 // ── Pair tables ─────────────────────────────────────────────────────────────
 
