@@ -1,6 +1,6 @@
 /**
  * Inline pipeline stage 1.5: link, image, and autolink scanning over the text
- * regions left by backtick scanning.
+ * regions left by earlier pre-passes (backticks, escapes, entity references).
  *
  * The links.ts ↔ index.ts module cycle is benign: parseInline is called at
  * runtime, not module-init.
@@ -13,25 +13,25 @@ export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	codeSpans: InlineNode[]
+	occupied: InlineNode[]
 ): InlineNode[] {
-	const occupied: Array<{ start: number; end: number }> = codeSpans
-		.filter((n) => n.kind === 'inlineCode')
+	const occupiedRanges: Array<{ start: number; end: number }> = occupied
+		.filter((n) => n.kind !== 'text')
 		.map((n) => ({ start: n.start, end: n.end }));
 
 	const found: InlineNode[] = [];
 
 	let pos = start;
-	for (const occ of occupied) {
-		scanRegionForLinksAndAutolinks(raw, pos, occ.start, found);
-		pos = occ.end;
+	for (const range of occupiedRanges) {
+		scanRegionForLinksAndAutolinks(raw, pos, range.start, found);
+		pos = range.end;
 	}
 	scanRegionForLinksAndAutolinks(raw, pos, end, found);
 
-	if (found.length === 0) return codeSpans;
+	if (found.length === 0) return occupied;
 
 	const allOccupied: InlineNode[] = [
-		...codeSpans.filter((n) => n.kind === 'inlineCode'),
+		...occupied.filter((n) => n.kind !== 'text'),
 		...found
 	].sort((a, b) => a.start - b.start);
 
