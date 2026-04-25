@@ -15,11 +15,7 @@
  */
 export const CURSOR_END = 999999;
 
-/**
- * "Focus the last descendant at its start." Used after indent — cascade
- * through containers choosing the last child at each level, then place the
- * cursor at offset 0 on the leaf.
- */
+/** Cascade focus to the last descendant and place the cursor at its start. */
 export const FOCUS_LAST_START = -1;
 
 /**
@@ -73,11 +69,7 @@ export interface BlockComponent {
 	 * participating blocks omit this; callers fall back to focus(0) / CURSOR_END.
 	 */
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
-	/**
-	 * Cascade focus down a path of child indices to reach a leaf at the
-	 * given offset. Container blocks implement it; leaves that cannot nest
-	 * further omit it.
-	 */
+	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
 	/**
 	 * Viewport-space rects covering [startOffset, endOffset) in this block's

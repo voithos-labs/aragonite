@@ -1,3 +1,8 @@
+/**
+ * DOM construction and lookup for the ambient marker span — the read-only
+ * prefix container blocks contribute to their first prose child's textContent.
+ */
+
 import type { AmbientPrefix } from '../contracts';
 import { devWarn } from '../diagnostics/dev-warn';
 

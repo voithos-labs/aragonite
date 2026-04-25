@@ -31,6 +31,7 @@ export function createNestedBlockEdit(
 	const { rebuildRaw, parent } = deps;
 
 	const blockEdit: BlockEditActions = {
+		// ── Structural mutations ───────────────────────────────────────────────
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!deps.node.children) return;
 			await parent.containerEdit.commitContainer({
@@ -187,6 +188,7 @@ export function createNestedBlockEdit(
 			});
 		},
 
+		// ── In-place leaf edits ────────────────────────────────────────────────
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,
@@ -277,6 +279,7 @@ export function createNestedBlockEdit(
 			});
 		},
 
+		// ── Composition ────────────────────────────────────────────────────────
 		async insertParsedBlocks(
 			innerIndex: number,
 			offset: number,
