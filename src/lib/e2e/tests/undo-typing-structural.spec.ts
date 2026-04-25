@@ -26,7 +26,7 @@ test.describe('needsUndoCheckpoint — typing / structural / typing', () => {
 		expect((await editor.bridge.getSource()).includes('Hello one')).toBe(true);
 
 		await editor.undo();
-		expect(await editor.bridge.getDomBlockCount()).toBe(1);
+		expect(await editor.getDomBlockCount()).toBe(1);
 		expect((await editor.bridge.getSource()).trim()).toBe('Hello one');
 
 		await editor.undo();

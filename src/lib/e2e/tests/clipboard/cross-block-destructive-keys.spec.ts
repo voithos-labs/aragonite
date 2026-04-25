@@ -19,7 +19,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(150);
@@ -35,7 +35,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Shift+Enter');
 		await editor.page.waitForTimeout(150);
@@ -50,7 +50,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+b');
 		await editor.page.waitForTimeout(150);
@@ -67,7 +67,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+2');
 		await editor.page.waitForTimeout(200);
@@ -83,7 +83,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 4);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+0');
 		await editor.page.waitForTimeout(200);
@@ -97,7 +97,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(150);

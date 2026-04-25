@@ -32,7 +32,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 
 		await editor.focusBlock(0, 2);
 		await editor.shiftClickBlock([1, 0], 5);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
@@ -45,7 +45,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 2);
 		await editor.shiftClickBlock([0, 2, 0], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
@@ -58,7 +58,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([1], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
@@ -71,7 +71,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 3);
 		await editor.shiftClickBlock([0, 1, 1, 1, 0], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(250);
 

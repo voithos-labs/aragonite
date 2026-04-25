@@ -53,19 +53,19 @@ test.describe('selection — pointer: edge cases', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.clickBlock(0);
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 	});
 
 	test('click collapse restores native caret in the clicked block', async () => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.clickBlock(1);
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);

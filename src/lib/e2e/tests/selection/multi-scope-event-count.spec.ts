@@ -152,7 +152,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Backspace');
@@ -168,7 +168,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 		await lastItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Backspace');
@@ -203,7 +203,7 @@ test.describe('cross-block delete — list item id identity', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
 
@@ -286,7 +286,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
 

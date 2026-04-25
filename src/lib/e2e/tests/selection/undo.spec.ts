@@ -17,7 +17,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(200);
@@ -40,7 +40,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
@@ -58,7 +58,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(200);
@@ -81,7 +81,7 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.typeText('xyz');
 		await editor.page.waitForTimeout(200);
@@ -105,12 +105,12 @@ test.describe('selection undo — cross-block restore', () => {
 		const afterEdit = await editor.bridge.getSource();
 
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.waitForTimeout(100);
 
 		await editor.page.keyboard.press('ArrowLeft');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 
 		await editor.undo();
 		await editor.page.waitForTimeout(200);

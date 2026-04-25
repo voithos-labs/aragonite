@@ -16,13 +16,13 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 
 		await editor.page.keyboard.press('Control+v');
@@ -45,10 +45,10 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('alpha');
@@ -71,7 +71,7 @@ test.describe('select-all clipboard round-trip', () => {
 		expect(firstSelection).toBe('Hello');
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		const paths = await editor.bridge.getSelectionPaths();
 		expect(paths).not.toBeNull();
@@ -79,14 +79,14 @@ test.describe('select-all clipboard round-trip', () => {
 		expect(paths!.focus.path[0]).toBe(2);
 
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		await editor.page.waitForTimeout(200);
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('Before');
 		expect(source).not.toContain('Hello');
 		expect(source).not.toContain('After');
-		expect(await editor.bridge.getDomBlockCount()).toBe(1);
+		expect(await editor.getDomBlockCount()).toBe(1);
 	});
 
 	test('select-all cut then paste replaces with clipboard', async () => {
@@ -96,7 +96,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);
 

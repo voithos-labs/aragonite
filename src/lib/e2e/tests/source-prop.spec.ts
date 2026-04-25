@@ -18,7 +18,7 @@ test.describe('source prop change', () => {
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.up('Shift');
 
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		await editor.loadContent('Totally different content.\n');

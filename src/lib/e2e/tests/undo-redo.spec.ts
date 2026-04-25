@@ -15,25 +15,25 @@ test.describe('undo and redo', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		expect(await editor.bridge.getDomBlockCount()).toBeGreaterThan(3);
+		expect(await editor.getDomBlockCount()).toBeGreaterThan(3);
 
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.getDomBlockCount()).toBe(3);
+		expect(await editor.getDomBlockCount()).toBe(3);
 	});
 
 	test('redo restores a split after undo', async () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
 		const splitSource = await editor.bridge.getSource();
-		const splitCount = await editor.bridge.getDomBlockCount();
+		const splitCount = await editor.getDomBlockCount();
 
 		await editor.undo();
-		expect(await editor.bridge.getDomBlockCount()).toBe(3);
+		expect(await editor.getDomBlockCount()).toBe(3);
 
 		await editor.redo();
 		expect(await editor.bridge.getSource()).toBe(splitSource);
-		expect(await editor.bridge.getDomBlockCount()).toBe(splitCount);
+		expect(await editor.getDomBlockCount()).toBe(splitCount);
 	});
 
 	test('undo reverts typed text after debounce', async () => {
@@ -50,11 +50,11 @@ test.describe('undo and redo', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(1);
 		await editor.page.keyboard.press('Backspace');
-		expect(await editor.bridge.getDomBlockCount()).toBeLessThan(3);
+		expect(await editor.getDomBlockCount()).toBeLessThan(3);
 
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.getDomBlockCount()).toBe(3);
+		expect(await editor.getDomBlockCount()).toBe(3);
 	});
 
 	test('undo reverts kind change (paragraph to heading via # prefix)', async () => {

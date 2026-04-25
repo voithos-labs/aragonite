@@ -17,7 +17,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -36,7 +36,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -56,7 +56,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -76,7 +76,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -93,7 +93,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
@@ -101,7 +101,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.page.waitForTimeout(100);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 5);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -121,7 +121,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -140,7 +140,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -157,7 +157,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 
 		await editor.focusBlockAtPath([1, 0, 0], 0);
 		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

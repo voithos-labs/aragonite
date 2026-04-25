@@ -14,7 +14,7 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 2, 0], 5);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -30,7 +30,7 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 2, 0], 4);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -46,7 +46,7 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);

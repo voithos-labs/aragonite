@@ -14,7 +14,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -30,7 +30,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -46,7 +46,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'beta'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -64,7 +64,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

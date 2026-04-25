@@ -14,7 +14,7 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
@@ -34,7 +34,7 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
@@ -62,13 +62,13 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([2], 5);
 
 		await editor.page.keyboard.press('Control+v');
@@ -99,7 +99,7 @@ test.describe('cross-block clipboard: partial list promotion regression', () => 
 
 		await editor.focusBlockAtPath([0, 2, 0], 0);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
