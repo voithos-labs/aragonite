@@ -16,7 +16,7 @@ test.describe('single-block clipboard: happy paths', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('abcdefabc');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('abcdefabc');
@@ -27,7 +27,7 @@ test.describe('single-block clipboard: happy paths', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !s.includes('Hello') && s.includes('World'));
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('Hello');
@@ -42,7 +42,7 @@ test.describe('single-block clipboard: happy paths', () => {
 		await editor.page.keyboard.press('ArrowRight');
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('AAAAAA');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('AAAAAA');
@@ -54,7 +54,7 @@ test.describe('single-block clipboard: happy paths', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.typeText('New');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('NewText');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('NewText');
@@ -75,11 +75,11 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !s.includes('Restore'));
 		expect(await editor.bridge.getSource()).not.toContain('Restore');
 
 		await editor.undo();
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Restore me');
 		expect(await editor.bridge.getSource()).toContain('Restore me');
 	});
 
@@ -90,7 +90,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('StartStart');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('StartStart');
@@ -103,7 +103,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('EndEnd');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('EndEnd');
@@ -115,6 +115,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+c');
+		// wait 200ms — copy is a no-op for source; verify no spurious change settles in.
 		await editor.page.waitForTimeout(200);
 
 		const sourceAfter = await editor.bridge.getSource();
@@ -126,6 +127,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		const sourceBefore = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Control+x');
+		// wait 200ms — empty cut is a no-op for source; verify no spurious change settles in.
 		await editor.page.waitForTimeout(200);
 
 		const sourceAfter = await editor.bridge.getSource();
@@ -137,7 +139,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.focusBlock(0, 6);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('world'));
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello world');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
@@ -157,12 +159,12 @@ test.describe('single-block clipboard: user interactions', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !s.includes('First'));
 		expect(await editor.bridge.getSource()).not.toContain('First');
 
 		await editor.focusBlockEnd(1);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('SecondFirst');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('SecondFirst');
@@ -173,7 +175,7 @@ test.describe('single-block clipboard: user interactions', () => {
 		await editor.focusBlockStart(0);
 		await editor.selectAll();
 		await editor.typeText('Brand new');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Brand new');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Brand new');
