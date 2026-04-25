@@ -60,7 +60,7 @@ describe('createContainerBlockComponent', () => {
 			get innerBlockRefs() { return refs; },
 			get nodeChildrenLength() { return 0; }
 		});
-		expect(() => c.focusAtColumn(100, 'above')).not.toThrow();
+		expect(() => c.focusAtColumn?.(100, 'above')).not.toThrow();
 	});
 
 	it('getCursorOffset returns first ref reporting an offset', () => {
@@ -80,7 +80,7 @@ describe('createContainerBlockComponent', () => {
 			get innerBlockRefs() { return refs; },
 			get nodeChildrenLength() { return 2; }
 		});
-		c.focusByPath([1, 0], 5);
+		c.focusByPath?.([1, 0], 5);
 		expect(refs[1].focusByPath).toHaveBeenCalledWith([0], 5);
 	});
 });
