@@ -238,3 +238,27 @@ describe('round-trip: tables', () => {
 		});
 	}
 });
+
+// ── Inline Content ──────────────────────────────────────────────────────────
+
+describe('round-trip: inline content', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'paragraph with backslash escapes', source: 'foo \\*bar\\* baz\n' },
+		{ name: 'paragraph with double backslash', source: 'foo \\\\* bar\n' },
+		{ name: 'escape adjacent to code span', source: 'foo \\* `code` baz\n' },
+		{ name: 'paragraph with named entity', source: 'copyright &copy; symbol\n' },
+		{ name: 'paragraph with decimal numeric entity', source: 'apostrophe &#39; mark\n' },
+		{ name: 'paragraph with hex numeric entity', source: 'quote &#x22; sign\n' },
+		{ name: 'entity inside emphasis', source: '*&copy;*\n' },
+		{ name: 'entity inside link text', source: '[&copy; me](https://example.com)\n' },
+		{ name: 'entity inside code span (literal)', source: '`&copy;`\n' },
+		{ name: 'invalid entity stays as text', source: 'this &notreal; survives\n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
