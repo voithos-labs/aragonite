@@ -22,7 +22,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('after code');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('after code');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('after code');
 		expect(source).toContain('some code');
@@ -38,7 +38,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('End');
 		await editor.typeText(' appended');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Above paragraph appended');
 		expect(await editor.bridge.getSource()).toContain('Above paragraph appended');
 	});
 
@@ -49,7 +49,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('prepended ');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('prepended');
 		expect(await editor.bridge.getSource()).toContain('prepended');
 	});
 

@@ -20,7 +20,7 @@ test.describe('code block editing — user interactions', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('typed below');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('line 1');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('line 1');
 		expect(source).toContain('line 3');
@@ -32,7 +32,7 @@ test.describe('code block editing — user interactions', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.typeText(' added');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('original added');
 		expect(await editor.bridge.getSource()).toContain('original added');
 		await editor.undo();
 		await editor.page.waitForTimeout(200);

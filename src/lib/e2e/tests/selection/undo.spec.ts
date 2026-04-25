@@ -84,7 +84,7 @@ test.describe('selection undo — cross-block restore', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.typeText('xyz');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('xyz');
 		const afterType = await editor.bridge.getSource();
 		expect(afterType).toContain('xyz');
 		expect(afterType).not.toBe(before);

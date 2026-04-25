@@ -39,7 +39,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('top');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('top');
 	});
@@ -64,7 +64,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.bridge.waitForSourceContains('para');
 		expect(await editor.bridge.getSource()).toContain('para');
 		expect(await editor.bridge.getSource()).toContain('> quote');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);

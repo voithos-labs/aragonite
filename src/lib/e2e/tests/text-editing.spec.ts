@@ -215,7 +215,7 @@ test.describe('forward delete', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('# HelloWorld');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('# HelloWorld');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
@@ -225,7 +225,7 @@ test.describe('forward delete', () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Helloworld');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Helloworld');
 	});

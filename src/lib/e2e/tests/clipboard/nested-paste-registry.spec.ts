@@ -13,7 +13,6 @@ test.describe('nested structural paste — ref alignment via registry', () => {
 		await editor.loadContent('> first para\n>\n> second para\n>\n> tail para\n');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n\ngamma\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([0, 1], 'second para'.length);
@@ -24,7 +23,7 @@ test.describe('nested structural paste — ref alignment via registry', () => {
 
 		// Caret should land at the end of "gamma" (the last pasted block).
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('alpha');

@@ -94,7 +94,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('X');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('X');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);

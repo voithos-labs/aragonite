@@ -64,14 +64,13 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([1], 'world'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');
@@ -90,13 +89,12 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');

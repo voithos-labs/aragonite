@@ -34,7 +34,7 @@ test.describe('list Tab', () => {
 		await editor.page.keyboard.press('Tab');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('ZItem 2');
 		expect(await editor.bridge.getSource()).toContain('ZItem 2');
 	});
 

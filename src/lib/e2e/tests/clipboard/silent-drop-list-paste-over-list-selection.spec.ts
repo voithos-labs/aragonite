@@ -12,14 +12,13 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 	test('shift-click cross-block, paste multi-item list over multi-item selection', async () => {
 		await editor.loadContent('- target one\n- target two\n- target three\n- tail\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('alpha');
@@ -35,7 +34,6 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 	}) => {
 		await editor.loadContent('- target one\n- target two\n- target three\n- tail\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- alpha\n- beta\n- gamma\n'));
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await page.keyboard.down('Shift');
@@ -46,7 +44,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('alpha');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('alpha');
@@ -66,7 +64,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('outer a');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('outer a');

@@ -141,7 +141,7 @@ test.describe('inline editing', () => {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+b');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello **world**');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello **world**');
 	});
@@ -153,7 +153,7 @@ test.describe('inline editing', () => {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+b');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello world');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world');
 		expect(source).not.toContain('**');
@@ -166,7 +166,7 @@ test.describe('inline editing', () => {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+i');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello *world*');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello *world*');
 	});
@@ -178,7 +178,7 @@ test.describe('inline editing', () => {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+i');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello world');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world');
 		expect(source).not.toContain('*');
@@ -192,7 +192,7 @@ test.describe('inline editing', () => {
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+b');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello world today');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Hello world today');
 		expect(source).not.toContain('****');
