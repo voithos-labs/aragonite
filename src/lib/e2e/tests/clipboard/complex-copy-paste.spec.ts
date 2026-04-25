@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 
+async function waitForClipboardContains(editor: EditorPage, expected: string, timeout = 2000) {
+	await editor.page.waitForFunction(
+		async (e) => (await navigator.clipboard.readText()).includes(e),
+		expected,
+		{ timeout, polling: 32 }
+	);
+}
+
 // DEFAULT_CONTENT CST paths:
 // [0]="# Heading 1"  [1]="## Heading 2"  [2]="### Heading 3"
 // [3]=paragraph (bold/italic/strikethrough/code)  [4]=paragraph (link)
@@ -24,7 +32,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, '**bold text**');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('**bold text**');
@@ -39,7 +47,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, '### Heading 3');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('### Heading 3');
@@ -62,7 +70,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'Item three');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Item three');
@@ -78,7 +86,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'A final paragraph');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Second blockquote paragraph');
@@ -93,7 +101,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'A final paragraph');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Third');
@@ -116,10 +124,9 @@ test.describe('clipboard — code block boundary and direction', () => {
 	test('select inside code block across boundary into final paragraph', async () => {
 		await editor.focusBlockStart(9);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'A final paragraph');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('const x = 42');
@@ -132,7 +139,7 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'Heading 1');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('Heading 1');
@@ -157,7 +164,7 @@ test.describe('clipboard — cut three blocks then undo', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSource((s) => !s.includes('# Heading 1'));
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut).not.toContain('# Heading 1');
@@ -165,7 +172,7 @@ test.describe('clipboard — cut three blocks then undo', () => {
 		expect(afterCut).not.toContain('### Heading 3');
 
 		await editor.undo();
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceEquals(before);
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });
