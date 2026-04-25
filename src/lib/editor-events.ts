@@ -8,7 +8,7 @@
  *   - `selectionChange`: from the selection-state change path.
  */
 
-import type { EditorSelection } from '../selection/primitives';
+import type { EditorSelection } from './selection/primitives';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 

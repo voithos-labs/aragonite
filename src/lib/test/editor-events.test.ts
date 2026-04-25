@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEditorEvents } from '$lib/editor/events/editor-events';
+import { createEditorEvents } from '$lib/editor/editor-events';
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {

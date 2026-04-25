@@ -22,7 +22,7 @@ import type {
 	UndoController
 } from './deps';
 import type { OpDescriptor } from '../debug/operations-log';
-import type { EditEvent } from '../events/editor-events';
+import type { EditEvent } from '../editor-events';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange

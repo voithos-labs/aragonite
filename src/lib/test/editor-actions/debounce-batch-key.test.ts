@@ -5,7 +5,7 @@ import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-a
 import { createBlockListState } from '$lib/editor/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo-manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/events/editor-events';
+import { createEditorEvents } from '$lib/editor/editor-events';
 import type {
 	BlockComponent,
 	BlockEditActions,
