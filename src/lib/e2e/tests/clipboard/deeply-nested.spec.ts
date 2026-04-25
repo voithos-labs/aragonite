@@ -45,7 +45,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 1, 2, 0], 'B3'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

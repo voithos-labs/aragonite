@@ -17,7 +17,7 @@ test.describe('nested structural paste — ref alignment via registry', () => {
 
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([0, 1], 'second para'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);

@@ -49,7 +49,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([1], 'outer para'.length);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);

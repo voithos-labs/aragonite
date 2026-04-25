@@ -14,7 +14,7 @@ test.describe('cross-block clipboard: copy', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -45,12 +45,12 @@ test.describe('cross-block clipboard: copy', () => {
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([1], 3);
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(150);
 
 		await editor.clickBlock(2);
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
@@ -65,13 +65,13 @@ test.describe('cross-block clipboard: copy', () => {
 
 		await editor.focusBlock(0, 0);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		await editor.clickBlock(2);
-		await editor.bridge.waitForCrossBlock(false);
+		await editor.waitForCrossBlock(false);
 		await editor.page.keyboard.press('End');
 
 		await editor.page.keyboard.press('Control+v');

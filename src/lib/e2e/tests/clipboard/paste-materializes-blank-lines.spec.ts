@@ -19,7 +19,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		await editor.page.waitForTimeout(200);
 
 		expect(await editor.bridge.getSource()).toBe('one\n\ntwo\n');
-		expect(await editor.bridge.getDomBlockCount()).toBe(3);
+		expect(await editor.getDomBlockCount()).toBe(3);
 	});
 
 	test('pasted via clipboard: same source, should produce 3 blocks (matches typed)', async () => {
@@ -31,7 +31,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.bridge.getSource();
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 
 		// Windows clipboard writes CRLF.
 		expect(src.replace(/\r\n/g, '\n').replace(/\s+$/, '')).toBe('one\n\ntwo');

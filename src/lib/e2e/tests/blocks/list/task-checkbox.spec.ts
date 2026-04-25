@@ -154,7 +154,7 @@ test.describe('task checkbox — toggle and rendering', () => {
 		// offset 0 it stays inside the first block on most platforms.
 		await editor.focusBlockAtPath([0, 0, 0], 5);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.locator('.task-checkbox').first().click();
 		await waitForSourceContains(editor, '[x] first');

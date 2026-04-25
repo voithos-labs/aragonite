@@ -125,7 +125,7 @@ test.describe('list marker inside contenteditable', () => {
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.up('Shift');
 
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		const markerBox = await editor.page
 			.locator('.list-item-block [contenteditable="true"] > span.md-marker')

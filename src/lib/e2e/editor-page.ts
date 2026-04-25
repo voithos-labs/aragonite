@@ -51,8 +51,20 @@ export class EditorPage {
 		return this.page.locator('.block-list > .block-host > *:not(.selection-overlay)');
 	}
 
+	async getDomBlockCount(): Promise<number> {
+		return this.getBlocks().count();
+	}
+
 	async getBlockText(index: number): Promise<string> {
 		return (await this.getBlock(index).textContent()) ?? '';
+	}
+
+	async waitForCrossBlock(active: boolean): Promise<void> {
+		if (active) {
+			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
+		} else {
+			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
+		}
 	}
 
 	// ── Cursor Positioning ──────────────────────────────────────────────

@@ -38,7 +38,7 @@ test.describe('editor smoke tests', () => {
 	test('empty document produces at least 1 editable block', async () => {
 		await editor.loadContent('');
 
-		const domCount = await editor.bridge.getDomBlockCount();
+		const domCount = await editor.getDomBlockCount();
 		expect(domCount).toBeGreaterThanOrEqual(1);
 	});
 

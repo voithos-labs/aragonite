@@ -80,7 +80,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+a');
-		await editor.bridge.waitForCrossBlock(true);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
