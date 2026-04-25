@@ -28,7 +28,7 @@ import {
 	buildListItemWithContent,
 	findEnclosingListForPaste,
 	readOrderedSuffix,
-	splitLeafRawAtCaret
+	splitLeafForPaste
 } from '../list/list-builders';
 import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
@@ -191,7 +191,7 @@ function buildSplitItems(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
-	const { leadingNode, trailingNode } = splitLeafRawAtCaret(targetLeaf, offset);
+	const { leadingNode, trailingNode } = splitLeafForPaste(targetLeaf, offset);
 
 	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
 	if (leadingNode) leadingChildren.push(leadingNode);
