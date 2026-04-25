@@ -4,7 +4,7 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Editor action bundles and the container helpers they compose (nested-actions, list-context, blockquote-context, focus-dispatch) live in `src/lib/editor/editor-actions/`; the shared reactive state bundle (`block-list-state`) and its `state-registry` sit at the editor root. Block-kind and block-component registries live in `src/lib/editor/schema/`. Pure DOM helpers split by concern: `src/lib/editor/ambient/` for ambient-prefix offset and rendering helpers, `src/lib/editor/cursor/` for cursor, sticky-column, and overlay measurement helpers.
+Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Editor action bundles and the container helpers they compose (nested-actions, list-context, blockquote-context, focus-dispatch) live in `src/lib/editor/editor-actions/`; the shared reactive state bundle (`block-list-state`) and its `state-registry` live under `src/lib/editor/reactivity/`. Block-kind and block-component registries live in `src/lib/editor/schema/`. Pure DOM helpers split by concern: `src/lib/editor/ambient/` for ambient-prefix offset and rendering helpers, `src/lib/editor/cursor/` for cursor, sticky-column, and overlay measurement helpers.
 
 ## Two Categories
 
