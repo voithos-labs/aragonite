@@ -6,6 +6,7 @@
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
+		PASTE_COORDINATOR_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -30,6 +31,7 @@
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
+	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import BlockList from './BlockList.svelte';
 
@@ -178,6 +180,7 @@
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 	setContext(CONTROLLER_KEY, controller);
+	setContext(PASTE_COORDINATOR_KEY, createPasteCoordinator(controller));
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);

@@ -44,7 +44,7 @@ export async function handleCrossBlockPaste(
 		{
 			doc,
 			blockEdit: ctx.blockEdit,
-			controller: ctx.controller,
+			controller: ctx.pasteCoordinator,
 			skipSnapshot: true
 		}
 	);

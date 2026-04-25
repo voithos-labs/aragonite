@@ -3,6 +3,7 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTROLLER_KEY,
+		PASTE_COORDINATOR_KEY,
 		LIST_CONTEXT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
@@ -25,6 +26,7 @@
 		type AmbientPrefix
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
+	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
@@ -73,6 +75,7 @@
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
+	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
 	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
 	const listContext = getContext(LIST_CONTEXT_KEY);
@@ -114,6 +117,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
+		pasteCoordinator,
 		getCursorOffset: () => cursor.getRaw(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
@@ -514,7 +518,7 @@
 			{
 				doc: getDoc(),
 				blockEdit,
-				controller
+				controller: pasteCoordinator
 			}
 		);
 
