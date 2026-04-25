@@ -1,10 +1,12 @@
-/** Shared list/list-item construction helpers used by Enter-exit and paste flows. */
+/**
+ * Helpers for constructing list and listItem CST nodes used by Enter-exit
+ * and paste flows.
+ */
 
-import type { CstNode, Document } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { parse } from '../../core/parser';
-import { nodeAt } from '../node-ops';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
+import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
 
 // ── List / item construction ─────────────────────────────────────────────────
@@ -83,14 +85,7 @@ export function readOrderedSuffix(list: CstNode): string {
 	return marker.replace(/^\d+/, '') || '. ';
 }
 
-// ── Parse helpers ────────────────────────────────────────────────────────────
-
-/** Parse `raw` and return its first block, falling back to a paragraph node. */
-export function parseFirstBlock(raw: string): CstNode {
-	const doc = parse(raw);
-	if (doc.children.length > 0) return doc.children[0];
-	return { kind: 'paragraph', leadingTrivia: '', raw };
-}
+// ── Paste split ──────────────────────────────────────────────────────────────
 
 /**
  * Slice a leaf's raw at `offset` for a paste-style split: trims one leading
@@ -112,39 +107,4 @@ export function splitLeafForPaste(
 	const trailingNode = trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding) : null;
 
 	return { leadingNode, trailingNode, lineEnding };
-}
-
-// ── Ancestor walk ────────────────────────────────────────────────────────────
-
-/**
- * Walk up from `targetPath` to the nearest enclosing list. Returns null when
- * no list ancestor exists or when the target isn't a direct leaf of a
- * listItem (the simple shape both paste paths require).
- */
-export function findEnclosingListForPaste(
-	doc: Document,
-	targetPath: number[]
-): { list: CstNode; listPath: number[]; itemIndex: number; innerIndex: number } | null {
-	if (targetPath.length < 3) return null;
-
-	let listDepth = -1;
-	let list: CstNode | null = null;
-	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, targetPath.slice(0, depth)) as CstNode | null;
-		if (!ancestor) return null;
-		if (ancestor.kind === 'list') {
-			listDepth = depth;
-			list = ancestor;
-			break;
-		}
-	}
-	if (listDepth === -1 || !list) return null;
-	if (targetPath.length !== listDepth + 2) return null;
-
-	return {
-		list,
-		listPath: targetPath.slice(0, listDepth),
-		itemIndex: targetPath[listDepth],
-		innerIndex: targetPath[listDepth + 1]
-	};
 }
