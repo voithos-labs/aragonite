@@ -63,6 +63,21 @@ export class EditorBridge {
 		);
 	}
 
+	async waitForSourceWith<T>(
+		predicate: (source: string, arg: T) => boolean,
+		arg: T,
+		timeout = 2000
+	): Promise<void> {
+		await this.page.waitForFunction(
+			({ predSrc, value }) => {
+				const fn = new Function('source', 'arg', `return (${predSrc})(source, arg);`);
+				return fn((window as any).__test.getSource() as string, value);
+			},
+			{ predSrc: predicate.toString(), value: arg as any },
+			{ timeout, polling: 16 }
+		);
+	}
+
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => {
 			if ((window as any).__test?.isCrossBlockActive) {
