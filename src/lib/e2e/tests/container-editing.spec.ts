@@ -14,7 +14,7 @@ test.describe('blockquote editing', () => {
 		const bq = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await bq.click();
 		await editor.typeText(' again');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> .*Hello world again/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> .*Hello world again/m);
 	});
 
@@ -23,7 +23,7 @@ test.describe('blockquote editing', () => {
 		const inner = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await inner.click();
 		await editor.typeText(' appended');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('First line appended');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> ');
 		expect(source).toContain('First line appended');
@@ -36,7 +36,7 @@ test.describe('blockquote editing', () => {
 		expect(await editables.count()).toBeGreaterThanOrEqual(2);
 		await editables.nth(1).click();
 		await editor.typeText(' plus');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Para two plus');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Para two plus');
 		expect(source).toMatch(/^> /m);
@@ -48,11 +48,13 @@ test.describe('blockquote editing', () => {
 		await editables.last().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — first Enter inside blockquote splits paragraph; transient empty middle isn't visible.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — second Enter exits blockquote; transient state isn't visible until next type.
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('After quote');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('After quote');
 		expect(await editor.bridge.getSource()).toContain('After quote');
 	});
 });
@@ -71,7 +73,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await bq.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !s.includes('> '));
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('> ');
@@ -84,7 +86,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await firstInner.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^First/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^First/m);
@@ -99,7 +101,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await deepEditable.first().click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => s.includes('> Deep') && !s.includes('> > '));
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> Deep');
@@ -112,7 +114,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await inner.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/Above paragraph\.\n\s*\nHello/);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Above paragraph.');
@@ -127,7 +129,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('> Item');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> Item');
@@ -140,7 +142,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await bq.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> Hello worl/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> Hello worl/m);
 		expect(source).not.toMatch(/^Hello/m);
@@ -162,7 +164,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> texttext2$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> texttext2$/m);
 		expect(source).not.toMatch(/^text2$/m);
@@ -174,9 +176,9 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> texttext2$/m);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> textZtext2$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> textZtext2$/m);
 	});
 
@@ -186,7 +188,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> secondtext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> first$/m);
 		expect(source).toMatch(/^> secondtext$/m);
@@ -199,7 +201,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('> > deeptext');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > deeptext');
 		expect(source).not.toMatch(/^text$/m);
@@ -211,7 +213,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^> # Headingtext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> # Headingtext$/m);
 		expect(source).not.toMatch(/^text$/m);
@@ -223,6 +225,7 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
+		// wait 200ms — fall-back move-focus produces no source change; verify state is stable.
 		await editor.page.waitForTimeout(200);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> para$/m);
@@ -245,7 +248,7 @@ test.describe('inner container+paragraph merge inside a blockquote', () => {
 		await three.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/nestedthree/);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/nestedthree/);
 		expect(source).toMatch(/^> one$/m);
