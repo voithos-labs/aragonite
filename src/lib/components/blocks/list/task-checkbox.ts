@@ -1,6 +1,6 @@
-import type { AmbientPrefix } from '../contracts';
-import type { ListItemMetadata } from '../core/nodes';
-import { devWarn } from '../dev-warn';
+import type { AmbientPrefix } from '../../../contracts';
+import type { ListItemMetadata } from '../../../core/nodes';
+import { devWarn } from '../../../dev-warn';
 
 export function buildTaskItemAmbient(
 	metadata: ListItemMetadata | undefined,
