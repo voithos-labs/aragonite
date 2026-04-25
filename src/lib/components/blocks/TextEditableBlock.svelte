@@ -40,6 +40,7 @@
 	} from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from './text/format-toggle';
+	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -358,27 +359,18 @@
 		// Ctrl+0..6: replace any existing `#` prefix so repeated shortcuts cycle heading levels.
 		if ((e.ctrlKey || e.metaKey) && /^[0-6]$/.test(e.key) && !e.shiftKey && !e.altKey) {
 			e.preventDefault();
-			const level = parseInt(e.key, 10);
-			const displayText = getDisplayText();
-			const oldPrefixMatch = displayText.match(/^#{1,6}\s?/);
-			const oldPrefixLen = oldPrefixMatch ? oldPrefixMatch[0].length : 0;
-			const stripped = displayText.slice(oldPrefixLen);
-			const newPrefix = level === 0 ? '' : '#'.repeat(level) + ' ';
-			const newDisplay = newPrefix + stripped;
-			const cursor = newPrefix.length + Math.max(0, (preEditOffset ?? 0) - oldPrefixLen);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset, cursor);
-			pendingCursorOffset = cursor;
+			const { newRaw, caretOffset } = cycleHeading(node.raw, parseInt(e.key, 10), preEditOffset);
+			blockEdit.updateBlockContent(index, newRaw, preEditOffset, caretOffset);
+			pendingCursorOffset = caretOffset;
 			return;
 		}
 
 		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
 		if (e.key === 'Enter' && e.shiftKey) {
 			e.preventDefault();
-			const offset = cursor.getRaw() ?? 0;
-			const displayText = getDisplayText();
-			const newDisplay = displayText.slice(0, offset) + '\\\n' + displayText.slice(offset);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-			pendingCursorOffset = offset + 2;
+			const { newRaw, caretOffset } = insertHardBreak(node.raw, cursor.getRaw() ?? 0);
+			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+			pendingCursorOffset = caretOffset;
 			return;
 		}
 
@@ -393,11 +385,9 @@
 		// Skipped inside a list item — ListItemBlock owns Tab there.
 		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
 			e.preventDefault();
-			const offset = cursor.getRaw() ?? 0;
-			const displayText = getDisplayText();
-			const newDisplay = displayText.slice(0, offset) + '\t' + displayText.slice(offset);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', preEditOffset);
-			pendingCursorOffset = offset + 1;
+			const { newRaw, caretOffset } = insertLiteralTab(node.raw, cursor.getRaw() ?? 0);
+			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+			pendingCursorOffset = caretOffset;
 			return;
 		}
 
