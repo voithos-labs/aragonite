@@ -2,8 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { createStandardNestedActions } from '../../editor-actions/nested-actions';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
-import type { BlockEditActions, FocusActions, ContainerEditActions } from '../../contracts';
-import type { StickyColumnState } from '../../cursor/sticky-column';
+import {
+	makeStickyColumn,
+	makeStubBlockEdit,
+	makeStubContainerEdit,
+	makeStubFocus
+} from '../harness/editor-actions';
 
 function makeNode(children: CstNode[]): CstNode {
 	return {
@@ -20,29 +24,12 @@ function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
 }
 
-function fakeStickyColumn(x: number | null = null): StickyColumnState {
-	return { get: () => x, capture: vi.fn(), reset: vi.fn() };
-}
-
 function fakeParentBundles() {
-	const blockEdit: BlockEditActions = {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
+	return {
+		blockEdit: makeStubBlockEdit(),
+		focus: makeStubFocus(),
+		containerEdit: makeStubContainerEdit()
 	};
-	const focus: FocusActions = { moveFocus: vi.fn() };
-	const containerEdit: ContainerEditActions = {
-		pushCheckpoint: vi.fn(),
-		pushDebouncedCheckpoint: vi.fn(),
-		nudgeReactivity: vi.fn(),
-		commitContainer: vi.fn()
-	};
-	return { blockEdit, focus, containerEdit };
 }
 
 describe('createStandardNestedActions', () => {
@@ -57,7 +44,7 @@ describe('createStandardNestedActions', () => {
 				return node;
 			},
 			rebuildRaw: vi.fn(),
-			stickyColumn: fakeStickyColumn(),
+			stickyColumn: makeStickyColumn(),
 			parent
 		});
 
@@ -79,7 +66,7 @@ describe('createStandardNestedActions', () => {
 				return node;
 			},
 			rebuildRaw: vi.fn(),
-			stickyColumn: fakeStickyColumn(),
+			stickyColumn: makeStickyColumn(),
 			parent
 		});
 
@@ -99,7 +86,7 @@ describe('createStandardNestedActions', () => {
 				return node;
 			},
 			rebuildRaw: vi.fn(),
-			stickyColumn: fakeStickyColumn(),
+			stickyColumn: makeStickyColumn(),
 			parent
 		});
 
