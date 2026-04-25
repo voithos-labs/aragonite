@@ -13,7 +13,7 @@ test.describe('list Backspace', () => {
 		const first = editor.page.locator('[contenteditable="true"]').first();
 		await first.click();
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => (s.match(/^- /gm) || []).length === 1);
 		const source = await editor.bridge.getSource();
 		expect((source.match(/^- /gm) || []).length).toBe(1);
 		expect(source).toContain('Second');
@@ -25,7 +25,7 @@ test.describe('list Backspace', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^Item one/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^Item one/m);
@@ -39,14 +39,14 @@ test.describe('list Backspace', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !/^- /m.test(s));
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toMatch(/^- /m);
 		expect(source).toContain('Solo');
 
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('ZSolo');
 		const after = await editor.bridge.getSource();
 		expect(after).toContain('ZSolo');
 	});
@@ -57,7 +57,7 @@ test.describe('list Backspace', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^First/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^First/m);
@@ -71,7 +71,7 @@ test.describe('list Backspace', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^First/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^First/m);
@@ -85,7 +85,7 @@ test.describe('list Backspace', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^1\. Second/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^First/m);
@@ -100,9 +100,10 @@ test.describe('list Backspace', () => {
 		await second.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter inserts an empty trailing item whose marker isn't visible in source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => (s.match(/^- /gm) || []).length === 2);
 		const source = await editor.bridge.getSource();
 		expect((source.match(/^- /gm) || []).length).toBe(2);
 	});
@@ -113,7 +114,7 @@ test.describe('list Backspace', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Item oneItem two');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Item oneItem two');
@@ -126,7 +127,7 @@ test.describe('list Backspace', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- AB');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('- AB');
@@ -139,7 +140,7 @@ test.describe('list Backspace', () => {
 		await bItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/- AAB/);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('- A');
@@ -154,7 +155,7 @@ test.describe('list Backspace', () => {
 		await dItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^    - CD/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^    - CD/m);
@@ -168,7 +169,7 @@ test.describe('list Backspace', () => {
 		await bItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- AB');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('- AB');
@@ -181,7 +182,7 @@ test.describe('list Backspace', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^1\. FirstSecond/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. FirstSecond/m);
@@ -194,10 +195,10 @@ test.describe('list Backspace', () => {
 		await betaItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('AlphaBeta');
 
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('AlphaZBeta');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('AlphaZBeta');
 	});
@@ -208,7 +209,7 @@ test.describe('list Backspace', () => {
 		await nested.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- Parent\n- Nested\n');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('- Parent\n- Nested\n');
 	});
@@ -218,12 +219,12 @@ test.describe('list Backspace', () => {
 		const item = editor.page.locator('[contenteditable="true"]').nth(1);
 		await item.click();
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !/^- /m.test(s));
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toMatch(/^- /m);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('AboveZ');
 		expect(await editor.bridge.getSource()).toContain('AboveZ');
 	});
 
@@ -232,7 +233,7 @@ test.describe('list Backspace', () => {
 		const item = editor.page.locator('[contenteditable="true"]').first();
 		await item.click();
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSource((s) => !/^- /m.test(s));
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toMatch(/^- /m);
@@ -247,6 +248,7 @@ test.describe('list Backspace', () => {
 		await middle.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Delete');
+		// wait 200ms — no-op produces no source change; verify state is stable before asserting.
 		await editor.page.waitForTimeout(200);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- first$/m);
@@ -261,7 +263,7 @@ test.describe('list Backspace', () => {
 		await last.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/^- last itemAfter$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- last itemAfter$/m);
 		expect(source).not.toMatch(/^After$/m);
@@ -273,9 +275,10 @@ test.describe('list Backspace', () => {
 		await second.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
+		// wait 200ms — Enter at end inserts an empty trailing marker not visible in source.
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/3\.\s*Third/);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/1\.\s*First/);
 		expect(source).toMatch(/2\.\s*Second/);
@@ -292,7 +295,7 @@ test.describe('list Backspace', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Inner oneZInner two');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('Inner oneZInner two');
 	});
@@ -307,7 +310,7 @@ test.describe('list Backspace', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('AlphaZBeta');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('AlphaZBeta');
 	});
@@ -319,7 +322,7 @@ test.describe('list Backspace', () => {
 		await third.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^three$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toMatch(/^\d+\. three$/m);
 		expect(source).toMatch(/^three$/m);
