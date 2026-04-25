@@ -19,6 +19,7 @@ import type { CstNode } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import type { UndoController } from '../editor-actions/deps';
+import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { performCrossBlockDelete } from './cross-block-ops';
 import { handleCrossBlockPaste } from './cross-block-paste';
 import { handleCrossBlockTypeReplace } from './cross-block-type-replace';
@@ -42,6 +43,7 @@ export interface CrossBlockDispatchContext {
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
+	pasteCoordinator: PasteCommitCoordinator;
 
 	getCursorOffset: () => number | null;
 

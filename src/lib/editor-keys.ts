@@ -28,6 +28,9 @@ export const EDITOR_LIFETIME_KEY = Symbol('editor-lifetime');
 
 export const CONTROLLER_KEY = Symbol('undo-controller');
 
+/** Narrow paste-side view of the controller; supplied so paste call sites depend on the explicit interface. */
+export const PASTE_COORDINATOR_KEY = Symbol('paste-coordinator');
+
 export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 

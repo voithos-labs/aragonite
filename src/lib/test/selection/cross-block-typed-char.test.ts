@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block-dispatch';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo-manager';
@@ -73,6 +74,7 @@ function makeHandlers(
 		containerEdit: env.containerEdit,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
+		pasteCoordinator: createPasteCoordinator(env.controller),
 		getCursorOffset,
 		afterReactivity: async () => {},
 		setPendingCursor: () => {}
