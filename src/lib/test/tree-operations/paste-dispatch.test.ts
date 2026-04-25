@@ -12,7 +12,7 @@ import {
 	registerPasteSurface
 } from '../../tree-operations/paste-surfaces';
 import { parse } from '../../core/parser';
-import { registerBlockListState } from '../../state-registry';
+import { registerBlockListState } from '../../reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '../../core/nodes';
 import type { BlockComponent, BlockEditActions } from '../../contracts';
 import type { UndoController } from '../../editor-actions/deps';

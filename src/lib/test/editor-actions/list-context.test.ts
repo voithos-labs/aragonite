@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createListContext } from '../../editor-actions/list-context';
-import { registerBlockListState } from '../../state-registry';
+import { registerBlockListState } from '../../reactivity/state-registry';
 import { createUndoController } from '../../editor-actions/undo-controller';
 import { createUndoManager } from '../../undo-manager';
 import { createSelectionState } from '../../selection/selection-state.svelte';

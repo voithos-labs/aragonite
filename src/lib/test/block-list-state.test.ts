@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBlockListState } from '../block-list-state.svelte';
+import { createBlockListState } from '../reactivity/block-list-state.svelte';
 import type { CstNode } from '../core/nodes';
 
 function makeNode(children: CstNode[]): CstNode {
