@@ -47,14 +47,12 @@
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,
-		getCloserFor,
-		shouldAutoClose,
-		shouldSkipClose,
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
 	} from './code/code-editing';
 	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
 	import { computeCodeEnter } from './code/code-enter';
+	import { computeAutoPair } from './code/code-beforeinput';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
@@ -252,45 +250,27 @@
 
 		const text = getDisplayText();
 		const selOffsets = getSelectionOffsetsHelper(el);
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
 
-		const closer = getCloserFor(data);
+		const meta = node.metadata as FencedCodeMetadata;
+		const result = computeAutoPair({
+			text,
+			selection: selOffsets ?? { start: offset, end: offset },
+			typed: data,
+			unclosedBacktickFence: meta.closed === false && meta.fenceMarker === '`'
+		});
+		if (!result) return;
 
-		// Selection preserved inside the pair so the user can keep typing to replace the wrapped content.
-		if (selOffsets && closer !== null) {
-			e.preventDefault();
-			const wrapped =
-				text.slice(0, selOffsets.start) +
-				data +
-				text.slice(selOffsets.start, selOffsets.end) +
-				closer +
-				text.slice(selOffsets.end);
-			blockEdit.updateBlockContent(index, wrapped + '\n', preEditOffset);
-			pendingSelection = { start: selOffsets.start + 1, end: selOffsets.end + 1 };
+		e.preventDefault();
+		if (result.kind === 'skip') {
+			setCursorOffsetHelper(el, result.caretOffset);
 			return;
 		}
-
-		if (selOffsets) return; // Non-opener input with a selection — let the browser handle it.
-
-		// Skip-over: closer already at cursor. Bypass the render cycle — CST unchanged, just advance caret.
-		if (shouldSkipClose(text, offset, data)) {
-			e.preventDefault();
-			setCursorOffsetHelper(el, offset + 1);
-			return;
-		}
-
-		// Skip backtick auto-pair inside an unclosed backtick fence — the user
-		// is closing/extending the fence, and auto-pairing would add a phantom closer.
-		const unclosedBacktickFence =
-			data === '`' &&
-			(node.metadata as FencedCodeMetadata).closed === false &&
-			(node.metadata as FencedCodeMetadata).fenceMarker === '`';
-		if (closer !== null && !unclosedBacktickFence && shouldAutoClose(text, offset, data)) {
-			e.preventDefault();
-			const newText = text.slice(0, offset) + data + closer + text.slice(offset);
-			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-			pendingCursorOffset = offset + 1;
-			return;
+		blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
+		if (result.kind === 'wrap') {
+			pendingSelection = result.selection;
+		} else {
+			pendingCursorOffset = result.caretOffset;
 		}
 	}
 
