@@ -12,7 +12,7 @@ import type { CstNode } from '../core/nodes';
 import { trimTrailingLineEnding } from '../core/lines';
 import { parseAllInlineContent } from '../core/inline';
 import { ensureEditableContainers } from './node-ops';
-import { parseFirstBlock } from './list/list-builders';
+import { parseFirstBlock } from './parse-block';
 
 export function buildPastedReplacement(
 	leaf: CstNode,

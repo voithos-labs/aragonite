@@ -26,10 +26,10 @@ import { renumberOrderedList } from '../list/ordered-markers';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import {
 	buildListItemWithContent,
-	findEnclosingListForPaste,
 	readOrderedSuffix,
 	splitLeafForPaste
 } from '../list/list-builders';
+import { findEnclosingListForPaste } from './find-enclosing-list';
 import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { PasteDispatchContext } from './dispatch';
