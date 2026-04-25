@@ -28,7 +28,7 @@
 		setNestedActionsContexts
 	} from '../../editor-actions/nested-actions';
 	import { dispatchFocusByPath, dispatchFocusAtColumn } from '../../editor-actions/focus-dispatch';
-	import { buildTaskItemAmbient } from '../../editor-actions/task-checkbox';
+	import { buildTaskItemAmbient } from './list/task-checkbox';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

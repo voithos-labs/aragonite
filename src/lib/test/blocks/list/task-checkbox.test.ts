@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildTaskItemAmbient } from '$lib/editor/editor-actions/task-checkbox';
+import { buildTaskItemAmbient } from '$lib/editor/components/blocks/list/task-checkbox';
 import type { ListItemMetadata } from '$lib/editor/core/nodes';
 
 function plainListMeta(): ListItemMetadata {
