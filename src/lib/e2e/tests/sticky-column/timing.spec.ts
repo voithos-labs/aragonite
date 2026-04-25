@@ -19,12 +19,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await h3.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowUp();
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[0]).toContain('X');
 	});
@@ -35,12 +35,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await h1.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowDown();
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[4]).toContain('X');
 	});
@@ -51,12 +51,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await p3.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowUp();
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[0]).toContain('X');
 	});
@@ -67,12 +67,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await p1.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowDown();
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[4]).toContain('X');
 	});
@@ -86,12 +86,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await p3.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowUp();
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[0]).toContain('X');
 	});
@@ -105,12 +105,12 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await p1.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.pressArrowDown();
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
 		expect(lines[4]).toContain('X');
 	});

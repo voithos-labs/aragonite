@@ -7,7 +7,7 @@ async function focusCodeBlockAtEnd(editor: EditorPage) {
 }
 
 async function expectBody(editor: EditorPage, expectedBody: string) {
-	const source = await editor.getSource();
+	const source = await editor.bridge.getSource();
 	const match = source.match(/^```[^\n]*\n([\s\S]*?)\n```\s*$/);
 	expect(match, `could not parse code block body from source:\n${source}`).not.toBeNull();
 	expect(match![1]).toBe(expectedBody);
@@ -24,7 +24,7 @@ test.describe('code block auto-indent on Enter', () => {
 	test('Enter at end of indented line copies the indent to the new line', async () => {
 		await editor.loadContent('```\n\tfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '\tfoo\n\tbar');
@@ -33,7 +33,7 @@ test.describe('code block auto-indent on Enter', () => {
 	test('Enter preserves a multi-space indent verbatim', async () => {
 		await editor.loadContent('```\n    foo\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '    foo\n    bar');
@@ -42,7 +42,7 @@ test.describe('code block auto-indent on Enter', () => {
 	test('Enter at end of un-indented line inserts a bare newline', async () => {
 		await editor.loadContent('```\nfoo\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.typeText('bar');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'foo\nbar');
@@ -53,7 +53,7 @@ test.describe('code block auto-indent on Enter', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 10; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '    fo\n    o');
 	});
@@ -72,7 +72,7 @@ test.describe('code block electric indent', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 8; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, 'f(){\n\t\n}');
 	});
@@ -82,7 +82,7 @@ test.describe('code block electric indent', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 9; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '\tf(){\n\t\t\n\t}');
 	});
@@ -92,7 +92,7 @@ test.describe('code block electric indent', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '"\n"');
 	});
@@ -260,7 +260,7 @@ test.describe('code block skip-over and pair-delete', () => {
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.typeSlowly('(');
 		await editor.page.waitForTimeout(50);
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '');
 	});
@@ -274,7 +274,7 @@ test.describe('code block skip-over and pair-delete', () => {
 		await editor.page.waitForTimeout(50);
 		await editor.typeSlowly('[');
 		await editor.page.waitForTimeout(50);
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(100);
 		await expectBody(editor, '()');
 	});
@@ -302,7 +302,7 @@ test.describe('code block conveniences — undo and highlight.js interaction', (
 	test('auto-indent works inside a js-highlighted code block', async () => {
 		await editor.loadContent('```js\n\tconst x = 1;\n```\n');
 		await focusCodeBlockAtEnd(editor);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.typeText('const y = 2;');
 		await editor.page.waitForTimeout(150);
 		await expectBody(editor, '\tconst x = 1;\n\tconst y = 2;');

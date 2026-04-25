@@ -24,10 +24,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 9);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^- Unordered$/m);
 		expect(src).toMatch(/^1\. Ordered first$/m);
 		expect(src).toMatch(/^2\. Ordered second$/m);
@@ -47,10 +47,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'Unordered'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^- Unordered$/m);
 		expect(src).toMatch(/^1\. a$/m);
 		expect(src).toMatch(/^2\. b$/m);
@@ -66,10 +66,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. a$/m);
 		expect(src).toMatch(/^2\. b$/m);
 		expect(src).toMatch(/^- Unordered$/m);
@@ -88,10 +88,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Unordered'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^3\. Ordered$/m);
 		expect(src).toMatch(/^- third$/m);
 		expect(src).not.toMatch(/^3\. Ordered-/m);
@@ -105,10 +105,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const src = (await editor.getSource()).replace(/\r\n/g, '\n');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. First$/m);
 		expect(src).toMatch(/^- paste one$/m);
 		expect(src).toMatch(/^- paste two$/m);

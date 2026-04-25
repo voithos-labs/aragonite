@@ -13,10 +13,10 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 		await editor.loadContent('1. hey\n2. hey\n3. hey\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.pressKey('Control+Shift+End');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -34,9 +34,9 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 3);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -61,20 +61,20 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 		);
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.pressKey('Control+Shift+End');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressKey('ArrowRight');
-		await editor.waitForCrossBlock(false);
+		await editor.page.keyboard.press('ArrowRight');
+		await editor.bridge.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([2], 5);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 
 		const itemTwoCount = source.split('Item two').length - 1;
 		expect(itemTwoCount).toBe(2);
@@ -98,10 +98,10 @@ test.describe('cross-block clipboard: partial list promotion regression', () => 
 		);
 
 		await editor.focusBlockAtPath([0, 2, 0], 0);
-		await editor.pressKey('Control+Shift+End');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
 		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());

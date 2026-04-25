@@ -12,83 +12,83 @@ test.describe('undo and redo', () => {
 	});
 
 	test('undo reverts a split (Enter then Ctrl+Z restores single block)', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
-		expect(await editor.getDomBlockCount()).toBeGreaterThan(3);
+		await editor.page.keyboard.press('Enter');
+		expect(await editor.bridge.getDomBlockCount()).toBeGreaterThan(3);
 
 		await editor.undo();
-		expect(await editor.getSource()).toBe(before);
-		expect(await editor.getDomBlockCount()).toBe(3);
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await editor.bridge.getDomBlockCount()).toBe(3);
 	});
 
 	test('redo restores a split after undo', async () => {
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
-		const splitSource = await editor.getSource();
-		const splitCount = await editor.getDomBlockCount();
+		await editor.page.keyboard.press('Enter');
+		const splitSource = await editor.bridge.getSource();
+		const splitCount = await editor.bridge.getDomBlockCount();
 
 		await editor.undo();
-		expect(await editor.getDomBlockCount()).toBe(3);
+		expect(await editor.bridge.getDomBlockCount()).toBe(3);
 
 		await editor.redo();
-		expect(await editor.getSource()).toBe(splitSource);
-		expect(await editor.getDomBlockCount()).toBe(splitCount);
+		expect(await editor.bridge.getSource()).toBe(splitSource);
+		expect(await editor.bridge.getDomBlockCount()).toBe(splitCount);
 	});
 
 	test('undo reverts typed text after debounce', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' extra words');
 		await editor.page.waitForTimeout(600);
 
 		await editor.undo();
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('undo reverts a merge (Backspace at start of block)', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(1);
-		await editor.pressBackspace();
-		expect(await editor.getDomBlockCount()).toBeLessThan(3);
+		await editor.page.keyboard.press('Backspace');
+		expect(await editor.bridge.getDomBlockCount()).toBeLessThan(3);
 
 		await editor.undo();
-		expect(await editor.getSource()).toBe(before);
-		expect(await editor.getDomBlockCount()).toBe(3);
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await editor.bridge.getDomBlockCount()).toBe(3);
 	});
 
 	test('undo reverts kind change (paragraph to heading via # prefix)', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
 		await editor.page.waitForTimeout(600);
-		expect(await editor.getBlockKind(0)).toBe('heading');
+		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 
 		await editor.undo();
-		expect(await editor.getBlockKind(0)).toBe('paragraph');
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('multiple undo steps revert a sequence of operations', async () => {
-		const original = await editor.getSource();
+		const original = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' appended');
 		await editor.page.waitForTimeout(600);
 
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 
 		await editor.undo();
 		await editor.undo();
 
-		expect(await editor.getSource()).toBe(original);
+		expect(await editor.bridge.getSource()).toBe(original);
 	});
 
 	test('redo stack is cleared when a new edit occurs after undo', async () => {
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
-		const splitSource = await editor.getSource();
+		await editor.page.keyboard.press('Enter');
+		const splitSource = await editor.bridge.getSource();
 
 		await editor.undo();
 		await editor.focusBlockEnd(0);
@@ -96,14 +96,14 @@ test.describe('undo and redo', () => {
 		await editor.page.waitForTimeout(600);
 
 		await editor.redo();
-		expect(await editor.getSource()).not.toBe(splitSource);
+		expect(await editor.bridge.getSource()).not.toBe(splitSource);
 	});
 
 	test('undo on empty stack does not crash or corrupt state', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		await editor.undo();
 		await editor.undo();
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 		await editor.focusBlockEnd(0);
 		await editor.typeText('z');
 		expect(await editor.getBlockText(0)).toContain('z');

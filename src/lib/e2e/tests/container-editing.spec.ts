@@ -15,7 +15,7 @@ test.describe('blockquote editing', () => {
 		await bq.click();
 		await editor.typeText(' again');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> .*Hello world again/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> .*Hello world again/m);
 	});
 
 	test('blockquote source round-trips after editing', async () => {
@@ -24,7 +24,7 @@ test.describe('blockquote editing', () => {
 		await inner.click();
 		await editor.typeText(' appended');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('> ');
 		expect(source).toContain('First line appended');
 		expect(source).toContain('Second line');
@@ -37,7 +37,7 @@ test.describe('blockquote editing', () => {
 		await editables.nth(1).click();
 		await editor.typeText(' plus');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Para two plus');
 		expect(source).toMatch(/^> /m);
 	});
@@ -46,14 +46,14 @@ test.describe('blockquote editing', () => {
 		await editor.loadContent('> Line one.\n>\n> Line two.\n');
 		const editables = editor.getBlock(0).locator('[contenteditable="true"]');
 		await editables.last().click();
-		await editor.pressKey('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('After quote');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('After quote');
+		expect(await editor.bridge.getSource()).toContain('After quote');
 	});
 });
 
@@ -69,11 +69,11 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.loadContent('> Hello world\n');
 		const bq = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await bq.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('> ');
 		expect(source).toContain('Hello world');
 	});
@@ -82,11 +82,11 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.loadContent('> First\n>\n> Second\n');
 		const firstInner = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await firstInner.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^First/m);
 		expect(source).toMatch(/^> Second/m);
 	});
@@ -97,11 +97,11 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 			'.blockquote-block .blockquote-block [contenteditable="true"]'
 		);
 		await deepEditable.first().click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('> Deep');
 		expect(source).not.toContain('> > ');
 	});
@@ -110,11 +110,11 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.loadContent('Above paragraph.\n\n> Hello\n');
 		const inner = editor.getBlock(1).locator('[contenteditable="true"]').first();
 		await inner.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Above paragraph.');
 		expect(source).toContain('Hello');
 		expect(source).not.toContain('Above paragraph.Hello');
@@ -125,11 +125,11 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.loadContent('> - Item\n');
 		const item = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await item.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('> Item');
 		expect(source).not.toContain('- Item');
 	});
@@ -138,10 +138,10 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.loadContent('> Hello world\n');
 		const bq = editor.getBlock(0).locator('[contenteditable="true"]').first();
 		await bq.click();
-		await editor.pressKey('End');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> Hello worl/m);
 		expect(source).not.toMatch(/^Hello/m);
 	});
@@ -160,10 +160,10 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.loadContent('> text\n\ntext2\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> texttext2$/m);
 		expect(source).not.toMatch(/^text2$/m);
 	});
@@ -172,22 +172,22 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.loadContent('> text\n\ntext2\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text2$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> textZtext2$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> textZtext2$/m);
 	});
 
 	test('multi-paragraph blockquote: only the last inner paragraph receives the merge', async () => {
 		await editor.loadContent('> first\n>\n> second\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> first$/m);
 		expect(source).toMatch(/^> secondtext$/m);
 		expect(source).not.toMatch(/^text$/m);
@@ -197,10 +197,10 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.loadContent('> > deep\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > deeptext');
 		expect(source).not.toMatch(/^text$/m);
 	});
@@ -209,10 +209,10 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.loadContent('> # Heading\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> # Headingtext$/m);
 		expect(source).not.toMatch(/^text$/m);
 	});
@@ -221,10 +221,10 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.loadContent('> para\n>\n> ```\n> code\n> ```\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> para$/m);
 		expect(source).toMatch(/^text$/m);
 		expect(source).toContain('```');
@@ -243,10 +243,10 @@ test.describe('inner container+paragraph merge inside a blockquote', () => {
 		await editor.loadContent('> one\n>\n> > nested\n>\n> three\n');
 		const three = editor.page.locator('[contenteditable="true"]', { hasText: /^three$/ });
 		await three.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/nestedthree/);
 		expect(source).toMatch(/^> one$/m);
 		expect(source).not.toMatch(/^three$/m);

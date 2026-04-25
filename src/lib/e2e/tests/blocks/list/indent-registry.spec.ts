@@ -21,7 +21,7 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('- nested under two');
 		expect(src).toContain('Xthree');
 	});
@@ -38,7 +38,7 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
 
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n  - Xtwo/);
 	});
 });

@@ -17,13 +17,13 @@ test.describe('code block editing — edge cases', () => {
 		await editor.loadContent('```\nsome code\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('Control+End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('after code');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('after code');
 		expect(source).toContain('some code');
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
@@ -34,33 +34,33 @@ test.describe('code block editing — edge cases', () => {
 		await editor.getBlock(1).click();
 		await editor.page.keyboard.press('Control+Home');
 		await editor.page.waitForTimeout(100);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('End');
 		await editor.typeText(' appended');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('Above paragraph appended');
+		expect(await editor.bridge.getSource()).toContain('Above paragraph appended');
 	});
 
 	test('ArrowDown in last line exits to next block', async () => {
 		await editor.loadContent('```\ncode here\n```\n\nBelow paragraph\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('prepended ');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('prepended');
+		expect(await editor.bridge.getSource()).toContain('prepended');
 	});
 
 	test('Backspace at position 0 moves focus without deleting code block', async () => {
 		await editor.loadContent('Before\n\n```\ncode\n```\n');
-		const countBefore = await editor.getBlockCount();
+		const countBefore = await editor.bridge.getBlockCount();
 		await editor.getBlock(1).click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getBlockCount()).toBe(countBefore);
-		expect(await editor.getSource()).toContain('code');
+		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
+		expect(await editor.bridge.getSource()).toContain('code');
 	});
 });

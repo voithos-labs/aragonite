@@ -18,16 +18,16 @@ test.describe('source prop change', () => {
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.up('Shift');
 
-		await editor.waitForCrossBlock(true);
-		expect(await editor.isCrossBlockActive()).toBe(true);
+		await editor.bridge.waitForCrossBlock(true);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		await editor.loadContent('Totally different content.\n');
 
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' appended');
-		const src = await editor.getSource();
+		const src = await editor.bridge.getSource();
 		expect(src).toContain('appended');
 	});
 });

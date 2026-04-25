@@ -21,9 +21,9 @@ test.describe('clipboard — inline formatting preservation', () => {
 	test('copy across formatted + link paragraphs preserves all markers', async () => {
 		await editor.focusBlockStart(3);
 		await editor.shiftClickBlock([4], 67);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -36,9 +36,9 @@ test.describe('clipboard — inline formatting preservation', () => {
 	test('copy heading through formatted paragraph preserves heading marker', async () => {
 		await editor.focusBlockStart(2);
 		await editor.shiftClickBlock([3], 70);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -59,9 +59,9 @@ test.describe('clipboard — container boundary scenarios', () => {
 	test('copy last unordered + first ordered item excludes other items', async () => {
 		await editor.focusBlockAtPath([7, 2, 0], 0);
 		await editor.shiftClickBlock([8, 0, 0], 5);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -74,10 +74,10 @@ test.describe('clipboard — container boundary scenarios', () => {
 
 	test('copy from blockquote second paragraph to end collects list markers', async () => {
 		await editor.focusBlockAtPath([6, 1], 0);
-		await editor.pressKey('Control+Shift+End');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -89,10 +89,10 @@ test.describe('clipboard — container boundary scenarios', () => {
 
 	test('copy from ordered list last item across code block to final paragraph', async () => {
 		await editor.focusBlockAtPath([8, 2, 0], 0);
-		await editor.pressKey('Control+Shift+End');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -115,10 +115,10 @@ test.describe('clipboard — code block boundary and direction', () => {
 
 	test('select inside code block across boundary into final paragraph', async () => {
 		await editor.focusBlockStart(9);
-		await editor.pressKey('Control+Shift+End');
+		await editor.page.keyboard.press('Control+Shift+End');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -128,10 +128,10 @@ test.describe('clipboard — code block boundary and direction', () => {
 
 	test('bottom-to-top selection copies the block above', async () => {
 		await editor.focusBlockStart(1);
-		await editor.pressKey('Shift+ArrowUp');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowUp');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(200);
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
@@ -150,22 +150,22 @@ test.describe('clipboard — cut three blocks then undo', () => {
 	});
 
 	test('cut headings then undo restores all three', async () => {
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([2], 13);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);
 
-		const afterCut = await editor.getSource();
+		const afterCut = await editor.bridge.getSource();
 		expect(afterCut).not.toContain('# Heading 1');
 		expect(afterCut).not.toContain('## Heading 2');
 		expect(afterCut).not.toContain('### Heading 3');
 
 		await editor.undo();
 		await editor.page.waitForTimeout(300);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

@@ -13,72 +13,72 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.loadContent('> first\n>\n> second\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^first$/ });
 		await first.click();
-		await editor.pressKey('Home');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Zsecond$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Zsecond$/m);
 	});
 
 	test('ArrowUp between two inner paragraphs', async () => {
 		await editor.loadContent('> first\n>\n> second\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: /^second$/ });
 		await second.click();
-		await editor.pressKey('End');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> firstZ$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> firstZ$/m);
 	});
 
 	test('ArrowDown from last inner paragraph exits blockquote', async () => {
 		await editor.loadContent('> quote\n\nafter\n');
 		const quote = editor.page.locator('[contenteditable="true"]', { hasText: /^quote$/ });
 		await quote.click();
-		await editor.pressKey('Home');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^[^>].*Z/m);
+		expect(await editor.bridge.getSource()).toMatch(/^[^>].*Z/m);
 	});
 
 	test('ArrowUp from first inner paragraph exits blockquote', async () => {
 		await editor.loadContent('before\n\n> quote\n');
 		const quote = editor.page.locator('[contenteditable="true"]', { hasText: /^quote$/ });
 		await quote.click();
-		await editor.pressKey('End');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^beforeZ$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^beforeZ$/m);
 	});
 
 	test('ArrowDown from paragraph before blockquote enters the blockquote', async () => {
 		await editor.loadContent('before\n\n> quote\n');
 		const before = editor.page.locator('[contenteditable="true"]', { hasText: /^before$/ });
 		await before.click();
-		await editor.pressKey('Home');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Zquote$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Zquote$/m);
 	});
 
 	test('ArrowUp from paragraph after blockquote enters the blockquote', async () => {
 		await editor.loadContent('> quote\n\nafter\n');
 		const after = editor.page.locator('[contenteditable="true"]', { hasText: /^after$/ });
 		await after.click();
-		await editor.pressKey('End');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> .*Z/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> .*Z/m);
 	});
 });
 
@@ -96,28 +96,28 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
-		await editor.pressKey('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Z2$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 
 	test('Enter at end of inner paragraph, then ArrowUp from empty paragraph reaches previous paragraph', async () => {
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
-		await editor.pressKey('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Z1$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Z1$/m);
 	});
 });
 
@@ -133,16 +133,16 @@ test.describe('blockquote navigation — after Backspace (delete empty middle pa
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
-		await editor.pressKey('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(200);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> [2Z]+$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> [2Z]+$/m);
 	});
 });
 
@@ -158,14 +158,14 @@ test.describe('blockquote navigation — boundary crossing after U2 unwrap', () 
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
-		await editor.pressKey('Home');
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Z2$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 });
 
@@ -181,24 +181,24 @@ test.describe('blockquote navigation — nested blockquote', () => {
 		await editor.loadContent('> > deep\n>\n> outer\n');
 		const outer = editor.page.locator('[contenteditable="true"]', { hasText: /^outer$/ });
 		await outer.click();
-		await editor.pressKey('End');
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> > .*Z/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> > .*Z/m);
 	});
 
 	test('ArrowDown from nested inner paragraph to outer inner paragraph', async () => {
 		await editor.loadContent('> > deep\n>\n> outer\n');
 		const deep = editor.page.locator('[contenteditable="true"]', { hasText: /^deep$/ });
 		await deep.click();
-		await editor.pressKey('Home');
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> [^>].*Z/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> [^>].*Z/m);
 	});
 });
 
@@ -214,15 +214,15 @@ test.describe('blockquote navigation — long permutations', () => {
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
-		await editor.pressKey('End');
+		await editor.page.keyboard.press('End');
 		await editor.typeText(' extra');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressArrowDown();
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toMatch(/^> Z2$/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Z2$/m);
 	});
 });

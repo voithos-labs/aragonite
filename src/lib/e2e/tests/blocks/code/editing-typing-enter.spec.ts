@@ -20,7 +20,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.page.keyboard.press('End');
 		await editor.typeText('\nconst y = 99;');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('const x = 42;');
 		expect(source).toContain('const y = 99;');
 	});
@@ -29,12 +29,12 @@ test.describe('code block editing — happy paths', () => {
 		await editor.loadContent('```\nline one\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.typeText('line two');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getBlockCount()).toBe(1);
-		expect(await editor.getBlockKind(0)).toBe('fencedCode');
-		const source = await editor.getSource();
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('line one\nline two');
 	});
 
@@ -46,9 +46,9 @@ test.describe('code block editing — happy paths', () => {
 		for (let i = 0; i < 5; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toBe('```\na\nbc\n```\n');
 	});
 
@@ -61,9 +61,9 @@ test.describe('code block editing — happy paths', () => {
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toBe('```\nfoo\n\n```\n');
 	});
 
@@ -74,15 +74,15 @@ test.describe('code block editing — happy paths', () => {
 		for (let i = 0; i < 13; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		let source = await editor.getSource();
+		let source = await editor.bridge.getSource();
 		expect(source).toContain('some code\n\n```');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('after code');
 		await editor.page.waitForTimeout(200);
-		source = await editor.getSource();
+		source = await editor.bridge.getSource();
 		expect(source).toContain('```\nsome code\n```');
 		expect(source).not.toContain('some code\n\n```');
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
@@ -97,11 +97,11 @@ test.describe('code block editing — happy paths', () => {
 		for (let i = 0; i < 7; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(150);
 		await editor.typeText('bar');
 		await editor.page.waitForTimeout(150);
-		expect(await editor.getSource()).toBe('```\nfoo\nbar\n```\n');
+		expect(await editor.bridge.getSource()).toBe('```\nfoo\nbar\n```\n');
 	});
 
 	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async ({
@@ -109,14 +109,14 @@ test.describe('code block editing — happy paths', () => {
 	}) => {
 		// Regression: Chromium routed the next typed character BEFORE the trailing \n in unclosed fences.
 		await editor.loadContent('```js\nconst x = 1\n');
-		expect(await editor.getBlockKind(0)).toBe('fencedCode');
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await editor.getBlock(0).click();
 		await editor.focusBlockEnd(0);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(150);
 		await editor.typeText('const y = 2');
 		await editor.page.waitForTimeout(150);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('const x = 1\nconst y = 2');
 	});
 
@@ -127,11 +127,11 @@ test.describe('code block editing — happy paths', () => {
 		for (let i = 0; i < 12; i++) {
 			await page.keyboard.press('ArrowRight');
 		}
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(150);
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(150);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toBe('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
 	});
 
@@ -141,7 +141,7 @@ test.describe('code block editing — happy paths', () => {
 		await editor.page.keyboard.press('End');
 		await editor.typeText('\n    return 42');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/```python/);
 		expect(source).toContain('def hello():');
 		expect(source).toContain('return 42');

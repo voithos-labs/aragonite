@@ -31,7 +31,7 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
 			original
 		);
-		expect((await editor.getSource()).trim()).toBe(original.trim());
+		expect((await editor.bridge.getSource()).trim()).toBe(original.trim());
 	});
 
 	test('single-paragraph paste over cross-block selection — one undo restores', async () => {
@@ -56,55 +56,55 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
 			original
 		);
-		expect((await editor.getSource()).trim()).toBe(original.trim());
+		expect((await editor.bridge.getSource()).trim()).toBe(original.trim());
 	});
 
 	test('cross-block top-level paste of multi-block content is one undo unit', async () => {
 		await editor.loadContent('hello\n\nworld\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([1], 'world'.length);
-		await editor.waitForCrossBlock(true);
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const afterPaste = await editor.getSource();
+		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');
 		expect(afterPaste).toContain('beta');
 		expect(afterPaste).not.toContain('hello');
 		expect(afterPaste).not.toContain('world');
 
-		await editor.pressKey('Control+z');
+		await editor.page.keyboard.press('Control+z');
 		await editor.page.waitForTimeout(300);
-		const afterUndo = await editor.getSource();
+		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());
 	});
 
 	test('cross-block paste across list items is one undo unit', async () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('alpha\n\nbeta\n'));
 		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
-		await editor.waitForCrossBlock(true);
-		await editor.pressKey('Control+v');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const afterPaste = await editor.getSource();
+		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('alpha');
 		expect(afterPaste).toContain('beta');
 
-		await editor.pressKey('Control+z');
+		await editor.page.keyboard.press('Control+z');
 		await editor.page.waitForTimeout(300);
-		const afterUndo = await editor.getSource();
+		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());
 	});
 });

@@ -13,22 +13,22 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);
 
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
-		await editor.pressKey('Control+a');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+a');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+c');
+		await editor.page.keyboard.press('Control+c');
 		await editor.page.waitForTimeout(100);
 
-		await editor.pressKey('ArrowRight');
-		await editor.waitForCrossBlock(false);
+		await editor.page.keyboard.press('ArrowRight');
+		await editor.bridge.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 
 		const firstCount = source.split('first para').length - 1;
 		const secondCount = source.split('second para').length - 1;
@@ -42,15 +42,15 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await editor.focusBlockStart(0);
 
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
-		await editor.pressKey('Control+a');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+a');
+		await editor.bridge.waitForCrossBlock(true);
 
-		await editor.pressKey('Control+x');
-		await editor.waitForCrossBlock(false);
+		await editor.page.keyboard.press('Control+x');
+		await editor.bridge.waitForCrossBlock(false);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('alpha');
 		expect(source).not.toContain('beta');
 		expect(source).not.toContain('gamma');
@@ -62,48 +62,48 @@ test.describe('select-all clipboard round-trip', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
 		await item.click();
 
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(100);
-		expect(await editor.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const firstSelection = await editor.page.evaluate(
 			() => window.getSelection()?.toString() ?? ''
 		);
 		expect(firstSelection).toBe('Hello');
 
-		await editor.pressKey('Control+a');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+a');
+		await editor.bridge.waitForCrossBlock(true);
 
-		const paths = await editor.getSelectionPaths();
+		const paths = await editor.bridge.getSelectionPaths();
 		expect(paths).not.toBeNull();
 		expect(paths!.anchor.path[0]).toBe(0);
 		expect(paths!.focus.path[0]).toBe(2);
 
-		await editor.pressBackspace();
-		await editor.waitForCrossBlock(false);
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForCrossBlock(false);
 		await editor.page.waitForTimeout(200);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('Before');
 		expect(source).not.toContain('Hello');
 		expect(source).not.toContain('After');
-		expect(await editor.getDomBlockCount()).toBe(1);
+		expect(await editor.bridge.getDomBlockCount()).toBe(1);
 	});
 
 	test('select-all cut then paste replaces with clipboard', async () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(0);
 
-		await editor.pressKey('Control+a');
+		await editor.page.keyboard.press('Control+a');
 		await editor.page.waitForTimeout(200);
-		await editor.pressKey('Control+a');
-		await editor.waitForCrossBlock(true);
-		await editor.pressKey('Control+x');
+		await editor.page.keyboard.press('Control+a');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+x');
 		await editor.page.waitForTimeout(300);
 
-		await editor.pressKey('Control+v');
+		await editor.page.keyboard.press('Control+v');
 		await editor.page.waitForTimeout(300);
 
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('one');
 		expect(source).toContain('two');
 		expect(source).toContain('three');

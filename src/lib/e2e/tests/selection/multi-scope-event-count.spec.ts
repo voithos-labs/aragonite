@@ -28,7 +28,7 @@ test.describe('one edit event per op — indentItem', () => {
 		await items.nth(1).click();
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey('Tab');
+			await editor.page.keyboard.press('Tab');
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -54,7 +54,7 @@ test.describe('one edit event per op — unindentItem', () => {
 		await nested.first().click();
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey('Shift+Tab');
+			await editor.page.keyboard.press('Shift+Tab');
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -76,11 +76,11 @@ test.describe('one edit event per op — splitItemAtOffset', () => {
 		await editor.loadContent('- HelloWorld\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
 		await item.click();
-		await editor.pressKey('Home');
-		for (let i = 0; i < 5; i++) await editor.pressKey('ArrowRight');
+		await editor.page.keyboard.press('Home');
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressEnter();
+			await editor.page.keyboard.press('Enter');
 			await editor.page.waitForTimeout(200);
 		});
 
@@ -102,10 +102,10 @@ test.describe('one edit event per op — insertItemAfter', () => {
 		await editor.loadContent('- Alpha\n- Beta\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Alpha' });
 		await first.click();
-		await editor.pressKey('End');
+		await editor.page.keyboard.press('End');
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressEnter();
+			await editor.page.keyboard.press('Enter');
 			await editor.page.waitForTimeout(200);
 		});
 
@@ -127,10 +127,10 @@ test.describe('one edit event per op — blockquote splitBlock exit', () => {
 		await editor.loadContent('> first\n>\n> \n');
 		const paras = editor.page.locator('.blockquote-block [contenteditable="true"]');
 		await paras.last().click();
-		await editor.pressKey('Home');
+		await editor.page.keyboard.press('Home');
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressEnter();
+			await editor.page.keyboard.press('Enter');
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -151,11 +151,11 @@ test.describe('one edit event per op — cross-block delete', () => {
 	test('Backspace on cross-block selection spanning two paragraphs emits one edit event', async () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressBackspace();
+			await editor.page.keyboard.press('Backspace');
 			await editor.page.waitForTimeout(200);
 		});
 
@@ -166,12 +166,12 @@ test.describe('one edit event per op — cross-block delete', () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 		const lastItem = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
 		await lastItem.click();
-		await editor.pressKey('End');
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressBackspace();
+			await editor.page.keyboard.press('Backspace');
 			await editor.page.waitForTimeout(200);
 		});
 
@@ -201,10 +201,10 @@ test.describe('cross-block delete — list item id identity', () => {
 		// Two Shift+ArrowDown creates a mixed-scope selection: start descends
 		// into the list, end is the top-level paragraph.
 		await editor.focusBlockAtPath([0, 0, 0], 1);
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await editor.pressBackspace();
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Backspace');
 		await editor.page.waitForTimeout(300);
 
 		const idsAfter: string[] = await editor.page.evaluate(() =>
@@ -229,12 +229,12 @@ test.describe('one edit event per op — nested paste', () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item 1' });
 		await first.click();
-		await editor.pressKey('End');
+		await editor.page.keyboard.press('End');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(`${primaryModifier}+KeyV`);
+			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -256,13 +256,13 @@ test.describe('one edit event per op — container-matching paste', () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
 		await second.click();
-		await editor.pressKey('Home');
-		await editor.pressKey('Shift+End');
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+End');
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- one\n- two\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(`${primaryModifier}+KeyV`);
+			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 
@@ -284,14 +284,14 @@ test.describe('one edit event per op — container-matching merge', () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });
 		await first.click();
-		await editor.pressKey('End');
-		await editor.pressKey('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.bridge.waitForCrossBlock(true);
 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
 
 		const count = await countEditEvents(editor, async () => {
-			await editor.pressKey(`${primaryModifier}+KeyV`);
+			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
 			await editor.page.waitForTimeout(300);
 		});
 

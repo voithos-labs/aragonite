@@ -13,9 +13,9 @@ test.describe('list Enter', () => {
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Alpha' });
 		await first.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		const markers = (await editor.getSource()).match(/^- /gm) ?? [];
+		const markers = (await editor.bridge.getSource()).match(/^- /gm) ?? [];
 		expect(markers.length).toBeGreaterThanOrEqual(3);
 	});
 
@@ -25,9 +25,9 @@ test.describe('list Enter', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('- Hello');
 		expect(source).toContain('- World');
 	});
@@ -35,17 +35,17 @@ test.describe('list Enter', () => {
 	// Regression: mid-item Enter used to push two undo snapshots; must collapse to one.
 	test('Enter in middle of item: one Ctrl+Z restores original item', async () => {
 		await editor.loadContent('- HelloWorld\n');
-		const before = await editor.getSource();
+		const before = await editor.bridge.getSource();
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'HelloWorld' });
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toContain('- Hello');
+		expect(await editor.bridge.getSource()).toContain('- Hello');
 		await editor.undo();
 		await editor.page.waitForTimeout(200);
-		expect(await editor.getSource()).toBe(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('Enter on empty only item exits list', async () => {
@@ -53,13 +53,13 @@ test.describe('list Enter', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Only' });
 		await item.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('After');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Only');
 		expect(source).toContain('After');
 		const afterIdx = source.indexOf('After');
@@ -72,15 +72,15 @@ test.describe('list Enter', () => {
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
 		await first.click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressArrowUp();
+		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.waitForTimeout(100);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('Before');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source.indexOf('Before')).toBeLessThan(source.indexOf('First'));
 	});
 
@@ -92,11 +92,11 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('Z');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source.indexOf('Z')).toBeLessThan(source.indexOf('Third'));
 	});
 
@@ -105,11 +105,11 @@ test.describe('list Enter', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
 		await item.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Item');
 		expect(source).toContain('Nested');
 		expect(source).toMatch(/^- Nested$/m);
@@ -121,11 +121,11 @@ test.describe('list Enter', () => {
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
 		await first.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
 		await editor.typeText('New');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/2\.\s*New/);
 		expect(source).toMatch(/3\.\s*Second/);
 		expect(source).toMatch(/4\.\s*Third/);
@@ -136,9 +136,9 @@ test.describe('list Enter', () => {
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });
 		await first.click();
 		await editor.page.keyboard.press('Home');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/1\./);
 		expect(source).toContain('First');
 		const numbers = (source.match(/^(\d+)\./gm) || []).map(Number);
@@ -154,9 +154,9 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. Second$/m);
 		expect(source).not.toMatch(/^2\. Second$/m);
 	});
@@ -170,9 +170,9 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
 		expect(source).toMatch(/^3\. four$/m);
@@ -185,11 +185,11 @@ test.describe('list Enter', () => {
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'two' });
 		await second.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
 		expect(source).toMatch(/^3\. three$/m);
@@ -204,11 +204,11 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('After');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- First$/m);
 		expect(source).not.toMatch(/^- Last/m);
 		expect(source).toContain('After');
@@ -221,11 +221,11 @@ test.describe('list Enter', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
 		await item.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('Item');
 		expect(source).toContain('NestedOrdered');
 		expect(source).toMatch(/^1\. NestedOrdered$/m);
@@ -241,11 +241,11 @@ test.describe('list Enter', () => {
 		await editor.page.keyboard.press('Shift+End');
 		await editor.page.keyboard.press('Delete');
 		await editor.page.waitForTimeout(200);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('lead');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('second');
 		expect(source).not.toMatch(/^- second$/m);
 		expect(source).not.toMatch(/^ {2,}second$/m);
@@ -260,13 +260,13 @@ test.describe('list Enter', () => {
 		const nested = editor.page.locator('[contenteditable="true"]', { hasText: 'nested' });
 		await nested.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- item$/m);
 		expect(source).toMatch(/^ {2}- nested$/m);
 		// Promoted to outer list — "- X" at column 0, no indent.
@@ -280,15 +280,15 @@ test.describe('list Enter', () => {
 		const nested = editor.page.locator('[contenteditable="true"]', { hasText: 'nested' });
 		await nested.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- item$/m);
 		expect(source).toMatch(/^ {2}- nested$/m);
 		// Escaped to document-level paragraph — no marker, no indent.
@@ -302,13 +302,13 @@ test.describe('list Enter', () => {
 		const c = editor.page.locator('[contenteditable="true"]', { hasText: 'c' });
 		await c.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('X');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- a$/m);
 		expect(source).toMatch(/^ {2}- b$/m);
 		expect(source).toMatch(/^ {4}- c$/m);
@@ -322,11 +322,11 @@ test.describe('list Enter', () => {
 		const third = editor.page.locator('[contenteditable="true"]', { hasText: 'three' });
 		await third.click();
 		await editor.page.keyboard.press('End');
-		await editor.pressEnter();
+		await editor.page.keyboard.press('Enter');
 		await editor.page.waitForTimeout(300);
 		await editor.typeText('new');
 		await editor.page.waitForTimeout(200);
-		const source = await editor.getSource();
+		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. one$/m);
 		expect(source).toMatch(/^2\. two$/m);
 		expect(source).toMatch(/^3\. three$/m);

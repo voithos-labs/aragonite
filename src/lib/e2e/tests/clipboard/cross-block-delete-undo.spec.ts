@@ -28,7 +28,7 @@ test.describe('cross-block delete — Ctrl+Z restores content + selection', () =
 			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
 			original
 		);
-		expect((await editor.getSource()).trim()).toBe(original.trim());
+		expect((await editor.bridge.getSource()).trim()).toBe(original.trim());
 
 		const isCrossBlock = await editor.page.evaluate(
 			() => (window as any).__test.isCrossBlockSelection?.() ?? false
