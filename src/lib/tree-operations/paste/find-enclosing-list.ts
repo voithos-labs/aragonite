@@ -6,11 +6,7 @@
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt } from '../node-ops';
 
-/**
- * Walk up from `targetPath` to the nearest enclosing list. Returns null when
- * no list ancestor exists or when the target isn't a direct leaf of a
- * listItem (the simple shape both paste paths require).
- */
+/** Returns null when no list ancestor exists or the target isn't a direct leaf of a listItem. */
 export function findEnclosingListForPaste(
 	doc: Document,
 	targetPath: number[]

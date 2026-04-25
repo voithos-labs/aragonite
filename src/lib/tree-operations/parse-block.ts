@@ -1,5 +1,3 @@
-/** Generic helper: parse a raw string and return its first block. */
-
 import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 
