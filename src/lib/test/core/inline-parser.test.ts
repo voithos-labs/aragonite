@@ -375,6 +375,14 @@ describe('parseInline — escape integration', () => {
 		expect(nodes.some((n) => n.kind === 'strong')).toBe(false);
 		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(4);
 	});
+
+	it('escape and link in same paragraph: emphasis still neutralized', () => {
+		const raw = '\\*foo\\* [link](https://example.com)';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'emphasis')).toBe(false);
+		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
+		expect(nodes.some((n) => n.kind === 'link')).toBe(true);
+	});
 });
 
 describe('parseInline — entity reference integration', () => {
@@ -399,5 +407,25 @@ describe('parseInline — entity reference integration', () => {
 		const em = nodes.find((n) => n.kind === 'emphasis');
 		expect(em).toBeDefined();
 		expect(em?.children?.some((c) => c.kind === 'entityReference')).toBe(true);
+	});
+
+	it('entity and link in same paragraph: entity preserved', () => {
+		const raw = '&copy; [text](https://example.com)';
+		const nodes = parseInline(raw, 0, raw.length);
+		const refs = nodes.filter((n) => n.kind === 'entityReference');
+		expect(refs).toHaveLength(1);
+		expect(refs[0].decoded).toBe('©');
+		expect(nodes.some((n) => n.kind === 'link')).toBe(true);
+	});
+
+	it('entity adjacent to autolink URL: entity not absorbed', () => {
+		const raw = 'see https://example.com/?a&amp;b end';
+		const nodes = parseInline(raw, 0, raw.length);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		const refs = nodes.filter((n) => n.kind === 'entityReference');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com/?a');
+		expect(refs).toHaveLength(1);
+		expect(refs[0].decoded).toBe('&');
 	});
 });
