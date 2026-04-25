@@ -5,24 +5,12 @@ import {
 	assembleListHalf,
 	buildListItemWithContent,
 	orderedBaseOf,
-	parseFirstBlock,
 	readOrderedSuffix,
-	splitLeafForPaste,
-	findEnclosingListForPaste
+	splitLeafForPaste
 } from '$lib/editor/tree-operations/list/list-builders';
 import type { CstNode } from '$lib/editor/core/nodes';
 
 describe('list-builders', () => {
-	it('parseFirstBlock returns first block of parsed input', () => {
-		const node = parseFirstBlock('# Heading\n');
-		expect(node.kind).toBe('heading');
-	});
-
-	it('parseFirstBlock falls back to paragraph when input is empty', () => {
-		const node = parseFirstBlock('');
-		expect(node.kind).toBe('paragraph');
-	});
-
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {
 		expect(orderedBaseOf({ kind: 'listItem', leadingTrivia: '', raw: '', metadata: { marker: '5. ' } } as CstNode)).toBe(5);
 		expect(orderedBaseOf({ kind: 'listItem', leadingTrivia: '', raw: '', metadata: { marker: '- ' } } as CstNode)).toBe(1);
@@ -95,20 +83,5 @@ describe('list-builders', () => {
 		expect(lineEnding).toBe('\r\n');
 		expect(leadingNode!.raw.endsWith('\r\n')).toBe(true);
 		expect(trailingNode!.raw.endsWith('\r\n')).toBe(true);
-	});
-
-	it('findEnclosingListForPaste finds nearest list ancestor', () => {
-		const doc = parse('- a\n- b\n');
-		const result = findEnclosingListForPaste(doc, [0, 0, 0]);
-		expect(result).not.toBeNull();
-		expect(result!.itemIndex).toBe(0);
-		expect(result!.innerIndex).toBe(0);
-		expect(result!.listPath).toEqual([0]);
-	});
-
-	it('findEnclosingListForPaste returns null when no list ancestor exists', () => {
-		const doc = parse('paragraph\n');
-		const result = findEnclosingListForPaste(doc, [0]);
-		expect(result).toBeNull();
 	});
 });

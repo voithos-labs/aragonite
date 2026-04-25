@@ -18,10 +18,10 @@ import { ensureListItemNewlineTerminated } from '../list/terminator';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
-	findEnclosingListForPaste,
 	orderedBaseOf,
 	splitLeafForPaste
 } from '../list/list-builders';
+import { findEnclosingListForPaste } from './find-enclosing-list';
 import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { MultiScopeTarget } from '../../editor-actions/deps';
