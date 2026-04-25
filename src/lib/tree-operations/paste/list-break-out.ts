@@ -62,8 +62,7 @@ export function findListBreakOut(
 
 	const listOrdered =
 		(enclosing.list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const pastedOrdered =
-		(topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const pastedOrdered = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
 	if (listOrdered === pastedOrdered) return null;
 
 	return {
@@ -155,8 +154,10 @@ export function buildListBreakOutReplacement(
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return [];
 
-	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } =
-		splitLeafForPaste(targetLeaf, offset);
+	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
+		targetLeaf,
+		offset
+	);
 
 	const itemChildrenBefore = item.children.slice(0, innerIndex).map(cloneNode);
 	const itemChildrenAfter = item.children.slice(innerIndex + 1).map(cloneNode);

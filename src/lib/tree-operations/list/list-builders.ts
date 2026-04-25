@@ -17,7 +17,11 @@ import { renumberOrderedList } from './ordered-markers';
  * (no-op for unordered lists). Items are mutated in place — pass clones if
  * the caller needs to preserve originals.
  */
-export function assembleListHalf(template: CstNode, items: CstNode[], startNumber: number): CstNode {
+export function assembleListHalf(
+	template: CstNode,
+	items: CstNode[],
+	startNumber: number
+): CstNode {
 	const half: CstNode = {
 		kind: 'list',
 		leadingTrivia: '',

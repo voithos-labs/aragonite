@@ -57,4 +57,3 @@ describe('normalize', () => {
 		expect(result.end).toEqual(pt);
 	});
 });
-

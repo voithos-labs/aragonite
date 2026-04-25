@@ -55,7 +55,9 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
-		await editor.bridge.waitForSource((s) => !s.includes('one') && !s.includes('two') && s.includes('three'));
+		await editor.bridge.waitForSource(
+			(s) => !s.includes('one') && !s.includes('two') && s.includes('three')
+		);
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut).not.toContain('one');

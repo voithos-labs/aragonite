@@ -29,7 +29,10 @@ describe('buildTaskItemAmbient', () => {
 
 	it('builds a checkbox interactive range for a canonical task item', () => {
 		const onToggle = vi.fn();
-		const result = buildTaskItemAmbient(taskMeta({ taskChecked: true, taskMarker: '[x] ' }), onToggle);
+		const result = buildTaskItemAmbient(
+			taskMeta({ taskChecked: true, taskMarker: '[x] ' }),
+			onToggle
+		);
 		expect(result).toEqual({
 			text: '- [x] ',
 			interactive: [

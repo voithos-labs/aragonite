@@ -113,7 +113,9 @@ test.describe('keyboard navigation', () => {
 
 		await editor.page.keyboard.press('End');
 		await editor.typeText('!');
-		await editor.bridge.waitForSource((s) => s.includes('Block two.!') || s.includes('Block three.!'));
+		await editor.bridge.waitForSource(
+			(s) => s.includes('Block two.!') || s.includes('Block three.!')
+		);
 
 		const source = await editor.bridge.getSource();
 		const hasExcl = source.includes('Block two.!') || source.includes('Block three.!');

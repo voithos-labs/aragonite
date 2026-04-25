@@ -12,8 +12,22 @@ import type { CstNode } from '$lib/editor/core/nodes';
 
 describe('list-builders', () => {
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {
-		expect(orderedBaseOf({ kind: 'listItem', leadingTrivia: '', raw: '', metadata: { marker: '5. ' } } as CstNode)).toBe(5);
-		expect(orderedBaseOf({ kind: 'listItem', leadingTrivia: '', raw: '', metadata: { marker: '- ' } } as CstNode)).toBe(1);
+		expect(
+			orderedBaseOf({
+				kind: 'listItem',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { marker: '5. ' }
+			} as CstNode)
+		).toBe(5);
+		expect(
+			orderedBaseOf({
+				kind: 'listItem',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { marker: '- ' }
+			} as CstNode)
+		).toBe(1);
 		expect(orderedBaseOf(undefined)).toBe(1);
 	});
 
@@ -34,8 +48,12 @@ describe('list-builders', () => {
 	it('assembleListHalf renumbers ordered halves starting at the given number', () => {
 		const tplList = parse('1. a\n2. b\n').children[0];
 		const items = [
-			buildListItemWithContent(tplList.children![0], [{ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' }]),
-			buildListItemWithContent(tplList.children![0], [{ kind: 'paragraph', leadingTrivia: '', raw: 'y\n' }])
+			buildListItemWithContent(tplList.children![0], [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' }
+			]),
+			buildListItemWithContent(tplList.children![0], [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'y\n' }
+			])
 		];
 		const half = assembleListHalf(tplList, items, 5);
 		expect(half.children![0].metadata).toMatchObject({ marker: '5. ' });
@@ -45,8 +63,12 @@ describe('list-builders', () => {
 	it('assembleListHalf leaves marker untouched on unordered template even when startNumber != 1', () => {
 		const tplList = parse('- a\n- b\n').children[0];
 		const items = [
-			buildListItemWithContent(tplList.children![0], [{ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' }]),
-			buildListItemWithContent(tplList.children![0], [{ kind: 'paragraph', leadingTrivia: '', raw: 'y\n' }])
+			buildListItemWithContent(tplList.children![0], [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' }
+			]),
+			buildListItemWithContent(tplList.children![0], [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'y\n' }
+			])
 		];
 		const half = assembleListHalf(tplList, items, 7);
 		expect(half.children![0].metadata).toMatchObject({ marker: '- ' });

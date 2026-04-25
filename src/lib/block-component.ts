@@ -52,9 +52,7 @@ export interface AmbientInteractiveRange {
 	onClick: () => void;
 }
 
-export type AmbientPrefix =
-	| string
-	| { text: string; interactive?: AmbientInteractiveRange[] };
+export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
 
 // ── BlockComponent ─────────────────────────────────────────────────────────
 

@@ -19,7 +19,10 @@ describe('scanEscapes', () => {
 	it('does not escape non-punctuation', () => {
 		for (const raw of ['\\a', '\\1', '\\ ', '\\\t']) {
 			const result = scanEscapes(raw, 0, raw.length, []);
-			expect(result.every((n) => n.kind === 'text'), `should be text: ${JSON.stringify(raw)}`).toBe(true);
+			expect(
+				result.every((n) => n.kind === 'text'),
+				`should be text: ${JSON.stringify(raw)}`
+			).toBe(true);
 		}
 	});
 
