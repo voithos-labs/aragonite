@@ -15,6 +15,54 @@ export class EditorBridge {
 		return this.page.evaluate((i) => (window as any).__test.getBlockKind(i), index);
 	}
 
+	// ── Settling Predicates ─────────────────────────────────────────────
+	// Use these instead of waitForTimeout to wait for editor state to
+	// reach a specific shape. Predicates poll the source/block bridge so
+	// tests stop the moment the assertion would pass.
+
+	async waitForSourceContains(expected: string, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(e) => ((window as any).__test.getSource() as string).includes(e),
+			expected,
+			{ timeout, polling: 16 }
+		);
+	}
+
+	async waitForSourceMatches(pattern: RegExp, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(p) => new RegExp(p.source, p.flags).test((window as any).__test.getSource() as string),
+			{ source: pattern.source, flags: pattern.flags },
+			{ timeout, polling: 16 }
+		);
+	}
+
+	async waitForSourceEquals(expected: string, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(e) => ((window as any).__test.getSource() as string) === e,
+			expected,
+			{ timeout, polling: 16 }
+		);
+	}
+
+	async waitForBlockCount(expected: number, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(e) => ((window as any).__test.getBlockCount() as number) === e,
+			expected,
+			{ timeout, polling: 16 }
+		);
+	}
+
+	async waitForSource(predicate: (source: string) => boolean, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(predSrc) => {
+				const fn = new Function('source', `return (${predSrc})(source);`);
+				return fn((window as any).__test.getSource() as string);
+			},
+			predicate.toString(),
+			{ timeout, polling: 16 }
+		);
+	}
+
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => {
 			if ((window as any).__test?.isCrossBlockActive) {
