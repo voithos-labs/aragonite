@@ -89,7 +89,9 @@ export type InlineNodeKind =
 	| 'link'
 	| 'image'
 	| 'autolink'
-	| 'hardLineBreak';
+	| 'hardLineBreak'
+	| 'escape'
+	| 'entityReference';
 
 /** start/end are byte offsets into the parent block's raw, including markers. */
 export interface InlineNode {
@@ -101,6 +103,7 @@ export interface InlineNode {
 	url?: string;
 	title?: string;
 	alt?: string;
+	decoded?: string;
 }
 
 // ── Node Types ──────────────────────────────────────────────────────────────
