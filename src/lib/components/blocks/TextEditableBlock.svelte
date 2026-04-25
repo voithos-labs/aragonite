@@ -30,9 +30,8 @@
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { renderInlineNodes } from '../../core/inline-render';
-	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 	import type { InlineNode } from '../../core/nodes';
-	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
+	import { trimTrailingLineEnding } from '../../core/lines';
 	import {
 		createRangeFromOffsets,
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
@@ -41,6 +40,7 @@
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from './text/format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
+	import { createTextClipboard } from './text/text-clipboard';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -49,7 +49,6 @@
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
-	import { collectCrossBlockText } from '../../selection/clipboard-text';
 	import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
 	import { ambientSpanOf, buildAmbientSpan } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
@@ -129,6 +128,28 @@
 				const range = getContentRange(targetNode);
 				targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
 			}
+		}
+	});
+
+	const clipboardHandlers = createTextClipboard({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get myPath() {
+			return myPath;
+		},
+		cursor,
+		crossBlock,
+		selection,
+		stickyColumn,
+		blockEdit,
+		pasteCoordinator,
+		getDoc,
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
 		}
 	});
 
@@ -445,79 +466,6 @@
 		}
 	}
 
-	function onCopy(e: ClipboardEvent): void {
-		stickyColumn.reset();
-		e.preventDefault();
-		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
-		// and unreliable in Tauri's wry webview.
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			return;
-		}
-		e.clipboardData?.setData('text/plain', getSelectedTextFromRaw());
-	}
-
-	async function onCut(e: ClipboardEvent): Promise<void> {
-		stickyColumn.reset();
-		e.preventDefault();
-
-		// Sync clipboard write, then async delete — clipboard is populated even if the delete is interrupted.
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			await crossBlock.performCrossBlockDeleteFromEvent();
-			return;
-		}
-
-		const selectedText = getSelectedTextFromRaw();
-		if (!selectedText) return;
-		e.clipboardData?.setData('text/plain', selectedText);
-
-		const selOffsets = cursor.getRawSelection();
-		if (selOffsets) {
-			const displayText = getDisplayText();
-			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
-			pendingCursorOffset = selOffsets.start;
-		}
-	}
-
-	async function onPaste(e: ClipboardEvent): Promise<void> {
-		if (await crossBlock.handlePaste(e)) return;
-
-		stickyColumn.reset();
-		e.preventDefault();
-		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-		if (!pastedText) return;
-
-		const offset = cursor.getRaw() ?? 0;
-		const selOffsets = cursor.getRawSelection();
-
-		const result = await pasteDispatch(
-			{
-				pastedText,
-				targetPath: myPath,
-				offset: selOffsets ? selOffsets.start : offset,
-				preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
-			},
-			{
-				doc: getDoc(),
-				blockEdit,
-				controller: pasteCoordinator
-			}
-		);
-
-		// Land caret set and raw mutation in one reactive flush so the re-rendered block positions correctly.
-		if (result.inlineCaretOffset !== undefined) {
-			pendingCursorOffset = result.inlineCaretOffset;
-		}
-	}
-
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 	}
@@ -546,13 +494,6 @@
 		});
 	}
 
-	// ── Helpers ─────────────────────────────────────────────────────────
-
-	function getSelectedTextFromRaw(): string {
-		const offsets = cursor.getRawSelection();
-		if (!offsets) return '';
-		return node.raw.slice(offsets.start, offsets.end);
-	}
 </script>
 
 <div
@@ -566,9 +507,9 @@
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
-	oncopy={onCopy}
-	oncut={onCut}
-	onpaste={onPaste}
+	oncopy={clipboardHandlers.onCopy}
+	oncut={clipboardHandlers.onCut}
+	onpaste={clipboardHandlers.onPaste}
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	oncompositionstart={onCompositionStart}
