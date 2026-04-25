@@ -353,3 +353,51 @@ describe('parseInline — autolinks (Stage 3)', () => {
 		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
 	});
 });
+
+describe('parseInline — escape integration', () => {
+	it('escape neutralizes emphasis delimiter', () => {
+		const raw = '\\*foo\\*';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'emphasis')).toBe(false);
+		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
+	});
+
+	it('escape inside code span is inert', () => {
+		const raw = '`\\*`';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'escape')).toBe(false);
+		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(true);
+	});
+
+	it('escape neutralizes strong delimiter', () => {
+		const raw = '\\*\\*foo\\*\\*';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'strong')).toBe(false);
+		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(4);
+	});
+});
+
+describe('parseInline — entity reference integration', () => {
+	it('recognizes named entity in plain text', () => {
+		const raw = 'a &copy; b';
+		const nodes = parseInline(raw, 0, raw.length);
+		const refs = nodes.filter((n) => n.kind === 'entityReference');
+		expect(refs).toHaveLength(1);
+		expect(refs[0].decoded).toBe('©');
+	});
+
+	it('entity inside code span is inert', () => {
+		const raw = '`&copy;`';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'entityReference')).toBe(false);
+		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(true);
+	});
+
+	it('entity composes with surrounding emphasis', () => {
+		const raw = '*&copy;*';
+		const nodes = parseInline(raw, 0, raw.length);
+		const em = nodes.find((n) => n.kind === 'emphasis');
+		expect(em).toBeDefined();
+		expect(em?.children?.some((c) => c.kind === 'entityReference')).toBe(true);
+	});
+});

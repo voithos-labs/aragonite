@@ -6,6 +6,8 @@ import type { CstNode, InlineNode } from '../nodes';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { scanBacktickSpans } from './backticks';
+import { scanEscapes } from './escapes';
+import { scanCharacterReferences } from './character-refs';
 import { scanLinksAndAutolinks } from './links';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
@@ -59,7 +61,9 @@ export function parseInline(
 	end: number
 ): InlineNode[] {
 	const codeSpans = scanBacktickSpans(raw, start, end);
-	const withLinks = scanLinksAndAutolinks(raw, start, end, codeSpans);
+	const withEscapes = scanEscapes(raw, start, end, codeSpans);
+	const withEntities = scanCharacterReferences(raw, start, end, withEscapes);
+	const withLinks = scanLinksAndAutolinks(raw, start, end, withEntities);
 
 	if (!hasDelimiterChars(raw, start, end, withLinks)) {
 		return processHardLineBreaks(mergeAdjacentText(withLinks), raw);
