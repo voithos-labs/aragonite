@@ -1,3 +1,7 @@
+// Single concern: same-type list paste flattens into the enclosing list with continuous renumbering.
+// Each test exercises a paste-position / shape variant (start/middle/end, mismatched marker suffix,
+// trailing-newline absence, DOM ambient sync, single-item) of the one invariant; they cluster as
+// parametric variants and stay together for cohesion.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
