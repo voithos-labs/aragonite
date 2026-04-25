@@ -93,6 +93,16 @@ This rendering mode maps to the CST phases:
 - **Phase 1 (raw source)**: Block-level styling only — headings are large, code blocks have a monospace background
 - **Phase 2 (inline parsing)**: Inline syntax gets styled — bold text is bold even with visible `**`. This is the permanent architecture — Phase 3 was evaluated and rejected (see `docs/design/editor/syntax-tree.md`)
 
+## Schema
+
+Cross-cutting block-kind metadata lives in `src/lib/editor/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither (otherwise the layer DAG cycles).
+
+- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, and optional content-range / raw-rebuild hooks. New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
+- **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds.
+- **Component registrations** — built-in registrations, side-effect import.
+- **Merge rules** — eligibility predicates for backspace merge: `isMergeEligible`, `isBlockEditable`, `findMergeTarget`, walker for the deepest mergeable leaf, and merge-role lookup.
+- **Container raw rebuild** — per-kind raw rebuild plus ancestry dispatch (`rebuildContainerRaw`, `rebuildAncestryRaw`, `rebuildAncestryRawForLeaf`).
+
 ## CST Mutability
 
 The CST uses mutable plain objects — no class hierarchy, no `readonly` fields on CST nodes. The parser produces mutable `CstNode` objects directly. The editor mutates them in place during editing (updating `raw`, replacing children, etc.). There is no immutable→mutable conversion step.
