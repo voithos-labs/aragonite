@@ -3,6 +3,7 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTROLLER_KEY,
+		PASTE_COORDINATOR_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		CONTAINER_EDIT_KEY,
@@ -23,6 +24,7 @@
 		type StickyColumnDirection
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
+	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import {
 		createRangeFromOffsets,
@@ -63,6 +65,7 @@
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
+	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
@@ -92,6 +95,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
+		pasteCoordinator,
 		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
@@ -491,7 +495,7 @@
 			{
 				doc: getDoc(),
 				blockEdit,
-				controller
+				controller: pasteCoordinator
 			}
 		);
 
