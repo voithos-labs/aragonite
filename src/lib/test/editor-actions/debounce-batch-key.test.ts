@@ -3,29 +3,13 @@ import { createUndoController } from '$lib/editor/editor-actions/undo-controller
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { createUndoManager } from '$lib/editor/undo-manager';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/editor-events';
-import type {
-	BlockComponent,
-	BlockEditActions,
-	FocusActions,
-	CstNode
-} from '$lib/editor/contracts';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-
-function mockRef(): BlockComponent {
-	return {
-		focus: () => {},
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
-
-function makeStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: vi.fn(), capture: vi.fn() };
-}
+import {
+	makeStickyColumn,
+	makeStubBlockEdit,
+	makeStubFocus,
+	makeEditorActionsDeps
+} from '$lib/editor/test/harness/editor-actions';
+import type { CstNode } from '$lib/editor/contracts';
 
 function makeContainer(childRaws: string[]): CstNode {
 	return {
@@ -44,51 +28,10 @@ function makeContainer(childRaws: string[]): CstNode {
 
 function makeSetup(childRaws: string[]) {
 	const containerNode = makeContainer(childRaws);
-
-	const doc: any = { kind: 'document', children: [containerNode] };
-	let blockIds = ['container-id'];
-	let blockRefs: (BlockComponent | undefined)[] = [mockRef()];
-	const events = createEditorEvents();
-	const deps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		setDoc: (v: any) => {
-			Object.assign(doc, v);
-		},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
-		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			blockRefs = v;
-		},
-		undoManager: createUndoManager(),
-		stickyColumn: makeStickyColumn(),
-		selectionState: createSelectionState(),
-		getBlockElByPath: () => null,
-		events
-	};
+	const { deps } = makeEditorActionsDeps([containerNode]);
 
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const parentBlockEdit: BlockEditActions = {
-		splitBlock: vi.fn(),
-		mergeWithPrevious: vi.fn(),
-		mergeWithNext: vi.fn(),
-		deleteBlock: vi.fn(),
-		updateBlockContent: vi.fn(),
-		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
-		replaceBlock: vi.fn()
-	};
-	const parentFocus: FocusActions = { moveFocus: vi.fn() };
 
 	const containerState = createBlockListState(() => containerNode);
 	const bundle = createStandardNestedActions(containerState, {
@@ -99,8 +42,8 @@ function makeSetup(childRaws: string[]) {
 		rebuildRaw: vi.fn(),
 		stickyColumn: makeStickyColumn(),
 		parent: {
-			blockEdit: parentBlockEdit,
-			focus: parentFocus,
+			blockEdit: makeStubBlockEdit(),
+			focus: makeStubFocus(),
 			containerEdit: containerEditActions
 		}
 	});
