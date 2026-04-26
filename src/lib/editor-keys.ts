@@ -8,6 +8,8 @@ import type { Document } from './core/nodes';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
+export const TABLE_CONTEXT_KEY = Symbol('table-context');
+
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
 
 export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
