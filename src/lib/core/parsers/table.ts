@@ -1,7 +1,4 @@
-// GFM table parser. Produces a structured `table` container with `tableRow`
-// children, each containing `tableCell` leaves. The delimiter row is
-// structural-only — its alignment data is captured on `table.metadata.alignments`
-// and the row itself is not stored.
+import type { TableAlignment } from '../nodes';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -42,4 +39,30 @@ function trimOneSpace(s: string): string {
 	if (out.startsWith(' ')) out = out.slice(1);
 	if (out.endsWith(' ')) out = out.slice(0, -1);
 	return out;
+}
+
+// ── Delimiter row ──────────────────────────────────────────────────────────
+
+export function matchTableDelimiterRow(
+	text: string
+): { columnCount: number; alignments: TableAlignment[] } | null {
+	const trimmed = text.trim();
+	if (!trimmed.includes('|')) return null;
+
+	const inner = trimmed.replace(/^\||\|$/g, '');
+	const cells = inner.split('|');
+	const alignments: TableAlignment[] = [];
+
+	for (const cell of cells) {
+		const c = cell.trim();
+		if (!/^:?-+:?$/.test(c)) return null;
+		const left = c.startsWith(':');
+		const right = c.endsWith(':');
+		if (left && right) alignments.push('center');
+		else if (left) alignments.push('left');
+		else if (right) alignments.push('right');
+		else alignments.push('none');
+	}
+
+	return { columnCount: cells.length, alignments };
 }
