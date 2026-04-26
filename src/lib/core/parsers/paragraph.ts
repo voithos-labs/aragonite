@@ -12,6 +12,7 @@ import { matchHeading } from './heading';
 import { matchBlockquote } from './blockquote';
 import { canInterruptParagraph } from './list';
 import { matchThematicBreak } from './thematic-break';
+import { matchTableDelimiterRow, parseTable } from './table';
 
 export function parseParagraph(
 	lines: ParsedLine[],
@@ -22,7 +23,7 @@ export function parseParagraph(
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
 		if (delimiter && lines[startIndex].text.includes('|')) {
-			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter.columnCount);
+			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter);
 		}
 	}
 
@@ -51,40 +52,6 @@ function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
 	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
 	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
 	return null;
-}
-
-function matchTableDelimiterRow(text: string): { columnCount: number } | null {
-	const trimmed = text.trim();
-	if (!trimmed.includes('|')) return null;
-
-	const inner = trimmed.replace(/^\||\|$/g, '');
-	const cells = inner.split('|');
-
-	for (const cell of cells) {
-		if (!/^\s*:?-+:?\s*$/.test(cell)) return null;
-	}
-
-	return { columnCount: cells.length };
-}
-
-function parseTable(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	columnCount: number
-): { node: CstNode; nextIndex: number } {
-	let i = startIndex + 2;
-
-	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
-		i++;
-	}
-
-	const raw = joinRaw(lines, startIndex, i);
-	return {
-		node: { kind: 'table', leadingTrivia, raw, metadata: { columnCount } },
-		nextIndex: i
-	};
 }
 
 /**
