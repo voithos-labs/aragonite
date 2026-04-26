@@ -107,7 +107,7 @@ export function parseTable(
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');
-	while (cellTexts.length > columnCount) cellTexts.pop();
+	if (cellTexts.length > columnCount) cellTexts.length = columnCount;
 	const cells: CstNode[] = cellTexts.map((text) => ({
 		kind: 'tableCell',
 		leadingTrivia: '',
