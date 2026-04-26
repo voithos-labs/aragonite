@@ -70,7 +70,11 @@ function renderInline(node: InlineNode, depth: number, lines: string[]): void {
 	const range = `[${node.start},${node.end}]`;
 	const text = 'text' in node ? ` "${node.text}"` : '';
 	const url = 'url' in node && node.url ? ` url=${JSON.stringify(node.url)}` : '';
-	lines.push(`${indent}${node.kind} ${range}${text}${url}`);
+	const decoded =
+		node.kind === 'entityReference' && node.decoded !== undefined
+			? ` decoded=${JSON.stringify(node.decoded)}`
+			: '';
+	lines.push(`${indent}${node.kind} ${range}${text}${url}${decoded}`);
 	if ('children' in node && node.children) {
 		for (const c of node.children) renderInline(c, depth + 1, lines);
 	}
