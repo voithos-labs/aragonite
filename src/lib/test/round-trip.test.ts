@@ -222,13 +222,38 @@ describe('round-trip: tables', () => {
 	const cases: { name: string; source: string }[] = [
 		{ name: 'simple table', source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n' },
 		{
-			name: 'aligned columns',
-			source: '| Left | Center | Right |\n| :--- | :---: | ---: |\n| a | b | c |\n'
+			name: 'table with all alignment variants',
+			source: '| L | C | R | N |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n'
 		},
-		{ name: 'header only', source: '| A | B |\n| --- | --- |\n' },
-		{ name: 'no leading pipe', source: 'A | B\n--- | ---\n1 | 2\n' },
+		{
+			name: 'table with tight delimiters',
+			source: '|A|B|\n|:-|-:|\n|1|2|\n'
+		},
+		{
+			name: 'table with escaped pipe in body cell',
+			source: '| a | b |\n| --- | --- |\n| x | y \\| z |\n'
+		},
+		{
+			name: 'table with escaped pipe in header cell',
+			source: '| a \\| b | c |\n| --- | --- |\n| 1 | 2 |\n'
+		},
+		{
+			name: 'header-only table',
+			source: '| A | B |\n| --- | --- |\n'
+		},
+		{
+			name: 'single-column table',
+			source: '| A |\n| --- |\n| x |\n'
+		},
 		{ name: 'table then paragraph', source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n\nText.\n' },
-		{ name: 'many rows', source: '| H |\n| --- |\n| 1 |\n| 2 |\n| 3 |\n' }
+		{
+			name: 'table with CRLF line endings',
+			source: '| A | B |\r\n| --- | --- |\r\n| 1 | 2 |\r\n'
+		},
+		{
+			name: 'table with empty cells',
+			source: '| A | B |\n| --- | --- |\n|  |  |\n| 1 |  |\n'
+		}
 	];
 
 	for (const { name, source } of cases) {
