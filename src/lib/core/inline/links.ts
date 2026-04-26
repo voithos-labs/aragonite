@@ -9,25 +9,40 @@
 import type { InlineNode } from '../nodes';
 import { parseInline } from './index';
 
+type Range = { start: number; end: number };
+
 export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
 	occupied: InlineNode[]
 ): InlineNode[] {
-	const occupiedRanges: Array<{ start: number; end: number }> = occupied
+	const occupiedRanges: Range[] = occupied
 		.filter((n) => n.kind !== 'text')
 		.map((n) => ({ start: n.start, end: n.end }));
 
-	const found: InlineNode[] = [];
+	// Pass 1: links and images may span occupied ranges (entity in link text,
+	// escape inside alt, etc.). Bracket pairing skips over occupied content so
+	// `[` inside a code span doesn't masquerade as a link delimiter.
+	const linksAndImages = scanLinksAndImages(raw, start, end, occupiedRanges);
 
+	// Pass 2: autolinks fill the gaps left by occupied + links. They still stop
+	// at occupied/whitespace boundaries — preserving the 0.6.2 behavior where
+	// `https://x.com&amp;y` doesn't absorb the entity.
+	const closedRanges: Range[] = [
+		...occupiedRanges,
+		...linksAndImages.map((n) => ({ start: n.start, end: n.end }))
+	].sort((a, b) => a.start - b.start);
+
+	const autolinks: InlineNode[] = [];
 	let pos = start;
-	for (const range of occupiedRanges) {
-		scanRegionForLinksAndAutolinks(raw, pos, range.start, found);
+	for (const range of closedRanges) {
+		scanRegionForAutolinks(raw, pos, range.start, autolinks);
 		pos = range.end;
 	}
-	scanRegionForLinksAndAutolinks(raw, pos, end, found);
+	scanRegionForAutolinks(raw, pos, end, autolinks);
 
+	const found: InlineNode[] = [...linksAndImages, ...autolinks];
 	if (found.length === 0) return occupied;
 
 	const allOccupied: InlineNode[] = [
@@ -111,20 +126,32 @@ function parseDestination(
 	return { url, title, end: pos };
 }
 
-function scanRegionForLinksAndAutolinks(
+function scanLinksAndImages(
 	raw: string,
 	start: number,
 	end: number,
-	out: InlineNode[]
-): void {
+	occupied: Range[]
+): InlineNode[] {
+	const out: InlineNode[] = [];
 	let pos = start;
 
 	while (pos < end) {
+		const skip = occupiedEndAt(occupied, pos);
+		if (skip !== null) {
+			pos = skip;
+			continue;
+		}
+
 		const ch = raw[pos];
 
-		if (ch === '!' && pos + 1 < end && raw[pos + 1] === '[') {
+		if (
+			ch === '!' &&
+			pos + 1 < end &&
+			raw[pos + 1] === '[' &&
+			occupiedEndAt(occupied, pos + 1) === null
+		) {
 			const bracketOpen = pos + 1;
-			const bracketClose = findMatchingBracket(raw, bracketOpen, end);
+			const bracketClose = findMatchingBracket(raw, bracketOpen, end, occupied);
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
@@ -146,7 +173,7 @@ function scanRegionForLinksAndAutolinks(
 		}
 
 		if (ch === '[') {
-			const bracketClose = findMatchingBracket(raw, pos, end);
+			const bracketClose = findMatchingBracket(raw, pos, end, occupied);
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
@@ -166,6 +193,23 @@ function scanRegionForLinksAndAutolinks(
 			pos++;
 			continue;
 		}
+
+		pos++;
+	}
+
+	return out;
+}
+
+function scanRegionForAutolinks(
+	raw: string,
+	start: number,
+	end: number,
+	out: InlineNode[]
+): void {
+	let pos = start;
+
+	while (pos < end) {
+		const ch = raw[pos];
 
 		if (ch === '<') {
 			const closeAngle = raw.indexOf('>', pos + 1);
@@ -210,10 +254,30 @@ function scanRegionForLinksAndAutolinks(
 	}
 }
 
-function findMatchingBracket(raw: string, bracketStart: number, limit: number): number {
+/** End of the occupied range covering `pos`, or null if `pos` is free. */
+function occupiedEndAt(occupied: Range[], pos: number): number | null {
+	for (const range of occupied) {
+		if (pos >= range.end) continue;
+		if (pos < range.start) return null;
+		return range.end;
+	}
+	return null;
+}
+
+function findMatchingBracket(
+	raw: string,
+	bracketStart: number,
+	limit: number,
+	occupied: Range[]
+): number {
 	let depth = 0;
 	let pos = bracketStart;
 	while (pos < limit) {
+		const skip = occupiedEndAt(occupied, pos);
+		if (skip !== null) {
+			pos = skip;
+			continue;
+		}
 		if (raw[pos] === '[') depth++;
 		else if (raw[pos] === ']') {
 			depth--;

@@ -429,3 +429,51 @@ describe('parseInline — entity reference integration', () => {
 		expect(refs[0].decoded).toBe('&');
 	});
 });
+
+describe('parseInline — links spanning occupied ranges', () => {
+	it('link with entity reference in text', () => {
+		const raw = '[&copy; me](https://example.com)';
+		const nodes = parseInline(raw, 0, raw.length);
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+		const entities = links[0].children?.filter((c) => c.kind === 'entityReference');
+		expect(entities).toHaveLength(1);
+		expect(entities?.[0].decoded).toBe('©');
+	});
+
+	it('link with escape in text', () => {
+		const raw = '[foo \\*bar\\*](https://example.com)';
+		const nodes = parseInline(raw, 0, raw.length);
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		const escapes = links[0].children?.filter((c) => c.kind === 'escape');
+		expect(escapes).toHaveLength(2);
+		const ems = links[0].children?.filter((c) => c.kind === 'emphasis');
+		expect(ems).toHaveLength(0);
+	});
+
+	it('image with entity in alt text', () => {
+		const raw = '![&copy; logo](logo.png)';
+		const nodes = parseInline(raw, 0, raw.length);
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+	});
+
+	it('link inside emphasis with entity in link text', () => {
+		const raw = '*see [&copy; me](https://example.com) here*';
+		const nodes = parseInline(raw, 0, raw.length);
+		const ems = nodes.filter((n) => n.kind === 'emphasis');
+		expect(ems).toHaveLength(1);
+		const links = ems[0].children?.filter((c) => c.kind === 'link');
+		expect(links).toHaveLength(1);
+	});
+
+	it('autolink still stops at entity boundary (regression guard for 1d44f0f)', () => {
+		const raw = 'see https://example.com/?a&amp;b end';
+		const nodes = parseInline(raw, 0, raw.length);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com/?a');
+	});
+});
