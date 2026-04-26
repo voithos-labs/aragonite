@@ -6,7 +6,7 @@
  * rebuildRaw on their descriptor.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode, Document, TableAlignment, TableMetadata } from '../core/nodes';
 import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
@@ -58,11 +58,50 @@ export function rebuildListRaw(node: CstNode): void {
 	node.raw = node.children.map((c) => c.leadingTrivia + c.raw).join('');
 }
 
+// ── Table ────────────────────────────────────────────────────────────────────
+
+/** Rebuild a row's raw from its cell children: `| c0 | c1 | ... |\n`. */
+export function rebuildTableRowRaw(node: CstNode): void {
+	if (!node.children) return;
+	const cells = node.children.map((c) => c.raw);
+	node.raw = '| ' + cells.join(' | ') + ' |\n';
+}
+
+/** Rebuild a table's raw from header + canonical delimiter + body rows. */
+export function rebuildTableRaw(node: CstNode): void {
+	if (!node.children) return;
+	const meta = node.metadata as TableMetadata;
+	const headerRow = node.children[0];
+	const bodyRows = node.children.slice(1);
+
+	const delimiterCells = meta.alignments.map(formatAlignmentCell).join(' | ');
+	const delimiterLine = '| ' + delimiterCells + ' |\n';
+
+	let raw = (headerRow?.raw ?? '') + delimiterLine;
+	for (const r of bodyRows) raw += r.raw;
+	node.raw = raw;
+}
+
+function formatAlignmentCell(a: TableAlignment): string {
+	switch (a) {
+		case 'left':
+			return ':---';
+		case 'center':
+			return ':---:';
+		case 'right':
+			return '---:';
+		case 'none':
+			return '---';
+	}
+}
+
 // ── Descriptor wiring ────────────────────────────────────────────────────────
 
 augmentBlockKind('blockquote', { rebuildRaw: rebuildBlockquoteRaw });
 augmentBlockKind('list', { rebuildRaw: rebuildListRaw });
 augmentBlockKind('listItem', { rebuildRaw: rebuildListItemRaw });
+augmentBlockKind('table', { rebuildRaw: rebuildTableRaw });
+augmentBlockKind('tableRow', { rebuildRaw: rebuildTableRowRaw });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
