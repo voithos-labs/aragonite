@@ -10,7 +10,8 @@ import type {
 	ListMetadata,
 	ListItemMetadata,
 	LinkReferenceDefinitionMetadata,
-	TableMetadata
+	TableMetadata,
+	TableRowMetadata
 } from '../../core/nodes';
 
 // Metadata extraction from parsed blocks: heading level, fence info, list
@@ -399,10 +400,24 @@ describe('metadata: link reference definitions', () => {
 });
 
 describe('metadata: tables', () => {
-	it('extracts column count', () => {
-		const doc = parse('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
-		const node = doc.children[0];
-		expect(node.kind).toBe('table');
-		expect((node.metadata as TableMetadata).columnCount).toBe(3);
+	it('extracts column count and default alignments', () => {
+		const doc = parse('| A | B | C |\n| --- | --- | --- |\n');
+		const meta = doc.children[0].metadata as TableMetadata;
+		expect(meta.columnCount).toBe(3);
+		expect(meta.alignments).toEqual(['none', 'none', 'none']);
+	});
+
+	it('extracts left/center/right alignments', () => {
+		const doc = parse('| A | B | C |\n| :--- | :---: | ---: |\n');
+		const meta = doc.children[0].metadata as TableMetadata;
+		expect(meta.alignments).toEqual(['left', 'center', 'right']);
+	});
+
+	it('produces tableRow children with isHeader on row 0 only', () => {
+		const doc = parse('| A |\n| --- |\n| 1 |\n| 2 |\n');
+		const rows = doc.children[0].children!;
+		expect((rows[0].metadata as TableRowMetadata).isHeader).toBe(true);
+		expect((rows[1].metadata as TableRowMetadata).isHeader).toBe(false);
+		expect((rows[2].metadata as TableRowMetadata).isHeader).toBe(false);
 	});
 });
