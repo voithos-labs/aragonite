@@ -27,3 +27,12 @@
 ## Round-trip
 
 - `getSource()` after typing escapes returns exactly what the user typed; no normalization, no decoding.
+
+## Coverage notes
+
+The following scenarios are exercised at the unit-test level (`src/lib/editor/test/core/inline/escapes.test.ts`) rather than via E2E, since they're parser-internal contracts not visible as user-facing DOM behavior:
+
+- The full 32-character escapable punctuation set (parameterized table).
+- Cursor offset semantics between `\` and the escaped character (covered indirectly via `findNodeAtOffset` tests in `cursor-mapping.test.ts`).
+- Trailing `\` at end-of-input emitted as text (escape scanner contract).
+- `\` followed by `\n` left as text for the hard-line-break post-pass to claim (`post-process.ts`).

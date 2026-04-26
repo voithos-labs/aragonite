@@ -31,3 +31,11 @@
 ## Round-trip
 
 - `getSource()` after typing entities returns the source bytes verbatim — entities are never serialized to their decoded form.
+
+## Coverage notes
+
+The following scenarios are exercised at the unit-test level (`src/lib/editor/test/core/inline/character-refs.test.ts`) rather than via E2E:
+
+- Malformed forms (`&;`, `&amp` without semicolon, `&#abc;`, `&#xZZ;`) emitted as plain text.
+- Boundary numeric references (`&#0;`, `&#x110000;`, surrogate-range code points) decoded to U+FFFD per CommonMark §6.2.
+- Cursor offset semantics inside the entity source bytes (browser-native caret behavior).
