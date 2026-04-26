@@ -156,8 +156,21 @@ registerBlockKind('linkReferenceDefinition', {
 registerBlockKind('table', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
+	isContainer: true,
 	supportsInline: false
+});
+registerBlockKind('tableRow', {
+	mergeRole: 'not-mergeable',
+	editable: true,
+	isContainer: true,
+	supportsInline: false
+});
+registerBlockKind('tableCell', {
+	mergeRole: 'not-mergeable',
+	editable: true,
+	isContainer: false,
+	supportsInline: true,
+	getContentRange: (node) => ({ start: 0, end: node.raw.length })
 });
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',

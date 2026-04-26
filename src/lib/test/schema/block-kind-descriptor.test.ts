@@ -15,6 +15,8 @@ const ALL_KINDS: BlockKind[] = [
 	'htmlBlock',
 	'linkReferenceDefinition',
 	'table',
+	'tableRow',
+	'tableCell',
 	'unrecognized',
 	'blockquote',
 	'list',
@@ -36,8 +38,8 @@ describe('block-kind-descriptor registry', () => {
 		}
 	});
 
-	it('marks blockquote/list/listItem as containers and nothing else', () => {
-		const containers: BlockKind[] = ['blockquote', 'list', 'listItem'];
+	it('marks blockquote/list/listItem/table/tableRow as containers and nothing else', () => {
+		const containers: BlockKind[] = ['blockquote', 'list', 'listItem', 'table', 'tableRow'];
 		for (const kind of ALL_KINDS) {
 			const d = getBlockKindDescriptor(kind);
 			expect(d.isContainer, `${kind}.isContainer`).toBe(containers.includes(kind));
@@ -92,7 +94,6 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 			'indentedCode',
 			'htmlBlock',
 			'linkReferenceDefinition',
-			'table',
 			'unrecognized'
 		];
 		for (const kind of nonProseLeaves) {
@@ -104,10 +105,20 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(getBlockKindDescriptor('list').supportsInline).toBe(false);
 		expect(getBlockKindDescriptor('blockquote').supportsInline).toBe(false);
 		expect(getBlockKindDescriptor('listItem').supportsInline).toBe(false);
+		expect(getBlockKindDescriptor('table').supportsInline).toBe(false);
+		expect(getBlockKindDescriptor('tableRow').supportsInline).toBe(false);
 	});
 
-	it('only paragraph/heading/setextHeading support inline', () => {
+	it('marks tableCell with supportsInline: true', () => {
+		const d = getBlockKindDescriptor('tableCell');
+		expect(d.supportsInline).toBe(true);
+		expect(d.editable).toBe(true);
+		expect(d.isContainer).toBe(false);
+		expect(d.mergeRole).toBe('not-mergeable');
+	});
+
+	it('only paragraph/heading/setextHeading/tableCell support inline', () => {
 		const inlineKinds = ALL_KINDS.filter((k) => getBlockKindDescriptor(k).supportsInline);
-		expect(inlineKinds.sort()).toEqual(['heading', 'paragraph', 'setextHeading']);
+		expect(inlineKinds.sort()).toEqual(['heading', 'paragraph', 'setextHeading', 'tableCell']);
 	});
 });
