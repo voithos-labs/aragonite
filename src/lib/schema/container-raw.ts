@@ -60,14 +60,14 @@ export function rebuildListRaw(node: CstNode): void {
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-/** Rebuild a row's raw from its cell children: `| c0 | c1 | ... |\n`. */
+/** `| c0 | c1 | ... |\n` (single-space padding, trailing newline). */
 export function rebuildTableRowRaw(node: CstNode): void {
 	if (!node.children) return;
 	const cells = node.children.map((c) => c.raw);
 	node.raw = '| ' + cells.join(' | ') + ' |\n';
 }
 
-/** Rebuild a table's raw from header + canonical delimiter + body rows. */
+/** Header + synthesized canonical delimiter + body rows. */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = node.metadata as TableMetadata;
@@ -92,6 +92,10 @@ function formatAlignmentCell(a: TableAlignment): string {
 			return '---:';
 		case 'none':
 			return '---';
+		default: {
+			const _exhaustive: never = a;
+			throw new Error(`Unknown alignment: ${_exhaustive}`);
+		}
 	}
 }
 
