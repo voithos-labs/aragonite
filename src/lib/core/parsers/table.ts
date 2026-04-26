@@ -1,4 +1,6 @@
-import type { TableAlignment } from '../nodes';
+import type { CstNode, TableAlignment } from '../nodes';
+import type { ParsedLine } from '../lines';
+import { joinRaw, isBlankLine } from '../parser';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -65,4 +67,57 @@ export function matchTableDelimiterRow(
 	}
 
 	return { columnCount: cells.length, alignments };
+}
+
+// ── Block parser ───────────────────────────────────────────────────────────
+
+export function parseTable(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	leadingTrivia: string,
+	delimiter: { columnCount: number; alignments: TableAlignment[] }
+): { node: CstNode; nextIndex: number } {
+	let i = startIndex + 2;
+	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
+		i++;
+	}
+
+	const rows: CstNode[] = [];
+	rows.push(buildRow(lines[startIndex], delimiter.columnCount, true));
+	for (let r = startIndex + 2; r < i; r++) {
+		rows.push(buildRow(lines[r], delimiter.columnCount, false));
+	}
+
+	const raw = joinRaw(lines, startIndex, i);
+	return {
+		node: {
+			kind: 'table',
+			leadingTrivia,
+			raw,
+			metadata: { columnCount: delimiter.columnCount, alignments: delimiter.alignments },
+			children: rows
+		},
+		nextIndex: i
+	};
+}
+
+// GFM pads short body rows with empty cells and truncates long ones to the
+// header column count.
+function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
+	const cellTexts = splitRowCells(line.text);
+	while (cellTexts.length < columnCount) cellTexts.push('');
+	while (cellTexts.length > columnCount) cellTexts.pop();
+	const cells: CstNode[] = cellTexts.map((text) => ({
+		kind: 'tableCell',
+		leadingTrivia: '',
+		raw: text
+	}));
+	return {
+		kind: 'tableRow',
+		leadingTrivia: '',
+		raw: line.raw,
+		metadata: { isHeader },
+		children: cells
+	};
 }
