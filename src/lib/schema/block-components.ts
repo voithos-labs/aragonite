@@ -54,4 +54,6 @@ registerBlockComponent('indentedCode', textAsRawBlock);
 registerBlockComponent('htmlBlock', textAsRawBlock);
 registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
 registerBlockComponent('table', textAsRawBlock);
+registerBlockComponent('tableRow', textAsRawBlock);
+registerBlockComponent('tableCell', textAsRawBlock);
 registerBlockComponent('unrecognized', textAsRawBlock);
