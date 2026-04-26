@@ -90,11 +90,7 @@ test.describe('inline editing — entity references', () => {
 		});
 	}
 
-	// Side effect of the 0.6.2 link-scanner fix (commit 1d44f0f): scanning is split
-	// into regions around occupied entity/escape spans, so a `[` and its matching `]`
-	// landing in different regions never form a link. Unblocking requires scanning
-	// links across occupied ranges while keeping autolinks region-bounded.
-	test.fixme('entity inside link text renders inside anchor', async () => {
+	test('entity inside link text renders inside anchor', async () => {
 		await editor.typeText('[&copy; me](https://example.com)');
 		await editor.bridge.waitForSourceContains('[&copy; me](https://example.com)');
 		const block = editor.getBlock(0);
