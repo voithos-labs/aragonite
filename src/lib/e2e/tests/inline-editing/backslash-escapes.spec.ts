@@ -93,4 +93,15 @@ test.describe('inline editing — backslash escapes', () => {
 			expect((await editor.bridge.getSource()).trim()).toBe(escape);
 		});
 	}
+
+	test('prepending backslash to existing *foo* collapses emphasis', async () => {
+		await editor.loadContent('*foo*\n');
+		await editor.focusBlockAtPath([0], 0);
+		await editor.page.keyboard.insertText('\\');
+		await editor.bridge.waitForSourceContains('\\*foo*');
+		const block = editor.getBlock(0);
+		expect(await block.locator('em').count()).toBe(0);
+		const markers = await block.locator('.md-marker').allTextContents();
+		expect(markers.filter((t) => t === '\\').length).toBe(1);
+	});
 });

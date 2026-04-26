@@ -89,4 +89,24 @@ test.describe('inline editing — entity references', () => {
 			expect((await editor.bridge.getSource()).trim()).toBe(sample);
 		});
 	}
+
+	// Side effect of the 0.6.2 link-scanner fix (commit 1d44f0f): scanning is split
+	// into regions around occupied entity/escape spans, so a `[` and its matching `]`
+	// landing in different regions never form a link. Unblocking requires scanning
+	// links across occupied ranges while keeping autolinks region-bounded.
+	test.fixme('entity inside link text renders inside anchor', async () => {
+		await editor.typeText('[&copy; me](https://example.com)');
+		await editor.bridge.waitForSourceContains('[&copy; me](https://example.com)');
+		const block = editor.getBlock(0);
+		expect(await block.locator('a .md-entity').count()).toBe(1);
+	});
+
+	test('backspacing the closing ; collapses entity to plain text', async () => {
+		await editor.loadContent('&copy;\n');
+		await editor.focusBlockAtPath([0], 6);
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('&copy');
+		const block = editor.getBlock(0);
+		expect(await block.locator('.md-entity').count()).toBe(0);
+	});
 });
