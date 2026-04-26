@@ -116,11 +116,11 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(d.isContainer).toBe(false);
 		expect(d.mergeRole).toBe('not-mergeable');
 
-		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' };
+		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' } as const;
 		expect(d.getContentRange!(sampleCell)).toEqual({ start: 0, end: 5 });
 
 		// Empty cell — happens when buildRow pads short body rows.
-		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' };
+		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' } as const;
 		expect(d.getContentRange!(emptyCell)).toEqual({ start: 0, end: 0 });
 	});
 
