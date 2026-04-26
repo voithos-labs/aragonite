@@ -51,4 +51,34 @@ describe('table parser: structure', () => {
 		expect(table.leadingTrivia).toBe('\n');
 		expect(table.children![0].leadingTrivia).toBe('');
 	});
+
+	it('pads body rows shorter than the header to columnCount with empty cells', () => {
+		const doc = parse('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 |\n');
+		const table = doc.children[0];
+		const body = table.children![1];
+		expect(body.children).toHaveLength(3);
+		expect(body.children![0].raw).toBe('1');
+		expect(body.children![1].raw).toBe('2');
+		expect(body.children![2].raw).toBe('');
+	});
+
+	it('truncates body rows longer than the header to columnCount', () => {
+		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 | 3 | 4 |\n');
+		const table = doc.children[0];
+		const body = table.children![1];
+		expect(body.children).toHaveLength(2);
+		expect(body.children![0].raw).toBe('1');
+		expect(body.children![1].raw).toBe('2');
+	});
+
+	it('terminates the table at the first line without a pipe', () => {
+		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\nNot a row\n');
+		expect(doc.children).toHaveLength(2);
+		const table = doc.children[0];
+		expect(table.kind).toBe('table');
+		expect(table.children).toHaveLength(2);
+		const para = doc.children[1];
+		expect(para.kind).toBe('paragraph');
+		expect(para.raw).toContain('Not a row');
+	});
 });
