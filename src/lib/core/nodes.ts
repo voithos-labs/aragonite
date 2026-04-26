@@ -14,10 +14,10 @@ export type LeafBlockKind =
 	| 'indentedCode'
 	| 'htmlBlock'
 	| 'linkReferenceDefinition'
-	| 'table'
+	| 'tableCell'
 	| 'unrecognized';
 
-export type ContainerBlockKind = 'blockquote' | 'list' | 'listItem';
+export type ContainerBlockKind = 'blockquote' | 'list' | 'listItem' | 'table' | 'tableRow';
 
 export type BlockKind = LeafBlockKind | ContainerBlockKind;
 
@@ -48,8 +48,15 @@ export interface LinkReferenceDefinitionMetadata {
 	title?: string;
 }
 
+export type TableAlignment = 'none' | 'left' | 'center' | 'right';
+
 export interface TableMetadata {
 	columnCount: number;
+	alignments: TableAlignment[];
+}
+
+export interface TableRowMetadata {
+	isHeader: boolean;
 }
 
 export interface BlockquoteMetadata {
@@ -74,6 +81,7 @@ export type BlockMetadata =
 	| ThematicBreakMetadata
 	| LinkReferenceDefinitionMetadata
 	| TableMetadata
+	| TableRowMetadata
 	| BlockquoteMetadata
 	| ListMetadata
 	| ListItemMetadata;
