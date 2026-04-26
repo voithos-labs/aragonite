@@ -145,3 +145,29 @@ export interface ListContext {
 	/** Returns this list's index in its enclosing list (for nested-list promotion). */
 	getContainingItemIndex(): number;
 }
+
+// ── Table context ──────────────────────────────────────────────────────────
+
+export type CellPosition = 'start' | 'end' | number;
+
+export interface TableContext {
+	focusCell(rowIdx: number, colIdx: number, position: CellPosition): void;
+
+	getStickyColumn(): number | null;
+	setStickyColumn(colIdx: number): void;
+	resetStickyColumn(): void;
+
+	exitUpward(stickyX: number): void;
+	exitDownward(stickyX: number): void;
+
+	notifyCellFocused(rowIdx: number, colIdx: number): void;
+	notifyCellBlurred(): void;
+
+	insertRowAbove(rowIdx: number): Promise<void>;
+	insertRowBelow(rowIdx: number): Promise<void>;
+	insertColumnLeft(colIdx: number): Promise<void>;
+	insertColumnRight(colIdx: number): Promise<void>;
+	deleteRow(rowIdx: number): Promise<void>;
+	deleteColumn(colIdx: number): Promise<void>;
+	cycleAlignment(colIdx: number): Promise<void>;
+}
