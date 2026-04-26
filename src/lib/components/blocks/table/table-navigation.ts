@@ -1,11 +1,6 @@
-/**
- * Pure navigation helpers for table cells. No DOM, no Svelte. Given the
- * current (rowIdx, colIdx) and the table's dimensions, return the target
- * cell or a sentinel signaling that the caller should exit the table or
- * create a new row.
- */
+// Pure: no DOM, no Svelte — caller wires sentinels to focus/exit/insert behavior.
 
-export interface CellPos {
+export interface CellCoord {
 	rowIdx: number;
 	colIdx: number;
 }
@@ -16,7 +11,7 @@ export type CellMove =
 	| { kind: 'exit-up' }
 	| { kind: 'exit-down' };
 
-export function nextCell(pos: CellPos, columnCount: number, rowCount: number): CellMove {
+export function nextCell(pos: CellCoord, columnCount: number, rowCount: number): CellMove {
 	if (pos.colIdx < columnCount - 1) {
 		return { kind: 'cell', rowIdx: pos.rowIdx, colIdx: pos.colIdx + 1 };
 	}
@@ -26,7 +21,7 @@ export function nextCell(pos: CellPos, columnCount: number, rowCount: number): C
 	return { kind: 'create-row' };
 }
 
-export function prevCell(pos: CellPos, columnCount: number): CellMove {
+export function prevCell(pos: CellCoord, columnCount: number): CellMove {
 	if (pos.colIdx > 0) {
 		return { kind: 'cell', rowIdx: pos.rowIdx, colIdx: pos.colIdx - 1 };
 	}
@@ -36,12 +31,12 @@ export function prevCell(pos: CellPos, columnCount: number): CellMove {
 	return { kind: 'exit-up' };
 }
 
-export function cellAbove(pos: CellPos): CellMove {
+export function cellAbove(pos: CellCoord): CellMove {
 	if (pos.rowIdx === 0) return { kind: 'exit-up' };
 	return { kind: 'cell', rowIdx: pos.rowIdx - 1, colIdx: pos.colIdx };
 }
 
-export function cellBelow(pos: CellPos, rowCount: number): CellMove {
+export function cellBelow(pos: CellCoord, rowCount: number): CellMove {
 	if (pos.rowIdx === rowCount - 1) return { kind: 'exit-down' };
 	return { kind: 'cell', rowIdx: pos.rowIdx + 1, colIdx: pos.colIdx };
 }
