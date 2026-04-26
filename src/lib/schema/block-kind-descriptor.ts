@@ -54,6 +54,11 @@ function setextHeadingContentRange(node: CstNode): { start: number; end: number 
 	return { start: 0, end: contentEnd };
 }
 
+// Cells have no markers; the entire raw is content.
+function tableCellContentRange(node: CstNode): { start: number; end: number } {
+	return { start: 0, end: displayLength(node.raw) };
+}
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 const registry = new Map<BlockKind, BlockKindDescriptor>();
@@ -170,7 +175,7 @@ registerBlockKind('tableCell', {
 	editable: true,
 	isContainer: false,
 	supportsInline: true,
-	getContentRange: (node) => ({ start: 0, end: node.raw.length })
+	getContentRange: tableCellContentRange
 });
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',

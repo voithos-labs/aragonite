@@ -109,12 +109,19 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(getBlockKindDescriptor('tableRow').supportsInline).toBe(false);
 	});
 
-	it('marks tableCell with supportsInline: true', () => {
+	it('marks tableCell with supportsInline: true and exposes a whole-raw content range', () => {
 		const d = getBlockKindDescriptor('tableCell');
 		expect(d.supportsInline).toBe(true);
 		expect(d.editable).toBe(true);
 		expect(d.isContainer).toBe(false);
 		expect(d.mergeRole).toBe('not-mergeable');
+
+		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' };
+		expect(d.getContentRange!(sampleCell)).toEqual({ start: 0, end: 5 });
+
+		// Empty cell — happens when buildRow pads short body rows.
+		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' };
+		expect(d.getContentRange!(emptyCell)).toEqual({ start: 0, end: 0 });
 	});
 
 	it('only paragraph/heading/setextHeading/tableCell support inline', () => {
