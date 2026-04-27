@@ -161,7 +161,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 			}
 		}
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
-		expect(result.collapsedCaret).toEqual({ path: [0], offset: 0 });
+		// Caret lands inside the anchor cell's contenteditable, not the table wrapper.
+		expect(result.collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
 	});
 
 	it('partial rectangular clear leaves out-of-rect cells untouched', () => {
@@ -184,6 +185,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		// Row 3 untouched.
 		expect(table.children![3].children![0].raw).toBe('5');
 		expect(table.children![3].children![1].raw).toBe('6');
+		// Anchor at cell 2 = row 1, col 0 — caret deep-paths into that cell.
+		expect(result.collapsedCaret).toEqual({ path: [0, 1, 0], offset: 0 });
 	});
 
 	it('column-only rectangle clears just the targeted column', () => {
@@ -201,6 +204,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		}
 		expect(table.children![0].children![0].raw).toBe('A');
 		expect(table.children![3].children![0].raw).toBe('5');
+		// Anchor at cell 1 = row 0, col 1.
+		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 0 });
 	});
 });
 

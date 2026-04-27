@@ -120,4 +120,74 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceNotContains('Axyz');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
+
+	// ── Multi-cell selection at paste ───────────────────────────────────
+
+	test('sub-rectangle selection + paste clears the rect and inserts text in the anchor cell', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		// Drag from cell 2 (row 1, col 0 = "1") to cell 5 (row 2, col 1 = "4").
+		const from = page.locator('[role="cell"]').nth(2);
+		const to = page.locator('[role="cell"]').nth(5);
+		const fromBox = await from.boundingBox();
+		const toBox = await to.boundingBox();
+		if (!fromBox || !toBox) throw new Error('missing bounding boxes');
+		const sx = fromBox.x + fromBox.width / 2;
+		const sy = fromBox.y + fromBox.height / 2;
+		const ex = toBox.x + toBox.width / 2;
+		const ey = toBox.y + toBox.height / 2;
+		await page.mouse.move(sx, sy);
+		await page.mouse.down();
+		for (let i = 1; i <= 10; i++) {
+			const t = i / 10;
+			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+		}
+		await page.mouse.up();
+		await editor.waitForCrossBlock(true);
+
+		await page.evaluate(() => navigator.clipboard.writeText('hello'));
+		await page.keyboard.press('Control+v');
+
+		// Header row untouched; rectangle cells cleared then "hello" lands in the anchor cell.
+		await editor.bridge.waitForSourceContains('| A | B |');
+		await editor.bridge.waitForSourceContains('| hello |  |');
+		await editor.bridge.waitForSourceContains('|  |  |');
+	});
+
+	test('whole-table selection (Ctrl+A 2nd) + paste a paragraph replaces the table', async ({
+		page
+	}) => {
+		const source = `before\n\n${TABLE_2BODY}\nafter\n`;
+		await editor.loadContent(source);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+
+		await page.evaluate(() => navigator.clipboard.writeText('replaced text\n'));
+		await page.keyboard.press('Control+v');
+
+		await editor.bridge.waitForSourceNotContains('| --- | --- |');
+		await editor.bridge.waitForSourceContains('replaced text');
+		await editor.bridge.waitForSourceContains('before');
+		await editor.bridge.waitForSourceContains('after');
+	});
+
+	test('whole-table paste is a single-undo-entry operation', async ({ page }) => {
+		const source = `before\n\n${TABLE_2BODY}\nafter\n`;
+		await editor.loadContent(source);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+
+		await page.evaluate(() => navigator.clipboard.writeText('replaced text\n'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('replaced text');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| --- | --- |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
+	});
 });
