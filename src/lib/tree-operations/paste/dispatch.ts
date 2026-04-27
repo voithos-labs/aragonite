@@ -21,6 +21,8 @@ import { applyInlineResult, applyStructuralResult } from './apply';
 import { findContainerMatchingUnwrap, applyContainerMatchingPaste } from './container-match';
 import { findListAbsorb, applyListAbsorb } from './list-absorb';
 import { findListBreakOut, applyListBreakOut } from './list-break-out';
+import { sliceTableAtRow } from './table-slice';
+import { CURSOR_END } from '../../contracts';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -113,6 +115,32 @@ export async function pasteDispatch(
 	// paste into the inline hook so markdown stays verbatim.
 	const surfaceForcesInline = surface !== undefined && surface.onStructuralPaste === undefined;
 	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
+
+	// Structural paste into a table cell breaks the table at the cell's row and
+	// splices pasted blocks between the halves. The tableCell surface's
+	// structural hook is a sentinel that never runs — this branch intercepts
+	// first and uses sliceTableAtRow to produce the replacement.
+	if (strategy === 'structural' && targetNode.kind === 'tableCell') {
+		const tablePath = input.targetPath.slice(0, -2);
+		const rowIdx = input.targetPath[input.targetPath.length - 2];
+		const table = nodeAt(ctx.doc, tablePath) as CstNode | null;
+		if (!table || table.kind !== 'table') return {};
+
+		const blocks = materializeBlankLines(parsed.children);
+		const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
+		const replacement: CstNode[] = [];
+		if (firstHalf) replacement.push(firstHalf);
+		replacement.push(...blocks);
+		if (secondHalf) replacement.push(secondHalf);
+
+		const focusReplacementIndex = firstHalf ? 1 : 0;
+		await applyStructuralResult(
+			tablePath,
+			{ replacement, focusReplacementIndex, focusOffset: CURSOR_END },
+			ctx
+		);
+		return {};
+	}
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
