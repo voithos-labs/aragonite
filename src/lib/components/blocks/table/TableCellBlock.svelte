@@ -29,15 +29,17 @@
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { TableMetadata } from '../../../core/nodes';
-	import { trimTrailingLineEnding } from '../../../core/lines';
+	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { collectCrossBlockText } from '../../../selection/clipboard-text';
+	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
 		getCursorOffset as getCursorOffsetHelper,
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
+		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/cursor-utils';
 	import {
@@ -501,6 +503,37 @@
 		}
 	}
 
+	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (await crossBlock.handlePaste(e)) return;
+
+		stickyColumn.reset();
+		if (!el) return;
+		e.preventDefault();
+		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+		if (!pastedText) return;
+
+		const selOffsets = getSelectionOffsetsHelper(el);
+		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
+
+		const result = await pasteDispatch(
+			{
+				pastedText,
+				targetPath: myPath,
+				offset,
+				preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
+			},
+			{
+				doc: getDoc(),
+				blockEdit,
+				controller: pasteCoordinator
+			}
+		);
+
+		if (result.inlineCaretOffset !== undefined) {
+			pendingCursorOffset = result.inlineCaretOffset;
+		}
+	}
+
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
 	}
@@ -521,6 +554,7 @@
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
 	oncopy={onCopy}
+	onpaste={onPaste}
 	onfocus={onFocus}
 	onblur={onBlur}
 	oncompositionstart={onCompositionStart}
