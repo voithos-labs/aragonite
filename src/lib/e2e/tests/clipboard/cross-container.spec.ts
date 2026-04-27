@@ -86,10 +86,12 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.waitForTimeout(300);
 
 		const source = await editor.bridge.getSource();
-		const quotedCount = source.split('quoted text').length - 1;
-		const outsideCount = source.split('outside').length - 1;
-		expect(quotedCount).toBeGreaterThanOrEqual(2);
-		expect(outsideCount).toBeGreaterThanOrEqual(2);
+		expect(source.split('quoted text').length - 1).toBeGreaterThanOrEqual(2);
+		expect(source.split('outside').length - 1).toBeGreaterThanOrEqual(2);
+		// Discriminator: paste must land in the destination block, not the
+		// 'outside' block above it. If focus had drifted, block [1] would have
+		// absorbed the clipboard's first line instead of staying intact.
+		expect((await editor.getBlockText(1)).trim()).toBe('outside');
 	});
 
 	test('cut from paragraph across blockquote then undo restores both', async () => {
