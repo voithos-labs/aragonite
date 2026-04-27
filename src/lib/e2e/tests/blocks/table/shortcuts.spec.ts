@@ -64,22 +64,32 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceNotContains(' B ');
 	});
 
-	test('Ctrl+Shift+A cycles column alignment none → left → center → right → none', async ({
+	test('Alt+Shift+A cycles column alignment none → left → center → right → none', async ({
 		page
 	}) => {
 		await page.locator('[role="cell"]').nth(0).click();
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('Alt+Shift+A');
 		await editor.bridge.waitForSourceContains('| :--- | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('Alt+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('Alt+Shift+A');
 		await editor.bridge.waitForSourceContains('| ---: | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('Alt+Shift+A');
 		await editor.bridge.waitForSourceContains('| --- | --- |');
+	});
+
+	test('Alt+Shift+A from already-left advances to center in one press', async ({ page }) => {
+		// Regression for Ctrl+Shift+A vs Chromium "Search tabs" conflict: with the
+		// old binding the first press was eaten by the browser; users perceived
+		// "press 1 did nothing." Alt+Shift+A is namespace-clean.
+		await editor.loadContent('| A | B |\n| :--- | --- |\n| 1 | 2 |\n');
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+A');
+		await editor.bridge.waitForSourceContains('| :---: | --- |');
 	});
 
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {

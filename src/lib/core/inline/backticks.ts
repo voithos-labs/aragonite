@@ -1,9 +1,25 @@
 /**
  * Inline pipeline stage 1: balanced backtick code spans. Emits text +
  * inlineCode nodes; later stages treat inlineCode ranges as occupied.
+ *
+ * CommonMark §6.1 example 311: a backslash-escaped opening backtick (`\``)
+ * does not start a code span. Stage 1 runs before scanEscapes, so we check
+ * for a preceding odd backslash count inline. Inside an opened span, per
+ * CommonMark §6.5, backslashes are literal — closing-tick search ignores
+ * preceding backslashes.
  */
 
 import type { InlineNode } from '../nodes';
+
+function isEscaped(raw: string, index: number): boolean {
+	let backslashes = 0;
+	let j = index - 1;
+	while (j >= 0 && raw[j] === '\\') {
+		backslashes++;
+		j--;
+	}
+	return backslashes % 2 === 1;
+}
 
 export function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[] {
 	const nodes: InlineNode[] = [];
@@ -12,6 +28,10 @@ export function scanBacktickSpans(raw: string, start: number, end: number): Inli
 
 	while (pos < end) {
 		if (raw[pos] === '`') {
+			if (isEscaped(raw, pos)) {
+				pos++;
+				continue;
+			}
 			const tickStart = pos;
 			while (pos < end && raw[pos] === '`') pos++;
 			const tickLen = pos - tickStart;
