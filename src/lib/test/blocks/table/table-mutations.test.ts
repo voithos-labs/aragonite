@@ -92,16 +92,16 @@ describe('deleteColumn', () => {
 });
 
 describe('cycleAlignment', () => {
-	it('cycles none → left → center → right → none', () => {
+	it('skips the visual no-op from none, then cycles left → center → right → left', () => {
 		const table = parseTable('| A |\n| --- |\n| 1 |\n');
-		cycleAlignment(table, 0);
-		expect((table.metadata as TableMetadata).alignments).toEqual(['left']);
 		cycleAlignment(table, 0);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['center']);
 		cycleAlignment(table, 0);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['right']);
 		cycleAlignment(table, 0);
-		expect((table.metadata as TableMetadata).alignments).toEqual(['none']);
+		expect((table.metadata as TableMetadata).alignments).toEqual(['left']);
+		cycleAlignment(table, 0);
+		expect((table.metadata as TableMetadata).alignments).toEqual(['center']);
 	});
 
 	it('advances from a non-none starting alignment without resetting', () => {
@@ -109,5 +109,13 @@ describe('cycleAlignment', () => {
 		expect((table.metadata as TableMetadata).alignments).toEqual(['left']);
 		cycleAlignment(table, 0);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['center']);
+	});
+
+	it('never re-enters none once cycling has begun', () => {
+		const table = parseTable('| A |\n| --- |\n| 1 |\n');
+		for (let i = 0; i < 10; i++) {
+			cycleAlignment(table, 0);
+			expect((table.metadata as TableMetadata).alignments[0]).not.toBe('none');
+		}
 	});
 });
