@@ -48,6 +48,9 @@ export function tableAwareRangeDelete(
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
 
 // spec § Selection — Whole-table intra-table: rectangular cell clear, structure preserved.
+// Caret returns as a deep [...tablePath, anchorRow, anchorCol] path so the
+// follow-up paste / focus restore lands inside the anchor cell's contenteditable
+// instead of the table wrapper. The cell is empty post-clear, so offset 0 = end.
 function deleteWithinTable(
 	doc: Document,
 	start: SelectionPoint,
@@ -57,9 +60,15 @@ function deleteWithinTable(
 	clearRectangularCells(table, start.offset, end.offset);
 	rebuildContainerRaw(table);
 	rebuildAncestryRawForLeaf(doc, start.path);
+
+	const meta = table.metadata as TableMetadata;
+	const cellsPerRow = meta.columnCount;
+	const anchorRow = Math.floor(start.offset / cellsPerRow);
+	const anchorCol = start.offset - anchorRow * cellsPerRow;
+
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
+		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 }
 	};
 }
 

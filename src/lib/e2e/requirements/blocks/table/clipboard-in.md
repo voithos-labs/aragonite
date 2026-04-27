@@ -22,6 +22,7 @@
 
 - A single Ctrl+Z undoes the entire paste — both inline and structural variants.
 
-## Notes
+## Multi-cell selection at paste
 
-- "Paste with multi-cell rectangular selection" and "Paste with whole-table selection (Ctrl+A 2nd press)" are deferred: they require cell-aware drag selection / 2nd-press cross-block state to be wired into the paste preDelete contract, which is outside Plan 5 scope.
+- Sub-rectangle selection + paste plain text: cells inside the rectangle are cleared; pasted text lands inside the anchor cell. Cells outside the rectangle remain untouched. Single Ctrl+Z restores the original document.
+- Whole-table selection (Ctrl+A 2nd press) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
