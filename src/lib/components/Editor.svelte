@@ -152,7 +152,7 @@
 		if (!tableWrapper) return null;
 		const tableEl = tableWrapper.querySelector(':scope > [role="table"]');
 		if (!tableEl) return null;
-		const rowEl = tableEl.querySelector(`[data-table-row-idx='${rowIdx}']`);
+		const rowEl = tableEl.querySelector(`:scope > [data-table-row-idx='${rowIdx}']`);
 		if (!rowEl) return null;
 		const cells = rowEl.querySelectorAll(':scope > [role="cell"]');
 		return (cells[colIdx] as HTMLElement | undefined) ?? null;
