@@ -7,6 +7,7 @@ import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../core
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import { parse } from '../core/parser';
+import { displayLength } from '../core/lines';
 import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
@@ -186,6 +187,12 @@ function deleteFromTableIntoProse(
 	};
 }
 
+// Spec § Cross-block delete Case 2: cursor lands at "end of surviving anchor
+// cell content"; if the anchor row was removed, fall back to end of the last
+// cell of row r-1. The surviving anchor cell is empty (Case 2 always clears
+// from the anchor cell onward), so the offset there is 0 — but we still need
+// the deep [tablePath, rowIdx, colIdx] path so the caret-restore lands inside
+// the cell's contenteditable, not on the table's outer wrapper.
 function caretForCase2(
 	table: CstNode,
 	start: SelectionPoint,
@@ -194,11 +201,25 @@ function caretForCase2(
 	if (result === 'tableEmpty') {
 		return { path: start.path.slice(), offset: start.offset };
 	}
-	const remainingCells = totalCellCount(table);
-	const clampedOffset = Math.min(start.offset, remainingCells);
-	// TODO(0.7): land at end of surviving anchor cell content, not the
-	// shallow cell-index translated to "cell N-1 start" by TableBlock.focus.
-	return { path: start.path.slice(), offset: clampedOffset };
+	const meta = table.metadata as TableMetadata;
+	const cellsPerRow = meta.columnCount;
+	const anchorRow = Math.floor(start.offset / cellsPerRow);
+	const anchorCol = start.offset - anchorRow * cellsPerRow;
+
+	if (anchorCol > 0) {
+		const cell = table.children![anchorRow].children![anchorCol];
+		return {
+			path: [...start.path, anchorRow, anchorCol],
+			offset: displayLength(cell.raw)
+		};
+	}
+	const survivorRow = anchorRow - 1;
+	const survivorCol = cellsPerRow - 1;
+	const survivor = table.children![survivorRow].children![survivorCol];
+	return {
+		path: [...start.path, survivorRow, survivorCol],
+		offset: displayLength(survivor.raw)
+	};
 }
 
 // ── Case 1+2 hybrid: both endpoints are tables ─────────────────────────────

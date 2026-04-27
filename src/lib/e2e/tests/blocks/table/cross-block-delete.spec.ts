@@ -92,6 +92,28 @@ test.describe('table block: cross-block delete', () => {
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceContains('| A |  |');
+		// Caret lands inside the cleared anchor cell (col 1), not the table wrapper
+		// or the previous cell. Spec § Cross-block delete Case 2: "end of surviving
+		// anchor cell content".
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('| A | Z |');
+	});
+
+	test('Case 2 — anchor at col 0 lands at end of previous-row last cell', async ({ page }) => {
+		const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+		await editor.loadContent(`${TABLE_3x3}\nfollow paragraph\n`);
+		// Drag from cell (1, 0) = "1" to the paragraph below; anchorCol === 0
+		// removes anchor row entirely. Survivor: end of last cell of row 0 = "C".
+		const [cellBox, paraBox] = await boxesOf(
+			page.locator('[role="cell"]').nth(3),
+			page.getByText('follow paragraph')
+		);
+		await dragBetween(page, cellBox, paraBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('| 1 |');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('| A | B | CZ |');
 	});
 
 	test('whole-table Ctrl+A 2nd press + Backspace clears every cell, preserves structure', async ({
