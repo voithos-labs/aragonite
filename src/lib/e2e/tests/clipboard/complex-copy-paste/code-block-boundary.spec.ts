@@ -12,22 +12,34 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
-	test.fixme('select inside code block across boundary into final paragraph', async () => {
-		// Verified failing at pre-editor-sweep-pass-7's exact shape under retries:0 (Pass 7
-		// surfaced a pre-existing race; Pass 6's npm test passed by luck of test ordering /
-		// browser warm-up timing). Cross-block selection that anchors INSIDE a code block
-		// doesn't reach the trailing paragraph reliably — needs a real fix in the cross-block
-		// dispatch's code-anchored selection extension. See editor-sweep-followups.md.
-		await editor.focusBlockStart(9);
+	test('Ctrl+Shift+End from inside a code block extends to the final paragraph', async () => {
+		await editor.focusBlockAtPath([9], 0);
 		await editor.page.keyboard.press('Control+Shift+End');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await waitForClipboardContains(editor, 'A final paragraph');
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('const x = 42');
 		expect(clip).toContain('A final paragraph');
+	});
+
+	test('Shift+ArrowDown from end of a code block enters cross-block mode anchored in code', async () => {
+		const codeRaw = await editor.page.evaluate(() => {
+			const wrapper = document.querySelector(`[data-block-path='${JSON.stringify([9])}']`);
+			const editable = wrapper?.querySelector(':not(.selection-overlay)') as HTMLElement | null;
+			return editable?.textContent ?? '';
+		});
+		await editor.focusBlockAtPath([9], codeRaw.length);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+
+		const paths = await editor.page.evaluate(
+			() => (window as any).__test?.getSelectionPaths?.() ?? null
+		);
+		expect(paths?.anchor.path).toEqual([9]);
+		expect(paths?.focus.path).toEqual([10]);
 	});
 
 	test('bottom-to-top selection copies the block above', async () => {
