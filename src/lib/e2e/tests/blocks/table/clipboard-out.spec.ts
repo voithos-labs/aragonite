@@ -8,6 +8,25 @@ async function readClipboard(page: Page): Promise<string> {
 	return page.evaluate(() => navigator.clipboard.readText());
 }
 
+async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
+	const from = page.locator('[role="cell"]').nth(fromIdx);
+	const to = page.locator('[role="cell"]').nth(toIdx);
+	const fromBox = await from.boundingBox();
+	const toBox = await to.boundingBox();
+	if (!fromBox || !toBox) throw new Error('dragBetweenCells: missing bounding box');
+	const sx = fromBox.x + fromBox.width / 2;
+	const sy = fromBox.y + fromBox.height / 2;
+	const ex = toBox.x + toBox.width / 2;
+	const ey = toBox.y + toBox.height / 2;
+	await page.mouse.move(sx, sy);
+	await page.mouse.down();
+	for (let i = 1; i <= 10; i++) {
+		const t = i / 10;
+		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+	}
+	await page.mouse.up();
+}
+
 test.describe('table block: clipboard out', () => {
 	let editor: EditorPage;
 
@@ -51,32 +70,34 @@ test.describe('table block: clipboard out', () => {
 		expect(clip).toContain('After.');
 	});
 
-	test.fixme(
-		'2×2 rectangular drag → Ctrl+C produces valid GFM sub-table',
-		async () => {
-			// Plan 4 wires the input mechanism that produces path-equal anchor/focus
-			// on the table with cell-index offsets, the precondition that
-			// TableCellBlock.onCopy needs to pick the rectangular sub-table branch.
-			// Expected output for cells (0,0)..(1,1) from TABLE_ALIGNED:
-			//   '| A | B |\n| :--- | :---: |\n| 1 | 2 |\n'
-		}
-	);
+	test('2x2 rectangular drag -> Ctrl+C produces valid GFM sub-table', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 0, 4);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Control+c');
+		await expect.poll(() => readClipboard(page)).toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
+	});
 
-	test.fixme(
-		'row-only rectangle copies a header-only sub-table',
-		async () => {
-			// Plan 4 dependency. Single-row rect over cols 0..2 of TABLE_ALIGNED
-			// must produce '| A | B | C |\n| :--- | :---: | ---: |\n' with no body.
-		}
-	);
+	test('row-only rectangle copies a header-only sub-table', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 0, 2);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Control+c');
+		await expect.poll(() => readClipboard(page)).toBe('| A | B | C |\n| :--- | :---: | ---: |\n');
+	});
 
-	test.fixme(
-		'sub-table inherits sliced source alignments',
-		async () => {
-			// Plan 4 dependency. Cols 0..1 of `| :--- | :---: | ---: |` slice to
-			// `| :--- | :---: |` in the copied sub-table delimiter row.
-		}
-	);
+	test('sub-table inherits sliced source alignments (right-edge slice)', async ({ page }) => {
+		// Source delimiter: `| :--- | :---: | ---: |`. Cells 1..5 select cols 1..2,
+		// so the slice keeps the right-aligned column and drops the left-aligned one.
+		await editor.loadContent(TABLE_ALIGNED);
+		await dragBetweenCells(page, 1, 5);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Control+c');
+		const clip = await readClipboard(page);
+		expect(clip).toContain('| :---: | ---: |');
+		expect(clip).not.toContain(':---|');
+		expect(clip).not.toContain(':--- |');
+	});
 
 	test.fixme(
 		'whole table copy after Ctrl+A 2nd press emits table raw',
