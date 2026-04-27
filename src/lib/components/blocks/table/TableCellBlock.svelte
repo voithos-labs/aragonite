@@ -50,10 +50,17 @@
 		handleSharedBeforeInput,
 		type SharedKeydownContext
 	} from '../../../selection/shared-keydown';
+	import { clearNativeSelection } from '../../../selection/native-bridge';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
 	import { copyRectangleAsSubTable } from './sub-table-copy';
+	import {
+		installCellDragListener,
+		handleCellShiftClick,
+		cellCoordsOfElement,
+		type CellAnchor
+	} from './cell-pointer';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -345,7 +352,52 @@
 	}
 
 	function onPointerDown(e: PointerEvent): void {
-		crossBlock.handlePointerDown(e);
+		if (!el) return;
+		const tableEl = el.closest('[role="table"]') as HTMLElement | null;
+		if (!tableEl) {
+			crossBlock.handlePointerDown(e);
+			return;
+		}
+		const tablePath = myPath.slice(0, -2);
+		const anchor: CellAnchor = {
+			tableEl,
+			tablePath,
+			rowIdx,
+			colIdx,
+			columnCount
+		};
+
+		stickyColumn.reset();
+		selection.resetSelectAllCount();
+
+		if (e.shiftKey) {
+			const prevCoords = cellCoordsOfElement(document.activeElement, tableEl);
+			if (prevCoords && (prevCoords.rowIdx !== rowIdx || prevCoords.colIdx !== colIdx)) {
+				handleCellShiftClick(
+					selection,
+					{ ...anchor, rowIdx: prevCoords.rowIdx, colIdx: prevCoords.colIdx },
+					{ rowIdx, colIdx }
+				);
+				e.preventDefault();
+				return;
+			}
+			// Fall through to the default cross-block shift+click — handles the
+			// "previous focus was outside this table" case via the standard path.
+			crossBlock.handlePointerDown(e);
+			return;
+		}
+
+		if (selection.isCrossBlock) {
+			selection.clear();
+			clearNativeSelection();
+		}
+
+		const editorRoot = getEditorRoot();
+		if (!editorRoot) return;
+		installCellDragListener(
+			{ editorRoot, selection, lifetimeSignal: editorLifetime },
+			anchor
+		);
 	}
 
 	function onCopy(e: ClipboardEvent): void {
