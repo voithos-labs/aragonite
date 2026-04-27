@@ -23,8 +23,12 @@
 
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 
+	// Containers that supply their own measurePartialRects (table) paint cell
+	// rects from this overlay; their children don't render BlockHost wrappers.
+	const containerPaintsRects = $derived(isContainer && !!blockRef?.measurePartialRects);
+
 	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (isContainer) return 'outside';
+		if (isContainer && !containerPaintsRects) return 'outside';
 		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}
@@ -68,7 +72,11 @@
 	let endpointRects: LocalRect[] = $state([]);
 
 	$effect(() => {
-		if (classification !== 'start' && classification !== 'end') {
+		const usesPartialRects =
+			classification === 'start' ||
+			classification === 'end' ||
+			(classification === 'single-block' && containerPaintsRects);
+		if (!usesPartialRects) {
 			endpointRects = [];
 			return;
 		}
@@ -79,8 +87,10 @@
 
 		const { start, end } = normalize({ anchor: selection.anchor, focus: selection.focus });
 
-		const startOffset = classification === 'start' ? start.offset : 0;
-		const endOffset = classification === 'start' ? SELECTION_END : end.offset;
+		const startOffset =
+			classification === 'end' ? 0 : start.offset;
+		const endOffset =
+			classification === 'start' ? SELECTION_END : end.offset;
 
 		const viewportRects: DOMRect[] = blockRef.measurePartialRects(startOffset, endOffset);
 		const blockRect = blockEl.getBoundingClientRect();
@@ -97,7 +107,7 @@
 
 {#if classification === 'middle'}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
-{:else if classification === 'start' || classification === 'end'}
+{:else if classification === 'start' || classification === 'end' || (classification === 'single-block' && containerPaintsRects)}
 	{#each endpointRects as rect}
 		<div
 			class="selection-overlay selection-overlay-endpoint"
