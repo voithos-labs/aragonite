@@ -98,8 +98,11 @@
 			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
 		},
 		{
+			// Ctrl+Shift+A would conflict with Chromium's "Search tabs" global
+			// shortcut (also Cmd+Shift+A on macOS). Alt+Shift+A keeps the
+			// alignment cycle in the column-ops Alt+Shift namespace.
 			match: (e) =>
-				ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
+				e.altKey && e.shiftKey && !ctrlOrMeta(e) && (e.key === 'A' || e.key === 'a'),
 			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
 		}
 	];
