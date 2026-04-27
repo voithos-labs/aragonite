@@ -59,6 +59,12 @@ Setext level 2
 A paragraph with **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. Links: [Limestone on GitHub](https://github.com). Bare URLs autolink: https://example.com. Hard line breaks via trailing backslash:\\
 next line starts here.
 
+## Escapes & entities
+
+Backslash escapes neutralize the next punctuation: \\*not italic\\*, \\[not a link\\], \\\`not code\\\`. Use \\\\ for a literal backslash.
+
+HTML entities pass through: &copy; 2026 — em-dash &mdash;, non-break&nbsp;space, decimal &#39;apostrophe&#39;, hex &#x22;quote&#x22;.
+
 ## Lists
 
 - Unordered one
@@ -106,6 +112,19 @@ Indented (4-space) code blocks also parse:
 | :------- | :------: | -------: |
 | Column A | Column B | Column C |
 | Row two  | data     |     $100 |
+
+Shortcuts when focus is inside a cell (Mac: \`Cmd\` for any \`Ctrl\`):
+
+| Action                    | Shortcut                    |
+| :------------------------ | :-------------------------- |
+| Hop to next / prev cell   | \`Tab\` / \`Shift+Tab\`         |
+| Cell below (or new row)   | \`Enter\`                     |
+| Insert row below / above  | \`Ctrl+Enter\` / \`Ctrl+Shift+Enter\` |
+| Insert column right / left | \`Alt+Shift+→\` / \`Alt+Shift+←\` |
+| Delete current row        | \`Ctrl+Shift+Backspace\`      |
+| Delete current column     | \`Alt+Shift+Backspace\`       |
+| Cycle column alignment    | \`Ctrl+Shift+A\`              |
+| Select cell / table / doc | \`Ctrl+A\` (1st / 2nd / 3rd press) |
 
 ## Images
 
