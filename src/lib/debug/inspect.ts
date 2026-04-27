@@ -107,6 +107,20 @@ function renderDetail(e: OperationEntry): string {
 			return typeof d.length === 'number' ? `length=${d.length}` : '';
 		case 'replaceBlock':
 			return typeof d.count === 'number' ? `count=${d.count}` : '';
+		case 'tableInsertRow':
+			return typeof d.rowIdx === 'number' && typeof d.side === 'string'
+				? `rowIdx=${d.rowIdx} side=${d.side}`
+				: '';
+		case 'tableDeleteRow':
+			return typeof d.rowIdx === 'number' ? `rowIdx=${d.rowIdx}` : '';
+		case 'tableInsertColumn':
+			return typeof d.colIdx === 'number' && typeof d.side === 'string'
+				? `colIdx=${d.colIdx} side=${d.side}`
+				: '';
+		case 'tableDeleteColumn':
+			return typeof d.colIdx === 'number' ? `colIdx=${d.colIdx}` : '';
+		case 'tableCycleAlignment':
+			return typeof d.colIdx === 'number' ? `colIdx=${d.colIdx}` : '';
 		default:
 			return '';
 	}

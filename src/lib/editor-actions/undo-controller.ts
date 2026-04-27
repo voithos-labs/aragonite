@@ -207,6 +207,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 
 		if (args.op) {
+			// Cast: the centralized emitter sees `kind: OperationKind` and `detail: Record<string, unknown> | undefined`,
+			// which TS can't narrow into the per-arm shapes of EditEvent. Subscribers still get a discriminated union.
 			deps.events.emit('edit', {
 				op: args.op.kind,
 				path: args.eventPath,
