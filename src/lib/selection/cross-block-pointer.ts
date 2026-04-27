@@ -5,6 +5,8 @@
  */
 
 import type { CrossBlockDispatchContext } from './cross-block-dispatch';
+import type { SelectionState } from './selection-state.svelte';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import { handleShiftClick } from './keyboard-extend';
 import { findBlockPathForElement } from './path-lookup';
 import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
@@ -22,6 +24,25 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 	};
 }
 
+/**
+ * Shared pointerdown preamble for any block that intercepts cross-block input.
+ * Resets sticky-column + select-all counter, and (for non-shift pointerdowns)
+ * clears any active cross-block selection so a fresh drag doesn't extend the
+ * prior range.
+ */
+export function resetForPointerDown(
+	selection: SelectionState,
+	stickyColumn: StickyColumnState,
+	isShift: boolean
+): void {
+	stickyColumn.reset();
+	selection.resetSelectAllCount();
+	if (!isShift && selection.isCrossBlock) {
+		selection.clear();
+		clearNativeSelection();
+	}
+}
+
 // ── Pointer ────────────────────────────────────────────────────────────────
 
 function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boolean {
@@ -30,8 +51,7 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	ctx.stickyColumn.reset();
-	selection.resetSelectAllCount();
+	resetForPointerDown(selection, ctx.stickyColumn, e.shiftKey);
 
 	if (e.shiftKey) {
 		const prevActive = document.activeElement;
@@ -53,11 +73,6 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 			e.preventDefault();
 			return true;
 		}
-	}
-
-	if (selection.isCrossBlock && !e.shiftKey) {
-		selection.clear();
-		clearNativeSelection();
 	}
 
 	if (!e.shiftKey) {

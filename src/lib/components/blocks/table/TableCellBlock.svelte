@@ -50,9 +50,9 @@
 		handleSharedBeforeInput,
 		type SharedKeydownContext
 	} from '../../../selection/shared-keydown';
-	import { clearNativeSelection } from '../../../selection/native-bridge';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
+	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
 	import { copyRectangleAsSubTable } from './sub-table-copy';
 	import {
@@ -367,8 +367,7 @@
 			columnCount
 		};
 
-		stickyColumn.reset();
-		selection.resetSelectAllCount();
+		resetForPointerDown(selection, stickyColumn, e.shiftKey);
 
 		if (e.shiftKey) {
 			const prevCoords = cellCoordsOfElement(document.activeElement, tableEl);
@@ -381,15 +380,8 @@
 				e.preventDefault();
 				return;
 			}
-			// Fall through to the default cross-block shift+click — handles the
-			// "previous focus was outside this table" case via the standard path.
 			crossBlock.handlePointerDown(e);
 			return;
-		}
-
-		if (selection.isCrossBlock) {
-			selection.clear();
-			clearNativeSelection();
 		}
 
 		const editorRoot = getEditorRoot();
