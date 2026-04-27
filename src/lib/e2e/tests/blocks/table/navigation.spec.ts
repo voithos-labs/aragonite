@@ -15,8 +15,11 @@ test.describe('table block: navigation', () => {
 		await expect(page.locator('[role="cell"]').nth(1)).toBeFocused();
 	});
 
-	test.fixme('Tab from last cell of last row creates a new row', async () => {
-		// Implemented in Plan 4 — depends on tableContext.insertRowBelow.
+	test('Tab from last cell of last row creates a new row', async ({ page }) => {
+		await page.locator('[role="cell"]').nth(3).click();
+		await page.keyboard.press('Tab');
+		await expect(page.locator('[role="cell"]')).toHaveCount(6);
+		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 	});
 
 	test('ArrowDown exits table downward into next block', async ({ page }) => {
@@ -49,7 +52,10 @@ test.describe('table block: navigation', () => {
 		await expect(page.locator('[role="cell"]').nth(2)).toBeFocused();
 	});
 
-	test.fixme('Enter in last row creates new row', async () => {
-		// Implemented in Plan 4 — depends on tableContext.insertRowBelow.
+	test('Enter in last row creates new row', async ({ page }) => {
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('Enter');
+		await expect(page.locator('[role="cell"]')).toHaveCount(6);
+		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 	});
 });
