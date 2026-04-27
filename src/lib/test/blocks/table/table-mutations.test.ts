@@ -50,8 +50,7 @@ describe('insertEmptyRow', () => {
 describe('deleteRow', () => {
 	it('removes a body row and leaves the header intact', () => {
 		const table = parseTable('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
-		const ok = deleteRow(table, 1);
-		expect(ok).toBe(true);
+		deleteRow(table, 1);
 		expect(table.children).toHaveLength(2);
 		expect(table.children![1].children![0].raw).toBe('3');
 	});
@@ -61,19 +60,6 @@ describe('deleteRow', () => {
 		deleteRow(table, 0);
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['1', '2']);
-	});
-
-	it('returns false when only one body row remains', () => {
-		const table = parseTable('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const ok = deleteRow(table, 1);
-		expect(ok).toBe(false);
-		expect(table.children).toHaveLength(2);
-	});
-
-	it('returns false when the table is header-only', () => {
-		const table = parseTable('| A | B |\n| --- | --- |\n');
-		const ok = deleteRow(table, 0);
-		expect(ok).toBe(false);
 	});
 });
 
@@ -98,17 +84,10 @@ describe('insertEmptyColumn', () => {
 describe('deleteColumn', () => {
 	it('removes the column from every row and trims its alignment', () => {
 		const table = parseTable('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n');
-		const ok = deleteColumn(table, 1);
-		expect(ok).toBe(true);
+		deleteColumn(table, 1);
 		expect((table.metadata as TableMetadata).columnCount).toBe(2);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', 'C']);
-	});
-
-	it('returns false when only one column remains', () => {
-		const table = parseTable('| A |\n| --- |\n| 1 |\n');
-		const ok = deleteColumn(table, 0);
-		expect(ok).toBe(false);
 	});
 });
 

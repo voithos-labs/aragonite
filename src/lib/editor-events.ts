@@ -28,7 +28,22 @@ export type EditEvent =
 	| { op: 'appendBlock'; path: number[]; detail?: {}; timestamp: number }
 	| { op: 'metadataUpdate'; path: number[]; detail: { fields: string[] }; timestamp: number }
 	| { op: 'undo'; path: number[]; detail?: {}; timestamp: number }
-	| { op: 'redo'; path: number[]; detail?: {}; timestamp: number };
+	| { op: 'redo'; path: number[]; detail?: {}; timestamp: number }
+	| {
+			op: 'tableInsertRow';
+			path: number[];
+			detail: { rowIdx: number; side: 'above' | 'below' };
+			timestamp: number;
+	  }
+	| { op: 'tableDeleteRow'; path: number[]; detail: { rowIdx: number }; timestamp: number }
+	| {
+			op: 'tableInsertColumn';
+			path: number[];
+			detail: { colIdx: number; side: 'left' | 'right' };
+			timestamp: number;
+	  }
+	| { op: 'tableDeleteColumn'; path: number[]; detail: { colIdx: number }; timestamp: number }
+	| { op: 'tableCycleAlignment'; path: number[]; detail: { colIdx: number }; timestamp: number };
 
 export type SelectionChangeEvent = EditorSelection | null;
 
