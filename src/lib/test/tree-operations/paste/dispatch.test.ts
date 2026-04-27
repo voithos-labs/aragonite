@@ -302,21 +302,34 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 
-	it('structural strategy: multi-block clipboard routes through blockEdit.replaceBlock', async () => {
+	// Routes through controller.commitMultiScope at the doc scope — bypasses
+	// blockEdit so callers passing a nested-bundle blockEdit (e.g., a row-level
+	// bundle for a cell's path) can't misroute the splice into a child container.
+	it('structural strategy: multi-block clipboard routes through controller.commitMultiScope at doc scope', async () => {
 		const doc = parse('target\n');
 		const blockEdit = makeStubBlockEdit();
+		const controller = makeStubController();
+		const docScope = { node: doc, state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] } };
+		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
+			async ({ mutate }) => {
+				mutate([{ children: [...doc.children] }]);
+			}
+		);
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
-			{ doc, blockEdit, controller: makeStubController() }
+			{ doc, blockEdit, controller }
 		);
 
-		expect(blockEdit.replaceBlock).toHaveBeenCalledOnce();
-		const [index, replacement] = (blockEdit.replaceBlock as ReturnType<typeof vi.fn>).mock.calls[0];
-		expect(index).toBe(0);
-		expect(replacement.length).toBeGreaterThanOrEqual(2);
-		const kinds = (replacement as CstNode[]).map((n) => n.kind);
-		expect(kinds).toContain('heading');
+		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
+		const args = (controller.commitMultiScope as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		expect(args.scopes).toHaveLength(1);
+		expect(args.scopes[0]).toBe(docScope);
+		expect(args.op.kind).toBe('replaceBlock');
+		expect(args.op.eventPath).toEqual([0]);
+
+		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 });
