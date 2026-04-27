@@ -1,0 +1,385 @@
+<script lang="ts">
+	import { getContext, tick } from 'svelte';
+	import {
+		BLOCK_EDIT_KEY,
+		CONTROLLER_KEY,
+		PASTE_COORDINATOR_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
+		CONTAINER_EDIT_KEY,
+		STICKY_COLUMN_KEY,
+		SELECTION_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		DOC_KEY,
+		EDITOR_ROOT_KEY,
+		EDITOR_LIFETIME_KEY,
+		TABLE_CONTEXT_KEY,
+		type BlockEditActions,
+		type BlockElLookup,
+		type ContainerEditActions,
+		type DocumentGetter,
+		type FocusActions,
+		type HistoryActions,
+		type CstNode,
+		type BlockComponent,
+		type StickyColumnDirection,
+		type TableContext
+	} from '../../../contracts';
+	import type { UndoController } from '../../../editor-actions/deps';
+	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { trimTrailingLineEnding } from '../../../core/lines';
+	import {
+		createRangeFromOffsets,
+		setCursorOffset as setCursorOffsetHelper,
+		getCursorOffset as getCursorOffsetHelper,
+		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
+		hasSelection as hasSelectionHelper
+	} from '../../../cursor/cursor-utils';
+	import {
+		findOffsetNearestX,
+		getCurrentCursorEditorRelativeX
+	} from '../../../cursor/sticky-measure';
+	import { measurePartialRectsInContentEditable } from '../../../cursor/overlay-rects';
+	import {
+		handleSharedKeydown,
+		handleSharedBeforeInput,
+		type SharedKeydownContext
+	} from '../../../selection/shared-keydown';
+	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
+	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
+
+	let {
+		node,
+		index,
+		myPath = [],
+		rowIdx,
+		colIdx,
+		columnCount,
+		rowCount
+	}: {
+		node: CstNode;
+		index: number;
+		myPath?: number[];
+		rowIdx: number;
+		colIdx: number;
+		columnCount: number;
+		rowCount: number;
+	} = $props();
+
+	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
+	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getDoc = getContext<DocumentGetter>(DOC_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
+
+	let el: HTMLDivElement | undefined = $state();
+	let composing = $state(false);
+	let pendingCursorOffset = $state<number | null>(null);
+	let preEditOffset = 0;
+
+	const crossBlock = createCrossBlockHandlers({
+		getEl: () => el ?? null,
+		getMyPath: () => myPath,
+		getIndex: () => index,
+		selection,
+		getDoc,
+		getBlockElByPath,
+		getEditorRoot,
+		getEditorLifetime: () => editorLifetime ?? null,
+		stickyColumn,
+		containerEdit,
+		blockEdit,
+		controller,
+		pasteCoordinator,
+		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
+		afterReactivity: () => tick(),
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		}
+	});
+
+	const sharedCtx: SharedKeydownContext = {
+		getEl: () => el ?? null,
+		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
+		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
+		getTextLen: () => (el?.textContent ?? '').length,
+		getMyPath: () => myPath,
+		getIndex: () => index,
+		crossBlock,
+		selection,
+		stickyColumn,
+		history,
+		focus: focusActions,
+		getDoc,
+		getBlockElByPath
+	};
+
+	// ── BlockComponent interface ────────────────────────────────────────
+
+	export const editable = true;
+	export const focusable = true;
+
+	export function focus(offset: number): void {
+		if (!el) return;
+		el.focus();
+		setCursorOffsetHelper(el, Math.max(0, offset));
+	}
+
+	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		if (!el) return;
+		el.focus();
+		setCursorOffsetHelper(el, findOffsetNearestX(el, x, from));
+	}
+
+	export function getCursorOffset(): number | null {
+		return el ? getCursorOffsetHelper(el) : null;
+	}
+
+	export function getSelectedText(): string {
+		return window.getSelection()?.toString() ?? '';
+	}
+
+	export function setSelection(start: number, end: number): void {
+		if (!el) return;
+		const range = createRangeFromOffsets(el, start, end);
+		if (!range) return;
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+	}
+
+	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
+		if (!el) return [];
+		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
+	}
+
+	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
+
+	// ── Render pipeline ────────────────────────────────────────────────────
+
+	function getDisplayText(): string {
+		return trimTrailingLineEnding(node.raw);
+	}
+
+	$effect(() => {
+		if (!el) return;
+		const display = getDisplayText();
+		if (el.textContent !== display) {
+			el.textContent = display;
+		}
+		if (pendingCursorOffset !== null) {
+			setCursorOffsetHelper(el, pendingCursorOffset);
+			pendingCursorOffset = null;
+		}
+	});
+
+	// ── Event handlers ─────────────────────────────────────────────────────
+
+	function onInput(): void {
+		if (composing || !el) return;
+		const text = el.textContent ?? '';
+		const savedOffset = getCursorOffsetHelper(el) ?? 0;
+		blockEdit.updateBlockContent(index, text, preEditOffset, savedOffset);
+		pendingCursorOffset = savedOffset;
+	}
+
+	function onCompositionStart(): void {
+		if (!el) return;
+		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		crossBlock.handleCompositionStart();
+		composing = true;
+	}
+
+	function onCompositionEnd(): void {
+		composing = false;
+		onInput();
+	}
+
+	async function onKeyDown(e: KeyboardEvent): Promise<void> {
+		if (composing || !el) return;
+
+		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		const pos = { rowIdx, colIdx };
+		const textLen = (el.textContent ?? '').length;
+		const offset = preEditOffset;
+		const collapsed = !hasSelectionHelper();
+
+		if (e.key === 'ArrowLeft' && !e.shiftKey && offset === 0 && collapsed) {
+			e.preventDefault();
+			handleHorizontalMove(prevCell(pos, columnCount), 'end', 'up');
+			return;
+		}
+
+		if (e.key === 'ArrowRight' && !e.shiftKey && offset === textLen && collapsed) {
+			e.preventDefault();
+			handleHorizontalMove(nextCell(pos, columnCount, rowCount), 'start', 'down');
+			return;
+		}
+
+		if (e.key === 'ArrowUp' && !e.shiftKey) {
+			e.preventDefault();
+			handleVerticalMove(cellAbove(pos), 'end', 'up');
+			return;
+		}
+
+		if (e.key === 'ArrowDown' && !e.shiftKey) {
+			e.preventDefault();
+			handleVerticalMove(cellBelow(pos, rowCount), 'start', 'down');
+			return;
+		}
+
+		if (e.key === 'Tab' && !e.shiftKey) {
+			e.preventDefault();
+			const move = nextCell(pos, columnCount, rowCount);
+			if (move.kind === 'cell') {
+				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
+			} else {
+				// kind: 'create-row' — Plan 4 implements insertRowBelow; the stub throws today.
+				void tableContext.insertRowBelow(rowIdx);
+			}
+			return;
+		}
+
+		if (e.key === 'Tab' && e.shiftKey) {
+			e.preventDefault();
+			handleHorizontalMove(prevCell(pos, columnCount), 'end', 'up');
+			return;
+		}
+
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			const move = cellBelow(pos, rowCount);
+			if (move.kind === 'cell') {
+				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
+			} else {
+				// kind: 'exit-down' — Plan 4 implements insertRowBelow; the stub throws today.
+				void tableContext.insertRowBelow(rowIdx);
+			}
+			return;
+		}
+
+		if (e.key === 'Backspace' && offset === 0 && collapsed) {
+			e.preventDefault();
+			const move = prevCell(pos, columnCount);
+			if (move.kind === 'cell') {
+				tableContext.focusCell(move.rowIdx, move.colIdx, 'end');
+			} else {
+				focusActions.moveFocus(myPath[0] - 1, 'end');
+			}
+			return;
+		}
+
+		if (e.key === 'Delete' && offset === textLen && collapsed) {
+			e.preventDefault();
+			const move = nextCell(pos, columnCount, rowCount);
+			if (move.kind === 'cell') {
+				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
+			} else {
+				focusActions.moveFocus(myPath[0] + 1, 'start');
+			}
+			return;
+		}
+
+		await handleSharedKeydown(e, sharedCtx);
+	}
+
+	type ExitDirection = 'up' | 'down';
+
+	function handleHorizontalMove(
+		move: ReturnType<typeof prevCell> | ReturnType<typeof nextCell>,
+		cellPosition: 'start' | 'end',
+		exit: ExitDirection
+	): void {
+		if (move.kind === 'cell') {
+			tableContext.focusCell(move.rowIdx, move.colIdx, cellPosition);
+			return;
+		}
+		if (move.kind === 'create-row') {
+			// Plan 2 treats end-of-table ArrowRight as exit-down; Plan 4 will reroute to insertRowBelow.
+			exitWithStickyX('down');
+			return;
+		}
+		exitWithStickyX(exit);
+	}
+
+	function handleVerticalMove(
+		move: ReturnType<typeof cellAbove> | ReturnType<typeof cellBelow>,
+		cellPosition: 'start' | 'end',
+		exit: ExitDirection
+	): void {
+		if (move.kind === 'cell') {
+			tableContext.setStickyColumn(move.colIdx);
+			tableContext.focusCell(move.rowIdx, move.colIdx, cellPosition);
+			return;
+		}
+		exitWithStickyX(exit);
+	}
+
+	function exitWithStickyX(direction: ExitDirection): void {
+		if (!el) return;
+		const x = getCurrentCursorEditorRelativeX(el) ?? 0;
+		if (direction === 'up') tableContext.exitUpward(x);
+		else tableContext.exitDownward(x);
+	}
+
+	async function onBeforeInput(e: InputEvent): Promise<void> {
+		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		if (e.inputType === 'insertLineBreak') {
+			e.preventDefault();
+			return;
+		}
+	}
+
+	function onPointerDown(e: PointerEvent): void {
+		if (crossBlock.handlePointerDown(e)) return;
+	}
+
+	function onFocus(): void {
+		tableContext.notifyCellFocused(rowIdx, colIdx);
+	}
+
+	function onBlur(): void {
+		tableContext.notifyCellBlurred();
+	}
+</script>
+
+<div
+	bind:this={el}
+	tabindex="0"
+	class="table-cell"
+	contenteditable="true"
+	role="textbox"
+	oninput={onInput}
+	onkeydown={onKeyDown}
+	onbeforeinput={onBeforeInput}
+	onpointerdown={onPointerDown}
+	onfocus={onFocus}
+	onblur={onBlur}
+	oncompositionstart={onCompositionStart}
+	oncompositionend={onCompositionEnd}
+></div>
+
+<style>
+	.table-cell {
+		outline: none;
+		padding: 4px 8px;
+		min-height: 1.4em;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		border: 1px solid var(--color-ui-muted, rgba(128, 128, 128, 0.3));
+	}
+	.table-cell:focus {
+		outline: 2px solid var(--color-accent, #4a9eff);
+		outline-offset: -2px;
+	}
+</style>
