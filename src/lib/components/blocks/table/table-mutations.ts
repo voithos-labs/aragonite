@@ -52,31 +52,25 @@ export function insertEmptyColumn(
 	meta.columnCount += 1;
 }
 
-// Refuses to remove the last row, and refuses to remove a body row when only
-// one body row remains — the table would collapse to header-only and lose its
-// utility. Removing the header promotes the next row.
-export function deleteRow(table: CstNode, rowIdx: number): boolean {
+// Unconditional mutators: they will happily delete the last row/column.
+// Refusal (>=1 header + >=1 body row, >=1 column) is the wrapper's job.
+// deleteRow promotes the next row to header status when the header is removed.
+export function deleteRow(table: CstNode, rowIdx: number): void {
 	const rows = table.children ?? [];
-	if (rows.length <= 1) return false;
 	const willRemoveHeader = rowIdx === 0;
-	const bodyCount = rows.length - 1;
-	if (!willRemoveHeader && bodyCount <= 1) return false;
 	rows.splice(rowIdx, 1);
 	if (willRemoveHeader && rows.length > 0) {
 		(rows[0].metadata as TableRowMetadata).isHeader = true;
 	}
-	return true;
 }
 
-export function deleteColumn(table: CstNode, colIdx: number): boolean {
+export function deleteColumn(table: CstNode, colIdx: number): void {
 	const meta = table.metadata as TableMetadata;
-	if (meta.columnCount <= 1) return false;
 	for (const row of table.children ?? []) {
 		row.children!.splice(colIdx, 1);
 	}
 	meta.alignments.splice(colIdx, 1);
 	meta.columnCount -= 1;
-	return true;
 }
 
 export function cycleAlignment(table: CstNode, colIdx: number): void {
