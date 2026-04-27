@@ -8,7 +8,7 @@
 - Alt+Shift+ArrowLeft inserts an empty column to the left of the current column.
 - Ctrl+Shift+Backspace deletes the current row when the table has at least two body rows.
 - Alt+Shift+Backspace deletes the current column when the table has at least two columns.
-- Ctrl+Shift+A cycles the current column's alignment in order none → left → center → right → none, reflected in the delimiter syntax (`---` / `:---` / `:---:` / `---:`).
+- Alt+Shift+A cycles the current column's alignment in order none → left → center → right → none, reflected in the delimiter syntax (`---` / `:---` / `:---:` / `---:`). Each press advances by one (no double-press needed; Ctrl+Shift+A would conflict with Chromium's global "Search tabs" binding so we use the Alt+Shift namespace shared with other column ops).
 
 ## Edge cases
 

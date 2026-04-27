@@ -132,6 +132,19 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 		expect(nodes[2]).toEqual({ kind: 'inlineCode', start: 8, end: 11, text: 'b' });
 	});
 
+	it('backslash-escaped opening backtick does not start a code span (CommonMark §6.1)', () => {
+		const nodes = inlineOf('\\`not code\\`');
+		// No inlineCode node should be produced; the escaped backticks become escape nodes.
+		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(false);
+		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
+	});
+
+	it('two backslashes before a backtick: backslash escapes itself, code span opens', () => {
+		// Even backslash count → not escaped → backtick opens a span.
+		const nodes = inlineOf('\\\\`code`');
+		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(true);
+	});
+
 	it('content-offset: heading raw with offset', () => {
 		const raw = '## Hello `code` world\n';
 		const range = getContentRange({
