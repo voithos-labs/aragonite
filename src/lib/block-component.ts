@@ -70,6 +70,13 @@ export interface BlockComponent {
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
 	/**
+	 * Deep cursor position for nested-block surfaces (e.g., table cells).
+	 * Returns the path from this block to the leaf containing the cursor,
+	 * plus the within-leaf offset. When implemented, Editor.svelte's
+	 * getSelection() prefers this over getCursorOffset.
+	 */
+	getCursorPosition?(): { path: number[]; offset: number } | null;
+	/**
 	 * Viewport-space rects covering [startOffset, endOffset) in this block's
 	 * visible text, for cross-block selection painting. Accepts SELECTION_END
 	 * as endOffset to mean "from startOffset through the last measurable
