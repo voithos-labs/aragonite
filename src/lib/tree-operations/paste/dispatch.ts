@@ -22,6 +22,7 @@ import { findContainerMatchingUnwrap, applyContainerMatchingPaste } from './cont
 import { findListAbsorb, applyListAbsorb } from './list-absorb';
 import { findListBreakOut, applyListBreakOut } from './list-break-out';
 import { sliceTableAtRow } from './table-slice';
+import { replaceBlockAtParent } from './replace-block-at-parent';
 import { CURSOR_END } from '../../contracts';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -117,9 +118,10 @@ export async function pasteDispatch(
 	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
 
 	// Structural paste into a table cell breaks the table at the cell's row and
-	// splices pasted blocks between the halves. The tableCell surface's
-	// structural hook is a sentinel that never runs — this branch intercepts
-	// first and uses sliceTableAtRow to produce the replacement.
+	// splices pasted blocks between the halves. The cell's blockEdit is the
+	// row-level nested bundle (its replaceBlock(i) targets the row's cells), so
+	// we route through replaceBlockAtParent to splice at the table's parent
+	// directly — bypassing the wrong-scope blockEdit.
 	if (strategy === 'structural' && targetNode.kind === 'tableCell') {
 		const tablePath = input.targetPath.slice(0, -2);
 		const rowIdx = input.targetPath[input.targetPath.length - 2];
@@ -134,11 +136,16 @@ export async function pasteDispatch(
 		if (secondHalf) replacement.push(secondHalf);
 
 		const focusReplacementIndex = firstHalf ? 1 : 0;
-		await applyStructuralResult(
-			tablePath,
-			{ replacement, focusReplacementIndex, focusOffset: CURSOR_END },
-			ctx
-		);
+		await replaceBlockAtParent({
+			doc: ctx.doc,
+			blockPath: tablePath,
+			replacement,
+			controller: ctx.controller,
+			skipSnapshot: ctx.skipSnapshot === true,
+			focusReplacementIndex,
+			focusOffset: CURSOR_END,
+			source: 'paste-dispatch-table-cell'
+		});
 		return {};
 	}
 
