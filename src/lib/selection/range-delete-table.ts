@@ -13,7 +13,8 @@ import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import { lowestCommonAncestor, pathHasPrefix } from './path-math';
 import {
 	rebuildAncestryRawForLeaf,
-	rebuildContainerRaw
+	rebuildContainerRaw,
+	rebuildTableRowRaw
 } from '../schema/container-raw';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 		for (let c = minCol; c <= maxCol; c++) {
 			row.children![c].raw = '';
 		}
+		rebuildTableRowRaw(row);
 	}
 }
 
@@ -194,6 +196,8 @@ function caretForCase2(
 	}
 	const remainingCells = totalCellCount(table);
 	const clampedOffset = Math.min(start.offset, remainingCells);
+	// TODO(0.7): land at end of surviving anchor cell content, not the
+	// shallow cell-index translated to "cell N-1 start" by TableBlock.focus.
 	return { path: start.path.slice(), offset: clampedOffset };
 }
 
@@ -294,11 +298,14 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 	const meta = table.metadata as TableMetadata;
 	const cellsPerRow = meta.columnCount;
 	const rows = table.children!;
+	const touchedRows = new Set<number>();
 	for (let i = startCellIdx; i < endCellIdx; i++) {
 		const r = Math.floor(i / cellsPerRow);
 		const c = i - r * cellsPerRow;
 		rows[r].children![c].raw = '';
+		touchedRows.add(r);
 	}
+	for (const r of touchedRows) rebuildTableRowRaw(rows[r]);
 }
 
 function totalCellCount(table: CstNode): number {
