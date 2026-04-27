@@ -80,28 +80,28 @@
 		notifyCellBlurred() {
 			focusedCell = null;
 		},
-		// Plan 4 (keyboard vocabulary) implements row/column mutations and alignment.
-		// Throwing keeps the wiring visible if Plan 2 code accidentally calls them.
+		// Mutation methods are wired into the context for visibility but unimplemented.
+		// Throwing keeps accidental callers loud.
 		insertRowAbove: async () => {
-			throw new Error('insertRowAbove: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('insertRowAbove: not yet implemented');
 		},
 		insertRowBelow: async () => {
-			throw new Error('insertRowBelow: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('insertRowBelow: not yet implemented');
 		},
 		insertColumnLeft: async () => {
-			throw new Error('insertColumnLeft: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('insertColumnLeft: not yet implemented');
 		},
 		insertColumnRight: async () => {
-			throw new Error('insertColumnRight: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('insertColumnRight: not yet implemented');
 		},
 		deleteRow: async () => {
-			throw new Error('deleteRow: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('deleteRow: not yet implemented');
 		},
 		deleteColumn: async () => {
-			throw new Error('deleteColumn: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('deleteColumn: not yet implemented');
 		},
 		cycleAlignment: async () => {
-			throw new Error('cycleAlignment: implemented in Plan 4 (keyboard vocabulary)');
+			throw new Error('cycleAlignment: not yet implemented');
 		}
 	};
 
@@ -163,18 +163,15 @@
 		return focusedCell.rowIdx * columnCount + focusedCell.colIdx;
 	}
 
-	// Plan 2 simplification: within-cell offset is always 0. Reading the live
-	// caret offset would require traversing the row→cell ref chain, which adds
-	// surface area for marginal benefit. Plan 3 refines once selection-painting
-	// needs sub-cell precision; for now undo restoration lands at cell start.
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
 		if (!focusedCell) return null;
+		// Path is { rowIdx, colIdx }; within-cell offset is not surfaced and is
+		// intentionally 0, so undo restoration lands at cell start of the focused
+		// cell. Refine when intra-cell precision is needed.
 		return { path: [focusedCell.rowIdx, focusedCell.colIdx], offset: 0 };
 	}
 
-	// Plan 3 implements full rectangular vs row-major-linear mode selection.
-	// Plan 2 never selects the table as the focus block of a cross-block
-	// selection — return [] to avoid undefined behavior if the call slips through.
+	// Cross-block selection painting is not wired up; return [] to keep callers safe.
 	export function measurePartialRects(_start: number, _end: number): DOMRect[] {
 		return [];
 	}
@@ -186,6 +183,7 @@
 		focusAtColumn,
 		focusByPath,
 		getCursorOffset,
+		getCursorPosition,
 		measurePartialRects
 	} satisfies BlockComponent);
 
