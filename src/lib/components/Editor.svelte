@@ -69,7 +69,8 @@
 	const events = createEditorEvents();
 	// getSelection is function-hoisted below — callback reads the fresh snapshot each time.
 	const selectionState = createSelectionState({
-		onChange: () => events.emit('selectionChange', getSelection())
+		onChange: () => events.emit('selectionChange', getSelection()),
+		getDoc: () => doc
 	});
 
 	$effect(() => {
