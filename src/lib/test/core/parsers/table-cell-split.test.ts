@@ -14,8 +14,13 @@ describe('splitRowCells', () => {
 		expect(splitRowCells('| a \\\\| b | c |')).toEqual(['a \\\\', 'b', 'c']);
 	});
 
-	it('trims one space of cell padding on each side, no further', () => {
-		expect(splitRowCells('|  a  | b |')).toEqual([' a ', 'b']);
+	it('strips all leading and trailing whitespace per cell (cosmetic padding is non-semantic)', () => {
+		expect(splitRowCells('|  a  | b |')).toEqual(['a', 'b']);
+		expect(splitRowCells('|    Right |    $100 |')).toEqual(['Right', '$100']);
+	});
+
+	it('preserves internal whitespace inside a cell', () => {
+		expect(splitRowCells('| a b c | d  e |')).toEqual(['a b c', 'd  e']);
 	});
 
 	it('handles rows without leading or trailing pipes', () => {

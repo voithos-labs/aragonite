@@ -67,10 +67,18 @@ export function rebuildTableRowRaw(node: CstNode): void {
 	node.raw = '| ' + cells.join(' | ') + ' |\n';
 }
 
-/** Header + synthesized canonical delimiter + body rows. */
+/**
+ * Header + synthesized canonical delimiter + body rows.
+ *
+ * Rebuilds every row before assembly so the whole table normalizes to canonical
+ * single-space padding on first structural mutation — matches the delimiter-row
+ * normalization rule. Without the per-row rebuild, untouched rows would keep
+ * their original parser-padded raw and the table would land in a mixed state.
+ */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = node.metadata as TableMetadata;
+	for (const row of node.children) rebuildTableRowRaw(row);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);
 
