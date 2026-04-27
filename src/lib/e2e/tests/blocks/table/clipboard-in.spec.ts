@@ -43,6 +43,12 @@ test.describe('table block: paste in', () => {
 	});
 
 	// ── Structural ──────────────────────────────────────────────────────
+	//
+	// Exact-source assertions are load-bearing here: the bug they catch (Plan 5
+	// Task 3 routed the doc-level splice through the cell's row-level blockEdit,
+	// which corrupted the row's cells) leaves the substrings the original
+	// `waitForSourceContains` checks intact while the surrounding structure
+	// rots. Compare full sources so structural correctness is verified.
 
 	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
@@ -52,9 +58,18 @@ test.describe('table block: paste in', () => {
 		);
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('| X | Y |');
-		await editor.bridge.waitForSourceContains('| 9 | 8 |');
-		await editor.bridge.waitForSourceContains('| 3 | 4 |');
-		await editor.bridge.waitForSourceContains('| A | B |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'| X | Y |',
+				'| --- | --- |',
+				'| 9 | 8 |',
+				'| 3 | 4 |',
+				'| --- | --- |'
+			].join('\n')
+		);
 	});
 
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
@@ -63,8 +78,16 @@ test.describe('table block: paste in', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('# Hello\n'));
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('# Hello');
-		await editor.bridge.waitForSourceContains('| A | B |');
-		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'# Hello',
+				'| 3 | 4 |',
+				'| --- | --- |'
+			].join('\n')
+		);
 	});
 
 	test('pasting a multi-block clipboard inserts every block between the halves', async ({
@@ -74,9 +97,19 @@ test.describe('table block: paste in', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.evaluate(() => navigator.clipboard.writeText('Para one.\n\n## Two\n'));
 		await page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains('Para one.');
 		await editor.bridge.waitForSourceContains('## Two');
-		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'Para one.',
+				'',
+				'## Two',
+				'| 3 | 4 |',
+				'| --- | --- |'
+			].join('\n')
+		);
 	});
 
 	// ── Edges ───────────────────────────────────────────────────────────
@@ -89,9 +122,16 @@ test.describe('table block: paste in', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('# Sandwiched\n'));
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('# Sandwiched');
-		await editor.bridge.waitForSourceContains('| A | B |');
-		await editor.bridge.waitForSourceContains('| 1 | 2 |');
-		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'# Sandwiched',
+				'| 1 | 2 |',
+				'| --- | --- |',
+				'| 3 | 4 |'
+			].join('\n')
+		);
 	});
 
 	test('paste at the last row appends pasted blocks after the original (no second half)', async ({
@@ -102,8 +142,15 @@ test.describe('table block: paste in', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('# Tail\n'));
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('# Tail');
-		// Original table preserved in full as the first half.
-		await editor.bridge.waitForSourceContains('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			[
+				'| A | B |',
+				'| --- | --- |',
+				'| 1 | 2 |',
+				'| 3 | 4 |',
+				'# Tail'
+			].join('\n')
+		);
 	});
 
 	// ── Undo ────────────────────────────────────────────────────────────
