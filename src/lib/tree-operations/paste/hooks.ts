@@ -19,6 +19,10 @@ import {
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
+import {
+	tableCellInlinePaste,
+	tableCellStructuralPaste
+} from '../../components/blocks/table/table-cell-paste';
 
 export function defaultInlineHook(
 	node: CstNode,
@@ -82,6 +86,17 @@ for (const kind of getAllRegisteredKinds()) {
 		});
 	}
 }
+
+// Override the auto-registered defaults for tableCell. The structural sentinel
+// is never invoked — pasteDispatch intercepts tableCell + structural before
+// reaching the surface hook. Registering it (instead of leaving onStructuralPaste
+// undefined) keeps surfaceForcesInline === false so structural clipboards reach
+// the break-and-splice branch instead of being forced through inline.
+registerPasteSurface({
+	kind: 'tableCell',
+	onInlinePaste: tableCellInlinePaste,
+	onStructuralPaste: tableCellStructuralPaste
+});
 
 /** Test-only: produce a default text surface descriptor. */
 export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {
