@@ -65,9 +65,11 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	// Cell raw clears but the surrounding row's raw is never rebuilt, so
-	// rebuildTableRaw reads stale row raw and the cleared cells stay in
-	// serialize() output. Unit tests pass via per-cell .raw assertions.
+	// Cross-block entry into a cell mid-table from outside the table doesn't
+	// produce the cell-encoded selection that range-delete-table expects:
+	// neither pointer drag nor shift-click resolves the cell to a shallow
+	// {path: tablePath, offset: cellIdx} encoding. Tracked for 0.7 — separate
+	// from the row-rebuild Gap 1 which Case 2 + whole-table cover.
 	test.fixme(
 		'Case 1 — paragraph above → mid-table Backspace clears prefix and promotes header',
 		async ({ page }) => {
@@ -85,56 +87,44 @@ test.describe('table block: cross-block delete', () => {
 		}
 	);
 
-	// Same row-rebuild gap as Case 1.
-	test.fixme(
-		'Case 2 — mid-table → paragraph below Backspace clears suffix',
-		async ({ page }) => {
-			await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
-			const [cellBox, paraBox] = await boxesOf(
-				page.locator('[role="cell"]').nth(1),
-				page.getByText('follow paragraph')
-			);
-			await dragBetween(page, cellBox, paraBox);
-			await editor.waitForCrossBlock(true);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
-			await editor.bridge.waitForSourceContains('| A |  |');
-		}
-	);
+	test('Case 2 — mid-table → paragraph below Backspace clears suffix', async ({ page }) => {
+		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
+		const [cellBox, paraBox] = await boxesOf(
+			page.locator('[role="cell"]').nth(1),
+			page.getByText('follow paragraph')
+		);
+		await dragBetween(page, cellBox, paraBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
+		await editor.bridge.waitForSourceContains('| A |  |');
+	});
 
-	// Same row-rebuild gap; deleteWithinTable clears every cell.raw but the
-	// row raws are never rebuilt, so the table serializes unchanged.
-	test.fixme(
-		'whole-table Ctrl+A 2nd press + Backspace clears every cell, preserves structure',
-		async ({ page }) => {
-			await editor.loadContent(TABLE_3x3);
-			await page.locator('[role="cell"]').nth(4).click();
-			await page.keyboard.press('Control+a');
-			await page.keyboard.press('Control+a');
-			await editor.waitForCrossBlock(true);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceContains(
-				'|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |'
-			);
-			await expect(page.locator('[role="cell"]')).toHaveCount(9);
-		}
-	);
+	test('whole-table Ctrl+A 2nd press + Backspace clears every cell, preserves structure', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_3x3);
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains(
+			'|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |'
+		);
+		await expect(page.locator('[role="cell"]')).toHaveCount(9);
+	});
 
-	// The cell calls focusActions.moveFocus(myPath[0] - 1, 'end'), but its
-	// focusActions is the table's nested bundle — index 0 there is row 0
-	// (non-focusable), not the sibling block above the table. ArrowUp works
-	// because it routes through tableContext.exitUpward.
-	test.fixme(
-		'Backspace at offset 0 of first cell navigates to previous block, no delete',
-		async ({ page }) => {
-			await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
-			const before = await editor.bridge.getSource();
-			await page.locator('[role="cell"]').nth(0).click();
-			await page.keyboard.press('Home');
-			await page.keyboard.press('Backspace');
-			expect(await editor.bridge.getSource()).toBe(before);
-			await page.keyboard.type('!');
-			await editor.bridge.waitForSourceContains('Before.!');
-		}
-	);
+	test('Backspace at offset 0 of first cell navigates to previous block, no delete', async ({
+		page
+	}) => {
+		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
+		const before = await editor.bridge.getSource();
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Backspace');
+		expect(await editor.bridge.getSource()).toBe(before);
+		await page.keyboard.type('!');
+		await editor.bridge.waitForSourceContains('Before.!');
+	});
 });

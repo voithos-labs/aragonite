@@ -345,7 +345,7 @@
 			if (move.kind === 'cell') {
 				tableContext.focusCell(move.rowIdx, move.colIdx, 'end');
 			} else {
-				focusActions.moveFocus(myPath[0] - 1, 'end');
+				exitWithStickyX('up');
 			}
 			return;
 		}
@@ -356,7 +356,7 @@
 			if (move.kind === 'cell') {
 				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
 			} else {
-				focusActions.moveFocus(myPath[0] + 1, 'start');
+				exitWithStickyX('down');
 			}
 			return;
 		}
