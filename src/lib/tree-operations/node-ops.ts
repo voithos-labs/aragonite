@@ -143,6 +143,14 @@ export function updateNodeContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
+	// tableCell is context-dependent — `parse("foo")` produces a paragraph,
+	// not a cell. The row's rebuildRaw owns the surrounding `| ... |` shape,
+	// so cells just carry their inner text.
+	if (oldKind === 'tableCell') {
+		node.raw = newText;
+		return { kindChanged: false };
+	}
+
 	const reparsed = reparseAsNode(newText, node.leadingTrivia);
 
 	// Copy all fields so leaf↔container transitions propagate children and container structure.

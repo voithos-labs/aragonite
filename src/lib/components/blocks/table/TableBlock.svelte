@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { setContext, getContext } from 'svelte';
 	import {
+		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
+		CONTAINER_EDIT_KEY,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
+		type BlockEditActions,
+		type ContainerEditActions,
 		type CstNode,
 		type FocusActions,
 		type BlockComponent,
@@ -15,10 +19,16 @@
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { columnNearestX } from './cell-x-mapping';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import {
+		createStandardNestedActions,
+		setNestedActionsContexts
+	} from '../../../editor-actions/nested-actions';
+	import { rebuildContainerRaw } from '../../../schema/container-raw';
 	import TableRowBlock from './TableRowBlock.svelte';
 
 	let {
 		node,
+		index,
 		myPath
 	}: {
 		node: CstNode;
@@ -26,7 +36,9 @@
 		myPath: number[];
 	} = $props();
 
+	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
 	const meta = $derived(node.metadata as TableMetadata | undefined);
@@ -38,6 +50,24 @@
 	let tableEl: HTMLDivElement | undefined = $state();
 
 	const rowsState = createBlockListState(() => node);
+
+	const bundle = createStandardNestedActions(rowsState, {
+		get index() {
+			return index;
+		},
+		get node() {
+			return node;
+		},
+		rebuildRaw: () => rebuildContainerRaw(node),
+		stickyColumn: editorStickyColumn,
+		parent: {
+			blockEdit: parentBlockEdit,
+			focus: focusActions,
+			containerEdit: parentContainerEdit
+		}
+	});
+
+	setNestedActionsContexts(bundle);
 
 	function rowRefAt(rowIdx: number): BlockComponent | undefined {
 		return rowsState.innerBlockRefs[rowIdx];
