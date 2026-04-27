@@ -1,0 +1,123 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+
+test.describe('table block: paste in', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await page.evaluate(() => navigator.clipboard.writeText(''));
+	});
+
+	// ── Inline ──────────────────────────────────────────────────────────
+
+	test('plain text without special chars inserts at caret', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('End');
+		await page.evaluate(() => navigator.clipboard.writeText('hello'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('| Ahello | B |');
+	});
+
+	test('pipes auto-escape to backslash-pipe in cell raw', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await page.evaluate(() => navigator.clipboard.writeText('a|b|c'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('| 1a\\|b\\|c | 2 |');
+	});
+
+	test('newlines collapse to a single space and edges are trimmed', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(3).click();
+		await page.keyboard.press('Home');
+		// Single-paragraph clipboard (no blank-line separator) keeps the inline path.
+		await page.evaluate(() => navigator.clipboard.writeText('  \nhello\nworld\n  '));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('| 1 | hello world2 |');
+	});
+
+	// ── Structural ──────────────────────────────────────────────────────
+
+	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.evaluate(() =>
+			navigator.clipboard.writeText('| X | Y |\n| --- | --- |\n| 9 | 8 |\n')
+		);
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('| X | Y |');
+		await editor.bridge.waitForSourceContains('| 9 | 8 |');
+		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+		await editor.bridge.waitForSourceContains('| A | B |');
+	});
+
+	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.evaluate(() => navigator.clipboard.writeText('# Hello\n'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('# Hello');
+		await editor.bridge.waitForSourceContains('| A | B |');
+		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+	});
+
+	test('pasting a multi-block clipboard inserts every block between the halves', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.evaluate(() => navigator.clipboard.writeText('Para one.\n\n## Two\n'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('Para one.');
+		await editor.bridge.waitForSourceContains('## Two');
+		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+	});
+
+	// ── Edges ───────────────────────────────────────────────────────────
+
+	test('paste at row 0 leaves a header-only first half before the pasted blocks', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.evaluate(() => navigator.clipboard.writeText('# Sandwiched\n'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('# Sandwiched');
+		await editor.bridge.waitForSourceContains('| A | B |');
+		await editor.bridge.waitForSourceContains('| 1 | 2 |');
+		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+	});
+
+	test('paste at the last row appends pasted blocks after the original (no second half)', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.evaluate(() => navigator.clipboard.writeText('# Tail\n'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('# Tail');
+		// Original table preserved in full as the first half.
+		await editor.bridge.waitForSourceContains('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |');
+	});
+
+	// ── Undo ────────────────────────────────────────────────────────────
+
+	test('Ctrl+Z undoes a paste in a single press', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		const before = await editor.bridge.getSource();
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('End');
+		await page.evaluate(() => navigator.clipboard.writeText('xyz'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('| Axyz | B |');
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('Axyz');
+		expect(await editor.bridge.getSource()).toBe(before);
+	});
+});
