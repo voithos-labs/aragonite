@@ -83,13 +83,35 @@ test.describe('table block: keyboard vocabulary', () => {
 	});
 
 	test('Alt+Shift+A from already-left advances to center in one press', async ({ page }) => {
-		// Regression for Ctrl+Shift+A vs Chromium "Search tabs" conflict: with the
-		// old binding the first press was eaten by the browser; users perceived
-		// "press 1 did nothing." Alt+Shift+A is namespace-clean.
 		await editor.loadContent('| A | B |\n| :--- | --- |\n| 1 | 2 |\n');
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
+	});
+
+	test('alignment cycle is layout-independent: e.key="а" (Cyrillic) with e.code="KeyA" still cycles', async ({
+		page
+	}) => {
+		// Windows' Left Alt+Shift can silently swap input layouts mid-press.
+		// After a swap, the next "A" press generates e.key="а" (Cyrillic) with
+		// e.code="KeyA" still pointing at the physical key. Matching on e.code
+		// must keep the cycle responsive across layout switches.
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const cell = page.locator('[role="cell"]').nth(0);
+		await cell.click();
+		await cell.evaluate((el) => {
+			el.dispatchEvent(
+				new KeyboardEvent('keydown', {
+					key: 'а',
+					code: 'KeyA',
+					altKey: true,
+					shiftKey: true,
+					bubbles: true,
+					cancelable: true
+				})
+			);
+		});
+		await editor.bridge.waitForSourceContains('| :--- | --- |');
 	});
 
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {
