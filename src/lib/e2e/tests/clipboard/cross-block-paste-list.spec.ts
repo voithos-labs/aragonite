@@ -100,7 +100,10 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		// wait 200ms — copy populates clipboard via async writeText; no source change to poll.
 		await editor.page.waitForTimeout(200);
 
-		await editor.clickBlock(2);
+		// Dismiss the copy-time cross-block selection so the next shift-click
+		// starts a fresh range instead of extending the old one.
+		await editor.page.keyboard.press('Escape');
+		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([0, 1, 0], 0);
 		await editor.shiftClickBlock([0, 2, 0], 5);
 		await editor.waitForCrossBlock(true);

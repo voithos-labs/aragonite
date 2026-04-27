@@ -39,16 +39,21 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
+	// Top-level addressing only. Container blocks (blockquote, list, listItem)
+	// render nested BlockHosts whose data-block-path carries a comma; the
+	// :not([data-block-path*=","]) filter excludes them. Use focusBlockAtPath
+	// for nested addressing.
 	getBlock(index: number): Locator {
 		return this.page
-			.locator('.block-list > .block-host')
-			.nth(index)
+			.locator(`[data-block-path='${JSON.stringify([index])}']`)
 			.locator(':scope > *:not(.selection-overlay)')
 			.first();
 	}
 
 	getBlocks(): Locator {
-		return this.page.locator('.block-list > .block-host > *:not(.selection-overlay)');
+		return this.page
+			.locator('[data-block-path]:not([data-block-path*=","])')
+			.locator(':scope > *:not(.selection-overlay)');
 	}
 
 	async getDomBlockCount(): Promise<number> {
@@ -86,11 +91,11 @@ export class EditorPage {
 		position: 'start' | 'end' | number
 	): Promise<void> {
 		await this.page.evaluate(
-			({ idx, position }) => {
-				const blocks = document.querySelectorAll(
-					'.block-list > .block-host > :not(.selection-overlay)'
-				);
-				const block = blocks[idx] as HTMLElement | undefined;
+			({ pathAttr, position }) => {
+				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
+				const block = wrapper?.querySelector(
+					':scope > :not(.selection-overlay)'
+				) as HTMLElement | null;
 				if (!block) return;
 				block.focus();
 
@@ -126,7 +131,7 @@ export class EditorPage {
 				sel.removeAllRanges();
 				sel.addRange(range);
 			},
-			{ idx: index, position }
+			{ pathAttr: JSON.stringify([index]), position }
 		);
 	}
 

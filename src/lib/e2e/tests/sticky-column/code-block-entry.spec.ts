@@ -147,11 +147,14 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.loadContent(DEFAULT_CONTENT);
 
 		const codeBlockIndex = await editor.page.evaluate(() => {
-			const blocks = document.querySelectorAll(
-				'.block-list > .block-host > :not(.selection-overlay)'
+			const wrappers = document.querySelectorAll(
+				'[data-block-path]:not([data-block-path*=","])'
 			);
-			for (let i = 0; i < blocks.length; i++) {
-				if (blocks[i].classList.contains('code-block')) return i;
+			for (const wrapper of wrappers) {
+				const block = wrapper.querySelector(':scope > :not(.selection-overlay)');
+				if (block?.classList.contains('code-block')) {
+					return (JSON.parse(wrapper.getAttribute('data-block-path')!) as number[])[0];
+				}
 			}
 			return -1;
 		});
