@@ -4,8 +4,11 @@
  * single-block editing. See editor.md Selection section for transitions.
  */
 
+import type { Document } from '../core/nodes';
+import { nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint, SelectionDragStart } from './primitives';
 import { normalize } from './primitives';
+import { pathsEqual } from './path-math';
 
 // ── Public factory ──────────────────────────────────────────────────────────
 
@@ -16,6 +19,14 @@ export interface SelectionStateOptions {
 	 * `editor.events.selectionChange` by Editor.svelte.
 	 */
 	onChange?: () => void;
+	/**
+	 * Document accessor. When present, `isCustomRendered` can detect
+	 * intra-table multi-cell selections (same path, distinct offsets on a
+	 * table/tableRow/tableCell node). Absent in test harnesses that only
+	 * exercise cross-block semantics — `isCustomRendered` then mirrors
+	 * `isCrossBlock`.
+	 */
+	getDoc?: () => Document;
 }
 
 export function createSelectionState(options?: SelectionStateOptions): SelectionState {
@@ -29,6 +40,12 @@ export interface SelectionState {
 	readonly focus: SelectionPoint | null;
 	readonly dragStart: SelectionDragStart;
 	readonly isCrossBlock: boolean;
+	/**
+	 * True when the selection should be painted by the overlay rather than
+	 * the native browser highlight. Includes every cross-block selection
+	 * plus same-path multi-offset selections inside table containers.
+	 */
+	readonly isCustomRendered: boolean;
 	readonly start: SelectionPoint | null;
 	readonly end: SelectionPoint | null;
 	readonly selectAllCount: number;
@@ -50,9 +67,11 @@ class SelectionStateImpl implements SelectionState {
 	#dragStart: SelectionDragStart = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
+	#getDoc?: () => Document;
 
 	constructor(options?: SelectionStateOptions) {
 		this.#onChange = options?.onChange;
+		this.#getDoc = options?.getDoc;
 	}
 
 	get anchor(): SelectionPoint | null {
@@ -69,6 +88,20 @@ class SelectionStateImpl implements SelectionState {
 
 	get isCrossBlock(): boolean {
 		return this.#anchor !== null && this.#focus !== null;
+	}
+
+	get isCustomRendered(): boolean {
+		const getDoc = this.#getDoc;
+		if (!getDoc) return this.isCrossBlock;
+		const anchor = this.#anchor;
+		const focus = this.#focus;
+		if (!anchor || !focus) return false;
+		if (!pathsEqual(anchor.path, focus.path)) return true;
+		if (anchor.offset === focus.offset) return false;
+		const node = nodeAt(getDoc(), anchor.path);
+		if (!node) return false;
+		const kind = node.kind;
+		return kind === 'table' || kind === 'tableRow' || kind === 'tableCell';
 	}
 
 	get start(): SelectionPoint | null {
