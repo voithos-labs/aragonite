@@ -6,6 +6,7 @@
 - The table has `role="table"`; rows have `role="row"`; cells have `role="cell"`.
 - Clicking inside a cell focuses that cell and places the cursor in it.
 - Header row content shows; alignments parsed and stored in metadata (visible via `__test.dumpTree`).
+- Column alignment metadata (`left` / `center` / `right`) is applied to each cell in that column as `text-align`, including cells whose source has no leading-space padding. `none` alignment leaves the cell at its inherited default.
 
 ## Edge cases
 
