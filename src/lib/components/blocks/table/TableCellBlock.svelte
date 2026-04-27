@@ -53,6 +53,7 @@
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
+	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
 	import { copyRectangleAsSubTable } from './sub-table-copy';
 	import {
@@ -63,6 +64,43 @@
 	} from './cell-pointer';
 
 	type ExitDirection = 'up' | 'down';
+
+	const ctrlOrMeta = (e: KeyboardEvent): boolean => e.ctrlKey || e.metaKey;
+
+	const Q3_SHORTCUTS: Array<{
+		match: (e: KeyboardEvent) => boolean;
+		run: (ctx: TableContext, pos: { rowIdx: number; colIdx: number }) => Promise<void>;
+	}> = [
+		{
+			match: (e) => ctrlOrMeta(e) && e.key === 'Enter' && !e.shiftKey && !e.altKey,
+			run: (ctx, p) => ctx.insertRowBelow(p.rowIdx)
+		},
+		{
+			match: (e) => ctrlOrMeta(e) && e.key === 'Enter' && e.shiftKey && !e.altKey,
+			run: (ctx, p) => ctx.insertRowAbove(p.rowIdx)
+		},
+		{
+			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'ArrowRight',
+			run: (ctx, p) => ctx.insertColumnRight(p.colIdx)
+		},
+		{
+			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'ArrowLeft',
+			run: (ctx, p) => ctx.insertColumnLeft(p.colIdx)
+		},
+		{
+			match: (e) => ctrlOrMeta(e) && e.shiftKey && !e.altKey && e.key === 'Backspace',
+			run: (ctx, p) => ctx.deleteRow(p.rowIdx)
+		},
+		{
+			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'Backspace',
+			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
+		},
+		{
+			match: (e) =>
+				ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
+			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
+		}
+	];
 
 	let {
 		node,
@@ -229,6 +267,19 @@
 		const offset = preEditOffset;
 		const collapsed = !hasSelectionHelper();
 
+		if (ctrlOrMeta(e) && e.key === 'a' && !e.shiftKey && !e.altKey) {
+			await handleCellSelectAll(e);
+			return;
+		}
+
+		for (const s of Q3_SHORTCUTS) {
+			if (s.match(e)) {
+				e.preventDefault();
+				await s.run(tableContext, pos);
+				return;
+			}
+		}
+
 		if (e.key === 'ArrowLeft' && !e.shiftKey && offset === 0 && collapsed) {
 			e.preventDefault();
 			handleHorizontalMove(prevCell(pos, columnCount), 'end', 'up');
@@ -309,6 +360,28 @@
 		}
 
 		await handleSharedKeydown(e, sharedCtx);
+	}
+
+	// Cells override the document-level 2-stage Ctrl+A with a 3-stage table-aware variant.
+	async function handleCellSelectAll(e: KeyboardEvent): Promise<void> {
+		const count = selection.selectAllCount;
+		if (count === 0) {
+			selection.incrementSelectAllCount();
+			return;
+		}
+		if (count === 1) {
+			e.preventDefault();
+			selection.incrementSelectAllCount();
+			const tablePath = myPath.slice(0, -2);
+			selection.enterCrossBlock(
+				{ path: tablePath, offset: 0 },
+				{ path: tablePath, offset: columnCount * rowCount - 1 }
+			);
+			return;
+		}
+		e.preventDefault();
+		selection.incrementSelectAllCount();
+		selectWholeDocument(selection, getDoc(), getBlockElByPath);
 	}
 
 	function handleHorizontalMove(

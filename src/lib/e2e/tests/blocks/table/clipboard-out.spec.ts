@@ -99,11 +99,13 @@ test.describe('table block: clipboard out', () => {
 		expect(clip).not.toContain(':--- |');
 	});
 
-	test.fixme(
-		'whole table copy after Ctrl+A 2nd press emits table raw',
-		async () => {
-			// Plan 4 (keyboard vocabulary) implements Ctrl+A 2nd-press whole-table.
-			// Expected clipboard: '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n'.
-		}
-	);
+	test('whole table copy after Ctrl+A 2nd press emits table raw', async ({ page }) => {
+		await editor.loadContent(TABLE_ALIGNED);
+		await page.locator('[role="cell"]').nth(3).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Control+c');
+		await expect.poll(() => readClipboard(page)).toBe(TABLE_ALIGNED);
+	});
 });
