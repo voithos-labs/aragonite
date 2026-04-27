@@ -58,28 +58,45 @@ test.describe('table block: selection', () => {
 		expect(sel!.focus.path[0]).toBe(0);
 	});
 
-	test.fixme(
-		'drag intra-cell paints native selection (no cross-block overlay)',
-		async () => {
-			// drag-pointer's blockAtPoint resolves any point inside the table to
-			// the table's own data-block-path, not the cell's deeper path. The
-			// "still in anchor block — let native handle it" branch never fires
-			// for cell anchors, so an intra-cell drag spuriously enters
-			// cross-block and clears the native selection. Resolves alongside
-			// the drag-back collapse fix above.
+	test('drag intra-cell paints native selection (no cross-block overlay)', async ({ page }) => {
+		const cell = page.locator('[role="cell"]').nth(4);
+		const box = await cell.boundingBox();
+		if (!box) throw new Error('missing cell box');
+		const sx = box.x + 4;
+		const ex = box.x + box.width - 4;
+		const y = box.y + box.height / 2;
+		await page.mouse.move(sx, y);
+		await page.mouse.down();
+		for (let i = 1; i <= 6; i++) {
+			await page.mouse.move(sx + ((ex - sx) * i) / 6, y);
 		}
-	);
+		await page.mouse.up();
+		await editor.waitForCrossBlock(false);
+		expect(await page.locator('.selection-overlay').count()).toBe(0);
+	});
 
-	test.fixme(
-		'drag cell A → cell B → back to A collapses selection',
-		async () => {
-			// drag-pointer's "return to anchor block collapses" branch keys on
-			// data-block-path equality. Cells don't carry data-block-path, so
-			// returning to the anchor cell never triggers collapse. Resolves once
-			// drag-pointer learns table cells (Plan 4 keyboard vocabulary or a
-			// follow-up patch to drag-pointer).
+	test('drag cell A → cell B → back to A collapses selection', async ({ page }) => {
+		const a = page.locator('[role="cell"]').nth(0);
+		const b = page.locator('[role="cell"]').nth(8);
+		const aBox = await a.boundingBox();
+		const bBox = await b.boundingBox();
+		if (!aBox || !bBox) throw new Error('missing boxes');
+		const ax = aBox.x + aBox.width / 2;
+		const ay = aBox.y + aBox.height / 2;
+		const bx = bBox.x + bBox.width / 2;
+		const by = bBox.y + bBox.height / 2;
+		await page.mouse.move(ax, ay);
+		await page.mouse.down();
+		for (let i = 1; i <= 6; i++) {
+			await page.mouse.move(ax + ((bx - ax) * i) / 6, ay + ((by - ay) * i) / 6);
 		}
-	);
+		await editor.waitForCrossBlock(true);
+		for (let i = 1; i <= 6; i++) {
+			await page.mouse.move(bx + ((ax - bx) * i) / 6, by + ((ay - by) * i) / 6);
+		}
+		await page.mouse.up();
+		await editor.waitForCrossBlock(false);
+	});
 
 	test('drag from cell out into paragraph below enters cross-block', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n');
@@ -129,22 +146,26 @@ test.describe('table block: selection', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
-	test.fixme(
-		'rectangular intra-table drag paints overlay across the rectangle',
-		async () => {
-			// Plan 4 (keyboard vocabulary) wires the input mechanism that produces
-			// path-equal anchor/focus with cell-index offsets — the precondition for
-			// TableBlock.measurePartialRects to take its rectangular branch and for
-			// the overlay to paint cell rects across the rectangle.
-		}
-	);
+	test('rectangular intra-table drag paints overlay across the rectangle', async ({ page }) => {
+		await dragBetweenCells(page, 0, 4);
+		await editor.waitForCrossBlock(true);
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel!.anchor.path).toEqual(sel!.focus.path);
+		expect(sel!.anchor.offset).toBe(0);
+		expect(sel!.focus.offset).toBe(4);
+		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
 
-	test.fixme(
-		'anti-diagonal rectangular selection paints full bounding rect (regression for b840b18)',
-		async () => {
-			// Plan 4 dependency — see above. Once a rectangular selection can be
-			// produced from input, anti-diagonal anchor/focus must still paint the
-			// full row × col rectangle (not the empty set the pre-fix returned).
-		}
-	);
+	test('anti-diagonal rectangular selection paints full bounding rect (regression for b840b18)', async ({
+		page
+	}) => {
+		// Cell 2 = (row 0, col 2) — top-right; cell 6 = (row 2, col 0) — bottom-left.
+		// Pre-fix returned an empty rect set; this asserts the full 3×3 bounding rect.
+		await dragBetweenCells(page, 2, 6);
+		await editor.waitForCrossBlock(true);
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel!.anchor.offset).toBe(2);
+		expect(sel!.focus.offset).toBe(6);
+		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
 });
