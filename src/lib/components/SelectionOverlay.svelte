@@ -25,7 +25,7 @@
 
 	const classification = $derived.by<BlockSelectionClass>(() => {
 		if (isContainer) return 'outside';
-		if (!selection?.isCrossBlock || !selection.anchor || !selection.focus) {
+		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}
 		return classifyBlockForSelection(path, {
