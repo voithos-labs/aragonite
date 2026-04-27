@@ -48,6 +48,10 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		? controller.getDocScope()
 		: { node: parentNode!, state: expectStateForNode(parentNode!) };
 
+	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
+	const sameKindFirst =
+		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
+
 	await controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: skipSnapshot ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
@@ -58,12 +62,17 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				parentNode!.children = children;
 				rebuildAncestryRawForLeaf(doc, [...parentPath, blockIdx]);
 			}
+			// First replacement inherits the original block's id + ref when the
+			// kind matches, preserving Svelte component identity (IME composition
+			// state, pending input). Different kinds remount anyway because
+			// BlockHost dispatches by kind.
 			return [
 				{
 					op: 'replace',
 					at: blockIdx,
 					count: 1,
-					newCount: replacement.length
+					newCount: replacement.length,
+					...(sameKindFirst ? { idMap: { 0: 0 } } : {})
 				}
 			];
 		},
