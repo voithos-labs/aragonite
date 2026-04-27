@@ -25,14 +25,3 @@ End-to-end coverage for cross-block range-delete through tables (rangeDelete tab
 ## User interactions
 
 - A single Ctrl+Z restores the document after a cross-block delete that traverses a table.
-
-## Notes
-
-- Cases 1, 2, and the whole-table clear are presently `test.fixme`. The Plan 5 Task 5 implementation
-  mutates cell `raw` but does not rebuild the affected row `raw`, so `rebuildTableRaw` reads stale
-  row `raw` values and the cleared cells do not appear in the serialized source. Unit coverage in
-  `range-delete-table.test.ts` passes because it asserts per-cell `.raw`, not serialize() output.
-- The Backspace-at-first-cell navigation case is `test.fixme`. The cell handler calls
-  `focusActions.moveFocus(myPath[0] - 1, 'end')`, but its `focusActions` is the table's nested
-  bundle — index 0 there is a row (non-focusable) rather than the sibling block above the table.
-  ArrowUp routes through `tableContext.exitUpward` and works correctly.
