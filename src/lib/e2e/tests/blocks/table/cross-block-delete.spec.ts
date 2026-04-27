@@ -65,27 +65,21 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	// Cross-block entry into a cell mid-table from outside the table doesn't
-	// produce the cell-encoded selection that range-delete-table expects:
-	// neither pointer drag nor shift-click resolves the cell to a shallow
-	// {path: tablePath, offset: cellIdx} encoding. Tracked for 0.7 — separate
-	// from the row-rebuild Gap 1 which Case 2 + whole-table cover.
-	test.fixme(
-		'Case 1 — paragraph above → mid-table Backspace clears prefix and promotes header',
-		async ({ page }) => {
-			await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
-			const [paraBox, cellBox] = await boxesOf(
-				page.getByText('Before.'),
-				page.locator('[role="cell"]').nth(3)
-			);
-			await dragBetween(page, paraBox, cellBox);
-			await editor.waitForCrossBlock(true);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceNotContains('| A | B |');
-			await editor.bridge.waitForSourceContains('|  | 2 |');
-			await editor.bridge.waitForSourceContains('| 3 | 4 |');
-		}
-	);
+	test('Case 1 — paragraph above → mid-table Backspace clears prefix and promotes header', async ({
+		page
+	}) => {
+		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
+		const [paraBox, cellBox] = await boxesOf(
+			page.getByText('Before.'),
+			page.locator('[role="cell"]').nth(3)
+		);
+		await dragBetween(page, paraBox, cellBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('| A | B |');
+		await editor.bridge.waitForSourceContains('|  | 2 |');
+		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+	});
 
 	test('Case 2 — mid-table → paragraph below Backspace clears suffix', async ({ page }) => {
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
