@@ -12,6 +12,7 @@ import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
+import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -36,6 +37,12 @@ export function rangeDelete(
 	const endBlock = nodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
 		throw new Error('rangeDelete: start or end path does not resolve to a node');
+	}
+
+	// Tables encode offsets as cell indices, not character offsets — the raw
+	// merge below would corrupt the table.
+	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
+		return tableAwareRangeDelete(doc, start, end, startBlock as CstNode, endBlock as CstNode);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
