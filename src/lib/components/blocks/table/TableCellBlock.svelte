@@ -98,11 +98,13 @@
 			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
 		},
 		{
-			// Ctrl+Shift+A would conflict with Chromium's "Search tabs" global
-			// shortcut (also Cmd+Shift+A on macOS). Alt+Shift+A keeps the
-			// alignment cycle in the column-ops Alt+Shift namespace.
+			// Match by `e.code` (physical key) not `e.key` (layout-mapped char).
+			// Windows' Left-Alt+Shift hotkey can silently swap input layouts
+			// mid-press; an `e.key` matcher then misses the next 'A' as a
+			// localized character (e.g., Cyrillic 'а', dead-key) and the cycle
+			// appears to skip a step. `e.code === 'KeyA'` is layout-stable.
 			match: (e) =>
-				e.altKey && e.shiftKey && !ctrlOrMeta(e) && (e.key === 'A' || e.key === 'a'),
+				e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.code === 'KeyA',
 			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
 		}
 	];
@@ -274,7 +276,7 @@
 		const offset = preEditOffset;
 		const collapsed = !hasSelectionHelper();
 
-		if (ctrlOrMeta(e) && e.key === 'a' && !e.shiftKey && !e.altKey) {
+		if (ctrlOrMeta(e) && e.code === 'KeyA' && !e.shiftKey && !e.altKey) {
 			await handleCellSelectAll(e);
 			return;
 		}
