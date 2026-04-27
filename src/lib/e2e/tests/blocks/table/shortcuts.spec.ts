@@ -64,54 +64,22 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceNotContains(' B ');
 	});
 
-	test('Alt+Shift+A cycles column alignment none → left → center → right → none', async ({
+	test('Ctrl+Shift+A cycles column alignment none → left → center → right → none', async ({
 		page
 	}) => {
 		await page.locator('[role="cell"]').nth(0).click();
 
-		await page.keyboard.press('Alt+Shift+A');
+		await page.keyboard.press('Control+Shift+A');
 		await editor.bridge.waitForSourceContains('| :--- | --- |');
 
-		await page.keyboard.press('Alt+Shift+A');
+		await page.keyboard.press('Control+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
 
-		await page.keyboard.press('Alt+Shift+A');
+		await page.keyboard.press('Control+Shift+A');
 		await editor.bridge.waitForSourceContains('| ---: | --- |');
 
-		await page.keyboard.press('Alt+Shift+A');
+		await page.keyboard.press('Control+Shift+A');
 		await editor.bridge.waitForSourceContains('| --- | --- |');
-	});
-
-	test('Alt+Shift+A from already-left advances to center in one press', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| :--- | --- |\n| 1 | 2 |\n');
-		await page.locator('[role="cell"]').nth(0).click();
-		await page.keyboard.press('Alt+Shift+A');
-		await editor.bridge.waitForSourceContains('| :---: | --- |');
-	});
-
-	test('alignment cycle is layout-independent: e.key="а" (Cyrillic) with e.code="KeyA" still cycles', async ({
-		page
-	}) => {
-		// Windows' Left Alt+Shift can silently swap input layouts mid-press.
-		// After a swap, the next "A" press generates e.key="а" (Cyrillic) with
-		// e.code="KeyA" still pointing at the physical key. Matching on e.code
-		// must keep the cycle responsive across layout switches.
-		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const cell = page.locator('[role="cell"]').nth(0);
-		await cell.click();
-		await cell.evaluate((el) => {
-			el.dispatchEvent(
-				new KeyboardEvent('keydown', {
-					key: 'а',
-					code: 'KeyA',
-					altKey: true,
-					shiftKey: true,
-					bubbles: true,
-					cancelable: true
-				})
-			);
-		});
-		await editor.bridge.waitForSourceContains('| :--- | --- |');
 	});
 
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {

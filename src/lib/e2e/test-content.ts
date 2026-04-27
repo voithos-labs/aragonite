@@ -123,7 +123,7 @@ Shortcuts when focus is inside a cell (Mac: \`Cmd\` for any \`Ctrl\`):
 | Insert column right / left | \`Alt+Shift+→\` / \`Alt+Shift+←\` |
 | Delete current row        | \`Ctrl+Shift+Backspace\`      |
 | Delete current column     | \`Alt+Shift+Backspace\`       |
-| Cycle column alignment    | \`Alt+Shift+A\`               |
+| Cycle column alignment    | \`Ctrl+Shift+A\`              |
 | Select cell / table / doc | \`Ctrl+A\` (1st / 2nd / 3rd press) |
 
 ## Images

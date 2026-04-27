@@ -98,13 +98,8 @@
 			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
 		},
 		{
-			// Match by `e.code` (physical key) not `e.key` (layout-mapped char).
-			// Windows' Left-Alt+Shift hotkey can silently swap input layouts
-			// mid-press; an `e.key` matcher then misses the next 'A' as a
-			// localized character (e.g., Cyrillic 'а', dead-key) and the cycle
-			// appears to skip a step. `e.code === 'KeyA'` is layout-stable.
 			match: (e) =>
-				e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.code === 'KeyA',
+				ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
 			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
 		}
 	];
@@ -276,7 +271,7 @@
 		const offset = preEditOffset;
 		const collapsed = !hasSelectionHelper();
 
-		if (ctrlOrMeta(e) && e.code === 'KeyA' && !e.shiftKey && !e.altKey) {
+		if (ctrlOrMeta(e) && e.key === 'a' && !e.shiftKey && !e.altKey) {
 			await handleCellSelectAll(e);
 			return;
 		}
