@@ -11,7 +11,12 @@ export type OperationKind =
 	| 'appendBlock'
 	| 'metadataUpdate'
 	| 'undo'
-	| 'redo';
+	| 'redo'
+	| 'tableInsertRow'
+	| 'tableDeleteRow'
+	| 'tableInsertColumn'
+	| 'tableDeleteColumn'
+	| 'tableCycleAlignment';
 
 export interface OperationEntry {
 	op: OperationKind;

@@ -4,6 +4,7 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
+		CONTROLLER_KEY,
 		SELECTION_KEY,
 		SELECTION_END,
 		STICKY_COLUMN_KEY,
@@ -20,14 +21,27 @@
 	import type { TableMetadata } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import type { UndoController, MultiScopeTarget } from '../../../editor-actions/deps';
+	import type { StructuralChange } from '../../../tree-operations/structural-change';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import { expectStateForNode } from '../../../reactivity/state-registry';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested-actions';
-	import { rebuildContainerRaw } from '../../../schema/container-raw';
+	import {
+		rebuildContainerRaw,
+		rebuildTableRowRaw
+	} from '../../../schema/container-raw';
+	import {
+		insertEmptyRow,
+		insertEmptyColumn,
+		deleteRow as mutDeleteRow,
+		deleteColumn as mutDeleteColumn,
+		cycleAlignment as mutCycleAlignment
+	} from './table-mutations';
 	import TableRowBlock from './TableRowBlock.svelte';
 
 	let {
@@ -43,6 +57,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 
@@ -115,28 +130,143 @@
 		notifyCellBlurred() {
 			focusedCell = null;
 		},
-		insertRowAbove: async () => {
-			throw new Error('insertRowAbove: not yet implemented');
+		insertRowAbove: (rowIdx) => insertRow(rowIdx, 'above'),
+		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
+		insertColumnLeft: (colIdx) => insertColumn(colIdx, 'left'),
+		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
+		async deleteRow(rowIdx) {
+			if ((node.children?.length ?? 0) <= 1) return;
+			const willRemoveHeader = rowIdx === 0;
+			const bodyCount = (node.children?.length ?? 0) - 1;
+			if (!willRemoveHeader && bodyCount <= 1) return;
+			await parentContainerEdit.commitContainer({
+				containerNode: node,
+				state: rowsState,
+				snapshot: { blockIndex: index, offset: 0 },
+				mutate: (children) => {
+					mutDeleteRow(node, rowIdx);
+					children.length = 0;
+					children.push(...node.children!);
+					rebuildContainerRaw(node);
+					return { op: 'delete', at: rowIdx, count: 1 };
+				},
+				op: { kind: 'tableDeleteRow', detail: { rowIdx }, eventPath: [index, rowIdx] },
+				afterTick: () => {
+					const newRowCount = node.children?.length ?? 0;
+					if (newRowCount === 0) return;
+					const targetRow = Math.min(rowIdx, newRowCount - 1);
+					const targetCol = focusedCell ? Math.min(focusedCell.colIdx, columnCount - 1) : 0;
+					ctx.focusCell(targetRow, targetCol, 'start');
+				}
+			});
 		},
-		insertRowBelow: async () => {
-			throw new Error('insertRowBelow: not yet implemented');
+		async deleteColumn(colIdx) {
+			const tableMeta = node.metadata as TableMetadata;
+			if (tableMeta.columnCount <= 1) return;
+			const rows = node.children ?? [];
+			const scopes: MultiScopeTarget[] = [
+				{ node, state: rowsState },
+				...rows.map((row) => ({ node: row, state: expectStateForNode(row) }))
+			];
+			await controller.commitMultiScope({
+				scopes,
+				snapshot: { blockIndex: index, offset: 0 },
+				mutate: (scopeChildren) => {
+					mutDeleteColumn(node, colIdx);
+					syncScopeChildren(scopeChildren);
+					for (const row of node.children ?? []) rebuildTableRowRaw(row);
+					rebuildContainerRaw(node);
+					const rowChanges = (node.children ?? []).map(
+						(): StructuralChange => ({ op: 'delete', at: colIdx, count: 1 })
+					);
+					return [{ op: 'noop' }, ...rowChanges];
+				},
+				op: { kind: 'tableDeleteColumn', detail: { colIdx }, eventPath: myPath },
+				afterTick: () => {
+					const newColumnCount = (node.metadata as TableMetadata).columnCount;
+					if (newColumnCount === 0) return;
+					const targetCol = Math.min(colIdx, newColumnCount - 1);
+					const targetRow = focusedCell?.rowIdx ?? 0;
+					ctx.focusCell(targetRow, targetCol, 'start');
+				}
+			});
 		},
-		insertColumnLeft: async () => {
-			throw new Error('insertColumnLeft: not yet implemented');
-		},
-		insertColumnRight: async () => {
-			throw new Error('insertColumnRight: not yet implemented');
-		},
-		deleteRow: async () => {
-			throw new Error('deleteRow: not yet implemented');
-		},
-		deleteColumn: async () => {
-			throw new Error('deleteColumn: not yet implemented');
-		},
-		cycleAlignment: async () => {
-			throw new Error('cycleAlignment: not yet implemented');
+		async cycleAlignment(colIdx) {
+			await parentContainerEdit.commitContainer({
+				containerNode: node,
+				state: rowsState,
+				snapshot: { blockIndex: index, offset: 0 },
+				mutate: () => {
+					mutCycleAlignment(node, colIdx);
+					rebuildContainerRaw(node);
+					return { op: 'noop' };
+				},
+				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
+			});
 		}
 	};
+
+	async function insertRow(rowIdx: number, side: 'above' | 'below'): Promise<void> {
+		const insertAt = side === 'above' ? rowIdx : rowIdx + 1;
+		await parentContainerEdit.commitContainer({
+			containerNode: node,
+			state: rowsState,
+			snapshot: { blockIndex: index, offset: 0 },
+			mutate: (children) => {
+				insertEmptyRow(node, rowIdx, side);
+				rebuildTableRowRaw(node.children![insertAt]);
+				children.length = 0;
+				children.push(...node.children!);
+				rebuildContainerRaw(node);
+				return { op: 'insert', at: insertAt, count: 1 };
+			},
+			op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: [index, insertAt] },
+			afterTick: () => ctx.focusCell(insertAt, 0, 'start')
+		});
+	}
+
+	async function insertColumn(colIdx: number, side: 'left' | 'right'): Promise<void> {
+		const insertAt = side === 'left' ? colIdx : colIdx + 1;
+		const rows = node.children ?? [];
+		const scopes: MultiScopeTarget[] = [
+			{ node, state: rowsState },
+			...rows.map((row) => ({ node: row, state: expectStateForNode(row) }))
+		];
+		await controller.commitMultiScope({
+			scopes,
+			snapshot: { blockIndex: index, offset: 0 },
+			mutate: (scopeChildren) => {
+				insertEmptyColumn(node, colIdx, side);
+				syncScopeChildren(scopeChildren);
+				for (const row of node.children ?? []) rebuildTableRowRaw(row);
+				rebuildContainerRaw(node);
+				const rowChanges = (node.children ?? []).map(
+					(): StructuralChange => ({ op: 'insert', at: insertAt, count: 1 })
+				);
+				return [{ op: 'noop' }, ...rowChanges];
+			},
+			op: { kind: 'tableInsertColumn', detail: { colIdx, side }, eventPath: myPath },
+			afterTick: () => {
+				const targetRow = focusedCell?.rowIdx ?? 0;
+				ctx.focusCell(targetRow, insertAt, 'start');
+			}
+		});
+	}
+
+	// Multi-scope mutate gets per-scope children copies; the table mutation
+	// helpers operate on node.children directly, so re-publish each scope from
+	// the live tree before returning.
+	function syncScopeChildren(scopeChildren: { children: CstNode[] }[]): void {
+		const tableScope = scopeChildren[0];
+		tableScope.children.length = 0;
+		tableScope.children.push(...(node.children ?? []));
+		const rows = node.children ?? [];
+		for (let i = 0; i < rows.length; i++) {
+			const rowScope = scopeChildren[i + 1];
+			rowScope.children.length = 0;
+			rowScope.children.push(...(rows[i].children ?? []));
+		}
+	}
 
 	setContext(TABLE_CONTEXT_KEY, ctx);
 
