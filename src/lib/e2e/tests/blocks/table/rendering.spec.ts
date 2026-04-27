@@ -44,4 +44,28 @@ test.describe('table block: rendering', () => {
 		const cell = page.locator('[role="cell"]').nth(1);
 		await expect(cell).toHaveText('b \\| c');
 	});
+
+	test('column alignment metadata applies as text-align even when cell has no padding whitespace', async ({
+		page
+	}) => {
+		// Source intentionally omits the visual cell padding so any rendered
+		// alignment must come from metadata, not from preserved leading spaces.
+		await editor.loadContent('|L|C|R|\n|:---|:---:|---:|\n|a|b|c|\n');
+		const cells = page.locator('[role="cell"]');
+		await expect(cells.nth(0)).toHaveCSS('text-align', 'left');
+		await expect(cells.nth(1)).toHaveCSS('text-align', 'center');
+		await expect(cells.nth(2)).toHaveCSS('text-align', 'right');
+		await expect(cells.nth(3)).toHaveCSS('text-align', 'left');
+		await expect(cells.nth(4)).toHaveCSS('text-align', 'center');
+		await expect(cells.nth(5)).toHaveCSS('text-align', 'right');
+	});
+
+	test('default alignment leaves text-align at the inherited start value', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const cells = page.locator('[role="cell"]');
+		// 'none' alignment should NOT set inline text-align — falls through to
+		// whatever the document default is (LTR start = 'start').
+		await expect(cells.nth(0)).toHaveCSS('text-align', 'start');
+		await expect(cells.nth(1)).toHaveCSS('text-align', 'start');
+	});
 });

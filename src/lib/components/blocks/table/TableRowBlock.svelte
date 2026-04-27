@@ -11,6 +11,7 @@
 		type CstNode,
 		type BlockComponent
 	} from '../../../contracts';
+	import type { TableAlignment } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import {
@@ -26,6 +27,7 @@
 		rowIdx,
 		columnCount,
 		rowCount,
+		alignments = [],
 		myPath = []
 	}: {
 		node: CstNode;
@@ -33,6 +35,7 @@
 		rowIdx: number;
 		columnCount: number;
 		rowCount: number;
+		alignments?: readonly TableAlignment[];
 		myPath?: number[];
 	} = $props();
 
@@ -93,6 +96,7 @@
 			{colIdx}
 			{columnCount}
 			{rowCount}
+			alignment={alignments[colIdx] ?? 'none'}
 			bind:this={state.innerBlockRefs[colIdx]}
 		/>
 	{/each}
