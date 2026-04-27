@@ -9,6 +9,7 @@ import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../contracts';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
+import { cellAtPoint } from '../components/blocks/table/cell-pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,9 @@ export function installDragListener(
 			return;
 		}
 
-		const offset = offsetFromViewportPoint(hit.element, clientX, clientY);
+		const offset = hit.isTable
+			? tableCellOffsetAt(hit.element, clientX, clientY)
+			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 
 		const focusPoint: SelectionPoint = { path: hit.path, offset };
@@ -170,11 +173,23 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 
 // ── Hit test ───────────────────────────────────────────────────────────────
 
+interface BlockHit {
+	path: number[];
+	element: HTMLElement;
+	/**
+	 * Tables encode focus offsets as cellIdx, not character offset
+	 * (range-delete-table reads offset as `row * columnCount + col`). When set,
+	 * `element` points to the [role="table"] element so cellAtPoint can resolve
+	 * row/column from the same node tree.
+	 */
+	isTable?: boolean;
+}
+
 function blockAtPoint(
 	editorRoot: HTMLElement,
 	clientX: number,
 	clientY: number
-): { path: number[]; element: HTMLElement } | null {
+): BlockHit | null {
 	const target = document.elementFromPoint(clientX, clientY);
 	if (!target) return null;
 
@@ -185,6 +200,10 @@ function blockAtPoint(
 			if (attr) {
 				try {
 					const path = JSON.parse(attr) as number[];
+					const tableEl = el.querySelector(':scope > [role="table"]') as HTMLElement | null;
+					if (tableEl) {
+						return { path, element: tableEl, isTable: true };
+					}
 					const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
 					return { path, element: editable ?? el };
 				} catch {
@@ -195,4 +214,19 @@ function blockAtPoint(
 		el = el.parentElement;
 	}
 	return null;
+}
+
+/**
+ * Resolve a viewport point inside a table to a cellIdx offset. Returns null
+ * when the point falls in cell padding/borders so the caller can hold the
+ * previous focus instead of flickering.
+ */
+function tableCellOffsetAt(tableEl: HTMLElement, clientX: number, clientY: number): number | null {
+	const cell = cellAtPoint(clientX, clientY, tableEl);
+	if (!cell) return null;
+	const firstRow = tableEl.querySelector(':scope > [data-table-row-idx="0"]');
+	if (!firstRow) return null;
+	const columnCount = firstRow.querySelectorAll(':scope > [role="cell"]').length;
+	if (columnCount === 0) return null;
+	return cell.rowIdx * columnCount + cell.colIdx;
 }
