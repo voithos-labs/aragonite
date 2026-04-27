@@ -357,7 +357,7 @@
 	tabindex="0"
 	class="table-cell"
 	contenteditable="true"
-	role="textbox"
+	role="cell"
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
