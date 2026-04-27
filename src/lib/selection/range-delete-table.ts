@@ -1,13 +1,6 @@
 /**
- * Table-aware branch of rangeDelete. Tables encode their selection offset as
- * a cell index (`rowIdx * columnCount + colIdx`) rather than a character
- * offset, so the standard `mergedRaw = startRaw.slice(0, start.offset) +
- * endRaw.slice(end.offset)` would corrupt the table. Instead, this module
- * clears cells in-place and removes fully-covered rows, with no merge across
- * the prose↔table boundary.
- *
- * Three cross-block shapes plus one same-block shape — see the
- * "Cross-block delete" section of the table block design spec.
+ * Table-aware branch of rangeDelete: tables encode selection offsets as cell
+ * indices, so prose raw-merge doesn't apply.
  */
 
 import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../core/nodes';
@@ -16,8 +9,8 @@ import type { RangeDeleteResult } from './range-delete';
 import { parse } from '../core/parser';
 import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { nodeAt } from '../tree-operations/node-ops';
-import { pathHasPrefix } from './path-math';
+import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import { lowestCommonAncestor, pathHasPrefix } from './path-math';
 import {
 	rebuildAncestryRawForLeaf,
 	rebuildContainerRaw
@@ -25,19 +18,10 @@ import {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * True when either endpoint resolves to a table block. Table-as-start and
- * table-as-end use cell-index offset semantics, so the standard rangeDelete
- * raw-merge path doesn't apply.
- */
 export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
 	return startBlock.kind === 'table' || endBlock.kind === 'table';
 }
 
-/**
- * Run the table-aware range delete. Caller has already resolved
- * startBlock/endBlock and confirmed at least one endpoint is a table.
- */
 export function tableAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
@@ -51,9 +35,6 @@ export function tableAwareRangeDelete(
 		return deleteWithinTable(doc, start, end, startBlock);
 	}
 	if (startBlock.kind === 'table' && endBlock.kind === 'table') {
-		// Two distinct tables (no nesting between them) — treat as two prose
-		// endpoints would: clear tail-portion of start table, head-portion of
-		// end table, delete blocks strictly between, no merge.
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock);
 	}
 	if (startBlock.kind === 'table') {
@@ -64,14 +45,7 @@ export function tableAwareRangeDelete(
 
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
 
-/**
- * start.path === end.path === tablePath. Intra-table multi-cell selection
- * is rectangular (per spec § "Two encodings"): both offsets are inclusive
- * cell indices and the cleared region is the rectangle bounded by their
- * (row, col) corners. Structure is always preserved — removing rows/columns
- * requires extending the selection outside the table boundary, which routes
- * through Case 1/2/3.
- */
+// spec § Selection — Whole-table intra-table: rectangular cell clear, structure preserved.
 function deleteWithinTable(
 	doc: Document,
 	start: SelectionPoint,
@@ -87,7 +61,6 @@ function deleteWithinTable(
 	};
 }
 
-/** Clear cells in the rectangle bounded by anchor and focus cell indices (inclusive). */
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
 	const meta = table.metadata as TableMetadata;
 	const cellsPerRow = meta.columnCount;
@@ -102,10 +75,8 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 	const rows = table.children!;
 	for (let r = minRow; r <= maxRow; r++) {
 		const row = rows[r];
-		if (!row) continue;
 		for (let c = minCol; c <= maxCol; c++) {
-			const cell = row.children?.[c];
-			if (cell) cell.raw = '';
+			row.children![c].raw = '';
 		}
 	}
 }
@@ -125,11 +96,8 @@ function deleteFromProseIntoTable(
 
 	const result = deleteCellsAndCollapse(table, 0, end.offset);
 
-	// Splice deletion-targets in reverse doc-order so earlier paths stay valid.
-	// Skip descendants of start/end — those endpoints handle their own internal
-	// mutation; walkBetween's descent into the table would otherwise enumerate
-	// every row/cell as a "between" path and cascade-cleanup would then delete
-	// the now-emptied table.
+	// walkBetween descends into the table; filter out endpoint descendants so
+	// cascade-cleanup doesn't delete the just-edited table.
 	const betweenPaths = walkBetween(doc, start.path, end.path).filter(
 		(p) => !pathHasPrefix(p, start.path) && !pathHasPrefix(p, end.path)
 	);
@@ -179,7 +147,6 @@ function deleteFromTableIntoProse(
 	const survivingTailRaw = tailRaw.length === 0 ? lineEnding : tailRaw;
 	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
 
-	// See deleteFromProseIntoTable for the descendant filter rationale.
 	const betweenPaths = walkBetween(doc, start.path, end.path).filter(
 		(p) => !pathHasPrefix(p, start.path) && !pathHasPrefix(p, end.path)
 	);
@@ -188,9 +155,9 @@ function deleteFromTableIntoProse(
 
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// Replace end first (its path is later in doc order so deletion of
-	// strictly-between doesn't shift it). Then delete strictly-between in
-	// reverse, then optionally delete start.path.
+	// Replace end first: its path is later in doc order, so deleting strictly-
+	// between doesn't shift it. Then delete strictly-between in reverse, then
+	// optionally start.path.
 	replaceAtPath(doc, end.path, tailReplacement);
 
 	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
@@ -211,10 +178,6 @@ function deleteFromTableIntoProse(
 		rebuildAncestryRawForLeaf(doc, path);
 	}
 
-	// Caret: end of surviving start cell. If the start cell itself survived
-	// (start.offset's cell wasn't cleared), the caret falls on it; otherwise
-	// fall back to start.path/start.offset, which the caller's focus
-	// dispatcher clamps via path lookup.
 	return {
 		newDoc: doc,
 		collapsedCaret: caretForCase2(table, start, tableResult)
@@ -308,10 +271,8 @@ function deleteCellsAndCollapse(
 	const lastRowInRange = Math.floor((endCellIdx - 1) / cellsPerRow);
 	const lastColInRange = (endCellIdx - 1) - lastRowInRange * cellsPerRow;
 
-	// A row goes only when every one of its columns is covered. The first row
-	// of the range is fully covered iff startCol === 0; the last is fully
-	// covered iff lastColInRange === cellsPerRow - 1; all middle rows are
-	// fully covered.
+	// First range row is fully covered iff startCol === 0; last iff
+	// lastColInRange === cellsPerRow - 1; middle rows always are.
 	const firstFull = startCol === 0 ? startRow : startRow + 1;
 	const lastFull =
 		lastColInRange === cellsPerRow - 1 ? lastRowInRange : lastRowInRange - 1;
@@ -336,49 +297,13 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 	for (let i = startCellIdx; i < endCellIdx; i++) {
 		const r = Math.floor(i / cellsPerRow);
 		const c = i - r * cellsPerRow;
-		const row = rows[r];
-		if (!row) continue;
-		const cell = row.children?.[c];
-		if (!cell) continue;
-		cell.raw = '';
+		rows[r].children![c].raw = '';
 	}
 }
 
 function totalCellCount(table: CstNode): number {
 	const meta = table.metadata as TableMetadata;
 	return (table.children?.length ?? 0) * meta.columnCount;
-}
-
-// ── Local copies of range-delete's structural helpers ──────────────────────
-// rangeDelete keeps these private; duplicating here avoids broadening that
-// module's surface area for one consumer.
-
-function deleteAtPath(doc: Document, path: number[]): void {
-	if (path.length === 0) return;
-	const parent = nodeAt(doc, path.slice(0, -1));
-	if (!parent || !parent.children) return;
-	const idx = path[path.length - 1];
-	if (idx < parent.children.length) {
-		parent.children.splice(idx, 1);
-	}
-}
-
-function replaceAtPath(doc: Document, path: number[], replacement: CstNode[]): void {
-	if (path.length === 0) return;
-	const parent = nodeAt(doc, path.slice(0, -1));
-	if (!parent || !parent.children) return;
-	const idx = path[path.length - 1];
-	parent.children.splice(idx, 1, ...replacement);
-}
-
-function lowestCommonAncestor(a: number[], b: number[]): number[] {
-	const result: number[] = [];
-	const len = Math.min(a.length, b.length);
-	for (let i = 0; i < len; i++) {
-		if (a[i] !== b[i]) break;
-		result.push(a[i]);
-	}
-	return result;
 }
 
 function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
