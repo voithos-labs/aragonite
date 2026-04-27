@@ -3,11 +3,12 @@
  */
 
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode, Document, TableMetadata } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize } from './primitives';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
+import { copyRectangleAsSubTable } from '../components/blocks/table/sub-table-copy';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -34,12 +35,28 @@ export function collectCrossBlockText(
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
 
+	// On a table, offsets index half-open cell ranges (spec § "Two encodings"),
+	// not character positions; the three table branches below route through
+	// emitTablePortion so the generic raw.slice paths don't return garbage.
+	if (
+		pathsEqual(start.path, end.path) &&
+		'kind' in startNode &&
+		(startNode as CstNode).kind === 'table'
+	) {
+		return emitTablePortion(startNode as CstNode, start.offset, end.offset);
+	}
+
 	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
 	const endRaw = 'raw' in endNode ? (endNode as CstNode).raw : '';
 
 	let effectiveStartPath = start.path;
 	let startTail: string;
-	if (start.offset === 0 && start.path.length > 1) {
+	if ('kind' in startNode && (startNode as CstNode).kind === 'table') {
+		const tableNode = startNode as CstNode;
+		const colCount = (tableNode.metadata as TableMetadata).columnCount;
+		const allCellsCount = tableNode.children!.length * colCount;
+		startTail = emitTablePortion(tableNode, start.offset, allCellsCount);
+	} else if (start.offset === 0 && start.path.length > 1) {
 		const promoted = promoteToContainer(doc, start.path, end.path, 'start');
 		if (promoted) {
 			effectiveStartPath = promoted.path;
@@ -56,7 +73,9 @@ export function collectCrossBlockText(
 
 	let effectiveEndPath = end.path;
 	let endHead: string;
-	if (end.offset === displayLength(endRaw) && end.path.length > 1) {
+	if ('kind' in endNode && (endNode as CstNode).kind === 'table') {
+		endHead = emitTablePortion(endNode as CstNode, 0, end.offset);
+	} else if (end.offset === displayLength(endRaw) && end.path.length > 1) {
 		const promoted = promoteToContainer(doc, end.path, start.path, 'end');
 		if (promoted) {
 			effectiveEndPath = promoted.path;
@@ -91,9 +110,7 @@ export function collectCrossBlockText(
 		}
 	}
 
-	// Without the end node's leadingTrivia, blank lines between paragraphs get
-	// dropped and paste reparses as a single merged paragraph. Skip when
-	// start/end resolved to the same effective path (endHead === startTail).
+	// Without endLead, blank lines between paragraphs get dropped and paste reparses as a single merged paragraph.
 	let endLead = '';
 	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
 		const endNode = nodeAt(doc, effectiveEndPath);
@@ -106,6 +123,31 @@ export function collectCrossBlockText(
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * Emit a table portion for the half-open cell-index range
+ * `[startCellIdx, endCellIdxExclusive)` in row-major order. Selection is
+ * row-rectangular by GFM constraint; emit `[startRow..endRow] × all columns`.
+ */
+function emitTablePortion(
+	table: CstNode,
+	startCellIdx: number,
+	endCellIdxExclusive: number
+): string {
+	if (startCellIdx >= endCellIdxExclusive) return '';
+	const colCount = (table.metadata as TableMetadata).columnCount;
+	const allCellsCount = table.children!.length * colCount;
+	if (startCellIdx === 0 && endCellIdxExclusive === allCellsCount) {
+		return table.raw;
+	}
+	const startRow = Math.floor(startCellIdx / colCount);
+	const endRow = Math.floor((endCellIdxExclusive - 1) / colCount);
+	return copyRectangleAsSubTable(
+		table,
+		{ rowIdx: startRow, colIdx: 0 },
+		{ rowIdx: endRow, colIdx: colCount - 1 }
+	);
+}
 
 /**
  * Mirror of {@link endPartialWithContainerMarker} for the start endpoint.
