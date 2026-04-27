@@ -4,6 +4,10 @@ import { joinRaw, isBlankLine } from '../parser';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
+// Cell padding is cosmetic — the user's whitespace between pipes carries no
+// semantic content. Pre-edit round-trip is preserved via `table.raw` (set from
+// the source slice in parseTable); post-edit, rebuildTableRowRaw emits the
+// canonical single-space padding for every row.
 export function splitRowCells(rowText: string): string[] {
 	const trimmed = rowText.trim();
 	const head = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
@@ -14,7 +18,7 @@ export function splitRowCells(rowText: string): string[] {
 	while (i < inner.length) {
 		const ch = inner[i];
 		if (ch === '|' && !isEscaped(inner, i)) {
-			cells.push(trimOneSpace(current));
+			cells.push(current.trim());
 			current = '';
 			i++;
 			continue;
@@ -22,7 +26,7 @@ export function splitRowCells(rowText: string): string[] {
 		current += ch;
 		i++;
 	}
-	cells.push(trimOneSpace(current));
+	cells.push(current.trim());
 	return cells;
 }
 
@@ -34,13 +38,6 @@ function isEscaped(s: string, index: number): boolean {
 		j--;
 	}
 	return backslashes % 2 === 1;
-}
-
-function trimOneSpace(s: string): string {
-	let out = s;
-	if (out.startsWith(' ')) out = out.slice(1);
-	if (out.endsWith(' ')) out = out.slice(0, -1);
-	return out;
 }
 
 // ── Delimiter row ──────────────────────────────────────────────────────────

@@ -68,4 +68,31 @@ test.describe('table block: rendering', () => {
 		await expect(cells.nth(0)).toHaveCSS('text-align', 'start');
 		await expect(cells.nth(1)).toHaveCSS('text-align', 'start');
 	});
+
+	test('hand-padded source renders cells with whitespace stripped', async ({ page }) => {
+		// Cosmetic cell padding (the user's spaces between pipes) is non-semantic
+		// content — it would interact awkwardly with text-align: center, distort
+		// cursor placement, and pollute clipboard payloads. Cell display must
+		// equal the trimmed content regardless of source padding.
+		await editor.loadContent(
+			'| Left     | Center   |    Right |\n| :------- | :------: | -------: |\n| Column A | Column B | Column C |\n| Row two  | data     |     $100 |\n'
+		);
+		const cells = page.locator('[role="cell"]');
+		await expect(cells.nth(0)).toHaveText('Left');
+		await expect(cells.nth(1)).toHaveText('Center');
+		await expect(cells.nth(2)).toHaveText('Right');
+		await expect(cells.nth(3)).toHaveText('Column A');
+		await expect(cells.nth(5)).toHaveText('Column C');
+		await expect(cells.nth(8)).toHaveText('$100');
+	});
+
+	test('hand-padded source pre-edit round-trips byte-perfect', async ({ page }) => {
+		// Pre-edit invariant: serialize(parse(source)) === source. The trim
+		// happens on cell raws, but table.raw preserves the original slice for
+		// untouched documents.
+		const source =
+			'| Left     | Center   |    Right |\n| :------- | :------: | -------: |\n| Column A | Column B | Column C |\n';
+		await editor.loadContent(source);
+		expect(await editor.bridge.getSource()).toBe(source);
+	});
 });
