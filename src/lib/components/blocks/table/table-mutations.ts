@@ -9,7 +9,7 @@ import type {
 	TableAlignment
 } from '../../../core/nodes';
 
-const ALIGN_CYCLE: TableAlignment[] = ['none', 'left', 'center', 'right'];
+const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -75,6 +75,14 @@ export function deleteColumn(table: CstNode, colIdx: number): void {
 
 export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const meta = table.metadata as TableMetadata;
-	const idx = ALIGN_CYCLE.indexOf(meta.alignments[colIdx]);
+	const current = meta.alignments[colIdx];
+	// 'none' renders identically to 'left' (no text-align override), so stepping
+	// through it would look like a stuck press. From 'none' jump straight to
+	// 'center'; once cycling begins the column never re-enters 'none'.
+	if (current === 'none') {
+		meta.alignments[colIdx] = 'center';
+		return;
+	}
+	const idx = ALIGN_CYCLE.indexOf(current);
 	meta.alignments[colIdx] = ALIGN_CYCLE[(idx + 1) % ALIGN_CYCLE.length];
 }

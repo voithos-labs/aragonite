@@ -64,13 +64,10 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceNotContains(' B ');
 	});
 
-	test('Ctrl+Shift+A cycles column alignment none → left → center → right → none', async ({
+	test('Ctrl+Shift+A from none jumps to center, then cycles left/center/right without revisiting none', async ({
 		page
 	}) => {
 		await page.locator('[role="cell"]').nth(0).click();
-
-		await page.keyboard.press('Control+Shift+A');
-		await editor.bridge.waitForSourceContains('| :--- | --- |');
 
 		await page.keyboard.press('Control+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
@@ -79,7 +76,10 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceContains('| ---: | --- |');
 
 		await page.keyboard.press('Control+Shift+A');
-		await editor.bridge.waitForSourceContains('| --- | --- |');
+		await editor.bridge.waitForSourceContains('| :--- | --- |');
+
+		await page.keyboard.press('Control+Shift+A');
+		await editor.bridge.waitForSourceContains('| :---: | --- |');
 	});
 
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {
