@@ -29,11 +29,14 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSource((s) => s.includes('Heading') && s.includes('para'));
 
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('Heading');
-		expect(src).toContain('para');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['# Heading', '', 'para'].join('\n')
+		);
 	});
 
+	// Exact-source assertion: the structural paste splices into the list item's
+	// container and the bug class would leave 'Big Heading' in the source while
+	// the surrounding list scope gets corrupted.
 	test('paste heading into list item replaces item content (structural path)', async () => {
 		await editor.loadContent('- list item\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Big Heading\n'));
@@ -43,8 +46,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('Big Heading');
 
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('Big Heading');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('- # Big Heading');
 	});
 
 	test('cut across two list items removes selection, clipboard holds removed content', async () => {

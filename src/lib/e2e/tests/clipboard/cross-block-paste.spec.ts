@@ -50,15 +50,18 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.goto();
 	});
 
+	// Exact-source assertions catch structural-paste misroutes that leave the
+	// substrings the original waitForSourceContains checks intact while the
+	// surrounding splice rots.
 	test('pasting two paragraphs creates multiple blocks', async () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\nNew paragraph\n'));
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('# Heading');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('# Heading');
-		expect(source).toContain('New paragraph');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['Hello', '', '# Heading', '', 'New paragraph'].join('\n')
+		);
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 
@@ -70,12 +73,9 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		}
 		await editor.page.evaluate(() => navigator.clipboard.writeText('First\n\nSecond'));
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
-
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('World');
-		expect(source).toContain('Hello ');
-		expect(source).toContain('First');
-		expect(source).toContain('Second');
+		await editor.bridge.waitForSourceContains('Second');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['Hello ', '', 'First', '', 'Second'].join('\n')
+		);
 	});
 });

@@ -1,16 +1,20 @@
 /**
  * Mutation routing for paste results — applies inline and structural results
- * produced by surface hooks to the document, choosing between debounced
- * updateBlockContent, top-level replaceBlock, and nested commitMultiScope.
+ * produced by surface hooks to the document. Inline results route through
+ * debounced updateBlockContent (or direct raw mutation for cross-block).
+ * Structural results splice via replaceBlockAtParent, which resolves the
+ * parent scope from the path itself rather than trusting `ctx.blockEdit` —
+ * any caller passing a nested-bundle blockEdit (e.g., a row-level bundle
+ * for a cell's path) would silently misroute through the wrong container.
  */
 
 import type { CstNode } from '../../core/nodes';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { nodeAt } from '../node-ops';
 import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
-import { expectStateForNode } from '../../reactivity/state-registry';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext } from './dispatch';
+import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
  * Apply an inline paste. Single-block routes through updateBlockContent
@@ -50,53 +54,14 @@ export async function applyStructuralResult(
 	result: StructuralPasteResult,
 	ctx: PasteDispatchContext
 ): Promise<void> {
-	if (targetPath.length === 1) {
-		const index = targetPath[0];
-		await ctx.blockEdit.replaceBlock(
-			index,
-			result.replacement,
-			{
-				replacementIndex: result.focusReplacementIndex,
-				offset: result.focusOffset
-			},
-			{ skipSnapshot: ctx.skipSnapshot }
-		);
-		return;
-	}
-
-	const parentPath = targetPath.slice(0, -1);
-	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
-	const innerIndex = targetPath[targetPath.length - 1];
-	if (!parent?.children || innerIndex < 0 || innerIndex >= parent.children.length) return;
-
-	const parentState = expectStateForNode(parent);
-
-	await ctx.controller.commitMultiScope({
-		scopes: [{ node: parent, state: parentState }],
-		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: targetPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			const children = scopeChildren[0].children;
-			children.splice(innerIndex, 1, ...result.replacement);
-			// Sync before rebuild — rebuildAncestryForLeaf reads node.children directly.
-			parent.children = children;
-			rebuildAncestryRawForLeaf(ctx.doc, [...parentPath, innerIndex]);
-			return [
-				{
-					op: 'replace',
-					at: innerIndex,
-					count: 1,
-					newCount: result.replacement.length
-				}
-			];
-		},
-		op: {
-			kind: 'replaceBlock',
-			detail: { source: 'paste-dispatch', path: targetPath },
-			eventPath: targetPath
-		},
-		afterTick: () => {
-			const lastIdx = innerIndex + result.focusReplacementIndex;
-			parentState.innerBlockRefs[lastIdx]?.focus(result.focusOffset);
-		}
+	await replaceBlockAtParent({
+		doc: ctx.doc,
+		blockPath: targetPath,
+		replacement: result.replacement,
+		controller: ctx.controller,
+		skipSnapshot: ctx.skipSnapshot === true,
+		focusReplacementIndex: result.focusReplacementIndex,
+		focusOffset: result.focusOffset,
+		source: 'paste-dispatch'
 	});
 }
