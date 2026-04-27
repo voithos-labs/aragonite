@@ -103,6 +103,7 @@ export function installCellDragListener(
 		const offset = offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 		const focusPoint: SelectionPoint = { path: hit.path, offset };
+		// Anchor stays cell-encoded (shallow tablePath, cellIdx offset); foreign focus carries a deep block path with a character offset. Consumers disambiguate via pathsEqual / isCustomRendered.
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
