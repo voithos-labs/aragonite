@@ -50,6 +50,8 @@
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
 
+	type ExitDirection = 'up' | 'down';
+
 	let {
 		node,
 		index,
@@ -186,6 +188,7 @@
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	function onInput(): void {
+		stickyColumn.reset();
 		if (composing || !el) return;
 		const text = el.textContent ?? '';
 		const savedOffset = getCursorOffsetHelper(el) ?? 0;
@@ -222,7 +225,12 @@
 
 		if (e.key === 'ArrowRight' && !e.shiftKey && offset === textLen && collapsed) {
 			e.preventDefault();
-			handleHorizontalMove(nextCell(pos, columnCount, rowCount), 'start', 'down');
+			const move = nextCell(pos, columnCount, rowCount);
+			if (move.kind === 'cell') {
+				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
+			} else {
+				exitWithStickyX('down');
+			}
 			return;
 		}
 
@@ -244,8 +252,7 @@
 			if (move.kind === 'cell') {
 				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
 			} else {
-				// kind: 'create-row' — Plan 4 implements insertRowBelow; the stub throws today.
-				void tableContext.insertRowBelow(rowIdx);
+				await tableContext.insertRowBelow(rowIdx);
 			}
 			return;
 		}
@@ -262,8 +269,7 @@
 			if (move.kind === 'cell') {
 				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
 			} else {
-				// kind: 'exit-down' — Plan 4 implements insertRowBelow; the stub throws today.
-				void tableContext.insertRowBelow(rowIdx);
+				await tableContext.insertRowBelow(rowIdx);
 			}
 			return;
 		}
@@ -293,20 +299,13 @@
 		await handleSharedKeydown(e, sharedCtx);
 	}
 
-	type ExitDirection = 'up' | 'down';
-
 	function handleHorizontalMove(
-		move: ReturnType<typeof prevCell> | ReturnType<typeof nextCell>,
+		move: ReturnType<typeof prevCell>,
 		cellPosition: 'start' | 'end',
 		exit: ExitDirection
 	): void {
 		if (move.kind === 'cell') {
 			tableContext.focusCell(move.rowIdx, move.colIdx, cellPosition);
-			return;
-		}
-		if (move.kind === 'create-row') {
-			// Plan 2 treats end-of-table ArrowRight as exit-down; Plan 4 will reroute to insertRowBelow.
-			exitWithStickyX('down');
 			return;
 		}
 		exitWithStickyX(exit);
@@ -341,7 +340,7 @@
 	}
 
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		crossBlock.handlePointerDown(e);
 	}
 
 	function onFocus(): void {
