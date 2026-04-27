@@ -4,6 +4,8 @@
 		BLOCK_EDIT_KEY,
 		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
+		SELECTION_KEY,
+		SELECTION_END,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
 		type BlockEditActions,
@@ -17,6 +19,8 @@
 	} from '../../../contracts';
 	import type { TableMetadata } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import {
@@ -40,6 +44,7 @@
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
 
 	const meta = $derived(node.metadata as TableMetadata | undefined);
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -110,8 +115,6 @@
 		notifyCellBlurred() {
 			focusedCell = null;
 		},
-		// Mutation methods are wired into the context for visibility but unimplemented.
-		// Throwing keeps accidental callers loud.
 		insertRowAbove: async () => {
 			throw new Error('insertRowAbove: not yet implemented');
 		},
@@ -186,8 +189,6 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
-	// Returns direct cellIdx (NOT cellIdx+1). The half-open `+1` for cross-block
-	// range inclusion lives in cross-block transition logic, not here.
 	export function getCursorOffset(): number | null {
 		if (!focusedCell) return null;
 		return focusedCell.rowIdx * columnCount + focusedCell.colIdx;
@@ -195,15 +196,66 @@
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
 		if (!focusedCell) return null;
-		// Path is { rowIdx, colIdx }; within-cell offset is not surfaced and is
-		// intentionally 0, so undo restoration lands at cell start of the focused
-		// cell. Refine when intra-cell precision is needed.
+		// offset is intentionally 0 — intra-cell precision lands when undo restoration needs it.
 		return { path: [focusedCell.rowIdx, focusedCell.colIdx], offset: 0 };
 	}
 
-	// Cross-block selection painting is not wired up; return [] to keep callers safe.
-	export function measurePartialRects(_start: number, _end: number): DOMRect[] {
-		return [];
+	export function measurePartialRects(start: number, end: number): DOMRect[] {
+		if (!tableEl || rowCount === 0) return [];
+		const cells = collectSelectedCells(start, end);
+		const rects: DOMRect[] = [];
+		for (const { rowIdx, colIdx } of cells) {
+			const cellEl = cellElementAt(rowIdx, colIdx);
+			if (!cellEl) continue;
+			rects.push(cellEl.getBoundingClientRect());
+		}
+		return rects;
+	}
+
+	function collectSelectedCells(start: number, end: number): { rowIdx: number; colIdx: number }[] {
+		const anchor = selection?.anchor;
+		const focus = selection?.focus;
+		const isRectangular =
+			selection?.isCustomRendered &&
+			!!anchor &&
+			!!focus &&
+			pathsEqual(anchor.path, focus.path);
+
+		if (isRectangular) {
+			const aRow = Math.floor(anchor.offset / columnCount);
+			const aCol = anchor.offset % columnCount;
+			const fRow = Math.floor(focus.offset / columnCount);
+			const fCol = focus.offset % columnCount;
+			const minRow = Math.min(aRow, fRow);
+			const maxRow = Math.max(aRow, fRow);
+			const minCol = Math.min(aCol, fCol);
+			const maxCol = Math.max(aCol, fCol);
+			const cells: { rowIdx: number; colIdx: number }[] = [];
+			for (let r = minRow; r <= maxRow; r++) {
+				for (let c = minCol; c <= maxCol; c++) {
+					cells.push({ rowIdx: r, colIdx: c });
+				}
+			}
+			return cells;
+		}
+
+		const cellCount = rowCount * columnCount;
+		const linearEnd = end === SELECTION_END ? cellCount : Math.min(end, cellCount);
+		const linearStart = Math.max(0, start);
+		const cells: { rowIdx: number; colIdx: number }[] = [];
+		for (let i = linearStart; i < linearEnd; i++) {
+			cells.push({ rowIdx: Math.floor(i / columnCount), colIdx: i % columnCount });
+		}
+		return cells;
+	}
+
+	function cellElementAt(rowIdx: number, colIdx: number): HTMLElement | null {
+		if (!tableEl) return null;
+		if (rowIdx < 0 || rowIdx >= rowCount || colIdx < 0 || colIdx >= columnCount) return null;
+		const rowEl = tableEl.querySelector(`:scope > [data-table-row-idx="${rowIdx}"]`);
+		if (!rowEl) return null;
+		const cells = rowEl.querySelectorAll(':scope > .table-cell');
+		return (cells[colIdx] as HTMLElement) ?? null;
 	}
 
 	void ({
