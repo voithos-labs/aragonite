@@ -43,6 +43,17 @@ export function sharedPrefixLength(a: number[], b: number[]): number {
 	return len;
 }
 
+/** Longest shared prefix of two paths. */
+export function lowestCommonAncestor(a: number[], b: number[]): number[] {
+	const result: number[] = [];
+	const len = Math.min(a.length, b.length);
+	for (let i = 0; i < len; i++) {
+		if (a[i] !== b[i]) break;
+		result.push(a[i]);
+	}
+	return result;
+}
+
 // ── Point predicates ───────────────────────────────────────────────────────
 
 /** Value equality on path + offset. */

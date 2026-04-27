@@ -9,8 +9,10 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import { parse } from '../core/parser';
 import { walkBetween, comparePaths } from './primitives';
+import { lowestCommonAncestor } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
+import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 
@@ -39,8 +41,6 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a node');
 	}
 
-	// Tables encode offsets as cell indices, not character offsets — the raw
-	// merge below would corrupt the table.
 	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
 		return tableAwareRangeDelete(doc, start, end, startBlock as CstNode, endBlock as CstNode);
 	}
@@ -104,34 +104,4 @@ export function rangeDelete(
 		offset: start.offset
 	};
 	return { newDoc: doc, collapsedCaret };
-}
-
-// ── Internal helpers ────────────────────────────────────────────────────────
-
-function deleteAtPath(doc: Document, path: number[]): void {
-	if (path.length === 0) return;
-	const parent = nodeAt(doc, path.slice(0, -1));
-	if (!parent || !parent.children) return;
-	const idx = path[path.length - 1];
-	if (idx < parent.children.length) {
-		parent.children.splice(idx, 1);
-	}
-}
-
-function replaceAtPath(doc: Document, path: number[], replacement: CstNode[]): void {
-	if (path.length === 0) return;
-	const parent = nodeAt(doc, path.slice(0, -1));
-	if (!parent || !parent.children) return;
-	const idx = path[path.length - 1];
-	parent.children.splice(idx, 1, ...replacement);
-}
-
-function lowestCommonAncestor(a: number[], b: number[]): number[] {
-	const result: number[] = [];
-	const len = Math.min(a.length, b.length);
-	for (let i = 0; i < len; i++) {
-		if (a[i] !== b[i]) break;
-		result.push(a[i]);
-	}
-	return result;
 }
