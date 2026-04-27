@@ -300,6 +300,7 @@
 			{rowIdx}
 			{columnCount}
 			{rowCount}
+			alignments={meta?.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
 			bind:this={rowsState.innerBlockRefs[rowIdx]}
 		/>

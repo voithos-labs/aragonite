@@ -28,7 +28,7 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import type { TableMetadata } from '../../../core/nodes';
+	import type { TableAlignment, TableMetadata } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
@@ -111,7 +111,8 @@
 		rowIdx,
 		colIdx,
 		columnCount,
-		rowCount
+		rowCount,
+		alignment = 'none'
 	}: {
 		node: CstNode;
 		index: number;
@@ -120,6 +121,7 @@
 		colIdx: number;
 		columnCount: number;
 		rowCount: number;
+		alignment?: TableAlignment;
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -549,6 +551,7 @@
 	class="table-cell"
 	contenteditable="true"
 	role="cell"
+	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
