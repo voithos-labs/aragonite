@@ -28,6 +28,14 @@ export class EditorBridge {
 		);
 	}
 
+	async waitForSourceNotContains(forbidden: string, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(e) => !((window as any).__test.getSource() as string).includes(e),
+			forbidden,
+			{ timeout, polling: 16 }
+		);
+	}
+
 	async waitForSourceMatches(pattern: RegExp, timeout = 2000): Promise<void> {
 		await this.page.waitForFunction(
 			(p) => new RegExp(p.source, p.flags).test((window as any).__test.getSource() as string),
