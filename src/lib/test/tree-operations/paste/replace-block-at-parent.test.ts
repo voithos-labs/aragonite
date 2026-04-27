@@ -1,0 +1,106 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
+import { replaceBlockAtParent } from '$lib/editor/tree-operations/paste/replace-block-at-parent';
+import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import { parse } from '$lib/editor/core/parser';
+import type { CstNode } from '$lib/editor/core/nodes';
+
+function makePara(raw: string): CstNode {
+	return { kind: 'paragraph', leadingTrivia: '', raw };
+}
+
+function makeHeading(raw: string): CstNode {
+	return { kind: 'heading', leadingTrivia: '', raw };
+}
+
+describe('replaceBlockAtParent — id preservation', () => {
+	it('same-kind first replacement inherits the original block id', async () => {
+		const harness = makeEditorActionsDeps([makePara('original\n')]);
+		const controller = createUndoController(harness.deps);
+		const originalId = harness.getBlockIds()[0];
+
+		await replaceBlockAtParent({
+			doc: harness.doc,
+			blockPath: [0],
+			replacement: [makePara('replaced\n'), makeHeading('# new\n')],
+			controller,
+			skipSnapshot: true,
+			focusReplacementIndex: 0,
+			focusOffset: 0,
+			source: 'test'
+		});
+
+		const ids = harness.getBlockIds();
+		expect(ids).toHaveLength(2);
+		expect(ids[0]).toBe(originalId);
+		expect(ids[1]).not.toBe(originalId);
+	});
+
+	it('different-kind first replacement gets a fresh id', async () => {
+		const harness = makeEditorActionsDeps([makePara('original\n')]);
+		const controller = createUndoController(harness.deps);
+		const originalId = harness.getBlockIds()[0];
+
+		await replaceBlockAtParent({
+			doc: harness.doc,
+			blockPath: [0],
+			replacement: [makeHeading('# new\n'), makePara('after\n')],
+			controller,
+			skipSnapshot: true,
+			focusReplacementIndex: 0,
+			focusOffset: 0,
+			source: 'test'
+		});
+
+		const ids = harness.getBlockIds();
+		expect(ids).toHaveLength(2);
+		expect(ids[0]).not.toBe(originalId);
+		expect(ids[1]).not.toBe(originalId);
+		expect(ids[0]).not.toBe(ids[1]);
+	});
+
+	it('empty replacement removes the block', async () => {
+		const harness = makeEditorActionsDeps([makePara('a\n'), makePara('b\n'), makePara('c\n')]);
+		const controller = createUndoController(harness.deps);
+		const idsBefore = [...harness.getBlockIds()];
+
+		await replaceBlockAtParent({
+			doc: harness.doc,
+			blockPath: [1],
+			replacement: [],
+			controller,
+			skipSnapshot: true,
+			focusReplacementIndex: 0,
+			focusOffset: 0,
+			source: 'test'
+		});
+
+		expect(harness.doc.children).toHaveLength(2);
+		const ids = harness.getBlockIds();
+		expect(ids).toHaveLength(2);
+		expect(ids[0]).toBe(idsBefore[0]);
+		expect(ids[1]).toBe(idsBefore[2]);
+	});
+
+	it('uses the live old kind read before mutation runs', async () => {
+		// Sanity guard: even with a heading already at the path, a paragraph
+		// replacement must not be mistaken for same-kind.
+		const harness = makeEditorActionsDeps([parse('# heading\n').children[0]]);
+		const controller = createUndoController(harness.deps);
+		const originalId = harness.getBlockIds()[0];
+
+		await replaceBlockAtParent({
+			doc: harness.doc,
+			blockPath: [0],
+			replacement: [makePara('plain\n')],
+			controller,
+			skipSnapshot: true,
+			focusReplacementIndex: 0,
+			focusOffset: 0,
+			source: 'test'
+		});
+
+		expect(harness.getBlockIds()[0]).not.toBe(originalId);
+	});
+});
