@@ -10,6 +10,7 @@ import CodeBlock from '../components/blocks/CodeBlock.svelte';
 import ThematicBreakBlock from '../components/blocks/ThematicBreakBlock.svelte';
 import BlockquoteBlock from '../components/blocks/BlockquoteBlock.svelte';
 import ListBlock from '../components/blocks/ListBlock.svelte';
+import TableBlock from '../components/blocks/table/TableBlock.svelte';
 import { registerBlockComponent, type BlockComponentEntry } from './block-component-registry';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {
@@ -46,6 +47,9 @@ registerBlockComponent('blockquote', {
 registerBlockComponent('list', {
 	component: ListBlock as unknown as BlockComponentEntry['component']
 });
+registerBlockComponent('table', {
+	component: TableBlock as unknown as BlockComponentEntry['component']
+});
 
 // Kinds without a dedicated component fall back to raw-block rendering via
 // TextEditableBlock (contenteditable on `raw`, no inline parsing / marker
@@ -53,7 +57,6 @@ registerBlockComponent('list', {
 registerBlockComponent('indentedCode', textAsRawBlock);
 registerBlockComponent('htmlBlock', textAsRawBlock);
 registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
-registerBlockComponent('table', textAsRawBlock);
 registerBlockComponent('tableRow', textAsRawBlock);
 registerBlockComponent('tableCell', textAsRawBlock);
 registerBlockComponent('unrecognized', textAsRawBlock);
