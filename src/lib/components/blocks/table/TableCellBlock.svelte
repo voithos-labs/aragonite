@@ -28,7 +28,11 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import type { TableMetadata } from '../../../core/nodes';
 	import { trimTrailingLineEnding } from '../../../core/lines';
+	import { nodeAt } from '../../../tree-operations/node-ops';
+	import { pathsEqual } from '../../../selection/path-math';
+	import { collectCrossBlockText } from '../../../selection/clipboard-text';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -49,6 +53,7 @@
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
+	import { copyRectangleAsSubTable } from './sub-table-copy';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -343,6 +348,42 @@
 		crossBlock.handlePointerDown(e);
 	}
 
+	function onCopy(e: ClipboardEvent): void {
+		stickyColumn.reset();
+		const sel = selection;
+		const isIntraTableMultiCell =
+			sel.isCustomRendered &&
+			sel.anchor &&
+			sel.focus &&
+			pathsEqual(sel.anchor.path, sel.focus.path);
+
+		if (isIntraTableMultiCell && sel.anchor && sel.focus) {
+			const tableNode = nodeAt(getDoc(), sel.anchor.path);
+			if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return;
+			e.preventDefault();
+			const colCount = (tableNode.metadata as TableMetadata).columnCount;
+			const a = {
+				rowIdx: Math.floor(sel.anchor.offset / colCount),
+				colIdx: sel.anchor.offset % colCount
+			};
+			const b = {
+				rowIdx: Math.floor(sel.focus.offset / colCount),
+				colIdx: sel.focus.offset % colCount
+			};
+			e.clipboardData?.setData('text/plain', copyRectangleAsSubTable(tableNode, a, b));
+			return;
+		}
+
+		if (sel.isCrossBlock && sel.anchor && sel.focus) {
+			e.preventDefault();
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), sel.anchor, sel.focus)
+			);
+			return;
+		}
+	}
+
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
 	}
@@ -362,6 +403,7 @@
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
+	oncopy={onCopy}
 	onfocus={onFocus}
 	onblur={onBlur}
 	oncompositionstart={onCompositionStart}
