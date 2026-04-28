@@ -26,4 +26,18 @@ describe('cloneDocument', () => {
 		cloned.children[0].children![0].raw = 'Modified\n';
 		expect(doc.children[0].children![0].raw).not.toBe('Modified\n');
 	});
+
+	it('deep clones metadata arrays so in-place mutations do not leak across snapshots', () => {
+		const doc = parse('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n');
+		const cloned = cloneDocument(doc);
+		const sourceTable = doc.children[0];
+		const clonedTable = cloned.children[0];
+		const sourceAlignments = (sourceTable.metadata as { alignments: string[] }).alignments;
+		const clonedAlignments = (clonedTable.metadata as { alignments: string[] }).alignments;
+
+		clonedAlignments.splice(0, 1);
+
+		expect(sourceAlignments).toEqual(['left', 'center', 'right']);
+		expect(clonedAlignments).toEqual(['center', 'right']);
+	});
 });

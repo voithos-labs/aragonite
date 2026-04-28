@@ -46,6 +46,17 @@ test.describe('table block: navigation', () => {
 		await expect(page.locator('[role="cell"]').nth(2)).toBeFocused();
 	});
 
+	test('ArrowUp inside the table lands at the start of the upper cell', async ({ page }) => {
+		await editor.loadContent('| AAA | BBB |\n| --- | --- |\n| ccc | ddd |\n');
+		// Click cell "ccc" (body row, col 0) and place caret at end (offset 3).
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('ArrowUp');
+		// Type a marker and confirm it lands at the START of "AAA", not the end.
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceContains('| !AAA | BBB |');
+	});
+
 	test('Enter in non-last row moves to cell directly below', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Enter');
