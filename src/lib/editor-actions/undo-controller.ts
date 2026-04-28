@@ -9,6 +9,7 @@ import type { BlockComponent, CstNode, EditorSelection, UndoEntry } from '../con
 import type { SelectionPoint } from '../selection/primitives';
 import { cloneDocument } from '../tree-operations/clone';
 import { readCurrentSelection } from '../selection/native-bridge';
+import { pathsEqual } from '../selection/path-math';
 import type {
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
@@ -69,6 +70,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		return { anchor: point, focus: point };
 	}
 
+	function collapsedSelectionAtPath(path: number[], offset: number): EditorSelection {
+		const point: SelectionPoint = { path: path.slice(), offset };
+		return { anchor: point, focus: point };
+	}
+
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
@@ -82,13 +88,21 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	// Caller knows the pre-edit position; the live DOM cursor is already
-	// post-edit, so don't probe blockRefs.
+	// Path from the live focused leaf; offset from the caller (pre-edit). The
+	// live cursor is post-edit but its path still points at the same leaf.
 	function pushUndoSnapshotAt(blockIndex: number, offset: number): void {
+		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		const liveIsCollapsed =
+			!!live &&
+			pathsEqual(live.anchor.path, live.focus.path) &&
+			live.anchor.offset === live.focus.offset;
+		const selection = liveIsCollapsed
+			? collapsedSelectionAtPath(live.anchor.path, offset)
+			: collapsedSelectionAt(blockIndex, offset);
 		deps.undoManager.push({
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],
-			selection: collapsedSelectionAt(blockIndex, offset)
+			selection
 		});
 	}
 
