@@ -64,7 +64,7 @@ Why a flat interface instead of a mapped-type discriminated union: the editor mu
 
 All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full source text). The root `Document` additionally carries `prefix`/`suffix` for document-level whitespace.
 
-**Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content.
+**Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), `childIds` (parallel-indexed stable IDs for keyed rendering — see `editor.md` § Block Identity), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content.
 
 **Prose blocks** (paragraph, heading, setextHeading) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
 
