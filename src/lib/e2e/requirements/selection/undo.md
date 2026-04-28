@@ -10,3 +10,4 @@
 
 - Undo after type-replace restores cross-block selection AND removes all typed chars in one step
 - Selection-only changes (Shift+Arrow) push no undo entries: stack depth unchanged
+- Post-undo, blockRefs realign so a drag in a downstream table column selects cells, not a paragraph past the table.

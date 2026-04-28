@@ -19,6 +19,7 @@
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested-actions';
 	import { rebuildContainerRaw } from '../../../schema/container-raw';
+	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
 	let {
@@ -28,7 +29,9 @@
 		columnCount,
 		rowCount,
 		alignments = [],
-		myPath = []
+		myPath = [],
+		setRef,
+		getRef
 	}: {
 		node: CstNode;
 		index: number;
@@ -37,6 +40,8 @@
 		rowCount: number;
 		alignments?: readonly TableAlignment[];
 		myPath?: number[];
+		setRef?: (i: number, r: BlockComponent | undefined) => void;
+		getRef?: (i: number) => BlockComponent | undefined;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -83,7 +88,43 @@
 		cellRef?.focus(rest.length === 0 ? offset : 0);
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset, focusByPath } satisfies BlockComponent);
+	export function getCursorPosition(): { path: number[]; offset: number } | null {
+		for (let colIdx = 0; colIdx < state.innerBlockRefs.length; colIdx++) {
+			const cellRef = state.innerBlockRefs[colIdx];
+			const offset = cellRef?.getCursorOffset();
+			if (offset !== null && offset !== undefined) return { path: [colIdx], offset };
+		}
+		return null;
+	}
+
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath
+	} satisfies BlockComponent);
+
+	$effect(() => {
+		if (!setRef || !getRef) return;
+		const self: BlockComponent = {
+			editable,
+			focusable,
+			focus,
+			getCursorOffset,
+			getCursorPosition,
+			focusByPath
+		};
+		return publishRefSlot(index, self, setRef, getRef);
+	});
+
+	function setCellRef(i: number, r: BlockComponent | undefined): void {
+		state.innerBlockRefs[i] = r;
+	}
+	function getCellRef(i: number): BlockComponent | undefined {
+		return state.innerBlockRefs[i];
+	}
 </script>
 
 <div class="table-row" role="row" data-table-row-idx={rowIdx}>
@@ -97,7 +138,8 @@
 			{columnCount}
 			{rowCount}
 			alignment={alignments[colIdx] ?? 'none'}
-			bind:this={state.innerBlockRefs[colIdx]}
+			setRef={setCellRef}
+			getRef={getCellRef}
 		/>
 	{/each}
 </div>

@@ -15,7 +15,10 @@ export interface ContainerBlockComponentDeps {
 
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
-): Pick<BlockComponent, 'focus' | 'getCursorOffset' | 'focusByPath' | 'focusAtColumn'> {
+): Pick<
+	BlockComponent,
+	'focus' | 'getCursorOffset' | 'getCursorPosition' | 'focusByPath' | 'focusAtColumn'
+> {
 	return {
 		focus(offset: number) {
 			if (deps.nodeChildrenLength === 0) return;
@@ -33,6 +36,17 @@ export function createContainerBlockComponent(
 			for (const ref of deps.innerBlockRefs) {
 				const offset = ref?.getCursorOffset();
 				if (offset !== null && offset !== undefined) return offset;
+			}
+			return null;
+		},
+		getCursorPosition() {
+			for (let i = 0; i < deps.innerBlockRefs.length; i++) {
+				const ref = deps.innerBlockRefs[i];
+				if (!ref) continue;
+				const subPos = ref.getCursorPosition?.();
+				if (subPos) return { path: [i, ...subPos.path], offset: subPos.offset };
+				const offset = ref.getCursorOffset();
+				if (offset !== null && offset !== undefined) return { path: [i], offset };
 			}
 			return null;
 		},

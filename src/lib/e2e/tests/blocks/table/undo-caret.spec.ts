@@ -1,0 +1,101 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+const TABLE_FIXTURE = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+
+test.describe('table block: caret/selection recovery on undo', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(TABLE_FIXTURE);
+	});
+
+	test('undo after Alt+Shift+Backspace restores caret to same cell', async ({ page }) => {
+		// Focus cell at row 2, col 1 (body row 2, middle column = "5" cell).
+		await page.locator('[role="cell"]').nth(7).click();
+		await page.waitForTimeout(50);
+
+		const before = await editor.bridge.getSource();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| A | C |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+
+		await page.keyboard.type('Z');
+		const after = await editor.bridge.getSource();
+		// Caret must land in the "5" cell (row 2, col 1). Result should be exactly
+		// "| 4 | Z5 | 6 |" (or "| 4 | 5Z | 6 |" depending on offset within cell).
+		expect(after).toContain('| 4 |');
+		expect(after).toMatch(/\| [Z5]{2} \|/);
+		expect(after).toContain('| 6 |');
+	});
+
+	test('undo after Ctrl+Shift+Backspace (delete row) restores caret to same cell', async ({
+		page
+	}) => {
+		// Focus cell row 1 col 1 (the "2" cell — picking row 1 not row 2 since
+		// row deletion test should pick a row that wouldn't promote header).
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.waitForTimeout(50);
+
+		const before = await editor.bridge.getSource();
+		await page.keyboard.press('Control+Shift+Backspace');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+
+		await page.keyboard.type('Z');
+		const after = await editor.bridge.getSource();
+		// Caret must land in "2" cell. Result: "| 1 | Z2 | 3 |" or "| 1 | 2Z | 3 |".
+		expect(after).toContain('| 1 |');
+		expect(after).toMatch(/\| [Z2]{2} \|/);
+		expect(after).toContain('| 3 |');
+	});
+
+	test('undo after column delete via cross-block coverage restores selection', async ({
+		page
+	}) => {
+		// Select first column via 3-stage Ctrl+A in a cell, or via shift+click.
+		// Use Ctrl+A 1× to select cell, 2× to select table, then we need column.
+		// Alternative: drag from row 0 col 0 down through rows.
+		const tableInfo = await page.evaluate(() => {
+			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
+			tableEl.scrollIntoView({ block: 'center' });
+			const cells = Array.from(tableEl.querySelectorAll('.table-cell')) as HTMLElement[];
+			const r1 = cells[0].getBoundingClientRect();
+			const r2 = cells[6].getBoundingClientRect();
+			return {
+				startX: r1.x + r1.width / 2,
+				startY: r1.y + r1.height / 2,
+				endX: r2.x + r2.width / 2,
+				endY: r2.y + r2.height / 2
+			};
+		});
+
+		await page.mouse.move(tableInfo.startX, tableInfo.startY);
+		await page.mouse.down();
+		await page.mouse.move(tableInfo.endX, tableInfo.endY, { steps: 15 });
+		await page.waitForTimeout(100);
+		await page.mouse.up();
+
+		// Cross-block intra-table selection should be active.
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+
+		const before = await editor.bridge.getSource();
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('| B | C |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+
+		// After undo, the cross-block intra-table selection should be active again.
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel).not.toBeNull();
+		expect(sel!.anchor.path).toEqual(sel!.focus.path);
+	});
+});

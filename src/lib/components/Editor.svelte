@@ -33,6 +33,7 @@
 	import { createEditorActions } from '../editor-actions';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
+	import { readCurrentSelection } from '../selection/native-bridge';
 	import BlockList from './BlockList.svelte';
 
 	bootstrapCodeLanguages();
@@ -253,29 +254,7 @@
 	 * does not affect internal state.
 	 */
 	export function getSelection(): EditorSelection | null {
-		if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
-			return {
-				anchor: {
-					path: selectionState.anchor.path.slice(),
-					offset: selectionState.anchor.offset
-				},
-				focus: {
-					path: selectionState.focus.path.slice(),
-					offset: selectionState.focus.offset
-				}
-			};
-		}
-		for (let i = 0; i < blockRefs.length; i++) {
-			const ref = blockRefs[i];
-			if (!ref) continue;
-			const offset = ref.getCursorOffset();
-			if (offset === null) continue;
-			return {
-				anchor: { path: [i], offset },
-				focus: { path: [i], offset }
-			};
-		}
-		return null;
+		return readCurrentSelection(selectionState, blockRefs);
 	}
 
 	export function getEvents() {
@@ -299,6 +278,7 @@
 	export function getDocument() {
 		return doc;
 	}
+
 </script>
 
 <div class="editor" bind:this={editorEl}>

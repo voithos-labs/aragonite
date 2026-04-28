@@ -27,8 +27,21 @@
 	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './list/task-checkbox';
 	import BlockList from '../BlockList.svelte';
+	import { publishRefSlot } from '../../reactivity/publish-ref.svelte';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let {
+		node,
+		index,
+		myPath = [],
+		setRef,
+		getRef
+	}: {
+		node: CstNode;
+		index: number;
+		myPath?: number[];
+		setRef?: (i: number, r: BlockComponent | undefined) => void;
+		getRef?: (i: number) => BlockComponent | undefined;
+	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -135,6 +148,7 @@
 	});
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
+	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 
@@ -143,9 +157,24 @@
 		focusable,
 		focus,
 		getCursorOffset,
+		getCursorPosition,
 		focusByPath,
 		focusAtColumn
 	} satisfies BlockComponent);
+
+	$effect(() => {
+		if (!setRef || !getRef) return;
+		const self: BlockComponent = {
+			editable,
+			focusable,
+			focus,
+			getCursorOffset,
+			getCursorPosition,
+			focusByPath,
+			focusAtColumn
+		};
+		return publishRefSlot(index, self, setRef, getRef);
+	});
 
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;

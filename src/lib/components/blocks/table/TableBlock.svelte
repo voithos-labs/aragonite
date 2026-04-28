@@ -207,8 +207,11 @@
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
 		if (!focusedCell) return null;
-		// offset is intentionally 0 — intra-cell precision lands when undo restoration needs it.
-		return { path: [focusedCell.rowIdx, focusedCell.colIdx], offset: 0 };
+		const { rowIdx, colIdx } = focusedCell;
+		const rowRef = rowsState.innerBlockRefs[rowIdx];
+		const subPos = rowRef?.getCursorPosition?.();
+		if (subPos) return { path: [rowIdx, ...subPos.path], offset: subPos.offset };
+		return { path: [rowIdx, colIdx], offset: 0 };
 	}
 
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
@@ -291,6 +294,13 @@
 			return { left: r.left - tableRect.left, right: r.right - tableRect.left };
 		});
 	}
+
+	function setRowRef(i: number, r: BlockComponent | undefined): void {
+		rowsState.innerBlockRefs[i] = r;
+	}
+	function getRowRef(i: number): BlockComponent | undefined {
+		return rowsState.innerBlockRefs[i];
+	}
 </script>
 
 <div
@@ -308,7 +318,8 @@
 			{rowCount}
 			alignments={meta?.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
-			bind:this={rowsState.innerBlockRefs[rowIdx]}
+			setRef={setRowRef}
+			getRef={getRowRef}
 		/>
 	{/each}
 </div>
