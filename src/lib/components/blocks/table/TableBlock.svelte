@@ -127,12 +127,16 @@
 		exitUpward(stickyX) {
 			editorStickyColumn.capture(stickyX);
 			internalStickyColumn = null;
-			focusActions.moveFocus(myPath[myPath.length - 1] - 1, 'end');
+			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
+				stickyColumnFrom: 'below'
+			});
 		},
 		exitDownward(stickyX) {
 			editorStickyColumn.capture(stickyX);
 			internalStickyColumn = null;
-			focusActions.moveFocus(myPath[myPath.length - 1] + 1, 'start');
+			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
+				stickyColumnFrom: 'above'
+			});
 		},
 		notifyCellFocused(rowIdx, colIdx) {
 			focusedCell = { rowIdx, colIdx };

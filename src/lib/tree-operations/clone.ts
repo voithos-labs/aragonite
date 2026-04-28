@@ -28,6 +28,7 @@ export function cloneNode(node: CstNode): CstNode {
 		cloned.innerPrefix = node.innerPrefix;
 		cloned.children = node.children.map(cloneNode);
 		cloned.innerSuffix = node.innerSuffix;
+		if (node.childIds) cloned.childIds = [...node.childIds];
 	}
 
 	return cloned;
