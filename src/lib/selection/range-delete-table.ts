@@ -11,7 +11,7 @@ import { displayLength } from '../core/lines';
 import { walkBetween, comparePaths } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { lowestCommonAncestor, pathHasPrefix } from './path-math';
+import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import {
 	rebuildAncestryRawForLeaf,
 	rebuildContainerRaw,
@@ -146,10 +146,8 @@ function deleteFromProseIntoTable(
 
 	const result = deleteCellsAndCollapse(table, 0, end.offset);
 
-	// walkBetween descends into the table; filter out endpoint descendants so
-	// cascade-cleanup doesn't delete the just-edited table.
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter(
-		(p) => !pathHasPrefix(p, start.path) && !pathHasPrefix(p, end.path)
+	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
+		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (result === 'tableEmpty') deletionPaths.push(end.path);
@@ -197,8 +195,8 @@ function deleteFromTableIntoProse(
 	const survivingTailRaw = tailRaw.length === 0 ? lineEnding : tailRaw;
 	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
 
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter(
-		(p) => !pathHasPrefix(p, start.path) && !pathHasPrefix(p, end.path)
+	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
+		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (tableResult === 'tableEmpty') deletionPaths.push(start.path);
@@ -281,8 +279,8 @@ function deleteAcrossTwoTables(
 	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
 	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset);
 
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter(
-		(p) => !pathHasPrefix(p, start.path) && !pathHasPrefix(p, end.path)
+	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
+		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (startResult === 'tableEmpty') deletionPaths.push(start.path);
