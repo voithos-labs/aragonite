@@ -10,6 +10,7 @@ import type { BlockElLookup } from '../contracts';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
 import { cellAtPoint } from '../components/blocks/table/cell-pointer';
+import { createAutoScroll } from './autoscroll';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,6 @@ export function installDragListener(
 	ctx: DragContext,
 	anchorPoint: SelectionPoint
 ): { dispose(): void } {
-	let autoScrollRafId: number | null = null;
 	let pendingMove: { clientX: number; clientY: number } | null = null;
 	let rafId: number | null = null;
 
@@ -47,7 +47,7 @@ export function installDragListener(
 			rafId = null;
 			if (!pendingMove) return;
 			processMove(pendingMove.clientX, pendingMove.clientY);
-			maybeAutoScroll();
+			autoScroll.maybeStart();
 		});
 	}
 
@@ -73,39 +73,35 @@ export function installDragListener(
 		}
 	}
 
-	const threshold = 30;
-
-	const step = () => {
-		if (!pendingMove) {
-			autoScrollRafId = null;
-			return;
+	// Pointer may land on a scrollable element directly (e.g., the table's
+	// `.table-block` edge); search from `target` itself, not its parent.
+	function scrollableSelfOrAncestor(target: HTMLElement): HTMLElement | null {
+		let cur: HTMLElement | null = target;
+		while (cur && cur !== ctx.editorRoot) {
+			const cs = getComputedStyle(cur);
+			const ox = cs.overflowX;
+			const oy = cs.overflowY;
+			if (ox === 'auto' || ox === 'scroll' || oy === 'auto' || oy === 'scroll') return cur;
+			cur = cur.parentElement;
 		}
-		const rect = ctx.scrollContainer.getBoundingClientRect();
-		let d = 0;
-		if (pendingMove.clientY < rect.top + threshold) {
-			d = -((rect.top + threshold - pendingMove.clientY) / 2);
-		} else if (pendingMove.clientY > rect.bottom - threshold) {
-			d = (pendingMove.clientY - (rect.bottom - threshold)) / 2;
-		}
-		if (d === 0) {
-			autoScrollRafId = null;
-			return;
-		}
-		ctx.scrollContainer.scrollTop += d;
-		autoScrollRafId = requestAnimationFrame(step);
-		// Re-process so selection follows the scroll.
-		processMove(pendingMove.clientX, pendingMove.clientY);
-	};
-
-	function maybeAutoScroll(): void {
-		if (autoScrollRafId !== null) return;
-		if (!pendingMove) return;
-		const rect = ctx.scrollContainer.getBoundingClientRect();
-		const inThreshold =
-			pendingMove.clientY < rect.top + threshold || pendingMove.clientY > rect.bottom - threshold;
-		if (!inThreshold) return;
-		autoScrollRafId = requestAnimationFrame(step);
+		return null;
 	}
+
+	const autoScroll = createAutoScroll({
+		getPointer: () => pendingMove,
+		getTargets: (clientX, clientY) => {
+			const targets: HTMLElement[] = [ctx.scrollContainer];
+			const t = document.elementFromPoint(clientX, clientY);
+			if (t instanceof HTMLElement) {
+				const inner = scrollableSelfOrAncestor(t);
+				if (inner && inner !== ctx.scrollContainer) targets.push(inner);
+			}
+			return targets;
+		},
+		onScrolled: () => {
+			if (pendingMove) processMove(pendingMove.clientX, pendingMove.clientY);
+		}
+	});
 
 	function onPointerUp(): void {
 		dispose();
@@ -138,10 +134,7 @@ export function installDragListener(
 			cancelAnimationFrame(rafId);
 			rafId = null;
 		}
-		if (autoScrollRafId !== null) {
-			cancelAnimationFrame(autoScrollRafId);
-			autoScrollRafId = null;
-		}
+		autoScroll.dispose();
 		pendingMove = null;
 	}
 

@@ -246,6 +246,8 @@ Cross-block caret column memory. Vertical arrow presses capture the cursor's edi
 
 Each editor instance owns its own sticky column state, provided to block components via Svelte context. Cross-block vertical moves carry a "from above / from below" direction through the focus-dispatch chain; target blocks that support pixel-column positioning use it to land the cursor at the nearest column on the appropriate visual line. Blocks that don't participate fall back to start-of-block or end-of-block focus.
 
+**Sticky-X with internally-scrollable destination blocks.** Captured sticky X is editor-relative pixel space. Destination blocks compare it against rects measured in the same space (see `TableBlock.collectColumnRects`). When a destination has internal horizontal scroll (a wide table, a long-line code block), the visible column at a given X depends on the destination's current `scrollLeft`. Re-entering a wide table after its scroll has changed lands the caret in the visible column nearest the captured X — by design, sticky-X is a visual lock, not a logical-cell lock.
+
 ## Container Blocks (Recursive Nesting)
 
 The CST has container blocks — `Blockquote`, `List`, and `ListItem` — which hold nested children. A document like:
@@ -334,6 +336,8 @@ Each `BlockHost` wraps its content in a `.block-host` div and mounts a `Selectio
 - **Endpoint blocks** (first and last): partial rects measured via an optional `measurePartialRects` method on the block component, producing positioned highlight overlays that handle text wrapping across visual lines.
 - **Middle blocks**: a CSS overlay covering the entire block element.
 - **Non-text blocks** in the range: full-block highlight overlay.
+
+**Scroll-aware re-measure.** When a block has internal horizontal scroll (the table's `.table-block`, a code block's contenteditable), the overlay attaches a passive `scroll` listener to that scrollable element and re-runs the rect measurement, so highlights track the cells/text underneath as the user scrolls. The overlay walks descendants of `blockEl` first (`firstScrollableDescendant`) for blocks whose internal content scrolls, then falls back to walking ancestors (`nearestScrollContainer`) for blocks embedded in a scrolling container. Both helpers live in `cursor/scroll-ancestors.ts` and are the single source of truth for "what scrolls."
 
 #### `measurePartialRects` contract by surface type
 
