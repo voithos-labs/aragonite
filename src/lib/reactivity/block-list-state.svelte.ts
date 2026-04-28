@@ -40,6 +40,17 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		}
 	};
 
+	// Initial registration runs synchronously so consumers calling outside a
+	// reactive context (unit tests, ad-hoc factories) see the entry immediately.
 	registerBlockListState(getNode(), state);
+
+	// Re-register on every node-identity change. Undo deep-clones the tree, so
+	// the same component instance ends up bound to a fresh node — the registry
+	// must follow, otherwise expectStateForNode throws on the next multi-scope
+	// op (column delete/insert in tables).
+	$effect(() => {
+		registerBlockListState(getNode(), state);
+	});
+
 	return state;
 }

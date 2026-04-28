@@ -422,18 +422,13 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		if (e.inputType === 'insertLineBreak' && el) {
-			// GFM tables can't carry raw newlines (pipes terminate cells), so a
-			// soft break inside a cell becomes a literal <br> — the standard
-			// GFM convention for line breaks within table cells.
+		if (e.inputType === 'insertLineBreak') {
+			// Suppressed pending inline-HTML rendering. GFM cells can't carry raw
+			// newlines, so the proper representation is a literal <br>; rendering
+			// it as a visible line break needs the 0.6.9 inline-HTML pipeline.
+			// Until then, silent no-op beats showing the user raw markup.
 			e.preventDefault();
-			const text = el.textContent ?? '';
-			const sel = getSelectionOffsetsHelper(el);
-			const start = sel ? sel.start : (getCursorOffsetHelper(el) ?? 0);
-			const end = sel ? sel.end : start;
-			const newText = text.slice(0, start) + '<br>' + text.slice(end);
-			blockEdit.updateBlockContent(index, newText, preEditOffset, start);
-			pendingCursorOffset = start + '<br>'.length;
+			return;
 		}
 	}
 

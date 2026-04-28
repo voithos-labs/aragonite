@@ -120,12 +120,16 @@ test.describe('table block: keyboard vocabulary', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	test('Shift+Enter inside a cell inserts a literal <br> at the caret', async ({ page }) => {
+	test('Shift+Enter inside a cell is a silent no-op (deferred until inline-HTML rendering)', async ({
+		page
+	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
+		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Enter');
-		await editor.bridge.waitForSourceContains('hello<br>');
+		await page.waitForTimeout(150);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('Delete-column then undo restores live alignments (not just source)', async ({ page }) => {
@@ -152,5 +156,30 @@ test.describe('table block: keyboard vocabulary', () => {
 
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await captureCellAligns()).toEqual(stylesBefore);
+	});
+
+	test('Column ops still work after a delete-column + undo (state-registry stays current)', async ({
+		page
+	}) => {
+		// Undo deep-clones the tree, swapping every container node's identity.
+		// The state-registry (keyed by node identity) must follow, otherwise
+		// commitMultiScope's per-row scope lookup throws and column ops silently no-op.
+		await editor.loadContent(
+			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n'
+		);
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| B | C | D |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| B | C | D |');
+
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await editor.bridge.waitForSourceContains('| B |  | C | D |');
 	});
 });

@@ -10,9 +10,10 @@ const stateRegistry = new WeakMap<CstNode, BlockListState>();
 
 /** Overwrites any existing entry — the new state becomes authoritative on re-mount. */
 export function registerBlockListState(node: CstNode, state: BlockListState): void {
-	if (import.meta.env.DEV && stateRegistry.has(node)) {
+	const existing = stateRegistry.get(node);
+	if (import.meta.env.DEV && existing && existing !== state) {
 		console.warn(
-			`[state-registry] double register for ${node.kind} — overwriting. ` +
+			`[state-registry] double register for ${node.kind} with a different state — overwriting. ` +
 				`Likely two components believe they own the same node, or cloneDocument ` +
 				`is preserving node identity across snapshots unexpectedly.`
 		);
