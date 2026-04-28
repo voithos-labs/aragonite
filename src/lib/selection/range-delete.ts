@@ -9,7 +9,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import { parse } from '../core/parser';
 import { walkBetween, comparePaths } from './primitives';
-import { lowestCommonAncestor } from './path-math';
+import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
@@ -51,8 +51,7 @@ export function rangeDelete(
 	const mergedRaw = startRaw.slice(0, start.offset) + endRaw.slice(end.offset);
 
 	if (sameBlock) {
-		// Ancestor rebuild is still needed — this block may be nested inside
-		// a blockquote/list/listItem whose raw depends on descendant raws.
+		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
 		(startBlock as CstNode).raw = mergedRaw;
 		rebuildAncestryRawForLeaf(doc, start.path);
 		return {
@@ -61,47 +60,44 @@ export function rangeDelete(
 		};
 	}
 
-	// Re-parse merged raw; fall back to a blank paragraph so start's slot
-	// always gets at least one node.
 	const reparsed = parse(mergedRaw || '\n');
 	const replacement: CstNode[] =
 		reparsed.children.length > 0
 			? reparsed.children
 			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
 
-	// start.path is replaced (not deleted); deletion targets are the paths
-	// strictly between start and end, plus end.path.
-	const betweenPaths = walkBetween(doc, start.path, end.path);
+	// walkBetween includes ancestors of `end` whose subtrees extend past end —
+	// filter to paths with subtrees fully inside (start, end). Cascade-cleanup
+	// handles ancestors that become empty after their children are removed.
+	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
+		isPathSubtreeBetween(p, start.path, end.path)
+	);
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
-
-	// Cascade cleanup must stop at the LCA — ancestors at or above still
-	// hold the merged replacement and can't be empty.
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// Reverse doc order so earlier paths aren't invalidated mid-iteration.
-	const reverseSortedDeletions = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSortedDeletions) {
-		deleteAtPath(doc, path);
+	// Identity-check before splice: a deeper delete + cascade may shift a
+	// survivor into an outer path's slot. Cascade interleaved so paths still resolve.
+	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
+	const reverseSortedIndices = deletionPaths
+		.map((_, i) => i)
+		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
+	for (const i of reverseSortedIndices) {
+		const path = deletionPaths[i];
+		if (nodeAt(doc, path) === targetNodes[i]) {
+			deleteAtPath(doc, path);
+		}
+		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
 	replaceAtPath(doc, start.path, replacement);
 
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-	}
-
-	// Rebuild both chains: start-path (replacement changed contents) and
-	// deletion-path ancestors (children arrays shrank, possibly via cascade).
 	rebuildAncestryRawForLeaf(doc, start.path);
 	for (const path of deletionPaths) {
 		rebuildAncestryRawForLeaf(doc, path);
 	}
 
-	// replacement[0] occupies start.path's slot, so the caret lands at
-	// start.path/start.offset for every N >= 1.
-	const collapsedCaret: SelectionPoint = {
-		path: start.path.slice(),
-		offset: start.offset
+	return {
+		newDoc: doc,
+		collapsedCaret: { path: start.path.slice(), offset: start.offset }
 	};
-	return { newDoc: doc, collapsedCaret };
 }

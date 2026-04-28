@@ -71,6 +71,43 @@ describe('rangeDelete — cross-container start-wins', () => {
 	});
 });
 
+describe('rangeDelete — end-container post-end siblings preservation', () => {
+	it('end inside first item of unordered list preserves later items', () => {
+		const src =
+			'## Unordered Lists\n\n- Unordered one\n- Unordered two\n  - Nested item\n- Unordered three\n';
+		const { source } = run(src, { path: [0], offset: 13 }, { path: [1, 0, 0], offset: 10 });
+		expect(source).toBe(
+			'## Unordered one\n\n- Unordered two\n  - Nested item\n- Unordered three\n'
+		);
+	});
+
+	it('end inside first item of ordered list preserves later items', () => {
+		const src = '## H\n\n1. one\n2. two\n3. three\n';
+		const { source } = run(src, { path: [0], offset: 4 }, { path: [1, 0, 0], offset: 4 });
+		expect(source).toBe('## H\n2. two\n3. three\n');
+	});
+
+	it('end inside first paragraph of multi-paragraph blockquote preserves later paragraphs', () => {
+		const src = 'before\n\n> first para\n>\n> second para\n>\n> third para\n';
+		const { source } = run(src, { path: [0], offset: 4 }, { path: [1, 0], offset: 5 });
+		expect(source).toBe('befo para\n\n>\n> second para\n>\n> third para\n');
+	});
+
+	it('end inside multi-paragraph list item preserves later paragraphs in same item', () => {
+		const src = 'pre\n\n- first para\n\n  second para\n\n- another item\n';
+		const { source } = run(src, { path: [0], offset: 0 }, { path: [1, 0, 0], offset: 5 });
+		expect(source).toContain('second para');
+		expect(source).toContain('another item');
+	});
+
+	it('mid-container end keeps its later siblings inside the same container', () => {
+		const src = '## H\n\n- one\n- two\n- three\n';
+		const { source } = run(src, { path: [0], offset: 4 }, { path: [1, 1, 0], offset: 2 });
+		expect(source).toContain('o\n');
+		expect(source).toContain('three');
+	});
+});
+
 describe('rangeDelete — boundary offsets', () => {
 	it('start.offset = 0 keeps empty head, re-parses as paragraph from endTail', () => {
 		const { source } = run(
