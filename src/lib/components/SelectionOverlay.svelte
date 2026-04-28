@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_KEY, SELECTION_END, type BlockComponent } from '../contracts';
+	import { SELECTION_KEY, EDITOR_ROOT_KEY, SELECTION_END, type BlockComponent } from '../contracts';
 	import type { SelectionState } from '../selection/selection-state.svelte';
 	import {
 		normalize,
 		classifyBlockForSelection,
 		type BlockSelectionClass
 	} from '../selection/primitives';
+	import {
+		firstScrollableDescendant,
+		nearestScrollContainer
+	} from '../cursor/scroll-ancestors';
 
 	let {
 		path,
@@ -22,6 +26,7 @@
 	} = $props();
 
 	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.
@@ -85,23 +90,40 @@
 			return;
 		}
 
-		const { start, end } = normalize({ anchor: selection.anchor, focus: selection.focus });
+		const ref = blockRef;
+		const el = blockEl;
+		const sel = selection;
 
-		const startOffset =
-			classification === 'end' ? 0 : start.offset;
-		const endOffset =
-			classification === 'start' ? SELECTION_END : end.offset;
+		function measure(): void {
+			if (!sel.anchor || !sel.focus || !ref.measurePartialRects) return;
+			const { start, end } = normalize({ anchor: sel.anchor, focus: sel.focus });
+			const startOffset = classification === 'end' ? 0 : start.offset;
+			const endOffset = classification === 'start' ? SELECTION_END : end.offset;
+			const viewportRects: DOMRect[] = ref.measurePartialRects(startOffset, endOffset);
+			const blockRect = el.getBoundingClientRect();
+			endpointRects = mergeRectsPerLine(
+				viewportRects.map((r) => ({
+					left: r.left - blockRect.left,
+					top: r.top - blockRect.top,
+					width: r.width,
+					height: r.height
+				}))
+			);
+		}
 
-		const viewportRects: DOMRect[] = blockRef.measurePartialRects(startOffset, endOffset);
-		const blockRect = blockEl.getBoundingClientRect();
-		endpointRects = mergeRectsPerLine(
-			viewportRects.map((r) => ({
-				left: r.left - blockRect.left,
-				top: r.top - blockRect.top,
-				width: r.width,
-				height: r.height
-			}))
-		);
+		measure();
+
+		// Block-host wraps a block whose scroll context can be either INSIDE
+		// (table's `.table-block`, code block's contenteditable) or OUTSIDE
+		// (any future block embedded in a scrolling container). Check both;
+		// listen to the inner one when present.
+		const editorRoot = getEditorRoot?.();
+		const scrollEl =
+			firstScrollableDescendant(el) ??
+			(editorRoot ? nearestScrollContainer(el, editorRoot) : null);
+		if (!scrollEl) return;
+		scrollEl.addEventListener('scroll', measure, { passive: true });
+		return () => scrollEl.removeEventListener('scroll', measure);
 	});
 </script>
 

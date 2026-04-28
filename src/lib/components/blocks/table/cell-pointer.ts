@@ -9,6 +9,8 @@
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { SelectionPoint } from '../../../selection/primitives';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
+import { createAutoScroll } from '../../../selection/autoscroll';
+import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,19 @@ export function installCellDragListener(
 		offset: anchorCellIdx
 	};
 
+	// `anchor.tableEl` is `[role="table"]`, the .block-host wrapper-equivalent
+	// here. The actual scrollable element is its first scrollable descendant
+	// (the .table-block grid).
+	const tableScrollEl = firstScrollableDescendant(anchor.tableEl) ?? anchor.tableEl;
+
+	const autoScroll = createAutoScroll({
+		getPointer: () => pendingMove,
+		getTargets: () => [tableScrollEl],
+		onScrolled: () => {
+			if (pendingMove) processMove(pendingMove.clientX, pendingMove.clientY);
+		}
+	});
+
 	function onPointerMove(e: PointerEvent): void {
 		pendingMove = { clientX: e.clientX, clientY: e.clientY };
 		if (rafId !== null) return;
@@ -56,6 +71,7 @@ export function installCellDragListener(
 			rafId = null;
 			if (!pendingMove) return;
 			processMove(pendingMove.clientX, pendingMove.clientY);
+			autoScroll.maybeStart();
 		});
 	}
 
@@ -133,6 +149,7 @@ export function installCellDragListener(
 			cancelAnimationFrame(rafId);
 			rafId = null;
 		}
+		autoScroll.dispose();
 		pendingMove = null;
 	}
 

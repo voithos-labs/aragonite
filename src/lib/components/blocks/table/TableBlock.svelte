@@ -9,6 +9,7 @@
 		SELECTION_END,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
+		EDITOR_ROOT_KEY,
 		type BlockEditActions,
 		type ContainerEditActions,
 		type CstNode,
@@ -49,6 +50,7 @@
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 
 	const meta = $derived(node.metadata as TableMetadata);
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -287,11 +289,16 @@
 		if (!tableEl || rowCount === 0) return [];
 		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx="0"]');
 		if (!firstRowEl) return [];
-		const tableRect = tableEl.getBoundingClientRect();
+		const editorRoot = getEditorRoot();
+		if (!editorRoot) return [];
+		// Editor-relative space matches the captured sticky X (which is also
+		// editor-relative). cell.getBoundingClientRect() already accounts for
+		// the table's internal scroll position.
+		const editorLeft = editorRoot.getBoundingClientRect().left;
 		const cells = Array.from(firstRowEl.querySelectorAll(':scope > .table-cell'));
 		return cells.map((c) => {
 			const r = (c as HTMLElement).getBoundingClientRect();
-			return { left: r.left - tableRect.left, right: r.right - tableRect.left };
+			return { left: r.left - editorLeft, right: r.right - editorLeft };
 		});
 	}
 
@@ -307,7 +314,7 @@
 	bind:this={tableEl}
 	class="table-block"
 	role="table"
-	style:grid-template-columns={`repeat(${columnCount}, auto)`}
+	style:grid-template-columns={`repeat(${columnCount}, minmax(80px, max-content))`}
 >
 	{#each node.children ?? [] as rowNode, rowIdx (rowsState.innerBlockIds[rowIdx])}
 		<TableRowBlock
@@ -327,7 +334,25 @@
 <style>
 	.table-block {
 		display: grid;
-		width: 100%;
+		width: max-content;
+		max-width: 100%;
 		overflow-x: auto;
+		/* Modern standard — Edge/Chrome 121+ and Firefox honor these. */
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-ui-muted, #444) transparent;
+	}
+	/* Webkit fallback for older Chromium. */
+	.table-block::-webkit-scrollbar {
+		height: 6px;
+	}
+	.table-block::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.table-block::-webkit-scrollbar-thumb {
+		background: var(--color-ui-muted, #444);
+		border-radius: 3px;
+	}
+	.table-block::-webkit-scrollbar-thumb:hover {
+		background: var(--color-ui-dulled, #666);
 	}
 </style>
