@@ -126,6 +126,7 @@
 
 		(window as any).__test = {
 			getSource: () => editor.getSource(),
+			getDocument: () => editor.getDocument(),
 			setSource: (md: string) => {
 				source = md;
 			},

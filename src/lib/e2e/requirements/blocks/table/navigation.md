@@ -7,7 +7,7 @@
 - Tab from the last cell of the last row creates a new empty row and focuses its first cell.
 - ArrowLeft at offset 0 of a cell moves to the end of the previous cell.
 - ArrowRight at end of cell moves to the start of the next cell.
-- ArrowUp / ArrowDown move to the cell directly above / below in the same column.
+- ArrowUp / ArrowDown move to the cell directly above / below in the same column. Both directions land the caret at the start of the target cell — symmetric so a press-and-press-back round-trip restores the original cursor position.
 - ArrowDown from the bottom row exits the table downward into the next block.
 - ArrowUp from the top row exits the table upward into the previous block.
 - Backspace at offset 0 of a cell navigates to end of previous cell (no content deleted).

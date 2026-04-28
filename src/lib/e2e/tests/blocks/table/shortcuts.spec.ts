@@ -119,4 +119,38 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceNotContains('|  |  |');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
+
+	test('Shift+Enter inside a cell inserts a literal <br> at the caret', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+Enter');
+		await editor.bridge.waitForSourceContains('hello<br>');
+	});
+
+	test('Delete-column then undo restores live alignments (not just source)', async ({ page }) => {
+		await editor.loadContent(
+			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n'
+		);
+
+		const captureCellAligns = async () =>
+			page.evaluate(() =>
+				Array.from(document.querySelectorAll('[role="cell"]')).map(
+					(c) => window.getComputedStyle(c as HTMLElement).textAlign
+				)
+			);
+
+		const before = await editor.bridge.getSource();
+		const stylesBefore = await captureCellAligns();
+
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| B | C | D |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+
+		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await captureCellAligns()).toEqual(stylesBefore);
+	});
 });

@@ -21,7 +21,7 @@ export function cloneNode(node: CstNode): CstNode {
 	};
 
 	if (node.metadata) {
-		cloned.metadata = { ...node.metadata };
+		cloned.metadata = cloneMetadata(node.metadata);
 	}
 
 	if (node.children) {
@@ -31,4 +31,16 @@ export function cloneNode(node: CstNode): CstNode {
 	}
 
 	return cloned;
+}
+
+// Snapshot must not share mutable references (arrays) with the live tree —
+// otherwise an in-place splice on the live tree's metadata would also mutate
+// the snapshot. Metadata is one level deep across all kinds today: primitives,
+// strings, and at most one array (TableMetadata.alignments).
+function cloneMetadata(meta: NonNullable<CstNode['metadata']>): NonNullable<CstNode['metadata']> {
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(meta)) {
+		out[k] = Array.isArray(v) ? [...v] : v;
+	}
+	return out as NonNullable<CstNode['metadata']>;
 }
