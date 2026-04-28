@@ -62,7 +62,9 @@
 	let doc = $state<Document>(initDocument(source));
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
-	let blockRefs = $state<(BlockComponent | undefined)[]>([]);
+	// Plain array — $state's mutation guards revert writes from a BlockHost
+	// publish that fires during the post-undo reactive flush.
+	let blockRefs: (BlockComponent | undefined)[] = [];
 	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const stickyColumn = createStickyColumnState();
@@ -177,8 +179,10 @@
 		setBlockIds: (v) => {
 			blockIds = v;
 		},
+		// In-place mutation — closures capture this array, reassignment would orphan their writes.
 		setBlockRefs: (v) => {
-			blockRefs = v;
+			blockRefs.length = v.length;
+			for (let i = 0; i < v.length; i++) blockRefs[i] = v[i];
 		},
 		undoManager,
 		stickyColumn,
@@ -265,6 +269,13 @@
 		return operationsLog;
 	}
 
+	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
+		blockRefs[i] = r;
+	}
+	function getBlockRefSlot(i: number): BlockComponent | undefined {
+		return blockRefs[i];
+	}
+
 	export function getUndoStack() {
 		return undoManager.getStacks();
 	}
@@ -282,7 +293,13 @@
 </script>
 
 <div class="editor" bind:this={editorEl}>
-	<BlockList children={doc.children} {blockIds} bind:blockRefs parentPath={[]} />
+	<BlockList
+		children={doc.children}
+		{blockIds}
+		setRef={setBlockRefSlot}
+		getRef={getBlockRefSlot}
+		parentPath={[]}
+	/>
 </div>
 
 <style>
