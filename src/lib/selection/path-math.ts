@@ -73,3 +73,22 @@ export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
 export function isPathBetween(path: number[], start: number[], end: number[]): boolean {
 	return comparePaths(path, start) > 0 && comparePaths(path, end) < 0;
 }
+
+/**
+ * True when path's entire subtree fits strictly inside (start, end). Stronger
+ * than `walkBetween`'s doc-order "between", which includes endpoint ancestors.
+ */
+export function isPathSubtreeBetween(
+	path: number[],
+	start: number[],
+	end: number[]
+): boolean {
+	return (
+		!isStrictAncestorOf(path, start) &&
+		!isStrictAncestorOf(start, path) &&
+		!isStrictAncestorOf(path, end) &&
+		!isStrictAncestorOf(end, path) &&
+		!pathsEqual(path, start) &&
+		!pathsEqual(path, end)
+	);
+}
