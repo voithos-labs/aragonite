@@ -15,6 +15,15 @@
 		parentPath?: number[];
 		ambientPrefixForFirst?: AmbientPrefix;
 	} = $props();
+
+	// Defined outside the each so the prop reference stays stable —
+	// per-iteration closures would re-fire the child's publish effect.
+	function setBlockRef(i: number, r: BlockComponent | undefined): void {
+		blockRefs[i] = r;
+	}
+	function getBlockRef(i: number): BlockComponent | undefined {
+		return blockRefs[i];
+	}
 </script>
 
 <div class="block-list">
@@ -24,7 +33,8 @@
 			index={i}
 			{parentPath}
 			ambientPrefix={i === 0 ? ambientPrefixForFirst : ''}
-			bind:ref={blockRefs[i]}
+			setRef={setBlockRef}
+			getRef={getBlockRef}
 		/>
 	{/each}
 </div>

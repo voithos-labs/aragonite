@@ -105,6 +105,7 @@
 	});
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
+	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 
@@ -113,9 +114,17 @@
 		focusable,
 		focus,
 		getCursorOffset,
+		getCursorPosition,
 		focusByPath,
 		focusAtColumn
 	} satisfies BlockComponent);
+
+	function setItemRef(i: number, r: BlockComponent | undefined): void {
+		state.innerBlockRefs[i] = r;
+	}
+	function getItemRef(i: number): BlockComponent | undefined {
+		return state.innerBlockRefs[i];
+	}
 </script>
 
 <div class="list-block">
@@ -124,7 +133,8 @@
 			node={item}
 			index={i}
 			myPath={[...myPath, i]}
-			bind:this={state.innerBlockRefs[i]}
+			setRef={setItemRef}
+			getRef={getItemRef}
 		/>
 	{/each}
 </div>
