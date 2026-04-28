@@ -303,7 +303,7 @@
 
 		if (e.key === 'ArrowUp' && !e.shiftKey) {
 			e.preventDefault();
-			handleVerticalMove(cellAbove(pos), 'end', 'up');
+			handleVerticalMove(cellAbove(pos), 'start', 'up');
 			return;
 		}
 
@@ -422,9 +422,18 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		if (e.inputType === 'insertLineBreak') {
+		if (e.inputType === 'insertLineBreak' && el) {
+			// GFM tables can't carry raw newlines (pipes terminate cells), so a
+			// soft break inside a cell becomes a literal <br> — the standard
+			// GFM convention for line breaks within table cells.
 			e.preventDefault();
-			return;
+			const text = el.textContent ?? '';
+			const sel = getSelectionOffsetsHelper(el);
+			const start = sel ? sel.start : (getCursorOffsetHelper(el) ?? 0);
+			const end = sel ? sel.end : start;
+			const newText = text.slice(0, start) + '<br>' + text.slice(end);
+			blockEdit.updateBlockContent(index, newText, preEditOffset, start);
+			pendingCursorOffset = start + '<br>'.length;
 		}
 	}
 
