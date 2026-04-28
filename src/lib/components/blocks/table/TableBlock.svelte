@@ -54,8 +54,10 @@
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	let internalStickyColumn: number | null = $state(null);
-	let focusedCell: { rowIdx: number; colIdx: number } | null = $state(null);
+	// Plain `let`, not $state: writes happen during keyed-each reconcile via
+	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.
+	let internalStickyColumn: number | null = null;
+	let focusedCell: { rowIdx: number; colIdx: number } | null = null;
 	let tableEl: HTMLDivElement | undefined = $state();
 
 	const rowsState = createBlockListState(() => node);

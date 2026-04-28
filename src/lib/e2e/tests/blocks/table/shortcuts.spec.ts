@@ -188,6 +188,10 @@ test.describe('table block: keyboard vocabulary', () => {
 		// every undo restores the per-row id arrays alongside `children`. Without
 		// that, the second undo would leave row.childIds shorter than row.children
 		// and Svelte's keyed each would log `each_key_duplicate` for `undefined` keys.
+		// Also catches state_unsafe_mutation regressions: the focusout handler in
+		// TableBlock writes to internalStickyColumn / focusedCell during reconcile.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(e.message));
 		const original =
 			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
 		await editor.loadContent(original);
@@ -218,5 +222,6 @@ test.describe('table block: keyboard vocabulary', () => {
 			}));
 		});
 		for (const { cells, ids } of parity) expect(ids).toBe(cells);
+		expect(pageErrors).toEqual([]);
 	});
 });
