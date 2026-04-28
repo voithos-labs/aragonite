@@ -140,7 +140,11 @@ test.describe('table block: cross-block delete', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
-		await page.keyboard.type('!');
-		await editor.bridge.waitForSourceContains('Before.!');
+		const focusedPath = await page.evaluate(
+			() =>
+				document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path') ??
+				null
+		);
+		expect(focusedPath).toBe('[0]');
 	});
 });

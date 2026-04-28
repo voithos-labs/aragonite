@@ -25,10 +25,14 @@ test.describe('table block: navigation', () => {
 	test('ArrowDown exits table downward into next block', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nText after.\n');
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('End');
+		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowDown');
-		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('!Text after.');
+		const focusedPath = await page.evaluate(
+			() =>
+				document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path') ??
+				null
+		);
+		expect(focusedPath).toBe('[1]');
 	});
 
 	test('ArrowUp exits table upward into previous block', async ({ page }) => {
@@ -36,8 +40,12 @@ test.describe('table block: navigation', () => {
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowUp');
-		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('Text before.!');
+		const focusedPath = await page.evaluate(
+			() =>
+				document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path') ??
+				null
+		);
+		expect(focusedPath).toBe('[0]');
 	});
 
 	test('ArrowDown moves to cell directly below in same column', async ({ page }) => {

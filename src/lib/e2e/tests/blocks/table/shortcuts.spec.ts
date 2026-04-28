@@ -182,4 +182,41 @@ test.describe('table block: keyboard vocabulary', () => {
 		await page.keyboard.press('Alt+Shift+ArrowRight');
 		await editor.bridge.waitForSourceContains('| B |  | C | D |');
 	});
+
+	test('Delete-undo-delete-undo cycles cleanly without state desync', async ({ page }) => {
+		// childIds live on container nodes; cloneNode clones them with the doc, so
+		// every undo restores the per-row id arrays alongside `children`. Without
+		// that, the second undo would leave row.childIds shorter than row.children
+		// and Svelte's keyed each would log `each_key_duplicate` for `undefined` keys.
+		const original =
+			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
+		await editor.loadContent(original);
+
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| B | C | D |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+
+		await page.locator('[role="cell"]').nth(0).click();
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| B | C | D |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+
+		expect(await editor.bridge.getSource()).toBe(original);
+
+		// Live children-vs-childIds parity is what each_key_duplicate would have caught.
+		const parity = await page.evaluate(() => {
+			const doc = (window as any).__test.getDocument?.();
+			const t = doc?.children?.[0];
+			return (t?.children ?? []).map((row: any) => ({
+				cells: row.children?.length ?? 0,
+				ids: row.childIds?.length ?? 0
+			}));
+		});
+		for (const { cells, ids } of parity) expect(ids).toBe(cells);
+	});
 });

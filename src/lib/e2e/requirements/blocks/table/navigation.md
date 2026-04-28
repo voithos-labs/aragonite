@@ -8,8 +8,8 @@
 - ArrowLeft at offset 0 of a cell moves to the end of the previous cell.
 - ArrowRight at end of cell moves to the start of the next cell.
 - ArrowUp / ArrowDown move to the cell directly above / below in the same column. Both directions land the caret at the start of the target cell — symmetric so a press-and-press-back round-trip restores the original cursor position.
-- ArrowDown from the bottom row exits the table downward into the next block.
-- ArrowUp from the top row exits the table upward into the previous block.
+- ArrowDown from the bottom row exits the table downward into the next block; the caret lands at the sticky-X column on the next block's first visual line, matching how vertical navigation works between paragraphs.
+- ArrowUp from the top row exits the table upward into the previous block; the caret lands at the sticky-X column on the previous block's last visual line.
 - Backspace at offset 0 of a cell navigates to end of previous cell (no content deleted).
 - Backspace at offset 0 of the first cell of the first row exits the table upward.
 - Enter in a non-last row moves to the cell directly below in the same column.

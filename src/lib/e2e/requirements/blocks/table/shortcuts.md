@@ -21,6 +21,7 @@
 
 - Each shortcut-driven structural mutation is a single undo entry — one Ctrl+Z press restores the prior state.
 - After delete-column followed by undo, the rendered per-cell alignments must match the pre-delete state — the live metadata is restored, not just the markdown source.
+- A delete-undo-delete-undo cycle restores all the way to the original. Per-row child IDs live on the container nodes, so the deep-cloned snapshot restores them in lockstep with `children`, keeping Svelte's keyed-each in sync across repeated structural-undo cycles.
 
 ## Notes
 

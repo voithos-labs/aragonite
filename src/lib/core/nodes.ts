@@ -124,6 +124,8 @@ export interface CstNode {
 	innerPrefix?: string;
 	children?: CstNode[];
 	innerSuffix?: string;
+	/** Per-child IDs for keyed rendering. Cloned with the node so undo restores them alongside `children`. */
+	childIds?: string[];
 	/** Rendering cache for prose blocks — derived from raw, never re-serialized. */
 	inlineContent?: InlineNode[];
 }
