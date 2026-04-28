@@ -56,6 +56,57 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		expect(after).toContain('| 3 |');
 	});
 
+	test('undo after typing in a cell restores caret to that cell', async ({ page }) => {
+		// Cell index 4 = body row 0, col 1 (middle of 3×3 — the "2" cell).
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.keyboard.press('End');
+
+		const before = await editor.bridge.getSource();
+
+		await editor.typeSlowly('xy');
+		await editor.bridge.waitForSourceContains('| 1 | 2xy | 3 |');
+		// Past the 250ms keystroke-debounce window so the batch flushes.
+		await page.waitForTimeout(300);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+
+		await page.keyboard.type('Z');
+		const after = await editor.bridge.getSource();
+		expect(after).toContain('| 1 |');
+		expect(after).toContain('| 3 |');
+		expect(after).toMatch(/\| [Z2]{2} \|/);
+	});
+
+	test('undo after deleting a substring inside a cell restores caret to that cell', async ({
+		page
+	}) => {
+		// Multi-char middle cell so substring delete is meaningful (the user repro).
+		await editor.loadContent(
+			'| A | Column | C |\n| --- | --- | --- |\n| 1 | Column | 3 |\n| 4 | data | 6 |\n'
+		);
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.keyboard.press('End');
+
+		const before = await editor.bridge.getSource();
+
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('| 1 | Col | 3 |');
+		await page.waitForTimeout(300);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+
+		await page.keyboard.type('Z');
+		const after = await editor.bridge.getSource();
+		expect(after).toContain('| 1 |');
+		expect(after).toContain('| 3 |');
+		expect(after).toMatch(/\| [A-Za-z]*Z[A-Za-z]* \| 3 \|/);
+		expect(after).not.toMatch(/\| Z[^|]*\| Column/);
+	});
+
 	test('undo after column delete via cross-block coverage restores selection', async ({
 		page
 	}) => {
