@@ -194,7 +194,8 @@
 		<BlockList
 			children={node.children ?? []}
 			blockIds={state.innerBlockIds}
-			bind:blockRefs={state.innerBlockRefs}
+			setRef={(i, r) => (state.innerBlockRefs[i] = r)}
+			getRef={(i) => state.innerBlockRefs[i]}
 			parentPath={myPath}
 			ambientPrefixForFirst={buildTaskItemAmbient(
 				node.metadata as ListItemMetadata | undefined,

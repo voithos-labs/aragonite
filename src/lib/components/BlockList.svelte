@@ -2,28 +2,23 @@
 	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
 	import BlockHost from './BlockHost.svelte';
 
+	// setRef/getRef are owner-supplied callbacks. A bind:blockRefs $bindable
+	// array desyncs from the owner's state across cross-effect mutations.
 	let {
 		children,
 		blockIds,
-		blockRefs = $bindable([]),
+		setRef,
+		getRef,
 		parentPath = [],
 		ambientPrefixForFirst = ''
 	}: {
 		children: CstNode[];
 		blockIds: string[];
-		blockRefs?: (BlockComponent | undefined)[];
+		setRef: (i: number, r: BlockComponent | undefined) => void;
+		getRef: (i: number) => BlockComponent | undefined;
 		parentPath?: number[];
 		ambientPrefixForFirst?: AmbientPrefix;
 	} = $props();
-
-	// Defined outside the each so the prop reference stays stable —
-	// per-iteration closures would re-fire the child's publish effect.
-	function setBlockRef(i: number, r: BlockComponent | undefined): void {
-		blockRefs[i] = r;
-	}
-	function getBlockRef(i: number): BlockComponent | undefined {
-		return blockRefs[i];
-	}
 </script>
 
 <div class="block-list">
@@ -33,8 +28,8 @@
 			index={i}
 			{parentPath}
 			ambientPrefix={i === 0 ? ambientPrefixForFirst : ''}
-			setRef={setBlockRef}
-			getRef={getBlockRef}
+			{setRef}
+			{getRef}
 		/>
 	{/each}
 </div>
