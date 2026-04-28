@@ -401,6 +401,8 @@ Single unified undo stack; browser contenteditable undo is disabled. Each entry 
 - Before every clipboard operation (cut, paste)
 - Text input is batched: consecutive keystrokes in the same block group into one entry, broken by pauses, focus changes, or structural operations
 
+The snapshot's selection path is read live from the focused leaf via `getCursorPosition` walks (top-level → row → cell, etc.), so undo lands the caret on the exact leaf that was being typed in — including inside nested containers (table cells, list items, lists-in-blockquotes). The caller-supplied offset overrides the live (post-edit) offset on that leaf to preserve the pre-edit position. When no ref reports a cursor (headless harness), the path falls back to `[blockIndex]`.
+
 ### Behavior
 
 Undo restores the previous snapshot, pushes the current state onto the redo stack, and restores the saved selection (including cross-block state if the original operation had one). Redo is the inverse. The redo stack clears on any new edit.
