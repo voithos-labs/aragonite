@@ -253,6 +253,10 @@ describe('round-trip: tables', () => {
 		{
 			name: 'table with empty cells',
 			source: '| A | B |\n| --- | --- |\n|  |  |\n| 1 |  |\n'
+		},
+		{
+			name: 'table with literal <br> in cell content (GFM line-break encoding)',
+			source: '| A | B |\n| --- | --- |\n| line<br>two | x |\n'
 		}
 	];
 
