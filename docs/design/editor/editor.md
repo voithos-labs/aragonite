@@ -450,9 +450,12 @@ CST nodes need stable IDs for two reasons:
 
 ### Approach
 
-Assign a unique string ID to each block at parse time. IDs are an editor-level concern — the editor shell maintains a parallel `string[]` array of IDs aligned with the document's children array. This array is the `{#each}` key source: `{#each children as child, i (blockIds[i])}`. IDs are not stored on the CST nodes themselves.
+Assign a unique string ID to each block at parse time. IDs are an editor-level concern (not part of round-trip serialization), held in two places:
 
-The ID array is updated atomically with every children array mutation:
+- **Top-level**: a parallel `string[]` array on the editor shell, aligned with `doc.children`. Restored as part of every undo entry.
+- **Per-container**: `node.childIds?: string[]` on each container node, lazy-initialized on first mount. Cloned by `cloneNode` so undo's deep clone restores per-container ids alongside `children` — no parallel snapshot to keep in sync.
+
+Both arrays are the `{#each}` key source for their respective `BlockList`. They update atomically with every children array mutation:
 
 - **Split**: Insert a new ID at `index + 1`. The original ID stays at `index`.
 - **Merge**: Remove the ID at the absorbed block's index.
