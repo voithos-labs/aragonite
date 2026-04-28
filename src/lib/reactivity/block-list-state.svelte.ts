@@ -18,19 +18,23 @@ export interface BlockListState {
 }
 
 /**
- * Takes a getter rather than the node directly so undo/redo prop reassignments
- * reach every closure — by-value would capture a stale snapshot.
+ * `getNode` must be a live getter — by-value would freeze on the initial node
+ * and miss undo's deep-clone reassignment.
  */
 export function createBlockListState(getNode: () => CstNode): BlockListState {
-	let innerBlockIds = $state<string[]>(assignIds(getNode().children ?? []));
+	const initialNode = getNode();
+	if (!initialNode.childIds) {
+		initialNode.childIds = assignIds(initialNode.children ?? []);
+	}
+
 	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
 
 	const state: BlockListState = {
 		get innerBlockIds() {
-			return innerBlockIds;
+			return getNode().childIds ?? [];
 		},
 		set innerBlockIds(value) {
-			innerBlockIds = value;
+			getNode().childIds = value;
 		},
 		get innerBlockRefs() {
 			return innerBlockRefs;
@@ -40,16 +44,17 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 		}
 	};
 
-	// Initial registration runs synchronously so consumers calling outside a
-	// reactive context (unit tests, ad-hoc factories) see the entry immediately.
-	registerBlockListState(getNode(), state);
+	// Sync registration so callers outside a reactive context (unit tests) see
+	// the entry on creation.
+	registerBlockListState(initialNode, state);
 
-	// Re-register on every node-identity change. Undo deep-clones the tree, so
-	// the same component instance ends up bound to a fresh node — the registry
-	// must follow, otherwise expectStateForNode throws on the next multi-scope
-	// op (column delete/insert in tables).
+	// Re-register on node-identity changes (undo replaces nodes via deep clone).
 	$effect(() => {
-		registerBlockListState(getNode(), state);
+		const node = getNode();
+		if (!node.childIds) {
+			node.childIds = assignIds(node.children ?? []);
+		}
+		registerBlockListState(node, state);
 	});
 
 	return state;
