@@ -21,6 +21,10 @@ End-to-end coverage for cross-block range-delete through tables (rangeDelete tab
   table is not modified, no cross-block delete fires.
 - Whole-table intra-table selection (Ctrl+A 2nd press) + Backspace clears every cell, preserves
   the table structure (row count, column count, alignments) and keeps the header row marked.
+  Deliberate: matches the doc-level "Ctrl+A 3rd press + Backspace clears content, leaves an empty
+  paragraph" pattern, treats user-typed structure as scaffolding worth preserving, and avoids
+  coupling intent onto the selection state. Users who want to delete the table outright select
+  cross-block from a block before to a block after the table and Backspace.
 
 ## User interactions
 
