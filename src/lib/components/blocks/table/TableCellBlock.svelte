@@ -55,6 +55,7 @@
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
+	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
 	import { copyRectangleAsSubTable } from './sub-table-copy';
@@ -112,7 +113,9 @@
 		colIdx,
 		columnCount,
 		rowCount,
-		alignment = 'none'
+		alignment = 'none',
+		setRef,
+		getRef
 	}: {
 		node: CstNode;
 		index: number;
@@ -122,6 +125,8 @@
 		columnCount: number;
 		rowCount: number;
 		alignment?: TableAlignment;
+		setRef?: (i: number, r: BlockComponent | undefined) => void;
+		getRef?: (i: number) => BlockComponent | undefined;
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -220,6 +225,21 @@
 	}
 
 	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
+
+	$effect(() => {
+		if (!setRef || !getRef) return;
+		const self: BlockComponent = {
+			editable,
+			focusable,
+			focus,
+			getCursorOffset,
+			focusAtColumn,
+			getSelectedText,
+			setSelection,
+			measurePartialRects
+		};
+		return publishRefSlot(index, self, setRef, getRef);
+	});
 
 	// ── Render pipeline ────────────────────────────────────────────────────
 

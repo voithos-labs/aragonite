@@ -73,13 +73,22 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		const selection =
-			(deps.selectionState.isCrossBlock
-				? readCurrentSelection(deps.selectionState, deps.blockRefs, collapsedSelectionAt)
-				: collapsedSelectionAt(blockIndex, offset)) ?? collapsedSelectionAt(blockIndex, offset);
+			readCurrentSelection(deps.selectionState, deps.blockRefs) ??
+			collapsedSelectionAt(blockIndex, offset);
 		deps.undoManager.push({
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],
 			selection
+		});
+	}
+
+	// Caller knows the pre-edit position; the live DOM cursor is already
+	// post-edit, so don't probe blockRefs.
+	function pushUndoSnapshotAt(blockIndex: number, offset: number): void {
+		deps.undoManager.push({
+			snapshot: cloneDocument(deps.doc),
+			blockIds: [...deps.blockIds],
+			selection: collapsedSelectionAt(blockIndex, offset)
 		});
 	}
 
@@ -99,7 +108,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	): void {
 		const key = batchKey ?? blockIndex;
 		if (lastUndoBatchKey !== key || needsUndoCheckpoint) {
-			pushUndoSnapshot(blockIndex, offset);
+			pushUndoSnapshotAt(blockIndex, offset);
 			lastUndoBatchKey = key;
 			batchBlockIndex = blockIndex;
 			batchByteLength = 0;
@@ -362,13 +371,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
-		const selection = readCurrentSelection(
-			deps.selectionState,
-			deps.blockRefs,
-			collapsedSelectionAt
-		);
-		// Sentinel for the unfocused-at-capture edge case (headless harness,
-		// programmatic capture) — keeps the UndoEntry shape valid.
+		const selection = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		// Fallback for unfocused-at-capture (headless harness, programmatic capture).
 		return {
 			snapshot: cloneDocument(deps.doc),
 			blockIds: [...deps.blockIds],

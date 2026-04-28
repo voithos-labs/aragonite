@@ -10,6 +10,7 @@
 
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
+import type { BlockComponent } from '../block-component';
 import { comparePaths } from './primitives';
 import { createRangeFromOffsets, getCursorOffset } from '../cursor/cursor-utils';
 import { domToRawOffset, rawToDomOffset } from '../ambient/ambient-offset';
@@ -75,14 +76,13 @@ export function clearNativeSelection(): void {
 // ── Selection read/restore for undo ─────────────────────────────────────────
 
 /**
- * Effective editor selection: cross-block from SelectionState if active,
- * otherwise collapsed from the native caret. Null when the editor is
- * unfocused (no block reports a cursor).
+ * Cross-block from SelectionState if active; otherwise the focused block's
+ * cursor as a deep path (via getCursorPosition) or shallow path (fallback).
+ * Null when no block reports a cursor.
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
-	blockRefs: ({ getCursorOffset(): number | null } | undefined)[],
-	buildCollapsed: (blockIndex: number, offset: number) => EditorSelection
+	blockRefs: (BlockComponent | undefined)[]
 ): EditorSelection | null {
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
@@ -90,16 +90,32 @@ export function readCurrentSelection(
 			focus: { path: selectionState.focus.path.slice(), offset: selectionState.focus.offset }
 		};
 	}
-	const focusedIndex = blockRefs.findIndex((b) => b !== undefined && b.getCursorOffset() !== null);
-	if (focusedIndex === -1) return null;
-	const focusedOffset = blockRefs[focusedIndex]!.getCursorOffset()!;
-	return buildCollapsed(focusedIndex, focusedOffset);
+	for (let i = 0; i < blockRefs.length; i++) {
+		const ref = blockRefs[i];
+		if (!ref) continue;
+		const pos = ref.getCursorPosition?.();
+		if (pos) {
+			const path = [i, ...pos.path];
+			return {
+				anchor: { path, offset: pos.offset },
+				focus: { path: [...path], offset: pos.offset }
+			};
+		}
+		const offset = ref.getCursorOffset();
+		if (offset !== null && offset !== undefined) {
+			return {
+				anchor: { path: [i], offset },
+				focus: { path: [i], offset }
+			};
+		}
+	}
+	return null;
 }
 
 /**
- * Apply a restored EditorSelection to the DOM / SelectionState:
- * collapsed → native caret, single-block range → native range,
- * cross-block → SelectionState cross-block mode.
+ * Restore an EditorSelection to the DOM. Custom-rendered selections
+ * (intra-table multi-cell, cross-block) route through SelectionState's
+ * overlay; same-path prose ranges use native browser selection.
  */
 export function applySelectionToDom(
 	selection: EditorSelection,
@@ -119,25 +135,27 @@ export function applySelectionToDom(
 		return;
 	}
 
-	if (samePath) {
-		selectionState.clear();
-		const blockEl = getBlockElByPath(selection.anchor.path);
-		if (blockEl) {
-			applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
-			blockEl.focus();
+	// isCustomRendered checks the doc node at the path: same-path different-
+	// offset on a table/row/cell means cell-index selection, not char range.
+	selectionState.enterCrossBlock(selection.anchor, selection.focus);
+	if (selectionState.isCustomRendered) {
+		// Park caret in the focus block as a paste/key-dispatch anchor; without
+		// it Chromium routes paste events to <body>.
+		const focusEl = getBlockElByPath(selection.focus.path);
+		if (focusEl) {
+			applyCollapsedCaret(focusEl, selection.focus);
+			focusEl.focus();
+		} else {
+			clearNativeSelection();
 		}
 		return;
 	}
 
-	// Park a collapsed caret in the focus block as a paste-dispatch anchor;
-	// without it, Chromium routes paste events to <body>.
-	selectionState.enterCrossBlock(selection.anchor, selection.focus);
-	const focusBlockEl = getBlockElByPath(selection.focus.path);
-	if (focusBlockEl) {
-		applyCollapsedCaret(focusBlockEl, selection.focus);
-		focusBlockEl.focus();
-	} else {
-		clearNativeSelection();
+	selectionState.clear();
+	const blockEl = getBlockElByPath(selection.anchor.path);
+	if (blockEl) {
+		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
+		blockEl.focus();
 	}
 }
 

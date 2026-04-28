@@ -82,6 +82,7 @@
 	});
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
+	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 
@@ -90,6 +91,7 @@
 		focusable,
 		focus,
 		getCursorOffset,
+		getCursorPosition,
 		focusByPath,
 		focusAtColumn
 	} satisfies BlockComponent);
