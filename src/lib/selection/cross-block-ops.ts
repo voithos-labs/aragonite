@@ -2,24 +2,34 @@
  * Cross-block mutation operations. Delete a range, push undo, collapse, and
  * restore the native caret in the merged block.
  *
- * Two commit paths:
+ * Commit paths:
  *   - Pure top-level (both endpoints at doc.children) → commitStructural.
  *   - Cross-container (at least one endpoint nested) → commitMultiScope
  *     with one scope per touched container, so every affected
  *     BlockListState stays in sync with node.children.
+ *   - Intra-table coverage delete (Backspace only): full-table → delete the
+ *     table block; full-row → commitContainerStructural with mutDeleteRow;
+ *     full-column → commitMultiScope with mutDeleteColumn. Subset coverage
+ *     falls through to the pure-top-level path's cell-clear primitive.
  */
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode, Document, TableMetadata } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from '../editor-actions/deps';
 import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { nodeAt } from '../tree-operations/node-ops';
-import { pathHasPrefix } from './path-math';
-import { getStateForNode } from '../reactivity/state-registry';
+import { deleteNode, nodeAt } from '../tree-operations/node-ops';
+import { pathHasPrefix, pathsEqual } from './path-math';
+import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import { classifyTableSelectionCoverage } from './range-delete-table';
+import {
+	deleteRow as mutDeleteRow,
+	deleteColumn as mutDeleteColumn
+} from '../components/blocks/table/table-mutations';
+import { rebuildContainerRaw, rebuildTableRowRaw } from '../schema/container-raw';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -42,10 +52,17 @@ export interface CrossBlockMutationContext {
  * `skipSnapshot`: caller already pushed a snapshot covering this delete.
  * `skipCaretRestore`: caller will install a final caret after further
  * mutations.
+ * `tableCoverageDelete`: route intra-table full-table/full-row/full-column
+ * coverage to structural delete. Backspace opts in; type-replace/paste/cut
+ * stay on cell-clear so the follow-up insert lands in the anchor cell.
  */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
-	options?: { skipSnapshot?: boolean; skipCaretRestore?: boolean }
+	options?: {
+		skipSnapshot?: boolean;
+		skipCaretRestore?: boolean;
+		tableCoverageDelete?: boolean;
+	}
 ): Promise<SelectionPoint | null> {
 	const { start, end } = resolveStartEnd(ctx.selection);
 	if (!start || !end) return null;
@@ -64,6 +81,21 @@ export async function performCrossBlockDelete(
 				}
 			}
 		: undefined;
+
+	if (options?.tableCoverageDelete && isPureTopLevel && pathsEqual(start.path, end.path)) {
+		const block = nodeAt(doc, start.path);
+		if (block && (block as CstNode).kind === 'table') {
+			const handled = await maybeCommitTableCoverageDelete(
+				ctx,
+				block as CstNode,
+				start,
+				end,
+				options,
+				caretRestore
+			);
+			if (handled) return handled.caret;
+		}
+	}
 
 	if (isPureTopLevel) {
 		return await commitPureTopLevelDelete(ctx, start, end, options, caretRestore);
@@ -132,6 +164,188 @@ async function commitPureTopLevelDelete(
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 
+	return collapsedCaret;
+}
+
+/**
+ * Intra-table coverage-driven delete. Returns null when the selection
+ * doesn't qualify (subset coverage or guard refusal); the caller falls
+ * through to the cell-clear path.
+ */
+async function maybeCommitTableCoverageDelete(
+	ctx: CrossBlockMutationContext,
+	table: CstNode,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	options: { skipSnapshot?: boolean } | undefined,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+): Promise<{ caret: SelectionPoint | null } | null> {
+	const meta = table.metadata as TableMetadata;
+	const columnCount = meta.columnCount;
+	const rowCount = table.children?.length ?? 0;
+	const coverage = classifyTableSelectionCoverage(
+		start.offset,
+		end.offset,
+		columnCount,
+		rowCount
+	);
+
+	if (coverage.kind === 'cells') return null;
+
+	if (coverage.kind === 'table') {
+		const caret = await commitFullTableDelete(ctx, start, options, caretRestore);
+		return { caret };
+	}
+
+	if (coverage.kind === 'row') {
+		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a
+		// silent no-op — falling through to a cell-clear would silently
+		// rewrite the user's intent.
+		const willRemoveHeader = coverage.rowIdx === 0;
+		const bodyCount = rowCount - 1;
+		if (rowCount <= 1 || (!willRemoveHeader && bodyCount <= 1)) {
+			return { caret: null };
+		}
+		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx!, options, caretRestore);
+		return { caret };
+	}
+
+	if (coverage.kind === 'column') {
+		// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
+		if (columnCount <= 1) return { caret: null };
+		const caret = await commitColumnDelete(
+			ctx,
+			table,
+			start,
+			coverage.colIdx!,
+			options,
+			caretRestore
+		);
+		return { caret };
+	}
+
+	return null;
+}
+
+async function commitFullTableDelete(
+	ctx: CrossBlockMutationContext,
+	start: SelectionPoint,
+	options: { skipSnapshot?: boolean } | undefined,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+): Promise<SelectionPoint | null> {
+	const tableIdx = start.path[0];
+	const snapshot = options?.skipSnapshot
+		? ('skip' as const)
+		: { blockIndex: tableIdx, offset: 0 };
+
+	let collapsedCaret: SelectionPoint | null = null;
+	await ctx.controller.commitStructural({
+		snapshot,
+		mutate: (children) => {
+			const change = deleteNode({ children }, tableIdx);
+			const survivorCount = children.length;
+			const survivorIdx = Math.min(tableIdx, Math.max(0, survivorCount - 1));
+			collapsedCaret =
+				survivorCount > 0 ? { path: [survivorIdx], offset: 0 } : { path: [0], offset: 0 };
+			ctx.selection.collapse();
+			return change;
+		},
+		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' } },
+		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+	});
+	return collapsedCaret;
+}
+
+async function commitRowDelete(
+	ctx: CrossBlockMutationContext,
+	table: CstNode,
+	start: SelectionPoint,
+	rowIdx: number,
+	options: { skipSnapshot?: boolean } | undefined,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+): Promise<SelectionPoint | null> {
+	const tableIdx = start.path[0];
+	const rowsState = expectStateForNode(table);
+	const snapshot = options?.skipSnapshot
+		? ('skip' as const)
+		: { blockIndex: tableIdx, offset: 0 };
+
+	let collapsedCaret: SelectionPoint | null = null;
+	await ctx.controller.commitContainerStructural({
+		containerNode: table,
+		state: rowsState,
+		snapshot,
+		mutate: (children) => {
+			mutDeleteRow(table, rowIdx);
+			children.length = 0;
+			children.push(...(table.children ?? []));
+			rebuildContainerRaw(table);
+			const newRowCount = table.children?.length ?? 0;
+			const targetRow = Math.min(rowIdx, Math.max(0, newRowCount - 1));
+			collapsedCaret = { path: [tableIdx, targetRow, 0], offset: 0 };
+			ctx.selection.collapse();
+			return { op: 'delete', at: rowIdx, count: 1 };
+		},
+		op: { kind: 'tableDeleteRow', detail: { rowIdx, crossBlock: true }, eventPath: [tableIdx, rowIdx] },
+		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+	});
+	return collapsedCaret;
+}
+
+async function commitColumnDelete(
+	ctx: CrossBlockMutationContext,
+	table: CstNode,
+	start: SelectionPoint,
+	colIdx: number,
+	options: { skipSnapshot?: boolean } | undefined,
+	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
+): Promise<SelectionPoint | null> {
+	const tableIdx = start.path[0];
+	const rowsState = expectStateForNode(table);
+	const rows = table.children ?? [];
+	const scopes: MultiScopeTarget[] = [
+		{ node: table, state: rowsState },
+		...rows.map((row) => ({ node: row, state: expectStateForNode(row) }))
+	];
+	const snapshot = options?.skipSnapshot
+		? ('skip' as const)
+		: { blockIndex: tableIdx, offset: 0 };
+
+	let collapsedCaret: SelectionPoint | null = null;
+	await ctx.controller.commitMultiScope({
+		scopes,
+		snapshot,
+		mutate: (scopeChildren) => {
+			mutDeleteColumn(table, colIdx);
+			const tableScope = scopeChildren[0];
+			tableScope.children.length = 0;
+			tableScope.children.push(...(table.children ?? []));
+			const liveRows = table.children ?? [];
+			for (let i = 0; i < liveRows.length; i++) {
+				const rowScope = scopeChildren[i + 1];
+				rowScope.children.length = 0;
+				rowScope.children.push(...(liveRows[i].children ?? []));
+			}
+			for (const row of liveRows) rebuildTableRowRaw(row);
+			rebuildContainerRaw(table);
+
+			const newColumnCount = (table.metadata as TableMetadata).columnCount;
+			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
+			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
+			ctx.selection.collapse();
+
+			const rowChanges = liveRows.map(
+				() => ({ op: 'delete', at: colIdx, count: 1 }) satisfies StructuralChange
+			);
+			return [{ op: 'noop' }, ...rowChanges];
+		},
+		op: {
+			kind: 'tableDeleteColumn',
+			detail: { colIdx, crossBlock: true },
+			eventPath: [tableIdx, colIdx]
+		},
+		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
+	});
 	return collapsedCaret;
 }
 

@@ -24,6 +24,45 @@ export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
 	return startBlock.kind === 'table' || endBlock.kind === 'table';
 }
 
+/**
+ * Coverage classification for an intra-table cell-index range. Drives the
+ * Backspace dispatch: full-table → delete table block; full-row → delete row;
+ * full-column → delete column; otherwise → clear cells.
+ */
+export type TableCoverageKind = 'table' | 'row' | 'column' | 'cells';
+
+export interface TableCoverage {
+	kind: TableCoverageKind;
+	rowIdx?: number;
+	colIdx?: number;
+}
+
+export function classifyTableSelectionCoverage(
+	startCellIdx: number,
+	endCellIdx: number,
+	columnCount: number,
+	rowCount: number
+): TableCoverage {
+	const lo = Math.min(startCellIdx, endCellIdx);
+	const hi = Math.max(startCellIdx, endCellIdx);
+	const cellCount = columnCount * rowCount;
+
+	if (lo === 0 && hi === cellCount - 1) return { kind: 'table' };
+
+	const startRow = Math.floor(lo / columnCount);
+	const startCol = lo - startRow * columnCount;
+	const endRow = Math.floor(hi / columnCount);
+	const endCol = hi - endRow * columnCount;
+
+	if (startRow === endRow && startCol === 0 && endCol === columnCount - 1) {
+		return { kind: 'row', rowIdx: startRow };
+	}
+	if (startCol === endCol && startRow === 0 && endRow === rowCount - 1) {
+		return { kind: 'column', colIdx: startCol };
+	}
+	return { kind: 'cells' };
+}
+
 export function tableAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
@@ -47,10 +86,9 @@ export function tableAwareRangeDelete(
 
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
 
-// spec § Selection — Whole-table intra-table: rectangular cell clear, structure preserved.
 // Caret returns as a deep [...tablePath, anchorRow, anchorCol] path so the
 // follow-up paste / focus restore lands inside the anchor cell's contenteditable
-// instead of the table wrapper. The cell is empty post-clear, so offset 0 = end.
+// instead of the table wrapper.
 function deleteWithinTable(
 	doc: Document,
 	start: SelectionPoint,

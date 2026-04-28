@@ -71,7 +71,7 @@ async function handleCrossBlockActive(
 
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		await performCrossBlockDelete(mutCtx);
+		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
 

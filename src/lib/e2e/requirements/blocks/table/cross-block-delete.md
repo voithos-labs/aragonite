@@ -19,13 +19,20 @@ End-to-end coverage for cross-block range-delete through tables (rangeDelete tab
 
 - Backspace at offset 0 of the first cell of the first row navigates to the previous block — the
   table is not modified, no cross-block delete fires.
-- Whole-table intra-table selection (Ctrl+A 2nd press) + Backspace clears every cell, preserves
-  the table structure (row count, column count, alignments) and keeps the header row marked.
-  Deliberate: matches the doc-level "Ctrl+A 3rd press + Backspace clears content, leaves an empty
-  paragraph" pattern, treats user-typed structure as scaffolding worth preserving, and avoids
-  coupling intent onto the selection state. Users who want to delete the table outright select
-  cross-block from a block before to a block after the table and Backspace.
+
+## Coverage-driven intra-table delete
+
+Intra-table Backspace dispatches by what the selection covers:
+
+- Whole-table coverage (every cell selected, e.g. Ctrl+A 2nd press): delete the table block.
+- Whole-row coverage (every cell of one row, no cells from other rows): delete the row. No-op
+  when only the header row would survive (≥1 body row required), mirroring Ctrl+Shift+Backspace.
+  Deleting the header row promotes the next row to header.
+- Whole-column coverage (every row's same column, no other columns): delete the column. No-op
+  when only one column remains (≥2 columns required), mirroring Alt+Shift+Backspace.
+- Subset / mixed coverage: clear the selected cells and preserve the table structure.
 
 ## User interactions
 
-- A single Ctrl+Z restores the document after a cross-block delete that traverses a table.
+- A single Ctrl+Z restores the document after a cross-block delete that traverses a table or
+  triggers a coverage-driven row/column/table delete.
