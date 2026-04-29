@@ -31,7 +31,9 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { parseAllInlineContent } from '../core/inline';
+	import { parseAllInlineContent, parseInline, getContentRange, isProseKind } from '../core/inline';
+	import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
+	import { expectStateForNode } from '../reactivity/state-registry';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
@@ -355,19 +357,20 @@
 
 	// ── Image popover ───────────────────────────────────────────────────
 
-	// Naive `children` walk — only correct for top-level paths today (gated below).
-	// Nested paths through lists/blockquotes need a container-aware resolver.
-	function findParagraphAtPath(path: number[]): CstNode | null {
+	function resolvePathToParagraph(path: number[]): {
+		paragraph: CstNode;
+		parent: { children?: CstNode[] };
+	} | null {
 		if (path.length === 0) return null;
-		let current: { children?: CstNode[] } = doc;
-		let resolved: CstNode | null = null;
-		for (const idx of path) {
-			const children = current.children;
-			if (!children || idx >= children.length) return null;
-			resolved = children[idx];
-			current = resolved;
+		let parent: { children?: CstNode[] } = doc;
+		for (let i = 0; i < path.length - 1; i++) {
+			const next = parent.children?.[path[i]];
+			if (!next) return null;
+			parent = next;
 		}
-		return resolved;
+		const paragraph = parent.children?.[path[path.length - 1]];
+		if (!paragraph) return null;
+		return { paragraph, parent };
 	}
 
 	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
@@ -384,35 +387,76 @@
 	} | null {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return null;
-		const para = findParagraphAtPath(sel.paragraphPath);
-		if (!para) return null;
-		const image = findImageInParagraph(para, sel.sourceStart);
+		const resolved = resolvePathToParagraph(sel.paragraphPath);
+		if (!resolved) return null;
+		const image = findImageInParagraph(resolved.paragraph, sel.sourceStart);
 		if (!image) return null;
 		const widgetEl =
 			(editorEl?.querySelector(
 				`[data-image-widget][data-source-start="${sel.sourceStart}"][data-paragraph-path="${sel.paragraphPath.join(',')}"]`
 			) as HTMLElement | null) ?? null;
-		return { para, image, widgetEl };
+		return { para: resolved.paragraph, image, widgetEl };
+	}
+
+	// Path-uniform commit for popover/resize edits. The popover mounts at
+	// editor root, outside any container's Svelte context, so it can't reach
+	// a nested container's `blockEdit`. Resolve the parent container directly
+	// and route through the matching commit primitive.
+	async function commitParagraphRaw(paragraphPath: number[], newRaw: string): Promise<void> {
+		const resolved = resolvePathToParagraph(paragraphPath);
+		if (!resolved) return;
+		const { paragraph } = resolved;
+
+		const applyRaw = () => {
+			paragraph.raw = newRaw;
+			if (isProseKind(paragraph.kind)) {
+				const range = getContentRange(paragraph);
+				paragraph.inlineContent = parseInline(paragraph.raw, range.start, range.end);
+			}
+			if (paragraphPath.length > 1) {
+				rebuildAncestryRawForLeaf(doc, paragraphPath);
+			}
+		};
+
+		if (paragraphPath.length === 1) {
+			await controller.commitStructural({
+				snapshot: { blockIndex: paragraphPath[0], offset: 0 },
+				mutate: () => {
+					applyRaw();
+					return { op: 'noop' };
+				},
+				op: { kind: 'updateContent', detail: { length: newRaw.length } }
+			});
+			return;
+		}
+
+		const containerNode = resolved.parent as CstNode;
+		await controller.commitContainerStructural({
+			containerNode,
+			state: expectStateForNode(containerNode),
+			snapshot: { blockIndex: paragraphPath[0], offset: 0 },
+			mutate: () => {
+				applyRaw();
+				return { op: 'noop' };
+			},
+			op: {
+				kind: 'updateContent',
+				detail: { length: newRaw.length },
+				eventPath: paragraphPath
+			}
+		});
 	}
 
 	function commitImageEdit(newFields: ImageFields): void {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return;
-		// v0.6.4: nested-paragraph commit (lists, blockquotes) needs the parent's
-		// blockEdit context; out of scope for this milestone — fail soft.
-		if (sel.paragraphPath.length !== 1) return;
 		const ctx = getSelectedImageFields();
 		if (!ctx) return;
 		const newSourceBytes = buildImageSourceBytes(newFields);
 		const oldStart = ctx.image.start;
 		const oldEnd = ctx.image.end;
 		const newRaw = ctx.para.raw.slice(0, oldStart) + newSourceBytes + ctx.para.raw.slice(oldEnd);
-		blockEdit.updateBlockContent(
-			sel.paragraphPath[0],
-			newRaw,
-			oldEnd,
-			oldStart + newSourceBytes.length
-		);
+		void commitParagraphRaw(sel.paragraphPath, newRaw);
 		widgetSelection.clear();
 	}
 
@@ -423,7 +467,6 @@
 	function commitImageResize(newWidth: number, newHeight: number | undefined): void {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return;
-		if (sel.paragraphPath.length !== 1) return;
 		const ctx = getSelectedImageFields();
 		if (!ctx) return;
 		const newFields: ImageFields = {
