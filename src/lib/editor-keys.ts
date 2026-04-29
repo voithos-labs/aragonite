@@ -23,6 +23,9 @@ export const SELECTION_KEY = Symbol('selection');
 export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
 export type { WidgetSelectionState };
 
+export const RESOLVE_IMAGE_URL_KEY = Symbol('resolve-image-url');
+export type ResolveImageUrl = (rawUrl: string) => string;
+
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**
