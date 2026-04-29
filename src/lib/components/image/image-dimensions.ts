@@ -1,7 +1,4 @@
-/**
- * Obsidian-style dimension hint extraction from image alt text.
- * Recognizes `|N` and `|NxM` suffixes; otherwise returns alt unchanged.
- */
+// `|N` / `|NxM` is an Obsidian extension — not part of GFM.
 
 const MAX_DIMENSION = 10000;
 
