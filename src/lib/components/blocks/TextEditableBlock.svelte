@@ -15,6 +15,7 @@
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
 		RESOLVE_IMAGE_URL_KEY,
+		WIDGET_SELECTION_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
 		type ContainerEditActions,
@@ -25,7 +26,8 @@
 		type BlockComponent,
 		type StickyColumnDirection,
 		type AmbientPrefix,
-		type ResolveImageUrl
+		type ResolveImageUrl,
+		type WidgetSelectionState
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -90,6 +92,7 @@
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
+	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -314,6 +317,80 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
+		// Widget-selected and boundary-entry keys must run before normal text
+		// editing — the contenteditable would otherwise consume the keystroke.
+		const selectedWidget = widgetSelection.getSelected();
+		const widgetIsHere =
+			selectedWidget !== null &&
+			widgetSelection.isSelected(myPath, selectedWidget.sourceStart) &&
+			findImageNodeByStart(selectedWidget.sourceStart) !== null;
+
+		if (widgetIsHere && selectedWidget !== null) {
+			if (e.key === 'ArrowLeft') {
+				e.preventDefault();
+				cursor.setRaw(selectedWidget.sourceStart);
+				widgetSelection.clear();
+				return;
+			}
+			if (e.key === 'ArrowRight') {
+				e.preventDefault();
+				const widget = findImageNodeByStart(selectedWidget.sourceStart);
+				if (widget) cursor.setRaw(widget.end);
+				widgetSelection.clear();
+				return;
+			}
+			if (e.key === 'Backspace' || e.key === 'Delete') {
+				e.preventDefault();
+				const widget = findImageNodeByStart(selectedWidget.sourceStart);
+				if (!widget) return;
+				const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
+				blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
+				widgetSelection.clear();
+				return;
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				const widget = findImageNodeByStart(selectedWidget.sourceStart);
+				if (widget) cursor.setRaw(widget.end);
+				widgetSelection.clear();
+				return;
+			}
+			if (isTypingKey(e)) {
+				e.preventDefault();
+				const widget = findImageNodeByStart(selectedWidget.sourceStart);
+				if (!widget) return;
+				const typed = e.key;
+				const newRaw =
+					node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
+				blockEdit.updateBlockContent(
+					index,
+					newRaw,
+					widget.end,
+					widget.start + typed.length
+				);
+				widgetSelection.clear();
+				return;
+			}
+			return;
+		}
+
+		const cursorOff = cursor.getRaw();
+		if (cursorOff !== null) {
+			const widgetAt = imageAtCursor();
+			if (widgetAt) {
+				if (widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
+					e.preventDefault();
+					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
+					return;
+				}
+				if (!widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
+					e.preventDefault();
+					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
+					return;
+				}
+			}
+		}
+
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
 		// position immediately after the ambient span.
@@ -435,6 +512,34 @@
 
 	function onClick(): void {
 		cursor.clampOutOfAmbient();
+	}
+
+	// ── Widget adjacency ───────────────────────────────────────────────
+
+	function imageAtCursor(): { start: number; end: number; atRight: boolean } | null {
+		const off = cursor.getRaw();
+		if (off === null) return null;
+		const inlines = node.inlineContent ?? [];
+		for (const inline of inlines) {
+			if (inline.kind !== 'image') continue;
+			if (off === inline.start) return { start: inline.start, end: inline.end, atRight: false };
+			if (off === inline.end) return { start: inline.start, end: inline.end, atRight: true };
+		}
+		return null;
+	}
+
+	function findImageNodeByStart(sourceStart: number): { start: number; end: number } | null {
+		for (const inline of node.inlineContent ?? []) {
+			if (inline.kind === 'image' && inline.start === sourceStart) {
+				return { start: inline.start, end: inline.end };
+			}
+		}
+		return null;
+	}
+
+	function isTypingKey(e: KeyboardEvent): boolean {
+		if (e.ctrlKey || e.metaKey || e.altKey) return false;
+		return e.key.length === 1;
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
