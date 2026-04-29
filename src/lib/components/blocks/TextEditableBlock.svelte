@@ -329,31 +329,8 @@
 			const widgetIsHere =
 				widget !== null && widgetSelection.isSelected(myPath, selectedWidget.sourceStart);
 			if (widgetIsHere) {
-				if (e.key === 'ArrowLeft') {
-					e.preventDefault();
-					cursor.setRaw(selectedWidget.sourceStart);
-					widgetSelection.clear();
-					return;
-				}
-				if (e.key === 'ArrowRight') {
-					e.preventDefault();
-					cursor.setRaw(widget.end);
-					widgetSelection.clear();
-					return;
-				}
-				if (e.key === 'Backspace' || e.key === 'Delete') {
-					e.preventDefault();
-					const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
-					widgetSelection.clear();
-					return;
-				}
-				if (e.key === 'Escape') {
-					e.preventDefault();
-					cursor.setRaw(widget.end);
-					widgetSelection.clear();
-					return;
-				}
+				// Shift+Arrow runs before plain Arrow — `e.key === 'ArrowRight'` matches
+				// both, so the shift check has to win or resize never fires.
 				if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 					e.preventDefault();
 					const inline = (node.inlineContent ?? []).find(
@@ -387,6 +364,31 @@
 						widget.end,
 						widget.start + newBytes.length
 					);
+					return;
+				}
+				if (e.key === 'ArrowLeft') {
+					e.preventDefault();
+					cursor.setRaw(selectedWidget.sourceStart);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'ArrowRight') {
+					e.preventDefault();
+					cursor.setRaw(widget.end);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'Backspace' || e.key === 'Delete') {
+					e.preventDefault();
+					const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					cursor.setRaw(widget.end);
+					widgetSelection.clear();
 					return;
 				}
 				if (isTypingKey(e)) {
