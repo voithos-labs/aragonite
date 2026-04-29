@@ -9,23 +9,22 @@ test.describe('image cross-block selection', () => {
 		await editor.goto();
 	});
 
-	// Shift+Arrow doesn't extend atomically across widgets yet — extension goes
-	// byte-by-byte through the source span. Targeted fix at 0.7 (the
-	// `handleSharedKeydown` cross-block extension layer needs widget-boundary
-	// awareness). Tracked as a known 0.6.4 limitation in the changelog.
-	test.fixme('Shift+ArrowRight extends selection atomically across widget', async ({ page }) => {
+	test('Shift+ArrowRight extends selection atomically across widget', async ({ page }) => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Shift+ArrowRight');
-		const sel = await page.evaluate(() => {
+		// user-select:none on the widget makes Selection.toString() exclude the
+		// source span text; use Range.toString() to read the actual range content.
+		const rangeText = await page.evaluate(() => {
 			const s = window.getSelection();
-			return s ? s.toString() : '';
+			if (!s || s.rangeCount === 0) return '';
+			return s.getRangeAt(0).toString();
 		});
-		expect(sel).toContain('![cat]');
+		expect(rangeText).toContain('![cat]');
 	});
 
-	test.fixme('cross-block delete removes whole widget', async ({ page }) => {
+	test('cross-block delete removes whole widget', async ({ page }) => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
