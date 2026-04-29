@@ -317,61 +317,54 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// Widget-selected and boundary-entry keys must run before normal text
-		// editing — the contenteditable would otherwise consume the keystroke.
+		// Intercept widget-relevant keys before the contenteditable consumes them as text input.
 		const selectedWidget = widgetSelection.getSelected();
-		const widgetIsHere =
-			selectedWidget !== null &&
-			widgetSelection.isSelected(myPath, selectedWidget.sourceStart) &&
-			findImageNodeByStart(selectedWidget.sourceStart) !== null;
-
-		if (widgetIsHere && selectedWidget !== null) {
-			if (e.key === 'ArrowLeft') {
-				e.preventDefault();
-				cursor.setRaw(selectedWidget.sourceStart);
-				widgetSelection.clear();
+		if (selectedWidget !== null) {
+			const widget = findImageNodeByStart(selectedWidget.sourceStart);
+			const widgetIsHere =
+				widget !== null && widgetSelection.isSelected(myPath, selectedWidget.sourceStart);
+			if (widgetIsHere) {
+				if (e.key === 'ArrowLeft') {
+					e.preventDefault();
+					cursor.setRaw(selectedWidget.sourceStart);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'ArrowRight') {
+					e.preventDefault();
+					cursor.setRaw(widget.end);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'Backspace' || e.key === 'Delete') {
+					e.preventDefault();
+					const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
+					widgetSelection.clear();
+					return;
+				}
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					cursor.setRaw(widget.end);
+					widgetSelection.clear();
+					return;
+				}
+				if (isTypingKey(e)) {
+					e.preventDefault();
+					const typed = e.key;
+					const newRaw =
+						node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						widget.end,
+						widget.start + typed.length
+					);
+					widgetSelection.clear();
+					return;
+				}
 				return;
 			}
-			if (e.key === 'ArrowRight') {
-				e.preventDefault();
-				const widget = findImageNodeByStart(selectedWidget.sourceStart);
-				if (widget) cursor.setRaw(widget.end);
-				widgetSelection.clear();
-				return;
-			}
-			if (e.key === 'Backspace' || e.key === 'Delete') {
-				e.preventDefault();
-				const widget = findImageNodeByStart(selectedWidget.sourceStart);
-				if (!widget) return;
-				const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-				blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
-				widgetSelection.clear();
-				return;
-			}
-			if (e.key === 'Escape') {
-				e.preventDefault();
-				const widget = findImageNodeByStart(selectedWidget.sourceStart);
-				if (widget) cursor.setRaw(widget.end);
-				widgetSelection.clear();
-				return;
-			}
-			if (isTypingKey(e)) {
-				e.preventDefault();
-				const widget = findImageNodeByStart(selectedWidget.sourceStart);
-				if (!widget) return;
-				const typed = e.key;
-				const newRaw =
-					node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-				blockEdit.updateBlockContent(
-					index,
-					newRaw,
-					widget.end,
-					widget.start + typed.length
-				);
-				widgetSelection.clear();
-				return;
-			}
-			return;
 		}
 
 		const cursorOff = cursor.getRaw();
