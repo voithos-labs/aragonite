@@ -35,6 +35,16 @@ test.describe('image properties popover', () => {
 		await editor.bridge.waitForSourceContains('?v=2');
 	});
 
+	test('popover commits URL change for image inside a list item', async ({ page }) => {
+		await editor.loadContent('- ![cat](/test-fixtures/sample.png)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.click();
+		const urlInput = page.locator('.md-image-properties input').nth(0);
+		await urlInput.fill('/test-fixtures/sample.png?v=nested');
+		await page.locator('.list-block, .paragraph-block').first().click();
+		await editor.bridge.waitForSourceContains('?v=nested');
+	});
+
 	test('no-op blur does not add undo entry', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();

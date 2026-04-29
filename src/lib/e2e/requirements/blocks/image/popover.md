@@ -7,6 +7,7 @@
 - Alt field is editable; blur commits
 - Title field is editable; blur commits
 - Empty title field commits with no title in source
+- URL edit commits for an image inside a list item (nested-paragraph commit)
 
 ## Edge cases
 - Blur with no field changes does NOT add an undo entry (no-op short-circuit)
