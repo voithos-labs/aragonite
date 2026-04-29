@@ -9,6 +9,7 @@
 		PASTE_COORDINATOR_KEY,
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
+		WIDGET_SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
@@ -22,6 +23,7 @@
 	} from '../contracts';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
+	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../tree-operations/block-id';
 	import { ensureEditableContainers } from '../tree-operations';
@@ -74,6 +76,12 @@
 	const selectionState = createSelectionState({
 		onChange: () => events.emit('selectionChange', getSelection()),
 		getDoc: () => doc
+	});
+	const widgetSelection = createWidgetSelectionState({
+		onSelect: () => {
+			window.getSelection()?.removeAllRanges();
+			selectionState.clear();
+		}
 	});
 
 	$effect(() => {
@@ -208,10 +216,25 @@
 	setContext(PASTE_COORDINATOR_KEY, createPasteCoordinator(controller));
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
+	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
+
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const handlePointerDown = (e: PointerEvent) => {
+			// Pointer-down on a widget runs its own select() handler; skipping the
+			// clear here keeps that select from being immediately undone.
+			const target = e.target as Element | null;
+			if (target?.closest('[data-image-widget]')) return;
+			widgetSelection.clear();
+		};
+		root.addEventListener('pointerdown', handlePointerDown);
+		return () => root.removeEventListener('pointerdown', handlePointerDown);
+	});
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
