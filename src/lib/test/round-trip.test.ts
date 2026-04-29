@@ -291,3 +291,30 @@ describe('round-trip: inline content', () => {
 		});
 	}
 });
+
+describe('round-trip: image dimensions', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'basic image', source: '![cat](https://example.com/cat.png)\n' },
+		{ name: 'image with width hint', source: '![cat|400](https://example.com/cat.png)\n' },
+		{
+			name: 'image with width x height hint and title',
+			source: '![cat|400x300](https://example.com/cat.png "Cat photo")\n'
+		},
+		{
+			name: 'image with surrounding paragraphs',
+			source: 'Some intro text.\n\n![cat|400](https://example.com/cat.png)\n\nOutro text.\n'
+		},
+		{
+			name: 'image mid-paragraph',
+			source: 'A paragraph with ![inline|100](icon.png) image.\n'
+		},
+		{ name: 'image inside table cell', source: '| col |\n| --- |\n| ![cell-img](url) |\n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
