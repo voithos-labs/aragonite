@@ -20,6 +20,7 @@ export interface TextRenderDeps {
 	get ambientPrefixText(): string;
 	getDisplayText: () => string;
 	resolveImageUrl: ResolveImageUrl;
+	get myPath(): number[];
 }
 
 export interface TextRender {
@@ -62,7 +63,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
-				resolveImageUrl: deps.resolveImageUrl
+				resolveImageUrl: deps.resolveImageUrl,
+				paragraphPath: deps.myPath
 			})
 		);
 		return frag;
