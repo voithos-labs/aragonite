@@ -129,3 +129,20 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(inlineKinds.sort()).toEqual(['heading', 'paragraph', 'setextHeading', 'tableCell']);
 	});
 });
+
+describe('renderImagesAsWidgets descriptor flag', () => {
+	it('paragraph defaults to true', () => {
+		const d = getBlockKindDescriptor('paragraph');
+		expect(d.renderImagesAsWidgets ?? true).toBe(true);
+	});
+
+	it('heading defaults to true', () => {
+		const d = getBlockKindDescriptor('heading');
+		expect(d.renderImagesAsWidgets ?? true).toBe(true);
+	});
+
+	it('tableCell opts out (false)', () => {
+		const d = getBlockKindDescriptor('tableCell');
+		expect(d.renderImagesAsWidgets).toBe(false);
+	});
+});
