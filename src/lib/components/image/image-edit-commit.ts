@@ -35,6 +35,7 @@ export interface ImageEditCommitter {
 	attachWidgetSelectListener(): () => void;
 	applySelectedClass(): void;
 	reparentResizeHandles(getContainer: () => HTMLElement | null): () => void;
+	reparentImageProperties(getContainer: () => HTMLElement | null): () => void;
 }
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
@@ -181,9 +182,11 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		}
 	}
 
-	// Handles render at the editor root, then get reparented into the selected
-	// widget so `position: absolute` resolves against it.
-	function reparentResizeHandles(getContainer: () => HTMLElement | null): () => void {
+	// Reparents children of `portal` into the selected widget so absolute
+	// positioning (right/top/bottom on handles, top:100% on the popover)
+	// resolves against the widget's box. Returns a cleanup that restores
+	// children to the portal so the next selection's effect run can re-move.
+	function reparentInto(getContainer: () => HTMLElement | null): () => void {
 		const noop = () => {};
 		const portal = getContainer();
 		if (!portal) return noop;
@@ -208,6 +211,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		getEditorContentWidth,
 		attachWidgetSelectListener,
 		applySelectedClass,
-		reparentResizeHandles
+		reparentResizeHandles: reparentInto,
+		reparentImageProperties: reparentInto
 	};
 }

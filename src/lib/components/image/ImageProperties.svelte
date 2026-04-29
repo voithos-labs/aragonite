@@ -81,7 +81,11 @@
 
 <style>
 	.md-image-properties {
+		/* Anchored to the widget after reparenting (Editor.svelte portal effect).
+		   Sits just below the widget's bottom-left edge. */
 		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
 		background: var(--color-bg-elevated, #2a2a2a);
 		border: 1px solid var(--color-ui-muted, #444);
 		border-radius: 4px;

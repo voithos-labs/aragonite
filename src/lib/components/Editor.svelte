@@ -245,6 +245,7 @@
 	});
 
 	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
+	let imagePropertiesContainer: HTMLDivElement | undefined = $state();
 
 	$effect(() => {
 		if (!editorEl) return;
@@ -265,6 +266,8 @@
 	$effect(() => imageEdit.applySelectedClass());
 
 	$effect(() => imageEdit.reparentResizeHandles(() => resizeHandlesContainer ?? null));
+
+	$effect(() => imageEdit.reparentImageProperties(() => imagePropertiesContainer ?? null));
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
@@ -355,20 +358,20 @@
 	/>
 	{#if widgetSelection.getSelected()}
 		{@const ctx = imageEdit.getSelectedImageFields()}
-		{#if ctx}
-			<ImageProperties
-				fields={{
-					alt: ctx.image.alt ?? '',
-					url: ctx.image.url ?? '',
-					...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
-					...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
-					...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
-				}}
-				onCommit={imageEdit.commitImageEdit}
-				onDismiss={imageEdit.dismissImagePopover}
-			/>
-		{/if}
 		{#if ctx?.widgetEl}
+			<div bind:this={imagePropertiesContainer} class="md-image-properties-portal">
+				<ImageProperties
+					fields={{
+						alt: ctx.image.alt ?? '',
+						url: ctx.image.url ?? '',
+						...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
+						...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
+						...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
+					}}
+					onCommit={imageEdit.commitImageEdit}
+					onDismiss={imageEdit.dismissImagePopover}
+				/>
+			</div>
 			<div bind:this={resizeHandlesContainer} class="md-resize-handles-portal">
 				<ImageResizeHandles
 					widgetEl={ctx.widgetEl}
