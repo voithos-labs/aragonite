@@ -11,6 +11,7 @@ import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import type { InlineNode } from '../../../core/nodes';
+import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 
 export interface TextRenderDeps {
 	get el(): HTMLElement | null;
@@ -56,7 +57,13 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			span.textContent = blockOwnPrefix;
 			frag.appendChild(span);
 		}
-		frag.appendChild(renderInlineNodes(content, node.raw));
+		const descriptor = getBlockKindDescriptor(node.kind);
+		frag.appendChild(
+			renderInlineNodes(content, node.raw, {
+				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
+				resolveImageUrl: (u) => u
+			})
+		);
 		return frag;
 	}
 
