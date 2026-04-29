@@ -355,8 +355,6 @@
 				}
 				if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 					e.preventDefault();
-					// Re-look-up the full inline node for current width/height/alt/url/title;
-					// findImageNodeByStart only returns offsets.
 					const inline = (node.inlineContent ?? []).find(
 						(n) => n.kind === 'image' && n.start === widget.start
 					);
@@ -375,7 +373,7 @@
 						url: inline.url ?? '',
 						...(inline.title !== undefined ? { title: inline.title } : {}),
 						width: newWidth,
-						...(inline.height !== undefined && currentWidth !== 0
+						...(inline.height !== undefined
 							? { height: Math.round((newWidth / currentWidth) * inline.height) }
 							: {})
 					};
