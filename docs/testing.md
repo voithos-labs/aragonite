@@ -42,6 +42,7 @@ E2E tests are grouped into Playwright projects:
 | `test:e2e:blocks`        | All per-block specs under `tests/blocks/`                                     |
 | `test:e2e:blocks:list`   | List block specs only                                                         |
 | `test:e2e:blocks:code`   | Code block specs only                                                         |
+| `test:e2e:blocks:image`  | Image block specs only                                                        |
 | `test:e2e:clipboard`     | Cut / copy / paste (excludes exploration)                                     |
 | `test:e2e:exploration`   | Clipboard exploration / manual-verification scenarios                         |
 | `test:e2e:selection`     | Cross-block selection behavior                                                |
