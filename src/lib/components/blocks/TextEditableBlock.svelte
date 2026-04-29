@@ -319,9 +319,9 @@
 		// Save cursor position before the browser modifies the DOM
 		preEditOffset = cursor.getRaw() ?? 0;
 
-		if (await handleSharedKeydown(e, sharedCtx)) return;
-
-		// Intercept widget-relevant keys before the contenteditable consumes them as text input.
+		// Widget-selected keys run before handleSharedKeydown: select() cleared the
+		// native range, so getCursorOffset() reports 0 and would mis-trigger the
+		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
 		const selectedWidget = widgetSelection.getSelected();
 		if (selectedWidget !== null) {
 			const widget = findImageNodeByStart(selectedWidget.sourceStart);
@@ -405,6 +405,8 @@
 				return;
 			}
 		}
+
+		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		const cursorOff = cursor.getRaw();
 		if (cursorOff !== null) {

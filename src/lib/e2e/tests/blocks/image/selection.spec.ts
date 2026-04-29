@@ -42,7 +42,7 @@ test.describe('image widget selection', () => {
 		const widget = page.locator('[data-image-widget]').first();
 		await expect(widget).not.toHaveClass(/md-image-selected/);
 		await editor.typeText('X');
-		expect(await editor.getSource()).toContain('leadX![cat]');
+		expect(await editor.bridge.getSource()).toContain('leadX![cat]');
 	});
 
 	test('Escape deselects', async ({ page }) => {
