@@ -7,6 +7,7 @@
  */
 
 import type { InlineNode } from '../nodes';
+import { parseImageDimensions } from '../../components/image/image-dimensions';
 import { parseInline } from './index';
 
 type Range = { start: number; end: number };
@@ -155,14 +156,17 @@ function scanLinksAndImages(
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
-					const alt = raw.slice(bracketOpen + 1, bracketClose);
+					const altRaw = raw.slice(bracketOpen + 1, bracketClose);
+					const dims = parseImageDimensions(altRaw);
 					out.push({
 						kind: 'image',
 						start: pos,
 						end: dest.end,
-						alt,
+						alt: dims.displayAlt,
 						url: dest.url,
-						...(dest.title !== undefined ? { title: dest.title } : {})
+						...(dest.title !== undefined ? { title: dest.title } : {}),
+						...(dims.width !== undefined ? { width: dims.width } : {}),
+						...(dims.height !== undefined ? { height: dims.height } : {})
 					});
 					pos = dest.end;
 					continue;

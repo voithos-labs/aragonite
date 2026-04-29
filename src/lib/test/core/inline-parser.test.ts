@@ -331,6 +331,42 @@ describe('parseInline — links and images (Stage 3)', () => {
 		expect(nodes[1].url).toBe('image.png');
 	});
 
+	describe('image inline parsing — dimensions', () => {
+		it('extracts |N width from alt', () => {
+			const raw = '![cat|400](https://example.com/cat.png)';
+			const nodes = inlineOf(raw);
+			expect(nodes).toHaveLength(1);
+			const img = nodes[0];
+			expect(img.kind).toBe('image');
+			expect(img.alt).toBe('cat');
+			expect(img.width).toBe(400);
+			expect(img.height).toBeUndefined();
+			expect(img.url).toBe('https://example.com/cat.png');
+		});
+
+		it('extracts |NxM width and height', () => {
+			const raw = '![cat|400x300](https://example.com/cat.png)';
+			const nodes = inlineOf(raw);
+			const img = nodes[0];
+			expect(img.alt).toBe('cat');
+			expect(img.width).toBe(400);
+			expect(img.height).toBe(300);
+		});
+
+		it('preserves source bytes regardless of dimension hint', () => {
+			const raw = '![cat|400](https://example.com/cat.png)';
+			const nodes = inlineOf(raw);
+			expect(raw.slice(nodes[0].start, nodes[0].end)).toBe(raw);
+		});
+
+		it('treats invalid dimension hint as plain alt', () => {
+			const raw = '![cat|0](https://example.com/cat.png)';
+			const nodes = inlineOf(raw);
+			expect(nodes[0].alt).toBe('cat|0');
+			expect(nodes[0].width).toBeUndefined();
+		});
+	});
+
 	it('link with emphasis in text', () => {
 		const nodes = inlineOf('[**bold link**](url)');
 		expect(nodes[0].kind).toBe('link');
