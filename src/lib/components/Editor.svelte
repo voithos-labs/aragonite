@@ -40,6 +40,7 @@
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import BlockList from './BlockList.svelte';
 	import ImageProperties from './image/ImageProperties.svelte';
+	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
 	import { buildImageSourceBytes, type ImageFields } from './image/image-source-bytes';
 	import type { InlineNode } from '../core/nodes';
 
@@ -376,14 +377,22 @@
 		return null;
 	}
 
-	function getSelectedImageFields(): { para: CstNode; image: InlineNode } | null {
+	function getSelectedImageFields(): {
+		para: CstNode;
+		image: InlineNode;
+		widgetEl: HTMLElement | null;
+	} | null {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return null;
 		const para = findParagraphAtPath(sel.paragraphPath);
 		if (!para) return null;
 		const image = findImageInParagraph(para, sel.sourceStart);
 		if (!image) return null;
-		return { para, image };
+		const widgetEl =
+			(editorEl?.querySelector(
+				`[data-image-widget][data-source-start="${sel.sourceStart}"][data-paragraph-path="${sel.paragraphPath.join(',')}"]`
+			) as HTMLElement | null) ?? null;
+		return { para, image, widgetEl };
 	}
 
 	function commitImageEdit(newFields: ImageFields): void {
@@ -411,6 +420,40 @@
 		widgetSelection.clear();
 	}
 
+	function commitImageResize(newWidth: number, newHeight: number | undefined): void {
+		const sel = widgetSelection.getSelected();
+		if (!sel) return;
+		if (sel.paragraphPath.length !== 1) return;
+		const ctx = getSelectedImageFields();
+		if (!ctx) return;
+		const newFields: ImageFields = {
+			alt: ctx.image.alt ?? '',
+			url: ctx.image.url ?? '',
+			...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
+			width: newWidth,
+			...(newHeight !== undefined ? { height: newHeight } : {})
+		};
+		commitImageEdit(newFields);
+	}
+
+	function getEditorContentWidth(): number {
+		if (!editorEl) return 800;
+		return editorEl.clientWidth;
+	}
+
+	// Handles render at the editor root, then their DOM children get reparented
+	// into the selected widget so `position: absolute` resolves against it.
+	// A real portal helper is the v0.7 cleanup.
+	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
+
+	$effect(() => {
+		if (!resizeHandlesContainer) return;
+		const ctx = getSelectedImageFields();
+		if (!ctx?.widgetEl) return;
+		while (resizeHandlesContainer.firstChild) {
+			ctx.widgetEl.appendChild(resizeHandlesContainer.firstChild);
+		}
+	});
 </script>
 
 <div class="editor" bind:this={editorEl}>
@@ -435,6 +478,19 @@
 				onCommit={commitImageEdit}
 				onDismiss={dismissImagePopover}
 			/>
+		{/if}
+	{/if}
+
+	{#if widgetSelection.getSelected()}
+		{@const ctx = getSelectedImageFields()}
+		{#if ctx?.widgetEl}
+			<div bind:this={resizeHandlesContainer} class="md-resize-handles-portal">
+				<ImageResizeHandles
+					widgetEl={ctx.widgetEl}
+					editorContentWidth={getEditorContentWidth()}
+					onCommit={commitImageResize}
+				/>
+			</div>
 		{/if}
 	{/if}
 </div>
