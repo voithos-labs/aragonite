@@ -12,6 +12,7 @@ import { buildImageWidget } from '../components/image/widget-dom';
 export interface RenderInlineOptions {
 	renderImagesAsWidgets?: boolean;
 	resolveImageUrl?: (rawUrl: string) => string;
+	paragraphPath?: number[];
 }
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
@@ -150,7 +151,12 @@ export function renderInlineNodes(
 				const renderWidgets = opts.renderImagesAsWidgets ?? true;
 				const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
 				if (renderWidgets) {
-					frag.appendChild(buildImageWidget(node, raw, { resolveImageUrl: resolveUrl }));
+					frag.appendChild(
+						buildImageWidget(node, raw, {
+							resolveImageUrl: resolveUrl,
+							paragraphPath: opts.paragraphPath ?? []
+						})
+					);
 				} else {
 					const altText = node.alt ?? '';
 					const altStart = node.start + 2;
