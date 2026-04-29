@@ -57,4 +57,24 @@ test.describe('image resize', () => {
 		);
 		expect(undoAfter).toBe(undoBefore);
 	});
+
+	// Regression: the widget span was previously full-editor-width via
+	// `display: block` with no `width: fit-content`, putting the right-edge
+	// handle at the editor's right edge instead of the image's.
+	test('right handle is positioned at the image edge, not the editor edge', async ({
+		page
+	}) => {
+		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.click();
+		const img = page.locator('[data-image-widget] img').first();
+		const handle = page.locator('.md-resize-handle-right').first();
+		const imgBox = await img.boundingBox();
+		const handleBox = await handle.boundingBox();
+		if (!imgBox || !handleBox) throw new Error('img or handle missing');
+		// Handle's center should be within 10px of the image's right edge.
+		const handleCenterX = handleBox.x + handleBox.width / 2;
+		const imageRightX = imgBox.x + imgBox.width;
+		expect(Math.abs(handleCenterX - imageRightX)).toBeLessThan(10);
+	});
 });
