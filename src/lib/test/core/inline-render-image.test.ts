@@ -62,7 +62,7 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 			const nodes = parseInline(raw, 0, raw.length);
 			const frag = renderInlineNodes(nodes, raw, {
 				renderImagesAsWidgets: true,
-				resolveImageUrl: (() => undefined) as (u: string) => string
+				resolveImageUrl: (() => undefined) as unknown as (u: string) => string
 			});
 			const img = frag.querySelector('img');
 			expect(img?.getAttribute('src')).toBe('https://example.com/cat.png');
