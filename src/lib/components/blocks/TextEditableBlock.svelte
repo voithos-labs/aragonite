@@ -409,10 +409,22 @@
 			}
 		}
 
+		// Shift+Arrow into a widget snaps focus to the far boundary atomically.
+		// Native default with user-select:none on the widget collapses the
+		// selection instead of stepping past it.
+		if (e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && el) {
+			const widgetExt = widgetExtensionTarget(e.key);
+			if (widgetExt !== null) {
+				e.preventDefault();
+				extendSelectionToRaw(widgetExt);
+				return;
+			}
+		}
+
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		const cursorOff = cursor.getRaw();
-		if (cursorOff !== null) {
+		if (cursorOff !== null && !e.shiftKey) {
 			const widgetAt = imageAtCursor();
 			if (widgetAt) {
 				if (widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
@@ -572,6 +584,33 @@
 			}
 		}
 		return null;
+	}
+
+	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
+		if (!el) return null;
+		const dom = getSelectionFocusOffsetHelper(el);
+		if (dom === null) return null;
+		const focus = domToRawOffset(dom, ambientLength);
+		for (const inline of node.inlineContent ?? []) {
+			if (inline.kind !== 'image') continue;
+			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
+				return inline.end;
+			}
+			if (key === 'ArrowLeft' && focus > inline.start && focus <= inline.end) {
+				return inline.start;
+			}
+		}
+		return null;
+	}
+
+	function extendSelectionToRaw(rawOffset: number): void {
+		if (!el) return;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return;
+		const domOffset = rawToDomOffset(rawOffset, ambientLength);
+		const range = createRangeFromOffsets(el, domOffset, domOffset);
+		if (!range) return;
+		sel.extend(range.endContainer, range.endOffset);
 	}
 
 	function isTypingKey(e: KeyboardEvent): boolean {
