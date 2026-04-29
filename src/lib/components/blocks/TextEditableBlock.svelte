@@ -152,6 +152,7 @@
 		blockEdit,
 		pasteCoordinator,
 		getDoc,
+		widgetSelection,
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		}

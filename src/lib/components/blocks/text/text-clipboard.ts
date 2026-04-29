@@ -4,7 +4,7 @@
  * SFC stays focused on render and lifecycle.
  */
 
-import type { BlockEditActions, CstNode, DocumentGetter } from '../../../contracts';
+import type { BlockEditActions, CstNode, DocumentGetter, WidgetSelectionState } from '../../../contracts';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -25,6 +25,7 @@ export interface TextClipboardDeps {
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	getDoc: DocumentGetter;
+	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
 }
 
@@ -90,6 +91,28 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		e.preventDefault();
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
+
+		const selectedWidget = deps.widgetSelection.getSelected();
+		if (
+			selectedWidget !== null &&
+			deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart)
+		) {
+			const inline = (deps.node.inlineContent ?? []).find(
+				(n) => n.kind === 'image' && n.start === selectedWidget.sourceStart
+			);
+			if (inline && inline.kind === 'image') {
+				const newRaw =
+					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
+				deps.blockEdit.updateBlockContent(
+					deps.index,
+					newRaw,
+					inline.end,
+					inline.start + pastedText.length
+				);
+				deps.widgetSelection.clear();
+				return;
+			}
+		}
 
 		const offset = deps.cursor.getRaw() ?? 0;
 		const selOffsets = deps.cursor.getRawSelection();
