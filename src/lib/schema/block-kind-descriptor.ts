@@ -28,6 +28,8 @@ export interface BlockKindDescriptor {
 	 * file's module load to keep the descriptor cycle-free.
 	 */
 	rebuildRaw?: (node: CstNode) => void;
+	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
+	renderImagesAsWidgets?: boolean;
 }
 
 // ── Content-range helpers (used by built-in registrations) ─────────────────
@@ -175,7 +177,8 @@ registerBlockKind('tableCell', {
 	editable: true,
 	isContainer: false,
 	supportsInline: true,
-	getContentRange: tableCellContentRange
+	getContentRange: tableCellContentRange,
+	renderImagesAsWidgets: false
 });
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',
