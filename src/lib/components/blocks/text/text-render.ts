@@ -60,8 +60,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const descriptor = getBlockKindDescriptor(node.kind);
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
-				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
-				resolveImageUrl: (u) => u
+				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true
 			})
 		);
 		return frag;
