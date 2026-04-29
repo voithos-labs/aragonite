@@ -14,6 +14,7 @@
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
+		RESOLVE_IMAGE_URL_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
 		type ContainerEditActions,
@@ -23,7 +24,8 @@
 		type CstNode,
 		type BlockComponent,
 		type StickyColumnDirection,
-		type AmbientPrefix
+		type AmbientPrefix,
+		type ResolveImageUrl
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -87,6 +89,7 @@
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -183,7 +186,8 @@
 		get ambientPrefixText() {
 			return ambientPrefixText;
 		},
-		getDisplayText: () => getDisplayText()
+		getDisplayText: () => getDisplayText(),
+		resolveImageUrl
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
