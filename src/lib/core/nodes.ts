@@ -112,6 +112,8 @@ export interface InlineNode {
 	title?: string;
 	alt?: string;
 	decoded?: string;
+	width?: number;
+	height?: number;
 }
 
 // ── Node Types ──────────────────────────────────────────────────────────────
