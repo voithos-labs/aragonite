@@ -74,6 +74,18 @@
 			: undefined;
 		onCommit(Math.round(finalWidth), newHeight);
 	}
+
+	function cancelDrag(e: PointerEvent) {
+		if (!dragState) return;
+		// Clear inline styles so the widget falls back to its committed width/height attributes.
+		const img = imgEl();
+		if (img) {
+			img.style.width = '';
+			img.style.height = '';
+		}
+		dragState = null;
+		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
+	}
 </script>
 
 <div
@@ -82,6 +94,7 @@
 	onpointerdown={startDrag}
 	onpointermove={moveDrag}
 	onpointerup={endDrag}
+	onpointercancel={cancelDrag}
 ></div>
 <div
 	class="md-resize-handle md-resize-handle-corner"
@@ -89,6 +102,7 @@
 	onpointerdown={startDrag}
 	onpointermove={moveDrag}
 	onpointerup={endDrag}
+	onpointercancel={cancelDrag}
 ></div>
 
 <style>
