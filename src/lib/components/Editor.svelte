@@ -443,16 +443,25 @@
 
 	// Handles render at the editor root, then their DOM children get reparented
 	// into the selected widget so `position: absolute` resolves against it.
-	// A real portal helper is the v0.7 cleanup.
+	// TODO: replace with a generic portal helper.
 	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
 
 	$effect(() => {
 		if (!resizeHandlesContainer) return;
 		const ctx = getSelectedImageFields();
 		if (!ctx?.widgetEl) return;
-		while (resizeHandlesContainer.firstChild) {
-			ctx.widgetEl.appendChild(resizeHandlesContainer.firstChild);
+		const portal = resizeHandlesContainer;
+		const moved: Node[] = [];
+		while (portal.firstChild) {
+			const child = portal.firstChild;
+			ctx.widgetEl.appendChild(child);
+			moved.push(child);
 		}
+		return () => {
+			for (const child of moved) {
+				portal.appendChild(child);
+			}
+		};
 	});
 </script>
 
@@ -479,10 +488,6 @@
 				onDismiss={dismissImagePopover}
 			/>
 		{/if}
-	{/if}
-
-	{#if widgetSelection.getSelected()}
-		{@const ctx = getSelectedImageFields()}
 		{#if ctx?.widgetEl}
 			<div bind:this={resizeHandlesContainer} class="md-resize-handles-portal">
 				<ImageResizeHandles
