@@ -5,6 +5,7 @@
  */
 
 import type { InlineNode } from './nodes';
+import { buildImageWidget } from '../components/image/widget-dom';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -146,12 +147,18 @@ export function renderInlineNodes(
 			}
 
 			case 'image': {
-				const altText = node.alt ?? '';
-				const altStart = node.start + 2; // after '!['
-				const altEnd = altStart + altText.length;
-				frag.appendChild(markerSpan(raw.slice(node.start, altStart)));
-				frag.appendChild(document.createTextNode(altText));
-				frag.appendChild(markerSpan(raw.slice(altEnd, node.end)));
+				const renderWidgets = opts.renderImagesAsWidgets ?? true;
+				const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
+				if (renderWidgets) {
+					frag.appendChild(buildImageWidget(node, raw, { resolveImageUrl: resolveUrl }));
+				} else {
+					const altText = node.alt ?? '';
+					const altStart = node.start + 2;
+					const altEnd = altStart + altText.length;
+					frag.appendChild(markerSpan(raw.slice(node.start, altStart)));
+					frag.appendChild(document.createTextNode(altText));
+					frag.appendChild(markerSpan(raw.slice(altEnd, node.end)));
+				}
 				break;
 			}
 
