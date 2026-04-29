@@ -354,6 +354,8 @@
 
 	// ── Image popover ───────────────────────────────────────────────────
 
+	// Naive `children` walk — only correct for top-level paths today (gated below).
+	// Nested paths through lists/blockquotes need a container-aware resolver.
 	function findParagraphAtPath(path: number[]): CstNode | null {
 		if (path.length === 0) return null;
 		let current: { children?: CstNode[] } = doc;
