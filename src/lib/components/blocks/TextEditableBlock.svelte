@@ -55,6 +55,7 @@
 	import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
 	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
+	import { buildImageSourceBytes, type ImageFields } from '../image/image-source-bytes';
 
 	let {
 		node,
@@ -350,6 +351,43 @@
 					e.preventDefault();
 					cursor.setRaw(widget.end);
 					widgetSelection.clear();
+					return;
+				}
+				if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+					e.preventDefault();
+					// Re-look-up the full inline node for current width/height/alt/url/title;
+					// findImageNodeByStart only returns offsets.
+					const inline = (node.inlineContent ?? []).find(
+						(n) => n.kind === 'image' && n.start === widget.start
+					);
+					if (!inline || inline.kind !== 'image') return;
+
+					const KEYBOARD_STEP = 20;
+					const KEYBOARD_MIN_WIDTH = 32;
+					const FALLBACK_DEFAULT_WIDTH = 400;
+
+					const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
+					const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
+					const newWidth = Math.max(KEYBOARD_MIN_WIDTH, currentWidth + delta);
+
+					const newFields: ImageFields = {
+						alt: inline.alt ?? '',
+						url: inline.url ?? '',
+						...(inline.title !== undefined ? { title: inline.title } : {}),
+						width: newWidth,
+						...(inline.height !== undefined && currentWidth !== 0
+							? { height: Math.round((newWidth / currentWidth) * inline.height) }
+							: {})
+					};
+					const newBytes = buildImageSourceBytes(newFields);
+					const newRaw =
+						node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						widget.end,
+						widget.start + newBytes.length
+					);
 					return;
 				}
 				if (isTypingKey(e)) {
