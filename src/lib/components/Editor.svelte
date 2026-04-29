@@ -10,6 +10,7 @@
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		WIDGET_SELECTION_KEY,
+		RESOLVE_IMAGE_URL_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
@@ -19,7 +20,8 @@
 		type BlockComponent,
 		type CstNode,
 		type Document,
-		type EditorSelection
+		type EditorSelection,
+		type ResolveImageUrl
 	} from '../contracts';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -40,7 +42,15 @@
 
 	bootstrapCodeLanguages();
 
-	let { source = '' }: { source?: string } = $props();
+	let {
+		source = '',
+		resolveImageUrl
+	}: {
+		source?: string;
+		resolveImageUrl?: (rawUrl: string) => string;
+	} = $props();
+
+	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 
 	// ── State ───────────────────────────────────────────────────────────
 
@@ -217,6 +227,7 @@
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
+	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);

@@ -6,7 +6,7 @@
  * Cursor save/restore stays in the SFC — those writes touch $state.
  */
 
-import type { AmbientPrefix, CstNode } from '../../../contracts';
+import type { AmbientPrefix, CstNode, ResolveImageUrl } from '../../../contracts';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
@@ -19,6 +19,7 @@ export interface TextRenderDeps {
 	get ambientPrefix(): AmbientPrefix;
 	get ambientPrefixText(): string;
 	getDisplayText: () => string;
+	resolveImageUrl: ResolveImageUrl;
 }
 
 export interface TextRender {
@@ -60,7 +61,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const descriptor = getBlockKindDescriptor(node.kind);
 		frag.appendChild(
 			renderInlineNodes(content, node.raw, {
-				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true
+				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
+				resolveImageUrl: deps.resolveImageUrl
 			})
 		);
 		return frag;
