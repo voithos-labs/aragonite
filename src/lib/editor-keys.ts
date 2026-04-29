@@ -5,6 +5,7 @@
  */
 
 import type { Document } from './core/nodes';
+import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
@@ -18,6 +19,9 @@ export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
 export const SELECTION_KEY = Symbol('selection');
+
+export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
+export type { WidgetSelectionState };
 
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
