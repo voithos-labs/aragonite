@@ -18,7 +18,6 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type BlockComponent,
-		type CstNode,
 		type Document,
 		type EditorSelection,
 		type ResolveImageUrl
@@ -31,9 +30,7 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { parseAllInlineContent, parseInline, getContentRange, isProseKind } from '../core/inline';
-	import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
-	import { expectStateForNode } from '../reactivity/state-registry';
+	import { parseAllInlineContent } from '../core/inline';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
@@ -43,8 +40,7 @@
 	import BlockList from './BlockList.svelte';
 	import ImageProperties from './image/ImageProperties.svelte';
 	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
-	import { buildImageSourceBytes, type ImageFields } from './image/image-source-bytes';
-	import type { InlineNode } from '../core/nodes';
+	import { createImageEditCommitter } from './image/image-edit-commit';
 
 	bootstrapCodeLanguages();
 
@@ -239,6 +235,17 @@
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
 
+	// ── Image popover ───────────────────────────────────────────────────
+
+	const imageEdit = createImageEditCommitter({
+		getDoc: () => doc,
+		getEditorEl: () => editorEl ?? null,
+		widgetSelection,
+		controller
+	});
+
+	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -253,30 +260,11 @@
 		return () => root.removeEventListener('pointerdown', handlePointerDown);
 	});
 
-	$effect(() => {
-		if (!editorEl) return;
-		const root = editorEl;
-		const handler = (e: Event) => {
-			const detail = (e as CustomEvent).detail as { paragraphPath: number[]; sourceStart: number };
-			widgetSelection.select(detail);
-		};
-		root.addEventListener('image-widget-select', handler);
-		return () => root.removeEventListener('image-widget-select', handler);
-	});
+	$effect(() => imageEdit.attachWidgetSelectListener());
 
-	$effect(() => {
-		const sel = widgetSelection.getSelected();
-		if (!editorEl) return;
-		editorEl.querySelectorAll('.md-image-widget.md-image-selected').forEach((el) => {
-			el.classList.remove('md-image-selected');
-		});
-		if (sel) {
-			const widgetEl = editorEl.querySelector(
-				`[data-image-widget][data-source-start="${sel.sourceStart}"][data-paragraph-path="${sel.paragraphPath.join(',')}"]`
-			);
-			widgetEl?.classList.add('md-image-selected');
-		}
-	});
+	$effect(() => imageEdit.applySelectedClass());
+
+	$effect(() => imageEdit.reparentResizeHandles(() => resizeHandlesContainer ?? null));
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
@@ -355,157 +343,6 @@
 		return doc;
 	}
 
-	// ── Image popover ───────────────────────────────────────────────────
-
-	function resolvePathToParagraph(path: number[]): {
-		paragraph: CstNode;
-		parent: { children?: CstNode[] };
-	} | null {
-		if (path.length === 0) return null;
-		let parent: { children?: CstNode[] } = doc;
-		for (let i = 0; i < path.length - 1; i++) {
-			const next = parent.children?.[path[i]];
-			if (!next) return null;
-			parent = next;
-		}
-		const paragraph = parent.children?.[path[path.length - 1]];
-		if (!paragraph) return null;
-		return { paragraph, parent };
-	}
-
-	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
-		for (const inline of para.inlineContent ?? []) {
-			if (inline.kind === 'image' && inline.start === sourceStart) return inline;
-		}
-		return null;
-	}
-
-	function getSelectedImageFields(): {
-		para: CstNode;
-		image: InlineNode;
-		widgetEl: HTMLElement | null;
-	} | null {
-		const sel = widgetSelection.getSelected();
-		if (!sel) return null;
-		const resolved = resolvePathToParagraph(sel.paragraphPath);
-		if (!resolved) return null;
-		const image = findImageInParagraph(resolved.paragraph, sel.sourceStart);
-		if (!image) return null;
-		const widgetEl =
-			(editorEl?.querySelector(
-				`[data-image-widget][data-source-start="${sel.sourceStart}"][data-paragraph-path="${sel.paragraphPath.join(',')}"]`
-			) as HTMLElement | null) ?? null;
-		return { para: resolved.paragraph, image, widgetEl };
-	}
-
-	// Path-uniform commit for popover/resize edits. The popover mounts at
-	// editor root, outside any container's Svelte context, so it can't reach
-	// a nested container's `blockEdit`. Resolve the parent container directly
-	// and route through the matching commit primitive.
-	async function commitParagraphRaw(paragraphPath: number[], newRaw: string): Promise<void> {
-		const resolved = resolvePathToParagraph(paragraphPath);
-		if (!resolved) return;
-		const { paragraph } = resolved;
-
-		const applyRaw = () => {
-			paragraph.raw = newRaw;
-			if (isProseKind(paragraph.kind)) {
-				const range = getContentRange(paragraph);
-				paragraph.inlineContent = parseInline(paragraph.raw, range.start, range.end);
-			}
-			if (paragraphPath.length > 1) {
-				rebuildAncestryRawForLeaf(doc, paragraphPath);
-			}
-		};
-
-		if (paragraphPath.length === 1) {
-			await controller.commitStructural({
-				snapshot: { blockIndex: paragraphPath[0], offset: 0 },
-				mutate: () => {
-					applyRaw();
-					return { op: 'noop' };
-				},
-				op: { kind: 'updateContent', detail: { length: newRaw.length } }
-			});
-			return;
-		}
-
-		const containerNode = resolved.parent as CstNode;
-		await controller.commitContainerStructural({
-			containerNode,
-			state: expectStateForNode(containerNode),
-			snapshot: { blockIndex: paragraphPath[0], offset: 0 },
-			mutate: () => {
-				applyRaw();
-				return { op: 'noop' };
-			},
-			op: {
-				kind: 'updateContent',
-				detail: { length: newRaw.length },
-				eventPath: paragraphPath
-			}
-		});
-	}
-
-	function commitImageEdit(newFields: ImageFields): void {
-		const sel = widgetSelection.getSelected();
-		if (!sel) return;
-		const ctx = getSelectedImageFields();
-		if (!ctx) return;
-		const newSourceBytes = buildImageSourceBytes(newFields);
-		const oldStart = ctx.image.start;
-		const oldEnd = ctx.image.end;
-		const newRaw = ctx.para.raw.slice(0, oldStart) + newSourceBytes + ctx.para.raw.slice(oldEnd);
-		void commitParagraphRaw(sel.paragraphPath, newRaw);
-		widgetSelection.clear();
-	}
-
-	function dismissImagePopover(): void {
-		widgetSelection.clear();
-	}
-
-	function commitImageResize(newWidth: number, newHeight: number | undefined): void {
-		const sel = widgetSelection.getSelected();
-		if (!sel) return;
-		const ctx = getSelectedImageFields();
-		if (!ctx) return;
-		const newFields: ImageFields = {
-			alt: ctx.image.alt ?? '',
-			url: ctx.image.url ?? '',
-			...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
-			width: newWidth,
-			...(newHeight !== undefined ? { height: newHeight } : {})
-		};
-		commitImageEdit(newFields);
-	}
-
-	function getEditorContentWidth(): number {
-		if (!editorEl) return 800;
-		return editorEl.clientWidth;
-	}
-
-	// Handles render at the editor root, then their DOM children get reparented
-	// into the selected widget so `position: absolute` resolves against it.
-	// TODO: replace with a generic portal helper.
-	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
-
-	$effect(() => {
-		if (!resizeHandlesContainer) return;
-		const ctx = getSelectedImageFields();
-		if (!ctx?.widgetEl) return;
-		const portal = resizeHandlesContainer;
-		const moved: Node[] = [];
-		while (portal.firstChild) {
-			const child = portal.firstChild;
-			ctx.widgetEl.appendChild(child);
-			moved.push(child);
-		}
-		return () => {
-			for (const child of moved) {
-				portal.appendChild(child);
-			}
-		};
-	});
 </script>
 
 <div class="editor" bind:this={editorEl}>
@@ -517,7 +354,7 @@
 		parentPath={[]}
 	/>
 	{#if widgetSelection.getSelected()}
-		{@const ctx = getSelectedImageFields()}
+		{@const ctx = imageEdit.getSelectedImageFields()}
 		{#if ctx}
 			<ImageProperties
 				fields={{
@@ -527,16 +364,16 @@
 					...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
 					...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
 				}}
-				onCommit={commitImageEdit}
-				onDismiss={dismissImagePopover}
+				onCommit={imageEdit.commitImageEdit}
+				onDismiss={imageEdit.dismissImagePopover}
 			/>
 		{/if}
 		{#if ctx?.widgetEl}
 			<div bind:this={resizeHandlesContainer} class="md-resize-handles-portal">
 				<ImageResizeHandles
 					widgetEl={ctx.widgetEl}
-					editorContentWidth={getEditorContentWidth()}
-					onCommit={commitImageResize}
+					editorContentWidth={imageEdit.getEditorContentWidth()}
+					onCommit={imageEdit.commitImageResize}
 				/>
 			</div>
 		{/if}
