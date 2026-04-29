@@ -6,6 +6,7 @@ import type { InlineNode } from '../../core/nodes';
 
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
+	paragraphPath: number[];
 }
 
 export function buildImageWidget(
@@ -16,7 +17,18 @@ export function buildImageWidget(
 	const widget = document.createElement('span');
 	widget.className = 'md-image-widget';
 	widget.dataset.imageWidget = '';
+	widget.dataset.sourceStart = String(node.start);
+	widget.dataset.paragraphPath = opts.paragraphPath.join(',');
 	widget.setAttribute('contenteditable', 'false');
+
+	widget.addEventListener('pointerdown', (e) => {
+		e.stopPropagation();
+		const event = new CustomEvent('image-widget-select', {
+			bubbles: true,
+			detail: { paragraphPath: [...opts.paragraphPath], sourceStart: node.start }
+		});
+		widget.dispatchEvent(event);
+	});
 
 	const img = document.createElement('img');
 	img.alt = node.alt ?? '';

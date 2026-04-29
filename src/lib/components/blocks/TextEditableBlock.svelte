@@ -190,7 +190,10 @@
 			return ambientPrefixText;
 		},
 		getDisplayText: () => getDisplayText(),
-		resolveImageUrl
+		resolveImageUrl,
+		get myPath() {
+			return myPath;
+		}
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

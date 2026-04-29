@@ -39,6 +39,9 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import BlockList from './BlockList.svelte';
+	import ImageProperties from './image/ImageProperties.svelte';
+	import { buildImageSourceBytes, type ImageFields } from './image/image-source-bytes';
+	import type { InlineNode } from '../core/nodes';
 
 	bootstrapCodeLanguages();
 
@@ -247,6 +250,31 @@
 		return () => root.removeEventListener('pointerdown', handlePointerDown);
 	});
 
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail as { paragraphPath: number[]; sourceStart: number };
+			widgetSelection.select(detail);
+		};
+		root.addEventListener('image-widget-select', handler);
+		return () => root.removeEventListener('image-widget-select', handler);
+	});
+
+	$effect(() => {
+		const sel = widgetSelection.getSelected();
+		if (!editorEl) return;
+		editorEl.querySelectorAll('.md-image-widget.md-image-selected').forEach((el) => {
+			el.classList.remove('md-image-selected');
+		});
+		if (sel) {
+			const widgetEl = editorEl.querySelector(
+				`[data-image-widget][data-source-start="${sel.sourceStart}"][data-paragraph-path="${sel.paragraphPath.join(',')}"]`
+			);
+			widgetEl?.classList.add('md-image-selected');
+		}
+	});
+
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
 	// selection highlight while the overlay paints the cross-block range.
@@ -324,6 +352,63 @@
 		return doc;
 	}
 
+	// ── Image popover ───────────────────────────────────────────────────
+
+	function findParagraphAtPath(path: number[]): CstNode | null {
+		if (path.length === 0) return null;
+		let current: { children?: CstNode[] } = doc;
+		let resolved: CstNode | null = null;
+		for (const idx of path) {
+			const children = current.children;
+			if (!children || idx >= children.length) return null;
+			resolved = children[idx];
+			current = resolved;
+		}
+		return resolved;
+	}
+
+	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
+		for (const inline of para.inlineContent ?? []) {
+			if (inline.kind === 'image' && inline.start === sourceStart) return inline;
+		}
+		return null;
+	}
+
+	function getSelectedImageFields(): { para: CstNode; image: InlineNode } | null {
+		const sel = widgetSelection.getSelected();
+		if (!sel) return null;
+		const para = findParagraphAtPath(sel.paragraphPath);
+		if (!para) return null;
+		const image = findImageInParagraph(para, sel.sourceStart);
+		if (!image) return null;
+		return { para, image };
+	}
+
+	function commitImageEdit(newFields: ImageFields): void {
+		const sel = widgetSelection.getSelected();
+		if (!sel) return;
+		// v0.6.4: nested-paragraph commit (lists, blockquotes) needs the parent's
+		// blockEdit context; out of scope for this milestone — fail soft.
+		if (sel.paragraphPath.length !== 1) return;
+		const ctx = getSelectedImageFields();
+		if (!ctx) return;
+		const newSourceBytes = buildImageSourceBytes(newFields);
+		const oldStart = ctx.image.start;
+		const oldEnd = ctx.image.end;
+		const newRaw = ctx.para.raw.slice(0, oldStart) + newSourceBytes + ctx.para.raw.slice(oldEnd);
+		blockEdit.updateBlockContent(
+			sel.paragraphPath[0],
+			newRaw,
+			oldEnd,
+			oldStart + newSourceBytes.length
+		);
+		widgetSelection.clear();
+	}
+
+	function dismissImagePopover(): void {
+		widgetSelection.clear();
+	}
+
 </script>
 
 <div class="editor" bind:this={editorEl}>
@@ -334,6 +419,22 @@
 		getRef={getBlockRefSlot}
 		parentPath={[]}
 	/>
+	{#if widgetSelection.getSelected()}
+		{@const ctx = getSelectedImageFields()}
+		{#if ctx}
+			<ImageProperties
+				fields={{
+					alt: ctx.image.alt ?? '',
+					url: ctx.image.url ?? '',
+					...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
+					...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
+					...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
+				}}
+				onCommit={commitImageEdit}
+				onDismiss={dismissImagePopover}
+			/>
+		{/if}
+	{/if}
 </div>
 
 <style>
