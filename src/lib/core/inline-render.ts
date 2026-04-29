@@ -6,6 +6,13 @@
 
 import type { InlineNode } from './nodes';
 
+// ── Render options ──────────────────────────────────────────────────────────
+
+export interface RenderInlineOptions {
+	renderImagesAsWidgets?: boolean;
+	resolveImageUrl?: (rawUrl: string) => string;
+}
+
 // ── Marker helpers ──────────────────────────────────────────────────────────
 
 function markerSpan(text: string): HTMLSpanElement {
@@ -36,7 +43,12 @@ function renderInlineCode(node: InlineNode, raw: string): DocumentFragment {
 
 // ── Wrapped spans (emphasis / strong / strikethrough) ───────────────────────
 
-function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFragment {
+function renderWrapped(
+	node: InlineNode,
+	raw: string,
+	tag: string,
+	opts: RenderInlineOptions
+): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const children = node.children ?? [];
 
@@ -59,7 +71,7 @@ function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFrag
 	frag.appendChild(markerSpan(openMarker));
 
 	const wrapper = document.createElement(tag);
-	const innerFrag = renderInlineNodes(children, raw);
+	const innerFrag = renderInlineNodes(children, raw, opts);
 	wrapper.appendChild(innerFrag);
 	frag.appendChild(wrapper);
 
@@ -69,7 +81,11 @@ function renderWrapped(node: InlineNode, raw: string, tag: string): DocumentFrag
 
 // ── Main renderer ────────────────────────────────────────────────────────────
 
-export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFragment {
+export function renderInlineNodes(
+	nodes: InlineNode[],
+	raw: string,
+	opts: RenderInlineOptions = {}
+): DocumentFragment {
 	const frag = document.createDocumentFragment();
 
 	for (const node of nodes) {
@@ -83,15 +99,15 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 				break;
 
 			case 'emphasis':
-				frag.appendChild(renderWrapped(node, raw, 'em'));
+				frag.appendChild(renderWrapped(node, raw, 'em', opts));
 				break;
 
 			case 'strong':
-				frag.appendChild(renderWrapped(node, raw, 'strong'));
+				frag.appendChild(renderWrapped(node, raw, 'strong', opts));
 				break;
 
 			case 'strikethrough':
-				frag.appendChild(renderWrapped(node, raw, 's'));
+				frag.appendChild(renderWrapped(node, raw, 's', opts));
 				break;
 
 			case 'hardLineBreak': {
@@ -117,7 +133,7 @@ export function renderInlineNodes(nodes: InlineNode[], raw: string): DocumentFra
 					frag.appendChild(markerSpan(openMarker));
 					const anchor = document.createElement('a');
 					anchor.className = 'md-link-content';
-					anchor.appendChild(renderInlineNodes(children, raw));
+					anchor.appendChild(renderInlineNodes(children, raw, opts));
 					frag.appendChild(anchor);
 					frag.appendChild(markerSpan(closeMarker));
 				} else {
