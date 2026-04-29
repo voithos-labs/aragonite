@@ -13,12 +13,13 @@
 
 	let url = $state(fields.url);
 	let alt = $state(fields.alt);
-	let title = $state(fields.title ?? '');
+	let titleInput = $state(fields.title ?? '');
+	let titleTouched = $state(false);
 
 	const initialBytes = buildImageSourceBytes(fields);
 
 	function handleBlurAll(e: FocusEvent) {
-		// Tabbing between fields fires focusout with relatedTarget still inside the popover; only commit when focus actually leaves.
+		// focusout fires on tab between inputs; only commit when focus exits the popover.
 		const next = e.relatedTarget as Node | null;
 		const popover = e.currentTarget as HTMLElement;
 		if (next && popover.contains(next)) return;
@@ -26,11 +27,20 @@
 		onDismiss();
 	}
 
+	function onTitleInput() {
+		titleTouched = true;
+	}
+
 	function commitIfChanged() {
+		const resolvedTitle = titleTouched
+			? titleInput.length > 0
+				? titleInput
+				: undefined
+			: fields.title;
 		const next: ImageFields = {
 			alt,
 			url,
-			...(title.length > 0 ? { title } : {}),
+			...(resolvedTitle !== undefined ? { title: resolvedTitle } : {}),
 			...(fields.width !== undefined ? { width: fields.width } : {}),
 			...(fields.height !== undefined ? { height: fields.height } : {})
 		};
@@ -65,7 +75,7 @@
 	</label>
 	<label>
 		<span>Title</span>
-		<input type="text" bind:value={title} />
+		<input type="text" bind:value={titleInput} oninput={onTitleInput} />
 	</label>
 </div>
 
