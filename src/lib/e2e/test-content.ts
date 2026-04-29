@@ -138,7 +138,39 @@ Wide table (overflows horizontally — scroll inside the table to see all column
 
 ## Images
 
-![Alt text for a placeholder image](https://example.com/sample.png)
+Click an image to select it. Drag the corner or right-edge handles to resize, or press \`Shift+ArrowLeft\`/\`Shift+ArrowRight\` to step the width by 20px. Use the popover that appears to edit the URL, alt, or title. Backspace or Delete on a selected image deletes it.
+
+Standalone image with a width hint:
+
+![A photo|400](https://picsum.photos/seed/limestone/600/400)
+
+Explicit width × height:
+
+![Square|200x200](https://picsum.photos/seed/limestone-square/300/300)
+
+With a title (hover the image):
+
+![Mountains](https://picsum.photos/seed/limestone-mountain/500/350 "Click me — try the popover")
+
+Mid-paragraph images render block-level even though the CST stores them inline:
+
+Lorem ipsum dolor sit amet ![inline|180](https://picsum.photos/seed/limestone-inline/240/180) consectetur adipiscing elit, sed do eiusmod tempor.
+
+Inside a list item — the popover commit works in nested containers too:
+
+- ![In a list|300](https://picsum.photos/seed/limestone-list/400/300)
+- Try selecting and editing this one.
+
+Inside a table cell — falls back to alt-text-only since cells can't accommodate widget layout:
+
+| Photo                                                              | Caption                                  |
+| :----------------------------------------------------------------- | :--------------------------------------- |
+| ![sunset](https://picsum.photos/seed/limestone-sunset/120/80)      | Cell images render as alt text           |
+| ![field](https://picsum.photos/seed/limestone-field/120/80 "Field") | Title is preserved in raw, not displayed |
+
+Broken image (404) — note the styled error state:
+
+![This image fails to load](/test-fixtures/nonexistent.png)
 
 ## HTML block
 
