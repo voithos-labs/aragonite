@@ -12,6 +12,25 @@ export function createRangeFromOffsets(
 	let startSet = false;
 
 	function walk(node: Node): boolean {
+		// Image widgets are atomic: their textContent contributes to the
+		// content-offset ledger (preserves textContent === ambientPrefix + raw)
+		// but the cursor never lands inside. Snap requested offsets to the
+		// widget's leading or trailing edge.
+		if (node.nodeType === Node.ELEMENT_NODE && (node as Element).matches?.('[data-image-widget]')) {
+			const len = (node as Element).textContent?.length ?? 0;
+			if (!startSet && start <= charCount + len) {
+				if (start <= charCount) range.setStartBefore(node);
+				else range.setStartAfter(node);
+				startSet = true;
+			}
+			if (startSet && end <= charCount + len) {
+				if (end <= charCount) range.setEndBefore(node);
+				else range.setEndAfter(node);
+				return true;
+			}
+			charCount += len;
+			return false;
+		}
 		if (node.nodeType === Node.TEXT_NODE) {
 			const len = node.textContent?.length ?? 0;
 			if (!startSet && charCount + len >= start) {
@@ -50,6 +69,24 @@ export function setCursorOffset(container: HTMLElement, offset: number): void {
 }
 
 /**
+ * Single source of truth for "DOM (node, offset) → content-offset" inside a
+ * contenteditable. `Selection.toString()` skips text inside
+ * contenteditable=false islands (ambient markers, image widgets) and is
+ * unreliable when ranges cross them; `Range.toString()` on a prefix range
+ * does not skip, so all readers funnel through this helper.
+ */
+function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number): number {
+	const preRange = document.createRange();
+	preRange.selectNodeContents(container);
+	try {
+		preRange.setEnd(node, offset);
+	} catch {
+		return 0;
+	}
+	return preRange.toString().length;
+}
+
+/**
  * Returns the range START (anchor for forward selections). For the moving
  * endpoint during Shift+Arrow extension, use `getSelectionFocusOffset`.
  */
@@ -58,10 +95,7 @@ export function getCursorOffset(container: HTMLElement): number | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	const preRange = document.createRange();
-	preRange.selectNodeContents(container);
-	preRange.setEnd(range.startContainer, range.startOffset);
-	return preRange.toString().length;
+	return nodeOffsetToContent(container, range.startContainer, range.startOffset);
 }
 
 /**
@@ -74,30 +108,17 @@ export function getSelectionFocusOffset(container: HTMLElement): number | null {
 	const sel = window.getSelection();
 	if (!sel || sel.focusNode === null) return null;
 	if (!container.contains(sel.focusNode)) return null;
-	const preRange = document.createRange();
-	preRange.selectNodeContents(container);
-	try {
-		preRange.setEnd(sel.focusNode, sel.focusOffset);
-	} catch {
-		return null;
-	}
-	return preRange.toString().length;
+	return nodeOffsetToContent(container, sel.focusNode, sel.focusOffset);
 }
 
 export function getSelectionOffsets(container: HTMLElement): { start: number; end: number } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
 	const range = sel.getRangeAt(0);
-	// Measure end via preRange (not sel.toString().length): selection stringification
-	// skips text inside contenteditable="false" islands, making the length
-	// unreliable when a range crosses an ambient marker span.
-	const preStart = document.createRange();
-	preStart.selectNodeContents(container);
-	preStart.setEnd(range.startContainer, range.startOffset);
-	const preEnd = document.createRange();
-	preEnd.selectNodeContents(container);
-	preEnd.setEnd(range.endContainer, range.endOffset);
-	return { start: preStart.toString().length, end: preEnd.toString().length };
+	return {
+		start: nodeOffsetToContent(container, range.startContainer, range.startOffset),
+		end: nodeOffsetToContent(container, range.endContainer, range.endOffset)
+	};
 }
 
 export function hasSelection(): boolean {

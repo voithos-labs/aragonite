@@ -34,11 +34,7 @@
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import { trimTrailingLineEnding } from '../../core/lines';
-	import {
-		createRangeFromOffsets,
-		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
-		hasSelection as hasSelectionHelper
-	} from '../../cursor/cursor-utils';
+	import { hasSelection as hasSelectionHelper } from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from './text/format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
@@ -52,7 +48,7 @@
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
-	import { domToRawOffset, rawToDomOffset } from '../../ambient/ambient-offset';
+	import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 	import { buildImageSourceBytes, type ImageFields } from '../image/image-source-bytes';
@@ -163,8 +159,10 @@
 		getCursorOffset: () => cursor.getRaw(),
 		getFocusOffset: () => {
 			if (!el) return null;
-			const dom = getSelectionFocusOffsetHelper(el);
-			return dom === null ? null : domToRawOffset(dom, ambientLength);
+			const sel = window.getSelection();
+			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+			const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+			return Math.max(0, content - ambientLength);
 		},
 		getTextLen: () => getDisplayText().length,
 		getMyPath: () => myPath,
@@ -213,8 +211,8 @@
 		if (!el) return;
 		el.focus();
 		// minOffset = ambientLength keeps the scan out of the marker region.
-		const domOffset = findOffsetNearestX(el, x, from, ambientLength);
-		cursor.setRaw(domToRawOffset(domOffset, ambientLength));
+		const contentOffset = findOffsetNearestX(el, x, from, ambientLength);
+		cursor.setRaw(Math.max(0, contentOffset - ambientLength));
 	}
 
 	export function getCursorOffset(): number | null {
@@ -230,11 +228,7 @@
 
 	export function setSelection(start: number, end: number): void {
 		if (!el) return;
-		const range = createRangeFromOffsets(
-			el,
-			rawToDomOffset(start, ambientLength),
-			rawToDomOffset(end, ambientLength)
-		);
+		const range = createRangeAtRawOffsets(el, ambientLength + start, ambientLength + end);
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
@@ -243,12 +237,47 @@
 
 	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
 		if (!el) return [];
-		const domStart = rawToDomOffset(startOffset, ambientLength);
-		const domEnd = rawToDomOffset(endOffset, ambientLength);
-		return measurePartialRectsInContentEditable(el, domStart, domEnd);
+		return measurePartialRectsInContentEditable(
+			el,
+			ambientLength + startOffset,
+			ambientLength + endOffset
+		);
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
+	// True when the block's only inline content is image widgets — vertical
+	// arrow traversal skips it because the widgets carry no column meaning.
+	export function isVerticallyTransparent(): boolean {
+		const inlines = node.inlineContent ?? [];
+		if (inlines.length === 0) return false;
+		for (const inline of inlines) {
+			if (inline.kind === 'image') continue;
+			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+			return false;
+		}
+		return true;
+	}
+
+	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
+		const inlines = node.inlineContent ?? [];
+		if (inlines.length === 0) return false;
+		const target = side === 'start' ? findFirstEdgeImage(inlines) : findLastEdgeImage(inlines);
+		if (!target) return false;
+		// Focus the contenteditable so subsequent key events route to this
+		// block's keydown handler, where the widget-selected branch can run.
+		el?.focus();
+		widgetSelection.select({ paragraphPath: myPath, sourceStart: target.start });
+		return true;
+	}
+
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		focusAtColumn,
+		isVerticallyTransparent,
+		selectEdgeWidget
+	} satisfies BlockComponent);
 
 	// ── Content sync ──────────────────────────────────────────────────────
 
@@ -292,14 +321,33 @@
 	 */
 	function readRawText(): string {
 		if (!el) return '';
-		if (ambientLength === 0) return el.textContent ?? '';
-		const ambient = ambientSpanOf(el);
+		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
 		let out = '';
 		for (const child of Array.from(el.childNodes)) {
 			if (child === ambient) continue;
-			out += child.textContent ?? '';
+			out += rawTextOf(child);
 		}
 		return out;
+	}
+
+	// Image widgets carry no textContent — rebuild their source bytes from the
+	// current node.raw via the widget's data-source-start/end attributes so the
+	// CST round-trip stays intact when the user edits text around the widget.
+	function rawTextOf(domNode: Node): string {
+		if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
+		if (domNode.nodeType === Node.ELEMENT_NODE) {
+			const widget = domNode as Element;
+			if (widget.matches?.('[data-image-widget]')) {
+				const start = parseInt(widget.getAttribute('data-source-start') ?? '', 10);
+				const end = parseInt(widget.getAttribute('data-source-end') ?? '', 10);
+				if (Number.isNaN(start) || Number.isNaN(end)) return '';
+				return node.raw.slice(start, end);
+			}
+			let out = '';
+			for (const child of Array.from(widget.childNodes)) out += rawTextOf(child);
+			return out;
+		}
+		return '';
 	}
 
 	function onCompositionStart(): void {
@@ -362,14 +410,24 @@
 				}
 				if (e.key === 'ArrowLeft') {
 					e.preventDefault();
-					cursor.setRaw(selectedWidget.sourceStart);
-					widgetSelection.clear();
+					if (rawHasNoTextBefore(widget.start)) {
+						widgetSelection.clear();
+						await focusActions.moveFocus(index - 1, 'end');
+					} else {
+						cursor.setRaw(widget.start);
+						widgetSelection.clear();
+					}
 					return;
 				}
 				if (e.key === 'ArrowRight') {
 					e.preventDefault();
-					cursor.setRaw(widget.end);
-					widgetSelection.clear();
+					if (rawHasNoTextAfter(widget.end)) {
+						widgetSelection.clear();
+						await focusActions.moveFocus(index + 1, 'start');
+					} else {
+						cursor.setRaw(widget.end);
+						widgetSelection.clear();
+					}
 					return;
 				}
 				if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -574,11 +632,43 @@
 		return null;
 	}
 
+	function findFirstEdgeImage(
+		inlines: ReadonlyArray<{ kind: string; start: number; end: number; text?: string }>
+	): { start: number; end: number } | null {
+		for (const inline of inlines) {
+			if (inline.kind === 'image') return { start: inline.start, end: inline.end };
+			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+			return null;
+		}
+		return null;
+	}
+
+	function findLastEdgeImage(
+		inlines: ReadonlyArray<{ kind: string; start: number; end: number; text?: string }>
+	): { start: number; end: number } | null {
+		for (let i = inlines.length - 1; i >= 0; i--) {
+			const inline = inlines[i];
+			if (inline.kind === 'image') return { start: inline.start, end: inline.end };
+			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
+			return null;
+		}
+		return null;
+	}
+
+	function rawHasNoTextBefore(offset: number): boolean {
+		return node.raw.slice(0, offset).trim() === '';
+	}
+
+	function rawHasNoTextAfter(offset: number): boolean {
+		return node.raw.slice(offset).trim() === '';
+	}
+
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		if (!el) return null;
-		const dom = getSelectionFocusOffsetHelper(el);
-		if (dom === null) return null;
-		const focus = domToRawOffset(dom, ambientLength);
+		const sel = window.getSelection();
+		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+		const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		const focus = Math.max(0, content - ambientLength);
 		for (const inline of node.inlineContent ?? []) {
 			if (inline.kind !== 'image') continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
@@ -595,8 +685,8 @@
 		if (!el) return;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0) return;
-		const domOffset = rawToDomOffset(rawOffset, ambientLength);
-		const range = createRangeFromOffsets(el, domOffset, domOffset);
+		const target = ambientLength + rawOffset;
+		const range = createRangeAtRawOffsets(el, target, target);
 		if (!range) return;
 		sel.extend(range.endContainer, range.endOffset);
 	}

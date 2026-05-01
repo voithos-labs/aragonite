@@ -85,6 +85,8 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
+	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
 
 	void ({
 		editable,
@@ -93,7 +95,9 @@
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,
-		focusAtColumn
+		focusAtColumn,
+		isVerticallyTransparent,
+		selectEdgeWidget
 	} satisfies BlockComponent);
 </script>
 

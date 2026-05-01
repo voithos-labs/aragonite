@@ -112,13 +112,32 @@
 		const lines = [
 			`mode=single-block${range.collapsed ? ' (caret)' : ' (range)'}`,
 			`anchor=[${startPath.join(',')}] focus=[${endPath.join(',')}]`,
-			`dom-offsets: start=${range.startOffset} end=${range.endOffset}`
+			// Native Range offsets are relative to startContainer/endContainer
+			// (often the contenteditable div, not a text node), so they're
+			// child-index counts — not raw offsets. The raw line below carries
+			// CST-coordinate values.
+			`range: startContainer=${describeNode(range.startContainer)} startOffset=${range.startOffset} endContainer=${describeNode(range.endContainer)} endOffset=${range.endOffset}`
 		];
+		if (editorSel) {
+			const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
+			lines.push(`raw: anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)}`);
+		}
 		if (!range.collapsed) {
 			const selected = nativeSel.toString();
 			if (selected) lines.push(`selected=${JSON.stringify(selected)}`);
 		}
 		return lines.join('\n');
+	}
+
+	function describeNode(node: Node): string {
+		if (node.nodeType === Node.TEXT_NODE) return '#text';
+		if (node.nodeType === Node.ELEMENT_NODE) {
+			const el = node as Element;
+			const cls =
+				typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : '';
+			return el.tagName.toLowerCase() + cls;
+		}
+		return '#' + node.nodeType;
 	}
 
 	$effect(() => {

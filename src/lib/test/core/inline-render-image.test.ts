@@ -14,10 +14,11 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		expect(frag.textContent).toBe(raw);
 	});
 
-	it('default behavior (no opts) preserves textContent === raw', () => {
+	it('default behavior (no opts) renders widget without contributing to textContent', () => {
 		const nodes = parseInline(raw, 0, raw.length);
 		const frag = renderInlineNodes(nodes, raw);
-		expect(frag.textContent).toBe(raw);
+		expect(frag.querySelector('[data-image-widget]')).not.toBeNull();
+		expect(frag.textContent).toBe('');
 	});
 
 	it('produces widget DOM with renderImagesAsWidgets=true and by default', () => {
@@ -95,17 +96,18 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		expect(widget?.getAttribute('contenteditable')).toBe('false');
 	});
 
-	it('hidden source span carries the source bytes', () => {
+	it('widget data attributes carry the source-byte raw range', () => {
 		const nodes = parseInline(raw, 0, raw.length);
 		const frag = renderInlineNodes(nodes, raw, { renderImagesAsWidgets: true });
-		const sourceSpan = frag.querySelector('.md-image-source');
-		expect(sourceSpan?.textContent).toBe(raw);
+		const widget = frag.querySelector('[data-image-widget]') as HTMLElement;
+		expect(widget.dataset.sourceStart).toBe('0');
+		expect(widget.dataset.sourceEnd).toBe(String(raw.length));
 	});
 
-	it('widget mode preserves textContent === raw (the load-bearing invariant)', () => {
+	it('widget mode contributes no textContent — bytes live on data attributes', () => {
 		const nodes = parseInline(raw, 0, raw.length);
 		const frag = renderInlineNodes(nodes, raw, { renderImagesAsWidgets: true });
-		expect(frag.textContent).toBe(raw);
+		expect(frag.textContent).toBe('');
 	});
 
 	it('error event on <img> adds md-image-broken to the widget', () => {
