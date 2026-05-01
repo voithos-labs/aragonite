@@ -161,17 +161,13 @@
 		if (!editorEl) return null;
 		const directWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 		if (directWrapper) {
-			return directWrapper.querySelector(
-				':scope > :not(.selection-overlay)'
-			) as HTMLElement | null;
+			return directWrapper.querySelector(':scope > :not(.selection-overlay)') as HTMLElement | null;
 		}
 		if (path.length < 3) return null;
 		const tablePath = path.slice(0, -2);
 		const rowIdx = path[path.length - 2];
 		const colIdx = path[path.length - 1];
-		const tableWrapper = editorEl.querySelector(
-			`[data-block-path='${JSON.stringify(tablePath)}']`
-		);
+		const tableWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(tablePath)}']`);
 		if (!tableWrapper) return null;
 		const tableEl = tableWrapper.querySelector(':scope > [role="table"]');
 		if (!tableEl) return null;
@@ -241,20 +237,21 @@
 		getDoc: () => doc,
 		getEditorEl: () => editorEl ?? null,
 		widgetSelection,
-		controller
+		controller,
+		events
 	});
 
-	let resizeHandlesContainer: HTMLDivElement | undefined = $state();
-	let imagePropertiesContainer: HTMLDivElement | undefined = $state();
+	let imageOverlayEl: HTMLDivElement | undefined = $state();
 
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
 		const handlePointerDown = (e: PointerEvent) => {
-			// Pointer-down on a widget runs its own select() handler; skipping the
-			// clear here keeps that select from being immediately undone.
+			// Pointer-down on the widget runs its own select() handler; pointer-down
+			// on the overlay (popover, resize handles) is interaction with the
+			// selected widget. Skipping the clear in both cases keeps selection alive.
 			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget]')) return;
+			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
 			widgetSelection.clear();
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
@@ -263,11 +260,7 @@
 
 	$effect(() => imageEdit.attachWidgetSelectListener());
 
-	$effect(() => imageEdit.applySelectedClass());
-
-	$effect(() => imageEdit.reparentResizeHandles(() => resizeHandlesContainer ?? null));
-
-	$effect(() => imageEdit.reparentImageProperties(() => imagePropertiesContainer ?? null));
+	$effect(() => imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null));
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
@@ -345,7 +338,6 @@
 	export function getDocument() {
 		return doc;
 	}
-
 </script>
 
 <div class="editor" bind:this={editorEl}>
@@ -359,7 +351,12 @@
 	{#if widgetSelection.getSelected()}
 		{@const ctx = imageEdit.getSelectedImageFields()}
 		{#if ctx?.widgetEl}
-			<div bind:this={imagePropertiesContainer} class="md-image-properties-portal">
+			<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
+				<ImageResizeHandles
+					widgetEl={ctx.widgetEl}
+					editorContentWidth={imageEdit.getEditorContentWidth()}
+					onCommit={imageEdit.commitImageResize}
+				/>
 				<ImageProperties
 					fields={{
 						alt: ctx.image.alt ?? '',
@@ -370,13 +367,6 @@
 					}}
 					onCommit={imageEdit.commitImageEdit}
 					onDismiss={imageEdit.dismissImagePopover}
-				/>
-			</div>
-			<div bind:this={resizeHandlesContainer} class="md-resize-handles-portal">
-				<ImageResizeHandles
-					widgetEl={ctx.widgetEl}
-					editorContentWidth={imageEdit.getEditorContentWidth()}
-					onCommit={imageEdit.commitImageResize}
 				/>
 			</div>
 		{/if}
@@ -398,6 +388,9 @@
 		scrollbar-color: var(--color-ui-muted, #444) transparent;
 		border: 1px solid var(--color-ui-muted, #333);
 		border-radius: 4px;
+		/* Containing block for the image overlay portal — its inline top/left are
+		   computed in editor-content coords by `syncOverlayToWidget`. */
+		position: relative;
 	}
 
 	.editor::-webkit-scrollbar {
