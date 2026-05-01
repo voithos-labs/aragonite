@@ -309,7 +309,10 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		const doc = parse('target\n');
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
-		const docScope = { node: doc, state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] } };
+		const docScope = {
+			node: doc,
+			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
+		};
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
 		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
 			async ({ mutate }) => {

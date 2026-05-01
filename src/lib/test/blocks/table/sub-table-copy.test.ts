@@ -48,9 +48,7 @@ describe('copyRectangleAsSubTable', () => {
 	it('emits the whole table when the rectangle spans every cell', () => {
 		const table = parseTable();
 		const out = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, { rowIdx: 2, colIdx: 2 });
-		expect(out).toBe(
-			'| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n'
-		);
+		expect(out).toBe('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n');
 	});
 
 	it('preserves escaped pipes in cell raws', () => {

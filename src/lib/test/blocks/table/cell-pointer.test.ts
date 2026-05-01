@@ -101,5 +101,4 @@ describe('cellCoordsOfElement', () => {
 		expect(cellCoordsOfElement(otherCell, tableEl)).toBeNull();
 		otherTable.remove();
 	});
-
 });

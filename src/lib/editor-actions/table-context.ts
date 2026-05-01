@@ -5,11 +5,7 @@
  */
 
 import type { CstNode, TableMetadata } from '../core/nodes';
-import type {
-	CellPosition,
-	ContainerEditActions,
-	TableContext
-} from '../contracts';
+import type { CellPosition, ContainerEditActions, TableContext } from '../contracts';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -188,10 +184,7 @@ export function createTableMutationsContext(
 // Multi-scope mutate gets per-scope children copies; the table mutation helpers
 // operate on node.children directly, so re-publish each scope from the live tree
 // before returning.
-function syncScopeChildren(
-	node: CstNode,
-	scopeChildren: { children: CstNode[] }[]
-): void {
+function syncScopeChildren(node: CstNode, scopeChildren: { children: CstNode[] }[]): void {
 	const tableScope = scopeChildren[0];
 	tableScope.children.length = 0;
 	tableScope.children.push(...(node.children ?? []));

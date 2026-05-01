@@ -183,12 +183,7 @@ async function maybeCommitTableCoverageDelete(
 	const meta = table.metadata as TableMetadata;
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
-	const coverage = classifyTableSelectionCoverage(
-		start.offset,
-		end.offset,
-		columnCount,
-		rowCount
-	);
+	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
 	if (coverage.kind === 'cells') return null;
 
@@ -234,9 +229,7 @@ async function commitFullTableDelete(
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
-	const snapshot = options?.skipSnapshot
-		? ('skip' as const)
-		: { blockIndex: tableIdx, offset: 0 };
+	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -266,9 +259,7 @@ async function commitRowDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
-	const snapshot = options?.skipSnapshot
-		? ('skip' as const)
-		: { blockIndex: tableIdx, offset: 0 };
+	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -286,7 +277,11 @@ async function commitRowDelete(
 			ctx.selection.collapse();
 			return { op: 'delete', at: rowIdx, count: 1 };
 		},
-		op: { kind: 'tableDeleteRow', detail: { rowIdx, crossBlock: true }, eventPath: [tableIdx, rowIdx] },
+		op: {
+			kind: 'tableDeleteRow',
+			detail: { rowIdx, crossBlock: true },
+			eventPath: [tableIdx, rowIdx]
+		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
@@ -307,9 +302,7 @@ async function commitColumnDelete(
 		{ node: table, state: rowsState },
 		...rows.map((row) => ({ node: row, state: expectStateForNode(row) }))
 	];
-	const snapshot = options?.skipSnapshot
-		? ('skip' as const)
-		: { blockIndex: tableIdx, offset: 0 };
+	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({

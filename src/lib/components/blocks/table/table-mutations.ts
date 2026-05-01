@@ -2,22 +2,13 @@
 // (commitContainer / commitMultiScope) and rebuildContainerRaw; these helpers
 // touch neither reactivity, undo, nor raw.
 
-import type {
-	CstNode,
-	TableMetadata,
-	TableRowMetadata,
-	TableAlignment
-} from '../../../core/nodes';
+import type { CstNode, TableMetadata, TableRowMetadata, TableAlignment } from '../../../core/nodes';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export function insertEmptyRow(
-	table: CstNode,
-	rowIdx: number,
-	side: 'above' | 'below'
-): void {
+export function insertEmptyRow(table: CstNode, rowIdx: number, side: 'above' | 'below'): void {
 	const meta = table.metadata as TableMetadata;
 	const newRow: CstNode = {
 		kind: 'tableRow',
@@ -34,11 +25,7 @@ export function insertEmptyRow(
 	table.children!.splice(insertAt, 0, newRow);
 }
 
-export function insertEmptyColumn(
-	table: CstNode,
-	colIdx: number,
-	side: 'left' | 'right'
-): void {
+export function insertEmptyColumn(table: CstNode, colIdx: number, side: 'left' | 'right'): void {
 	const meta = table.metadata as TableMetadata;
 	const insertAt = side === 'left' ? colIdx : colIdx + 1;
 	for (const row of table.children ?? []) {

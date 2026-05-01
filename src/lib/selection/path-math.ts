@@ -78,11 +78,7 @@ export function isPathBetween(path: number[], start: number[], end: number[]): b
  * True when path's entire subtree fits strictly inside (start, end). Stronger
  * than `walkBetween`'s doc-order "between", which includes endpoint ancestors.
  */
-export function isPathSubtreeBetween(
-	path: number[],
-	start: number[],
-	end: number[]
-): boolean {
+export function isPathSubtreeBetween(path: number[], start: number[], end: number[]): boolean {
 	return (
 		!isStrictAncestorOf(path, start) &&
 		!isStrictAncestorOf(start, path) &&

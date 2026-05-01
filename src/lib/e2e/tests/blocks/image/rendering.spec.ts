@@ -36,9 +36,7 @@ test.describe('image rendering', () => {
 	});
 
 	test('image in table cell renders alt-only (no widget)', async ({ page }) => {
-		await editor.loadContent(
-			'| col |\n| --- |\n| ![cat](/test-fixtures/sample.png) |\n'
-		);
+		await editor.loadContent('| col |\n| --- |\n| ![cat](/test-fixtures/sample.png) |\n');
 		const cellWidget = page.locator('.table-block [data-image-widget]');
 		await expect(cellWidget).toHaveCount(0);
 	});

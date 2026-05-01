@@ -99,8 +99,7 @@
 			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
 		},
 		{
-			match: (e) =>
-				ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
+			match: (e) => ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
 			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
 		}
 	];
@@ -487,10 +486,7 @@
 
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return;
-		installCellDragListener(
-			{ editorRoot, selection, lifetimeSignal: editorLifetime },
-			anchor
-		);
+		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor);
 	}
 
 	function onCopy(e: ClipboardEvent): void {

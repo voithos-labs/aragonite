@@ -4,9 +4,7 @@ import type { InlineNode } from '../../core/nodes';
 
 describe('dumpInlineTree', () => {
 	it('surfaces decoded character on entityReference nodes', () => {
-		const nodes: InlineNode[] = [
-			{ kind: 'entityReference', start: 0, end: 6, decoded: '©' }
-		];
+		const nodes: InlineNode[] = [{ kind: 'entityReference', start: 0, end: 6, decoded: '©' }];
 		const out = dumpInlineTree(nodes);
 		expect(out).toContain('entityReference');
 		expect(out).toContain('decoded="©"');

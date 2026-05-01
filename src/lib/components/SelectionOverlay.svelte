@@ -7,10 +7,7 @@
 		classifyBlockForSelection,
 		type BlockSelectionClass
 	} from '../selection/primitives';
-	import {
-		firstScrollableDescendant,
-		nearestScrollContainer
-	} from '../cursor/scroll-ancestors';
+	import { firstScrollableDescendant, nearestScrollContainer } from '../cursor/scroll-ancestors';
 
 	let {
 		path,
@@ -119,8 +116,7 @@
 		// listen to the inner one when present.
 		const editorRoot = getEditorRoot?.();
 		const scrollEl =
-			firstScrollableDescendant(el) ??
-			(editorRoot ? nearestScrollContainer(el, editorRoot) : null);
+			firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);
 		if (!scrollEl) return;
 		scrollEl.addEventListener('scroll', measure, { passive: true });
 		return () => scrollEl.removeEventListener('scroll', measure);

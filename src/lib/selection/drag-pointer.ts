@@ -178,11 +178,7 @@ interface BlockHit {
 	isTable?: boolean;
 }
 
-function blockAtPoint(
-	editorRoot: HTMLElement,
-	clientX: number,
-	clientY: number
-): BlockHit | null {
+function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number): BlockHit | null {
 	const target = document.elementFromPoint(clientX, clientY);
 	if (!target) return null;
 

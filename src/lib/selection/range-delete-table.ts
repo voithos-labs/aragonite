@@ -238,11 +238,7 @@ function deleteFromTableIntoProse(
 // from the anchor cell onward), so the offset there is 0 — but we still need
 // the deep [tablePath, rowIdx, colIdx] path so the caret-restore lands inside
 // the cell's contenteditable, not on the table's outer wrapper.
-function caretForCase2(
-	table: CstNode,
-	start: SelectionPoint,
-	result: ClearResult
-): SelectionPoint {
+function caretForCase2(table: CstNode, start: SelectionPoint, result: ClearResult): SelectionPoint {
 	if (result === 'tableEmpty') {
 		return { path: start.path.slice(), offset: start.offset };
 	}
@@ -339,13 +335,12 @@ function deleteCellsAndCollapse(
 	const startRow = Math.floor(startCellIdx / cellsPerRow);
 	const startCol = startCellIdx - startRow * cellsPerRow;
 	const lastRowInRange = Math.floor((endCellIdx - 1) / cellsPerRow);
-	const lastColInRange = (endCellIdx - 1) - lastRowInRange * cellsPerRow;
+	const lastColInRange = endCellIdx - 1 - lastRowInRange * cellsPerRow;
 
 	// First range row is fully covered iff startCol === 0; last iff
 	// lastColInRange === cellsPerRow - 1; middle rows always are.
 	const firstFull = startCol === 0 ? startRow : startRow + 1;
-	const lastFull =
-		lastColInRange === cellsPerRow - 1 ? lastRowInRange : lastRowInRange - 1;
+	const lastFull = lastColInRange === cellsPerRow - 1 ? lastRowInRange : lastRowInRange - 1;
 
 	const headerRemoved = firstFull <= 0 && lastFull >= 0;
 
