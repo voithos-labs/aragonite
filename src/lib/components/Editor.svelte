@@ -247,9 +247,6 @@
 		if (!editorEl) return;
 		const root = editorEl;
 		const handlePointerDown = (e: PointerEvent) => {
-			// Pointer-down on the widget runs its own select() handler; pointer-down
-			// on the overlay (popover, resize handles) is interaction with the
-			// selected widget. Skipping the clear in both cases keeps selection alive.
 			const target = e.target as Element | null;
 			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
 			widgetSelection.clear();
@@ -388,8 +385,7 @@
 		scrollbar-color: var(--color-ui-muted, #444) transparent;
 		border: 1px solid var(--color-ui-muted, #333);
 		border-radius: 4px;
-		/* Containing block for the image overlay portal — its inline top/left are
-		   computed in editor-content coords by `syncOverlayToWidget`. */
+		/* Containing block for the image overlay portal. */
 		position: relative;
 	}
 
