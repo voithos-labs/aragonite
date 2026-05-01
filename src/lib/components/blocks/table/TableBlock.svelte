@@ -232,10 +232,7 @@
 		const anchor = selection?.anchor;
 		const focus = selection?.focus;
 		const isRectangular =
-			selection?.isCustomRendered &&
-			!!anchor &&
-			!!focus &&
-			pathsEqual(anchor.path, focus.path);
+			selection?.isCustomRendered && !!anchor && !!focus && pathsEqual(anchor.path, focus.path);
 
 		if (isRectangular) {
 			const aRow = Math.floor(anchor.offset / columnCount);

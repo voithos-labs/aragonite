@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-	firstScrollableDescendant,
-	nearestScrollContainer
-} from '../../cursor/scroll-ancestors';
+import { firstScrollableDescendant, nearestScrollContainer } from '../../cursor/scroll-ancestors';
 
 describe('nearestScrollContainer', () => {
 	let root: HTMLDivElement;

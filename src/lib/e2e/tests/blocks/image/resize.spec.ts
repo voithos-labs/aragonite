@@ -61,9 +61,7 @@ test.describe('image resize', () => {
 	// Regression: the widget span was previously full-editor-width via
 	// `display: block` with no `width: fit-content`, putting the right-edge
 	// handle at the editor's right edge instead of the image's.
-	test('right handle is positioned at the image edge, not the editor edge', async ({
-		page
-	}) => {
+	test('right handle is positioned at the image edge, not the editor edge', async ({ page }) => {
 		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();

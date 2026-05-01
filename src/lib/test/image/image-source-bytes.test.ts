@@ -19,9 +19,9 @@ describe('buildImageSourceBytes', () => {
 	});
 
 	it('with width and height dimensions', () => {
-		expect(
-			buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400, height: 300 })
-		).toBe('![cat|400x300](cat.png)');
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400, height: 300 })).toBe(
+			'![cat|400x300](cat.png)'
+		);
 	});
 
 	it('combines dimensions and title', () => {
@@ -40,8 +40,8 @@ describe('buildImageSourceBytes', () => {
 	});
 
 	it('escapes embedded double quotes in title', () => {
-		expect(
-			buildImageSourceBytes({ alt: 'cat', url: 'cat.png', title: 'A "quoted" cat' })
-		).toBe('![cat](cat.png "A \\"quoted\\" cat")');
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', title: 'A "quoted" cat' })).toBe(
+			'![cat](cat.png "A \\"quoted\\" cat")'
+		);
 	});
 });

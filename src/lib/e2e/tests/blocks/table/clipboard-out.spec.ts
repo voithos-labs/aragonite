@@ -1,8 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
-const TABLE_ALIGNED =
-	'| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
 async function readClipboard(page: Page): Promise<string> {
 	return page.evaluate(() => navigator.clipboard.readText());

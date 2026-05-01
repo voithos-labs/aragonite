@@ -46,10 +46,9 @@ export function scanLinksAndAutolinks(
 	const found: InlineNode[] = [...linksAndImages, ...autolinks];
 	if (found.length === 0) return occupied;
 
-	const allOccupied: InlineNode[] = [
-		...occupied.filter((n) => n.kind !== 'text'),
-		...found
-	].sort((a, b) => a.start - b.start);
+	const allOccupied: InlineNode[] = [...occupied.filter((n) => n.kind !== 'text'), ...found].sort(
+		(a, b) => a.start - b.start
+	);
 
 	const result: InlineNode[] = [];
 	let cursor = start;
@@ -204,12 +203,7 @@ function scanLinksAndImages(
 	return out;
 }
 
-function scanRegionForAutolinks(
-	raw: string,
-	start: number,
-	end: number,
-	out: InlineNode[]
-): void {
+function scanRegionForAutolinks(raw: string, start: number, end: number, out: InlineNode[]): void {
 	let pos = start;
 
 	while (pos < end) {

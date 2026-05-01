@@ -112,10 +112,13 @@ test.describe('table block: wide-table horizontal scroll', () => {
 
 		// Body row 1 col 3 = cells[24+3] = cells[27] = "b4". Last body row, so
 		// ArrowDown exits the table to the paragraph below.
-		const b4Center = await page.locator('[role="cell"]').nth(27).evaluate((el) => {
-			const r = el.getBoundingClientRect();
-			return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-		});
+		const b4Center = await page
+			.locator('[role="cell"]')
+			.nth(27)
+			.evaluate((el) => {
+				const r = el.getBoundingClientRect();
+				return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+			});
 		await page.mouse.click(b4Center.x, b4Center.y);
 		await page.waitForTimeout(50);
 

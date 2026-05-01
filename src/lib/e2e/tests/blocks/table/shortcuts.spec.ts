@@ -192,8 +192,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		// TableBlock writes to internalStickyColumn / focusedCell during reconcile.
 		const pageErrors: string[] = [];
 		page.on('pageerror', (e) => pageErrors.push(e.message));
-		const original =
-			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
+		const original = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
 		await editor.loadContent(original);
 
 		await page.locator('[role="cell"]').nth(0).click();

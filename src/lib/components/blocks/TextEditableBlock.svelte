@@ -356,14 +356,8 @@
 							: {})
 					};
 					const newBytes = buildImageSourceBytes(newFields);
-					const newRaw =
-						node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						widget.end,
-						widget.start + newBytes.length
-					);
+					const newRaw = node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start + newBytes.length);
 					return;
 				}
 				if (e.key === 'ArrowLeft') {
@@ -394,14 +388,8 @@
 				if (isTypingKey(e)) {
 					e.preventDefault();
 					const typed = e.key;
-					const newRaw =
-						node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						widget.end,
-						widget.start + typed.length
-					);
+					const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
+					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start + typed.length);
 					widgetSelection.clear();
 					return;
 				}

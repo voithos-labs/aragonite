@@ -13,10 +13,7 @@ function isScrollable(el: HTMLElement): boolean {
 	return SCROLLABLE_VALUES.has(cs.overflowX) || SCROLLABLE_VALUES.has(cs.overflowY);
 }
 
-export function nearestScrollContainer(
-	el: HTMLElement,
-	stopAt: HTMLElement
-): HTMLElement | null {
+export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HTMLElement | null {
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && cur !== stopAt) {
 		if (isScrollable(cur)) return cur;
