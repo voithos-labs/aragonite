@@ -1,12 +1,3 @@
-// The popover and resize handles render inside an overlay portal that is a
-// direct child of the editor root. The portal is sized and positioned to
-// mirror the selected widget's bounding box (a "ghost widget"); the popover
-// and handles use absolute positioning relative to the portal, so their CSS
-// (`top: 100%`, `right: -4px`, etc.) lands them at the widget's edges
-// without making them DOM descendants of the widget. Keeping them out of the
-// widget's DOM subtree is what prevents popover keystrokes from bubbling
-// through the contenteditable's "type to replace selected widget" branch.
-
 import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
 import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
@@ -174,11 +165,6 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		return () => root.removeEventListener('image-widget-select', handler);
 	}
 
-	// Sizes and positions the overlay portal to match the selected widget's
-	// bounding box, so children's absolute offsets (popover `top: 100%`, handles
-	// `right: -4px`) land at the widget's edges. The overlay is a sibling of
-	// BlockList — never a descendant of any contenteditable — which is what
-	// keeps popover keystrokes from bubbling into the type-to-replace branch.
 	function syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void {
 		const noop = () => {};
 		const overlayEl = getOverlay();
@@ -204,8 +190,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const observer = new ResizeObserver(update);
 		observer.observe(widgetEl);
 
-		// `edit` covers structural mutations above the widget that shift its y
-		// without changing its size; ResizeObserver alone misses those.
+		// Edits above the widget shift its y without resizing it.
 		const unsubscribeEdit = events.on('edit', update);
 		window.addEventListener('resize', update);
 

@@ -19,10 +19,7 @@
 
 	const initialBytes = buildImageSourceBytes(fields);
 
-	// Capture-phase document pointerdown is the canonical "user navigated away"
-	// signal — runs before any other handler, so we commit while widgetSelection
-	// is still set. Targets inside the widget or overlay (popover, resize
-	// handles) keep the popover alive; everything else commits and dismisses.
+	// Capture phase: commit before any selection-clearing handler runs.
 	$effect(() => {
 		if (!popoverEl) return;
 		const handler = (e: PointerEvent) => {
@@ -89,10 +86,6 @@
 
 <style>
 	.md-image-properties {
-		/* Anchored to the overlay portal (sized to the widget's bounding box by
-		   `syncOverlayToWidget`). `top: 100%` puts the popover below the widget
-		   without making it a DOM descendant — popover keystrokes do not bubble
-		   into the contenteditable's "type to replace selected widget" branch. */
 		position: absolute;
 		top: calc(100% + 4px);
 		left: 0;
