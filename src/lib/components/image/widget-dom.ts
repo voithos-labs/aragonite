@@ -1,6 +1,7 @@
-// Hidden source span keeps `textContent === ambientPrefix + raw` intact, so
-// selection/caret math against raw still works without an offset translation
-// primitive (deferred to 0.7's entity-reference fix).
+// Widget DOM carries no textContent for the image's raw bytes — those live
+// in the data-source-start / data-source-end attributes that the
+// `cursor/widget-offset.ts` walker reads to keep cursor offsets aligned with
+// raw without polluting the contenteditable's textContent.
 
 import type { InlineNode } from '../../core/nodes';
 
@@ -11,13 +12,14 @@ export interface BuildImageWidgetOpts {
 
 export function buildImageWidget(
 	node: InlineNode,
-	raw: string,
+	_raw: string,
 	opts: BuildImageWidgetOpts
 ): HTMLSpanElement {
 	const widget = document.createElement('span');
 	widget.className = 'md-image-widget';
 	widget.dataset.imageWidget = '';
 	widget.dataset.sourceStart = String(node.start);
+	widget.dataset.sourceEnd = String(node.end);
 	widget.dataset.paragraphPath = opts.paragraphPath.join(',');
 	widget.setAttribute('contenteditable', 'false');
 
@@ -40,11 +42,6 @@ export function buildImageWidget(
 		widget.classList.add('md-image-broken');
 	});
 	widget.appendChild(img);
-
-	const sourceSpan = document.createElement('span');
-	sourceSpan.className = 'md-image-source';
-	sourceSpan.textContent = raw.slice(node.start, node.end);
-	widget.appendChild(sourceSpan);
 
 	return widget;
 }

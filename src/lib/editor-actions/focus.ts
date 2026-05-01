@@ -36,7 +36,18 @@ export function createFocusActions(
 			const block = deps.blockRefs[blockIndex];
 			if (!block?.focusable) return;
 
-			if (typeof position === 'object' && 'stickyColumnFrom' in position) {
+			const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
+
+			if (isStickyMove && block.isVerticallyTransparent?.()) {
+				const direction = position.stickyColumnFrom === 'below' ? -1 : 1;
+				await this.moveFocus(blockIndex + direction, position);
+				return;
+			}
+
+			if (position === 'start' && block.selectEdgeWidget?.('start')) return;
+			if (position === 'end' && block.selectEdgeWidget?.('end')) return;
+
+			if (isStickyMove) {
 				const x = deps.stickyColumn.get();
 				const from = position.stickyColumnFrom;
 				if (x !== null && block.focusAtColumn) {

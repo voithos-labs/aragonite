@@ -5,7 +5,7 @@
  */
 
 import type { StickyColumnDirection } from '../contracts';
-import { createRangeFromOffsets } from './cursor-utils';
+import { containerRawLength, findRawOffsetTarget } from './widget-offset';
 
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null {
 	const sel = window.getSelection();
@@ -31,8 +31,15 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null 
 }
 
 export function getOffsetRect(container: HTMLElement, offset: number): DOMRect | null {
-	const range = createRangeFromOffsets(container, offset, offset);
-	if (!range) return null;
+	const pos = findRawOffsetTarget(container, offset);
+	if (!pos) return null;
+	const range = document.createRange();
+	try {
+		range.setStart(pos.node, pos.offset);
+	} catch {
+		return null;
+	}
+	range.collapse(true);
 	const rects = range.getClientRects();
 	if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
 	const br = range.getBoundingClientRect();
@@ -41,16 +48,14 @@ export function getOffsetRect(container: HTMLElement, offset: number): DOMRect |
 }
 
 /**
- * Returns the offset in the target visual line (first or last) whose Range
- * left coordinate is closest to the target X. Linear scan because
- * getClientRects left values are non-monotonic along logical offsets on BiDi
- * lines, so binary search is invalid.
+ * Returns the raw-content offset in the target visual line (first or last)
+ * whose Range left coordinate is closest to the target X. Linear scan
+ * because getClientRects left values are non-monotonic along logical offsets
+ * on BiDi lines, so binary search is invalid.
  *
- * `minOffset` excludes an ambient-marker prefix (e.g. a list item's `- `
- * rendered as a contenteditable="false" span inside the block). Without it,
- * the scan can pick a marker-region offset whose rect happens to be closest
- * to the target X, silently landing the caret at start-of-content when a
- * non-zero raw offset was the actual nearest column.
+ * `minOffset` excludes the ambient-marker prefix region — passing the
+ * container's ambient length keeps the scan from picking a marker-interior
+ * landing.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,
@@ -58,15 +63,14 @@ export function findOffsetNearestX(
 	from: StickyColumnDirection,
 	minOffset = 0
 ): number {
-	const text = container.textContent ?? '';
-	const textLen = text.length;
-	if (textLen <= minOffset) return minOffset;
+	const totalLen = containerRawLength(container);
+	if (totalLen <= minOffset) return minOffset;
 
 	const editor = container.closest('.editor') as HTMLElement | null;
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
 	const targetViewportX = editorRelativeX + editorLeft;
 
-	const probeOffset = from === 'above' ? minOffset : textLen;
+	const probeOffset = from === 'above' ? minOffset : totalLen;
 	const probeRect = getOffsetRect(container, probeOffset);
 	if (!probeRect) return probeOffset;
 
@@ -78,7 +82,7 @@ export function findOffsetNearestX(
 	let bestOffset = probeOffset;
 	let bestDelta = Math.abs(probeRect.left - targetViewportX);
 
-	for (let offset = minOffset; offset <= textLen; offset++) {
+	for (let offset = minOffset; offset <= totalLen; offset++) {
 		const rect = getOffsetRect(container, offset);
 		if (!rect) continue;
 		if (rect.top > lineBottom + tolerance) continue;
