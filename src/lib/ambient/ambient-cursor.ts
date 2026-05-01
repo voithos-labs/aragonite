@@ -5,12 +5,7 @@
  * list items) contribute to their first prose child.
  */
 
-import {
-	setCursorOffset as setCursorOffsetHelper,
-	getCursorOffset as getCursorOffsetHelper,
-	getSelectionOffsets as getSelectionOffsetsHelper
-} from '../cursor/cursor-utils';
-import { domToRawOffset, rawToDomOffset } from './ambient-offset';
+import { rawOffsetAtNode, findRawOffsetTarget } from '../cursor/widget-offset';
 import { placeCaretAfterAmbientSpan } from './ambient-dom';
 
 export interface AmbientCursorDeps {
@@ -37,8 +32,12 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	function getRaw(): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const dom = getCursorOffsetHelper(el);
-		return dom === null ? null : domToRawOffset(dom, deps.getAmbientLength());
+		if (document.activeElement !== el) return null;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return null;
+		const range = sel.getRangeAt(0);
+		const content = rawOffsetAtNode(el, range.startContainer, range.startOffset);
+		return Math.max(0, content - deps.getAmbientLength());
 	}
 
 	function setToAmbientBoundary(): void {
@@ -50,16 +49,27 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const el = deps.getEl();
 		if (!el) return;
 		const ambientLength = deps.getAmbientLength();
-		// Raw offset 0 under an ambient marker: a container-level DOM offset of
-		// ambientLength walks createRangeFromOffsets INTO the marker's text
-		// node (which sits inside a contenteditable="false" island) and
+		// Raw offset 0 under an ambient marker: walking to position ambientLength
+		// lands inside the marker's contenteditable="false" island, where
 		// Chromium bounces the caret out in front of the span. Use a sibling
 		// boundary instead.
 		if (ambientLength > 0 && offset <= 0) {
 			setToAmbientBoundary();
 			return;
 		}
-		setCursorOffsetHelper(el, rawToDomOffset(offset, ambientLength));
+		const target = ambientLength + offset;
+		const pos = findRawOffsetTarget(el, target);
+		if (!pos) return;
+		const range = document.createRange();
+		try {
+			range.setStart(pos.node, pos.offset);
+		} catch {
+			return;
+		}
+		range.collapse(true);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
 	}
 
 	function clampOutOfAmbient(): void {
@@ -70,20 +80,24 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		if (document.activeElement !== el) return;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
-		const dom = getCursorOffsetHelper(el);
-		if (dom === null || dom >= ambientLength) return;
+		const range = sel.getRangeAt(0);
+		const content = rawOffsetAtNode(el, range.startContainer, range.startOffset);
+		if (content >= ambientLength) return;
 		setToAmbientBoundary();
 	}
 
 	function getRawSelection(): { start: number; end: number } | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const dom = getSelectionOffsetsHelper(el);
-		if (!dom) return null;
+		const sel = window.getSelection();
+		if (!sel || sel.isCollapsed) return null;
+		const range = sel.getRangeAt(0);
 		const ambientLength = deps.getAmbientLength();
+		const start = rawOffsetAtNode(el, range.startContainer, range.startOffset);
+		const end = rawOffsetAtNode(el, range.endContainer, range.endOffset);
 		return {
-			start: domToRawOffset(dom.start, ambientLength),
-			end: domToRawOffset(dom.end, ambientLength)
+			start: Math.max(0, start - ambientLength),
+			end: Math.max(0, end - ambientLength)
 		};
 	}
 

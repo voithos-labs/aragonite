@@ -12,8 +12,7 @@ import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { comparePaths } from './primitives';
-import { createRangeFromOffsets, getCursorOffset } from '../cursor/cursor-utils';
-import { domToRawOffset, rawToDomOffset } from '../ambient/ambient-offset';
+import { createRangeAtRawOffsets, rawOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
@@ -26,9 +25,15 @@ export function readNativeCaretInBlock(
 	blockEl: HTMLElement,
 	path: number[]
 ): SelectionPoint | null {
-	const domOffset = getCursorOffset(blockEl);
-	if (domOffset === null) return null;
-	return { path: path.slice(), offset: domToRawOffset(domOffset, ambientLengthOf(blockEl)) };
+	if (document.activeElement !== blockEl) return null;
+	const sel = window.getSelection();
+	if (!sel || sel.rangeCount === 0) return null;
+	const range = sel.getRangeAt(0);
+	const content = rawOffsetAtNode(blockEl, range.startContainer, range.startOffset);
+	return {
+		path: path.slice(),
+		offset: Math.max(0, content - ambientLengthOf(blockEl))
+	};
 }
 
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
@@ -44,8 +49,8 @@ export function readNativeCaretInBlock(
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
 	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
-	const dom = rawToDomOffset(point.offset, ambient);
-	const range = createRangeFromOffsets(blockEl, dom, dom);
+	const target = ambient + point.offset;
+	const range = createRangeAtRawOffsets(blockEl, target, target);
 	if (!range) return;
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -58,11 +63,7 @@ export function applySingleBlockRange(
 	endOffset: number
 ): void {
 	const ambient = ambientLengthOf(blockEl);
-	const range = createRangeFromOffsets(
-		blockEl,
-		rawToDomOffset(startOffset, ambient),
-		rawToDomOffset(endOffset, ambient)
-	);
+	const range = createRangeAtRawOffsets(blockEl, ambient + startOffset, ambient + endOffset);
 	if (!range) return;
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -180,8 +181,12 @@ export function offsetFromViewportPoint(
 		}
 	).caretRangeFromPoint?.(clientX, clientY);
 	if (rangeFromPoint && blockEl.contains(rangeFromPoint.startContainer)) {
-		const dom = domToCharOffset(blockEl, rangeFromPoint.startContainer, rangeFromPoint.startOffset);
-		return dom === null ? null : domToRawOffset(dom, ambient);
+		const content = rawOffsetAtNode(
+			blockEl,
+			rangeFromPoint.startContainer,
+			rangeFromPoint.startOffset
+		);
+		return Math.max(0, content - ambient);
 	}
 	const posFromPoint = (
 		doc as Document & {
@@ -192,18 +197,8 @@ export function offsetFromViewportPoint(
 		}
 	).caretPositionFromPoint?.(clientX, clientY);
 	if (posFromPoint && blockEl.contains(posFromPoint.offsetNode)) {
-		const dom = domToCharOffset(blockEl, posFromPoint.offsetNode, posFromPoint.offset);
-		return dom === null ? null : domToRawOffset(dom, ambient);
+		const content = rawOffsetAtNode(blockEl, posFromPoint.offsetNode, posFromPoint.offset);
+		return Math.max(0, content - ambient);
 	}
 	return null;
-}
-
-// ── Internal ────────────────────────────────────────────────────────────────
-
-function domToCharOffset(root: HTMLElement, node: Node, nodeOffset: number): number | null {
-	if (!root.contains(node)) return null;
-	const range = document.createRange();
-	range.setStart(root, 0);
-	range.setEnd(node, nodeOffset);
-	return range.toString().length;
 }

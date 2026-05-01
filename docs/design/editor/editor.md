@@ -158,6 +158,21 @@ During `compositionstart` → `compositionend`, the editor does not sync or reco
 
 The CST is always up-to-date (updated on every input event). The DOM is only patched when the CST's structural interpretation diverges from what is currently rendered. This avoids fighting the browser for normal typing while guaranteeing correctness on structural boundaries.
 
+### Atomic inline widgets
+
+Some inline nodes render as opaque widgets — `contenteditable="false"` islands with no visible caret-able interior (today: image; future: math, footnote refs, plugin widgets). They contribute their raw bytes via `data-source-start` / `data-source-end` attributes on the widget root, **not** via textContent. The cursor is addressable only at the widget's leading and trailing edges.
+
+`cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw-content offsets. `rawOffsetAtNode` walks the container in document order summing text-node lengths and widget raw lengths to compute the raw position of a Range endpoint; `findRawOffsetTarget` is the inverse, locating the DOM `(node, offset)` pair for a target raw offset and snapping widget-interior targets to the nearest edge. All cursor I/O — `ambient/ambient-cursor.ts`, `cursor/sticky-measure.ts`, `selection/native-bridge.ts`, `TextEditableBlock`'s setSelection / measurePartialRects / extendSelectionToRaw — routes through these helpers.
+
+The widget contributes 0 chars to textContent, so `textContent !== raw` for paragraphs containing widgets. The CST round-trip is preserved because `readRawText` rebuilds the widget's bytes from `node.raw.slice(start, end)` using the data attributes; the user can edit text around the widget without disturbing its source.
+
+Two cross-block focus behaviors compose with the atomic-widget primitive:
+
+- **Vertical-skip**: blocks whose only inline content is widgets implement `isVerticallyTransparent()` returning true. ArrowUp/Down dispatch passes through them in the requested direction without stopping. Container blocks (list item, blockquote) recurse — a list item with one image-only paragraph is itself transparent.
+- **Edge-widget select**: when cross-block ArrowLeft/Right lands at the `'end'` / `'start'` of a paragraph that ends/starts with a widget, the dispatcher calls `selectEdgeWidget('end' | 'start')` instead of placing a no-op caret at the widget edge. One press selects; the existing widget-selected ArrowLeft/Right then steps out (or cross-blocks if there's no text before/after the widget).
+
+To add a new atomic inline widget kind: render its DOM root with `[data-image-widget]` (or generalize the matcher to `[data-atomic-widget]` when the second widget kind ships) and set `data-source-start` / `data-source-end` to the widget's raw range. The translation, vertical-skip, and edge-select all dispatch on these attributes alone — no per-widget plumbing needed.
+
 ## Orchestration
 
 ### Upward Communication (Block → Editor)
@@ -300,11 +315,11 @@ The prop is a union: a plain string for inert markers, or an object carrying `te
 
 #### Ambient marker DOM translation
 
-Three files in `ambient/` collaborate to keep the textContent-vs-raw contract:
+Two files in `ambient/` plus the shared `cursor/widget-offset.ts` keep the textContent-vs-raw contract:
 
 - **`ambient/ambient-dom.ts`** — DOM construction and lookup for the `md-marker` span (inert string form, or interactive form with embedded ranges).
-- **`ambient/ambient-cursor.ts`** — wraps the cursor IO factory so DOM-offset reads and writes account for the ambient prefix that contributes to textContent but not to raw.
-- **`ambient/ambient-offset.ts`** — the single offset-pair translation (DOM offset ↔ raw offset) through which all cursor-state-change paths route.
+- **`ambient/ambient-cursor.ts`** — wraps the cursor IO factory so DOM-offset reads and writes account for the ambient prefix; routes through `cursor/widget-offset.ts` for the raw-aware DOM walk.
+- **`cursor/widget-offset.ts`** — single source of truth for DOM ↔ raw offset translation. Walks text-node lengths and image-widget raw lengths (via `data-source-start` / `data-source-end`) so widgets can be atomic without polluting textContent.
 
 ### Impact on Block Identity and Selection
 

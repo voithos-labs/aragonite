@@ -17,7 +17,13 @@ export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): Pick<
 	BlockComponent,
-	'focus' | 'getCursorOffset' | 'getCursorPosition' | 'focusByPath' | 'focusAtColumn'
+	| 'focus'
+	| 'getCursorOffset'
+	| 'getCursorPosition'
+	| 'focusByPath'
+	| 'focusAtColumn'
+	| 'isVerticallyTransparent'
+	| 'selectEdgeWidget'
 > {
 	return {
 		focus(offset: number) {
@@ -56,6 +62,15 @@ export function createContainerBlockComponent(
 		focusAtColumn(x: number, from: StickyColumnDirection) {
 			if (deps.nodeChildrenLength === 0) return;
 			dispatchFocusAtColumn(deps.innerBlockRefs, x, from);
+		},
+		isVerticallyTransparent(): boolean {
+			if (deps.nodeChildrenLength === 0) return false;
+			return deps.innerBlockRefs.every((ref) => ref?.isVerticallyTransparent?.() ?? false);
+		},
+		selectEdgeWidget(side: 'start' | 'end'): boolean {
+			if (deps.nodeChildrenLength === 0) return false;
+			const edge = side === 'start' ? 0 : deps.nodeChildrenLength - 1;
+			return deps.innerBlockRefs[edge]?.selectEdgeWidget?.(side) ?? false;
 		}
 	};
 }

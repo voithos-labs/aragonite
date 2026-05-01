@@ -84,6 +84,21 @@ export interface BlockComponent {
 	 * system (see the SELECTION_END docstring).
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
+	/**
+	 * True when vertical traversal (ArrowUp/Down sticky-column dispatch)
+	 * should pass straight through this block — the block has no caret-able
+	 * text positions of its own, only widgets that carry no column meaning.
+	 * Container blocks return true only when every inner ref is transparent.
+	 */
+	isVerticallyTransparent?(): boolean;
+	/**
+	 * Try to select an edge widget instead of placing a caret. Returns true
+	 * when a widget at the requested boundary was selected; false lets the
+	 * caller fall through to focus(0) / focus(CURSOR_END). Used by cross-block
+	 * arrow dispatch so ArrowLeft into a paragraph that ends with an image
+	 * lands on the image directly.
+	 */
+	selectEdgeWidget?(side: 'start' | 'end'): boolean;
 	readonly editable: boolean;
 	readonly focusable: boolean;
 }

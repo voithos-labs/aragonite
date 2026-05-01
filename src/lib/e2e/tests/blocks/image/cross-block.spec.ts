@@ -14,21 +14,25 @@ test.describe('image cross-block selection', () => {
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Shift+ArrowRight');
-		// user-select:none on the widget makes Selection.toString() exclude the
-		// source span text; use Range.toString() to read the actual range content.
-		const rangeText = await page.evaluate(() => {
+		// The widget carries no textContent, so range.toString() doesn't include
+		// the source bytes. Check the structural assertion instead — the widget
+		// element falls inside the Range bounds.
+		const widgetInRange = await page.evaluate(() => {
 			const s = window.getSelection();
-			if (!s || s.rangeCount === 0) return '';
-			return s.getRangeAt(0).toString();
+			if (!s || s.rangeCount === 0) return false;
+			const range = s.getRangeAt(0);
+			const widget = document.querySelector('[data-image-widget]');
+			return widget ? range.intersectsNode(widget) : false;
 		});
-		expect(rangeText).toContain('![cat]');
+		expect(widgetInRange).toBe(true);
 	});
 
 	test('cross-block delete removes whole widget', async ({ page }) => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('Shift+ArrowRight');
+		// One Shift+ArrowRight atomically jumps across the widget; the widget
+		// is a single addressable unit so a second press would extend into 'b'.
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches((src) => !src.includes('![cat]'));
