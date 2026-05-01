@@ -15,17 +15,25 @@
 	let alt = $state(fields.alt);
 	let titleInput = $state(fields.title ?? '');
 	let titleTouched = $state(false);
+	let popoverEl: HTMLDivElement | undefined = $state();
 
 	const initialBytes = buildImageSourceBytes(fields);
 
-	function handleBlurAll(e: FocusEvent) {
-		// focusout fires on tab between inputs; only commit when focus exits the popover.
-		const next = e.relatedTarget as Node | null;
-		const popover = e.currentTarget as HTMLElement;
-		if (next && popover.contains(next)) return;
-		commitIfChanged();
-		onDismiss();
-	}
+	// Capture-phase document pointerdown is the canonical "user navigated away"
+	// signal — runs before any other handler, so we commit while widgetSelection
+	// is still set. Targets inside the widget or overlay (popover, resize
+	// handles) keep the popover alive; everything else commits and dismisses.
+	$effect(() => {
+		if (!popoverEl) return;
+		const handler = (e: PointerEvent) => {
+			const target = e.target as Element | null;
+			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
+			commitIfChanged();
+			onDismiss();
+		};
+		document.addEventListener('pointerdown', handler, true);
+		return () => document.removeEventListener('pointerdown', handler, true);
+	});
 
 	function onTitleInput() {
 		titleTouched = true;
@@ -58,11 +66,11 @@
 </script>
 
 <div
+	bind:this={popoverEl}
 	class="md-image-properties"
 	role="dialog"
 	aria-label="Image properties"
 	tabindex="-1"
-	onfocusoutcapture={handleBlurAll}
 	onkeydown={handleKeyDown}
 >
 	<label>
@@ -81,8 +89,10 @@
 
 <style>
 	.md-image-properties {
-		/* Anchored to the widget after reparenting (Editor.svelte portal effect).
-		   Sits just below the widget's bottom-left edge. */
+		/* Anchored to the overlay portal (sized to the widget's bounding box by
+		   `syncOverlayToWidget`). `top: 100%` puts the popover below the widget
+		   without making it a DOM descendant — popover keystrokes do not bubble
+		   into the contenteditable's "type to replace selected widget" branch. */
 		position: absolute;
 		top: calc(100% + 4px);
 		left: 0;
