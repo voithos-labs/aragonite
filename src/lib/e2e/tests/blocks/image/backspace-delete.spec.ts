@@ -13,8 +13,7 @@ test.describe('image backspace/delete + type-replace', () => {
 		await editor.loadContent('lead![cat](/test-fixtures/sample.png)\n');
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('Backspace');
-		const widget = page.locator('[data-image-widget]').first();
-		await expect(widget).toHaveClass(/md-image-selected/);
+		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		expect(await editor.bridge.getSource()).toContain('![cat]');
 	});
 

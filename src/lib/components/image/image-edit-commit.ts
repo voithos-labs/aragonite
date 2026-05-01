@@ -1,12 +1,18 @@
-// The popover mounts at editor root, outside any container's Svelte context,
-// so it can't reach a nested container's `blockEdit` — this routes through
-// the controller's commit primitives directly.
+// The popover and resize handles render inside an overlay portal that is a
+// direct child of the editor root. The portal is sized and positioned to
+// mirror the selected widget's bounding box (a "ghost widget"); the popover
+// and handles use absolute positioning relative to the portal, so their CSS
+// (`top: 100%`, `right: -4px`, etc.) lands them at the widget's edges
+// without making them DOM descendants of the widget. Keeping them out of the
+// widget's DOM subtree is what prevents popover keystrokes from bubbling
+// through the contenteditable's "type to replace selected widget" branch.
 
 import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
 import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
+import type { EditorEvents } from '../../editor-events';
 import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
 import type { WidgetSelectionState } from './widget-selection-state.svelte';
 
@@ -17,6 +23,7 @@ export interface ImageEditCommitterDeps {
 	getEditorEl: () => HTMLElement | null;
 	widgetSelection: WidgetSelectionState;
 	controller: UndoController;
+	events: EditorEvents;
 }
 
 export interface SelectedImageFields {
@@ -33,13 +40,11 @@ export interface ImageEditCommitter {
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
 	attachWidgetSelectListener(): () => void;
-	applySelectedClass(): void;
-	reparentResizeHandles(getContainer: () => HTMLElement | null): () => void;
-	reparentImageProperties(getContainer: () => HTMLElement | null): () => void;
+	syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void;
 }
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
-	const { getDoc, getEditorEl, widgetSelection, controller } = deps;
+	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
 
 	function resolvePathToParagraph(path: number[]): {
 		paragraph: CstNode;
@@ -169,37 +174,45 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		return () => root.removeEventListener('image-widget-select', handler);
 	}
 
-	function applySelectedClass(): void {
-		const sel = widgetSelection.getSelected();
-		const root = getEditorEl();
-		if (!root) return;
-		root.querySelectorAll('.md-image-widget.md-image-selected').forEach((el) => {
-			el.classList.remove('md-image-selected');
-		});
-		if (sel) {
-			const widgetEl = queryWidgetEl(sel.paragraphPath, sel.sourceStart);
-			widgetEl?.classList.add('md-image-selected');
-		}
-	}
-
-	// Reparents children of `portal` into the selected widget so absolute
-	// positioning (right/top/bottom on handles, top:100% on the popover)
-	// resolves against the widget's box. Returns a cleanup that restores
-	// children to the portal so the next selection's effect run can re-move.
-	function reparentInto(getContainer: () => HTMLElement | null): () => void {
+	// Sizes and positions the overlay portal to match the selected widget's
+	// bounding box, so children's absolute offsets (popover `top: 100%`, handles
+	// `right: -4px`) land at the widget's edges. The overlay is a sibling of
+	// BlockList — never a descendant of any contenteditable — which is what
+	// keeps popover keystrokes from bubbling into the type-to-replace branch.
+	function syncOverlayToWidget(getOverlay: () => HTMLElement | null): () => void {
 		const noop = () => {};
-		const portal = getContainer();
-		if (!portal) return noop;
+		const overlayEl = getOverlay();
+		const editorEl = getEditorEl();
+		if (!overlayEl || !editorEl) return noop;
 		const ctx = getSelectedImageFields();
 		if (!ctx?.widgetEl) return noop;
-		const moved: Node[] = [];
-		while (portal.firstChild) {
-			const child = portal.firstChild;
-			ctx.widgetEl.appendChild(child);
-			moved.push(child);
-		}
+		const widgetEl = ctx.widgetEl;
+
+		const update = () => {
+			const wRect = widgetEl.getBoundingClientRect();
+			const eRect = editorEl.getBoundingClientRect();
+			const cs = getComputedStyle(editorEl);
+			const borderTop = parseFloat(cs.borderTopWidth) || 0;
+			const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+			overlayEl.style.top = `${wRect.top - eRect.top - borderTop + editorEl.scrollTop}px`;
+			overlayEl.style.left = `${wRect.left - eRect.left - borderLeft + editorEl.scrollLeft}px`;
+			overlayEl.style.width = `${wRect.width}px`;
+			overlayEl.style.height = `${wRect.height}px`;
+		};
+		update();
+
+		const observer = new ResizeObserver(update);
+		observer.observe(widgetEl);
+
+		// `edit` covers structural mutations above the widget that shift its y
+		// without changing its size; ResizeObserver alone misses those.
+		const unsubscribeEdit = events.on('edit', update);
+		window.addEventListener('resize', update);
+
 		return () => {
-			for (const child of moved) portal.appendChild(child);
+			observer.disconnect();
+			unsubscribeEdit();
+			window.removeEventListener('resize', update);
 		};
 	}
 
@@ -210,8 +223,6 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		dismissImagePopover,
 		getEditorContentWidth,
 		attachWidgetSelectListener,
-		applySelectedClass,
-		reparentResizeHandles: reparentInto,
-		reparentImageProperties: reparentInto
+		syncOverlayToWidget
 	};
 }

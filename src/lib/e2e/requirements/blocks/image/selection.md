@@ -1,10 +1,12 @@
 # Feature: Image widget selection
 
 ## Happy paths
-- Click on widget enters widget-selected state (widget gets `md-image-selected` class)
+
+- Click on widget enters widget-selected state (overlay portal with popover and resize handles renders at the widget's bounds)
 - Click on text outside widget exits selected state
 
 ## User interactions
+
 - ArrowLeft from caret at right boundary enters selected state
 - ArrowLeft while selected: caret moves to left boundary, widget deselects
 - ArrowRight from caret at left boundary enters selected state
@@ -13,5 +15,6 @@
 - Escape deselects the widget
 
 ## Edge cases
+
 - Selecting a different widget replaces the previous selection
 - Cross-block selection clears widget selection
