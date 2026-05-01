@@ -17,9 +17,7 @@ export interface CreateWidgetSelectionOpts {
 	onSelect: () => void;
 }
 
-export function createWidgetSelectionState(
-	opts: CreateWidgetSelectionOpts
-): WidgetSelectionState {
+export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): WidgetSelectionState {
 	let selected = $state<WidgetTarget | null>(null);
 
 	return {

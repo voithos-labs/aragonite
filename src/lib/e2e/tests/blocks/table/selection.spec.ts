@@ -51,7 +51,10 @@ test.describe('table block: selection', () => {
 		page
 	}) => {
 		await page.locator('[role="cell"]').nth(0).click();
-		await page.locator('[role="cell"]').nth(8).click({ modifiers: ['Shift'] });
+		await page
+			.locator('[role="cell"]')
+			.nth(8)
+			.click({ modifiers: ['Shift'] });
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.anchor.path[0]).toBe(0);

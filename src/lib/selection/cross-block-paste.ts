@@ -17,10 +17,7 @@ import { nodeAt } from '../tree-operations/node-ops';
 import { pathsEqual } from './path-math';
 import { materializeBlankLines } from '../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
-import {
-	ensureEditableContainers,
-	normalizeReplacementTrivia
-} from '../tree-operations';
+import { ensureEditableContainers, normalizeReplacementTrivia } from '../tree-operations';
 import { parseAllInlineContent } from '../core/inline';
 
 export async function handleCrossBlockPaste(

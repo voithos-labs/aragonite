@@ -2,12 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import type {
-	CstNode,
-	Document,
-	TableMetadata,
-	TableRowMetadata
-} from '../../core/nodes';
+import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../../core/nodes';
 
 function findTable(doc: Document): CstNode | null {
 	for (const child of doc.children) {
@@ -141,15 +136,9 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 
 		const tableBefore = doc.children[0];
 		const lastCellIdx =
-			tableBefore.children!.length *
-				(tableBefore.metadata as TableMetadata).columnCount -
-			1;
+			tableBefore.children!.length * (tableBefore.metadata as TableMetadata).columnCount - 1;
 
-		const result = rangeDelete(
-			doc,
-			{ path: [0], offset: 0 },
-			{ path: [0], offset: lastCellIdx }
-		);
+		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [0], offset: lastCellIdx });
 
 		const table = result.newDoc.children[0];
 		expect(table.kind).toBe('table');
@@ -225,8 +214,7 @@ describe('rangeDelete — table edge cases', () => {
 	it('Case 2: partial last row (start.offset mid-row) clears trailing cells of that row', () => {
 		// 3-col, 3-row table. Anchor at cell 4 (row 1, col 1), focus into paragraph.
 		// Cells 4..end (5,6,7,8) cleared. Row 1: col 0 stays, col 1+2 cleared. Rows 2 fully removed.
-		const source =
-			'| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nafter\n';
+		const source = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nafter\n';
 		const doc = parse(source);
 
 		const result = rangeDelete(doc, { path: [0], offset: 4 }, { path: [1], offset: 0 });

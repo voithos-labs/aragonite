@@ -107,9 +107,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		expect(after).not.toMatch(/\| Z[^|]*\| Column/);
 	});
 
-	test('undo after column delete via cross-block coverage restores selection', async ({
-		page
-	}) => {
+	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
 		// Select first column via 3-stage Ctrl+A in a cell, or via shift+click.
 		// Use Ctrl+A 1× to select cell, 2× to select table, then we need column.
 		// Alternative: drag from row 0 col 0 down through rows.
