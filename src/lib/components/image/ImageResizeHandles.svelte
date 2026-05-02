@@ -25,6 +25,19 @@
 	let rightHandle: HTMLDivElement | undefined = $state();
 	let cornerHandle: HTMLDivElement | undefined = $state();
 
+	// `md-image-broken` is toggled imperatively on the widget when the underlying
+	// `<img>` fires `error` / `load`; Svelte 5 doesn't track external class
+	// mutations, so a MutationObserver mirrors them into reactive state.
+	let isBroken = $state(false);
+	$effect(() => {
+		isBroken = widgetEl.classList.contains('md-image-broken');
+		const observer = new MutationObserver(() => {
+			isBroken = widgetEl.classList.contains('md-image-broken');
+		});
+		observer.observe(widgetEl, { attributes: true, attributeFilter: ['class'] });
+		return () => observer.disconnect();
+	});
+
 	function imgEl(): HTMLImageElement | null {
 		return widgetEl.querySelector('img');
 	}
@@ -116,16 +129,18 @@
 	});
 </script>
 
-<div
-	bind:this={rightHandle}
-	class="md-resize-handle md-resize-handle-right"
-	role="presentation"
-></div>
-<div
-	bind:this={cornerHandle}
-	class="md-resize-handle md-resize-handle-corner"
-	role="presentation"
-></div>
+{#if !isBroken}
+	<div
+		bind:this={rightHandle}
+		class="md-resize-handle md-resize-handle-right"
+		role="presentation"
+	></div>
+	<div
+		bind:this={cornerHandle}
+		class="md-resize-handle md-resize-handle-corner"
+		role="presentation"
+	></div>
+{/if}
 
 <style>
 	.md-resize-handle {
