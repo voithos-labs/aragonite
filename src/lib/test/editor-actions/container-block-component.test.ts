@@ -15,6 +15,19 @@ function makeRef(): BlockComponent {
 }
 
 describe('createContainerBlockComponent', () => {
+	it('returns a BlockComponent with editable + focusable defaulted to true', () => {
+		const c = createContainerBlockComponent({
+			get innerBlockRefs() {
+				return [];
+			},
+			get nodeChildrenLength() {
+				return 0;
+			}
+		});
+		expect(c.editable).toBe(true);
+		expect(c.focusable).toBe(true);
+	});
+
 	it('focus(0) targets the first child ref', () => {
 		const refs = [makeRef(), makeRef()];
 		const c = createContainerBlockComponent({

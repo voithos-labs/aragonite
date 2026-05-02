@@ -135,9 +135,6 @@
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
-	export const editable = true;
-	export const focusable = true;
-
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return state.innerBlockRefs;
@@ -146,6 +143,8 @@
 			return node.children?.length ?? 0;
 		}
 	});
+	export const editable = containerApi.editable;
+	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
@@ -154,32 +153,9 @@
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
 	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
 
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		selectEdgeWidget
-	} satisfies BlockComponent);
-
 	$effect(() => {
 		if (!setRef || !getRef) return;
-		const self: BlockComponent = {
-			editable,
-			focusable,
-			focus,
-			getCursorOffset,
-			getCursorPosition,
-			focusByPath,
-			focusAtColumn,
-			isVerticallyTransparent,
-			selectEdgeWidget
-		};
-		return publishRefSlot(index, self, setRef, getRef);
+		return publishRefSlot(index, containerApi, setRef, getRef);
 	});
 
 	function handleKeydown(e: KeyboardEvent): void {
