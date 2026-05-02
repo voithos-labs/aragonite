@@ -52,4 +52,38 @@ test.describe('inline image range-selection highlight', () => {
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		await expect(page.locator('[data-image-widget].md-widget-selected')).toHaveCount(0);
 	});
+
+	test('selected widget renders a visible tint overlay (paints over the image)', async ({
+		page
+	}) => {
+		// Regression: the original CSS set background-color on the widget span,
+		// but the <img> child fully covers the span so the tint was invisible.
+		// The fix paints via an ::after pseudo-element with position:absolute;inset:0
+		// so the tint sits ON TOP of the image regardless of opacity.
+		await editor.loadContent(INLINE_IMAGE_DOC);
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator('[data-inline-widget].md-widget-selected')).toHaveCount(1);
+
+		const overlay = await page.evaluate(() => {
+			const w = document.querySelector('[data-inline-widget].md-widget-selected') as HTMLElement;
+			if (!w) return null;
+			const after = window.getComputedStyle(w, '::after');
+			return {
+				content: after.content,
+				position: after.position,
+				background: after.backgroundColor,
+				inset: `${after.top} ${after.right} ${after.bottom} ${after.left}`
+			};
+		});
+		expect(overlay).not.toBeNull();
+		// The pseudo-element must exist (content !== 'none') and overlay the widget
+		// area (position: absolute, inset: 0). A widget with `background-color` on
+		// the span itself would fail this — the image covers the span's bg.
+		expect(overlay!.content).not.toBe('none');
+		expect(overlay!.position).toBe('absolute');
+		// rgba(100, 150, 255, 0.3) — Chromium normalizes spacing.
+		expect(overlay!.background).toMatch(/rgba?\(\s*100,\s*150,\s*255/);
+	});
 });

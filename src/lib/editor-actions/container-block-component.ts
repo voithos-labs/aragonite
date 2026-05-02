@@ -1,4 +1,4 @@
-/** Shared `BlockComponent` shim for container blocks (Blockquote, List, ListItem). */
+/** Shared `BlockComponent` shim for container blocks. */
 
 import {
 	CURSOR_END,
@@ -15,17 +15,10 @@ export interface ContainerBlockComponentDeps {
 
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
-): Pick<
-	BlockComponent,
-	| 'focus'
-	| 'getCursorOffset'
-	| 'getCursorPosition'
-	| 'focusByPath'
-	| 'focusAtColumn'
-	| 'isVerticallyTransparent'
-	| 'selectEdgeWidget'
-> {
+): BlockComponent {
 	return {
+		editable: true,
+		focusable: true,
 		focus(offset: number) {
 			if (deps.nodeChildrenLength === 0) return;
 			if (offset === FOCUS_LAST_START) {

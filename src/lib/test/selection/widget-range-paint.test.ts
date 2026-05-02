@@ -18,10 +18,12 @@ describe('installWidgetRangePainter', () => {
 		leadText = document.createTextNode('lead ');
 		widgetA = document.createElement('span');
 		widgetA.setAttribute('data-image-widget', '');
+		widgetA.setAttribute('data-inline-widget', '');
 		widgetA.setAttribute('contenteditable', 'false');
 		midText = document.createTextNode(' mid ');
 		widgetB = document.createElement('span');
 		widgetB.setAttribute('data-image-widget', '');
+		widgetB.setAttribute('data-inline-widget', '');
 		widgetB.setAttribute('contenteditable', 'false');
 		trailText = document.createTextNode(' trail');
 

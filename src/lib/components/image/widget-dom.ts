@@ -1,7 +1,6 @@
-// Widget DOM carries no textContent for the image's raw bytes — those live
-// in the data-source-start / data-source-end attributes that the
-// `cursor/widget-offset.ts` walker reads to keep cursor offsets aligned with
-// raw without polluting the contenteditable's textContent.
+// Image widget contributes its raw bytes via data-source-start / data-source-end
+// — `cursor/widget-offset.ts` reads them. textContent stays empty so prose
+// `textContent === ambientPrefix + raw` still holds.
 
 import type { InlineNode } from '../../core/nodes';
 
@@ -17,6 +16,9 @@ export function buildImageWidget(
 ): HTMLSpanElement {
 	const widget = document.createElement('span');
 	widget.className = 'md-image-widget';
+	// `data-inline-widget` is the shared atomic-widget marker (cursor walker,
+	// selection painter, raw reader); `data-image-widget` is image-specific.
+	widget.dataset.inlineWidget = '';
 	widget.dataset.imageWidget = '';
 	widget.dataset.sourceStart = String(node.start);
 	widget.dataset.sourceEnd = String(node.end);

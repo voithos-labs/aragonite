@@ -12,11 +12,9 @@ export function createRangeFromOffsets(
 	let startSet = false;
 
 	function walk(node: Node): boolean {
-		// Image widgets are atomic: their textContent contributes to the
-		// content-offset ledger (preserves textContent === ambientPrefix + raw)
-		// but the cursor never lands inside. Snap requested offsets to the
-		// widget's leading or trailing edge.
-		if (node.nodeType === Node.ELEMENT_NODE && (node as Element).matches?.('[data-image-widget]')) {
+		// Atomic inline widgets: cursor never lands inside. Snap requested
+		// offsets to the leading or trailing edge.
+		if (node.nodeType === Node.ELEMENT_NODE && (node as Element).matches?.('[data-inline-widget]')) {
 			const len = (node as Element).textContent?.length ?? 0;
 			if (!startSet && start <= charCount + len) {
 				if (start <= charCount) range.setStartBefore(node);
