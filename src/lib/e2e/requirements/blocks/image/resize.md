@@ -11,3 +11,4 @@
 
 - Click-and-release on handle without movement is no-op (no undo entry)
 - Drag near 25/50/75/100% snaps to those percentages
+- Broken image (load failed) shows the popover for URL editing but suppresses resize handles — handles re-appear if the URL is corrected and the image loads

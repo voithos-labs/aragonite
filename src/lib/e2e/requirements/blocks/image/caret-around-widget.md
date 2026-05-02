@@ -5,6 +5,8 @@
 - ArrowUp from the start of the paragraph below a standalone image lands at the previous text-bearing paragraph (skips the image-only paragraph) in one press
 - ArrowDown from the end of the paragraph above a standalone image lands at the next text-bearing paragraph (skips the image-only paragraph) in one press
 - ArrowUp from a list item paragraph below a list-item that contains only an image lands above the entire list in one press (vertical-skip cascades through the container)
+- ArrowDown from a paragraph above a list whose first item is image-only lands in the next text-bearing list item (transparent items are skipped on container entry)
+- ArrowUp from a paragraph below a list whose last item is image-only lands in the preceding text-bearing list item (transparent items are skipped on container entry)
 - For an inline (mid-paragraph) image, ArrowUp from the line after the image lands at the line before the image — native browser handles this correctly because the surrounding paragraph has text positions
 
 ## Horizontal (ArrowLeft / ArrowRight)
@@ -19,3 +21,8 @@
 - Caret never lands at a visually-invisible position inside an image widget (the hidden source-bytes span must not act as a caret target)
 - Cross-block ArrowLeft/Right into a paragraph that ends/starts with an image selects the widget directly rather than placing an invisible caret at the widget's edge
 - A paragraph containing only image widget(s) is treated as vertically transparent — ArrowUp/Down passes through without stopping
+
+## Click-to-edge snap (Notion-style)
+
+- Clicking in the empty area to the right of an image-only paragraph lands the cursor at the image's end offset (browser native click can't anchor a caret past a contenteditable=false widget; the snap recovers it)
+- Clicking in the empty area to the left of an image-only paragraph lands the cursor at the image's start offset

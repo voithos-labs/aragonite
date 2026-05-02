@@ -11,6 +11,9 @@ const INLINE_IMAGE_DOC = 'lead text ![pic](/test-fixtures/sample.png) trail text
 const LIST_IMAGE_DOC =
 	'above list paragraph.\n\n- ![pic](/test-fixtures/sample.png)\n- second item text\n';
 
+const LIST_IMAGE_LAST_DOC =
+	'- first item text\n- ![pic](/test-fixtures/sample.png)\n\nbelow list paragraph.\n';
+
 test.describe('caret traversal around image widgets', () => {
 	let editor: EditorPage;
 
@@ -31,6 +34,34 @@ test.describe('caret traversal around image widgets', () => {
 		await editor.typeText('X');
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/X.*above list paragraph|above list paragraph.*X|abXove|abovXe/);
+		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
+	});
+
+	// Inverse regression: ArrowDown into a list whose first item is image-only
+	// must skip the transparent item and land on the next text-bearing item.
+	test('ArrowDown from above an image-only-first list-item lands in the second item', async ({
+		page
+	}) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('ArrowDown');
+		await editor.typeText('X');
+		const src = await editor.bridge.getSource();
+		expect(src).toMatch(/X.*second item text|second item text.*X|seconXd|secondX item/);
+		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
+	});
+
+	// Symmetric: ArrowUp into a list whose last item is image-only must skip
+	// the transparent item and land on the preceding text-bearing item.
+	test('ArrowUp from below an image-only-last list-item lands in the penultimate item', async ({
+		page
+	}) => {
+		await editor.loadContent(LIST_IMAGE_LAST_DOC);
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('ArrowUp');
+		await editor.typeText('X');
+		const src = await editor.bridge.getSource();
+		expect(src).toMatch(/X.*first item text|first item text.*X|firXst|firstX item/);
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 
@@ -145,5 +176,80 @@ test.describe('caret traversal around image widgets', () => {
 		// image source bytes.
 		expect(src).not.toMatch(/!\[.*X.*\]/);
 		expect(src).not.toMatch(/X.*\(\/test-fixtures/);
+	});
+
+	// ── Click-to-edge snap (Notion-style) ───────────────────────────────
+
+	async function getCursorRawInActiveCE(page: import('@playwright/test').Page): Promise<number | null> {
+		return page.evaluate(() => {
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return null;
+			const r = sel.getRangeAt(0);
+			const ce = document.querySelector('[contenteditable="true"]') as HTMLElement | null;
+			if (!ce || !ce.contains(r.startContainer)) return null;
+			let count = 0;
+			let stopped = false;
+			function visit(current: Node): void {
+				if (stopped) return;
+				if (current === r!.startContainer) {
+					if (current.nodeType === Node.TEXT_NODE) {
+						count += r!.startOffset;
+					} else {
+						const cap = Math.min(r!.startOffset, current.childNodes.length);
+						for (let i = 0; i < cap; i++) visit(current.childNodes[i]);
+					}
+					stopped = true;
+					return;
+				}
+				if (current.nodeType === Node.TEXT_NODE) {
+					count += current.textContent?.length ?? 0;
+					return;
+				}
+				if (current.nodeType === Node.ELEMENT_NODE) {
+					const el = current as Element;
+					if (el.matches?.('[data-image-widget]')) {
+						const s = parseInt(el.getAttribute('data-source-start') ?? '', 10);
+						const e = parseInt(el.getAttribute('data-source-end') ?? '', 10);
+						if (!isNaN(s) && !isNaN(e)) count += e - s;
+						return;
+					}
+					if (el.matches?.('.md-marker')) return;
+					for (const child of current.childNodes) visit(child);
+				}
+			}
+			visit(ce);
+			return count;
+		});
+	}
+
+	test('click right of an image-only list item lands the cursor at image.end', async ({
+		page
+	}) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
+		await page.waitForFunction(
+			() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		const widget = page.locator('[data-image-widget]').first();
+		const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
+		const widgetBox = await widget.boundingBox();
+		const paraBox = await para.boundingBox();
+		if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
+		const clickX = Math.min(widgetBox.x + widgetBox.width + 80, paraBox.x + paraBox.width - 20);
+		await page.mouse.click(clickX, widgetBox.y + widgetBox.height / 2);
+		expect(await getCursorRawInActiveCE(page)).toBe(41);
+	});
+
+	test('click left of an image-only list item lands the cursor at image.start', async ({
+		page
+	}) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
+		await page.waitForFunction(
+			() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		const widget = page.locator('[data-image-widget]').first();
+		const widgetBox = await widget.boundingBox();
+		if (!widgetBox) throw new Error('widget box missing');
+		await page.mouse.click(widgetBox.x - 8, widgetBox.y + widgetBox.height / 2);
+		expect(await getCursorRawInActiveCE(page)).toBe(0);
 	});
 });
