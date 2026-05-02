@@ -67,8 +67,6 @@
 		ambientPrefix?: AmbientPrefix;
 	} = $props();
 
-	// Plain-string view of the prefix for length/equality/display use;
-	// `buildAmbientSpan` consumes the union directly for DOM construction.
 	const ambientPrefixText = $derived(
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
 	);
@@ -313,12 +311,8 @@
 		pendingCursorOffset = savedRawOffset;
 	}
 
-	/**
-	 * Read raw text by walking children and skipping the ambient span.
-	 * Robust against Chromium inserting stray text nodes before or after
-	 * the marker span (happens after Home/click or when typing into an
-	 * empty-paragraph <br> fallback).
-	 */
+	// Walk children directly (rather than reading textContent) so stray text
+	// nodes Chromium inserts around the marker span don't pollute the raw.
 	function readRawText(): string {
 		if (!el) return '';
 		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
@@ -365,7 +359,6 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
 
-		// Save cursor position before the browser modifies the DOM
 		preEditOffset = cursor.getRaw() ?? 0;
 
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
@@ -601,12 +594,46 @@
 		}
 	}
 
+	// An image-only paragraph contains no text node Chromium can anchor a caret
+	// to, so clicking past a block-level widget drops the cursor outside this
+	// contenteditable entirely. Capture click x in pointerdown and snap the
+	// caret to the nearest widget edge in onClick (Notion-style edge snap).
+	let lastClickClientX: number | null = null;
+
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
+		lastClickClientX = e.clientX;
 	}
 
 	function onClick(): void {
+		const x = lastClickClientX;
+		lastClickClientX = null;
 		cursor.clampOutOfAmbient();
+		snapClickToWidgetEdge(x);
+	}
+
+	function snapClickToWidgetEdge(clickX: number | null): void {
+		if (!el || clickX === null) return;
+		const sel = window.getSelection();
+		if (sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).startContainer)) return;
+		for (const inline of node.inlineContent ?? []) {
+			if (inline.kind !== 'image') continue;
+			const widget = el.querySelector(
+				`[data-image-widget][data-source-start="${inline.start}"]`
+			) as HTMLElement | null;
+			if (!widget) continue;
+			const rect = widget.getBoundingClientRect();
+			if (clickX > rect.right) {
+				el.focus();
+				cursor.setRaw(inline.end);
+				return;
+			}
+			if (clickX < rect.left) {
+				el.focus();
+				cursor.setRaw(inline.start);
+				return;
+			}
+		}
 	}
 
 	// ── Widget adjacency ───────────────────────────────────────────────

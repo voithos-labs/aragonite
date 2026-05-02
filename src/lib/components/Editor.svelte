@@ -24,6 +24,7 @@
 	} from '../contracts';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
+	import { installWidgetRangePainter } from '../selection/widget-range-paint';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../tree-operations/block-id';
@@ -258,6 +259,16 @@
 	$effect(() => imageEdit.attachWidgetSelectListener());
 
 	$effect(() => imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null));
+
+	$effect(() => {
+		if (!editorEl) return;
+		installWidgetRangePainter({
+			editorRoot: editorEl,
+			getSelectionIsCustomRendered: () => selectionState.isCustomRendered,
+			getWidgetIsSelected: () => widgetSelection.getSelected() !== null,
+			lifetime: lifetimeController.signal
+		});
+	});
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native

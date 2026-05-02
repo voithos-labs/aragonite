@@ -58,6 +58,15 @@ test.describe('image resize', () => {
 		expect(undoAfter).toBe(undoBefore);
 	});
 
+	test('broken image shows popover but no resize handles', async ({ page }) => {
+		await editor.loadContent('![broken](/test-fixtures/nonexistent.png)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
+		await widget.click();
+		await expect(page.locator('[data-image-overlay]')).toBeVisible();
+		await expect(page.locator('.md-resize-handle')).toHaveCount(0);
+	});
+
 	// Regression: the widget span was previously full-editor-width via
 	// `display: block` with no `width: fit-content`, putting the right-edge
 	// handle at the editor's right edge instead of the image's.

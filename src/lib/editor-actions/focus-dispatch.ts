@@ -107,14 +107,19 @@ export function dispatchFocusAtColumn(
 	from: StickyColumnDirection
 ): void {
 	if (refs.length === 0) return;
-	if (from === 'above') {
-		const first = refs[0];
-		if (first?.focusAtColumn) first.focusAtColumn(x, from);
-		else first?.focus(0);
-	} else {
-		const last = refs.length - 1;
-		const lastRef = refs[last];
-		if (lastRef?.focusAtColumn) lastRef.focusAtColumn(x, from);
-		else lastRef?.focus(CURSOR_END);
+	const indices =
+		from === 'above'
+			? refs.map((_, i) => i)
+			: refs.map((_, i) => refs.length - 1 - i);
+	// Skip vertically-transparent refs so a container entered from above/below
+	// lands focus on its first/last text-bearing child rather than getting stuck
+	// in an image-only paragraph.
+	for (const i of indices) {
+		const ref = refs[i];
+		if (!ref?.focusable) continue;
+		if (ref.isVerticallyTransparent?.()) continue;
+		if (ref.focusAtColumn) ref.focusAtColumn(x, from);
+		else ref.focus(from === 'above' ? 0 : CURSOR_END);
+		return;
 	}
 }
