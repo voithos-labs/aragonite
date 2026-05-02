@@ -1,13 +1,11 @@
 /**
- * Translation between DOM Range positions and raw-content offsets when image
- * widgets contribute to raw without contributing to textContent. Walks the
- * container in document order, accumulating either text-node lengths
- * (textContent contribution) or widget raw lengths (read from
- * `[data-image-widget]` data-source-start / data-source-end). The `ambient/`
- * layer adds the marker prefix on top.
+ * DOM Range ↔ raw-content offset translation for atomic inline widgets.
+ * Widgets contribute their raw bytes via data-source-start / data-source-end
+ * without contributing to textContent; the walker accumulates text-node
+ * lengths plus widget raw lengths. `ambient/` adds the marker prefix on top.
  */
 
-const WIDGET_SELECTOR = '[data-image-widget]';
+const WIDGET_SELECTOR = '[data-inline-widget]';
 
 export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: number): number {
 	let count = 0;
@@ -74,13 +72,22 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 				const len = widgetRawLength(el);
 				const parent = el.parentNode;
 				const idx = parent ? Array.prototype.indexOf.call(parent.childNodes, el) : 0;
-				// Target at widget's leading boundary → before widget.
+				// Prefer landing in an adjacent text node — Chromium drops beforeinput
+				// at element-level offsets between two contenteditable=false islands.
 				if (count === target && parent) {
-					exact = { node: parent, offset: idx };
+					const prev = el.previousSibling;
+					if (prev && prev.nodeType === Node.TEXT_NODE) {
+						exact = { node: prev, offset: prev.textContent?.length ?? 0 };
+					} else {
+						exact = { node: parent, offset: idx };
+					}
 					return exact;
 				}
 				if (count + len >= target && parent) {
-					// Target at trailing boundary or anywhere inside → after widget.
+					const next = el.nextSibling;
+					if (next && next.nodeType === Node.TEXT_NODE) {
+						return { node: next, offset: 0 };
+					}
 					return { node: parent, offset: idx + 1 };
 				}
 				count += len;

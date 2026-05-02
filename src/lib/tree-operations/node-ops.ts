@@ -23,6 +23,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
+import { getContentRange, isProseKind, parseInline } from '../core/inline';
 import { trimTrailingLineEnding } from '../core/lines';
 import type { StructuralChange } from './structural-change';
 
@@ -176,6 +177,13 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;
 		ensureEditableContainers(node);
+		// `parse` only does block-level work; populate the inline cache so
+		// downstream consumers (cursor walkers, click-snap, widget hit-tests)
+		// see the post-split inline tree without waiting for the next render.
+		if (isProseKind(node.kind)) {
+			const range = getContentRange(node);
+			node.inlineContent = parseInline(node.raw, range.start, range.end);
+		}
 		return node;
 	}
 

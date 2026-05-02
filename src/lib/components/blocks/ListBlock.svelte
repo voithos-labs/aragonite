@@ -92,9 +92,6 @@
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
-	export const editable = true;
-	export const focusable = true;
-
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return state.innerBlockRefs;
@@ -103,6 +100,8 @@
 			return node.children?.length ?? 0;
 		}
 	});
+	export const editable = containerApi.editable;
+	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
@@ -110,18 +109,6 @@
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
 	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
-
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		selectEdgeWidget
-	} satisfies BlockComponent);
 
 	function setItemRef(i: number, r: BlockComponent | undefined): void {
 		state.innerBlockRefs[i] = r;

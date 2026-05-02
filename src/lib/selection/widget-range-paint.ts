@@ -1,15 +1,12 @@
 /**
- * Paints a `md-widget-selected` class on inline atomic widgets that the native
- * Selection range overlaps. Native `::selection` does not paint over
- * `contenteditable=false` content, so a single-block range crossing an inline
- * image leaves the image visually un-tinted; this painter fills that gap.
- *
- * Suspended when the cross-block overlay or the widget-selection popover owns
- * the visual — both have their own indicators and double-painting reads as a
- * bug.
+ * Paints `md-widget-selected` on atomic inline widgets the native Selection
+ * range overlaps. Native `::selection` skips contenteditable=false content,
+ * so a single-block range across an inline widget would leave it un-tinted.
+ * Suspended while the cross-block overlay or the widget-selection popover
+ * owns the visual.
  */
 
-const WIDGET_SELECTOR = '[data-image-widget]';
+const WIDGET_SELECTOR = '[data-inline-widget]';
 const SELECTED_CLASS = 'md-widget-selected';
 
 export interface WidgetRangePainterOpts {

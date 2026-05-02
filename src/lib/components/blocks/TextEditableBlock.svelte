@@ -40,6 +40,7 @@
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
 	import { createTextClipboard } from './text/text-clipboard';
 	import { createTextRender } from './text/text-render';
+	import { caretIsInTextContent } from './text/click-snap-guard';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -298,10 +299,57 @@
 		}
 	});
 
+	// Asymmetric clearer: when the cursor moves to a position different from
+	// the snap target, drop the synthetic indicator. Does NOT auto-set on
+	// cursor reaching a boundary via non-click means — synthetic is
+	// click-intent, only set by `snapClickToWidgetEdge`.
+	$effect(() => {
+		const root = el;
+		if (!root) return;
+		const handler = () => {
+			if (lastSnapTargetOffset === null) return;
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return;
+			const range = sel.getRangeAt(0);
+			if (!root.contains(range.startContainer)) {
+				lastSnapTargetOffset = null;
+				return;
+			}
+			const content = rawOffsetAtNode(root, range.startContainer, range.startOffset);
+			const off = Math.max(0, content - ambientLength);
+			if (off !== lastSnapTargetOffset) {
+				lastSnapTargetOffset = null;
+			}
+		};
+		document.addEventListener('selectionchange', handler);
+		return () => document.removeEventListener('selectionchange', handler);
+	});
+
+	$effect(() => {
+		if (!el) return;
+		for (const w of el.querySelectorAll('.md-snap-after, .md-snap-before')) {
+			w.classList.remove('md-snap-after', 'md-snap-before');
+		}
+		if (lastSnapTargetOffset === null) return;
+		const off = lastSnapTargetOffset;
+		for (const inline of node.inlineContent ?? []) {
+			if (inline.kind !== 'image') continue;
+			if (inline.end !== off && inline.start !== off) continue;
+			const widget = el.querySelector(
+				`[data-inline-widget][data-source-start="${inline.start}"]`
+			);
+			if (widget) {
+				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
+			}
+			return;
+		}
+	});
+
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
 		stickyColumn.reset();
+		lastSnapTargetOffset = null;
 		if (composing || !el) return;
 		const text = readRawText();
 		const savedRawOffset = cursor.getRaw() ?? 0;
@@ -324,14 +372,13 @@
 		return out;
 	}
 
-	// Image widgets carry no textContent — rebuild their source bytes from the
-	// current node.raw via the widget's data-source-start/end attributes so the
-	// CST round-trip stays intact when the user edits text around the widget.
+	// Widgets carry no textContent — rebuild their raw bytes from
+	// data-source-start/end so the round-trip survives edits around the widget.
 	function rawTextOf(domNode: Node): string {
 		if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
 		if (domNode.nodeType === Node.ELEMENT_NODE) {
 			const widget = domNode as Element;
-			if (widget.matches?.('[data-image-widget]')) {
+			if (widget.matches?.('[data-inline-widget]')) {
 				const start = parseInt(widget.getAttribute('data-source-start') ?? '', 10);
 				const end = parseInt(widget.getAttribute('data-source-end') ?? '', 10);
 				if (Number.isNaN(start) || Number.isNaN(end)) return '';
@@ -462,18 +509,45 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		const cursorOff = cursor.getRaw();
-		if (cursorOff !== null && !e.shiftKey) {
-			const widgetAt = imageAtCursor();
+		// `effectiveOffset` collapses the live-caret and snap-fallback
+		// shapes into one offset. `caretInTextNode` is the load-bearing
+		// gate: Chromium can insert into a text node natively, but drops
+		// printable keys at element-level positions adjacent to a
+		// contenteditable=false widget.
+		const liveCursor = cursor.getRaw();
+		const caretInTextNode = (() => {
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0) return false;
+			return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
+		})();
+		const effectiveOffset = liveCursor ?? lastSnapTargetOffset;
+
+		if (effectiveOffset !== null) {
+			const widgetAt = imageAtCursor(effectiveOffset);
 			if (widgetAt) {
-				if (widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
+				if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
 					e.preventDefault();
+					lastSnapTargetOffset = null;
 					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
 					return;
 				}
-				if (!widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
+				if (!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
 					e.preventDefault();
+					lastSnapTargetOffset = null;
 					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
+					return;
+				}
+				if (!caretInTextNode && isTypingKey(e)) {
+					e.preventDefault();
+					lastSnapTargetOffset = null;
+					const typed = e.key;
+					const newRaw =
+						node.raw.slice(0, effectiveOffset) + typed + node.raw.slice(effectiveOffset);
+					const postEdit = effectiveOffset + typed.length;
+					blockEdit.updateBlockContent(index, newRaw, effectiveOffset, postEdit);
+					// pendingCursorOffset re-anchors the caret after the rerender —
+					// without it, the next keystroke teleports to div offset 0.
+					pendingCursorOffset = postEdit;
 					return;
 				}
 			}
@@ -594,28 +668,41 @@
 		}
 	}
 
-	// An image-only paragraph contains no text node Chromium can anchor a caret
-	// to, so clicking past a block-level widget drops the cursor outside this
-	// contenteditable entirely. Capture click x in pointerdown and snap the
-	// caret to the nearest widget edge in onClick (Notion-style edge snap).
+	// Click past a block-level widget drops the caret outside the contenteditable
+	// (no text-node anchor); capture click X in pointerdown and snap to the
+	// nearest widget edge in onClick.
 	let lastClickClientX: number | null = null;
+	let lastClickClientY: number | null = null;
+	// Survives the click→keydown gap when Chromium clears the caret at
+	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
+	let lastSnapTargetOffset = $state<number | null>(null);
 
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 		lastClickClientX = e.clientX;
+		lastClickClientY = e.clientY;
+		lastSnapTargetOffset = null;
+	}
+
+	function onBlur(e: FocusEvent): void {
+		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
+		lastSnapTargetOffset = null;
 	}
 
 	function onClick(): void {
 		const x = lastClickClientX;
 		lastClickClientX = null;
+		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
 		snapClickToWidgetEdge(x);
 	}
 
 	function snapClickToWidgetEdge(clickX: number | null): void {
+		lastSnapTargetOffset = null;
 		if (!el || clickX === null) return;
-		const sel = window.getSelection();
-		if (sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).startContainer)) return;
+		// Don't override a click that landed in a real text node — native
+		// caret renders there and a synthetic overlay would compete.
+		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of node.inlineContent ?? []) {
 			if (inline.kind !== 'image') continue;
 			const widget = el.querySelector(
@@ -626,11 +713,19 @@
 			if (clickX > rect.right) {
 				el.focus();
 				cursor.setRaw(inline.end);
+				// `setRaw`'s walker may have landed the caret in a trailing
+				// text node — in that case native renders, no synthetic needed.
+				if (!caretIsInTextContent(el, window.getSelection())) {
+					lastSnapTargetOffset = inline.end;
+				}
 				return;
 			}
 			if (clickX < rect.left) {
 				el.focus();
 				cursor.setRaw(inline.start);
+				if (!caretIsInTextContent(el, window.getSelection())) {
+					lastSnapTargetOffset = inline.start;
+				}
 				return;
 			}
 		}
@@ -638,14 +733,14 @@
 
 	// ── Widget adjacency ───────────────────────────────────────────────
 
-	function imageAtCursor(): { start: number; end: number; atRight: boolean } | null {
-		const off = cursor.getRaw();
-		if (off === null) return null;
+	function imageAtCursor(off?: number | null): { start: number; end: number; atRight: boolean } | null {
+		const o = off ?? cursor.getRaw();
+		if (o === null) return null;
 		const inlines = node.inlineContent ?? [];
 		for (const inline of inlines) {
 			if (inline.kind !== 'image') continue;
-			if (off === inline.start) return { start: inline.start, end: inline.end, atRight: false };
-			if (off === inline.end) return { start: inline.start, end: inline.end, atRight: true };
+			if (o === inline.start) return { start: inline.start, end: inline.end, atRight: false };
+			if (o === inline.end) return { start: inline.start, end: inline.end, atRight: true };
 		}
 		return null;
 	}
@@ -760,6 +855,7 @@
 	onpaste={clipboardHandlers.onPaste}
 	onpointerdown={onPointerDown}
 	onclick={onClick}
+	onblur={onBlur}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
