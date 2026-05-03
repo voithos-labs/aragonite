@@ -199,10 +199,23 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const unsubscribeEdit = events.on('edit', update);
 		window.addEventListener('resize', update);
 
+		// Sibling images settling their dimensions (slow URL re-fetches,
+		// lazy-load) reflow the editor and shift the selected widget's y
+		// without resizing it — RO won't fire on a pure position change. The
+		// settling image's load/error event lets us re-anchor the overlay.
+		// Both events fire only in capture phase since they don't bubble.
+		const onImgSettle = (e: Event) => {
+			if (e.target instanceof HTMLImageElement) update();
+		};
+		editorEl.addEventListener('load', onImgSettle, true);
+		editorEl.addEventListener('error', onImgSettle, true);
+
 		return () => {
 			observer.disconnect();
 			unsubscribeEdit();
 			window.removeEventListener('resize', update);
+			editorEl.removeEventListener('load', onImgSettle, true);
+			editorEl.removeEventListener('error', onImgSettle, true);
 		};
 	}
 

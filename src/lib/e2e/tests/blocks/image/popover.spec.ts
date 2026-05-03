@@ -230,4 +230,60 @@ test.describe('image properties popover', () => {
 			expect(lb.bottom).toBeLessThanOrEqual(popoverBottom + 1);
 		}
 	});
+
+	// Pre-fix the overlay listened only for ResizeObserver (target widget),
+	// `edit` events, and window resize. A sibling image's slow async reload
+	// (e.g., the user edits image-1's URL then clicks image-2) reflows the
+	// document and shifts the selected widget's y without resizing it; the
+	// overlay's anchor was set when image-1 still had its old dimensions and
+	// stayed there as image-1 grew, leaving the popover stranded over the
+	// wrong image until the next user-driven update.
+	test('overlay re-anchors when a sibling image finishes loading and reflows', async ({ page }) => {
+		await editor.loadContent(
+			'![one|400](/test-fixtures/sample.png)\n\n![two|200](/test-fixtures/sample.png)\n'
+		);
+		await page.waitForFunction(() =>
+			Array.from(document.querySelectorAll('[data-image-widget] img')).every(
+				(img) => (img as HTMLImageElement).complete
+			)
+		);
+		const w2Box = await page.locator('[data-image-widget]').nth(1).boundingBox();
+		if (!w2Box) throw new Error('w2 box');
+		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);
+		await page.locator('.md-image-properties').waitFor({ state: 'visible' });
+		// Drain the ResizeObserver's initial-observe callback so the next layout
+		// shift can't be absorbed by it.
+		await page.waitForTimeout(120);
+
+		// Cause a layout shift only image-1 sees (its rendered height grows).
+		// Then dispatch the load event — the production fix re-anchors the overlay.
+		await page.evaluate(
+			() =>
+				new Promise<void>((resolve) =>
+					requestAnimationFrame(() => {
+						const img = document.querySelectorAll('[data-image-widget] img')[0] as HTMLImageElement;
+						img.style.height = '400px';
+						resolve();
+					})
+				)
+		);
+		const stale = await page.evaluate(() => {
+			const overlay = document.querySelector('[data-image-overlay]') as HTMLElement;
+			const w2 = document.querySelectorAll('[data-image-widget]')[1] as HTMLElement;
+			return overlay.getBoundingClientRect().top - w2.getBoundingClientRect().top;
+		});
+		expect(Math.abs(stale)).toBeGreaterThan(20);
+
+		await page.evaluate(() => {
+			const img = document.querySelectorAll('[data-image-widget] img')[0] as HTMLImageElement;
+			img.dispatchEvent(new Event('load'));
+		});
+		await page.waitForTimeout(50);
+		const realigned = await page.evaluate(() => {
+			const overlay = document.querySelector('[data-image-overlay]') as HTMLElement;
+			const w2 = document.querySelectorAll('[data-image-widget]')[1] as HTMLElement;
+			return overlay.getBoundingClientRect().top - w2.getBoundingClientRect().top;
+		});
+		expect(Math.abs(realigned)).toBeLessThanOrEqual(1);
+	});
 });
