@@ -52,4 +52,39 @@ test.describe('image rendering', () => {
 		const widget = page.locator('[data-image-widget]').first();
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
 	});
+
+	// Pre-fix the broken-image styling overrode .md-image-widget's display:block
+	// with display:inline-block, breaking the always-block-level rule:
+	// trailing text after a broken image flowed on the same baseline instead
+	// of wrapping below.
+	test('broken image preserves block-level layout (trailing text wraps below)', async ({
+		page
+	}) => {
+		await editor.loadContent('![bad](/test-fixtures/nonexistent.png)a\n');
+		await page.waitForFunction(
+			() => !!document.querySelector('[data-image-widget].md-image-broken')
+		);
+		const display = await page.evaluate(
+			() => getComputedStyle(document.querySelector('[data-image-widget]')!).display
+		);
+		expect(display).toBe('block');
+
+		const widgetBox = await page.locator('[data-image-widget]').first().boundingBox();
+		const aTop = await page.evaluate(() => {
+			const para = document.querySelector('[data-image-widget]')!.parentElement!;
+			const walker = document.createTreeWalker(para, NodeFilter.SHOW_TEXT);
+			let node: Text | null = null;
+			while ((node = walker.nextNode() as Text | null)) {
+				if (node.textContent?.includes('a')) break;
+			}
+			if (!node) return null;
+			const idx = node.textContent!.indexOf('a');
+			const range = document.createRange();
+			range.setStart(node, idx);
+			range.setEnd(node, idx + 1);
+			return range.getBoundingClientRect().top;
+		});
+		if (!widgetBox || aTop === null) throw new Error('layout box missing');
+		expect(aTop).toBeGreaterThanOrEqual(widgetBox.y + widgetBox.height - 1);
+	});
 });

@@ -17,3 +17,4 @@
 ## Error cases
 
 - Image with broken URL (404 fixture) renders the widget with `md-image-broken` class after load fails
+- Broken image preserves the block-level visual rule — its trailing text wraps below, same as a successfully-loaded image. The error styling overlays the widget without changing its display mode.
