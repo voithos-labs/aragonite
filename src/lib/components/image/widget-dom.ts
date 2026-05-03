@@ -4,6 +4,13 @@
 
 import type { InlineNode } from '../../core/nodes';
 
+// Resolved URLs that have failed to load this session. Inline rebuild on every
+// keystroke creates a fresh <img>; without this cache the new widget renders
+// without `md-image-broken` until the async `error` event re-fires, producing
+// a visible layout flicker (no min-width/min-height, no dashed border) on each
+// keystroke in a paragraph that contains a broken image.
+const knownBrokenUrls = new Set<string>();
+
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	paragraphPath: number[];
@@ -36,12 +43,23 @@ export function buildImageWidget(
 
 	const img = document.createElement('img');
 	img.alt = node.alt ?? '';
-	img.src = safeResolve(opts.resolveImageUrl, node.url ?? '');
+	const resolvedUrl = safeResolve(opts.resolveImageUrl, node.url ?? '');
+	img.src = resolvedUrl;
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
-	img.addEventListener('error', () => {
+	if (knownBrokenUrls.has(resolvedUrl) || (img.complete && img.naturalWidth === 0 && resolvedUrl)) {
 		widget.classList.add('md-image-broken');
+	}
+	img.addEventListener('error', () => {
+		knownBrokenUrls.add(resolvedUrl);
+		widget.classList.add('md-image-broken');
+	});
+	img.addEventListener('load', () => {
+		if (img.naturalWidth > 0) {
+			knownBrokenUrls.delete(resolvedUrl);
+			widget.classList.remove('md-image-broken');
+		}
 	});
 	widget.appendChild(img);
 

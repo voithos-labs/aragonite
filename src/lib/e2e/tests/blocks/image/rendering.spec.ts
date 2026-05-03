@@ -53,7 +53,56 @@ test.describe('image rendering', () => {
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
 	});
 
-	// Pre-fix the broken-image styling overrode .md-image-widget's display:block
+	// Pre-fix the inline-DOM rebuild on every keystroke produced a fresh
+	// <img> whose async `error` event re-applied `md-image-broken` only after
+	// a few ms; the new widget rendered briefly without the dashed-error
+	// min-width / min-height / border — visible flicker per keystroke in a
+	// paragraph containing a known-broken image.
+	test('keystroke-rebuilt widget keeps md-image-broken without an async re-add', async ({
+		page
+	}) => {
+		await editor.loadContent('![bad](/test-fixtures/nonexistent.png) text\n');
+		await page.waitForFunction(
+			() => !!document.querySelector('[data-image-widget].md-image-broken')
+		);
+		// Observe class state on every newly-added widget element after typing.
+		const events = await page.evaluate(() => {
+			const para = document.querySelector('[data-image-widget]')!.parentElement!;
+			const seen: { tag: string; classes: string }[] = [];
+			seen.push({
+				tag: 'initial',
+				classes: para.querySelector('[data-image-widget]')!.className
+			});
+			const obs = new MutationObserver((muts) => {
+				for (const m of muts) {
+					for (const node of Array.from(m.addedNodes)) {
+						if ((node as Element).matches?.('[data-image-widget]')) {
+							seen.push({ tag: 'rebuilt', classes: (node as Element).className });
+						}
+					}
+				}
+			});
+			obs.observe(para, { childList: true, subtree: true });
+			(window as unknown as { __seen: typeof seen }).__seen = seen;
+			return seen;
+		});
+		expect(events[0].classes).toContain('md-image-broken');
+
+		await page.locator('[contenteditable="true"]').first().click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('z');
+		const seen = await page.evaluate(
+			() => (window as unknown as { __seen: { tag: string; classes: string }[] }).__seen
+		);
+		const rebuilt = seen.filter((e) => e.tag === 'rebuilt');
+		expect(rebuilt.length).toBeGreaterThan(0);
+		// Every rebuilt widget must have md-image-broken at insertion time.
+		for (const e of rebuilt) {
+			expect(e.classes).toContain('md-image-broken');
+		}
+	});
+
+	// Pre-fix `.md-image-broken` overrode `.md-image-widget`'s display:block
 	// with display:inline-block, breaking the always-block-level rule:
 	// trailing text after a broken image flowed on the same baseline instead
 	// of wrapping below.
