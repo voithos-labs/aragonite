@@ -335,9 +335,7 @@
 		for (const inline of node.inlineContent ?? []) {
 			if (inline.kind !== 'image') continue;
 			if (inline.end !== off && inline.start !== off) continue;
-			const widget = el.querySelector(
-				`[data-inline-widget][data-source-start="${inline.start}"]`
-			);
+			const widget = el.querySelector(`[data-inline-widget][data-source-start="${inline.start}"]`);
 			if (widget) {
 				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
 			}
@@ -733,7 +731,9 @@
 
 	// ── Widget adjacency ───────────────────────────────────────────────
 
-	function imageAtCursor(off?: number | null): { start: number; end: number; atRight: boolean } | null {
+	function imageAtCursor(
+		off?: number | null
+	): { start: number; end: number; atRight: boolean } | null {
 		const o = off ?? cursor.getRaw();
 		if (o === null) return null;
 		const inlines = node.inlineContent ?? [];

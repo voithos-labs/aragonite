@@ -108,9 +108,7 @@ export function dispatchFocusAtColumn(
 ): void {
 	if (refs.length === 0) return;
 	const indices =
-		from === 'above'
-			? refs.map((_, i) => i)
-			: refs.map((_, i) => refs.length - 1 - i);
+		from === 'above' ? refs.map((_, i) => i) : refs.map((_, i) => refs.length - 1 - i);
 	// Skip vertically-transparent refs so a container entered from above/below
 	// lands focus on its first/last text-bearing child rather than getting stuck
 	// in an image-only paragraph.

@@ -5,7 +5,7 @@ import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
-import type { WidgetSelectionState } from './widget-selection-state.svelte';
+import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
 // ── Public API ──────────────────────────────────────────────────────────
 
@@ -26,7 +26,13 @@ export interface SelectedImageFields {
 
 export interface ImageEditCommitter {
 	getSelectedImageFields(): SelectedImageFields | null;
-	commitImageEdit(newFields: ImageFields): void;
+	/**
+	 * `target` is captured at popover-mount time, not derived from the live
+	 * widgetSelection — popover commits (URL/alt/title edits, on-unmount-on-switch)
+	 * may fire after the user has clicked a different widget, and writing to the
+	 * new selection would cross-pollinate the two images.
+	 */
+	commitImageEdit(target: WidgetTarget, newFields: ImageFields): void;
 	commitImageResize(newWidth: number, newHeight: number | undefined): void;
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
@@ -117,18 +123,17 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		});
 	}
 
-	function commitImageEdit(newFields: ImageFields): void {
-		const sel = widgetSelection.getSelected();
-		if (!sel) return;
-		const ctx = getSelectedImageFields();
-		if (!ctx) return;
+	function commitImageEdit(target: WidgetTarget, newFields: ImageFields): void {
+		const resolved = resolvePathToParagraph(target.paragraphPath);
+		if (!resolved) return;
+		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
+		if (!image) return;
 		const newSourceBytes = buildImageSourceBytes(newFields);
-		const oldStart = ctx.image.start;
-		const oldEnd = ctx.image.end;
 		const newRaw =
-			ctx.paragraph.raw.slice(0, oldStart) + newSourceBytes + ctx.paragraph.raw.slice(oldEnd);
-		void commitParagraphRaw(sel.paragraphPath, newRaw);
-		widgetSelection.clear();
+			resolved.paragraph.raw.slice(0, image.start) +
+			newSourceBytes +
+			resolved.paragraph.raw.slice(image.end);
+		void commitParagraphRaw(target.paragraphPath, newRaw);
 	}
 
 	function commitImageResize(newWidth: number, newHeight: number | undefined): void {
@@ -143,7 +148,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			width: newWidth,
 			...(newHeight !== undefined ? { height: newHeight } : {})
 		};
-		commitImageEdit(newFields);
+		commitImageEdit(sel, newFields);
 	}
 
 	function dismissImagePopover(): void {

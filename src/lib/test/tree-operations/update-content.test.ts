@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
+import { parseAllInlineContent } from '../../core/inline';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
 
 describe('updateNodeContent', () => {
@@ -61,6 +62,21 @@ describe('updateNodeContent', () => {
 		expect(doc.children[0].metadata).toEqual({ level: 2 });
 		updateNodeContent(doc, 0, 'Hello\n');
 		expect(doc.children[0].metadata).toBeUndefined();
+	});
+
+	it('refreshes inlineContent for prose kinds so post-edit dispatch sees fresh inlines', () => {
+		const source = '![pic](/sample.png)\n';
+		const doc = parse(source);
+		parseAllInlineContent(doc.children);
+		// Pre-edit: image-only inline tree.
+		expect(doc.children[0].inlineContent!.map((n) => n.kind)).toEqual(['image']);
+
+		updateNodeContent(doc, 0, '![pic](/sample.png)a\n');
+
+		const inlines = doc.children[0].inlineContent;
+		expect(inlines).toBeDefined();
+		expect(inlines!.map((n) => n.kind)).toEqual(['image', 'text']);
+		expect(inlines![1].text).toBe('a');
 	});
 });
 
