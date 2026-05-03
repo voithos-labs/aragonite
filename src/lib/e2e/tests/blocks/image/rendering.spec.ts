@@ -83,7 +83,8 @@ test.describe('image rendering', () => {
 				}
 			});
 			obs.observe(para, { childList: true, subtree: true });
-			(window as unknown as { __seen: typeof seen }).__seen = seen;
+			(window as unknown as { __seen: typeof seen; __seenObs: MutationObserver }).__seen = seen;
+			(window as unknown as { __seen: typeof seen; __seenObs: MutationObserver }).__seenObs = obs;
 			return seen;
 		});
 		expect(events[0].classes).toContain('md-image-broken');
@@ -91,9 +92,14 @@ test.describe('image rendering', () => {
 		await page.locator('[contenteditable="true"]').first().click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('z');
-		const seen = await page.evaluate(
-			() => (window as unknown as { __seen: { tag: string; classes: string }[] }).__seen
-		);
+		const seen = await page.evaluate(() => {
+			const w = window as unknown as {
+				__seen: { tag: string; classes: string }[];
+				__seenObs: MutationObserver;
+			};
+			w.__seenObs.disconnect();
+			return w.__seen;
+		});
 		const rebuilt = seen.filter((e) => e.tag === 'rebuilt');
 		expect(rebuilt.length).toBeGreaterThan(0);
 		// Every rebuilt widget must have md-image-broken at insertion time.
