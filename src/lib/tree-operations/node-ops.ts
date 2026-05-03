@@ -161,6 +161,9 @@ export function updateNodeContent(
 	node.children = reparsed.children;
 	node.innerPrefix = reparsed.innerPrefix;
 	node.innerSuffix = reparsed.innerSuffix;
+	// inlineContent is a cache; downstream dispatch reads it instead of re-parsing,
+	// so a paragraph that just gained trailing text would otherwise still look image-only.
+	node.inlineContent = isProseKind(node.kind) ? reparsed.inlineContent : undefined;
 
 	const kindChanged = node.kind !== oldKind;
 	return {

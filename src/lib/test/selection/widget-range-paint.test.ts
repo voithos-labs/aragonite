@@ -39,10 +39,7 @@ describe('installWidgetRangePainter', () => {
 		editorRoot.remove();
 	});
 
-	function install(opts?: {
-		isCustomRendered?: boolean;
-		isWidgetSelected?: boolean;
-	}): void {
+	function install(opts?: { isCustomRendered?: boolean; isWidgetSelected?: boolean }): void {
 		installWidgetRangePainter({
 			editorRoot,
 			getSelectionIsCustomRendered: () => opts?.isCustomRendered ?? false,

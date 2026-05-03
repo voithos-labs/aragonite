@@ -48,14 +48,14 @@ export function getOffsetRect(container: HTMLElement, offset: number): DOMRect |
 }
 
 /**
- * Returns the raw-content offset in the target visual line (first or last)
- * whose Range left coordinate is closest to the target X. Linear scan
- * because getClientRects left values are non-monotonic along logical offsets
- * on BiDi lines, so binary search is invalid.
+ * Offset on the first or last caret-bearing visual line whose collapsed-range
+ * rect is closest to `editorRelativeX`. Linear scan: getClientRects left
+ * values are non-monotonic on BiDi lines, so binary search is invalid.
  *
- * `minOffset` excludes the ambient-marker prefix region — passing the
- * container's ambient length keeps the scan from picking a marker-interior
- * landing.
+ * Widget-only lines are transparent here: collapsed ranges adjacent to a
+ * contenteditable=false widget return null rects, so those offsets aren't
+ * candidates and sticky-Up/Down naturally lands on the nearest text-bearing
+ * line. `minOffset` excludes the ambient-marker prefix region.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,
@@ -70,21 +70,29 @@ export function findOffsetNearestX(
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
 	const targetViewportX = editorRelativeX + editorLeft;
 
-	const probeOffset = from === 'above' ? minOffset : totalLen;
-	const probeRect = getOffsetRect(container, probeOffset);
-	if (!probeRect) return probeOffset;
+	const candidates: { offset: number; rect: DOMRect }[] = [];
+	for (let offset = minOffset; offset <= totalLen; offset++) {
+		const rect = getOffsetRect(container, offset);
+		if (rect) candidates.push({ offset, rect });
+	}
+	if (candidates.length === 0) return minOffset;
 
-	const lineTop = probeRect.top;
-	const lineBottom = probeRect.bottom;
+	const lineProbe =
+		from === 'above'
+			? candidates.reduce((best, c) => (c.rect.top < best.top ? c.rect : best), candidates[0].rect)
+			: candidates.reduce(
+					(best, c) => (c.rect.bottom > best.bottom ? c.rect : best),
+					candidates[0].rect
+				);
+
+	const lineTop = lineProbe.top;
+	const lineBottom = lineProbe.bottom;
 	const lineHeight = Math.max(1, lineBottom - lineTop);
 	const tolerance = lineHeight * 0.5;
 
-	let bestOffset = probeOffset;
-	let bestDelta = Math.abs(probeRect.left - targetViewportX);
-
-	for (let offset = minOffset; offset <= totalLen; offset++) {
-		const rect = getOffsetRect(container, offset);
-		if (!rect) continue;
+	let bestOffset = candidates[0].offset;
+	let bestDelta = Infinity;
+	for (const { offset, rect } of candidates) {
 		if (rect.top > lineBottom + tolerance) continue;
 		if (rect.bottom < lineTop - tolerance) continue;
 		const delta = Math.abs(rect.left - targetViewportX);

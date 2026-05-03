@@ -13,9 +13,7 @@ export interface ContainerBlockComponentDeps {
 	readonly nodeChildrenLength: number;
 }
 
-export function createContainerBlockComponent(
-	deps: ContainerBlockComponentDeps
-): BlockComponent {
+export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): BlockComponent {
 	return {
 		editable: true,
 		focusable: true,

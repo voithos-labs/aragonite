@@ -25,3 +25,5 @@
 
 - Blur with no field changes does NOT add an undo entry (no-op short-circuit)
 - Invalid URL commits anyway; widget renders broken state
+- Switching the popover from one image to another never writes the previous popover's local field state onto the new target. Each popover is bound to the image identity (`paragraphPath` + `sourceStart`) at mount; commits route to that captured target regardless of the live widget selection.
+- Pending edits to the URL / alt / title field commit on image-switch (not just on outside-click), targeting the original image. Escape discards pending edits without committing.

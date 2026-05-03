@@ -357,6 +357,7 @@
 		parentPath={[]}
 	/>
 	{#if widgetSelection.getSelected()}
+		{@const sel = widgetSelection.getSelected()!}
 		{@const ctx = imageEdit.getSelectedImageFields()}
 		{#if ctx?.widgetEl}
 			<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
@@ -365,17 +366,20 @@
 					editorContentWidth={imageEdit.getEditorContentWidth()}
 					onCommit={imageEdit.commitImageResize}
 				/>
-				<ImageProperties
-					fields={{
-						alt: ctx.image.alt ?? '',
-						url: ctx.image.url ?? '',
-						...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
-						...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
-						...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
-					}}
-					onCommit={imageEdit.commitImageEdit}
-					onDismiss={imageEdit.dismissImagePopover}
-				/>
+				{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
+					<ImageProperties
+						target={sel}
+						fields={{
+							alt: ctx.image.alt ?? '',
+							url: ctx.image.url ?? '',
+							...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
+							...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
+							...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
+						}}
+						onCommit={imageEdit.commitImageEdit}
+						onDismiss={imageEdit.dismissImagePopover}
+					/>
+				{/key}
 			</div>
 		{/if}
 	{/if}
