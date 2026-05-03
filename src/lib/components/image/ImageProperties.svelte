@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
+	import type { WidgetTarget } from './widget-selection-state.svelte';
 
 	let {
+		target,
 		fields,
 		onCommit,
 		onDismiss
 	}: {
+		target: WidgetTarget;
 		fields: ImageFields;
-		onCommit: (newFields: ImageFields) => void;
+		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
 		onDismiss: () => void;
 	} = $props();
 
@@ -19,17 +22,24 @@
 
 	const initialBytes = buildImageSourceBytes(fields);
 
-	// Capture phase: commit before any selection-clearing handler runs.
+	// Outside-click dismisses; the actual commit runs in $effect cleanup so
+	// the dismiss path (this), the image-switch path (key change), and the
+	// programmatic clear path all commit through one seam.
 	$effect(() => {
 		if (!popoverEl) return;
 		const handler = (e: PointerEvent) => {
 			const target = e.target as Element | null;
 			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
-			commitIfChanged();
 			onDismiss();
 		};
 		document.addEventListener('pointerdown', handler, true);
 		return () => document.removeEventListener('pointerdown', handler, true);
+	});
+
+	$effect(() => {
+		return () => {
+			commitIfChanged();
+		};
 	});
 
 	function onTitleInput() {
@@ -51,12 +61,19 @@
 		};
 		const newBytes = buildImageSourceBytes(next);
 		if (newBytes === initialBytes) return;
-		onCommit(next);
+		onCommit(target, next);
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
+			// Discard local edits so the unmount commit short-circuits via
+			// byte-equality. Esc is "cancel"; the existing behavior is to
+			// dismiss without persisting in-flight typing.
+			url = fields.url;
+			alt = fields.alt;
+			titleInput = fields.title ?? '';
+			titleTouched = false;
 			onDismiss();
 		}
 	}

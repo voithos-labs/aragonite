@@ -21,6 +21,8 @@
 - Caret never lands at a visually-invisible position inside an image widget (the hidden source-bytes span must not act as a caret target)
 - Cross-block ArrowLeft/Right into a paragraph that ends/starts with an image selects the widget directly rather than placing an invisible caret at the widget's edge
 - A paragraph containing only image widget(s) is treated as vertically transparent — ArrowUp/Down passes through without stopping
+- After typing trailing text into an image-only paragraph, the paragraph stops being vertically transparent and stops triggering edge-widget select on the trailing side — ArrowUp from the next paragraph lands at the end of the (now image+text) paragraph, and cross-block ArrowLeft into it lands the caret after the typed text rather than selecting the widget. Routine typing must refresh `node.inlineContent`; otherwise stale parses make the editor still treat the paragraph as image-only.
+- Within a paragraph that contains both a block-display image and trailing/leading text, the image's visual line is also vertically transparent — sticky-Down from the paragraph above lands a visible caret on the text-bearing line, never on an unrenderable element-level position next to the widget. Pressing Down twice from the line above the image+text paragraph reaches the line below it (image visual line is skipped on each press); image-selection is a horizontal/click affordance only, not a vertical-traversal stop.
 
 ## Click-to-edge snap (Notion-style)
 

@@ -14,7 +14,10 @@ export function createRangeFromOffsets(
 	function walk(node: Node): boolean {
 		// Atomic inline widgets: cursor never lands inside. Snap requested
 		// offsets to the leading or trailing edge.
-		if (node.nodeType === Node.ELEMENT_NODE && (node as Element).matches?.('[data-inline-widget]')) {
+		if (
+			node.nodeType === Node.ELEMENT_NODE &&
+			(node as Element).matches?.('[data-inline-widget]')
+		) {
 			const len = (node as Element).textContent?.length ?? 0;
 			if (!startSet && start <= charCount + len) {
 				if (start <= charCount) range.setStartBefore(node);
