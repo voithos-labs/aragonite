@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { clampWidth, snapWidth, resolveAspectLockedHeight } from './image-resize';
+	import { clampWidth, snapWidth, resolveAspectLockedHeight, MIN_WIDTH } from './image-resize';
 
 	let {
 		widgetEl,
@@ -45,21 +45,29 @@
 	function startDrag(e: PointerEvent) {
 		const img = imgEl();
 		if (!img) return;
+		const startWidth = img.getBoundingClientRect().width;
+		// If we can't measure the current width, every snap math runs against 0 and
+		// commits a tiny image regardless of drag direction. Bail before pointer capture.
+		if (startWidth < MIN_WIDTH || editorContentWidth < MIN_WIDTH) return;
 		e.preventDefault();
 		e.stopPropagation();
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		dragState = {
 			startX: e.clientX,
-			startWidth: img.getBoundingClientRect().width,
+			startWidth,
 			naturalWidth: img.naturalWidth,
 			naturalHeight: img.naturalHeight,
 			aspectLocked: !e.shiftKey,
-			currentWidth: img.getBoundingClientRect().width
+			currentWidth: startWidth
 		};
 	}
 
 	function moveDrag(e: PointerEvent) {
 		if (!dragState) return;
+		// Editor reflow mid-drag (sibling image settling, scrollbar appearing) can
+		// transiently zero the content width; writing snap-to-0 mid-drag would jump
+		// the image tiny. Hold the last good width until the next move.
+		if (editorContentWidth < MIN_WIDTH) return;
 		const dx = e.clientX - dragState.startX;
 		const proposed = dragState.startWidth + dx;
 		const clamped = clampWidth(proposed, editorContentWidth);
@@ -81,10 +89,25 @@
 		const aspectLocked = dragState.aspectLocked;
 		const naturalW = dragState.naturalWidth;
 		const naturalH = dragState.naturalHeight;
+		const startX = dragState.startX;
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		// Click-and-release with no drag: skip commit so undo stack stays clean.
 		if (Math.abs(finalWidth - startWidth) < 1) return;
+		// Surface the "image suddenly becomes tiny on release" symptom with the
+		// upstream signals that would explain it (editorContentWidth=0, etc.) so
+		// the next occurrence is diagnosable without guessing.
+		if (import.meta.env.DEV && finalWidth <= MIN_WIDTH && Math.abs(e.clientX - startX) > 50) {
+			console.warn('[image-resize] suspicious commit', {
+				startWidth,
+				finalWidth,
+				dx: e.clientX - startX,
+				editorContentWidth,
+				naturalWidth: naturalW,
+				imgRectWidth: imgEl()?.getBoundingClientRect().width,
+				imgWidthAttr: imgEl()?.getAttribute('width')
+			});
+		}
 		// Aspect-locked drag persists `|N` (renderer derives height from natural aspect);
 		// only an unlocked drag writes the explicit `|NxM` form.
 		const newHeight = aspectLocked
