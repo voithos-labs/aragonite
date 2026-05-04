@@ -6,7 +6,7 @@
  */
 
 import { rawOffsetAtNode, findRawOffsetTarget } from '../cursor/widget-offset';
-import { placeCaretAfterAmbientSpan } from './ambient-dom';
+import { ambientSpanOf, placeCaretAfterAmbientSpan } from './ambient-dom';
 
 export interface AmbientCursorDeps {
 	getEl: () => HTMLElement | null | undefined;
@@ -60,6 +60,13 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const target = ambientLength + offset;
 		const pos = findRawOffsetTarget(el, target);
 		if (!pos) return;
+		// Walker's last-text-node fallback can land inside the marker text;
+		// the contenteditable="false" island traps the caret either way.
+		const ambient = ambientSpanOf(el);
+		if (ambient && ambient.contains(pos.node)) {
+			setToAmbientBoundary();
+			return;
+		}
 		const range = document.createRange();
 		try {
 			range.setStart(pos.node, pos.offset);
