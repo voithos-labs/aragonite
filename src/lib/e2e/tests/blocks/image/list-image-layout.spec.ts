@@ -61,4 +61,61 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 
 		expect(imageBox.x - outerBox.x).toBeGreaterThanOrEqual(12);
 	});
+
+	// Pre-fix: the absolute-positioning rule that bottom-left-anchors the
+	// list-item ambient marker targeted every `.md-marker` direct child, so any
+	// inline-render marker (hard-break `\`, escape, emphasis, link) at the top
+	// level of an image-bearing list-item paragraph stacked over the ambient
+	// `-` at the same coordinates — visually merging into a `\`/`-` blob.
+	test('hard-break marker after image does not stack on the list-item ambient marker', async ({
+		page
+	}) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+
+		const image = page.locator('[data-image-widget] img').first();
+		const imageBox = await image.boundingBox();
+		if (!imageBox) throw new Error('image box missing');
+
+		// Click right of the image so click-snap parks the caret at image.end.
+		await page.mouse.click(imageBox.x + imageBox.width + 20, imageBox.y + imageBox.height / 2);
+		await page.keyboard.press('Shift+Enter');
+
+		await page.waitForFunction(() => /\\\n/.test((window as any).__test.getSource() as string));
+
+		const markerBoxes = await page.locator('.md-marker').evaluateAll((els) =>
+			els.map((el) => {
+				const r = el.getBoundingClientRect();
+				return {
+					ce: el.getAttribute('contenteditable'),
+					text: el.textContent ?? '',
+					x: r.x,
+					y: r.y,
+					w: r.width,
+					h: r.height
+				};
+			})
+		);
+		const ambient = markerBoxes.find((m) => m.ce === 'false' && m.text.trim() === '-');
+		const hardBreak = markerBoxes.find((m) => m.ce !== 'false' && m.text.includes('\\'));
+		if (!ambient || !hardBreak) throw new Error(`marker pair missing: ${JSON.stringify(markerBoxes)}`);
+
+		const overlapX = Math.max(0, Math.min(ambient.x + ambient.w, hardBreak.x + hardBreak.w) - Math.max(ambient.x, hardBreak.x));
+		const overlapY = Math.max(0, Math.min(ambient.y + ambient.h, hardBreak.y + hardBreak.h) - Math.max(ambient.y, hardBreak.y));
+		expect(overlapX === 0 || overlapY === 0).toBe(true);
+	});
+
+	// Sibling guarantee: a non-list paragraph mixing inline markers with an
+	// image should not get the ambient-marker layout treatment at all — its
+	// inline markers stay in normal flow rather than getting absolute-pinned to
+	// the paragraph's bottom-left.
+	test('inline markers in a non-list image paragraph stay in normal flow', async ({ page }) => {
+		await editor.loadContent('*bold* ![pic|200](/test-fixtures/sample.png)\n');
+		await waitForFirstImageLoaded(page);
+
+		const positions = await page.locator('.md-marker').evaluateAll((els) =>
+			els.map((el) => getComputedStyle(el).position)
+		);
+		expect(positions.every((p) => p === 'static')).toBe(true);
+	});
 });
