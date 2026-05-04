@@ -8,6 +8,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
+import { generateBlockId } from '../block-id';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ export function assembleListHalf(
 		raw: '',
 		metadata: template.metadata ? { ...template.metadata } : { ordered: false },
 		children: items,
+		childIds: items.map(() => generateBlockId()),
 		innerPrefix: template.innerPrefix ?? '',
 		innerSuffix: template.innerSuffix ?? ''
 	};

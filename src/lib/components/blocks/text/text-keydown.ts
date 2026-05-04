@@ -37,7 +37,10 @@ export function insertHardBreak(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = raw.slice(displayLength(raw));
 	const newDisplay = display.slice(0, offset) + '\\\n' + display.slice(offset);
-	return { newRaw: newDisplay + trailing, caretOffset: offset + 2 };
+	// At end-of-display the inserted `\n` *is* the trailing line ending; reusing
+	// the original would form a blank line and break list-item continuation.
+	const newRaw = offset >= display.length ? newDisplay : newDisplay + trailing;
+	return { newRaw, caretOffset: offset + 2 };
 }
 
 /** Insert a literal tab character at `offset` within the display portion. */
