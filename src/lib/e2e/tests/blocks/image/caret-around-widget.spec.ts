@@ -664,4 +664,29 @@ test.describe('caret traversal around image widgets', () => {
 		// after, not be silently dropped.
 		expect(src).toContain(')X');
 	});
+
+	// Pre-fix: keydown's `preEditOffset` re-read `cursor.getRaw()` at the
+	// branch site, but the click-snap caret at element-level past the image
+	// doesn't survive Chromium's pre-keydown event-loop yield, so getRaw
+	// returned null and Shift+Enter inserted the hard break at offset 0 —
+	// dragging the image into a continuation line under a `\` first-line.
+	test('Shift+Enter at image.end inserts the hard break after the image, not at offset 0', async ({
+		page
+	}) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n- text\n');
+		await page.waitForFunction(
+			() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		const img = page.locator('[data-image-widget] img').first();
+		const ib = await img.boundingBox();
+		if (!ib) throw new Error('image missing');
+		await page.mouse.click(ib.x + ib.width + 20, ib.y + ib.height / 2);
+		await page.keyboard.press('Shift+Enter');
+		await editor.bridge.waitForSourceContains(')\\');
+		const src = await editor.bridge.getSource();
+		// Hard-break marker `\` belongs immediately after the image source,
+		// not at the start of the inner paragraph.
+		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);
+		expect(src).not.toMatch(/^- \\\n {2}!/m);
+	});
 });

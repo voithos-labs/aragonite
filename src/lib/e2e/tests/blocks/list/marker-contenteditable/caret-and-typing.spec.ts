@@ -47,6 +47,20 @@ test.describe('list marker — caret placement and typing', () => {
 		expect(await editor.bridge.getSource()).toBe('- World\n');
 	});
 
+	// Pre-fix: typing `- ` in an empty paragraph live-promoted to a list, but
+	// `focus(CURSOR_END)` on the new ListBlock walked the empty content and
+	// clamped the caret onto the end of the contenteditable="false" marker
+	// text node. Browser silently dropped subsequent keystrokes — the user
+	// had to re-click before typing.
+	test('typing after live-promote of empty paragraph lands caret in editable area', async () => {
+		await editor.loadContent('\n');
+		await editor.placeCaretInBlock(0, 'end');
+		await editor.page.keyboard.type('- ');
+		await editor.page.keyboard.type('a');
+		await editor.bridge.waitForSourceContains('- a');
+		expect(await editor.bridge.getSource()).toContain('- a');
+	});
+
 	test('multi-digit ordered marker cursor math works', async () => {
 		await editor.loadContent(
 			'1. one\n2. two\n3. three\n4. four\n5. five\n6. six\n7. seven\n8. eight\n9. nine\n10. ten\n'
