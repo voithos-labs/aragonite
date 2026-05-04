@@ -8,6 +8,28 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.goto();
 	});
 
+	// Pre-fix: `assembleListHalf` produced the surviving list with `childIds`
+	// undefined; the `{#each}` keyed block read undefined keys and Svelte's
+	// reconciliation left the stale empty list-item in the DOM. After the
+	// list-exit replace the LIVE tree had two items but the DOM still rendered
+	// three.
+	test('Enter on empty middle item removes the empty item from the DOM', async () => {
+		await editor.loadContent('- alpha\n- beta\n');
+		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
+		await beta.click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('- \n');
+		await editor.page.keyboard.press('Enter');
+		await editor.page.waitForTimeout(200);
+		const counts = await editor.page.evaluate(() => ({
+			listItems: document.querySelectorAll('.list-item-block').length,
+			liveListChildren: ((window as any).__test.getDocument().children[0]?.children ?? []).length
+		}));
+		expect(counts.listItems).toBe(counts.liveListChildren);
+		expect(counts.listItems).toBe(2);
+	});
+
 	test('Enter on empty only item exits list', async () => {
 		await editor.loadContent('- Only\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Only' });

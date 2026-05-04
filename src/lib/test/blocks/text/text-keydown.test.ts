@@ -74,9 +74,12 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	it('inserts at end of display text', () => {
+	// At end-of-display the inserted `\n` substitutes for the trailing line
+	// ending; preserving the original would form a blank line and break list-
+	// item continuation when the paragraph lives inside a list.
+	it('inserts at end of display text without doubling the trailing newline', () => {
 		const r = insertHardBreak('abc\n', 3);
-		expect(r.newRaw).toBe('abc\\\n\n');
+		expect(r.newRaw).toBe('abc\\\n');
 		expect(r.caretOffset).toBe(5);
 	});
 
