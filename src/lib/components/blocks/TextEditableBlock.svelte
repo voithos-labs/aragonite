@@ -404,7 +404,10 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
 
-		preEditOffset = cursor.getRaw() ?? 0;
+		// Snap target carries the offset when the live caret is null —
+		// element-level positions past an atomic widget don't survive the
+		// browser's event-loop yield before keydown.
+		preEditOffset = cursor.getRaw() ?? lastSnapTargetOffset ?? 0;
 
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
@@ -584,7 +587,7 @@
 		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
 		if (e.key === 'Enter' && e.shiftKey) {
 			e.preventDefault();
-			const { newRaw, caretOffset } = insertHardBreak(node.raw, cursor.getRaw() ?? 0);
+			const { newRaw, caretOffset } = insertHardBreak(node.raw, preEditOffset);
 			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
 			pendingCursorOffset = caretOffset;
 			return;
@@ -592,8 +595,7 @@
 
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			const offset = cursor.getRaw() ?? 0;
-			blockEdit.splitBlock(index, offset);
+			blockEdit.splitBlock(index, preEditOffset);
 			return;
 		}
 
@@ -601,7 +603,7 @@
 		// Skipped inside a list item — ListItemBlock owns Tab there.
 		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
 			e.preventDefault();
-			const { newRaw, caretOffset } = insertLiteralTab(node.raw, cursor.getRaw() ?? 0);
+			const { newRaw, caretOffset } = insertLiteralTab(node.raw, preEditOffset);
 			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
 			pendingCursorOffset = caretOffset;
 			return;
@@ -638,8 +640,7 @@
 		}
 
 		if (e.key === 'Backspace') {
-			const offset = cursor.getRaw();
-			if (offset === 0 && !hasSelectionHelper()) {
+			if (preEditOffset === 0 && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithPrevious(index);
 				return;
@@ -647,9 +648,8 @@
 		}
 
 		if (e.key === 'Delete') {
-			const offset = cursor.getRaw();
 			const rawLen = getDisplayText().length;
-			if (offset === rawLen && !hasSelectionHelper()) {
+			if (preEditOffset === rawLen && !hasSelectionHelper()) {
 				e.preventDefault();
 				blockEdit.mergeWithNext(index);
 				return;
