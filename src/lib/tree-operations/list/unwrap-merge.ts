@@ -10,6 +10,7 @@ import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../schema/container-raw';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
+import { generateBlockId } from '../block-id';
 
 /**
  * Compute the result of unwrapping a list's first item under Rule U1.
@@ -74,6 +75,7 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 		raw: '',
 		metadata: clonedList.metadata ? { ...clonedList.metadata } : { ordered: parentOrdered },
 		children: remainingItems,
+		childIds: remainingItems.map(() => generateBlockId()),
 		innerPrefix: clonedList.innerPrefix ?? '',
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};

@@ -63,6 +63,7 @@ export function buildListItemWithContent(template: CstNode, children: CstNode[])
 		metadata: template.metadata ? { ...template.metadata } : { marker: '- ' },
 		innerPrefix: template.innerPrefix ?? '',
 		children,
+		childIds: children.map(() => generateBlockId()),
 		innerSuffix: template.innerSuffix ?? ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
