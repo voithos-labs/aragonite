@@ -22,6 +22,7 @@ import {
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
+import { generateBlockId } from '../tree-operations/block-id';
 
 export interface ListContextDeps {
 	get index(): number;
@@ -79,7 +80,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 							leadingTrivia: '',
 							raw: '',
 							metadata: { ordered },
-							children: [movedItem]
+							children: [movedItem],
+							childIds: [generateBlockId()]
 						};
 						destScope.children.push(destList);
 					}
@@ -146,6 +148,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					},
 					innerPrefix: '',
 					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
+					childIds: [generateBlockId()],
 					innerSuffix: ''
 				};
 				rebuildListItemRaw(newItem);
@@ -220,6 +223,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						},
 						innerPrefix: '',
 						children: secondHalf,
+						childIds: secondHalf.map(() => generateBlockId()),
 						innerSuffix: ''
 					};
 
