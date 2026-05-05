@@ -689,4 +689,36 @@ test.describe('caret traversal around image widgets', () => {
 		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);
 		expect(src).not.toMatch(/^- \\\n {2}!/m);
 	});
+
+	// Pre-fix: paste read `cursor.getRaw() ?? 0` directly; with the click-snap
+	// caret parked at element-level past the image, getRaw returned null and
+	// the paste landed at offset 0 of the inner paragraph instead of at the
+	// snap target. Closed by routing all callers through cursor's snap-aware
+	// getRaw rather than chaining the fallback at every read site.
+	test('paste in click-snap state lands at snap target, not offset 0', async ({ page }) => {
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
+		await page.waitForFunction(
+			() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
+		);
+		const img = page.locator('[data-image-widget] img').first();
+		const ib = await img.boundingBox();
+		if (!ib) throw new Error('image missing');
+		await page.mouse.click(ib.x + ib.width + 20, ib.y + ib.height / 2);
+		// Drop the live range before the paste handler reads it — emulates the
+		// Chromium event-loop-yield behaviour where element-level carets past
+		// an atomic widget go to rangeCount=0 between keydown and the post-
+		// await branch. Then dispatch a synthetic paste; the handler must
+		// recover the offset from the snap target.
+		await page.evaluate(() => {
+			window.getSelection()?.removeAllRanges();
+			const dt = new DataTransfer();
+			dt.setData('text/plain', 'PASTED');
+			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+			(document.querySelector('[data-image-widget]')?.parentElement as HTMLElement).dispatchEvent(ev);
+		});
+		await editor.bridge.waitForSourceContains('PASTED');
+		const src = await editor.bridge.getSource();
+		expect(src).toMatch(/\)PASTED/);
+		expect(src).not.toMatch(/^- PASTED!/m);
+	});
 });

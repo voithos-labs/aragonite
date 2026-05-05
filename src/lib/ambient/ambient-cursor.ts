@@ -11,6 +11,13 @@ import { ambientSpanOf, placeCaretAfterAmbientSpan } from './ambient-dom';
 export interface AmbientCursorDeps {
 	getEl: () => HTMLElement | null | undefined;
 	getAmbientLength: () => number;
+	/**
+	 * Logical caret position when the live DOM range is gone or trapped — the
+	 * "user clicked here" intent that survives Chromium dropping element-level
+	 * carets across event-loop yields and the walker rebounding into the ambient
+	 * marker. Null when no snap intent is active.
+	 */
+	getSnapTarget?: () => number | null;
 }
 
 export interface AmbientCursorIO {
@@ -34,8 +41,16 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		if (!el) return null;
 		if (document.activeElement !== el) return null;
 		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return null;
+		// rangeCount=0: Chromium drops element-level carets past atomic widgets
+		// across event-loop yields. Range inside the ambient marker: the browser
+		// rebound the caret into a contenteditable=false island. Either way,
+		// the snap target carries the user's actual intent.
+		if (!sel || sel.rangeCount === 0) return deps.getSnapTarget?.() ?? null;
 		const range = sel.getRangeAt(0);
+		const ambient = ambientSpanOf(el);
+		if (ambient && ambient.contains(range.startContainer)) {
+			return deps.getSnapTarget?.() ?? null;
+		}
 		const content = rawOffsetAtNode(el, range.startContainer, range.startOffset);
 		return Math.max(0, content - deps.getAmbientLength());
 	}

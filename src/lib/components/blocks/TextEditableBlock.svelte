@@ -100,7 +100,8 @@
 
 	const cursor = createAmbientCursorIO({
 		getEl: () => el ?? null,
-		getAmbientLength: () => ambientLength
+		getAmbientLength: () => ambientLength,
+		getSnapTarget: () => lastSnapTargetOffset
 	});
 
 	const crossBlock = createCrossBlockHandlers({
@@ -404,10 +405,7 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;
 
-		// Snap target carries the offset when the live caret is null —
-		// element-level positions past an atomic widget don't survive the
-		// browser's event-loop yield before keydown.
-		preEditOffset = cursor.getRaw() ?? lastSnapTargetOffset ?? 0;
+		preEditOffset = cursor.getRaw() ?? 0;
 
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
@@ -510,18 +508,15 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// `effectiveOffset` collapses the live-caret and snap-fallback
-		// shapes into one offset. `caretInTextNode` is the load-bearing
-		// gate: Chromium can insert into a text node natively, but drops
-		// printable keys at element-level positions adjacent to a
-		// contenteditable=false widget.
-		const liveCursor = cursor.getRaw();
+		// `caretInTextNode` is the load-bearing gate: Chromium inserts into
+		// a text node natively, but drops printable keys at element-level
+		// positions adjacent to a contenteditable=false widget.
+		const effectiveOffset = cursor.getRaw();
 		const caretInTextNode = (() => {
 			const sel = window.getSelection();
 			if (!sel || sel.rangeCount === 0) return false;
 			return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
 		})();
-		const effectiveOffset = liveCursor ?? lastSnapTargetOffset;
 
 		if (effectiveOffset !== null) {
 			const widgetAt = imageAtCursor(effectiveOffset);
