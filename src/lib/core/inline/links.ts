@@ -273,51 +273,58 @@ function scanLinksAndImages(
 
 function scanRegionForAutolinks(raw: string, start: number, end: number, out: InlineNode[]): void {
 	let pos = start;
-
 	while (pos < end) {
 		const ch = raw[pos];
+		let matched: InlineNode | null = null;
 
 		if (ch === '<') {
-			const closeAngle = raw.indexOf('>', pos + 1);
-			if (closeAngle !== -1 && closeAngle < end) {
-				const inner = raw.slice(pos + 1, closeAngle);
-				if (/^https?:\/\/\S+$/.test(inner)) {
-					out.push({
-						kind: 'autolink',
-						start: pos,
-						end: closeAngle + 1,
-						url: inner
-					});
-					pos = closeAngle + 1;
-					continue;
-				}
-			}
-			pos++;
+			matched = matchAngleBracketAutolink(raw, pos, end);
+		} else if (ch === 'h' || ch === 'H') {
+			matched = matchBareHttpAutolink(raw, pos, start, end);
+		}
+
+		if (matched !== null) {
+			out.push(matched);
+			pos = matched.end;
 			continue;
 		}
-
-		if (ch === 'h' || ch === 'H') {
-			const lower = raw.slice(pos, pos + 8).toLowerCase();
-			const schemeLen = lower.startsWith('https://') ? 8 : lower.startsWith('http://') ? 7 : 0;
-			if (schemeLen > 0) {
-				let urlEnd = pos + schemeLen;
-				while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-				if (urlEnd > pos + schemeLen) {
-					const url = raw.slice(pos, urlEnd);
-					out.push({
-						kind: 'autolink',
-						start: pos,
-						end: urlEnd,
-						url
-					});
-					pos = urlEnd;
-					continue;
-				}
-			}
-		}
-
 		pos++;
 	}
+}
+
+function matchAngleBracketAutolink(raw: string, pos: number, end: number): InlineNode | null {
+	const closeAngle = raw.indexOf('>', pos + 1);
+	if (closeAngle === -1 || closeAngle >= end) return null;
+	const inner = raw.slice(pos + 1, closeAngle);
+	if (/^https?:\/\/\S+$/.test(inner)) {
+		return {
+			kind: 'autolink',
+			start: pos,
+			end: closeAngle + 1,
+			url: inner
+		};
+	}
+	return null;
+}
+
+function matchBareHttpAutolink(
+	raw: string,
+	pos: number,
+	_regionStart: number,
+	end: number
+): InlineNode | null {
+	const lower = raw.slice(pos, pos + 8).toLowerCase();
+	const schemeLen = lower.startsWith('https://') ? 8 : lower.startsWith('http://') ? 7 : 0;
+	if (schemeLen === 0) return null;
+	let urlEnd = pos + schemeLen;
+	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	if (urlEnd === pos + schemeLen) return null; // scheme alone, no body
+	return {
+		kind: 'autolink',
+		start: pos,
+		end: urlEnd,
+		url: raw.slice(pos, urlEnd)
+	};
 }
 
 /** End of the occupied range covering `pos`, or null if `pos` is free. */
