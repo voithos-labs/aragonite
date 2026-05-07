@@ -140,7 +140,9 @@ describe('bare http/https autolink — trim + boundary (GFM §6.9)', () => {
 		expect(autolinks[0].url).toBe('https://example.com');
 	});
 
-	it('keeps semicolon when preceded by entity shape', () => {
+	it('autolink stops at named-entity boundary (&copy;)', () => {
+		// Sibling regression of the 1d44f0f guard — the named entity (&copy;) form
+		// exercises the same upstream-boundary path as the &amp; form above.
 		const raw = 'foo https://example.com/?a=&copy; bar';
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
