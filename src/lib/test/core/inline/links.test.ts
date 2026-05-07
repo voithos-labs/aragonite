@@ -113,3 +113,57 @@ describe('isValidLeadingBoundary (GFM §6.9)', () => {
 		expect(isValidLeadingBoundary('a/https://x.com', 2, 0)).toBe(false);
 	});
 });
+
+describe('bare http/https autolink — trim + boundary (GFM §6.9)', () => {
+	it('strips trailing period at end of sentence', () => {
+		const raw = 'Visit https://example.com.';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com');
+		expect(autolinks[0].end).toBe(raw.length - 1);
+	});
+
+	it('keeps trailing matched paren', () => {
+		const raw = 'See https://en.wikipedia.org/wiki/Foo_(bar) here';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://en.wikipedia.org/wiki/Foo_(bar)');
+	});
+
+	it('strips trailing unmatched paren', () => {
+		const raw = '(see https://example.com)';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com');
+	});
+
+	it('keeps semicolon when preceded by entity shape', () => {
+		const raw = 'foo https://example.com/?a=&copy; bar';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com/?a=');
+	});
+
+	it('does not autolink mid-word', () => {
+		const nodes = inlineOf('xhttps://example.com');
+		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+	});
+
+	it('does autolink at start-of-region', () => {
+		const nodes = inlineOf('https://example.com');
+		expect(nodes[0].kind).toBe('autolink');
+		expect(nodes[0].url).toBe('https://example.com');
+	});
+
+	it('does autolink after open paren', () => {
+		const raw = '(https://example.com)';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com');
+	});
+});

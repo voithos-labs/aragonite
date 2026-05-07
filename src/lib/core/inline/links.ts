@@ -271,6 +271,8 @@ function scanLinksAndImages(
 	return out;
 }
 
+// ── Autolink dispatcher ─────────────────────────────────────────────────────
+
 function scanRegionForAutolinks(raw: string, start: number, end: number, out: InlineNode[]): void {
 	let pos = start;
 	while (pos < end) {
@@ -310,15 +312,18 @@ function matchAngleBracketAutolink(raw: string, pos: number, end: number): Inlin
 function matchBareHttpAutolink(
 	raw: string,
 	pos: number,
-	_regionStart: number,
+	regionStart: number,
 	end: number
 ): InlineNode | null {
+	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
 	const lower = raw.slice(pos, pos + 8).toLowerCase();
 	const schemeLen = lower.startsWith('https://') ? 8 : lower.startsWith('http://') ? 7 : 0;
 	if (schemeLen === 0) return null;
 	let urlEnd = pos + schemeLen;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + schemeLen) return null; // scheme alone, no body
+	if (urlEnd === pos + schemeLen) return null;
+	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
+	if (urlEnd === pos + schemeLen) return null;
 	return {
 		kind: 'autolink',
 		start: pos,
