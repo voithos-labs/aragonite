@@ -265,14 +265,22 @@ describe('bare email autolink (GFM §6.9)', () => {
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
-	it('rejects email when last domain char is underscore (GFM rule)', () => {
-		const nodes = inlineOf('foo@bar.com_');
+	it('excludes trailing underscore from domain (GFM)', () => {
+		const raw = 'foo@bar.com_';
+		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		if (autolinks.length === 0) {
-			// acceptable
-		} else {
-			expect(autolinks[0].url).not.toMatch(/_$/);
-		}
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+		// Trailing _ is outside EMAIL_DOMAIN_CHAR; the segment scan halts at 'm'
+		// and the underscore lands as text, same as a trailing whitespace.
+	});
+
+	it('rejects when an inner segment ends in hyphen', () => {
+		// Inner-segment trailing dash exercises the in-loop break — distinct from
+		// the first-segment dash check covered above.
+		const raw = 'foo@bar.baz-';
+		const nodes = inlineOf(raw);
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
 	it('rejects single-segment domain', () => {
@@ -281,15 +289,20 @@ describe('bare email autolink (GFM §6.9)', () => {
 	});
 
 	it('rejects when local-part preceded by non-boundary char', () => {
-		// 'a/' supplies a leading char outside EMAIL_LOCAL and outside the
-		// boundary allow-list (\s, *, _, ~, () — the local-part scan stops at
-		// 'xfoo' and the boundary check on '/' rejects.
+		// 'a/' supplies a leading '/' outside the boundary allow-list. The
+		// local-part scan walks back to 'x', then isValidLeadingBoundary sees
+		// '/' at the position before and rejects.
 		const nodes = inlineOf('a/xfoo@bar.com');
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
 	it('rejects email with empty local-part', () => {
 		const nodes = inlineOf('@bar.com');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects email-shaped string with two @ chars', () => {
+		const nodes = inlineOf('foo@bar@example.com');
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
