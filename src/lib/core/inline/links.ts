@@ -353,9 +353,8 @@ function matchAngleBracketAutolink(raw: string, pos: number, end: number): Inlin
 	}
 
 	if (ANGLE_EMAIL.test(inner)) {
-		// Final domain char must not be - or _ (GFM constraint shared with bare).
-		const last = inner[inner.length - 1];
-		if (last === '-' || last === '_') return null;
+		// Regex permits trailing '-' in final domain segment; GFM forbids it.
+		if (inner[inner.length - 1] === '-') return null;
 		return {
 			kind: 'autolink',
 			start: pos,
