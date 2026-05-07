@@ -362,8 +362,9 @@
 		{#if ctx?.widgetEl}
 			<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
 				<ImageResizeHandles
-					widgetEl={ctx.widgetEl}
+					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
 					editorContentWidth={imageEdit.getEditorContentWidth()}
+					editorEvents={events}
 					onCommit={imageEdit.commitImageResize}
 				/>
 				{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}

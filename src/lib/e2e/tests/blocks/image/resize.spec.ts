@@ -27,6 +27,32 @@ test.describe('image resize', () => {
 		expect(Number(match![1])).toBeLessThan(400);
 	});
 
+	// Pre-fix: each commit rebuilt the inline DOM via `replaceChildren`, but
+	// `widgetEl` was passed to the handles as a captured prop value, so after
+	// the first drag committed, the handles' `widgetEl` reference pointed at
+	// a detached node. The next drag's startWidth measurement returned 0
+	// (detached image has no layout), `startWidth < MIN_WIDTH` bailed before
+	// pointer capture, and the second drag silently no-op'd.
+	test('back-to-back drags both commit (handle resolves widget on demand)', async ({ page }) => {
+		await editor.loadContent('![cat|300](/test-fixtures/sample.png)\n');
+		await page.locator('[data-image-widget]').first().click();
+		await page.locator('.md-resize-handle-right').first().waitFor({ state: 'visible' });
+
+		const dragLeft = async (px: number) => {
+			const box = await page.locator('.md-resize-handle-right').first().boundingBox();
+			if (!box) throw new Error('handle missing');
+			await page.mouse.move(box.x + 4, box.y + 4);
+			await page.mouse.down();
+			await page.mouse.move(box.x + 4 - px, box.y + 4, { steps: 10 });
+			await page.mouse.up();
+		};
+
+		await dragLeft(50);
+		await editor.bridge.waitForSourceContains('|250');
+		await dragLeft(50);
+		await editor.bridge.waitForSourceContains('|200');
+	});
+
 	test('Shift+ArrowRight grows width', async ({ page }) => {
 		await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
