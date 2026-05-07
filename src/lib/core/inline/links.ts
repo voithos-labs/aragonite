@@ -80,6 +80,8 @@ export function isValidLeadingBoundary(raw: string, pos: number, regionStart: nu
 	return /\s/.test(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
 }
 
+// ── Public entry ────────────────────────────────────────────────────────────
+
 export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
@@ -273,6 +275,40 @@ function scanLinksAndImages(
 	return out;
 }
 
+/** End of the occupied range covering `pos`, or null if `pos` is free. */
+function occupiedEndAt(occupied: Range[], pos: number): number | null {
+	for (const range of occupied) {
+		if (pos >= range.end) continue;
+		if (pos < range.start) return null;
+		return range.end;
+	}
+	return null;
+}
+
+function findMatchingBracket(
+	raw: string,
+	bracketStart: number,
+	limit: number,
+	occupied: Range[]
+): number {
+	let depth = 0;
+	let pos = bracketStart;
+	while (pos < limit) {
+		const skip = occupiedEndAt(occupied, pos);
+		if (skip !== null) {
+			pos = skip;
+			continue;
+		}
+		if (raw[pos] === '[') depth++;
+		else if (raw[pos] === ']') {
+			depth--;
+			if (depth === 0) return pos;
+		}
+		pos++;
+	}
+	return -1;
+}
+
 // ── Autolink dispatcher ─────────────────────────────────────────────────────
 
 function scanRegionForAutolinks(raw: string, start: number, end: number, out: InlineNode[]): void {
@@ -343,51 +379,18 @@ function matchBareWwwAutolink(
 	end: number
 ): InlineNode | null {
 	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
-	const prefix = raw.slice(pos, pos + 4).toLowerCase();
+	const prefixLen = 4;
+	const prefix = raw.slice(pos, pos + prefixLen).toLowerCase();
 	if (prefix !== 'www.') return null;
-	let urlEnd = pos + 4;
+	let urlEnd = pos + prefixLen;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + 4) return null;
+	if (urlEnd === pos + prefixLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	if (urlEnd === pos + 4) return null;
+	if (urlEnd === pos + prefixLen) return null;
 	return {
 		kind: 'autolink',
 		start: pos,
 		end: urlEnd,
 		url: raw.slice(pos, urlEnd)
 	};
-}
-
-/** End of the occupied range covering `pos`, or null if `pos` is free. */
-function occupiedEndAt(occupied: Range[], pos: number): number | null {
-	for (const range of occupied) {
-		if (pos >= range.end) continue;
-		if (pos < range.start) return null;
-		return range.end;
-	}
-	return null;
-}
-
-function findMatchingBracket(
-	raw: string,
-	bracketStart: number,
-	limit: number,
-	occupied: Range[]
-): number {
-	let depth = 0;
-	let pos = bracketStart;
-	while (pos < limit) {
-		const skip = occupiedEndAt(occupied, pos);
-		if (skip !== null) {
-			pos = skip;
-			continue;
-		}
-		if (raw[pos] === '[') depth++;
-		else if (raw[pos] === ']') {
-			depth--;
-			if (depth === 0) return pos;
-		}
-		pos++;
-	}
-	return -1;
 }
