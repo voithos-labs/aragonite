@@ -70,6 +70,11 @@ describe('trimTrailingPunctuation (GFM §6.9)', () => {
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
 	});
 
+	it('keeps final semicolon when preceded by hex entity (&#x27;)', () => {
+		const raw = 'https://example.com/?a=&#x27;';
+		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
+	});
+
 	it('returns the input end when no trailing punctuation is present', () => {
 		const raw = 'https://example.com/foo';
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
