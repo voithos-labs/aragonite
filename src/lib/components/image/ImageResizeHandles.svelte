@@ -1,13 +1,16 @@
 <script lang="ts">
+	import type { EditorEvents } from '../../editor-events';
 	import { clampWidth, snapWidth, resolveAspectLockedHeight, MIN_WIDTH } from './image-resize';
 
 	let {
-		widgetEl,
+		getWidgetEl,
 		editorContentWidth,
+		editorEvents,
 		onCommit
 	}: {
-		widgetEl: HTMLElement;
+		getWidgetEl: () => HTMLElement | null;
 		editorContentWidth: number;
+		editorEvents: EditorEvents;
 		onCommit: (newWidth: number, newHeight: number | undefined) => void;
 	} = $props();
 
@@ -27,19 +30,42 @@
 
 	// `md-image-broken` is toggled imperatively on the widget when the underlying
 	// `<img>` fires `error` / `load`; Svelte 5 doesn't track external class
-	// mutations, so a MutationObserver mirrors them into reactive state.
+	// mutations, so a MutationObserver mirrors them into reactive state. Each
+	// commit rebuilds the widget DOM via text-render's `replaceChildren`, so
+	// the observer re-attaches to the current widget on every edit event.
 	let isBroken = $state(false);
 	$effect(() => {
-		isBroken = widgetEl.classList.contains('md-image-broken');
-		const observer = new MutationObserver(() => {
-			isBroken = widgetEl.classList.contains('md-image-broken');
-		});
-		observer.observe(widgetEl, { attributes: true, attributeFilter: ['class'] });
-		return () => observer.disconnect();
+		let observer: MutationObserver | null = null;
+		let observed: HTMLElement | null = null;
+
+		const reattach = () => {
+			const widget = getWidgetEl();
+			if (widget === observed) return;
+			observer?.disconnect();
+			if (!widget) {
+				observer = null;
+				observed = null;
+				isBroken = false;
+				return;
+			}
+			isBroken = widget.classList.contains('md-image-broken');
+			observer = new MutationObserver(() => {
+				isBroken = widget.classList.contains('md-image-broken');
+			});
+			observer.observe(widget, { attributes: true, attributeFilter: ['class'] });
+			observed = widget;
+		};
+
+		reattach();
+		const unsub = editorEvents.on('edit', reattach);
+		return () => {
+			observer?.disconnect();
+			unsub();
+		};
 	});
 
 	function imgEl(): HTMLImageElement | null {
-		return widgetEl.querySelector('img');
+		return getWidgetEl()?.querySelector('img') ?? null;
 	}
 
 	function startDrag(e: PointerEvent) {

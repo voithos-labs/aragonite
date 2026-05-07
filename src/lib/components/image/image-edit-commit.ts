@@ -175,11 +175,23 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const overlayEl = getOverlay();
 		const editorEl = getEditorEl();
 		if (!overlayEl || !editorEl) return noop;
-		const ctx = getSelectedImageFields();
-		if (!ctx?.widgetEl) return noop;
-		const widgetEl = ctx.widgetEl;
+
+		// Each commit rebuilds the inline DOM via text-render's
+		// `replaceChildren`; a captured widget ref would observe a detached
+		// node forever. Re-resolve via the live selection on every update and
+		// re-attach the ResizeObserver when widget identity changes.
+		let observer: ResizeObserver | null = null;
+		let observed: HTMLElement | null = null;
 
 		const update = () => {
+			const widgetEl = getSelectedImageFields()?.widgetEl;
+			if (!widgetEl) return;
+			if (widgetEl !== observed) {
+				observer?.disconnect();
+				observer = new ResizeObserver(update);
+				observer.observe(widgetEl);
+				observed = widgetEl;
+			}
 			const wRect = widgetEl.getBoundingClientRect();
 			const eRect = editorEl.getBoundingClientRect();
 			const cs = getComputedStyle(editorEl);
@@ -192,10 +204,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		};
 		update();
 
-		const observer = new ResizeObserver(update);
-		observer.observe(widgetEl);
-
-		// Edits above the widget shift its y without resizing it.
+		// Edits above the widget shift its y without resizing it; commits to
+		// the widget itself rebuild its DOM and require RO re-attach.
 		const unsubscribeEdit = events.on('edit', update);
 		window.addEventListener('resize', update);
 
@@ -211,7 +221,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		editorEl.addEventListener('error', onImgSettle, true);
 
 		return () => {
-			observer.disconnect();
+			observer?.disconnect();
 			unsubscribeEdit();
 			window.removeEventListener('resize', update);
 			editorEl.removeEventListener('load', onImgSettle, true);
