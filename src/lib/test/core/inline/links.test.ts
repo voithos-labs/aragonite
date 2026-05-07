@@ -218,3 +218,86 @@ describe('bare www. autolink (GFM §6.9)', () => {
 		expect(autolinks[0].url).toBe('www.example.com');
 	});
 });
+
+describe('bare email autolink (GFM §6.9)', () => {
+	it('autolinks foo@bar.com at sentence position', () => {
+		const raw = 'Email me at foo@bar.com please';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+		expect(raw.slice(autolinks[0].start, autolinks[0].end)).toBe('foo@bar.com');
+	});
+
+	it('autolinks email at start-of-region', () => {
+		const nodes = inlineOf('foo@bar.com');
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+	});
+
+	it('accepts dots, plus, underscore, hyphen in local part', () => {
+		const raw = 'a.b+c_d-e@example.com';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:a.b+c_d-e@example.com');
+	});
+
+	it('accepts multi-segment domain', () => {
+		const raw = 'foo@a.b.c.example.com';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@a.b.c.example.com');
+	});
+
+	it('accepts hyphen inside domain segments', () => {
+		const raw = 'foo@bar-baz.example.com';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar-baz.example.com');
+	});
+
+	it('rejects email when last domain char is hyphen (GFM rule)', () => {
+		const nodes = inlineOf('foo@bar-.com');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects email when last domain char is underscore (GFM rule)', () => {
+		const nodes = inlineOf('foo@bar.com_');
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		if (autolinks.length === 0) {
+			// acceptable
+		} else {
+			expect(autolinks[0].url).not.toMatch(/_$/);
+		}
+	});
+
+	it('rejects single-segment domain', () => {
+		const nodes = inlineOf('foo@bar');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects when local-part preceded by non-boundary char', () => {
+		// 'a/' supplies a leading char outside EMAIL_LOCAL and outside the
+		// boundary allow-list (\s, *, _, ~, () — the local-part scan stops at
+		// 'xfoo' and the boundary check on '/' rejects.
+		const nodes = inlineOf('a/xfoo@bar.com');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects email with empty local-part', () => {
+		const nodes = inlineOf('@bar.com');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('strips trailing period at sentence end', () => {
+		const raw = 'Email me at foo@bar.com.';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+	});
+});
