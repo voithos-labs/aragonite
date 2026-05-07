@@ -35,11 +35,10 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 		if (ch === ')') {
 			let opens = 0;
 			let closes = 0;
-			for (let i = urlStart; i < end - 1; i++) {
+			for (let i = urlStart; i < end; i++) {
 				if (raw[i] === '(') opens++;
 				else if (raw[i] === ')') closes++;
 			}
-			closes++;
 			if (closes > opens) {
 				end--;
 				continue;
@@ -47,6 +46,7 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 			break;
 		}
 		if (ch === ';') {
+			// Look back for &name; / &#NNN; / &#xHHH;
 			let j = end - 2;
 			while (j > urlStart && /[0-9A-Fa-f]/.test(raw[j])) j--;
 			if (j >= urlStart + 2 && raw[j] === 'x' && raw[j - 1] === '#' && raw[j - 2] === '&') {
