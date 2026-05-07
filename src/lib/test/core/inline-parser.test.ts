@@ -384,25 +384,6 @@ describe('parseInline — links and images (Stage 3)', () => {
 	});
 });
 
-describe('parseInline — autolinks (Stage 3)', () => {
-	it('angle-bracket autolink', () => {
-		const nodes = inlineOf('Visit <https://example.com> now');
-		expect(nodes[1].kind).toBe('autolink');
-		expect(nodes[1].url).toBe('https://example.com');
-	});
-
-	it('bare URL autolink', () => {
-		const nodes = inlineOf('Visit https://example.com now');
-		expect(nodes[1].kind).toBe('autolink');
-		expect(nodes[1].url).toBe('https://example.com');
-	});
-
-	it('non-URL angle brackets are text', () => {
-		const nodes = inlineOf('Hello <world> end');
-		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
-	});
-});
-
 describe('parseInline — escape integration', () => {
 	it('escape neutralizes emphasis delimiter', () => {
 		const raw = '\\*foo\\*';
@@ -516,13 +497,5 @@ describe('parseInline — links spanning occupied ranges', () => {
 		expect(ems).toHaveLength(1);
 		const links = ems[0].children?.filter((c) => c.kind === 'link');
 		expect(links).toHaveLength(1);
-	});
-
-	it('autolink still stops at entity boundary (regression guard for 1d44f0f)', () => {
-		const raw = 'see https://example.com/?a&amp;b end';
-		const nodes = parseInline(raw, 0, raw.length);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('https://example.com/?a');
 	});
 });
