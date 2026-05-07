@@ -314,3 +314,44 @@ describe('bare email autolink (GFM §6.9)', () => {
 		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
 	});
 });
+
+describe('angle-bracket email autolink (CommonMark §6.8)', () => {
+	it('autolinks <foo@bar.com>', () => {
+		const raw = 'contact <foo@bar.com> please';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+	});
+
+	it('start/end span includes the angle brackets', () => {
+		const raw = '<foo@bar.com>';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].start).toBe(0);
+		expect(autolinks[0].end).toBe(raw.length);
+	});
+
+	it('rejects <foo@bar> with single-segment domain', () => {
+		const nodes = inlineOf('<foo@bar>');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects email with internal whitespace', () => {
+		const nodes = inlineOf('<foo @bar.com>');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects empty local part', () => {
+		const nodes = inlineOf('<@bar.com>');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('still autolinks <https://...> URL form (regression)', () => {
+		const nodes = inlineOf('<https://example.com>');
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com');
+	});
+});

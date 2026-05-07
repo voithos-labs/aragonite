@@ -336,10 +336,13 @@ function scanRegionForAutolinks(raw: string, start: number, end: number, out: In
 	}
 }
 
+const ANGLE_EMAIL = /^[A-Za-z0-9._+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+$/;
+
 function matchAngleBracketAutolink(raw: string, pos: number, end: number): InlineNode | null {
 	const closeAngle = raw.indexOf('>', pos + 1);
 	if (closeAngle === -1 || closeAngle >= end) return null;
 	const inner = raw.slice(pos + 1, closeAngle);
+
 	if (/^https?:\/\/\S+$/.test(inner)) {
 		return {
 			kind: 'autolink',
@@ -348,6 +351,19 @@ function matchAngleBracketAutolink(raw: string, pos: number, end: number): Inlin
 			url: inner
 		};
 	}
+
+	if (ANGLE_EMAIL.test(inner)) {
+		// Final domain char must not be - or _ (GFM constraint shared with bare).
+		const last = inner[inner.length - 1];
+		if (last === '-' || last === '_') return null;
+		return {
+			kind: 'autolink',
+			start: pos,
+			end: closeAngle + 1,
+			url: `mailto:${inner}`
+		};
+	}
+
 	return null;
 }
 
