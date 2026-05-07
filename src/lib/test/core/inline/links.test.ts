@@ -169,3 +169,52 @@ describe('bare http/https autolink — trim + boundary (GFM §6.9)', () => {
 		expect(autolinks[0].url).toBe('https://example.com');
 	});
 });
+
+describe('bare www. autolink (GFM §6.9)', () => {
+	it('autolinks www.example.com', () => {
+		const raw = 'Visit www.example.com today';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('www.example.com');
+	});
+
+	it('autolinks WWW.EXAMPLE.COM (case insensitive prefix)', () => {
+		const raw = 'See WWW.EXAMPLE.COM here';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('WWW.EXAMPLE.COM');
+	});
+
+	it('autolinks www. with path and query', () => {
+		const raw = 'go to www.example.com/foo?a=1';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('www.example.com/foo?a=1');
+	});
+
+	it('does not autolink mid-word', () => {
+		const nodes = inlineOf('xwww.example.com');
+		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+	});
+
+	it('does not autolink lone "www" without dot', () => {
+		const nodes = inlineOf('Visit www today');
+		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+	});
+
+	it('does not autolink "www." with empty domain', () => {
+		const nodes = inlineOf('Visit www. today');
+		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+	});
+
+	it('strips trailing punctuation', () => {
+		const raw = 'See www.example.com.';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('www.example.com');
+	});
+});

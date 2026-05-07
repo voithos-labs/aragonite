@@ -145,6 +145,8 @@ export function scanLinksAndAutolinks(
 	return result;
 }
 
+// ── Links and images ───────────────────────────────────────────────────────
+
 /**
  * Parse `(url "title")` starting at `(`. Angle-bracket URLs (`<url>`) are
  * NOT decoded: the brackets survive in the url field. Safe because url is
@@ -283,6 +285,8 @@ function scanRegionForAutolinks(raw: string, start: number, end: number, out: In
 			matched = matchAngleBracketAutolink(raw, pos, end);
 		} else if (ch === 'h' || ch === 'H') {
 			matched = matchBareHttpAutolink(raw, pos, start, end);
+		} else if (ch === 'w' || ch === 'W') {
+			matched = matchBareWwwAutolink(raw, pos, start, end);
 		}
 
 		if (matched !== null) {
@@ -324,6 +328,28 @@ function matchBareHttpAutolink(
 	if (urlEnd === pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd === pos + schemeLen) return null;
+	return {
+		kind: 'autolink',
+		start: pos,
+		end: urlEnd,
+		url: raw.slice(pos, urlEnd)
+	};
+}
+
+function matchBareWwwAutolink(
+	raw: string,
+	pos: number,
+	regionStart: number,
+	end: number
+): InlineNode | null {
+	if (!isValidLeadingBoundary(raw, pos, regionStart)) return null;
+	const prefix = raw.slice(pos, pos + 4).toLowerCase();
+	if (prefix !== 'www.') return null;
+	let urlEnd = pos + 4;
+	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
+	if (urlEnd === pos + 4) return null;
+	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
+	if (urlEnd === pos + 4) return null;
 	return {
 		kind: 'autolink',
 		start: pos,
