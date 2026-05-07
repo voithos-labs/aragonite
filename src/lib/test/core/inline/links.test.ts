@@ -371,3 +371,40 @@ describe('angle-bracket email autolink (CommonMark §6.8)', () => {
 		expect(autolinks[0].url).toBe('https://example.com');
 	});
 });
+
+describe('autolink stage interactions', () => {
+	it('autolink does not bleed into a following code span', () => {
+		const raw = 'see https://example.com `code` end';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		const codeSpans = nodes.filter((n) => n.kind === 'inlineCode');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('https://example.com');
+		expect(codeSpans).toHaveLength(1);
+	});
+
+	it('autolink does not start inside a code span', () => {
+		// `https://x.com` is occupied as a code span before the autolink
+		// scanner runs, so no autolink should be found inside it.
+		const raw = 'pre `https://x.com` post';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		const codeSpans = nodes.filter((n) => n.kind === 'inlineCode');
+		expect(autolinks).toHaveLength(0);
+		expect(codeSpans).toHaveLength(1);
+	});
+
+	it('entity inside angle-bracket inner is not interpreted', () => {
+		// The angle scanner regex-tests its sliced inner without re-invoking
+		// the entity scanner, so &copy; here remains literal text inside the
+		// failed-match angle pair (not a valid email or URL).
+		const raw = 'see <foo&copy;bar> end';
+		const nodes = inlineOf(raw);
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(0);
+		// The entity should still be recognized as a sibling of the angle text.
+		const refs = nodes.filter((n) => n.kind === 'entityReference');
+		expect(refs).toHaveLength(1);
+		expect(refs[0].decoded).toBe('©');
+	});
+});

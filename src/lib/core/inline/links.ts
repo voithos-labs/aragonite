@@ -442,7 +442,7 @@ function matchBareEmailAutolink(
 		let segEnd = segStart;
 		while (segEnd < regionEnd && EMAIL_DOMAIN_CHAR.test(raw[segEnd])) segEnd++;
 		if (segEnd === segStart) break; // empty segment after dot
-		if (raw[segEnd - 1] === '-' || raw[segEnd - 1] === '_') break; // GFM: invalid trailing
+		if (raw[segEnd - 1] === '-') break; // GFM: domain segment cannot end in -
 		domainEnd = segEnd;
 	}
 	if (domainEnd === firstSegEnd) return null; // never got a second segment
