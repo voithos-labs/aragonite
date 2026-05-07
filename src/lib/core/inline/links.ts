@@ -12,6 +12,74 @@ import { parseInline } from './index';
 
 type Range = { start: number; end: number };
 
+// ── GFM §6.9 shared helpers ─────────────────────────────────────────────────
+
+const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
+
+/**
+ * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
+ *
+ * Always strips: ? ! . , : * _ ~
+ * Conditional ): only when there are more `)` than `(` in [urlStart, end).
+ * Conditional ;: only when the part before is NOT shaped like an HTML entity
+ * (a `;` preceded by `&` followed by alphanumerics / `#` and digits/hex back to `&`).
+ */
+export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: number): number {
+	let end = urlEnd;
+	while (end > urlStart) {
+		const ch = raw[end - 1];
+		if (TRAILING_PUNCT.has(ch)) {
+			end--;
+			continue;
+		}
+		if (ch === ')') {
+			let opens = 0;
+			let closes = 0;
+			for (let i = urlStart; i < end - 1; i++) {
+				if (raw[i] === '(') opens++;
+				else if (raw[i] === ')') closes++;
+			}
+			closes++;
+			if (closes > opens) {
+				end--;
+				continue;
+			}
+			break;
+		}
+		if (ch === ';') {
+			let j = end - 2;
+			while (j > urlStart && /[0-9A-Fa-f]/.test(raw[j])) j--;
+			if (j >= urlStart + 2 && raw[j] === 'x' && raw[j - 1] === '#' && raw[j - 2] === '&') {
+				break;
+			}
+			j = end - 2;
+			while (j > urlStart && /[0-9]/.test(raw[j])) j--;
+			if (j >= urlStart + 1 && raw[j] === '#' && raw[j - 1] === '&') {
+				break;
+			}
+			j = end - 2;
+			while (j > urlStart && /[A-Za-z0-9]/.test(raw[j])) j--;
+			if (j >= urlStart && raw[j] === '&' && j < end - 2) {
+				break;
+			}
+			end--;
+			continue;
+		}
+		break;
+	}
+	return end;
+}
+
+/**
+ * Per GFM §6.9: a bare autolink is valid only at start-of-region or after
+ * whitespace, `*`, `_`, `~`, or `(`.
+ */
+export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
+	if (pos <= regionStart) return true;
+	const ch = raw[pos - 1];
+	return /\s/.test(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
+}
+
 export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
