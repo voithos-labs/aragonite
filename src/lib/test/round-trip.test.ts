@@ -318,3 +318,22 @@ describe('round-trip: image dimensions', () => {
 		});
 	}
 });
+
+describe('round-trip: autolinks (0.6.5)', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'bare email at sentence end', source: 'Email me at foo@bar.com.\n' },
+		{ name: 'bare email mid-paragraph', source: 'see foo@bar.com please\n' },
+		{ name: 'bare www. URL', source: 'visit www.example.com today\n' },
+		{ name: 'bare www. with path', source: 'go to www.example.com/foo?a=1 now\n' },
+		{ name: 'angle-bracket email', source: 'contact <foo@bar.com> please\n' },
+		{ name: 'mixed http and email', source: 'see https://x.com or foo@bar.com\n' },
+		{ name: 'http url with trailing period', source: 'visit https://example.com.\n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
