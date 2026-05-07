@@ -348,6 +348,22 @@ describe('angle-bracket email autolink (CommonMark §6.8)', () => {
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
+	it('rejects empty inner <>', () => {
+		const nodes = inlineOf('see <> end');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects trailing dot in inner <foo@bar.>', () => {
+		const nodes = inlineOf('<foo@bar.>');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('rejects trailing hyphen in domain <foo@bar.com->', () => {
+		// Pins the surviving last === '-' post-check; the regex would otherwise accept.
+		const nodes = inlineOf('<foo@bar.com->');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
 	it('still autolinks <https://...> URL form (regression)', () => {
 		const nodes = inlineOf('<https://example.com>');
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
