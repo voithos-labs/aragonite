@@ -311,6 +311,9 @@ function findMatchingBracket(
 
 // ── Autolink dispatcher ─────────────────────────────────────────────────────
 
+const EMAIL_LOCAL = /[A-Za-z0-9._+\-]/;
+const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9\-]/;
+
 function scanRegionForAutolinks(raw: string, start: number, end: number, out: InlineNode[]): void {
 	let pos = start;
 	while (pos < end) {
@@ -323,6 +326,8 @@ function scanRegionForAutolinks(raw: string, start: number, end: number, out: In
 			matched = matchBareHttpAutolink(raw, pos, start, end);
 		} else if (ch === 'w' || ch === 'W') {
 			matched = matchBareWwwAutolink(raw, pos, start, end);
+		} else if (ch === '@') {
+			matched = matchBareEmailAutolink(raw, pos, start, end);
 		}
 
 		if (matched !== null) {
@@ -392,5 +397,50 @@ function matchBareWwwAutolink(
 		start: pos,
 		end: urlEnd,
 		url: raw.slice(pos, urlEnd)
+	};
+}
+
+function matchBareEmailAutolink(
+	raw: string,
+	atPos: number,
+	regionStart: number,
+	regionEnd: number
+): InlineNode | null {
+	// Scan backward for local-part.
+	let localStart = atPos;
+	while (localStart > regionStart && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
+	if (localStart === atPos) return null;
+	if (!isValidLeadingBoundary(raw, localStart, regionStart)) return null;
+
+	// First domain segment.
+	let domainEnd = atPos + 1;
+	while (domainEnd < regionEnd && EMAIL_DOMAIN_CHAR.test(raw[domainEnd])) domainEnd++;
+	if (domainEnd === atPos + 1) return null;
+	if (raw[domainEnd - 1] === '-') return null; // GFM: last seg char cannot be -
+
+	if (domainEnd >= regionEnd || raw[domainEnd] !== '.') return null;
+
+	// Walk additional `.<segment>` greedily.
+	let lastValidEnd = -1;
+	while (domainEnd < regionEnd && raw[domainEnd] === '.') {
+		const segStart = domainEnd + 1;
+		let segEnd = segStart;
+		while (segEnd < regionEnd && EMAIL_DOMAIN_CHAR.test(raw[segEnd])) segEnd++;
+		if (segEnd === segStart) break;
+		if (raw[segEnd - 1] === '-' || raw[segEnd - 1] === '_') break; // GFM: invalid trailing
+		domainEnd = segEnd;
+		lastValidEnd = domainEnd;
+	}
+	if (lastValidEnd === -1) return null;
+
+	const urlEnd = trimTrailingPunctuation(raw, localStart, lastValidEnd);
+	if (urlEnd <= atPos + 1) return null;
+
+	const address = raw.slice(localStart, urlEnd);
+	return {
+		kind: 'autolink',
+		start: localStart,
+		end: urlEnd,
+		url: `mailto:${address}`
 	};
 }
