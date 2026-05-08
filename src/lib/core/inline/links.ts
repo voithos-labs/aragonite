@@ -9,6 +9,7 @@
 import type { InlineNode } from '../nodes';
 import { parseImageDimensions } from '../../components/image/image-dimensions';
 import { parseInline } from './index';
+import type { LinkReferenceResolver } from './link-reference-resolver';
 
 type Range = { start: number; end: number };
 
@@ -86,7 +87,8 @@ export function scanLinksAndAutolinks(
 	raw: string,
 	start: number,
 	end: number,
-	occupied: InlineNode[]
+	occupied: InlineNode[],
+	resolver?: LinkReferenceResolver
 ): InlineNode[] {
 	const occupiedRanges: Range[] = occupied
 		.filter((n) => n.kind !== 'text')
@@ -95,7 +97,7 @@ export function scanLinksAndAutolinks(
 	// Pass 1: links and images may span occupied ranges (entity in link text,
 	// escape inside alt, etc.). Bracket pairing skips over occupied content so
 	// `[` inside a code span doesn't masquerade as a link delimiter.
-	const linksAndImages = scanLinksAndImages(raw, start, end, occupiedRanges);
+	const linksAndImages = scanLinksAndImages(raw, start, end, occupiedRanges, resolver);
 
 	// Pass 2: autolinks fill the gaps left by occupied + links. They still stop
 	// at occupied/whitespace boundaries — preserving the 0.6.2 behavior where
@@ -202,7 +204,8 @@ function scanLinksAndImages(
 	raw: string,
 	start: number,
 	end: number,
-	occupied: Range[]
+	occupied: Range[],
+	resolver?: LinkReferenceResolver
 ): InlineNode[] {
 	const out: InlineNode[] = [];
 	let pos = start;
@@ -252,7 +255,7 @@ function scanLinksAndImages(
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
 				if (dest !== null) {
-					const children = parseInline(raw, pos + 1, bracketClose);
+					const children = parseInline(raw, pos + 1, bracketClose, resolver);
 					out.push({
 						kind: 'link',
 						start: pos,
