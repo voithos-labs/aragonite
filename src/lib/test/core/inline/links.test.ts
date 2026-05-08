@@ -491,3 +491,77 @@ describe('reference-style link resolution (CommonMark §6.3)', () => {
 		expect(nodes.every((n) => n.kind !== 'link')).toBe(true);
 	});
 });
+
+describe('reference-style image resolution (CommonMark §6.3)', () => {
+	function inlineWithRefs(content: string, refs: string) {
+		const doc = parse(content + '\n\n' + refs);
+		const map = buildLinkReferenceMap(doc.children);
+		return parseInline(content, 0, content.length, map.resolve);
+	}
+
+	it('full reference image: ![alt][label] resolves', () => {
+		const nodes = inlineWithRefs('See ![pic][img] here', '[img]: /img.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+		expect(images[0].url).toBe('/img.png');
+		expect(images[0].alt).toBe('pic');
+		expect(images[0].label).toBe('img');
+	});
+
+	it('collapsed reference image: ![alt][] resolves using alt as label', () => {
+		const nodes = inlineWithRefs('![logo][]', '[logo]: /logo.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+		expect(images[0].url).toBe('/logo.png');
+		expect(images[0].alt).toBe('logo');
+	});
+
+	it('shortcut reference image: ![label] resolves', () => {
+		const nodes = inlineWithRefs('![logo]', '[logo]: /logo.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+		expect(images[0].url).toBe('/logo.png');
+	});
+
+	it('reference image with title from LRD', () => {
+		const nodes = inlineWithRefs('![alt][img]', '[img]: /pic.png "Title"');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images[0].title).toBe('Title');
+	});
+
+	it('image dimension hint in alt text is parsed (0.6.4 behavior preserved)', () => {
+		// `|100x50` dimension hint per 0.6.4 — the alt text is "logo|100x50" before
+		// dimension-hint parsing strips the suffix
+		const nodes = inlineWithRefs('![logo|100x50][img]', '[img]: /pic.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+		expect(images[0].alt).toBe('logo');
+		expect(images[0].width).toBe(100);
+		expect(images[0].height).toBe(50);
+	});
+
+	it('unresolved reference image falls through to plain text', () => {
+		const nodes = inlineWithRefs('![alt][missing]', '[other]: /img.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(0);
+	});
+
+	it('inline image form takes precedence over reference', () => {
+		const nodes = inlineWithRefs('![alt](/inline.png)', '[alt]: /ref.png');
+		const images = nodes.filter((n) => n.kind === 'image');
+		expect(images).toHaveLength(1);
+		expect(images[0].url).toBe('/inline.png');
+	});
+
+	it('image inside reference link: [![alt][img]][link] both resolve', () => {
+		const source = '[![pic][img]][link]';
+		const refs = '[img]: /pic.png\n[link]: https://example.com';
+		const nodes = inlineWithRefs(source, refs);
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+		const innerImages = links[0].children?.filter((c) => c.kind === 'image');
+		expect(innerImages).toHaveLength(1);
+		expect(innerImages?.[0].url).toBe('/pic.png');
+	});
+});
