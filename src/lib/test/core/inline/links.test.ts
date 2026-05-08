@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import { trimTrailingPunctuation, isValidLeadingBoundary } from '../../../core/inline/links';
+import { parse } from '../../../core/parser';
+import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resolver';
 
 function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
@@ -406,5 +408,86 @@ describe('autolink stage interactions', () => {
 		const refs = nodes.filter((n) => n.kind === 'entityReference');
 		expect(refs).toHaveLength(1);
 		expect(refs[0].decoded).toBe('©');
+	});
+});
+
+describe('reference-style link resolution (CommonMark §6.3)', () => {
+	function inlineWithRefs(content: string, refs: string) {
+		const doc = parse(content + '\n\n' + refs);
+		const map = buildLinkReferenceMap(doc.children);
+		return parseInline(content, 0, content.length, map.resolve);
+	}
+
+	it('full reference: [text][label] resolves with url', () => {
+		const nodes = inlineWithRefs('Click [here][go] now', '[go]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+		expect(links[0].label).toBe('go');
+	});
+
+	it('full reference: title from LRD is propagated', () => {
+		const nodes = inlineWithRefs('[here][go]', '[go]: https://example.com "Go now"');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links[0].title).toBe('Go now');
+	});
+
+	it('full reference: text portion is parsed as inline children', () => {
+		const nodes = inlineWithRefs('[**bold** text][go]', '[go]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links[0].children?.some((c) => c.kind === 'strong')).toBe(true);
+	});
+
+	it('collapsed reference: [label][] resolves using text as label', () => {
+		const nodes = inlineWithRefs('See [foo][] today', '[foo]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+		expect(links[0].label).toBe('foo');
+	});
+
+	it('shortcut reference: [label] resolves using text as label', () => {
+		const nodes = inlineWithRefs('See [foo] today', '[foo]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+	});
+
+	it('case-insensitive label match', () => {
+		const nodes = inlineWithRefs('[Click][GO]', '[go]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+	});
+
+	it('whitespace-collapsing label match', () => {
+		const nodes = inlineWithRefs('[Click][my  label]', '[my label]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+	});
+
+	it('unresolved reference falls through to plain text (no link)', () => {
+		const nodes = inlineWithRefs('[click][missing]', '[other]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(0);
+	});
+
+	it('inline form takes precedence over reference', () => {
+		const nodes = inlineWithRefs('[click](https://other.com)', '[click]: https://ref.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://other.com');
+	});
+
+	it('reference brackets inside code spans do not resolve', () => {
+		const nodes = inlineWithRefs('See `[click][go]` here', '[go]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(0);
+	});
+
+	it('no resolver passed: reference falls through (existing behavior preserved)', () => {
+		const nodes = parseInline('[click][go]', 0, '[click][go]'.length);
+		expect(nodes.every((n) => n.kind !== 'link')).toBe(true);
 	});
 });

@@ -9,7 +9,7 @@
 import type { InlineNode } from '../nodes';
 import { parseImageDimensions } from '../../components/image/image-dimensions';
 import { parseInline } from './index';
-import type { LinkReferenceResolver } from './link-reference-resolver';
+import { normalizeLinkLabel, type LinkReferenceResolver } from './link-reference-resolver';
 
 type Range = { start: number; end: number };
 
@@ -267,6 +267,15 @@ function scanLinksAndImages(
 					pos = dest.end;
 					continue;
 				}
+
+				if (resolver !== undefined) {
+					const ref = matchReferenceLink(raw, pos, bracketClose, end, resolver);
+					if (ref !== null) {
+						out.push(ref);
+						pos = ref.end;
+						continue;
+					}
+				}
 			}
 			pos++;
 			continue;
@@ -310,6 +319,106 @@ function findMatchingBracket(
 		pos++;
 	}
 	return -1;
+}
+
+/**
+ * Try the three reference forms against a `[…]` pair at [pos, bracketClose].
+ * Full and collapsed both *commit* to the reference shape — if their label
+ * fails to resolve, the brackets render as plain text rather than falling
+ * through to shortcut. Only an unfollowed `[…]` triggers shortcut.
+ */
+function matchReferenceLink(
+	raw: string,
+	pos: number,
+	bracketClose: number,
+	end: number,
+	resolver: LinkReferenceResolver
+): InlineNode | null {
+	const textStart = pos + 1;
+	const textEnd = bracketClose;
+	const text = raw.slice(textStart, textEnd);
+
+	// Form 1: full reference [text][label]
+	if (bracketClose + 1 < end && raw[bracketClose + 1] === '[') {
+		const labelClose = raw.indexOf(']', bracketClose + 2);
+		if (labelClose !== -1 && labelClose < end) {
+			const labelRaw = raw.slice(bracketClose + 2, labelClose);
+			if (labelRaw.length > 0) {
+				const resolved = resolver(labelRaw);
+				if (resolved !== undefined) {
+					return buildResolvedLink(
+						raw,
+						pos,
+						labelClose + 1,
+						textStart,
+						textEnd,
+						labelRaw,
+						resolved,
+						resolver
+					);
+				}
+				// Full form found but unresolved — do not fall through to shortcut.
+				return null;
+			}
+			// Form 2: collapsed reference [text][]
+			const resolved = resolver(text);
+			if (resolved !== undefined) {
+				return buildResolvedLink(
+					raw,
+					pos,
+					labelClose + 1,
+					textStart,
+					textEnd,
+					text,
+					resolved,
+					resolver
+				);
+			}
+			return null;
+		}
+	}
+
+	// Form 3: shortcut reference [label] — only when not followed by [ or (
+	const next = bracketClose + 1;
+	if (next < end && (raw[next] === '[' || raw[next] === '(')) {
+		return null;
+	}
+	const resolved = resolver(text);
+	if (resolved !== undefined) {
+		return buildResolvedLink(
+			raw,
+			pos,
+			bracketClose + 1,
+			textStart,
+			textEnd,
+			text,
+			resolved,
+			resolver
+		);
+	}
+	return null;
+}
+
+function buildResolvedLink(
+	raw: string,
+	start: number,
+	end: number,
+	textStart: number,
+	textEnd: number,
+	label: string,
+	resolved: { url: string; title?: string },
+	resolver: LinkReferenceResolver
+): InlineNode {
+	const children = parseInline(raw, textStart, textEnd, resolver);
+	return {
+		kind: 'link',
+		start,
+		end,
+		children,
+		url: resolved.url,
+		...(resolved.title !== undefined ? { title: resolved.title } : {}),
+		label: normalizeLinkLabel(label)
+	};
 }
 
 // ── Autolink dispatcher ─────────────────────────────────────────────────────
