@@ -58,7 +58,7 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): { doc: Document; signature: string } {
+	function initDocument(src: string): Document {
 		const d = parse(src);
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
@@ -68,7 +68,7 @@
 		}
 		const refMap = buildLinkReferenceMap(d.children);
 		parseAllInlineContent(d.children, refMap.resolve);
-		return { doc: d, signature: refMap.signature };
+		return d;
 	}
 
 	// Initialize from the `source` prop. doc/blockIds are mutable state
@@ -76,12 +76,9 @@
 	// $derived — we take a one-time snapshot at mount and re-sync via
 	// $effect below when the prop changes.
 	// svelte-ignore state_referenced_locally
-	const initial = initDocument(source);
-	let doc = $state<Document>(initial.doc);
+	let doc = $state<Document>(initDocument(source));
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
-	// initial.signature is intentionally unused — see comment on the edit subscriber.
-	void initial.signature;
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -127,14 +124,12 @@
 	$effect(() => {
 		if (source !== lastSource) {
 			lastSource = source;
-			const reset = initDocument(source);
-			doc = reset.doc;
+			doc = initDocument(source);
 			blockIds = assignIds(doc.children);
 			blockRefs = [];
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
-			void reset.signature;
 		}
 	});
 
