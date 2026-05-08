@@ -245,6 +245,15 @@ function scanLinksAndImages(
 					pos = dest.end;
 					continue;
 				}
+
+				if (resolver !== undefined) {
+					const ref = matchReferenceImage(raw, pos, bracketOpen, bracketClose, end, resolver);
+					if (ref !== null) {
+						out.push(ref);
+						pos = ref.end;
+						continue;
+					}
+				}
 			}
 			pos++;
 			continue;
@@ -417,6 +426,75 @@ function buildResolvedLink(
 		children,
 		url: resolved.url,
 		...(resolved.title !== undefined ? { title: resolved.title } : {}),
+		label: normalizeLinkLabel(label)
+	};
+}
+
+/**
+ * Try to match `![alt][label]`, `![alt][]`, or `![label]` reference forms.
+ * `pos` points at the `!`; `bracketOpen` at the `[`; `bracketClose` at the `]`.
+ */
+function matchReferenceImage(
+	raw: string,
+	pos: number,
+	bracketOpen: number,
+	bracketClose: number,
+	end: number,
+	resolver: LinkReferenceResolver
+): InlineNode | null {
+	const altRaw = raw.slice(bracketOpen + 1, bracketClose);
+
+	// Form 1: full reference ![alt][label]
+	if (bracketClose + 1 < end && raw[bracketClose + 1] === '[') {
+		const labelClose = raw.indexOf(']', bracketClose + 2);
+		if (labelClose !== -1 && labelClose < end) {
+			const labelRaw = raw.slice(bracketClose + 2, labelClose);
+			if (labelRaw.length > 0) {
+				const resolved = resolver(labelRaw);
+				if (resolved !== undefined) {
+					return buildResolvedImage(pos, labelClose + 1, altRaw, labelRaw, resolved);
+				}
+				// Full form found but unresolved — do not fall through to shortcut.
+				return null;
+			}
+			// Form 2: collapsed reference ![alt][]
+			const resolved = resolver(altRaw);
+			if (resolved !== undefined) {
+				return buildResolvedImage(pos, labelClose + 1, altRaw, altRaw, resolved);
+			}
+			return null;
+		}
+	}
+
+	// Form 3: shortcut reference ![label] — only when not followed by [ or (
+	const next = bracketClose + 1;
+	if (next < end && (raw[next] === '[' || raw[next] === '(')) {
+		return null;
+	}
+	const resolved = resolver(altRaw);
+	if (resolved !== undefined) {
+		return buildResolvedImage(pos, bracketClose + 1, altRaw, altRaw, resolved);
+	}
+	return null;
+}
+
+function buildResolvedImage(
+	start: number,
+	end: number,
+	altRaw: string,
+	label: string,
+	resolved: { url: string; title?: string }
+): InlineNode {
+	const dims = parseImageDimensions(altRaw);
+	return {
+		kind: 'image',
+		start,
+		end,
+		alt: dims.displayAlt,
+		url: resolved.url,
+		...(resolved.title !== undefined ? { title: resolved.title } : {}),
+		...(dims.width !== undefined ? { width: dims.width } : {}),
+		...(dims.height !== undefined ? { height: dims.height } : {}),
 		label: normalizeLinkLabel(label)
 	};
 }
