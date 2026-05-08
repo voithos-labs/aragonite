@@ -110,6 +110,7 @@ export interface InlineNode {
 	children?: InlineNode[];
 	url?: string;
 	title?: string;
+	label?: string;
 	alt?: string;
 	decoded?: string;
 	width?: number;
