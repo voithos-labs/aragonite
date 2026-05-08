@@ -288,3 +288,53 @@ describe('v2 edge cases', () => {
 		expect(serialize(doc)).toBe(source);
 	});
 });
+
+// ── Reference-Style Links and Images ────────────────────────────────────────
+
+describe('round-trip: reference-style links and images', () => {
+	const cases: { name: string; source: string }[] = [
+		{
+			name: 'full reference link',
+			source: 'Click [here][go] now.\n\n[go]: https://example.com\n'
+		},
+		{
+			name: 'collapsed reference link',
+			source: 'See [Click Here][] today.\n\n[click here]: https://example.com\n'
+		},
+		{
+			name: 'shortcut reference link',
+			source: 'See [example] today.\n\n[example]: https://example.com\n'
+		},
+		{
+			name: 'reference link with title',
+			source: '[click][go]\n\n[go]: https://example.com "Go"\n'
+		},
+		{
+			name: 'reference image',
+			source: '![pic][img]\n\n[img]: /img.png "Alt"\n'
+		},
+		{
+			name: 'reference link inside emphasis',
+			source: '*see [click][go] now*\n\n[go]: https://example.com\n'
+		},
+		{
+			name: 'multi-LRD doc with mixed references',
+			source: '[a][one] and [b][two].\n\n[one]: https://1.com\n[two]: https://2.com\n'
+		},
+		{
+			name: 'unresolved reference (no matching LRD)',
+			source: '[broken][missing] text.\n'
+		},
+		{
+			name: 'reference link mixed with inline link',
+			source: '[ref][go] vs [inline](https://x.com).\n\n[go]: https://example.com\n'
+		}
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
