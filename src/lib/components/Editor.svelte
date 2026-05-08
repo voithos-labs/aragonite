@@ -32,6 +32,7 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { parseAllInlineContent } from '../core/inline';
+	import { buildLinkReferenceMap } from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
@@ -57,7 +58,7 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): Document {
+	function initDocument(src: string): { doc: Document; signature: string } {
 		const d = parse(src);
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
@@ -65,8 +66,9 @@
 		for (const child of d.children) {
 			ensureEditableContainers(child);
 		}
-		parseAllInlineContent(d.children);
-		return d;
+		const refMap = buildLinkReferenceMap(d.children);
+		parseAllInlineContent(d.children, refMap.resolve);
+		return { doc: d, signature: refMap.signature };
 	}
 
 	// Initialize from the `source` prop. doc/blockIds are mutable state
@@ -74,9 +76,14 @@
 	// $derived — we take a one-time snapshot at mount and re-sync via
 	// $effect below when the prop changes.
 	// svelte-ignore state_referenced_locally
-	let doc = $state<Document>(initDocument(source));
+	const initial = initDocument(source);
+	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	// Non-reactive: the commit subscriber compares this snapshot against the
+	// post-commit signature to short-circuit doc-wide re-parses when the LRD
+	// set didn't change.
+	let lastLinkRefSignature = initial.signature;
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -104,6 +111,16 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
+			// Rebuild the LRD map after every commit. The single tree walk
+			// produces both the resolve function and a stable signature; an
+			// equal signature means the LRD set didn't change, so we skip the
+			// doc-wide re-parse. Naive O(N) baseline; flagged for 0.7 perf
+			// measurement and 0.8.1 incremental-parse optimization.
+			const newMap = buildLinkReferenceMap(doc.children);
+			if (newMap.signature !== lastLinkRefSignature) {
+				lastLinkRefSignature = newMap.signature;
+				parseAllInlineContent(doc.children, newMap.resolve);
+			}
 		});
 		return () => dispose();
 	});
@@ -114,12 +131,14 @@
 	$effect(() => {
 		if (source !== lastSource) {
 			lastSource = source;
-			doc = initDocument(source);
+			const reset = initDocument(source);
+			doc = reset.doc;
 			blockIds = assignIds(doc.children);
 			blockRefs = [];
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
+			lastLinkRefSignature = reset.signature;
 		}
 	});
 
