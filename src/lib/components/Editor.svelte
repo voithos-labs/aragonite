@@ -80,10 +80,8 @@
 	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
-	// Non-reactive: the commit subscriber compares this snapshot against the
-	// post-commit signature to short-circuit doc-wide re-parses when the LRD
-	// set didn't change.
-	let lastLinkRefSignature = initial.signature;
+	// initial.signature is intentionally unused — see comment on the edit subscriber.
+	void initial.signature;
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -111,16 +109,14 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// Rebuild the LRD map after every commit. The single tree walk
-			// produces both the resolve function and a stable signature; an
-			// equal signature means the LRD set didn't change, so we skip the
-			// doc-wide re-parse. Naive O(N) baseline; flagged for 0.7 perf
-			// measurement and 0.8.1 incremental-parse optimization.
+			// Action-site `parseAllInlineContent` calls (in editor-actions/, tree-operations/,
+			// selection/) build unresolved-reference inline trees because they don't have
+			// a resolver in scope. Refresh the whole doc on every structural commit so
+			// references stay coherent regardless of which path produced the trees. Aligns
+			// with Phase 2's "regenerate fearlessly" stance — no resolver-state cache to
+			// keep coherent across action-site bypasses.
 			const newMap = buildLinkReferenceMap(doc.children);
-			if (newMap.signature !== lastLinkRefSignature) {
-				lastLinkRefSignature = newMap.signature;
-				parseAllInlineContent(doc.children, newMap.resolve);
-			}
+			parseAllInlineContent(doc.children, newMap.resolve);
 		});
 		return () => dispose();
 	});
@@ -138,7 +134,7 @@
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
-			lastLinkRefSignature = reset.signature;
+			void reset.signature;
 		}
 	});
 
