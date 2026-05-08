@@ -22,8 +22,11 @@ export interface LinkReferenceMap {
 	/** Look up a (non-normalized) label and return the resolved reference, or undefined. */
 	resolve: LinkReferenceResolver;
 	/**
-	 * Stable string snapshot of the LRD set. Used by the editor shell for cheap
-	 * change-detection: if the signature equals the prior one, no re-parse is needed.
+	 * Stable string snapshot of the LRD set. Diagnostic field — the editor
+	 * shell does not gate re-parse on it (action-site `parseAllInlineContent`
+	 * call sites bypass the resolver, so the shell unconditionally re-parses
+	 * on every commit). Useful for tests and future external consumers that
+	 * want change-detection on the LRD set.
 	 */
 	readonly signature: string;
 }
