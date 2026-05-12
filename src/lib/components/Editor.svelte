@@ -32,7 +32,10 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { parseAllInlineContent } from '../core/inline';
-	import { buildLinkReferenceMap } from '../core/inline/link-reference-resolver';
+	import {
+		buildLinkReferenceMap,
+		type LinkReferenceResolver
+	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo-manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
@@ -58,7 +61,7 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): Document {
+	function initDocument(src: string): { doc: Document; resolver: LinkReferenceResolver } {
 		const d = parse(src);
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
@@ -68,17 +71,19 @@
 		}
 		const refMap = buildLinkReferenceMap(d.children);
 		parseAllInlineContent(d.children, refMap.resolve);
-		return d;
+		return { doc: d, resolver: refMap.resolve };
 	}
 
 	// Initialize from the `source` prop. doc/blockIds are mutable state
 	// that structural operations write through directly, so they cannot be
 	// $derived — we take a one-time snapshot at mount and re-sync via
 	// $effect below when the prop changes.
+	const initial = initDocument(source);
 	// svelte-ignore state_referenced_locally
-	let doc = $state<Document>(initDocument(source));
+	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -114,6 +119,7 @@
 			// keep coherent across action-site bypasses.
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
+			currentResolver = newMap.resolve;
 		});
 		return () => dispose();
 	});
@@ -124,12 +130,14 @@
 	$effect(() => {
 		if (source !== lastSource) {
 			lastSource = source;
-			doc = initDocument(source);
+			const reset = initDocument(source);
+			doc = reset.doc;
 			blockIds = assignIds(doc.children);
 			blockRefs = [];
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
+			currentResolver = reset.resolver;
 		}
 	});
 
@@ -262,6 +270,11 @@
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
+	setContext('linkRef', {
+		get current(): LinkReferenceResolver {
+			return currentResolver;
+		}
+	});
 
 	// ── Image popover ───────────────────────────────────────────────────
 
