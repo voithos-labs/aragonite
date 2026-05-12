@@ -134,6 +134,27 @@
 	});
 
 	$effect(() => {
+		if (!editorEl) return;
+		const handleClick = (e: MouseEvent) => {
+			const target = e.target as Element | null;
+			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+			if (!anchor) return;
+			const href = anchor.getAttribute('href');
+			if (!href) return;
+			if (e.ctrlKey || e.metaKey) {
+				e.preventDefault();
+				window.open(href, '_blank', 'noopener,noreferrer');
+			} else {
+				// Plain click inside contenteditable — prevent the browser's default
+				// link navigation. Cursor placement comes from mousedown, unaffected.
+				e.preventDefault();
+			}
+		};
+		editorEl.addEventListener('click', handleClick);
+		return () => editorEl?.removeEventListener('click', handleClick);
+	});
+
+	$effect(() => {
 		const handleFocusOut = (e: FocusEvent) => {
 			// focusout bubbles; reset only if focus is leaving the editor entirely.
 			// If the relatedTarget is inside editorEl, the focus is just moving
