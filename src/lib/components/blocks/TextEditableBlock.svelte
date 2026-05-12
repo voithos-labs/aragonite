@@ -33,6 +33,7 @@
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
+	import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
@@ -89,6 +90,7 @@
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
+	const linkRef = getContext<{ current?: LinkReferenceResolver } | undefined>('linkRef');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
@@ -126,7 +128,12 @@
 		afterRawMutated: (targetNode) => {
 			if (isProseKind(targetNode.kind)) {
 				const range = getContentRange(targetNode);
-				targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
+				targetNode.inlineContent = parseInline(
+					targetNode.raw,
+					range.start,
+					range.end,
+					linkRef?.current
+				);
 			}
 		}
 	});
@@ -193,6 +200,9 @@
 		resolveImageUrl,
 		get myPath() {
 			return myPath;
+		},
+		get linkResolver(): LinkReferenceResolver | undefined {
+			return linkRef?.current;
 		}
 	});
 

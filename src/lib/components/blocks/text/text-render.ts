@@ -9,6 +9,7 @@
 import type { AmbientPrefix, CstNode, ResolveImageUrl } from '../../../contracts';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes } from '../../../core/inline-render';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -21,6 +22,7 @@ export interface TextRenderDeps {
 	getDisplayText: () => string;
 	resolveImageUrl: ResolveImageUrl;
 	get myPath(): number[];
+	get linkResolver(): LinkReferenceResolver | undefined;
 }
 
 export interface TextRender {
@@ -86,7 +88,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
 			const range = getContentRange(node);
-			const content = parseInline(node.raw, range.start, range.end);
+			const content = parseInline(node.raw, range.start, range.end, deps.linkResolver);
 			el.replaceChildren(buildInlineDOM(content));
 			lastRenderedKey = renderKey;
 		} else {
