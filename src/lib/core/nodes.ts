@@ -99,7 +99,8 @@ export type InlineNodeKind =
 	| 'autolink'
 	| 'hardLineBreak'
 	| 'escape'
-	| 'entityReference';
+	| 'entityReference'
+	| 'unresolvedReference';
 
 /** start/end are byte offsets into the parent block's raw, including markers. */
 export interface InlineNode {
@@ -115,6 +116,8 @@ export interface InlineNode {
 	decoded?: string;
 	width?: number;
 	height?: number;
+	/** Discriminator for `unresolvedReference` nodes: which form they would have been. */
+	refKind?: 'link' | 'image';
 }
 
 // ── Node Types ──────────────────────────────────────────────────────────────
