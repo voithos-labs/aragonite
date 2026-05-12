@@ -101,6 +101,35 @@ describe('inline-render — unresolvedReference', () => {
 	});
 });
 
+describe('inline-render — reference label marker class', () => {
+	it('reference link emits md-ref-label class on trailing label marker', () => {
+		const raw = '[text][label]';
+		const resolver = (l: string) => (l === 'label' ? { url: 'https://example.com' } : undefined);
+		const inline = parseInline(raw, 0, raw.length, resolver);
+		const frag = renderInlineNodes(inline, raw);
+		const labelMarker = frag.querySelector('.md-ref-label');
+		expect(labelMarker).not.toBeNull();
+		expect(labelMarker?.textContent).toBe('[label]');
+	});
+
+	it('inline link (non-reference) does NOT emit md-ref-label', () => {
+		const raw = '[text](https://example.com)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		expect(frag.querySelectorAll('.md-ref-label').length).toBe(0);
+	});
+
+	it('collapsed reference link emits md-ref-label on []', () => {
+		const raw = '[text][]';
+		const resolver = (l: string) => (l === 'text' ? { url: 'https://example.com' } : undefined);
+		const inline = parseInline(raw, 0, raw.length, resolver);
+		const frag = renderInlineNodes(inline, raw);
+		const labelMarker = frag.querySelector('.md-ref-label');
+		expect(labelMarker).not.toBeNull();
+		expect(labelMarker?.textContent).toBe('[]');
+	});
+});
+
 describe('inline-render — href + autolink anchor', () => {
 	it('link node renders <a href={url}>', () => {
 		const raw = '[text](https://example.com)';
