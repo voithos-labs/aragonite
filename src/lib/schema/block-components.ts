@@ -51,9 +51,17 @@ registerBlockComponent('table', {
 	component: TableBlock as unknown as BlockComponentEntry['component']
 });
 
-// Kinds without a dedicated component fall back to raw-block rendering via
-// TextEditableBlock (contenteditable on `raw`, no inline parsing / marker
-// styling). Graduates to a dedicated component when one is added.
+// Kinds rendered via TextEditableBlock's raw-block surface (contenteditable on
+// `raw`, no inline parsing / marker styling). Two categories share this entry:
+//   - Permanent fallbacks (indentedCode, htmlBlock, linkReferenceDefinition):
+//     stay raw-editable as the final shape; no dedicated component is planned.
+//     The visible quality gap vs fenced code / inline content is the design
+//     choice. LRD additionally gets distinct CSS via the data-block-kind
+//     attribute on BlockHost (see 0.6.6.1 changelog).
+//   - Placeholders (tableRow, tableCell, unrecognized): tableRow / tableCell
+//     normally render through TableBlock's own logic — the registration here
+//     is a defensive fallback for orphaned nodes. `unrecognized` graduates to
+//     its own kind when parser support for the syntax is added.
 registerBlockComponent('indentedCode', textAsRawBlock);
 registerBlockComponent('htmlBlock', textAsRawBlock);
 registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
