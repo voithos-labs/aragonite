@@ -70,6 +70,37 @@ describe('renderInlineNodes — entityReference', () => {
 	});
 });
 
+describe('inline-render — unresolvedReference', () => {
+	it('renders <span class="md-unresolved-ref"> with raw source slice', () => {
+		const node: InlineNode = {
+			kind: 'unresolvedReference',
+			start: 0,
+			end: 15,
+			label: 'missing',
+			refKind: 'link'
+		};
+		const raw = '[text][missing]';
+		const frag = renderInlineNodes([node], raw);
+		const span = frag.querySelector('span.md-unresolved-ref');
+		expect(span).not.toBeNull();
+		expect(span?.textContent).toBe('[text][missing]');
+	});
+
+	it('image variant gets a different class indicator for inspection', () => {
+		const node: InlineNode = {
+			kind: 'unresolvedReference',
+			start: 0,
+			end: 15,
+			label: 'missing',
+			refKind: 'image'
+		};
+		const raw = '![alt][missing]';
+		const frag = renderInlineNodes([node], raw);
+		const span = frag.querySelector('span.md-unresolved-ref');
+		expect(span?.classList.contains('md-unresolved-ref-image')).toBe(true);
+	});
+});
+
 describe('inline-render — href + autolink anchor', () => {
 	it('link node renders <a href={url}>', () => {
 		const raw = '[text](https://example.com)';

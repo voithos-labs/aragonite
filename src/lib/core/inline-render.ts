@@ -192,6 +192,17 @@ export function renderInlineNodes(
 				frag.appendChild(span);
 				break;
 			}
+
+			case 'unresolvedReference': {
+				const span = document.createElement('span');
+				span.className =
+					node.refKind === 'image'
+						? 'md-unresolved-ref md-unresolved-ref-image'
+						: 'md-unresolved-ref';
+				span.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(span);
+				break;
+			}
 		}
 	}
 
