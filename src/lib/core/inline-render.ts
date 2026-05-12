@@ -130,8 +130,19 @@ export function renderInlineNodes(
 				// (the parsed url/title can differ from the source bytes).
 				const children = node.children ?? [];
 				if (children.length > 0) {
+					const lastChild = children[children.length - 1];
 					const openMarker = raw.slice(node.start, children[0].start);
-					const closeMarker = raw.slice(children[children.length - 1].end, node.end);
+					// Split closeMarker into the closing `]` of the text bracket and the
+					// trailing marker (`(url)` for inline form, `[label]` / `[]` for
+					// reference forms). Reference forms get a separate `md-ref-label`
+					// class so CSS can dim them more aggressively than inline markers.
+					const closingTextBracket =
+						raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
+					const trailingMarker = raw.slice(
+						lastChild.end + (closingTextBracket ? 1 : 0),
+						node.end
+					);
+
 					frag.appendChild(markerSpan(openMarker));
 					const anchor = document.createElement('a');
 					anchor.className = 'md-link-content';
@@ -139,7 +150,19 @@ export function renderInlineNodes(
 					if (node.title !== undefined) anchor.setAttribute('title', node.title);
 					anchor.appendChild(renderInlineNodes(children, raw, opts));
 					frag.appendChild(anchor);
-					frag.appendChild(markerSpan(closeMarker));
+					if (closingTextBracket) {
+						frag.appendChild(markerSpan(closingTextBracket));
+					}
+					if (trailingMarker) {
+						if (node.label !== undefined) {
+							const span = document.createElement('span');
+							span.className = 'md-ref-label';
+							span.textContent = trailingMarker;
+							frag.appendChild(span);
+						} else {
+							frag.appendChild(markerSpan(trailingMarker));
+						}
+					}
 				} else {
 					// Empty link text: [](url)
 					const mid = raw.indexOf(']', node.start);
