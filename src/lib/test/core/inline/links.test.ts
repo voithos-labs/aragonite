@@ -565,3 +565,60 @@ describe('reference-style image resolution (CommonMark §6.3)', () => {
 		expect(innerImages?.[0].url).toBe('/pic.png');
 	});
 });
+
+describe('unresolvedReference emission (CommonMark §6.3 deviation)', () => {
+	function inlineWithRefs(content: string, refs: string) {
+		const doc = parse(content + '\n\n' + refs);
+		const map = buildLinkReferenceMap(doc.children);
+		return parseInline(content, 0, content.length, map.resolve);
+	}
+
+	it('full reference link with no matching LRD emits unresolvedReference (refKind=link)', () => {
+		const nodes = inlineWithRefs('[text][missing]', '[other]: https://example.com');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(1);
+		expect(unresolved[0].refKind).toBe('link');
+		expect(unresolved[0].label).toBe('missing');
+	});
+
+	it('collapsed reference link with no matching LRD emits unresolvedReference', () => {
+		const nodes = inlineWithRefs('[missing][]', '[other]: https://example.com');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(1);
+		expect(unresolved[0].refKind).toBe('link');
+	});
+
+	it('shortcut reference with no match still falls through to text (ambiguity)', () => {
+		const nodes = inlineWithRefs('[just text]', '[other]: https://example.com');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(0);
+	});
+
+	it('full reference image with no matching LRD emits unresolvedReference (refKind=image)', () => {
+		const nodes = inlineWithRefs('![alt][missing]', '[other]: /img.png');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(1);
+		expect(unresolved[0].refKind).toBe('image');
+	});
+
+	it('collapsed reference image with no matching LRD emits unresolvedReference', () => {
+		const nodes = inlineWithRefs('![missing][]', '[other]: /img.png');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(1);
+		expect(unresolved[0].refKind).toBe('image');
+	});
+
+	it('resolved references do NOT emit unresolvedReference', () => {
+		const nodes = inlineWithRefs('[text][foo]', '[foo]: https://example.com');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(0);
+		expect(nodes.filter((n) => n.kind === 'link')).toHaveLength(1);
+	});
+
+	it('shortcut reference WITH match still resolves normally', () => {
+		const nodes = inlineWithRefs('[foo]', '[foo]: https://example.com');
+		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
+		expect(unresolved).toHaveLength(0);
+		expect(nodes.filter((n) => n.kind === 'link')).toHaveLength(1);
+	});
+});

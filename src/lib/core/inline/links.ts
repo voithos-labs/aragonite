@@ -366,8 +366,15 @@ function matchReferenceLink(
 						resolver
 					);
 				}
-				// Full form found but unresolved — do not fall through to shortcut.
-				return null;
+				// Full form committed to reference shape — emit unresolvedReference
+				// so the renderer can flag the failed resolution.
+				return {
+					kind: 'unresolvedReference',
+					start: pos,
+					end: labelClose + 1,
+					label: normalizeLinkLabel(labelRaw),
+					refKind: 'link'
+				};
 			}
 			// Form 2: collapsed reference [text][]
 			const resolved = resolver(text);
@@ -383,7 +390,13 @@ function matchReferenceLink(
 					resolver
 				);
 			}
-			return null;
+			return {
+				kind: 'unresolvedReference',
+				start: pos,
+				end: labelClose + 1,
+				label: normalizeLinkLabel(text),
+				refKind: 'link'
+			};
 		}
 	}
 
@@ -454,15 +467,26 @@ function matchReferenceImage(
 				if (resolved !== undefined) {
 					return buildResolvedImage(pos, labelClose + 1, altRaw, labelRaw, resolved);
 				}
-				// Full form found but unresolved — do not fall through to shortcut.
-				return null;
+				return {
+					kind: 'unresolvedReference',
+					start: pos,
+					end: labelClose + 1,
+					label: normalizeLinkLabel(labelRaw),
+					refKind: 'image'
+				};
 			}
 			// Form 2: collapsed reference ![alt][]
 			const resolved = resolver(altRaw);
 			if (resolved !== undefined) {
 				return buildResolvedImage(pos, labelClose + 1, altRaw, altRaw, resolved);
 			}
-			return null;
+			return {
+				kind: 'unresolvedReference',
+				start: pos,
+				end: labelClose + 1,
+				label: normalizeLinkLabel(altRaw),
+				refKind: 'image'
+			};
 		}
 	}
 
