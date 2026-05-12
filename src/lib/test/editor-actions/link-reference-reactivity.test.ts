@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { parseAllInlineContent } from '../../core/inline';
+import { parseAllInlineContent, parseInline } from '../../core/inline';
 import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver';
 import type { CstNode, InlineNode } from '../../core/nodes';
 
@@ -74,5 +74,22 @@ describe('link-reference reactivity pipeline', () => {
 		const m1 = buildLinkReferenceMap(doc.children);
 		const m2 = buildLinkReferenceMap(doc.children);
 		expect(m1.signature).toBe(m2.signature);
+	});
+
+	it('after editor mount, reference links in block inlineContent are resolved', () => {
+		// Simulates the block-render path: TextEditableBlock's text-render re-parses
+		// inline content locally using the resolver threaded via the linkRef context.
+		// This pins the wiring shape — if the resolver is dropped from the dep chain
+		// the local re-parse will produce no link nodes, even though the shell's
+		// parseAllInlineContent populated them.
+		const doc = parse('Click [here][go] now.\n\n[go]: https://example.com\n');
+		const map = buildLinkReferenceMap(doc.children);
+		parseAllInlineContent(doc.children, map.resolve);
+
+		const para = doc.children[0];
+		const content = parseInline(para.raw, 0, para.raw.length, map.resolve);
+		const links = content.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
 	});
 });
