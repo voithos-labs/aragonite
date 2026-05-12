@@ -37,7 +37,12 @@
 	});
 </script>
 
-<div class="block-host" data-block-path={JSON.stringify(myPath)} bind:this={hostEl}>
+<div
+	class="block-host"
+	data-block-path={JSON.stringify(myPath)}
+	data-block-kind={node.kind}
+	bind:this={hostEl}
+>
 	{#if entry}
 		{@const Comp = entry.component}
 		<Comp
