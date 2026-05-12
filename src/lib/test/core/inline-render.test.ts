@@ -69,3 +69,41 @@ describe('renderInlineNodes — entityReference', () => {
 		expect(frag.textContent).toBe(raw);
 	});
 });
+
+describe('inline-render — href + autolink anchor', () => {
+	it('link node renders <a href={url}>', () => {
+		const raw = '[text](https://example.com)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		const a = frag.querySelector('a');
+		expect(a).not.toBeNull();
+		expect(a?.getAttribute('href')).toBe('https://example.com');
+	});
+
+	it('link with title sets title attribute', () => {
+		const raw = '[text](https://example.com "the title")';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		const a = frag.querySelector('a');
+		expect(a?.getAttribute('title')).toBe('the title');
+	});
+
+	it('autolink renders as <a class="md-autolink" href={url}>', () => {
+		const raw = 'see https://example.com here';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		const a = frag.querySelector('a.md-autolink');
+		expect(a).not.toBeNull();
+		expect(a?.getAttribute('href')).toBe('https://example.com');
+		expect(a?.textContent).toBe('https://example.com');
+	});
+
+	it('email autolink renders <a> with mailto: href', () => {
+		const raw = 'email foo@bar.com today';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		const a = frag.querySelector('a.md-autolink');
+		expect(a?.getAttribute('href')).toBe('mailto:foo@bar.com');
+		expect(a?.textContent).toBe('foo@bar.com');
+	});
+});
