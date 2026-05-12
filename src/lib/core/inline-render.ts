@@ -135,6 +135,8 @@ export function renderInlineNodes(
 					frag.appendChild(markerSpan(openMarker));
 					const anchor = document.createElement('a');
 					anchor.className = 'md-link-content';
+					if (node.url !== undefined) anchor.setAttribute('href', node.url);
+					if (node.title !== undefined) anchor.setAttribute('title', node.title);
 					anchor.appendChild(renderInlineNodes(children, raw, opts));
 					frag.appendChild(anchor);
 					frag.appendChild(markerSpan(closeMarker));
@@ -169,10 +171,11 @@ export function renderInlineNodes(
 			}
 
 			case 'autolink': {
-				const span = document.createElement('span');
-				span.className = 'md-autolink';
-				span.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(span);
+				const anchor = document.createElement('a');
+				anchor.className = 'md-autolink';
+				if (node.url !== undefined) anchor.setAttribute('href', node.url);
+				anchor.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(anchor);
 				break;
 			}
 
