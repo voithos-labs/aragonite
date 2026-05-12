@@ -56,8 +56,30 @@ Setext level 2
 
 ## Inline
 
-A paragraph with **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. Links: [Limestone on GitHub](https://github.com). Bare URLs autolink: https://example.com. Hard line breaks via trailing backslash:\\
+A paragraph with **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. Inline links: [Limestone on GitHub](https://github.com). Hard line breaks via trailing backslash:\\
 next line starts here.
+
+Autolinks recognize bare URLs (https://example.com), bare \`www.\` URLs (www.commonmark.org), bare emails (hello@example.com), and angle-bracket forms (<https://commonmark.org>, <support@example.com>). Trailing sentence punctuation stays out of the link — visit https://example.com. (the period is text, not part of the URL). Mid-word triggers don't autolink: xhttps://example.com is plain text.
+
+## Reference-style links and images
+
+Three CommonMark §6.3 reference forms, each resolving against \`[label]: url\` definitions further down. Edit a definition and every reference updates on the next commit.
+
+- **Full form:** [Limestone repo][repo] and [the docs][repo-docs].
+- **Collapsed form:** [CommonMark spec][] (text doubles as the label).
+- **Shortcut form:** [GFM] (bare brackets, no second pair needed; case-insensitive — note the definition is lowercase).
+
+Image references support the same forms. Image-inside-link: [![Linked screenshot][shot]][repo]. Collapsed image: ![Mountains][]. Shortcut image: ![logo].
+
+Unresolved references render as plain text — e.g. [this broken ref][nonexistent] stays literal because no \`[nonexistent]: url\` definition exists. Try adding one below to watch it resolve.
+
+[repo]: https://github.com/voithos-labs/limestone "Limestone on GitHub"
+[repo-docs]: https://github.com/voithos-labs/limestone/tree/main/docs
+[CommonMark spec]: https://spec.commonmark.org/0.31.2/
+[gfm]: https://github.github.com/gfm/ "GitHub Flavored Markdown spec"
+[shot]: https://picsum.photos/seed/limestone-shot/500/300 "Linked screenshot"
+[mountains]: https://picsum.photos/seed/limestone-ref-mountain/500/350
+[logo]: https://picsum.photos/seed/limestone-ref-logo/200/200
 
 ## Escapes & entities
 
