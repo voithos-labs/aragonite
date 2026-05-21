@@ -10,6 +10,7 @@ import { joinRaw, isBlankLine } from '../parser';
 import { matchFenceOpen } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchBlockquote } from './blockquote';
+import { canInterruptParagraph as htmlCanInterruptParagraph } from './html-block';
 import { canInterruptParagraph } from './list';
 import { matchThematicBreak } from './thematic-break';
 import { matchTableDelimiterRow, parseTable } from './table';
@@ -64,6 +65,7 @@ export function startsNewBlock(text: string): boolean {
 	if (matchHeading(text)) return true;
 	if (matchBlockquote(text)) return true;
 	if (canInterruptParagraph(text)) return true;
+	if (htmlCanInterruptParagraph(text)) return true;
 	const tb = matchThematicBreak(text);
 	if (tb === '*' || tb === '_') return true;
 	return false;

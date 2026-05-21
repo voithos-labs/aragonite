@@ -50,6 +50,16 @@ export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	return null;
 }
 
+/**
+ * True when `text` starts a paragraph-interrupting HTML block (types 1-6).
+ * Type 7 (catch-all complete tags) explicitly cannot interrupt a paragraph
+ * per CommonMark §4.6.
+ */
+export function canInterruptParagraph(text: string): boolean {
+	const type = matchHtmlBlock(text);
+	return type !== null && type !== 7;
+}
+
 // ── Per-type close conditions ───────────────────────────────────────────────
 // Types 1-5 close on a per-type regex/substring match (case-insensitive for
 // type 1, where any of </script>, </pre>, </style>, </textarea> closes any
