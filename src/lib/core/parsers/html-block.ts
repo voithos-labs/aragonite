@@ -50,9 +50,32 @@ export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	return null;
 }
 
+// ── Per-type close conditions ───────────────────────────────────────────────
+// Types 1-5 close on a per-type regex/substring match (case-insensitive for
+// type 1, where any of </script>, </pre>, </style>, </textarea> closes any
+// type-1 block per §4.6). Types 6-7 close on a blank line.
+
+const TYPE_1_CLOSE = /<\/(?:script|pre|style|textarea)>/i;
+
+function closesOnLine(type: HtmlBlockType, text: string): boolean {
+	switch (type) {
+		case 1:
+			return TYPE_1_CLOSE.test(text);
+		case 2:
+			return text.includes('-->');
+		case 3:
+			return text.includes('?>');
+		case 4:
+			return text.includes('>');
+		case 5:
+			return text.includes(']]>');
+		case 6:
+		case 7:
+			return isBlankLine(text);
+	}
+}
+
 // ── Parser ──────────────────────────────────────────────────────────────────
-// parseHtmlBlock keeps today's "walk until blank line" behavior for now;
-// per-type close conditions land in Task 3.
 
 export function parseHtmlBlock(
 	lines: ParsedLine[],
@@ -60,9 +83,22 @@ export function parseHtmlBlock(
 	endIndex: number,
 	leadingTrivia: string
 ): { node: CstNode; nextIndex: number } {
-	let i = startIndex + 1;
+	const type = matchHtmlBlock(lines[startIndex].text);
+	if (type === null) {
+		// Defensive — parseHtmlBlock should only be invoked after dispatch
+		// confirmed the opener matches. Treat as a one-line block.
+		const raw = joinRaw(lines, startIndex, startIndex + 1);
+		return { node: { kind: 'htmlBlock', leadingTrivia, raw }, nextIndex: startIndex + 1 };
+	}
 
-	while (i < endIndex && !isBlankLine(lines[i].text)) {
+	let i = startIndex;
+	while (i < endIndex) {
+		if (closesOnLine(type, lines[i].text)) {
+			// Types 1-5: include the close-tag line. Types 6-7: leave the
+			// blank line out so parseBlocks accumulates it as pendingTrivia.
+			if (type !== 6 && type !== 7) i++;
+			break;
+		}
 		i++;
 	}
 
