@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { matchHtmlBlock } from '../../../core/parsers/html-block';
+import { matchHtmlBlock, parseHtmlBlock } from '../../../core/parsers/html-block';
+import { splitLines } from '../../../core/lines';
+import { parse } from '../../../core/parser';
+import { serialize } from '../../../core/serializer';
 
 describe('matchHtmlBlock — types 1-6 detection', () => {
 	describe('type 1 (script/pre/style/textarea)', () => {
@@ -165,5 +168,95 @@ describe('matchHtmlBlock — type 7 (complete-tag catch-all)', () => {
 	});
 	it('priority: <div> still matches type 6, not type 7', () => {
 		expect(matchHtmlBlock('<div>')).toBe(6);
+	});
+});
+
+function parseHtmlBlockFromSource(src: string) {
+	const lines = splitLines(src);
+	return parseHtmlBlock(lines, 0, lines.length, '');
+}
+
+describe('parseHtmlBlock — per-type close conditions', () => {
+	describe('type 1 (script/pre/style/textarea)', () => {
+		it('same-line open and close yields a one-line block', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<script>foo</script>\nafter\n');
+			expect(node.kind).toBe('htmlBlock');
+			expect(node.raw).toBe('<script>foo</script>\n');
+			expect(nextIndex).toBe(1);
+		});
+		it('close-tag on later line includes that line in the block', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n</script>\nafter\n');
+			expect(node.raw).toBe('<script>\nfoo\n</script>\n');
+			expect(nextIndex).toBe(3);
+		});
+		it('any close tag closes any type-1 block (spec-exact)', () => {
+			// <script> opener closed by </pre> per CommonMark §4.6.
+			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n</pre>\nafter\n');
+			expect(node.raw).toBe('<script>\nfoo\n</pre>\n');
+			expect(nextIndex).toBe(3);
+		});
+		it('case-insensitive close: </SCRIPT> closes <script>', () => {
+			const { node } = parseHtmlBlockFromSource('<script>\n</SCRIPT>\nafter\n');
+			expect(node.raw).toBe('<script>\n</SCRIPT>\n');
+		});
+		it('unclosed type 1 block extends to EOF (no blank-line stop)', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n\nbar\n');
+			expect(node.raw).toBe('<script>\nfoo\n\nbar\n');
+			expect(nextIndex).toBe(4);
+		});
+	});
+
+	describe('type 2 (comment)', () => {
+		it('same-line open and close', () => {
+			const { node } = parseHtmlBlockFromSource('<!-- inline -->\nafter\n');
+			expect(node.raw).toBe('<!-- inline -->\n');
+		});
+		it('multi-line comment closes on --> line', () => {
+			const { node } = parseHtmlBlockFromSource('<!--\nfoo\n-->\nafter\n');
+			expect(node.raw).toBe('<!--\nfoo\n-->\n');
+		});
+	});
+
+	describe('type 3 (processing instruction)', () => {
+		it('closes on ?> line', () => {
+			const { node } = parseHtmlBlockFromSource('<?xml\nfoo\n?>\nafter\n');
+			expect(node.raw).toBe('<?xml\nfoo\n?>\n');
+		});
+	});
+
+	describe('type 4 (declaration)', () => {
+		it('same-line <!DOCTYPE html> is a one-line block (close is `>`)', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<!DOCTYPE html>\nafter\n');
+			expect(node.raw).toBe('<!DOCTYPE html>\n');
+			expect(nextIndex).toBe(1);
+		});
+		it('multi-line declaration closes on first line containing >', () => {
+			const { node } = parseHtmlBlockFromSource('<!DOCTYPE\nhtml>\nafter\n');
+			expect(node.raw).toBe('<!DOCTYPE\nhtml>\n');
+		});
+	});
+
+	describe('type 5 (CDATA)', () => {
+		it('closes on ]]> line', () => {
+			const { node } = parseHtmlBlockFromSource('<![CDATA[\nfoo\n]]>\nafter\n');
+			expect(node.raw).toBe('<![CDATA[\nfoo\n]]>\n');
+		});
+	});
+
+	describe('type 6 (listed tag) and type 7 (catch-all)', () => {
+		it('type 6 closes on blank line; blank line is NOT part of block', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<div>\ncontent\n\nafter\n');
+			expect(node.raw).toBe('<div>\ncontent\n');
+			expect(nextIndex).toBe(2);
+		});
+		it('type 7 closes on blank line; blank line is NOT part of block', () => {
+			const { node, nextIndex } = parseHtmlBlockFromSource('<custom>\ncontent\n\nafter\n');
+			expect(node.raw).toBe('<custom>\ncontent\n');
+			expect(nextIndex).toBe(2);
+		});
+		it('type 6 unclosed at EOF runs to EOF', () => {
+			const { node } = parseHtmlBlockFromSource('<div>\ncontent\n');
+			expect(node.raw).toBe('<div>\ncontent\n');
+		});
 	});
 });
