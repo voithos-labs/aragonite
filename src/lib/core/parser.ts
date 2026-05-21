@@ -118,7 +118,7 @@ function parseNextBlock(
 		return parseIndentedCode(lines, startIndex, endIndex, leadingTrivia);
 	}
 
-	if (matchHtmlBlock(line.text)) {
+	if (matchHtmlBlock(line.text) !== null) {
 		return parseHtmlBlock(lines, startIndex, endIndex, leadingTrivia);
 	}
 

@@ -1,16 +1,45 @@
-// Simplified HTML block: continues until a blank line, ignoring CommonMark's
-// per-kind close conditions.
+/**
+ * HTML block parser — CommonMark §4.6. Seven block types, each with its own
+ * close condition. Types 1-5 close on a per-type pattern; types 6-7 close on
+ * a blank line. `parseHtmlBlock` and `canInterruptParagraph` callers read
+ * the type tag from `matchHtmlBlock`.
+ */
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 
-const HTML_BLOCK_OPEN =
-	/^ {0,3}(?:<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|pre|script|section|source|style|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)[\s/>]|<!--|<\?|<![A-Z]|<!\[CDATA\[)/i;
+export type HtmlBlockType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-export function matchHtmlBlock(text: string): boolean {
-	return HTML_BLOCK_OPEN.test(text);
+// ── Per-type opener patterns ────────────────────────────────────────────────
+// All patterns anchor to line start with 0-3 spaces of leading indent.
+// Priority: try 1 → 7. First match wins. Script/pre/style/textarea are type 1
+// (their own close condition) — they were previously folded into type 6's
+// listed-tag union, which produced blank-line termination instead of </script>
+// termination.
+
+const TYPE_1_OPEN = /^ {0,3}<(?:script|pre|style|textarea)(?:[\s/>]|$)/i;
+const TYPE_2_OPEN = /^ {0,3}<!--/;
+const TYPE_3_OPEN = /^ {0,3}<\?/;
+const TYPE_4_OPEN = /^ {0,3}<![A-Za-z]/;
+const TYPE_5_OPEN = /^ {0,3}<!\[CDATA\[/;
+const TYPE_6_OPEN =
+	/^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)(?:[\s/>]|$)/i;
+
+export function matchHtmlBlock(text: string): HtmlBlockType | null {
+	if (TYPE_1_OPEN.test(text)) return 1;
+	if (TYPE_2_OPEN.test(text)) return 2;
+	if (TYPE_3_OPEN.test(text)) return 3;
+	if (TYPE_4_OPEN.test(text)) return 4;
+	if (TYPE_5_OPEN.test(text)) return 5;
+	if (TYPE_6_OPEN.test(text)) return 6;
+	// Type 7 added in Task 2.
+	return null;
 }
+
+// ── Parser ──────────────────────────────────────────────────────────────────
+// parseHtmlBlock keeps today's "walk until blank line" behavior for now;
+// per-type close conditions land in Task 3.
 
 export function parseHtmlBlock(
 	lines: ParsedLine[],
