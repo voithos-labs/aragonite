@@ -9,7 +9,7 @@
 - Ctrl+Shift+Backspace deletes the current row when the table has at least two body rows.
 - Alt+Shift+Backspace deletes the current column when the table has at least two columns.
 - Ctrl+Shift+A cycles the current column's alignment. `'none'` (delimiter `---`) renders identically to `'left'` (delimiter `:---`), so the first press from `none` jumps straight to `center` (`:---:`) to avoid an invisible step. After that the cycle is `left → center → right → left → ...` (`:---` / `:---:` / `---:`); `none` is not re-entered once cycling has begun.
-- Shift+Enter inside a cell is a silent no-op. GFM cells can't carry raw newlines, so the proper representation is a literal `<br>` — but until the 0.6.8 inline-HTML pipeline can render `<br>` as a visible line break, inserting raw markup is worse UX than doing nothing. Re-enable once inline rendering ships.
+- Shift+Enter inside a cell is a silent no-op. GFM cells can't carry raw newlines, so the proper representation is a literal `<br>` — but until the 0.6.7 inline-HTML pipeline can render `<br>` as a visible line break, inserting raw markup is worse UX than doing nothing. Re-enable once inline rendering ships.
 
 ## Edge cases
 

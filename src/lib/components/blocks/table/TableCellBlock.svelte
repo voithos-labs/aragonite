@@ -444,7 +444,7 @@
 		if (e.inputType === 'insertLineBreak') {
 			// Suppressed pending inline-HTML rendering. GFM cells can't carry raw
 			// newlines, so the proper representation is a literal <br>; rendering
-			// it as a visible line break needs the 0.6.8 inline-HTML pipeline.
+			// it as a visible line break needs the 0.6.7 inline-HTML pipeline.
 			// Until then, silent no-op beats showing the user raw markup.
 			e.preventDefault();
 			return;
