@@ -179,7 +179,30 @@ describe('round-trip: HTML blocks', () => {
 		{ name: 'pre block', source: '<pre>\ncode\n</pre>\n' },
 		{ name: 'script block', source: '<script>\nalert(1);\n</script>\n' },
 		{ name: 'self-closing', source: '<hr />\n' },
-		{ name: 'html then paragraph', source: '<div>\nHello\n</div>\n\nParagraph.\n' }
+		{ name: 'html then paragraph', source: '<div>\nHello\n</div>\n\nParagraph.\n' },
+		// 0.6.7 — §4.6 conformance fixtures
+		{ name: 'type 1: same-line close', source: '<script>foo</script>\n' },
+		{
+			name: 'type 1: multi-line with close + trailing paragraph',
+			source: '<script>\nconsole.log(1);\n</script>\n\nafter\n'
+		},
+		{ name: 'type 1: textarea newly detected', source: '<textarea>\ntext\n</textarea>\n\nafter\n' },
+		{ name: 'type 1: unclosed runs to EOF', source: '<script>\nfoo\n\nbar\n' },
+		{ name: 'type 4: <!DOCTYPE> same-line close', source: '<!DOCTYPE html>\n\nafter\n' },
+		{ name: 'type 5: CDATA', source: '<![CDATA[\nfoo\n]]>\n\nafter\n' },
+		{ name: 'type 7: custom tag multi-line', source: '<custom-tag>\ncontent\n\nafter\n' },
+		{
+			name: 'type 7: custom tag with attributes',
+			source: '<custom data-x="foo" data-y=\'bar\'>\ncontent\n\nafter\n'
+		},
+		{
+			name: 'paragraph interrupt: <div> splits paragraph',
+			source: 'Hello world\n<div>\ncontent\n\nafter\n'
+		},
+		{
+			name: 'paragraph no-interrupt: type 7 stays in paragraph',
+			source: 'Hello world\n<custom-tag>\ncontent\n'
+		}
 	];
 
 	for (const { name, source } of cases) {
