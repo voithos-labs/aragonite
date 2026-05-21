@@ -75,3 +75,45 @@ describe('structural: mixed list types', () => {
 		expect((doc.children[1].metadata as ListMetadata).ordered).toBe(true);
 	});
 });
+
+describe('structural: HTML blocks (CommonMark §4.6)', () => {
+	it('same-line close yields a one-line htmlBlock followed by paragraph', () => {
+		const doc = parse('<script>foo</script>\nafter\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('htmlBlock');
+		expect(doc.children[0].raw).toBe('<script>foo</script>\n');
+		expect(doc.children[1].kind).toBe('paragraph');
+		expect(doc.children[1].raw).toBe('after\n');
+	});
+
+	it('content after type-1 close becomes a separate paragraph (not absorbed)', () => {
+		const doc = parse('<script>\nfoo\n</script>\nafter\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[1].kind).toBe('paragraph');
+	});
+
+	it('<textarea> produces an htmlBlock (previously fell through to paragraph)', () => {
+		const doc = parse('<textarea>\ntext\n</textarea>\n');
+		expect(doc.children[0].kind).toBe('htmlBlock');
+	});
+
+	it('<custom-tag>\\n\\nfoo produces htmlBlock + paragraph (type 7 detection)', () => {
+		const doc = parse('<custom-tag>\n\nfoo\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('htmlBlock');
+		expect(doc.children[1].kind).toBe('paragraph');
+	});
+
+	it('paragraph interruption: <div> after a paragraph line splits cleanly', () => {
+		const doc = parse('Hello\n<div>\ncontent\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('paragraph');
+		expect(doc.children[1].kind).toBe('htmlBlock');
+	});
+
+	it('type 7 does NOT interrupt a paragraph', () => {
+		const doc = parse('Hello\n<custom-tag>\ncontent\n');
+		expect(doc.children).toHaveLength(1);
+		expect(doc.children[0].kind).toBe('paragraph');
+	});
+});
