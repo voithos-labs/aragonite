@@ -124,3 +124,46 @@ describe('matchHtmlBlock — types 1-6 detection', () => {
 		});
 	});
 });
+
+describe('matchHtmlBlock — type 7 (complete-tag catch-all)', () => {
+	it('detects <custom> as type 7', () => {
+		expect(matchHtmlBlock('<custom>')).toBe(7);
+	});
+	it('detects <custom-element> as type 7', () => {
+		expect(matchHtmlBlock('<custom-element>')).toBe(7);
+	});
+	it('detects </custom> close tag as type 7', () => {
+		expect(matchHtmlBlock('</custom>')).toBe(7);
+	});
+	it('detects self-closing <custom /> as type 7', () => {
+		expect(matchHtmlBlock('<custom />')).toBe(7);
+	});
+	it('detects <custom> with unquoted attribute value', () => {
+		expect(matchHtmlBlock('<custom data-x=foo>')).toBe(7);
+	});
+	it('detects <custom> with double-quoted attribute value', () => {
+		expect(matchHtmlBlock('<custom data-x="foo bar">')).toBe(7);
+	});
+	it('detects <custom> with single-quoted attribute value', () => {
+		expect(matchHtmlBlock("<custom data-x='foo bar'>")).toBe(7);
+	});
+	it('detects <custom> with multiple attributes', () => {
+		expect(matchHtmlBlock('<custom a="1" b=2 c=\'3\'>')).toBe(7);
+	});
+	it('does NOT match when tag is followed by non-whitespace', () => {
+		expect(matchHtmlBlock('<custom>foo')).toBeNull();
+	});
+	it('does NOT match when tag is not at line start', () => {
+		expect(matchHtmlBlock('text <custom>')).toBeNull();
+	});
+	it('allows trailing whitespace', () => {
+		expect(matchHtmlBlock('<custom>   ')).toBe(7);
+		expect(matchHtmlBlock('<custom>\t')).toBe(7);
+	});
+	it('priority: <script> still matches type 1, not type 7', () => {
+		expect(matchHtmlBlock('<script>')).toBe(1);
+	});
+	it('priority: <div> still matches type 6, not type 7', () => {
+		expect(matchHtmlBlock('<div>')).toBe(6);
+	});
+});
