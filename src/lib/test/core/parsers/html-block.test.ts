@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { matchHtmlBlock, parseHtmlBlock } from '../../../core/parsers/html-block';
+import {
+	matchHtmlBlock,
+	parseHtmlBlock,
+	canInterruptParagraph
+} from '../../../core/parsers/html-block';
 import { splitLines } from '../../../core/lines';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
@@ -258,5 +262,53 @@ describe('parseHtmlBlock — per-type close conditions', () => {
 			const { node } = parseHtmlBlockFromSource('<div>\ncontent\n');
 			expect(node.raw).toBe('<div>\ncontent\n');
 		});
+	});
+});
+
+describe('canInterruptParagraph', () => {
+	it('returns true for types 1-6 openers', () => {
+		expect(canInterruptParagraph('<script>')).toBe(true);
+		expect(canInterruptParagraph('<!-- comment')).toBe(true);
+		expect(canInterruptParagraph('<?xml')).toBe(true);
+		expect(canInterruptParagraph('<!DOCTYPE html>')).toBe(true);
+		expect(canInterruptParagraph('<![CDATA[')).toBe(true);
+		expect(canInterruptParagraph('<div>')).toBe(true);
+	});
+	it('returns false for type 7 openers (catch-all)', () => {
+		expect(canInterruptParagraph('<custom>')).toBe(false);
+		expect(canInterruptParagraph('</custom>')).toBe(false);
+	});
+	it('returns false for non-HTML lines', () => {
+		expect(canInterruptParagraph('hello world')).toBe(false);
+		expect(canInterruptParagraph('')).toBe(false);
+	});
+});
+
+describe('paragraph interruption by HTML blocks', () => {
+	it('paragraph splits when <div> appears on the next line', () => {
+		const doc = parse('Hello world\n<div>\ncontent\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('paragraph');
+		expect(doc.children[0].raw).toBe('Hello world\n');
+		expect(doc.children[1].kind).toBe('htmlBlock');
+		expect(doc.children[1].raw).toBe('<div>\ncontent\n');
+	});
+	it('paragraph does NOT split for type 7 (custom tag)', () => {
+		const doc = parse('Hello world\n<custom-tag>\ncontent\n');
+		expect(doc.children).toHaveLength(1);
+		expect(doc.children[0].kind).toBe('paragraph');
+	});
+	it('paragraph splits on <script>, post-close becomes new paragraph', () => {
+		const doc = parse('Hello\n<script>foo</script>\nafter\n');
+		expect(doc.children).toHaveLength(3);
+		expect(doc.children[0].kind).toBe('paragraph');
+		expect(doc.children[1].kind).toBe('htmlBlock');
+		expect(doc.children[1].raw).toBe('<script>foo</script>\n');
+		expect(doc.children[2].kind).toBe('paragraph');
+		expect(doc.children[2].raw).toBe('after\n');
+	});
+	it('round-trip preserved across interruption', () => {
+		const src = 'Hello world\n<div>\ncontent\n';
+		expect(serialize(parse(src))).toBe(src);
 	});
 });
