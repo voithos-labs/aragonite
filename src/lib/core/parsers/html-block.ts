@@ -26,6 +26,19 @@ const TYPE_5_OPEN = /^ {0,3}<!\[CDATA\[/;
 const TYPE_6_OPEN =
 	/^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)(?:[\s/>]|$)/i;
 
+// CommonMark §6.6 complete-tag grammar, restricted to start-of-line with
+// 0-3 indent and trailing whitespace only:
+//   open  = `<` tagname (whitespace attribute)* optional-whitespace `/`? `>`
+//   close = `</` tagname optional-whitespace `>`
+//   attribute      = whitespace attr-name (optional-whitespace `=` optional-whitespace attr-value)?
+//   attr-name      = [A-Za-z_:] [A-Za-z0-9_.:-]*
+//   attr-value     = unquoted | "double-quoted" | 'single-quoted'
+//   unquoted       = [^\s"'=<>`]+
+// Type 7 priority is LAST — types 1 and 6 claim their tag names first, so
+// the spec's exclusion of the type-1 tag names is naturally handled.
+const TYPE_7_OPEN =
+	/^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:\s+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|"[^"]*"|'[^']*'))?)*\s*\/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>)\s*$/;
+
 export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	if (TYPE_1_OPEN.test(text)) return 1;
 	if (TYPE_2_OPEN.test(text)) return 2;
@@ -33,7 +46,7 @@ export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	if (TYPE_4_OPEN.test(text)) return 4;
 	if (TYPE_5_OPEN.test(text)) return 5;
 	if (TYPE_6_OPEN.test(text)) return 6;
-	// Type 7 added in Task 2.
+	if (TYPE_7_OPEN.test(text)) return 7;
 	return null;
 }
 
