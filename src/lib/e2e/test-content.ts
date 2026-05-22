@@ -194,6 +194,14 @@ Broken image (404) — note the styled error state:
 
 ![This image fails to load](/test-fixtures/nonexistent.png)
 
+## Inline HTML
+
+CommonMark §6.10 inline HTML parses inside paragraphs. Most tags render as styled-literal source — \`<span class="hl">like this</span>\` — preserving the editor's always-visible-source philosophy.
+
+The \`<br>\` tag is in the live allowlist: \`Line one<br>Line two\` produces an actual line break inside this paragraph: Line one<br>Line two.
+
+Comments are preserved as styled-literal source: <!-- like this -->. Disallowed tags (GFM §6.11) like <script>alert(1)</script> render as literal source too — never executed, never rendered live.
+
 ## HTML block
 
 <div class="note">

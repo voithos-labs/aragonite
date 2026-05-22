@@ -171,6 +171,26 @@ describe('round-trip: indented code blocks', () => {
 	}
 });
 
+describe('round-trip: inline raw HTML (CommonMark §6.10)', () => {
+	const cases: { name: string; source: string }[] = [
+		{ name: 'inline <br>', source: 'Line one<br>Line two\n' },
+		{ name: 'inline <br/> self-closing', source: 'Line one<br/>Line two\n' },
+		{ name: 'inline <span> open + close', source: 'Hello <span class="hl">world</span>!\n' },
+		{ name: 'inline comment mid-paragraph', source: 'Before <!-- a note --> after.\n' },
+		{ name: 'inline HTML inside emphasis', source: '**bold <span>x</span> more**\n' },
+		{ name: 'inline HTML inside code span stays literal', source: 'see `<br>` here\n' },
+		{ name: 'multiple inline tags', source: '<span>a</span><br><span>b</span>\n' },
+		{ name: '<br> inside table cell', source: '| H |\n| :- |\n| Left<br>Right |\n' }
+	];
+
+	for (const { name, source } of cases) {
+		it(`round-trips: ${name}`, () => {
+			const doc = parse(source);
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+});
+
 describe('round-trip: HTML blocks', () => {
 	const cases: { name: string; source: string }[] = [
 		{ name: 'div block', source: '<div>\n  <p>Hello</p>\n</div>\n' },
