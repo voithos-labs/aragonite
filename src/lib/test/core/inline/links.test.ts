@@ -21,9 +21,12 @@ describe('parseInline — autolinks (Stage 3)', () => {
 		expect(nodes[1].url).toBe('https://example.com');
 	});
 
-	it('non-URL angle brackets are text', () => {
+	it('non-URL angle brackets are not autolinks', () => {
+		// `<world>` is no autolink (no URL/email pattern). After 0.6.7.1 it
+		// matches the §6.10 inline HTML grammar as a type-7 open tag — that's
+		// spec-correct and a separate concern from autolink detection.
 		const nodes = inlineOf('Hello <world> end');
-		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
 	it('autolink still stops at entity boundary (regression guard for 1d44f0f)', () => {

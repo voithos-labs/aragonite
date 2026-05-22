@@ -10,6 +10,7 @@ import { scanEscapes } from './escapes';
 import { scanCharacterReferences } from './character-refs';
 import { scanLinksAndAutolinks } from './links';
 import type { LinkReferenceResolver } from './link-reference-resolver';
+import { scanInlineRawHtml } from './raw-html';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
 
@@ -71,12 +72,13 @@ export function parseInline(
 	const withEscapes = scanEscapes(raw, start, end, codeSpans);
 	const withEntities = scanCharacterReferences(raw, start, end, withEscapes);
 	const withLinks = scanLinksAndAutolinks(raw, start, end, withEntities, resolver);
+	const withRawHtml = scanInlineRawHtml(raw, start, end, withLinks);
 
-	if (!hasDelimiterChars(raw, start, end, withLinks)) {
-		return processHardLineBreaks(mergeAdjacentText(withLinks), raw);
+	if (!hasDelimiterChars(raw, start, end, withRawHtml)) {
+		return processHardLineBreaks(mergeAdjacentText(withRawHtml), raw);
 	}
 
-	const segments = buildSegments(raw, start, end, withLinks);
+	const segments = buildSegments(raw, start, end, withRawHtml);
 	const emphasized = processEmphasis(raw, segments);
 	const merged = mergeAdjacentText(emphasized);
 	return processHardLineBreaks(merged, raw);
