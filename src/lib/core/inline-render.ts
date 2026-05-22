@@ -6,6 +6,7 @@
 
 import type { InlineNode } from './nodes';
 import { buildImageWidget } from '../components/image/widget-dom';
+import { buildLiveHtmlWidget, isLiveHtmlTag } from './inline/raw-html-widget';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -228,10 +229,15 @@ export function renderInlineNodes(
 			}
 
 			case 'rawHtml': {
-				const span = document.createElement('span');
-				span.className = 'md-raw-html';
-				span.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(span);
+				const slice = raw.slice(node.start, node.end);
+				if (isLiveHtmlTag(slice)) {
+					frag.appendChild(buildLiveHtmlWidget(node));
+				} else {
+					const span = document.createElement('span');
+					span.className = 'md-raw-html';
+					span.textContent = slice;
+					frag.appendChild(span);
+				}
 				break;
 			}
 		}
