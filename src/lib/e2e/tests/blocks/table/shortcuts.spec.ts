@@ -120,16 +120,18 @@ test.describe('table block: keyboard vocabulary', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	test('Shift+Enter inside a cell is a silent no-op (deferred until inline-HTML rendering)', async ({
-		page
-	}) => {
+	test('Shift+Enter inside a cell inserts a literal <br> at the cursor', async ({ page }) => {
+		// 0.6.7.1: inline raw HTML parsing makes <br> a recognized rawHtml node,
+		// so cells can carry it without confusing it with markup. Visible
+		// line-break rendering in cells depends on a follow-up cell-inline-render
+		// migration (see docs/issues.md); the byte-level insertion is the
+		// current ship.
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Enter');
-		await page.waitForTimeout(150);
-		expect(await editor.bridge.getSource()).toBe(before);
+		await editor.bridge.waitForSourceContains('hello<br>');
+		expect(await editor.bridge.getSource()).toContain('| hello<br> | 2 |');
 	});
 
 	test('Delete-column then undo restores live alignments (not just source)', async ({ page }) => {

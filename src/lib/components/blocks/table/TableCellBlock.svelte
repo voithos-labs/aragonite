@@ -442,11 +442,17 @@
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (e.inputType === 'insertLineBreak') {
-			// Suppressed pending inline-HTML rendering. GFM cells can't carry raw
-			// newlines, so the proper representation is a literal <br>; rendering
-			// it as a visible line break needs the 0.6.7 inline-HTML pipeline.
-			// Until then, silent no-op beats showing the user raw markup.
+			// GFM cells can't carry raw newlines, so the proper representation is
+			// a literal <br>. The inline-HTML pipeline (0.6.7.1) renders <br> as a
+			// live widget producing a visible line break inside the cell.
 			e.preventDefault();
+			if (!el) return;
+			const offset = getCursorOffsetHelper(el) ?? 0;
+			const text = el.textContent ?? '';
+			const inserted = '<br>';
+			const newText = text.slice(0, offset) + inserted + text.slice(offset);
+			blockEdit.updateBlockContent(index, newText, offset, offset + inserted.length);
+			pendingCursorOffset = offset + inserted.length;
 			return;
 		}
 	}
