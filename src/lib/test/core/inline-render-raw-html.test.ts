@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
+import { isLiveHtmlTag, isLiveWidgetInline } from '../../core/inline/raw-html-widget';
 import type { InlineNode } from '../../core/nodes';
 
 describe('renderInlineNodes — rawHtml (literal-default)', () => {
@@ -35,5 +36,123 @@ describe('renderInlineNodes — rawHtml (literal-default)', () => {
 		const nodes = parseInline(raw, 0, raw.length);
 		const frag = renderInlineNodes(nodes, raw);
 		expect(frag.textContent).toBe(raw);
+	});
+});
+
+describe('renderInlineNodes — rawHtml (live <br> widget)', () => {
+	it('<br> renders as live atomic widget, NOT md-raw-html span', () => {
+		const raw = '<br>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('span.md-raw-html')).toBeNull();
+		const widget = frag.querySelector('[data-inline-widget]');
+		expect(widget).not.toBeNull();
+		expect(widget?.querySelector('br')).not.toBeNull();
+	});
+
+	it('<br> widget carries data-source-start and data-source-end', () => {
+		const raw = 'x<br>y';
+		const node: InlineNode = { kind: 'rawHtml', start: 1, end: 5 };
+		const frag = renderInlineNodes([node], raw);
+		const widget = frag.querySelector('[data-inline-widget]') as HTMLElement;
+		expect(widget.getAttribute('data-source-start')).toBe('1');
+		expect(widget.getAttribute('data-source-end')).toBe('5');
+	});
+
+	it('<br> widget is contenteditable=false', () => {
+		const raw = '<br>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		const widget = frag.querySelector('[data-inline-widget]') as HTMLElement;
+		expect(widget.getAttribute('contenteditable')).toBe('false');
+	});
+
+	it('<BR> case-insensitive match', () => {
+		const raw = '<BR>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('[data-inline-widget]')).not.toBeNull();
+	});
+
+	it('<br/> self-closing match', () => {
+		const raw = '<br/>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('[data-inline-widget]')).not.toBeNull();
+	});
+
+	it('<br /> self-closing with space', () => {
+		const raw = '<br />';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('[data-inline-widget]')).not.toBeNull();
+	});
+
+	it('</br> close form also matches the allowlist', () => {
+		const raw = '</br>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('[data-inline-widget]')).not.toBeNull();
+	});
+
+	it('non-allowlist tags stay literal: <span> renders as md-raw-html', () => {
+		const raw = '<span>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('span.md-raw-html')).not.toBeNull();
+		expect(frag.querySelector('[data-inline-widget]')).toBeNull();
+	});
+
+	it('non-allowlist <sub> renders as md-raw-html (until plugin extends)', () => {
+		const raw = '<sub>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('span.md-raw-html')).not.toBeNull();
+	});
+
+	it('comments are never live (no tag name → predicate false)', () => {
+		const raw = '<!--br-->';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		const frag = renderInlineNodes([node], raw);
+		expect(frag.querySelector('span.md-raw-html')).not.toBeNull();
+	});
+});
+
+describe('isLiveHtmlTag — predicate', () => {
+	it('returns true for <br>', () => {
+		expect(isLiveHtmlTag('<br>')).toBe(true);
+	});
+	it('returns true for <br/>', () => {
+		expect(isLiveHtmlTag('<br/>')).toBe(true);
+	});
+	it('returns true for </br>', () => {
+		expect(isLiveHtmlTag('</br>')).toBe(true);
+	});
+	it('returns false for <span>', () => {
+		expect(isLiveHtmlTag('<span>')).toBe(false);
+	});
+	it('returns false for <!-- comment -->', () => {
+		expect(isLiveHtmlTag('<!-- comment -->')).toBe(false);
+	});
+});
+
+describe('isLiveWidgetInline — predicate', () => {
+	it('returns true for image inline nodes', () => {
+		const node: InlineNode = { kind: 'image', start: 0, end: 5, url: 'x', alt: '' };
+		expect(isLiveWidgetInline(node, '![](x)')).toBe(true);
+	});
+	it('returns true for rawHtml inline nodes with allowlist tag', () => {
+		const raw = '<br>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		expect(isLiveWidgetInline(node, raw)).toBe(true);
+	});
+	it('returns false for rawHtml inline nodes with non-allowlist tag', () => {
+		const raw = '<span>';
+		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		expect(isLiveWidgetInline(node, raw)).toBe(false);
+	});
+	it('returns false for text nodes', () => {
+		const node: InlineNode = { kind: 'text', start: 0, end: 3, text: 'foo' };
+		expect(isLiveWidgetInline(node, 'foo')).toBe(false);
 	});
 });
