@@ -34,6 +34,8 @@
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
+	import { isLiveWidgetInline } from '../../core/inline/raw-html-widget';
+	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
@@ -260,7 +262,7 @@
 		const inlines = node.inlineContent ?? [];
 		if (inlines.length === 0) return false;
 		for (const inline of inlines) {
-			if (inline.kind === 'image') continue;
+			if (isLiveWidgetInline(inline, node.raw)) continue;
 			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 			return false;
 		}
@@ -270,7 +272,7 @@
 	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
 		const inlines = node.inlineContent ?? [];
 		if (inlines.length === 0) return false;
-		const target = side === 'start' ? findFirstEdgeImage(inlines) : findLastEdgeImage(inlines);
+		const target = side === 'start' ? findFirstEdgeWidget(inlines) : findLastEdgeWidget(inlines);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent key events route to this
 		// block's keydown handler, where the widget-selected branch can run.
@@ -422,7 +424,7 @@
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
 		const selectedWidget = widgetSelection.getSelected();
 		if (selectedWidget !== null) {
-			const widget = findImageNodeByStart(selectedWidget.sourceStart);
+			const widget = findWidgetNodeByStart(selectedWidget.sourceStart);
 			const widgetIsHere =
 				widget !== null && widgetSelection.isSelected(myPath, selectedWidget.sourceStart);
 			if (widgetIsHere) {
@@ -529,7 +531,7 @@
 		})();
 
 		if (effectiveOffset !== null) {
-			const widgetAt = imageAtCursor(effectiveOffset);
+			const widgetAt = widgetAtCursor(effectiveOffset);
 			if (widgetAt) {
 				if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
 					e.preventDefault();
@@ -736,46 +738,50 @@
 
 	// ── Widget adjacency ───────────────────────────────────────────────
 
-	function imageAtCursor(
+	function widgetAtCursor(
 		off?: number | null
 	): { start: number; end: number; atRight: boolean } | null {
 		const o = off ?? cursor.getRaw();
 		if (o === null) return null;
 		const inlines = node.inlineContent ?? [];
 		for (const inline of inlines) {
-			if (inline.kind !== 'image') continue;
+			if (!isLiveWidgetInline(inline, node.raw)) continue;
 			if (o === inline.start) return { start: inline.start, end: inline.end, atRight: false };
 			if (o === inline.end) return { start: inline.start, end: inline.end, atRight: true };
 		}
 		return null;
 	}
 
-	function findImageNodeByStart(sourceStart: number): { start: number; end: number } | null {
+	function findWidgetNodeByStart(sourceStart: number): { start: number; end: number } | null {
 		for (const inline of node.inlineContent ?? []) {
-			if (inline.kind === 'image' && inline.start === sourceStart) {
+			if (isLiveWidgetInline(inline, node.raw) && inline.start === sourceStart) {
 				return { start: inline.start, end: inline.end };
 			}
 		}
 		return null;
 	}
 
-	function findFirstEdgeImage(
-		inlines: ReadonlyArray<{ kind: string; start: number; end: number; text?: string }>
+	function findFirstEdgeWidget(
+		inlines: ReadonlyArray<InlineNode>
 	): { start: number; end: number } | null {
 		for (const inline of inlines) {
-			if (inline.kind === 'image') return { start: inline.start, end: inline.end };
+			if (isLiveWidgetInline(inline, node.raw)) {
+				return { start: inline.start, end: inline.end };
+			}
 			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 			return null;
 		}
 		return null;
 	}
 
-	function findLastEdgeImage(
-		inlines: ReadonlyArray<{ kind: string; start: number; end: number; text?: string }>
+	function findLastEdgeWidget(
+		inlines: ReadonlyArray<InlineNode>
 	): { start: number; end: number } | null {
 		for (let i = inlines.length - 1; i >= 0; i--) {
 			const inline = inlines[i];
-			if (inline.kind === 'image') return { start: inline.start, end: inline.end };
+			if (isLiveWidgetInline(inline, node.raw)) {
+				return { start: inline.start, end: inline.end };
+			}
 			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 			return null;
 		}
