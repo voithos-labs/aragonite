@@ -226,6 +226,14 @@ export function renderInlineNodes(
 				frag.appendChild(span);
 				break;
 			}
+
+			case 'rawHtml': {
+				const span = document.createElement('span');
+				span.className = 'md-raw-html';
+				span.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(span);
+				break;
+			}
 		}
 	}
 
