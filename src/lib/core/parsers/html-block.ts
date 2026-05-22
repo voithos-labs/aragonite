@@ -26,16 +26,13 @@ const TYPE_5_OPEN = /^ {0,3}<!\[CDATA\[/;
 const TYPE_6_OPEN =
 	/^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)(?:[\s/>]|$)/i;
 
-// CommonMark §6.6 complete-tag grammar, restricted to start-of-line with
-// 0-3 indent and trailing whitespace only:
-//   open  = `<` tagname (whitespace attribute)* optional-whitespace `/`? `>`
-//   close = `</` tagname optional-whitespace `>`
-//   attribute      = whitespace attr-name (optional-whitespace `=` optional-whitespace attr-value)?
-//   attr-name      = [A-Za-z_:] [A-Za-z0-9_.:-]*
-//   attr-value     = unquoted | "double-quoted" | 'single-quoted'
-//   unquoted       = [^\s"'=<>`]+
-// Type 7 priority is LAST — types 1 and 6 claim their tag names first, so
-// the spec's exclusion of the type-1 tag names is naturally handled.
+// CommonMark §6.6 complete-tag grammar applied at line scope. The inner
+// open/close tag patterns are the same ones the inline raw-HTML stage uses
+// (see core/inline/html-tag-grammar.ts); the block-level wrapping requires
+// 0-3 indent before and whitespace-only after. Type 7 priority is LAST —
+// types 1 and 6 claim their tag names first, so the spec's exclusion of
+// the type-1 tag names is naturally handled.
+// NOTE: keep this regex in sync with html-tag-grammar.ts if §6.6 ever shifts.
 const TYPE_7_OPEN =
 	/^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:\s+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|"[^"]*"|'[^']*'))?)*\s*\/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>)\s*$/;
 
