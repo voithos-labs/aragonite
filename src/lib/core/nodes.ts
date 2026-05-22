@@ -100,7 +100,8 @@ export type InlineNodeKind =
 	| 'hardLineBreak'
 	| 'escape'
 	| 'entityReference'
-	| 'unresolvedReference';
+	| 'unresolvedReference'
+	| 'rawHtml';
 
 /** start/end are byte offsets into the parent block's raw, including markers. */
 export interface InlineNode {
