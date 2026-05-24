@@ -251,9 +251,7 @@ test.describe('image properties popover', () => {
 		if (!w2Box) throw new Error('w2 box');
 		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);
 		await page.locator('.md-image-properties').waitFor({ state: 'visible' });
-		// Drain the ResizeObserver's initial-observe callback so the next layout
-		// shift can't be absorbed by it.
-		await page.waitForTimeout(120);
+		await editor.waitForResizeObserverFlush();
 
 		// Cause a layout shift only image-1 sees (its rendered height grows).
 		// Then dispatch the load event — the production fix re-anchors the overlay.
@@ -278,12 +276,16 @@ test.describe('image properties popover', () => {
 			const img = document.querySelectorAll('[data-image-widget] img')[0] as HTMLImageElement;
 			img.dispatchEvent(new Event('load'));
 		});
-		await page.waitForTimeout(50);
-		const realigned = await page.evaluate(() => {
-			const overlay = document.querySelector('[data-image-overlay]') as HTMLElement;
-			const w2 = document.querySelectorAll('[data-image-widget]')[1] as HTMLElement;
-			return overlay.getBoundingClientRect().top - w2.getBoundingClientRect().top;
-		});
-		expect(Math.abs(realigned)).toBeLessThanOrEqual(1);
+		await expect
+			.poll(async () =>
+				Math.abs(
+					await page.evaluate(() => {
+						const overlay = document.querySelector('[data-image-overlay]') as HTMLElement;
+						const w2 = document.querySelectorAll('[data-image-widget]')[1] as HTMLElement;
+						return overlay.getBoundingClientRect().top - w2.getBoundingClientRect().top;
+					})
+				)
+			)
+			.toBeLessThanOrEqual(1);
 	});
 });

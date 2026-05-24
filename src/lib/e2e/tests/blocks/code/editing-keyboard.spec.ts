@@ -18,8 +18,11 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Control+b');
-		await page.waitForTimeout(50);
-		const sourceAfter = await editor.bridge.getSource();
+		// Type a marker afterward to flush any async edit Ctrl+B might trigger;
+		// a real bold action would wrap with **markers** and the source diff would surface it.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');
 		expect(sourceAfter).toBe(sourceBefore);
 		expect(await editor.getBlock(0).locator('b').count()).toBe(0);
 		expect(await editor.getBlock(0).locator('strong').count()).toBe(0);
@@ -30,8 +33,9 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Control+i');
-		await page.waitForTimeout(50);
-		const sourceAfter = await editor.bridge.getSource();
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');
 		expect(sourceAfter).toBe(sourceBefore);
 		expect(await editor.getBlock(0).locator('i').count()).toBe(0);
 		expect(await editor.getBlock(0).locator('em').count()).toBe(0);
@@ -42,8 +46,8 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(1).click();
 		await editor.focusBlockStart(1);
 		await page.keyboard.press('ArrowLeft');
-		await page.waitForTimeout(50);
 		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
 		expect(source.split('\n')[0]).toContain('X');
 	});
@@ -53,10 +57,8 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(0).click();
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('ArrowRight');
-		await page.waitForTimeout(50);
 		await editor.typeText('X');
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/Xtext below/);
+		await editor.bridge.waitForSourceMatches(/Xtext below/);
 	});
 
 	test('vertical arrow sticky column preserved through code block', async ({ page }) => {
@@ -70,16 +72,13 @@ test.describe('code block keyboard — beyond parity', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 
-		await page.keyboard.press('ArrowDown');
-		await page.waitForTimeout(50);
-		await page.keyboard.press('ArrowDown');
-		await page.waitForTimeout(50);
-		await page.keyboard.press('ArrowDown');
-		await page.waitForTimeout(50);
-		await page.keyboard.press('ArrowDown');
-		await page.waitForTimeout(50);
+		for (let i = 0; i < 4; i++) {
+			await page.keyboard.press('ArrowDown');
+			await editor.waitForStickyColumnSettle();
+		}
 
 		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
 		const lastParagraph = source.split('\n\n').pop() ?? '';
 
@@ -94,10 +93,7 @@ test.describe('code block keyboard — beyond parity', () => {
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Enter');
 		await editor.typeText('second line');
-		await page.waitForTimeout(100);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('first line\nsecond line');
+		await editor.bridge.waitForSourceContains('first line\nsecond line');
 
 		expect(await editor.getBlock(0).locator('br').count()).toBe(0);
 	});

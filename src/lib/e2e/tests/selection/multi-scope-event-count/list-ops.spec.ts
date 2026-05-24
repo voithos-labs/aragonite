@@ -18,7 +18,7 @@ test.describe('one edit event per op — indentItem', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Tab');
-			await editor.page.waitForTimeout(300);
+			await editor.bridge.waitForSourceMatches(/^\s+- Item 2$/m);
 		});
 
 		expect(count).toBe(1);
@@ -42,7 +42,7 @@ test.describe('one edit event per op — unindentItem', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Shift+Tab');
-			await editor.page.waitForTimeout(300);
+			await editor.bridge.waitForSourceMatches(/^- Nested$/m);
 		});
 
 		expect(count).toBe(1);
@@ -66,7 +66,7 @@ test.describe('one edit event per op — splitItemAtOffset', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Enter');
-			await editor.page.waitForTimeout(200);
+			await editor.bridge.waitForSourceContains('- World');
 		});
 
 		expect(count).toBe(1);
@@ -89,7 +89,7 @@ test.describe('one edit event per op — insertItemAfter', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Enter');
-			await editor.page.waitForTimeout(200);
+			await editor.bridge.waitForSourceMatches(/- Alpha\n[\s\S]+?- Beta/);
 		});
 
 		expect(count).toBe(1);

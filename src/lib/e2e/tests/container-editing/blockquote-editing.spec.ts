@@ -48,11 +48,9 @@ test.describe('blockquote editing', () => {
 		await editables.last().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — first Enter inside blockquote splits paragraph; transient empty middle isn't visible.
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/> Line two\.\n>\n$/);
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — second Enter exits blockquote; transient state isn't visible until next type.
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceMatches(/> Line two\.\n\n/);
 		await editor.typeText('After quote');
 		await editor.bridge.waitForSourceContains('After quote');
 		expect(await editor.bridge.getSource()).toContain('After quote');

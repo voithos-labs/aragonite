@@ -58,10 +58,10 @@ test.describe('inline editing — editing formatted content', () => {
 		await editor.loadContent('First paragraph.\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(2);
 
 		await editor.typeSlowly('**bold**');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('**bold**');
 
 		const block = editor.getBlock(1);
 		await expect(block.locator('strong')).toHaveCount(1);
@@ -73,10 +73,10 @@ test.describe('inline editing — editing formatted content', () => {
 		await editor.loadContent('Some text.\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(2);
 
 		await editor.typeSlowly('# New heading');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('# New heading');
 
 		const block = editor.getBlock(1);
 		await expect(block.locator('.md-marker')).toHaveCount(1);
@@ -89,7 +89,7 @@ test.describe('inline editing — editing formatted content', () => {
 		await editor.loadContent('Hello.\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' **bold**');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Hello. **bold**');
 
 		const block = editor.getBlock(0);
 		await expect(block.locator('strong')).toHaveCount(1);

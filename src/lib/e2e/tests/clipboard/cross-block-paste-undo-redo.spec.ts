@@ -52,11 +52,12 @@ test.describe('cross-block paste — undo / redo round-trip', () => {
 		await editor.loadContent('Alpha\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' forward');
-		await editor.page.waitForTimeout(400);
+		await editor.bridge.waitForSourceContains('Alpha forward');
 
 		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('forward');
 		await editor.typeSlowly('x');
-		await editor.page.waitForTimeout(400);
+		await editor.bridge.waitForSourceContains('Alphax');
 
 		const before = await editor.bridge.getSource();
 		await editor.redo();

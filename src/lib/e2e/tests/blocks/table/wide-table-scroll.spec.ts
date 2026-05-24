@@ -68,12 +68,12 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		await tableEl.evaluate((el) => {
 			el.scrollLeft = 100;
 		});
-		await page.waitForTimeout(50); // one frame for the passive scroll listener to re-measure.
 
-		const afterScroll = await overlay.boundingBox();
-		expect(afterScroll).not.toBeNull();
-		// Overlay must move with the scrolled cells.
-		expect(afterScroll!.x).toBeLessThan(beforeScroll!.x);
+		// Overlay must move with the scrolled cells; poll until the scroll
+		// listener re-measures and the overlay shifts left.
+		await expect
+			.poll(async () => (await overlay.boundingBox())?.x ?? Infinity)
+			.toBeLessThan(beforeScroll!.x);
 	});
 
 	test('drag-select reaches off-screen cells via inner autoscroll', async ({ page }) => {
@@ -91,18 +91,20 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		await page.mouse.move(tableBox.x + tableBox.width - 5, firstBox.y + firstBox.height / 2, {
 			steps: 5
 		});
-		// Hold near the right edge for a few hundred milliseconds so autoscroll accumulates.
-		for (let i = 0; i < 20; i++) {
-			await page.mouse.move(
-				tableBox.x + tableBox.width - 5 - (i % 2),
-				firstBox.y + firstBox.height / 2
-			);
-			await page.waitForTimeout(16);
-		}
+		// Autoscroll runs as a self-driving rAF loop once the pointer is held
+		// near the threshold. Poll scrollLeft until it advances; jitter the
+		// pointer each iteration to keep the pointer state fresh in case
+		// Playwright's mouse state needs continued events.
+		await expect
+			.poll(
+				async () => {
+					await page.mouse.move(tableBox.x + tableBox.width - 5, firstBox.y + firstBox.height / 2);
+					return tableEl.evaluate((el) => el.scrollLeft);
+				},
+				{ intervals: [16] }
+			)
+			.toBeGreaterThan(0);
 		await page.mouse.up();
-
-		const finalScrollLeft = await tableEl.evaluate((el) => el.scrollLeft);
-		expect(finalScrollLeft).toBeGreaterThan(0);
 	});
 
 	test('ArrowUp into a wide table re-enters near the column matching pre-exit X', async ({
@@ -120,7 +122,6 @@ test.describe('table block: wide-table horizontal scroll', () => {
 				return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 			});
 		await page.mouse.click(b4Center.x, b4Center.y);
-		await page.waitForTimeout(50);
 
 		// ArrowDown exits the table; sticky X is captured at b4's cursor.
 		// ArrowUp re-enters the last body row at the sticky-X column.

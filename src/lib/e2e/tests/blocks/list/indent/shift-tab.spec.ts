@@ -15,7 +15,7 @@ test.describe('list Shift+Tab', () => {
 		);
 		await nested.first().click();
 		await editor.page.keyboard.press('Shift+Tab');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('- Item 1\n- Nested\n- Item 2\n');
 		expect(await editor.bridge.getSource()).toContain('- Item 1\n- Nested\n- Item 2\n');
 	});
 
@@ -24,6 +24,7 @@ test.describe('list Shift+Tab', () => {
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(0).click();
 		await editor.page.keyboard.press('Shift+Tab');
+		// no-op assertion — yield for any potential structural change to fire and reach the source.
 		await editor.page.waitForTimeout(200);
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
@@ -100,7 +101,6 @@ test.describe('list Shift+Tab', () => {
 		expect(afterPromote).toMatch(/^2\. two$/m);
 		expect(afterPromote).toMatch(/^3\. three$/m);
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^1\. .*Z.*one|^1\. oneZ/m);
 		const source = await editor.bridge.getSource();

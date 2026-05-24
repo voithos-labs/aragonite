@@ -31,11 +31,9 @@ test.describe('code block editing — happy paths', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('line two');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('line one\nline two');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('line one\nline two');
 	});
 
 	test('plain Enter inserts a newline at the exact cursor position', async ({ page }) => {
@@ -47,9 +45,7 @@ test.describe('code block editing — happy paths', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
-		const source = await editor.bridge.getSource();
-		expect(source).toBe('```\na\nbc\n```\n');
+		await editor.bridge.waitForSourceEquals('```\na\nbc\n```\n');
 	});
 
 	test('plain Enter at end of body line inserts a blank line before the closer', async ({
@@ -62,9 +58,7 @@ test.describe('code block editing — happy paths', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
-		const source = await editor.bridge.getSource();
-		expect(source).toBe('```\nfoo\n\n```\n');
+		await editor.bridge.waitForSourceEquals('```\nfoo\n\n```\n');
 	});
 
 	test('Enter twice from end of body line exits via blank-line path', async ({ page }) => {
@@ -75,14 +69,11 @@ test.describe('code block editing — happy paths', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
-		let source = await editor.bridge.getSource();
-		expect(source).toContain('some code\n\n```');
+		await editor.bridge.waitForSourceContains('some code\n\n```');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
 		await editor.typeText('after code');
-		await editor.page.waitForTimeout(200);
-		source = await editor.bridge.getSource();
+		await editor.bridge.waitForSourceContains('after code');
+		const source = await editor.bridge.getSource();
 		expect(source).toContain('```\nsome code\n```');
 		expect(source).not.toContain('some code\n\n```');
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
@@ -98,26 +89,19 @@ test.describe('code block editing — happy paths', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
 		await editor.typeText('bar');
-		await editor.page.waitForTimeout(150);
-		expect(await editor.bridge.getSource()).toBe('```\nfoo\nbar\n```\n');
+		await editor.bridge.waitForSourceEquals('```\nfoo\nbar\n```\n');
 	});
 
-	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async ({
-		page
-	}) => {
+	test('Enter at end of an unclosed fence adds a body line and caret lands on it', async () => {
 		// Regression: Chromium routed the next typed character BEFORE the trailing \n in unclosed fences.
 		await editor.loadContent('```js\nconst x = 1\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await editor.getBlock(0).click();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
 		await editor.typeText('const y = 2');
-		await editor.page.waitForTimeout(150);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('const x = 1\nconst y = 2');
+		await editor.bridge.waitForSourceContains('const x = 1\nconst y = 2');
 	});
 
 	test('Enter mid-line in a multi-line code block splits at the cursor', async ({ page }) => {
@@ -128,11 +112,8 @@ test.describe('code block editing — happy paths', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(150);
-		const source = await editor.bridge.getSource();
-		expect(source).toBe('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
+		await editor.bridge.waitForSourceEquals('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
 	});
 
 	test('code block content round-trips through source', async () => {

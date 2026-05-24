@@ -17,8 +17,7 @@ test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => 
 		await nested.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — first Enter creates empty sibling whose marker is trimmed in source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(3);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^- $/m);
 		await editor.typeText('X');
@@ -38,8 +37,7 @@ test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => 
 		await nested.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — first Enter creates empty sibling whose marker is trimmed in source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(3);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^- $/m);
 		await editor.page.keyboard.press('Enter');
@@ -61,11 +59,8 @@ test.describe('list Enter — nested item promote (Shift+Tab semantics)', () => 
 		await c.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — first Enter creates empty deepest-level sibling whose marker is trimmed.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(4);
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — promote-one-level transition leaves no source change until next type.
-		await editor.page.waitForTimeout(300);
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/^ {2}- X$/m);
 		const source = await editor.bridge.getSource();

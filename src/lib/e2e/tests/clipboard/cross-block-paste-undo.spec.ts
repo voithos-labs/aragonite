@@ -79,7 +79,7 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 		expect(afterPaste).not.toContain('world');
 
 		await editor.page.keyboard.press('Control+z');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());
 	});
@@ -101,7 +101,7 @@ test.describe('cross-block paste over selection — single Ctrl+Z', () => {
 		expect(afterPaste).toContain('beta');
 
 		await editor.page.keyboard.press('Control+z');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());
 	});

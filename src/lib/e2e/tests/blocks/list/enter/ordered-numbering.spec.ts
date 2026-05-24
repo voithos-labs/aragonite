@@ -97,8 +97,7 @@ test.describe('list Enter — ordered numbering', () => {
 		await third.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — Enter at end appends an empty continuing item (marker trimmed).
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(4);
 		await editor.typeText('new');
 		await editor.bridge.waitForSourceMatches(/^4\. new$/m);
 		const source = await editor.bridge.getSource();

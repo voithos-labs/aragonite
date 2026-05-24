@@ -40,7 +40,8 @@ test.describe('undo and redo', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' extra words');
-		await editor.page.waitForTimeout(600);
+		await editor.bridge.waitForSourceContains(' extra words');
+		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -61,7 +62,8 @@ test.describe('undo and redo', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
-		await editor.page.waitForTimeout(600);
+		await editor.bridge.waitForSourceMatches(/^# /m);
+		await editor.waitForUndoBatchFlush();
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 
 		await editor.undo();
@@ -74,7 +76,8 @@ test.describe('undo and redo', () => {
 
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly(' appended');
-		await editor.page.waitForTimeout(600);
+		await editor.bridge.waitForSourceContains(' appended');
+		await editor.waitForUndoBatchFlush();
 
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
@@ -93,7 +96,8 @@ test.describe('undo and redo', () => {
 		await editor.undo();
 		await editor.focusBlockEnd(0);
 		await editor.typeText('x');
-		await editor.page.waitForTimeout(600);
+		await editor.bridge.waitForSourceContains('x');
+		await editor.waitForUndoBatchFlush();
 
 		await editor.redo();
 		expect(await editor.bridge.getSource()).not.toBe(splitSource);

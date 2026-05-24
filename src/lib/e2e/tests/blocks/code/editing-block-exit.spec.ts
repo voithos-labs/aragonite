@@ -18,13 +18,10 @@ test.describe('code block editing — edge cases', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('Control+End');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(300);
 		await editor.typeText('after code');
 		await editor.bridge.waitForSourceContains('after code');
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('after code');
 		expect(source).toContain('some code');
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
@@ -33,13 +30,10 @@ test.describe('code block editing — edge cases', () => {
 		await editor.loadContent('Above paragraph\n\n```\ncode here\n```\n');
 		await editor.getBlock(1).click();
 		await editor.page.keyboard.press('Control+Home');
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('End');
 		await editor.typeText(' appended');
 		await editor.bridge.waitForSourceContains('Above paragraph appended');
-		expect(await editor.bridge.getSource()).toContain('Above paragraph appended');
 	});
 
 	test('ArrowDown in last line exits to next block', async () => {
@@ -47,10 +41,8 @@ test.describe('code block editing — edge cases', () => {
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(200);
 		await editor.typeText('prepended ');
 		await editor.bridge.waitForSourceContains('prepended');
-		expect(await editor.bridge.getSource()).toContain('prepended');
 	});
 
 	test('Backspace at position 0 moves focus without deleting code block', async () => {
@@ -59,8 +51,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.getBlock(1).click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
-		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
+		await editor.bridge.waitForBlockCount(countBefore);
 		expect(await editor.bridge.getSource()).toContain('code');
 	});
 });

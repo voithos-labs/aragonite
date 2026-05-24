@@ -37,13 +37,13 @@ test.describe('nested list item — typing + undo', () => {
 		await firstItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' A');
-		await editor.page.waitForTimeout(400);
+		await editor.waitForUndoBatchFlush();
 
 		const secondItem = editor.page.locator('[contenteditable="true"]', { hasText: 'item two' });
 		await secondItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' B');
-		await editor.page.waitForTimeout(400);
+		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
 		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
@@ -75,7 +75,7 @@ test.describe('nested list item — typing + undo', () => {
 		await secondItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' B');
-		await editor.page.waitForTimeout(400);
+		await editor.waitForUndoBatchFlush();
 
 		// One undo: only the ' B' batch reverts; ' A' stays.
 		await editor.undo();

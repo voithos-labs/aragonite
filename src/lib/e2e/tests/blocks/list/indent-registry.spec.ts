@@ -16,7 +16,6 @@ test.describe('list indent — ref alignment via registry', () => {
 		await three.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('- nested under two');
@@ -33,7 +32,6 @@ test.describe('list indent — ref alignment via registry', () => {
 		await two.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/- one\n  - Xtwo/);

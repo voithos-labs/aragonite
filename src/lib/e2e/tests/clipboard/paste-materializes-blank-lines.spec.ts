@@ -16,7 +16,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		await editor.page.keyboard.press('Enter');
 		await editor.page.keyboard.press('Enter');
 		await editor.typeText('two');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('one\n\ntwo\n');
 
 		expect(await editor.bridge.getSource()).toBe('one\n\ntwo\n');
 		expect(await editor.getDomBlockCount()).toBe(3);
@@ -27,7 +27,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('two');
 
 		const src = await editor.bridge.getSource();
 		const domCount = await editor.getDomBlockCount();

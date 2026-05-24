@@ -40,14 +40,14 @@ test.describe('clipboard exploration: unusual content', () => {
 
 		const hr = editor.page.locator('.block-list > .block-host > :not(.selection-overlay)').nth(1);
 		await hr.click();
-		await editor.page.waitForTimeout(100);
 
 		await editor.page.keyboard.press('Control+v');
+		// Thematic break paste may no-op or materialize a paragraph; neither
+		// outcome has a settle predicate to poll. Keep a small fixed wait so the
+		// post-paste source read sees whichever branch resolved.
 		await editor.page.waitForTimeout(300);
 
 		const src = await editor.bridge.getSource();
-		// Paste on a thematic break may no-op or create a paragraph; either is ok
-		// as long as the document isn't corrupted.
 		expect(src).toMatch(/above/);
 		expect(src).toMatch(/below/);
 	});
@@ -73,7 +73,11 @@ test.describe('clipboard exploration: unusual content', () => {
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(100);
+		await editor.page.waitForFunction(
+			() => (window.getSelection()?.toString().length ?? 0) > 0,
+			null,
+			{ timeout: 2000, polling: 16 }
+		);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 

@@ -153,8 +153,7 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await second.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter at end inserts an empty trailing marker not visible in source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForListItemCount(4);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/3\.\s*Third/);
 		const source = await editor.bridge.getSource();

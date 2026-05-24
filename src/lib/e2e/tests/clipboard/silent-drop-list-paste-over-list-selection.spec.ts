@@ -57,7 +57,6 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await editor.page.evaluate(() =>
 			navigator.clipboard.writeText('- outer a\n  - nested\n- outer b\n')
 		);
-		await editor.page.waitForTimeout(100);
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);

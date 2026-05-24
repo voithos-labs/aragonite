@@ -13,7 +13,7 @@ test.describe('list Tab', () => {
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(1).click();
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('- Item 1\n  - Item 2\n');
 		expect(await editor.bridge.getSource()).toContain('- Item 1\n  - Item 2\n');
 	});
 
@@ -22,6 +22,7 @@ test.describe('list Tab', () => {
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(0).click();
 		await editor.page.keyboard.press('Tab');
+		// no-op assertion — yield for any potential structural change to fire and reach the source.
 		await editor.page.waitForTimeout(200);
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
@@ -32,7 +33,6 @@ test.describe('list Tab', () => {
 		await item2.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(300);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('ZItem 2');
 		expect(await editor.bridge.getSource()).toContain('ZItem 2');
@@ -43,7 +43,7 @@ test.describe('list Tab', () => {
 		const item2 = editor.page.locator('[contenteditable="true"]', { hasText: 'Item 2' });
 		await item2.click();
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('  - Nested\n  - Item 2');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('  - Nested\n  - Item 2');
 	});

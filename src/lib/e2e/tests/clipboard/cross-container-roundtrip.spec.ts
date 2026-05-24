@@ -16,7 +16,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.shiftClickBlock([0, 0], 'inside bq'.length);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1], 'target para'.length);
 		await editor.page.keyboard.press('Control+v');
@@ -34,7 +34,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.shiftClickBlock([0], 'outer para'.length);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1, 0], 'target inside bq'.length);
 		await editor.page.keyboard.press('Control+v');
@@ -52,7 +52,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.loadContent('destination\n');
 		await editor.focusBlockAtPath([0], 'destination'.length);
