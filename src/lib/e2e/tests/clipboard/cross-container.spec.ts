@@ -51,10 +51,10 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((source, original) => source !== original, before);
 		expect(await editor.bridge.getSource()).not.toBe(before);
 		await editor.undo();
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceEquals(before);
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -77,13 +77,13 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/quoted text[\s\S]*quoted text/);
 
 		const source = await editor.bridge.getSource();
 		expect(source.split('quoted text').length - 1).toBeGreaterThanOrEqual(2);
@@ -104,12 +104,16 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceWith(
+			(source, original) => source.length < original.length,
+			before
+		);
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut.length).toBeLessThan(before.length);
 
 		await editor.undo();
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceEquals(before);
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

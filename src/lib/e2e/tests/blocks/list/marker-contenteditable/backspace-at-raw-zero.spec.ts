@@ -15,7 +15,7 @@ test.describe('list marker — Backspace at raw offset 0', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('Hello\n');
 		expect(await editor.bridge.getSource()).toBe('Hello\n');
 	});
 
@@ -25,7 +25,7 @@ test.describe('list marker — Backspace at raw offset 0', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('- AlphaBeta\n');
 		expect(await editor.bridge.getSource()).toBe('- AlphaBeta\n');
 	});
 });

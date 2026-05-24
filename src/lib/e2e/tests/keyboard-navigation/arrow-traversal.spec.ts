@@ -94,8 +94,7 @@ test.describe('keyboard navigation', () => {
 		await editor.loadContent('Above.\n\nBelow.\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter creates a transient empty middle block whose marker isn't visible in source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(3);
 
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');

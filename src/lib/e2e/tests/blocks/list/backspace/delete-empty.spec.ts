@@ -25,8 +25,7 @@ test.describe('list Backspace — delete empty item', () => {
 		await second.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter inserts an empty trailing item whose marker isn't visible in source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForListItemCount(3);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSource((s) => (s.match(/^- /gm) || []).length === 2);
 		const source = await editor.bridge.getSource();

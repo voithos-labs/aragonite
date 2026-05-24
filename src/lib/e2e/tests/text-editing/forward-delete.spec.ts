@@ -34,7 +34,7 @@ test.describe('forward delete', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForBlockCount(1);
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
@@ -43,7 +43,10 @@ test.describe('forward delete', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForTimeout(200);
+		// Type a marker afterward to flush any async edit Delete might trigger;
+		// a successful merge would collapse to 1 block and the assertion would surface it.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 });

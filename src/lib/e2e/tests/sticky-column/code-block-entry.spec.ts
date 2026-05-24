@@ -19,7 +19,7 @@ async function captureEntryFromAbove(editor: EditorPage, codeBlockIndex: number)
 	const sourceX = await editor.getCaretPixelX();
 
 	await editor.page.keyboard.press('ArrowDown');
-	await editor.page.waitForTimeout(120);
+	await editor.waitForStickyColumnSettle();
 
 	const landingX = await editor.getCaretPixelX();
 	return { sourceX, landingX };
@@ -33,7 +33,7 @@ async function captureEntryFromBelow(editor: EditorPage, codeBlockIndex: number)
 	const sourceX = await editor.getCaretPixelX();
 
 	await editor.page.keyboard.press('ArrowUp');
-	await editor.page.waitForTimeout(120);
+	await editor.waitForStickyColumnSettle();
 
 	const landingX = await editor.getCaretPixelX();
 	return { sourceX, landingX };
@@ -44,7 +44,7 @@ async function resetStickyByClickingOutside(editor: EditorPage) {
 		.locator('body')
 		.click({ position: { x: 1, y: 1 } })
 		.catch(() => {});
-	await editor.page.waitForTimeout(50);
+	await editor.waitForStickyColumnSettle();
 }
 
 test.describe('sticky column: code block entry symmetry', () => {
@@ -120,21 +120,21 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(120);
+		await editor.waitForStickyColumnSettle();
 		await editor.typeText('A');
-		await editor.page.waitForTimeout(120);
+		await editor.bridge.waitForSourceContains('A');
 		const sourceAfterAbove = await editor.bridge.getSource();
 		await editor.undo();
-		await editor.page.waitForTimeout(120);
+		await editor.bridge.waitForSourceNotContains('A');
 
 		const below = editor.page.locator('[contenteditable="true"]').nth(2);
 		await below.click();
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(120);
+		await editor.waitForStickyColumnSettle();
 		await editor.typeText('B');
-		await editor.page.waitForTimeout(120);
+		await editor.bridge.waitForSourceContains('B');
 		const sourceAfterBelow = await editor.bridge.getSource();
 
 		const aLine = sourceAfterAbove.split('\n').find((l) => l.includes('A')) ?? '';
@@ -162,10 +162,10 @@ test.describe('sticky column: code block entry symmetry', () => {
 		const aboveBox = await aboveBlock.boundingBox();
 		expect(aboveBox).not.toBeNull();
 		await aboveBlock.click({ position: { x: aboveBox!.width - 20, y: 10 } });
-		await editor.page.waitForTimeout(50);
+		await editor.waitForStickyColumnSettle();
 		const capturedAboveX = await editor.getCaretPixelX();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForStickyColumnSettle();
 		const landAboveX = await editor.getCaretPixelX();
 
 		await resetStickyByClickingOutside(editor);
@@ -175,10 +175,10 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(belowBox).not.toBeNull();
 		const clickXInsideBelow = Math.max(2, capturedAboveX - belowBox!.x);
 		await belowBlock.click({ position: { x: clickXInsideBelow, y: 10 } });
-		await editor.page.waitForTimeout(50);
+		await editor.waitForStickyColumnSettle();
 		const capturedBelowX = await editor.getCaretPixelX();
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForStickyColumnSettle();
 		const landBelowX = await editor.getCaretPixelX();
 
 		// Only compare landings when the two captures matched — otherwise different starting columns.

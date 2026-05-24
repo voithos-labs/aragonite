@@ -34,7 +34,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 		await editor.shiftClickBlock([1, 0], 5);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
 
 		const violations = await auditState(editor);
 		expect(violations).toEqual([]);
@@ -47,7 +47,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 		await editor.shiftClickBlock([0, 2, 0], 3);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
 
 		const violations = await auditState(editor);
 		expect(violations).toEqual([]);
@@ -60,7 +60,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 		await editor.shiftClickBlock([1], 3);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
 
 		const violations = await auditState(editor);
 		expect(violations).toEqual([]);
@@ -73,7 +73,7 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 		await editor.shiftClickBlock([0, 1, 1, 1, 0], 3);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(250);
+		await editor.waitForCrossBlock(false);
 
 		const violations = await auditState(editor);
 		expect(violations).toEqual([]);

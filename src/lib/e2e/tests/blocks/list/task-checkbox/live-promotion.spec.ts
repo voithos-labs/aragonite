@@ -36,7 +36,7 @@ test.describe('task checkbox — live promotion from typing', () => {
 		await editor.loadContent('- [x] task\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('Z');
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('[Zx]');
 		expect(source).not.toContain('[xZ]');

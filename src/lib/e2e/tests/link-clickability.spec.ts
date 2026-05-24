@@ -56,6 +56,7 @@ test.describe('link clickability', () => {
 			popupFired = true;
 		});
 		await link.click();
+		// 200ms — verifying absence of a popup event; no observable state to predicate on.
 		await editor.page.waitForTimeout(200);
 		expect(popupFired).toBe(false);
 	});

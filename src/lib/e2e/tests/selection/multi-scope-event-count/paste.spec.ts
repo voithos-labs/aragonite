@@ -21,7 +21,7 @@ test.describe('one edit event per op — nested paste', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
-			await editor.page.waitForTimeout(300);
+			await editor.bridge.waitForSourceContains('two');
 		});
 
 		expect(count).toBe(1);
@@ -47,7 +47,7 @@ test.describe('one edit event per op — container-matching paste', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
-			await editor.page.waitForTimeout(300);
+			await editor.bridge.waitForSourceContains('- two');
 		});
 
 		expect(count).toBe(1);
@@ -64,6 +64,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 
 	test('cross-block paste of matching list over non-empty target emits exactly two edit events', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
+		const before = await editor.bridge.getSource();
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });
 		await first.click();
 		await editor.page.keyboard.press('End');
@@ -74,7 +75,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
-			await editor.page.waitForTimeout(300);
+			await editor.bridge.waitForSourceWith((s, b) => s !== b && s.includes('y'), before);
 		});
 
 		// cross-block delete + merge-paste each emit one event

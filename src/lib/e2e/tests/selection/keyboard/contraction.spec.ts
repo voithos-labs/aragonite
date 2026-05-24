@@ -18,7 +18,6 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 		await editor.focusBlock(0, 0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Shift+ArrowLeft');
-		await editor.page.waitForTimeout(50);
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
@@ -34,7 +33,6 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 		await editor.focusBlock(1, 5);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowLeft');
 		await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.waitForTimeout(50);
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');

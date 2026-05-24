@@ -39,10 +39,10 @@ test.describe('focus traversal after block insertion', () => {
 
 		await editor.loadContent(content);
 
+		const hostsBefore = await editor.page.locator('.block-host').count();
 		await editor.focusBlockEnd(1);
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — Enter at end inserts an empty paragraph not visible in serialized source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForBlockHostCount(hostsBefore + 1);
 
 		const bqBlock = editor.getBlock(4);
 		const bqEditable = bqBlock.locator('[contenteditable="true"]').last();
@@ -75,10 +75,10 @@ test.describe('focus traversal after block insertion', () => {
 
 		await editor.loadContent(content);
 
+		const hostsBefore = await editor.page.locator('.block-host').count();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — Enter at end inserts an empty paragraph not visible in serialized source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForBlockHostCount(hostsBefore + 1);
 
 		const listBlock = editor.getBlock(2);
 		const listEditables = listBlock.locator('[contenteditable="true"]');

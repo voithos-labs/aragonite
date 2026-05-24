@@ -36,7 +36,7 @@ test.describe('cross-block clipboard: paste basics', () => {
 		expect(afterPaste).not.toContain('world');
 
 		await editor.page.keyboard.press('Control+z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceWith((s) => s.trim() === 'hello world', null);
 		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe('hello world');
 	});

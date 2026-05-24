@@ -29,10 +29,10 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 		expect(await editor.bridge.getSource()).not.toBe(before);
 		await editor.undo();
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceEquals(before);
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });
@@ -73,7 +73,7 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 		await editor.page.keyboard.press('Control+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceNotContains('BBB');
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('BBB');
 		expect(source).toContain('A');
@@ -109,14 +109,14 @@ test.describe('cross-block clipboard: type-replace', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Z');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceContains('Z');
 
 		const afterType = await editor.bridge.getSource();
 		expect(afterType).not.toBe(before);
 		expect(afterType).toContain('Z');
 
 		await editor.page.keyboard.press('Control+z');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());
 	});

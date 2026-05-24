@@ -14,19 +14,18 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.focusBlockStart(0);
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/first para[\s\S]*first para/);
 
 		const source = await editor.bridge.getSource();
 
@@ -43,12 +42,12 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.focusBlockStart(0);
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains('alpha');
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('alpha');
@@ -63,7 +62,11 @@ test.describe('select-all clipboard round-trip', () => {
 		await item.click();
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(100);
+		await editor.page.waitForFunction(
+			() => (window.getSelection()?.toString() ?? '') === 'Hello',
+			null,
+			{ timeout: 2000, polling: 16 }
+		);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const firstSelection = await editor.page.evaluate(
 			() => window.getSelection()?.toString() ?? ''
@@ -80,7 +83,7 @@ test.describe('select-all clipboard round-trip', () => {
 
 		await editor.page.keyboard.press('Backspace');
 		await editor.waitForCrossBlock(false);
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceNotContains('Before');
 
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('Before');
@@ -94,11 +97,11 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.focusBlockStart(0);
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(200);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+x');
-		await editor.page.waitForTimeout(300);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains('one');
 
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('one');

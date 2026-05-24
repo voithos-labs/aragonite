@@ -13,39 +13,35 @@ test.describe('code block highlighting', () => {
 		await editor.goto();
 	});
 
-	test('tokenization renders .code-tok-keyword span for js const', async ({ page }) => {
+	test('tokenization renders .code-tok-keyword span for js const', async () => {
 		await editor.loadContent('```js\nconst x = 42;\n```\n');
-		await page.waitForTimeout(100);
 		const keywordSpan = editor.getBlock(0).locator('.code-tok-keyword').first();
 		await expect(keywordSpan).toHaveText('const');
 	});
 
-	test('info string rendered with .md-lang class', async ({ page }) => {
+	test('info string rendered with .md-lang class', async () => {
 		await editor.loadContent('```python\nprint("hi")\n```\n');
-		await page.waitForTimeout(100);
 		const langSpan = editor.getBlock(0).locator('.md-lang').first();
 		await expect(langSpan).toHaveText('python');
 	});
 
-	test('unknown language falls through to plain text', async ({ page }) => {
+	test('unknown language falls through to plain text', async () => {
 		await editor.loadContent('```klingon\nkapla batleth\n```\n');
-		await page.waitForTimeout(100);
-		const tokSpans = await editor.getBlock(0).locator('[class^="code-tok-"]').count();
-		expect(tokSpans).toBe(0);
 		await expect(editor.getBlock(0)).toContainText('kapla batleth');
+		expect(await editor.getBlock(0).locator('[class^="code-tok-"]').count()).toBe(0);
 	});
 
-	test('alias js produces same tokens as canonical javascript', async ({ page }) => {
+	test('alias js produces same tokens as canonical javascript', async () => {
 		await editor.loadContent('```js\nconst x = 42;\n```\n\n```javascript\nconst x = 42;\n```\n');
-		await page.waitForTimeout(100);
 
-		const jsKeyword = await editor.getBlock(0).locator('.code-tok-keyword').first().textContent();
+		const jsKeywordLocator = editor.getBlock(0).locator('.code-tok-keyword').first();
+		await expect(jsKeywordLocator).toHaveText('const');
+
 		const canonicalKeyword = await editor
 			.getBlock(1)
 			.locator('.code-tok-keyword')
 			.first()
 			.textContent();
-		expect(jsKeyword).toBe(canonicalKeyword);
-		expect(jsKeyword).toBe('const');
+		expect(canonicalKeyword).toBe('const');
 	});
 });

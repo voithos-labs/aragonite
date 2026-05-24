@@ -12,7 +12,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('hello world\n');
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Shift+Enter');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('hello\\');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('hello\\');
 		expect(source).toContain('world');
@@ -22,7 +22,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('hello\n');
 		await editor.focusBlock(0, 2);
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('he\tllo');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('he\tllo');
 	});
@@ -61,7 +61,7 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('## hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Control+3');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/^### hello$/m);
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/^### helloX$/m);
 		const source = await editor.bridge.getSource();

@@ -20,11 +20,10 @@ test.describe('code block paste — fence bumping', () => {
 
 		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
 		await editor.page.keyboard.press('Control+v');
-		await page.waitForTimeout(100);
+		await editor.bridge.waitForSourceContains('```pasted code```');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^````/m);
-		expect(source).toContain('```pasted code```');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
@@ -39,12 +38,11 @@ test.describe('code block paste — fence bumping', () => {
 			'\n# Heading\n\n- list item\n\nparagraph\n'
 		);
 		await editor.page.keyboard.press('Control+v');
-		await page.waitForTimeout(100);
+		await editor.bridge.waitForSourceContains('# Heading');
 
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('# Heading');
 		expect(source).toContain('- list item');
 		expect(source).toContain('paragraph');
 	});

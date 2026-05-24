@@ -57,7 +57,6 @@ test.describe('list arrow navigation', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^[^-].*Z/m);
 		expect(await editor.bridge.getSource()).toMatch(/^[^-].*Z/m);
@@ -69,7 +68,6 @@ test.describe('list arrow navigation', () => {
 		await item.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('Before.Z');
 		expect(await editor.bridge.getSource()).toContain('Before.Z');
@@ -81,9 +79,8 @@ test.describe('list arrow navigation', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowLeft');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- AlphaZ\n- Beta');
 		expect(await editor.bridge.getSource()).toContain('- AlphaZ\n- Beta');
 	});
 
@@ -93,9 +90,8 @@ test.describe('list arrow navigation', () => {
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.page.waitForTimeout(100);
 		await editor.typeText('Z');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('- Alpha\n- ZBeta');
 		expect(await editor.bridge.getSource()).toContain('- Alpha\n- ZBeta');
 	});
 });

@@ -17,8 +17,7 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter inside blockquote splits paragraph; empty middle isn't observable via source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> Z2$/m);
@@ -31,8 +30,7 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 		await first.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter inside blockquote splits paragraph; empty middle isn't observable via source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> Z1$/m);
