@@ -109,6 +109,7 @@
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
 	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
 
 	function setItemRef(i: number, r: BlockComponent | undefined): void {
 		state.innerBlockRefs[i] = r;

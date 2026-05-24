@@ -10,11 +10,13 @@
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
+		type BlockComponentLookup,
 		type ContainerEditActions,
 		type DocumentGetter,
 		type FocusActions,
@@ -71,6 +73,7 @@
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getBlockComponentByPath = getContext<BlockComponentLookup>(BLOCK_COMPONENT_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
@@ -88,6 +91,7 @@
 		selection,
 		getDoc,
 		getBlockElByPath,
+		getBlockComponentByPath,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
@@ -115,7 +119,8 @@
 		history,
 		focus: focusActions,
 		getDoc,
-		getBlockElByPath
+		getBlockElByPath,
+		getBlockComponentByPath
 	};
 
 	// ── BlockComponent interface ────────────────────────────────────────

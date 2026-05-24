@@ -9,15 +9,16 @@ import { trimTrailingLineEnding, displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,
 	mergeWithNext as performMergeNext,
+	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
 	buildPastedReplacement,
 	normalizeReplacementTrivia
 } from '../tree-operations';
-import { rebuildAncestryRaw, rebuildContainerRawIfContainer } from '../schema/container-raw';
-import { isMergeEligible, isBlockEditable, findMergeTarget } from '../schema/merge-rules';
-import { parseInline, getContentRange, isProseKind, parseAllInlineContent } from '../core/inline';
+import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
@@ -40,10 +41,8 @@ export function createBlockEditActions(
 			deps.stickyColumn.reset();
 			if (blockIndex <= 0) return;
 
-			const prev = deps.doc.children[blockIndex - 1];
-			const curr = deps.doc.children[blockIndex];
-			const prevKind = prev.kind;
-			const currKind = curr.kind;
+			const prevKind = deps.doc.children[blockIndex - 1].kind;
+			const currKind = deps.doc.children[blockIndex].kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
 				if (!isBlockEditable(prevKind)) {
@@ -59,51 +58,24 @@ export function createBlockEditActions(
 				return;
 			}
 
-			// For prose/prose-absorber prev, target is prev itself (empty path).
-			// For container prev, target is the deepest prose leaf.
-			const mergeTarget = findMergeTarget(prev);
-			if (!mergeTarget) {
-				deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
-				return;
-			}
-
-			// Pre-compute join values before mutating — commitStructural's snapshot
-			// captures pre-mutation state, so all mutation must live inside mutate.
-			const target = mergeTarget.target;
-			const targetRaw = target.raw ?? '';
-			const currRaw = curr.raw ?? '';
-			const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
-			const targetText = trimTrailingLineEnding(targetRaw);
-			const currText = trimTrailingLineEnding(currRaw);
-			const joinOffset = targetText.length;
-			const mergedRaw = targetText + currText + lineEnding;
-
+			let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: 0 },
 				mutate: (children) => {
-					// `target` references into the shallow-copied tree shared with
-					// childrenCopy, so this write reaches the committed children.
-					target.raw = mergedRaw;
-
-					// Refresh the target's inline cache: the reactive pipeline didn't
-					// fire because the user typed in curr, not target.
-					if (isProseKind(target.kind)) {
-						const range = getContentRange(target);
-						target.inlineContent = parseInline(target.raw, range.start, range.end);
-					}
-
-					if (mergeTarget.path.length > 0) {
-						rebuildAncestryRaw(prev, mergeTarget.path);
-					}
-
-					return performDelete({ children }, blockIndex);
+					mergeResult = mergeIntoPrevDeepLeaf({ children }, blockIndex);
+					return mergeResult?.change ?? { op: 'noop' };
 				},
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				afterTick: () => {
-					if (mergeTarget.path.length === 0) {
-						deps.blockRefs[blockIndex - 1]?.focus(joinOffset);
+					if (!mergeResult) {
+						deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
+						return;
+					}
+					const ref = deps.blockRefs[blockIndex - 1];
+					if (mergeResult.targetPath.length === 0) {
+						ref?.focus(mergeResult.joinOffset);
 					} else {
-						deps.blockRefs[blockIndex - 1]?.focusByPath?.(mergeTarget.path, joinOffset);
+						ref?.focusByPath?.(mergeResult.targetPath, mergeResult.joinOffset);
 					}
 				}
 			});

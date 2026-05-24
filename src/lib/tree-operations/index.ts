@@ -1,8 +1,9 @@
-export type { NodeParent } from './node-ops';
+export type { NodeParent, MergeIntoPrevResult } from './node-ops';
 export {
 	splitNode,
 	mergeWithPrevious,
 	mergeWithNext,
+	mergeIntoPrevDeepLeaf,
 	deleteNode,
 	updateNodeContent,
 	ensureEditableContainers,

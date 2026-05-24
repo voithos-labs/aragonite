@@ -10,12 +10,14 @@
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
 		TABLE_CONTEXT_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
+		type BlockComponentLookup,
 		type ContainerEditActions,
 		type DocumentGetter,
 		type FocusActions,
@@ -137,6 +139,7 @@
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getBlockComponentByPath = getContext<BlockComponentLookup>(BLOCK_COMPONENT_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
@@ -154,6 +157,7 @@
 		selection,
 		getDoc,
 		getBlockElByPath,
+		getBlockComponentByPath,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
@@ -181,7 +185,8 @@
 		history,
 		focus: focusActions,
 		getDoc,
-		getBlockElByPath
+		getBlockElByPath,
+		getBlockComponentByPath
 	};
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -495,40 +500,83 @@
 		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor);
 	}
 
-	function onCopy(e: ClipboardEvent): void {
-		stickyColumn.reset();
+	function intraTableRectPayload(): string | null {
 		const sel = selection;
 		const isIntraTableMultiCell =
 			sel.isCustomRendered &&
 			sel.anchor &&
 			sel.focus &&
 			pathsEqual(sel.anchor.path, sel.focus.path);
+		if (!isIntraTableMultiCell || !sel.anchor || !sel.focus) return null;
+		const tableNode = nodeAt(getDoc(), sel.anchor.path);
+		if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return null;
+		const colCount = (tableNode.metadata as TableMetadata).columnCount;
+		const a = {
+			rowIdx: Math.floor(sel.anchor.offset / colCount),
+			colIdx: sel.anchor.offset % colCount
+		};
+		const b = {
+			rowIdx: Math.floor(sel.focus.offset / colCount),
+			colIdx: sel.focus.offset % colCount
+		};
+		return copyRectangleAsSubTable(tableNode, a, b);
+	}
 
-		if (isIntraTableMultiCell && sel.anchor && sel.focus) {
-			const tableNode = nodeAt(getDoc(), sel.anchor.path);
-			if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return;
+	function onCopy(e: ClipboardEvent): void {
+		stickyColumn.reset();
+		const rectPayload = intraTableRectPayload();
+		if (rectPayload !== null) {
 			e.preventDefault();
-			const colCount = (tableNode.metadata as TableMetadata).columnCount;
-			const a = {
-				rowIdx: Math.floor(sel.anchor.offset / colCount),
-				colIdx: sel.anchor.offset % colCount
-			};
-			const b = {
-				rowIdx: Math.floor(sel.focus.offset / colCount),
-				colIdx: sel.focus.offset % colCount
-			};
-			e.clipboardData?.setData('text/plain', copyRectangleAsSubTable(tableNode, a, b));
+			e.clipboardData?.setData('text/plain', rectPayload);
 			return;
 		}
 
-		if (sel.isCrossBlock && sel.anchor && sel.focus) {
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
 			e.preventDefault();
 			e.clipboardData?.setData(
 				'text/plain',
-				collectCrossBlockText(getDoc(), sel.anchor, sel.focus)
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
 			);
 			return;
 		}
+	}
+
+	async function onCut(e: ClipboardEvent): Promise<void> {
+		stickyColumn.reset();
+		e.preventDefault();
+
+		// Intra-table multi-cell rectangle: write a GFM sub-table, then route the
+		// delete through the cross-block path *without* tableCoverageDelete so
+		// the cells are cleared in place (Backspace's structural delete is the
+		// only path that opts into row/column/table removal).
+		const rectPayload = intraTableRectPayload();
+		if (rectPayload !== null) {
+			e.clipboardData?.setData('text/plain', rectPayload);
+			await crossBlock.performCrossBlockDeleteFromEvent();
+			return;
+		}
+
+		if (selection.isCrossBlock && selection.anchor && selection.focus) {
+			e.clipboardData?.setData(
+				'text/plain',
+				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
+			);
+			await crossBlock.performCrossBlockDeleteFromEvent();
+			return;
+		}
+
+		// Intra-cell: slice node.raw at the selection, write the slice, and
+		// commit the truncation through blockEdit so the CST and undo stack
+		// stay in step. The native deleteByCut path would mutate the DOM
+		// out from under the CST and leave a stale snapshot anchor.
+		if (!el) return;
+		const offsets = getSelectionOffsetsHelper(el);
+		if (!offsets || offsets.start === offsets.end) return;
+		const display = trimTrailingLineEnding(node.raw);
+		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
+		const newDisplay = display.slice(0, offsets.start) + display.slice(offsets.end);
+		blockEdit.updateBlockContent(index, newDisplay, offsets.start, offsets.start);
+		pendingCursorOffset = offsets.start;
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
@@ -583,6 +631,7 @@
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
 	oncopy={onCopy}
+	oncut={onCut}
 	onpaste={onPaste}
 	onfocus={onFocus}
 	onblur={onBlur}

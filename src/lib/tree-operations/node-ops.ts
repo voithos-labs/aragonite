@@ -25,6 +25,8 @@ import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { getContentRange, isProseKind, parseInline } from '../core/inline';
 import { trimTrailingLineEnding } from '../core/lines';
+import { findMergeTarget } from '../schema/merge-rules';
+import { rebuildAncestryRaw } from '../schema/container-raw';
 import type { StructuralChange } from './structural-change';
 
 // ── Types ──
@@ -98,6 +100,60 @@ export function mergeWithPrevious(parent: NodeParent, blockIndex: number): Struc
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
 	return { op: 'replace', at: blockIndex - 1, count: 2, newCount: 1, idMap: { 0: 0 } };
+}
+
+/**
+ * `targetPath` is relative to `parent.children[blockIndex - 1]`. Empty means
+ * prev itself is the leaf; non-empty walks into prev's container subtree.
+ */
+export interface MergeIntoPrevResult {
+	targetPath: number[];
+	joinOffset: number;
+	change: StructuralChange;
+}
+
+/**
+ * Merge `curr` into the deepest prose leaf of `prev`. Unlike `mergeWithPrevious`
+ * (which reparses concatenated raw), this writes directly into the deepest leaf
+ * via `findMergeTarget` — preserves prev's component identity, IME state, and
+ * the leaves' inline caches.
+ *
+ * Returns `null` when no mergeable leaf exists (opaque deepest leaf, empty
+ * container, not-mergeable prev kind) so the caller can fall back to move-focus.
+ */
+export function mergeIntoPrevDeepLeaf(
+	parent: NodeParent,
+	blockIndex: number
+): MergeIntoPrevResult | null {
+	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
+
+	const prev = parent.children[blockIndex - 1];
+	const curr = parent.children[blockIndex];
+
+	const mergeTarget = findMergeTarget(prev);
+	if (!mergeTarget) return null;
+
+	const target = mergeTarget.target;
+	const targetRaw = target.raw ?? '';
+	const currRaw = curr.raw ?? '';
+	const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
+	const targetText = trimTrailingLineEnding(targetRaw);
+	const currText = trimTrailingLineEnding(currRaw);
+	const joinOffset = targetText.length;
+
+	target.raw = targetText + currText + lineEnding;
+	// The reactive pipeline didn't fire for `target` because the user typed in
+	// `curr`; rebuild the inline cache so downstream consumers see post-merge text.
+	if (isProseKind(target.kind)) {
+		const range = getContentRange(target);
+		target.inlineContent = parseInline(target.raw, range.start, range.end);
+	}
+	if (mergeTarget.path.length > 0) {
+		rebuildAncestryRaw(prev, mergeTarget.path);
+	}
+
+	const change = deleteNode(parent, blockIndex);
+	return { targetPath: mergeTarget.path, joinOffset, change };
 }
 
 /**

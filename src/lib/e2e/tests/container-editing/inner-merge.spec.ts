@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-test.describe('inner container+paragraph merge inside a blockquote', () => {
+test.describe('inner container+paragraph merge inside a container', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -20,5 +20,65 @@ test.describe('inner container+paragraph merge inside a blockquote', () => {
 		expect(source).toMatch(/^> one$/m);
 		expect(source).not.toMatch(/^three$/m);
 		expect(source).not.toMatch(/^> three$/m);
+	});
+
+	test('caret lands at the join point inside the merged blockquote leaf (not at container end)', async () => {
+		await editor.loadContent('> > nested\n>\n> trailing\n');
+		const trailing = editor.page.locator('[contenteditable="true"]', { hasText: /^trailing$/ });
+		await trailing.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceMatches(/nestedtrailing/);
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceMatches(/nested!trailing/);
+		const source = await editor.bridge.getSource();
+		expect(source).toMatch(/nested!trailing/);
+		expect(source).not.toMatch(/nestedtrailing!/);
+	});
+
+	test('caret lands at the join point when merge target is two containers deep', async () => {
+		// `> > > deep\n>\n> trailing\n` shape: outer blockquote contains a 2-level-
+		// deep nested blockquote and the trailing paragraph as inner siblings.
+		// Backspace at start of trailing exercises the `path.length === 2` branch
+		// of focusByPath inside the nested merge path.
+		await editor.loadContent('> > > deep\n>\n> trailing\n');
+		const trailing = editor.page.locator('[contenteditable="true"]', { hasText: /^trailing$/ });
+		await trailing.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceMatches(/deeptrailing/);
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceMatches(/deep!trailing/);
+		const source = await editor.bridge.getSource();
+		expect(source).toMatch(/deep!trailing/);
+		expect(source).not.toMatch(/deeptrailing!/);
+	});
+
+	test('caret lands at the join point when prev sibling is a list inside a blockquote', async () => {
+		await editor.loadContent('> - item\n>\n> trailing\n');
+		const trailing = editor.page.locator('[contenteditable="true"]', { hasText: /^trailing$/ });
+		await trailing.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceMatches(/itemtrailing/);
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceMatches(/item!trailing/);
+		const source = await editor.bridge.getSource();
+		expect(source).toMatch(/item!trailing/);
+		expect(source).not.toMatch(/itemtrailing!/);
+	});
+
+	test('caret lands at the join point when prev sibling is a list inside a list item', async () => {
+		await editor.loadContent('- outer\n\n  - inner\n\n  trailing\n');
+		const trailing = editor.page.locator('[contenteditable="true"]', { hasText: /^trailing$/ });
+		await trailing.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceMatches(/innertrailing/);
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceMatches(/inner!trailing/);
+		const source = await editor.bridge.getSource();
+		expect(source).toMatch(/inner!trailing/);
+		expect(source).not.toMatch(/innertrailing!/);
 	});
 });

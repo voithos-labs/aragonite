@@ -68,6 +68,7 @@ function makeHandlers(
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: () => null,
+		getBlockComponentByPath: () => null,
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,
