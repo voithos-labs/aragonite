@@ -72,38 +72,6 @@ export class EditorPage {
 		}
 	}
 
-	/**
-	 * Wait until the live list-item DOM count matches `expected`. Enter at end
-	 * of a list item inserts an empty trailing item whose marker is trimmed in
-	 * the serialized source — bridge predicates that consult `getSource()` see
-	 * no change. DOM count is the cheapest observable signal that the post-Enter
-	 * tree has flushed before the next keystroke.
-	 */
-	async waitForListItemCount(expected: number, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(n) => document.querySelectorAll('.list-item-block').length === n,
-			expected,
-			{ timeout, polling: 16 }
-		);
-	}
-
-	/**
-	 * Wait until the total `.block-host` count (top-level + nested) matches
-	 * `expected`. Enter at end of a paragraph or inside a blockquote inserts a
-	 * transient empty paragraph whose marker is trimmed in the serialized
-	 * source — `getBlockCount()` re-parses the source and can't see it. Every
-	 * block (top-level and nested) wraps in `.block-host`, so the total count
-	 * changes by one per insertion and is the cheapest observable signal that
-	 * the post-Enter tree has flushed.
-	 */
-	async waitForBlockHostCount(expected: number, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(n) => document.querySelectorAll('.block-host').length === n,
-			expected,
-			{ timeout, polling: 16 }
-		);
-	}
-
 	// ── Cursor Positioning ──────────────────────────────────────────────
 
 	async focusBlockEnd(index: number) {
@@ -256,22 +224,7 @@ export class EditorPage {
 		await this.page.screenshot({ path: `test-results/${name}.png` });
 	}
 
-	// ── Clipboard ──────────────────────────────────────────────────────
-
-	/**
-	 * Yield until the synthetic clipboard write triggered by Ctrl+C lands on
-	 * the system clipboard. The editor's copy handler writes via a synthetic
-	 * `copy` event whose flush timing the browser owns; no editor state
-	 * changes, so no bridge predicate can observe it. Call before
-	 * `navigator.clipboard.readText()` or before a subsequent Ctrl+V that
-	 * must see the fresh payload. This is the copy-only carve-out documented
-	 * in docs/testing.md § Key Patterns and Gotchas.
-	 */
-	async waitForClipboardWrite(): Promise<void> {
-		await this.page.waitForTimeout(150);
-	}
-
-	// ── Drag & Shift+Click Helpers ─────────────────────────────────────
+	// ── Drag & Shift+Click ──────────────────────────────────────────────
 
 	async dragFromTo(
 		startPath: number[],
@@ -287,7 +240,7 @@ export class EditorPage {
 		await this.page.mouse.down();
 		await this.dragMouseTo(start, end);
 		await this.page.mouse.up();
-		await this.waitForPointerSettle();
+		await this.waitForRenderFlush();
 	}
 
 	/**
@@ -313,7 +266,7 @@ export class EditorPage {
 		await this.dragMouseTo(start, mid);
 		await this.dragMouseTo(mid, end);
 		await this.page.mouse.up();
-		await this.waitForPointerSettle();
+		await this.waitForRenderFlush();
 	}
 
 	private async dragMouseTo(
@@ -333,84 +286,7 @@ export class EditorPage {
 		await this.page.keyboard.down('Shift');
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.up('Shift');
-		await this.waitForPointerSettle();
-	}
-
-	/**
-	 * Yield until post-pointer reactivity has flushed. After mouse.up (drag) or
-	 * shift-click, SelectionState may have mutated; Editor.svelte's $effect
-	 * mirrors `isCrossBlock` onto `data-cross-block` and SelectionOverlay
-	 * components mount/unmount in response. Both happen via Svelte's render
-	 * scheduler, not synchronously — assertions reading the DOM before flush
-	 * see mid-transition state. Two animation frames cover the worst case
-	 * ($effect commit + child component mount). Single-block drags have no
-	 * observable signal to predicate on; rAF settle is the cheapest correct
-	 * wait for both branches.
-	 */
-	private async waitForPointerSettle(): Promise<void> {
-		await this.page.evaluate(
-			() =>
-				new Promise<void>((resolve) => {
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-				})
-		);
-	}
-
-	/**
-	 * Yield long enough for the undo manager's 250ms batch debounce to flush.
-	 * Tests that exercise "two separate undo batches" need this between batches —
-	 * the next interaction must land outside the prior batch's debounce window
-	 * for the undo stack to split. Predicates can't observe this: source already
-	 * reflects the typed text, so there is no shape to poll for.
-	 */
-	async waitForUndoBatchFlush(): Promise<void> {
-		await this.page.waitForTimeout(300);
-	}
-
-	/**
-	 * Yield, then assert the source did not change. Used for "operation should
-	 * be a no-op" verifications where the only way to confirm absence-of-mutation
-	 * is to wait past the window in which a (wrongly committed) mutation would
-	 * surface and then re-read the source. Predicates can't observe a non-event;
-	 * 150ms covers a reactivity tick plus a frame of slack.
-	 */
-	async waitForNoSourceMutation(): Promise<void> {
-		await this.page.waitForTimeout(150);
-	}
-
-	/**
-	 * Yield for one ResizeObserver dispatch cycle. ResizeObserver's
-	 * initial-observe callback fires on the frame after mount/attach; without
-	 * draining it, a subsequent layout shift triggered in the same callback
-	 * batch is absorbed silently and tests that need to observe the shift see
-	 * nothing. 120ms covers the post-mount RO dispatch plus a frame of slack.
-	 */
-	async waitForResizeObserverFlush(): Promise<void> {
-		await this.page.waitForTimeout(120);
-	}
-
-	/**
-	 * Yield until sticky-column layout has settled. Sticky-column assertions
-	 * read editor-relative pixel X via `range.getBoundingClientRect()` — that
-	 * geometry is only correct after the browser has performed style+layout
-	 * for the post-keydown frame. After ArrowUp/ArrowDown (and other reset
-	 * triggers — click, Enter, undo, blur), the editor mutates focus/CST,
-	 * Svelte's render scheduler commits inline-render updates, and the browser
-	 * then repaints; only after that repaint does `getClientRects()` reflect
-	 * the caret's new position. A microtask yield isn't enough — we need a
-	 * full layout flush. Two animation frames cover render-scheduler commit
-	 * plus browser layout. This is the documented `waitForTimeout` carve-out
-	 * in docs/testing.md § "Container edits need Svelte's reactivity cycle to
-	 * settle" — sticky-column has no observable bridge predicate to poll
-	 * (sticky X is internal pixel state, not in the CST source).
-	 */
-	async waitForStickyColumnSettle(): Promise<void> {
-		await this.page.evaluate(
-			() =>
-				new Promise<void>((resolve) => {
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-				})
-		);
+		await this.waitForRenderFlush();
 	}
 
 	private async pointForOffset(
@@ -462,5 +338,102 @@ export class EditorPage {
 			if (rects.length > 0) return rects[0].left;
 			return range.getBoundingClientRect().left;
 		});
+	}
+
+	// ── Settle Helpers ──────────────────────────────────────────────────
+
+	/**
+	 * Yield two animation frames to let Svelte's render scheduler commit and
+	 * the browser perform style+layout. Reads of post-mutation DOM state
+	 * (mounted overlays, `data-cross-block`, geometry from `getBoundingClientRect`)
+	 * see mid-transition values before this flush. The double-rAF covers an
+	 * `$effect` commit plus a child-component mount, or a layout flush after
+	 * caret-affecting keystrokes — whichever the caller is waiting on.
+	 */
+	async waitForRenderFlush(): Promise<void> {
+		await this.page.evaluate(
+			() =>
+				new Promise<void>((resolve) => {
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+				})
+		);
+	}
+
+	/**
+	 * Wait until the live list-item DOM count matches `expected`. Enter at end
+	 * of a list item inserts an empty trailing item whose marker is trimmed in
+	 * the serialized source — bridge predicates that consult `getSource()` see
+	 * no change. DOM count is the cheapest observable signal that the post-Enter
+	 * tree has flushed before the next keystroke.
+	 */
+	async waitForListItemCount(expected: number, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(n) => document.querySelectorAll('.list-item-block').length === n,
+			expected,
+			{ timeout, polling: 16 }
+		);
+	}
+
+	/**
+	 * Wait until the total `.block-host` count (top-level + nested) matches
+	 * `expected`. Enter at end of a paragraph or inside a blockquote inserts a
+	 * transient empty paragraph whose marker is trimmed in the serialized
+	 * source — `getBlockCount()` re-parses the source and can't see it. Every
+	 * block (top-level and nested) wraps in `.block-host`, so the total count
+	 * changes by one per insertion and is the cheapest observable signal that
+	 * the post-Enter tree has flushed.
+	 */
+	async waitForBlockHostCount(expected: number, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(n) => document.querySelectorAll('.block-host').length === n,
+			expected,
+			{ timeout, polling: 16 }
+		);
+	}
+
+	/**
+	 * Yield long enough for the undo manager's 250ms batch debounce to flush.
+	 * Tests that exercise "two separate undo batches" need this between batches —
+	 * the next interaction must land outside the prior batch's debounce window
+	 * for the undo stack to split. Predicates can't observe this: source already
+	 * reflects the typed text, so there is no shape to poll for.
+	 */
+	async waitForUndoBatchFlush(): Promise<void> {
+		await this.page.waitForTimeout(300);
+	}
+
+	/**
+	 * Yield, then assert the source did not change. Used for "operation should
+	 * be a no-op" verifications where the only way to confirm absence-of-mutation
+	 * is to wait past the window in which a (wrongly committed) mutation would
+	 * surface and then re-read the source. Predicates can't observe a non-event;
+	 * 150ms covers a reactivity tick plus a frame of slack.
+	 */
+	async waitForNoSourceMutation(): Promise<void> {
+		await this.page.waitForTimeout(150);
+	}
+
+	/**
+	 * Yield for one ResizeObserver dispatch cycle. ResizeObserver's
+	 * initial-observe callback fires on the frame after mount/attach; without
+	 * draining it, a subsequent layout shift triggered in the same callback
+	 * batch is absorbed silently and tests that need to observe the shift see
+	 * nothing. 120ms covers the post-mount RO dispatch plus a frame of slack.
+	 */
+	async waitForResizeObserverFlush(): Promise<void> {
+		await this.page.waitForTimeout(120);
+	}
+
+	/**
+	 * Yield until the synthetic clipboard write triggered by Ctrl+C lands on
+	 * the system clipboard. The editor's copy handler writes via a synthetic
+	 * `copy` event whose flush timing the browser owns; no editor state
+	 * changes, so no bridge predicate can observe it. Call before
+	 * `navigator.clipboard.readText()` or before a subsequent Ctrl+V that
+	 * must see the fresh payload. This is the copy-only carve-out documented
+	 * in docs/testing.md § Key Patterns and Gotchas.
+	 */
+	async waitForClipboardWrite(): Promise<void> {
+		await this.page.waitForTimeout(150);
 	}
 }

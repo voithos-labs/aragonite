@@ -74,7 +74,7 @@ test.describe('code block keyboard — beyond parity', () => {
 
 		for (let i = 0; i < 4; i++) {
 			await page.keyboard.press('ArrowDown');
-			await editor.waitForStickyColumnSettle();
+			await editor.waitForRenderFlush();
 		}
 
 		await editor.typeText('X');

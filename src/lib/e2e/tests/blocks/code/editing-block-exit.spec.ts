@@ -52,6 +52,71 @@ test.describe('code block editing — edge cases', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForBlockCount(countBefore);
-		expect(await editor.bridge.getSource()).toContain('code');
+		// Type a marker — it must land at the end of "Before", proving (a) focus
+		// moved to the previous paragraph and (b) the code block's raw is intact.
+		// `getBlockCount()` + substring 'code' both hold even when the fence
+		// merges with the body (e.g. 'Before```code...'), so this assertion gates
+		// the structural-corruption regression directly.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('BeforeX');
+		expect(await editor.bridge.getSource()).toBe('BeforeX\n\n```\ncode\n```\n');
+	});
+
+	// The fence-boundary corruption surfaced through "Home then Backspace".
+	// Home in a fenced block goes to the start of the current visual line, so
+	// from the body the caret lands just after the opener's `\n`. Native
+	// Backspace at that position deletes the `\n`, merging the body into the
+	// opener (e.g. ` ```\ncode ` → ` ```code `). Guard the boundary directly so
+	// the corruption is structurally impossible.
+	test('Backspace immediately after opener fence is a no-op', async () => {
+		await editor.loadContent('```\ncode\n```\n');
+		// Position the caret at raw offset 4 — start of body's first column,
+		// i.e. just after the opener fence + its trailing newline.
+		await editor.focusBlockAtPath([0], 4);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
+	});
+
+	test('Delete immediately before closer fence is a no-op', async () => {
+		await editor.loadContent('```\ncode\n```\n');
+		// Position caret at raw offset 8 — end of body's last column,
+		// i.e. just before the closer fence's leading newline.
+		await editor.focusBlockAtPath([0], 8);
+		await editor.page.keyboard.press('Delete');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
+	});
+
+	// Counter-test for the boundary guard: only the two `\n` boundaries are
+	// special. Backspace inside the info string must still edit the info string.
+	test('Backspace inside info string trims the info string', async () => {
+		await editor.loadContent('```python\ncode\n```\n');
+		// offset 9 — just after the 'n' of "python".
+		await editor.focusBlockAtPath([0], 9);
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('```pytho\n');
+		expect(await editor.bridge.getSource()).toBe('```pytho\ncode\n```\n');
+	});
+
+	// Sibling not-mergeable kinds share the focus-only Backspace-at-start exit.
+	test('Backspace at position 0 of indented code moves focus without deleting', async () => {
+		await editor.loadContent('Before\n\n    indented\n');
+		await editor.getBlock(1).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('BeforeX');
+		expect(await editor.bridge.getSource()).toBe('BeforeX\n\n    indented\n');
+	});
+
+	test('Backspace at position 0 of html block moves focus without deleting', async () => {
+		await editor.loadContent('Before\n\n<div>html</div>\n');
+		await editor.getBlock(1).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('BeforeX');
+		expect(await editor.bridge.getSource()).toBe('BeforeX\n\n<div>html</div>\n');
 	});
 });

@@ -56,6 +56,7 @@
 	import { computeCodeEnter } from './code/code-enter';
 	import { computeAutoPair } from './code/code-beforeinput';
 	import { computeFenceExit } from './code/code-fence-exit';
+	import { classifyFenceBoundary } from './code/code-fence-boundary';
 	import type { FencedCodeMetadata } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
@@ -297,24 +298,42 @@
 			return;
 		}
 
-		if (e.key === 'Backspace') {
+		if (e.key === 'Backspace' && !hasSelectionHelper()) {
 			const offset = getCursorOffsetHelper(el) ?? 0;
-			if (offset === 0 && !hasSelectionHelper()) {
+			// offset===0 is the universal contract; offset===bodyStart catches the
+			// fence-boundary case (Home from the body lands there, and native
+			// Backspace would delete the opener's terminating `\n`).
+			if (
+				offset === 0 ||
+				classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
+			) {
 				e.preventDefault();
 				focusActions.moveFocus(index - 1, 'end');
 				return;
 			}
 
 			// Pair-delete: remove both halves so the auto-closed companion isn't stranded.
-			if (!hasSelectionHelper()) {
-				const text = getDisplayText();
-				if (isBetweenEmptyPair(text, offset)) {
-					e.preventDefault();
-					const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-					blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-					pendingCursorOffset = offset - 1;
-					return;
+			const text = getDisplayText();
+			if (isBetweenEmptyPair(text, offset)) {
+				e.preventDefault();
+				const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
+				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+				pendingCursorOffset = offset - 1;
+				return;
+			}
+		}
+
+		if (e.key === 'Delete' && !hasSelectionHelper()) {
+			const offset = getCursorOffsetHelper(el) ?? 0;
+			if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
+				e.preventDefault();
+				// Don't fall through to moveFocus's past-end behavior (which would
+				// append a new paragraph). Delete at the closer boundary is a
+				// focus-only move when a next block exists; a true no-op otherwise.
+				if (index + 1 < getDoc().children.length) {
+					focusActions.moveFocus(index + 1, 'start');
 				}
+				return;
 			}
 		}
 
