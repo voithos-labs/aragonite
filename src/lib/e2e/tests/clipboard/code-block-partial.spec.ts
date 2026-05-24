@@ -13,9 +13,8 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.loadContent('```\n1\n2\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toBe('```\n1\n2\n```');
@@ -29,7 +28,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('```');
@@ -45,7 +44,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toContain('```');
@@ -61,7 +60,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 			await page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
 		expect(clip).toBe('```');
@@ -71,9 +70,8 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.loadContent('```\nhello\n```\n\n```\n\n```\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		// Caret between the second (empty) code block's fences.
 		await editor.getBlock(1).click();

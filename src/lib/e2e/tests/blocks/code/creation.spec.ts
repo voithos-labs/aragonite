@@ -13,20 +13,14 @@ test.describe('code block creation — Enter after typing ```', () => {
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('```');
-		await editor.page.waitForTimeout(150);
-
+		await editor.bridge.waitForSourceContains('```');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
-
 		await editor.typeText('body');
-		await editor.page.waitForTimeout(150);
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-
 		// Regression: swallowed Enter would land "body" on the opener line ("```body").
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/```\n+body/);
+		await editor.bridge.waitForSourceMatches(/```\n+body/);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 });
 
@@ -42,12 +36,12 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('```');
-		await editor.page.waitForTimeout(150);
+		await editor.bridge.waitForSourceContains('```');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 
 		// Auto-pair must not fire while the fence is unclosed (would yield 5 backticks).
 		await editor.typeSlowly('`');
-		await editor.page.waitForTimeout(150);
+		await editor.bridge.waitForSourceContains('````');
 
 		const source = await editor.bridge.getSource();
 		const backticks = (source.match(/`/g) ?? []).length;
@@ -58,13 +52,11 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('```');
-		await editor.page.waitForTimeout(150);
+		await editor.bridge.waitForSourceContains('```');
 
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
-
 		await editor.typeSlowly('`');
-		await editor.page.waitForTimeout(150);
+		await editor.bridge.waitForSourceMatches(/```\n+`/);
 
 		const source = await editor.bridge.getSource();
 		const backticks = (source.match(/`/g) ?? []).length;
@@ -79,7 +71,7 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 			await editor.page.keyboard.press('ArrowRight');
 		}
 		await editor.typeSlowly('`');
-		await editor.page.waitForTimeout(150);
+		await editor.bridge.waitForSourceMatches(/^```\n``\n```/);
 
 		const source = await editor.bridge.getSource();
 		const match = source.match(/^```\n([\s\S]*?)\n```\s*$/);

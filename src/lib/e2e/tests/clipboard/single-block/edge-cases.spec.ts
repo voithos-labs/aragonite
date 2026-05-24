@@ -54,8 +54,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+c');
-		// wait 200ms — copy is a no-op for source; verify no spurious change settles in.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const sourceAfter = await editor.bridge.getSource();
 		expect(sourceAfter).toBe(sourceBefore);
@@ -66,8 +65,7 @@ test.describe('single-block clipboard: edge cases', () => {
 		const sourceBefore = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Control+x');
-		// wait 200ms — empty cut is a no-op for source; verify no spurious change settles in.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForClipboardWrite();
 
 		const sourceAfter = await editor.bridge.getSource();
 		expect(sourceAfter).toBe(sourceBefore);

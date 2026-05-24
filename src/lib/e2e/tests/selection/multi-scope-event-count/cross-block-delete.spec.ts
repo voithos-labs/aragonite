@@ -18,7 +18,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Backspace');
-			await editor.page.waitForTimeout(200);
+			await editor.bridge.waitForBlockCount(1);
 		});
 
 		expect(count).toBe(1);
@@ -34,7 +34,7 @@ test.describe('one edit event per op — cross-block delete', () => {
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press('Backspace');
-			await editor.page.waitForTimeout(200);
+			await editor.bridge.waitForBlockCount(1);
 		});
 
 		expect(count).toBe(1);
@@ -51,6 +51,7 @@ test.describe('cross-block delete — list item id identity', () => {
 
 	test('surviving list item keeps start-item id after mixed cross-scope delete', async () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
+		const before = await editor.bridge.getSource();
 
 		const idsBefore: string[] = await editor.page.evaluate(() =>
 			(window as any).__test.getListItemIds(0)
@@ -65,7 +66,7 @@ test.describe('cross-block delete — list item id identity', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 
 		const idsAfter: string[] = await editor.page.evaluate(() =>
 			(window as any).__test.getListItemIds(0)

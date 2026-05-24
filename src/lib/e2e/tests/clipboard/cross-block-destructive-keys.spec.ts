@@ -22,7 +22,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForCrossBlock(false);
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const source = await editor.bridge.getSource();
@@ -38,7 +38,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Shift+Enter');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('al\\');
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const source = await editor.bridge.getSource();
@@ -53,7 +54,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+b');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains('pha');
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const source = await editor.bridge.getSource();
@@ -70,7 +72,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+2');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('## ');
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
@@ -86,7 +89,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+0');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains('# ');
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
@@ -100,7 +104,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Tab');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('\t');
 
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		const source = await editor.bridge.getSource();

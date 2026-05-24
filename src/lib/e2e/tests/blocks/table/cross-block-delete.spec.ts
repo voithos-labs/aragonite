@@ -184,7 +184,7 @@ test.describe('table block: cross-block delete', () => {
 		await dragBetween(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
-		await page.waitForTimeout(150);
+		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 

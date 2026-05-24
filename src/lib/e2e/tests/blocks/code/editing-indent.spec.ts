@@ -21,9 +21,7 @@ test.describe('code block tab / indent', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(100);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('hel\tlo');
+		await editor.bridge.waitForSourceContains('hel\tlo');
 	});
 
 	test('Tab with multi-line selection indents every covered line', async ({ page }) => {
@@ -36,10 +34,9 @@ test.describe('code block tab / indent', () => {
 		}
 
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(100);
+		await editor.bridge.waitForSourceContains('\tline1');
 
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('\tline1');
 		expect(source).toContain('\tline2');
 		expect(source).toMatch(/^line3$/m);
 	});
@@ -52,10 +49,8 @@ test.describe('code block tab / indent', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await page.keyboard.press('Shift+Tab');
-		await page.waitForTimeout(100);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('indented');
-		expect(source).not.toContain('\tindented');
+		await editor.bridge.waitForSourceNotContains('\tindented');
+		expect(await editor.bridge.getSource()).toContain('indented');
 	});
 
 	test('Shift+Tab removes up to 4 leading spaces', async ({ page }) => {
@@ -66,10 +61,8 @@ test.describe('code block tab / indent', () => {
 			await page.keyboard.press('ArrowRight');
 		}
 		await page.keyboard.press('Shift+Tab');
-		await page.waitForTimeout(100);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('spaced');
-		expect(source).not.toContain('    spaced');
+		await editor.bridge.waitForSourceNotContains('    spaced');
+		expect(await editor.bridge.getSource()).toContain('spaced');
 	});
 
 	test('Shift+Tab is a no-op on a line with no leading whitespace', async ({ page }) => {
@@ -81,8 +74,11 @@ test.describe('code block tab / indent', () => {
 		}
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Tab');
-		await page.waitForTimeout(100);
-		const sourceAfter = await editor.bridge.getSource();
+		// Type a marker to flush any async edit path that Shift+Tab might trigger;
+		// if it had dedented or inserted anything else, the assertion below would catch it.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');
 		expect(sourceAfter).toBe(sourceBefore);
 	});
 
@@ -96,12 +92,11 @@ test.describe('code block tab / indent', () => {
 		}
 
 		await page.keyboard.press('Shift+Tab');
-		await page.waitForTimeout(100);
+		await editor.bridge.waitForSourceNotContains('\tline1');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('line1');
 		expect(source).toContain('line2');
-		expect(source).not.toContain('\tline1');
 		expect(source).not.toContain('\tline2');
 		expect(source).toContain('line3');
 	});

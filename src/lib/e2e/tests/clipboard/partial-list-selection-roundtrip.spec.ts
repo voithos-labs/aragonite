@@ -17,9 +17,9 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two\n3\. three/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
@@ -33,9 +33,9 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two\n3\. three/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
@@ -49,9 +49,9 @@ test.describe('copy-paste round-trip: partial-list selection preserves structure
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two\n3\. three/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');

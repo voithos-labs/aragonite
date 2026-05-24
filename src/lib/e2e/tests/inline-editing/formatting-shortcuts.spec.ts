@@ -77,8 +77,11 @@ test.describe('inline editing — formatting shortcuts', () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Control+b');
-		await editor.page.waitForTimeout(200);
-		const source = await editor.bridge.getSource();
-		expect(source).toBe('Hello world\n');
+		// Type a marker afterward to flush any async edit Ctrl+B might trigger;
+		// a real bold action would wrap with **markers** and the source diff would surface it.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');
+		expect(sourceAfter).toBe('Hello world\n');
 	});
 });

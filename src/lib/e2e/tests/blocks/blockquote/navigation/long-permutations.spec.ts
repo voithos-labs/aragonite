@@ -17,8 +17,7 @@ test.describe('blockquote navigation — long permutations', () => {
 		await editor.typeText(' extra');
 		await editor.bridge.waitForSourceContains(' extra');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — Enter splits paragraph; empty middle isn't visible in source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> Z2$/m);

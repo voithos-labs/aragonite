@@ -27,9 +27,7 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.loadContent('one\n\ntwo\n');
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.page.waitForTimeout(100);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(false);
 	});
@@ -58,12 +56,10 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.focusBlockStart(0);
 
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(50);
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(50);
 
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(100);
+		await editor.bridge.waitForSourceContains('X');
 
 		expect(await editor.getDomBlockCount()).toBe(1);
 		// The typed char must land in the surviving block. Exact line-ending

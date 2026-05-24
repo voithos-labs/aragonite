@@ -16,7 +16,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 		await nestedA.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
-		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/- one\n.*- Xnested a\n/s);
@@ -32,7 +31,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 		await lonely.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+Tab');
-		await editor.page.waitForTimeout(300);
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/- one\n- Xlonely nested\n- three/);

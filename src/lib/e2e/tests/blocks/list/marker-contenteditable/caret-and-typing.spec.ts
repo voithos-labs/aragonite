@@ -16,7 +16,7 @@ test.describe('list marker — caret placement and typing', () => {
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('- XHello\n');
 		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
@@ -29,7 +29,7 @@ test.describe('list marker — caret placement and typing', () => {
 		if (!box) throw new Error('marker not visible');
 		await editor.page.mouse.click(box.x + 1, box.y + box.height / 2);
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('- XHello\n');
 		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
@@ -43,7 +43,7 @@ test.describe('list marker — caret placement and typing', () => {
 		expect(selectedText).toBe('Hello');
 
 		await editor.typeText('World');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceEquals('- World\n');
 		expect(await editor.bridge.getSource()).toBe('- World\n');
 	});
 

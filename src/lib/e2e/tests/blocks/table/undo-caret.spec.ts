@@ -15,7 +15,6 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	test('undo after Alt+Shift+Backspace restores caret to same cell', async ({ page }) => {
 		// Focus cell at row 2, col 1 (body row 2, middle column = "5" cell).
 		await page.locator('[role="cell"]').nth(7).click();
-		await page.waitForTimeout(50);
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Alt+Shift+Backspace');
@@ -39,7 +38,6 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		// Focus cell row 1 col 1 (the "2" cell — picking row 1 not row 2 since
 		// row deletion test should pick a row that wouldn't promote header).
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.waitForTimeout(50);
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Control+Shift+Backspace');
@@ -65,8 +63,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 		await editor.typeSlowly('xy');
 		await editor.bridge.waitForSourceContains('| 1 | 2xy | 3 |');
-		// Past the 250ms keystroke-debounce window so the batch flushes.
-		await page.waitForTimeout(300);
+		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
@@ -94,7 +91,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await page.keyboard.press('Backspace');
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('| 1 | Col | 3 |');
-		await page.waitForTimeout(300);
+		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
@@ -128,7 +125,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await page.mouse.move(tableInfo.startX, tableInfo.startY);
 		await page.mouse.down();
 		await page.mouse.move(tableInfo.endX, tableInfo.endY, { steps: 15 });
-		await page.waitForTimeout(100);
+		await editor.waitForCrossBlock(true);
 		await page.mouse.up();
 
 		// Cross-block intra-table selection should be active.

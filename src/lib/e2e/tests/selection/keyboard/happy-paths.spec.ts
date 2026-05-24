@@ -60,7 +60,6 @@ test.describe('selection — keyboard: happy paths', () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(1);
 		await editor.page.keyboard.press('Control+a');
-		await editor.page.waitForTimeout(200);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);

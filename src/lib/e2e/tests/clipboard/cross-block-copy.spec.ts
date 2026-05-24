@@ -16,7 +16,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
@@ -25,11 +25,16 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.loadContent('first\n\nsecond\n\nthird\n');
 		await editor.focusBlock(0, 3);
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.page.waitForTimeout(100);
+		// Shift+ArrowDown mid-block stays native (no cross-block bridge state);
+		// poll DOM selection until extension lands.
+		await editor.page.waitForFunction(
+			() => (window.getSelection()?.toString().length ?? 0) > 0,
+			null,
+			{ timeout: 2000, polling: 16 }
+		);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.page.waitForTimeout(100);
 		await editor.focusBlockEnd(2);
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceMatches(/third\s*st/);
@@ -47,7 +52,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.shiftClickBlock([1], 3);
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(150);
+		await editor.waitForClipboardWrite();
 
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
@@ -68,7 +73,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);

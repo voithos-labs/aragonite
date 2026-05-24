@@ -21,7 +21,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceContains('- \n');
 		await editor.page.keyboard.press('Enter');
-		await editor.page.waitForTimeout(200);
+		await editor.waitForListItemCount(2);
 		const counts = await editor.page.evaluate(() => ({
 			listItems: document.querySelectorAll('.list-item-block').length,
 			liveListChildren: ((window as any).__test.getDocument().children[0]?.children ?? []).length
@@ -36,11 +36,9 @@ test.describe('list Enter — exit list on empty item', () => {
 		await item.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — empty-marker insert isn't visible in serialized source; let editor settle.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForListItemCount(2);
 		await editor.page.keyboard.press('Enter');
-		// wait 200ms — exit-list transition emits no immediate source change.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForListItemCount(1);
 		await editor.typeText('After');
 		await editor.bridge.waitForSourceContains('After');
 		const source = await editor.bridge.getSource();
@@ -75,8 +73,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSource((s) => !s.includes('Second'));
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — exiting empty middle item produces no source change until next type.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(2);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('Z');
 		const source = await editor.bridge.getSource();
@@ -89,8 +86,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		await item.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — first Enter creates an empty sibling whose marker is trimmed in serialized source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(3);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^- Nested$/m);
 		const source = await editor.bridge.getSource();
@@ -109,8 +105,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSource((s) => !s.includes('Last'));
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — exiting empty last item leaves no source change until next type.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(1);
 		await editor.typeText('After');
 		await editor.bridge.waitForSourceContains('After');
 		const source = await editor.bridge.getSource();
@@ -127,8 +122,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		await item.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		// wait 300ms — first Enter inserts an empty marker that's trimmed in serialized source.
-		await editor.page.waitForTimeout(300);
+		await editor.waitForListItemCount(3);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^1\. NestedOrdered$/m);
 		const source = await editor.bridge.getSource();

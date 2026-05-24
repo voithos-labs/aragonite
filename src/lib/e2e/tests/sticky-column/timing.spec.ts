@@ -22,7 +22,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
@@ -38,7 +38,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
@@ -54,7 +54,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
@@ -70,7 +70,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
@@ -89,7 +89,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');
@@ -108,7 +108,7 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		await editor.page.waitForTimeout(200);
+		await editor.bridge.waitForSourceContains('X');
 
 		const source = await editor.bridge.getSource();
 		const lines = source.split('\n');

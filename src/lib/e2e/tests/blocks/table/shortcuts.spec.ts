@@ -86,8 +86,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Control+Shift+Backspace');
-		// No mutation expected; allow a short window for any (unwanted) commit to land.
-		await page.waitForTimeout(150);
+		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -96,7 +95,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await page.locator('[role="cell"]').nth(0).click();
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await page.waitForTimeout(150);
+		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 

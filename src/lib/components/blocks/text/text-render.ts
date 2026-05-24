@@ -45,9 +45,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return node.raw.slice(0, range.start);
 	}
 
-	// Builds the inline DOM with ambient and block-own marker spans prepended.
-	// Takes parsed content as parameter so we never write back to node.inlineContent
-	// — see `docs/design/editor/editor.md` § Reactive State Plumbing.
+	// Inline content is computed by the caller and threaded in; the render path
+	// never reads node.inlineContent — see editor.md § Reactive State Plumbing.
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const node = deps.node;
 		const frag = document.createDocumentFragment();

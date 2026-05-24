@@ -17,9 +17,9 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two\n3\. three/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
@@ -33,9 +33,9 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two');
@@ -49,9 +49,9 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await editor.page.waitForTimeout(100);
+		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/- alpha\n- beta\n- gamma/);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('- alpha\n- beta\n- gamma');
@@ -66,7 +66,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.page.waitForTimeout(300);
+		await editor.bridge.waitForSourceMatches(/- pasted a\n- pasted b/);
 
 		const src = await editor.bridge.getSource();
 		// Windows clipboard stores CRLF even when written with LF.
