@@ -152,6 +152,7 @@
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
 	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
 
 	$effect(() => {
 		if (!setRef || !getRef) return;

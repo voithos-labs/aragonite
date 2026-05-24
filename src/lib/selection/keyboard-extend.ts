@@ -6,6 +6,7 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
+import type { BlockComponentLookup } from '../editor-keys';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
@@ -78,16 +79,24 @@ export function scrollFocusBlockIntoView(
  * Extend focus to the next leaf in document order (Shift+ArrowDown /
  * Shift+ArrowRight leaving the current block). Enters cross-block mode if
  * still single-block. Returns true if focus moved.
+ *
+ * `axis` = 'vertical' (Shift+ArrowDown) consults `getComponentByPath` to skip
+ * vertically-transparent leaves — mirrors single-block focus dispatch. 'horizontal'
+ * (Shift+ArrowRight) lands on the next leaf unconditionally so the user can
+ * select an image-only paragraph in one step.
  */
 export function extendFocusToNextBlock(
 	selection: SelectionState,
 	doc: Document,
 	currentBlockEl: HTMLElement,
-	currentBlockPath: number[]
+	currentBlockPath: number[],
+	axis: 'horizontal' | 'vertical' = 'horizontal',
+	getComponentByPath?: BlockComponentLookup
 ): boolean {
-	const target = nextPath(doc, currentBlockPath);
-	if (!target) return false;
-	const leafTarget = firstLeafAtOrAfter(doc, target);
+	const leafTarget =
+		axis === 'vertical'
+			? firstNonTransparentLeafAfter(doc, currentBlockPath, getComponentByPath)
+			: firstLeafAfter(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
@@ -99,19 +108,23 @@ export function extendFocusToNextBlock(
 
 /**
  * Extend focus to the previous leaf (Shift+ArrowUp / Shift+ArrowLeft).
- * `side` = 'end' for ArrowLeft (cross boundary by one char), 'start' for
- * ArrowUp (select the whole previous line, matching native behavior).
+ * `side` = 'end' for ArrowLeft (horizontal — cross boundary by one char),
+ * 'start' for ArrowUp (vertical — select the whole previous line, matching
+ * native behavior). The vertical path also skips vertically-transparent
+ * leaves via `getComponentByPath` so parity with single-block dispatch holds.
  */
 export function extendFocusToPreviousBlock(
 	selection: SelectionState,
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	side: 'start' | 'end' = 'end'
+	side: 'start' | 'end' = 'end',
+	getComponentByPath?: BlockComponentLookup
 ): boolean {
-	const target = previousPath(doc, currentBlockPath);
-	if (!target) return false;
-	const leafTarget = lastLeafAtOrBefore(doc, target);
+	const leafTarget =
+		side === 'start'
+			? lastNonTransparentLeafBefore(doc, currentBlockPath, getComponentByPath)
+			: lastLeafBefore(doc, currentBlockPath);
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
@@ -124,23 +137,33 @@ export function extendFocusToPreviousBlock(
 
 /**
  * Extend focus to the document edge (Ctrl+Shift+Home / Ctrl+Shift+End).
+ * Vertical-skip applies: a transparent edge leaf is bypassed in favor of
+ * the nearest text-bearing leaf, matching the cross-block extension path.
  */
 export function extendFocusToDocEdge(
 	selection: SelectionState,
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	to: 'start' | 'end'
+	to: 'start' | 'end',
+	getComponentByPath?: BlockComponentLookup
 ): boolean {
 	const edge = to === 'start' ? firstPath(doc) : lastPath(doc);
 	if (!edge) return false;
+
+	const target = isTransparent(edge, getComponentByPath)
+		? to === 'start'
+			? firstNonTransparentLeafFrom(doc, edge, getComponentByPath)
+			: lastNonTransparentLeafFrom(doc, edge, getComponentByPath)
+		: edge;
+	if (!target) return false;
 
 	if (!selection.isCrossBlock) {
 		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 
-	const offset = to === 'end' ? leafOffsetEnd(doc, edge) : 0;
-	selection.extendFocus({ path: edge, offset });
+	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
+	selection.extendFocus({ path: target, offset });
 	return true;
 }
 
@@ -226,6 +249,77 @@ function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 		cur = [...cur, node.children.length - 1];
 	}
 	return null;
+}
+
+/** First leaf reachable from `fromPath` going forward (descend or step). */
+function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {
+	const next = nextPath(doc, fromPath);
+	return next ? firstLeafAtOrAfter(doc, next) : null;
+}
+
+/** Last leaf reachable from `fromPath` going backward (descend or step). */
+function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
+	const prev = previousPath(doc, fromPath);
+	return prev ? lastLeafAtOrBefore(doc, prev) : null;
+}
+
+function isTransparent(
+	path: number[],
+	getComponentByPath: BlockComponentLookup | undefined
+): boolean {
+	return getComponentByPath?.(path)?.isVerticallyTransparent?.() ?? false;
+}
+
+/**
+ * Walk forward from `fromPath` to the next leaf whose component is not
+ * vertically transparent. Without `getComponentByPath` the predicate
+ * collapses to the plain "next leaf" walker.
+ */
+function firstNonTransparentLeafAfter(
+	doc: Document,
+	fromPath: number[],
+	getComponentByPath: BlockComponentLookup | undefined
+): number[] | null {
+	let leaf = firstLeafAfter(doc, fromPath);
+	while (leaf && isTransparent(leaf, getComponentByPath)) {
+		leaf = firstLeafAfter(doc, leaf);
+	}
+	return leaf;
+}
+
+function lastNonTransparentLeafBefore(
+	doc: Document,
+	fromPath: number[],
+	getComponentByPath: BlockComponentLookup | undefined
+): number[] | null {
+	let leaf = lastLeafBefore(doc, fromPath);
+	while (leaf && isTransparent(leaf, getComponentByPath)) {
+		leaf = lastLeafBefore(doc, leaf);
+	}
+	return leaf;
+}
+
+/**
+ * Doc-edge resolver: starting AT the edge leaf (which is itself transparent),
+ * step inward until a text-bearing leaf is found. Distinct from the
+ * "first/lastLeafAfter/Before" walkers because those step away from `fromPath`.
+ */
+function firstNonTransparentLeafFrom(
+	doc: Document,
+	startPath: number[],
+	getComponentByPath: BlockComponentLookup | undefined
+): number[] | null {
+	if (!isTransparent(startPath, getComponentByPath)) return startPath;
+	return firstNonTransparentLeafAfter(doc, startPath, getComponentByPath);
+}
+
+function lastNonTransparentLeafFrom(
+	doc: Document,
+	startPath: number[],
+	getComponentByPath: BlockComponentLookup | undefined
+): number[] | null {
+	if (!isTransparent(startPath, getComponentByPath)) return startPath;
+	return lastNonTransparentLeafBefore(doc, startPath, getComponentByPath);
 }
 
 function leafOffsetEnd(doc: Document, path: number[]): number {

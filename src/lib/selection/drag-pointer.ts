@@ -56,7 +56,15 @@ export function installDragListener(
 		if (!hit) return;
 
 		if (comparePaths(hit.path, anchorPoint.path) === 0) {
-			// Still in anchor block — let the browser handle native selection.
+			if (ctx.selection.isCrossBlock) {
+				// Pointer returned to the anchor block after cross-block was
+				// entered. Collapse cross-block so the overlay stops painting
+				// the stale remote range; the browser's drag has been extending
+				// native selection underneath (CSS just hid it while
+				// data-cross-block was set), so handing back to it produces
+				// the correct single-block highlight.
+				ctx.selection.collapse();
+			}
 			return;
 		}
 

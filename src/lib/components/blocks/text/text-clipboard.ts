@@ -16,6 +16,7 @@ import type { PasteCommitCoordinator } from '../../../tree-operations/paste/past
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
+import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
 import { collectCrossBlockText } from '../../../selection/clipboard-text';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
@@ -103,15 +104,15 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart)
 		) {
 			const inline = (deps.node.inlineContent ?? []).find(
-				(n) => n.kind === 'image' && n.start === selectedWidget.sourceStart
+				(n) => isLiveWidgetInline(n, deps.node.raw) && n.start === selectedWidget.sourceStart
 			);
-			if (inline && inline.kind === 'image') {
+			if (inline) {
 				const newRaw =
 					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
 				deps.blockEdit.updateBlockContent(
 					deps.index,
 					newRaw,
-					inline.end,
+					selectedWidget.preSelectOffset,
 					inline.start + pastedText.length
 				);
 				deps.widgetSelection.clear();

@@ -74,6 +74,19 @@ test.describe('selection — pointer: edge cases', () => {
 		const betaBlock = source.split('\n\n').find((s) => s.includes('beta'));
 		expect(betaBlock).toContain('X');
 	});
+
+	test('drag out to remote block then back to anchor collapses cross-block', async () => {
+		await editor.loadContent('alpha line\n\nbeta line\n\ngamma line\n');
+		await editor.dragFromToThenTo([0], 2, [2], 5, [0], 6);
+		await editor.waitForCrossBlock(false);
+
+		const middleOverlay = await editor.page.$("[data-block-path='[1]'] .selection-overlay-middle");
+		expect(middleOverlay).toBeNull();
+
+		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
+		expect(selectedText).not.toContain('beta');
+		expect(selectedText).not.toContain('gamma');
+	});
 });
 
 test.describe('selection — pointer: cross-container', () => {

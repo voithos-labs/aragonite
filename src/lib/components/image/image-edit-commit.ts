@@ -162,10 +162,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function attachWidgetSelectListener(): () => void {
 		const root = getEditorEl();
 		if (!root) return () => {};
-		const handler = (e: Event) =>
-			widgetSelection.select(
-				(e as CustomEvent).detail as { paragraphPath: number[]; sourceStart: number }
-			);
+		const handler = (e: Event) => widgetSelection.select((e as CustomEvent).detail as WidgetTarget);
 		root.addEventListener('image-widget-select', handler);
 		return () => root.removeEventListener('image-widget-select', handler);
 	}

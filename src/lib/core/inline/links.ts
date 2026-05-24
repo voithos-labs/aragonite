@@ -13,6 +13,13 @@ import { normalizeLinkLabel, type LinkReferenceResolver } from './link-reference
 
 type Range = { start: number; end: number };
 
+function isContainedInAny(inner: Range, outers: Range[]): boolean {
+	for (const outer of outers) {
+		if (inner.start >= outer.start && inner.end <= outer.end) return true;
+	}
+	return false;
+}
+
 // ── GFM §6.9 shared helpers ─────────────────────────────────────────────────
 
 const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
@@ -99,13 +106,21 @@ export function scanLinksAndAutolinks(
 	// `[` inside a code span doesn't masquerade as a link delimiter.
 	const linksAndImages = scanLinksAndImages(raw, start, end, occupiedRanges, resolver);
 
+	// Occupied ranges enclosed by a link/image already live inside that node's
+	// children (see parseInline call in scanLinksAndImages). They must not
+	// re-appear as top-level siblings or seed phantom autolink scans into the
+	// link's destination bytes.
+	const linkAndImageRanges: Range[] = linksAndImages.map((n) => ({ start: n.start, end: n.end }));
+	const outerOccupiedRanges = occupiedRanges.filter(
+		(r) => !isContainedInAny(r, linkAndImageRanges)
+	);
+
 	// Pass 2: autolinks fill the gaps left by occupied + links. They stop at
 	// occupied/whitespace boundaries so e.g. `https://x.com&amp;y` does not
 	// absorb the entity into the autolinked URL.
-	const closedRanges: Range[] = [
-		...occupiedRanges,
-		...linksAndImages.map((n) => ({ start: n.start, end: n.end }))
-	].sort((a, b) => a.start - b.start);
+	const closedRanges: Range[] = [...outerOccupiedRanges, ...linkAndImageRanges].sort(
+		(a, b) => a.start - b.start
+	);
 
 	const autolinks: InlineNode[] = [];
 	let pos = start;
@@ -118,9 +133,11 @@ export function scanLinksAndAutolinks(
 	const found: InlineNode[] = [...linksAndImages, ...autolinks];
 	if (found.length === 0) return occupied;
 
-	const allOccupied: InlineNode[] = [...occupied.filter((n) => n.kind !== 'text'), ...found].sort(
-		(a, b) => a.start - b.start
+	const outerOccupied = occupied.filter(
+		(n) =>
+			n.kind !== 'text' && !isContainedInAny({ start: n.start, end: n.end }, linkAndImageRanges)
 	);
+	const allOccupied: InlineNode[] = [...outerOccupied, ...found].sort((a, b) => a.start - b.start);
 
 	const result: InlineNode[] = [];
 	let cursor = start;

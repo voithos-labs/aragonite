@@ -70,6 +70,13 @@ export interface BlockComponent {
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
 	/**
+	 * Descend a path of child indices and return the BlockComponent at the
+	 * leaf, or null if the path doesn't resolve. Empty `path` returns the
+	 * current component. Container blocks implement it; leaf blocks rely on
+	 * the default behavior (the path must be empty to match).
+	 */
+	getBlockComponentByPath?(path: number[]): BlockComponent | null;
+	/**
 	 * Deep cursor position for nested-block surfaces (e.g., table cells).
 	 * Returns the path from this block to the leaf containing the cursor,
 	 * plus the within-leaf offset. When implemented, Editor.svelte's

@@ -103,6 +103,50 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		expect(source).toContain('AlphaZBeta');
 	});
 
+	// Live children-vs-childIds parity at every container depth. Before the
+	// fix the M1 helper mutated inner-container `children` without extending
+	// `childIds`, so Svelte's keyed each logged `each_key_duplicate` for the
+	// trailing undefined keys.
+	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
+		const consoleErrors: string[] = [];
+		const pageErrors: string[] = [];
+		page.on('console', (m) => {
+			if (m.type() === 'error' || m.type() === 'warning') consoleErrors.push(m.text());
+		});
+		page.on('pageerror', (e) => pageErrors.push(e.message));
+
+		await editor.loadContent('- A\n  - B\n    - C\n- D\n  - E\n');
+		const dItem = editor.page.locator('[contenteditable="true"]', { hasText: 'D' }).first();
+		await dItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceMatches(/^    - CD/m);
+
+		const parity = await page.evaluate(() => {
+			const mismatches: { kind: string; children: number; ids: number }[] = [];
+			const walk = (n: { kind?: string; children?: unknown[]; childIds?: unknown[] }) => {
+				if (!n.children) return;
+				const childCount = n.children.length;
+				const idCount = n.childIds?.length ?? 0;
+				if (childCount !== idCount) {
+					mismatches.push({ kind: n.kind ?? '?', children: childCount, ids: idCount });
+				}
+				for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
+			};
+			// Document root has children but no childIds (top-level ids live in
+			// the editor harness, not on the doc node). Walk from each top-level
+			// CST node downward.
+			const doc = (
+				window as { __test?: { getDocument?: () => { children?: unknown[] } } }
+			).__test?.getDocument?.();
+			for (const top of doc?.children ?? []) walk(top as Parameters<typeof walk>[0]);
+			return mismatches;
+		});
+		expect(parity).toEqual([]);
+		expect(pageErrors).toEqual([]);
+		expect(consoleErrors.filter((m) => /each_key_duplicate/.test(m))).toEqual([]);
+	});
+
 	test('ordered: deleting item renumbers subsequent', async () => {
 		await editor.loadContent('1. First\n2. Second\n3. Third\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Second' });

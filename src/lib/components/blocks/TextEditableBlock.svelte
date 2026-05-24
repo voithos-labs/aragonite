@@ -11,6 +11,7 @@
 		STICKY_COLUMN_KEY,
 		SELECTION_KEY,
 		BLOCK_EL_LOOKUP_KEY,
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
@@ -19,6 +20,7 @@
 		LINK_REF_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
+		type BlockComponentLookup,
 		type ContainerEditActions,
 		type DocumentGetter,
 		type FocusActions,
@@ -89,6 +91,7 @@
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getBlockComponentByPath = getContext<BlockComponentLookup>(BLOCK_COMPONENT_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
@@ -117,6 +120,7 @@
 		selection,
 		getDoc,
 		getBlockElByPath,
+		getBlockComponentByPath,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
@@ -184,7 +188,8 @@
 		history,
 		focus: focusActions,
 		getDoc,
-		getBlockElByPath
+		getBlockElByPath,
+		getBlockComponentByPath
 	};
 
 	const textRender = createTextRender({
@@ -218,7 +223,7 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		cursor.setRaw(offset);
+		cursor.setRaw(Math.max(0, offset));
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -279,7 +284,14 @@
 		// Focus the contenteditable so subsequent key events route to this
 		// block's keydown handler, where the widget-selected branch can run.
 		el?.focus();
-		widgetSelection.select({ paragraphPath: myPath, sourceStart: target.start });
+		// Cross-block entry: the caret arrived at the boundary the user was
+		// stepping toward — start-side enters at target.start, end-side at
+		// target.end. Anchors undo at the visual landing position.
+		widgetSelection.select({
+			paragraphPath: myPath,
+			sourceStart: target.start,
+			preSelectOffset: side === 'start' ? target.start : target.end
+		});
 		return true;
 	}
 
@@ -458,7 +470,12 @@
 					};
 					const newBytes = buildImageSourceBytes(newFields);
 					const newRaw = node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start + newBytes.length);
+					blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						selectedWidget.preSelectOffset,
+						widget.start + newBytes.length
+					);
 					return;
 				}
 				if (e.key === 'ArrowLeft') {
@@ -486,7 +503,10 @@
 				if (e.key === 'Backspace' || e.key === 'Delete') {
 					e.preventDefault();
 					const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start);
+					// Undo anchor at the pre-select caret position, not the far
+					// widget boundary — Ctrl+Z restores the caret where the
+					// user actually was when selection took over.
+					blockEdit.updateBlockContent(index, newRaw, selectedWidget.preSelectOffset, widget.start);
 					widgetSelection.clear();
 					return;
 				}
@@ -500,7 +520,12 @@
 					e.preventDefault();
 					const typed = e.key;
 					const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(index, newRaw, widget.end, widget.start + typed.length);
+					blockEdit.updateBlockContent(
+						index,
+						newRaw,
+						selectedWidget.preSelectOffset,
+						widget.start + typed.length
+					);
 					widgetSelection.clear();
 					return;
 				}
@@ -538,13 +563,21 @@
 				if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
 					e.preventDefault();
 					lastSnapTargetOffset = null;
-					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
+					widgetSelection.select({
+						paragraphPath: myPath,
+						sourceStart: widgetAt.start,
+						preSelectOffset: widgetAt.end
+					});
 					return;
 				}
 				if (!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
 					e.preventDefault();
 					lastSnapTargetOffset = null;
-					widgetSelection.select({ paragraphPath: myPath, sourceStart: widgetAt.start });
+					widgetSelection.select({
+						paragraphPath: myPath,
+						sourceStart: widgetAt.start,
+						preSelectOffset: widgetAt.start
+					});
 					return;
 				}
 				if (!caretInTextNode && isTypingKey(e)) {

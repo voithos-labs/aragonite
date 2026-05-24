@@ -10,7 +10,7 @@ import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../schema/container-raw';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
-import { generateBlockId } from '../block-id';
+import { assignIds, generateBlockId } from '../block-id';
 
 /**
  * Compute the result of unwrapping a list's first item under Rule U1.
@@ -94,6 +94,19 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 
 	liftedBlocks.push(remainingList);
 	return liftedBlocks;
+}
+
+/**
+ * Push a child into a container's `children` while keeping `childIds` in
+ * lockstep. M1 mutates inner containers directly (not through the outer
+ * commit scope), so the parallel id array would otherwise drift below
+ * `children.length` and break Svelte's keyed-each rendering.
+ */
+function appendChild(container: CstNode, child: CstNode): void {
+	if (!container.children) container.children = [];
+	if (!container.childIds) container.childIds = assignIds(container.children);
+	container.children.push(child);
+	container.childIds.push(generateBlockId());
 }
 
 /**
@@ -199,7 +212,7 @@ export function mergeListItemIntoPrevious(
 						for (const item of child.children) {
 							item.leadingTrivia = '';
 							// discovered-descendant mutation, see node-ops.ts header
-							depthOneList.children.push(item);
+							appendChild(depthOneList, item);
 						}
 						rebuildListRaw(depthOneList);
 						continue;
@@ -207,11 +220,11 @@ export function mergeListItemIntoPrevious(
 				}
 			}
 			// discovered-descendant mutation, see node-ops.ts header
-			targetItem.children!.push(child);
+			appendChild(targetItem, child);
 		} else {
 			child.leadingTrivia = '';
 			// discovered-descendant mutation, see node-ops.ts header
-			targetItem.children!.push(child);
+			appendChild(targetItem, child);
 		}
 	}
 

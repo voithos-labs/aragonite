@@ -238,13 +238,46 @@ export class EditorPage {
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
+		await this.dragMouseTo(start, end);
+		await this.page.mouse.up();
+		await this.page.waitForTimeout(100);
+	}
+
+	/**
+	 * Single pointer-down → drag through `mid` → drag to `end` → pointer-up.
+	 * The intermediate point keeps the button held the whole time; a sequence
+	 * of two dragFromTo calls would release and re-press between segments.
+	 */
+	async dragFromToThenTo(
+		startPath: number[],
+		startOffset: number,
+		midPath: number[],
+		midOffset: number,
+		endPath: number[],
+		endOffset: number
+	): Promise<void> {
+		const start = await this.pointForOffset(startPath, startOffset);
+		const mid = await this.pointForOffset(midPath, midOffset);
+		const end = await this.pointForOffset(endPath, endOffset);
+		if (!start || !mid || !end) throw new Error('dragFromToThenTo: could not resolve offsets');
+
+		await this.page.mouse.move(start.x, start.y);
+		await this.page.mouse.down();
+		await this.dragMouseTo(start, mid);
+		await this.dragMouseTo(mid, end);
+		await this.page.mouse.up();
+		await this.page.waitForTimeout(100);
+	}
+
+	private async dragMouseTo(
+		from: { x: number; y: number },
+		to: { x: number; y: number }
+	): Promise<void> {
 		const steps = 10;
 		for (let i = 1; i <= steps; i++) {
 			const t = i / steps;
-			await this.page.mouse.move(start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t);
+			await this.page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
 		}
-		await this.page.mouse.up();
-		await this.page.waitForTimeout(100);
 	}
 
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
