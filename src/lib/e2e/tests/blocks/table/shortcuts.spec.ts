@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { getContainerParityMismatches } from '../../../container-parity';
 
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -212,16 +213,7 @@ test.describe('table block: keyboard vocabulary', () => {
 
 		expect(await editor.bridge.getSource()).toBe(original);
 
-		// Live children-vs-childIds parity is what each_key_duplicate would have caught.
-		const parity = await page.evaluate(() => {
-			const doc = (window as any).__test.getDocument?.();
-			const t = doc?.children?.[0];
-			return (t?.children ?? []).map((row: any) => ({
-				cells: row.children?.length ?? 0,
-				ids: row.childIds?.length ?? 0
-			}));
-		});
-		for (const { cells, ids } of parity) expect(ids).toBe(cells);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 });

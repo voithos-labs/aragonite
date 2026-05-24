@@ -25,7 +25,7 @@ test.describe('sticky column: basic capture and cross-block', () => {
 		expect(sourceX).toBeGreaterThan(0);
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -44,7 +44,7 @@ test.describe('sticky column: basic capture and cross-block', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowUp');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -73,10 +73,10 @@ test.describe('sticky column: survive intermediate clamping', () => {
 		expect(sourceX).toBeGreaterThan(100);
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -95,13 +95,13 @@ test.describe('sticky column: survive intermediate clamping', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);

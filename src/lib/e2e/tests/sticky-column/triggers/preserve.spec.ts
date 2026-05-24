@@ -24,10 +24,10 @@ test.describe('sticky column: preserve triggers', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE * 3);
