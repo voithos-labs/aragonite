@@ -39,10 +39,7 @@ export function isProseKind(kind: CstNode['kind']): boolean {
  * Refresh `inlineContent` on every prose node in the tree. Used after
  * structural mutations that bypass the per-input reactive pipeline.
  */
-export function parseAllInlineContent(
-	nodes: CstNode[],
-	resolver?: LinkReferenceResolver
-): void {
+export function parseAllInlineContent(nodes: CstNode[], resolver?: LinkReferenceResolver): void {
 	for (const node of nodes) {
 		if (isProseKind(node.kind)) {
 			const range = getContentRange(node);
