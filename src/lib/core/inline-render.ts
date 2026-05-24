@@ -139,10 +139,7 @@ export function renderInlineNodes(
 					// class so CSS can dim them more aggressively than inline markers.
 					const closingTextBracket =
 						raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
-					const trailingMarker = raw.slice(
-						lastChild.end + (closingTextBracket ? 1 : 0),
-						node.end
-					);
+					const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
 					frag.appendChild(markerSpan(openMarker));
 					const anchor = document.createElement('a');

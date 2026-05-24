@@ -53,18 +53,18 @@ describe('link-reference reactivity pipeline', () => {
 		const doc = parse('See [click][go]\n\n[go]: https://old.com\n');
 		const before = buildLinkReferenceMap(doc.children);
 		parseAllInlineContent(doc.children, before.resolve);
-		expect(
-			(firstProseInlineContent(doc)?.find((n) => n.kind === 'link') as InlineNode).url
-		).toBe('https://old.com');
+		expect((firstProseInlineContent(doc)?.find((n) => n.kind === 'link') as InlineNode).url).toBe(
+			'https://old.com'
+		);
 
 		const lrd = doc.children[1];
 		(lrd.metadata as { url?: string }).url = 'https://new.com';
 		const after = buildLinkReferenceMap(doc.children);
 		expect(after.signature).not.toBe(before.signature);
 		parseAllInlineContent(doc.children, after.resolve);
-		expect(
-			(firstProseInlineContent(doc)?.find((n) => n.kind === 'link') as InlineNode).url
-		).toBe('https://new.com');
+		expect((firstProseInlineContent(doc)?.find((n) => n.kind === 'link') as InlineNode).url).toBe(
+			'https://new.com'
+		);
 	});
 
 	it('signature is stable across no-op rebuilds (diagnostic property)', () => {

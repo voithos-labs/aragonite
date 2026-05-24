@@ -87,9 +87,9 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		await editor.loadContent('*bold* ![pic|200](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);
 
-		const positions = await page.locator('.md-marker').evaluateAll((els) =>
-			els.map((el) => getComputedStyle(el).position)
-		);
+		const positions = await page
+			.locator('.md-marker')
+			.evaluateAll((els) => els.map((el) => getComputedStyle(el).position));
 		expect(positions.every((p) => p === 'static')).toBe(true);
 	});
 });

@@ -713,8 +713,14 @@ test.describe('caret traversal around image widgets', () => {
 			window.getSelection()?.removeAllRanges();
 			const dt = new DataTransfer();
 			dt.setData('text/plain', 'PASTED');
-			const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-			(document.querySelector('[data-image-widget]')?.parentElement as HTMLElement).dispatchEvent(ev);
+			const ev = new ClipboardEvent('paste', {
+				clipboardData: dt,
+				bubbles: true,
+				cancelable: true
+			});
+			(document.querySelector('[data-image-widget]')?.parentElement as HTMLElement).dispatchEvent(
+				ev
+			);
 		});
 		await editor.bridge.waitForSourceContains('PASTED');
 		const src = await editor.bridge.getSource();

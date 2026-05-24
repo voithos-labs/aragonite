@@ -12,13 +12,7 @@
  * form-specific matcher. All matchers honor the `end` bound.
  */
 
-export type HtmlFormKind =
-	| 'openTag'
-	| 'closeTag'
-	| 'comment'
-	| 'pi'
-	| 'declaration'
-	| 'cdata';
+export type HtmlFormKind = 'openTag' | 'closeTag' | 'comment' | 'pi' | 'declaration' | 'cdata';
 
 /** Open tag: `<name (attrs)* /?>` (CommonMark §6.6). */
 const OPEN_TAG_AT_POS =
