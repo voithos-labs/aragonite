@@ -1,18 +1,14 @@
 /**
- * Allowlist + builder for live-rendered inline HTML widgets. 0.6.7.1 ships
- * with `<br>` only; the Set is the patch-version extension point.
- *
- * Widgets adopt the existing `[data-inline-widget]` generic marker so they
- * automatically participate in cursor / vertical-skip / edge-select via
- * `cursor/widget-offset.ts` (no changes to that file required). Kind-specific
- * styling and behavior layers on via class names if needed.
+ * Allowlist + builder for live-rendered inline HTML widgets. Widgets adopt
+ * the `[data-inline-widget]` generic marker so they participate in cursor /
+ * vertical-skip / edge-select via `cursor/widget-offset.ts` without per-kind
+ * plumbing.
  */
 
 import type { InlineNode } from '../nodes';
 
 /** Tag names (lowercase) that render as live DOM widgets instead of literal
- *  source spans. Today: `<br>` only. Patch versions and post-1.2 plugins may
- *  extend this set. Tags that appear in §6.11's disallowed list must never
+ *  source spans. Plugins extend this set; tags in §6.11's disallowed list must never
  *  be added here. */
 export const LIVE_HTML_TAGS: ReadonlySet<string> = new Set(['br']);
 

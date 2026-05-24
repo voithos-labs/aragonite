@@ -15,6 +15,7 @@
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
+		LINK_REF_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
 		type BlockComponent,
@@ -270,7 +271,7 @@
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
-	setContext('linkRef', {
+	setContext(LINK_REF_KEY, {
 		get current(): LinkReferenceResolver {
 			return currentResolver;
 		}

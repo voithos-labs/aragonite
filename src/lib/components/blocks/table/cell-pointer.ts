@@ -2,8 +2,6 @@
  * Cell-aware pointer drag and shift+click for tables. Builds the shallow-path
  * intra-table multi-cell SelectionState (anchor.path === focus.path === tablePath,
  * offsets are cellIdx-based) when input crosses cell boundaries inside one table.
- *
- * Spec: docs/superpowers/specs/2026-04-26-table-block-design.md § Selection.
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
