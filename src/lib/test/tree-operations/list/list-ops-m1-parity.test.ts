@@ -11,18 +11,15 @@
  *   row 5 — non-list continuation paragraph absorbed into target listItem
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import { parse } from '$lib/editor/core/parser';
 import { mergeListItemIntoPrevious } from '$lib/editor/tree-operations/list/unwrap-merge';
-import { assignIds } from '$lib/editor/tree-operations/block-id';
 import { applyStructuralChangeToIdsRefs } from '$lib/editor/tree-operations/structural-change';
+import {
+	assertContainerParity,
+	seedChildIdsRecursive
+} from '$lib/editor/test/harness/container-parity';
 import type { CstNode } from '$lib/editor/core/nodes';
-
-function seedChildIdsRecursive(node: CstNode): void {
-	if (!node.children) return;
-	if (!node.childIds) node.childIds = assignIds(node.children);
-	for (const child of node.children) seedChildIdsRecursive(child);
-}
 
 /**
  * Mirror the commitContainer path: M1 is invoked with a children-copy and the
@@ -40,18 +37,6 @@ function runM1AsCommit(list: CstNode, currentIndex: number): void {
 		refs
 	);
 	list.children = children;
-}
-
-function assertContainerParity(node: CstNode, path = 'root'): void {
-	if (!node.children) return;
-	expect(node.childIds, `${path} (${node.kind}) missing childIds`).toBeDefined();
-	expect(
-		node.childIds!.length,
-		`${path} (${node.kind}) childIds length ${node.childIds!.length} != children length ${node.children.length}`
-	).toBe(node.children.length);
-	for (let i = 0; i < node.children.length; i++) {
-		assertContainerParity(node.children[i], `${path}.${node.kind}[${i}]`);
-	}
 }
 
 describe('mergeListItemIntoPrevious — container children/childIds parity', () => {

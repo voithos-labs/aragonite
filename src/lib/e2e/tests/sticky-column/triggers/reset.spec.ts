@@ -24,14 +24,14 @@ test.describe('sticky column: reset triggers', () => {
 	test('typing resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.typeText('x');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const preArrowX = await editor.getCaretPixelX();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - preArrowX)).toBeLessThan(PIXEL_TOLERANCE * 3);
@@ -40,7 +40,7 @@ test.describe('sticky column: reset triggers', () => {
 	test('click resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const second = editor.page.locator('[contenteditable="true"]').nth(1);
 		await second.click();
@@ -49,7 +49,7 @@ test.describe('sticky column: reset triggers', () => {
 		const postClickX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postClickX)).toBeLessThan(PIXEL_TOLERANCE * 3);
@@ -58,15 +58,15 @@ test.describe('sticky column: reset triggers', () => {
 	test('ArrowLeft resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('ArrowLeft');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const postArrowLeftX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postArrowLeftX)).toBeLessThan(PIXEL_TOLERANCE * 3);
@@ -75,15 +75,15 @@ test.describe('sticky column: reset triggers', () => {
 	test('ArrowRight resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const postRightX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		// *4 not *3: proportional-font char snap gap after ArrowRight lands at offset 1 of "Short.".
@@ -94,15 +94,15 @@ test.describe('sticky column: reset triggers', () => {
 	test('End resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('End');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const postEndX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postEndX)).toBeLessThan(PIXEL_TOLERANCE * 3);
@@ -111,15 +111,15 @@ test.describe('sticky column: reset triggers', () => {
 	test('Enter (split) resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('Enter');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const postEnterX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postEnterX)).toBeLessThan(PIXEL_TOLERANCE * 5);
@@ -128,17 +128,17 @@ test.describe('sticky column: reset triggers', () => {
 	test('undo resets sticky column', async () => {
 		await setupHighColumn();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('Enter');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.undo();
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const postUndoX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postUndoX)).toBeLessThan(PIXEL_TOLERANCE * 5);

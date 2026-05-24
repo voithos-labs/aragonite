@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../../../../editor-page';
+import { getContainerParityMismatches } from '../../../../container-parity';
 
 test.describe('list Backspace — M1 merge on non-first item', () => {
 	let editor: EditorPage;
@@ -122,27 +123,7 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/^    - CD/m);
 
-		const parity = await page.evaluate(() => {
-			const mismatches: { kind: string; children: number; ids: number }[] = [];
-			const walk = (n: { kind?: string; children?: unknown[]; childIds?: unknown[] }) => {
-				if (!n.children) return;
-				const childCount = n.children.length;
-				const idCount = n.childIds?.length ?? 0;
-				if (childCount !== idCount) {
-					mismatches.push({ kind: n.kind ?? '?', children: childCount, ids: idCount });
-				}
-				for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
-			};
-			// Document root has children but no childIds (top-level ids live in
-			// the editor harness, not on the doc node). Walk from each top-level
-			// CST node downward.
-			const doc = (
-				window as { __test?: { getDocument?: () => { children?: unknown[] } } }
-			).__test?.getDocument?.();
-			for (const top of doc?.children ?? []) walk(top as Parameters<typeof walk>[0]);
-			return mismatches;
-		});
-		expect(parity).toEqual([]);
+		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
 		expect(consoleErrors.filter((m) => /each_key_duplicate/.test(m))).toEqual([]);
 	});

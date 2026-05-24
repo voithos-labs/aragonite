@@ -1,0 +1,49 @@
+/**
+ * Container-parity invariant for keyed BlockList rendering (E2E side).
+ *
+ * Mirrors `test/harness/container-parity.ts` for browser-context checks.
+ * Every container rendered through BlockList (blockquote, list, listItem, table,
+ * tableRow) must keep `node.children.length === node.childIds.length`. Svelte's
+ * keyed `{#each childIds as id}` block uses `childIds` as the key source; if a
+ * structural mutation extends `children` without extending `childIds`, the keys
+ * for the trailing entries become `undefined`, Svelte logs `each_key_duplicate`,
+ * and post-undo reconciliation drifts from CST.
+ *
+ * The document root has `children` but no `childIds` (top-level block ids live
+ * on the editor harness, not on the doc node). The walker starts from each
+ * top-level CST node and descends from there.
+ *
+ * Returns mismatches instead of asserting so the test file owns the diff —
+ * Playwright's assertion output is more useful when the expectation lives in
+ * the test, and composing with other checks (pageerror, console filters)
+ * stays in the test's hands.
+ *
+ * Use after any structural mutation on a keyed container (M1 merge, list
+ * indent/unindent, table row/column ops) to gate the invariant in tests.
+ */
+
+import type { Page } from '@playwright/test';
+
+export interface ParityMismatch {
+	kind: string;
+	children: number;
+	ids: number;
+}
+
+export async function getContainerParityMismatches(page: Page): Promise<ParityMismatch[]> {
+	return page.evaluate(() => {
+		const mismatches: ParityMismatch[] = [];
+		const walk = (n: { kind?: string; children?: unknown[]; childIds?: unknown[] }) => {
+			if (!n.children) return;
+			const children = n.children.length;
+			const ids = n.childIds?.length ?? 0;
+			if (children !== ids) mismatches.push({ kind: n.kind ?? '?', children, ids });
+			for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
+		};
+		const doc = (
+			window as { __test?: { getDocument?: () => { children?: unknown[] } } }
+		).__test?.getDocument?.();
+		for (const top of doc?.children ?? []) walk(top as Parameters<typeof walk>[0]);
+		return mismatches;
+	});
+}

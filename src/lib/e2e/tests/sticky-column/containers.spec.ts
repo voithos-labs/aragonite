@@ -24,12 +24,12 @@ test.describe('sticky column: container traversal', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		const insideX = await editor.getCaretPixelX();
 		expect(Math.abs(insideX - sourceX)).toBeLessThan(30);
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		const afterX = await editor.getCaretPixelX();
 		expect(Math.abs(afterX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
 	});
@@ -47,13 +47,13 @@ test.describe('sticky column: container traversal', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -81,10 +81,10 @@ test.describe('sticky column: transparent blocks', () => {
 		const sourceX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - sourceX)).toBeLessThan(PIXEL_TOLERANCE);
@@ -107,7 +107,7 @@ test.describe('sticky column: edge cases', () => {
 		if (count >= 3) {
 			await editables.nth(1).click();
 			await editor.page.keyboard.press('ArrowDown');
-			await editor.waitForStickyColumnSettle();
+			await editor.waitForRenderFlush();
 
 			const targetX = await editor.getCaretPixelX();
 			const below = editables.nth(count - 1);
@@ -129,17 +129,17 @@ test.describe('sticky column: edge cases', () => {
 		for (let i = 0; i < 20; i++) await editor.page.keyboard.press('ArrowRight');
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await editor.page.evaluate(() => (document.body as HTMLElement).focus());
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		await first.click();
 		await editor.page.keyboard.press('Home');
 		const postRefocusX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForStickyColumnSettle();
+		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - postRefocusX)).toBeLessThan(PIXEL_TOLERANCE * 3);

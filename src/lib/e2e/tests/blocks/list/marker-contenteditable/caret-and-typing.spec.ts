@@ -54,7 +54,7 @@ test.describe('list marker — caret placement and typing', () => {
 	// had to re-click before typing.
 	test('typing after live-promote of empty paragraph lands caret in editable area', async () => {
 		await editor.loadContent('\n');
-		await editor.placeCaretInBlock(0, 'end');
+		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.type('- ');
 		await editor.page.keyboard.type('a');
 		await editor.bridge.waitForSourceContains('- a');
