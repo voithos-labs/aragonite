@@ -9,6 +9,7 @@ How Tab changes a list item's nesting level, including ordered-list numbering wh
 - If previous sibling already has a nested list of the same type, item is appended to it
 - If previous sibling has no nested list, a new one is created
 - Cursor stays in the indented item at offset 0 (not at end of nested content)
+- When the moved item has multiple paragraphs, the cursor lands at offset 0 of its last paragraph (FOCUS_LAST_START contract clamps to 0 — no IndexSizeError fallback)
 
 ### Ordered list marker on Tab
 

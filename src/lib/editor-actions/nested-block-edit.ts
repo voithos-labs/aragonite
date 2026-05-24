@@ -9,7 +9,7 @@ import { CURSOR_END } from '../contracts';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import {
 	splitNode as performSplit,
-	mergeWithPrevious as performMerge,
+	mergeIntoPrevDeepLeaf,
 	mergeWithNext as performMergeNext,
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
@@ -68,16 +68,17 @@ export function createNestedBlockEdit(
 			const currKind = deps.node.children[innerIndex].kind;
 
 			if (isMergeEligible(prevKind, currKind)) {
-				const mergeOffset = displayLength(deps.node.children[innerIndex - 1].raw);
+				let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
 					mutate: (children) => {
-						const change = performMerge({ children }, innerIndex);
+						mergeResult = mergeIntoPrevDeepLeaf({ children }, innerIndex);
+						// Sync before rebuildRaw — it reads deps.node.children directly.
 						deps.node.children = children;
 						rebuildRaw();
-						return change;
+						return mergeResult?.change ?? { op: 'noop' };
 					},
 					op: {
 						kind: 'merge',
@@ -85,7 +86,16 @@ export function createNestedBlockEdit(
 						eventPath: [deps.index, innerIndex]
 					},
 					afterTick: () => {
-						state.innerBlockRefs[innerIndex - 1]?.focus(mergeOffset);
+						if (!mergeResult) {
+							state.innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
+							return;
+						}
+						const ref = state.innerBlockRefs[innerIndex - 1];
+						if (mergeResult.targetPath.length === 0) {
+							ref?.focus(mergeResult.joinOffset);
+						} else {
+							ref?.focusByPath?.(mergeResult.targetPath, mergeResult.joinOffset);
+						}
 					}
 				});
 			} else if (!isBlockEditable(prevKind)) {

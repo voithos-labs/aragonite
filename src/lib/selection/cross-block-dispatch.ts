@@ -11,6 +11,7 @@
 import type { SelectionState } from './selection-state.svelte';
 import type {
 	BlockElLookup,
+	BlockComponentLookup,
 	BlockEditActions,
 	ContainerEditActions,
 	DocumentGetter
@@ -36,6 +37,7 @@ export interface CrossBlockDispatchContext {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
+	getBlockComponentByPath: BlockComponentLookup;
 	getEditorRoot: () => HTMLElement | null;
 	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
 	getEditorLifetime: () => AbortSignal | null;

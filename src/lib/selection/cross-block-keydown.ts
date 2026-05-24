@@ -96,7 +96,8 @@ async function handleCrossBlockActive(
 		e.preventDefault();
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
-		extendFocusToNextBlock(selection, doc, focusEl, focusPath);
+		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
+		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, ctx.getBlockComponentByPath);
 		scrollFocusBlockIntoView(selection, getBlockElByPath);
 		return true;
 	}
@@ -105,7 +106,14 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side);
+		extendFocusToPreviousBlock(
+			selection,
+			doc,
+			focusEl,
+			focusPath,
+			side,
+			ctx.getBlockComponentByPath
+		);
 		scrollFocusBlockIntoView(selection, getBlockElByPath);
 		return true;
 	}
@@ -235,7 +243,14 @@ function handleDocEdgeExtend(
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
-	extendFocusToDocEdge(ctx.selection, ctx.getDoc(), el, ctx.getMyPath(), direction);
+	extendFocusToDocEdge(
+		ctx.selection,
+		ctx.getDoc(),
+		el,
+		ctx.getMyPath(),
+		direction,
+		ctx.getBlockComponentByPath
+	);
 	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 	return true;
 }

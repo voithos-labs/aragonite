@@ -20,3 +20,4 @@
 
 - pointerup during drag in the same block as pointerdown: selection stays single-block (native)
 - Drag to a non-editable block (thematic break): thematic break gets middle-block overlay, not an endpoint
+- Drag from block A out to block C then back into block A before release: cross-block collapses, no overlay over block B remains

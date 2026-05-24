@@ -4,6 +4,11 @@
 export interface WidgetTarget {
 	paragraphPath: number[];
 	sourceStart: number;
+	// Raw offset the caret occupied just before widget selection took over.
+	// Drives the undo anchor when a key (Backspace/Delete/typing) replaces
+	// the selected widget — Ctrl+Z restores the caret to where the user
+	// actually was, not to the far boundary of the deleted region.
+	preSelectOffset: number;
 }
 
 export interface WidgetSelectionState {
@@ -25,7 +30,8 @@ export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): Wid
 		select: (target) => {
 			selected = {
 				paragraphPath: [...target.paragraphPath],
-				sourceStart: target.sourceStart
+				sourceStart: target.sourceStart,
+				preSelectOffset: target.preSelectOffset
 			};
 			opts.onSelect();
 		},

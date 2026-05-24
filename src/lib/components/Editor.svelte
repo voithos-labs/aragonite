@@ -12,17 +12,20 @@
 		WIDGET_SELECTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		BLOCK_EL_LOOKUP_KEY,
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		DOC_KEY,
 		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
 		LINK_REF_KEY,
 		type BlockElLookup,
+		type BlockComponentLookup,
 		type DocumentGetter,
 		type BlockComponent,
 		type Document,
 		type EditorSelection,
 		type ResolveImageUrl
 	} from '../contracts';
+	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { installWidgetRangePainter } from '../selection/widget-range-paint';
@@ -218,6 +221,9 @@
 		return (cells[colIdx] as HTMLElement | undefined) ?? null;
 	};
 
+	const getBlockComponentByPath: BlockComponentLookup = (path) =>
+		dispatchGetBlockComponentByPath(blockRefs, path);
+
 	// ── Action Bundles ──────────────────────────────────────────────────
 
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions({
@@ -268,6 +274,7 @@
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
+	setContext(BLOCK_COMPONENT_LOOKUP_KEY, getBlockComponentByPath);
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);

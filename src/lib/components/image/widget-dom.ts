@@ -34,9 +34,16 @@ export function buildImageWidget(
 
 	widget.addEventListener('pointerdown', (e) => {
 		e.stopPropagation();
+		// Click-snap consistently lands the caret at the widget's right
+		// edge (see TextEditableBlock.snapClickToWidgetEdge) — match that
+		// for the undo anchor so Ctrl+Z restores the click's visual landing.
 		const event = new CustomEvent('image-widget-select', {
 			bubbles: true,
-			detail: { paragraphPath: [...opts.paragraphPath], sourceStart: node.start }
+			detail: {
+				paragraphPath: [...opts.paragraphPath],
+				sourceStart: node.start,
+				preSelectOffset: node.end
+			}
 		});
 		widget.dispatchEvent(event);
 	});

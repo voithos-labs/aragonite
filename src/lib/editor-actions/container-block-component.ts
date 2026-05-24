@@ -6,7 +6,11 @@ import {
 	type BlockComponent,
 	type StickyColumnDirection
 } from '../contracts';
-import { dispatchFocusByPath, dispatchFocusAtColumn } from './focus-dispatch';
+import {
+	dispatchFocusByPath,
+	dispatchFocusAtColumn,
+	dispatchGetBlockComponentByPath
+} from './focus-dispatch';
 
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
@@ -49,6 +53,9 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		},
 		focusByPath(path: number[], offset: number) {
 			dispatchFocusByPath(deps.innerBlockRefs, path, offset);
+		},
+		getBlockComponentByPath(path: number[]): BlockComponent | null {
+			return dispatchGetBlockComponentByPath(deps.innerBlockRefs, path);
 		},
 		focusAtColumn(x: number, from: StickyColumnDirection) {
 			if (deps.nodeChildrenLength === 0) return;

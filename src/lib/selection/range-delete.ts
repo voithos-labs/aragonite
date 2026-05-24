@@ -76,7 +76,8 @@ export function rangeDelete(
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	// Identity-check before splice: a deeper delete + cascade may shift a
-	// survivor into an outer path's slot. Cascade interleaved so paths still resolve.
+	// survivor into an outer path's slot. Cascade is identity-gated alongside
+	// the delete so we never walk a survivor's ancestors with a stale path.
 	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
 	const reverseSortedIndices = deletionPaths
 		.map((_, i) => i)
@@ -85,8 +86,8 @@ export function rangeDelete(
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
 			deleteAtPath(doc, path);
+			cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 		}
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
 	replaceAtPath(doc, start.path, replacement);

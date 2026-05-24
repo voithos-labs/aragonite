@@ -12,3 +12,4 @@
 ## Edge cases
 
 - Undo restores the deleted widget
+- Undo after Delete entered from widget.start (ArrowRight/Delete from left) restores the caret at widget.start, not at widget.end
