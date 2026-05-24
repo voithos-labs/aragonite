@@ -440,7 +440,7 @@ All three entry points delegate to one internal commit helper that owns the full
 
 The editor exposes an observer-pattern event surface at `editor.events`. Two channels:
 
-- **`edit`** — fires after every commit, with a discriminated union keyed by `op`: structural ops (split / merge / delete / paste / replaceBlock / updateContent / appendBlock / metadataUpdate) emitted by the commit primitive, plus `input` emitted by the debounced keystroke flush, plus `undo` / `redo` emitted by the history layer.
+- **`edit`** — fires after every commit. Payload is the `EditEvent` discriminated union (`editor-events.ts`), keyed by `op` over the `OperationKind` enum: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`.
 - **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.
 
 Events fire synchronously from their emission sites. Handlers must not mutate the document; reentrant edits are not supported. Subscribe via `on(name, cb)`, which returns a disposer.
@@ -504,7 +504,7 @@ The CST defines one document root plus 13 block kinds the editor must handle. Bl
 | ThematicBreak           | `thematicBreak`           | Non-editable, focusable                                                                                                                                                                                                                 |
 | IndentedCode            | `indentedCode`            | Raw-editable block (until dedicated component built). Merge: not mergeable                                                                                                                                                              |
 | HtmlBlock               | `htmlBlock`               | Raw-editable block. Merge: not mergeable                                                                                                                                                                                                |
-| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Editing an LRD triggers a document-wide inline re-parse so reference-style links/images update — the editor shell rebuilds the LRD map and re-runs `parseAllInlineContent` after every commit. Merge: not mergeable                  |
+| LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Editing an LRD triggers a document-wide inline re-parse so reference-style links/images update — the editor shell rebuilds the LRD map and re-runs `parseAllInlineContent` after every commit. Merge: not mergeable |
 | Table                   | `table`                   | Grid editor (future). Raw-editable until then. Merge: not mergeable                                                                                                                                                                     |
 | UnrecognizedBlock       | `unrecognized`            | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks                                 |
 | Blockquote              | `blockquote`              | Container — recursive BlockList (see Container Blocks section)                                                                                                                                                                          |

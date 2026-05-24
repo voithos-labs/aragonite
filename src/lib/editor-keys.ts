@@ -5,6 +5,7 @@
  */
 
 import type { Document } from './core/nodes';
+import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
@@ -46,3 +47,9 @@ export type BlockElLookup = (path: number[]) => HTMLElement | null;
 /** Getter-wrapped so block components always read the latest reactive Document. */
 export const DOC_KEY = Symbol('editor-doc');
 export type DocumentGetter = () => Document;
+
+/** Resolver ref read by inline parsers in block components. Wrapped in a
+ *  `{ current }` accessor so the shell can rebuild the resolver after each
+ *  commit without invalidating descendants' getContext bindings. */
+export const LINK_REF_KEY = Symbol('link-ref');
+export type LinkReferenceResolverRef = { current?: LinkReferenceResolver };

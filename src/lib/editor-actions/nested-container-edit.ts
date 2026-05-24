@@ -11,10 +11,6 @@ export function createNestedContainerEdit(deps: NestedActionsDeps): ContainerEdi
 	const { rebuildRaw, parent } = deps;
 
 	return {
-		pushCheckpoint(_innerIndex: number, offset: number): void {
-			parent.containerEdit.pushCheckpoint(deps.index, offset);
-		},
-
 		pushDebouncedCheckpoint(_innerIndex: number, offset: number, batchKey?: string | number): void {
 			parent.containerEdit.pushDebouncedCheckpoint(deps.index, offset, batchKey);
 		},

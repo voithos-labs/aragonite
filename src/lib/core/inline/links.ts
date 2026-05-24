@@ -99,9 +99,9 @@ export function scanLinksAndAutolinks(
 	// `[` inside a code span doesn't masquerade as a link delimiter.
 	const linksAndImages = scanLinksAndImages(raw, start, end, occupiedRanges, resolver);
 
-	// Pass 2: autolinks fill the gaps left by occupied + links. They still stop
-	// at occupied/whitespace boundaries — preserving the 0.6.2 behavior where
-	// `https://x.com&amp;y` doesn't absorb the entity.
+	// Pass 2: autolinks fill the gaps left by occupied + links. They stop at
+	// occupied/whitespace boundaries so e.g. `https://x.com&amp;y` does not
+	// absorb the entity into the autolinked URL.
 	const closedRanges: Range[] = [
 		...occupiedRanges,
 		...linksAndImages.map((n) => ({ start: n.start, end: n.end }))

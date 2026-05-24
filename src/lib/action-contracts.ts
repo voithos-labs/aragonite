@@ -80,13 +80,6 @@ export interface HistoryActions {
 
 export interface ContainerEditActions {
 	/**
-	 * Push an undo snapshot now (no debounce) and invalidate any pending
-	 * debounced batch. Used by paths that mutate raw outside the commit
-	 * primitive — IME composition entry, cross-block typing, drag/clipboard
-	 * sync mutates — where the snapshot must bracket the raw change.
-	 */
-	pushCheckpoint(blockIndex: number, offset: number): void;
-	/**
 	 * Push a debounced undo snapshot for routine text input. `batchKey`
 	 * (when supplied) identifies the leaf block being typed in so focus
 	 * moves between sibling leaves inside one container break the undo

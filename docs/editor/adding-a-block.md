@@ -27,7 +27,7 @@ Leaf and container blocks alike read from the concern-specific sub-interface con
 - `FOCUS_KEY` → `FocusActions` — moveFocus (with sticky-column variant)
 - `HISTORY_KEY` → `HistoryActions` — requestUndo / requestRedo
 - `CONTROLLER_KEY` → multi-scope commit primitive, used by container components that participate in cross-container operations
-- `CONTAINER_EDIT_KEY` → `ContainerEditActions` — structural `commitContainer` (preferred) plus three out-of-primitive seams: `pushCheckpoint` / `pushDebouncedCheckpoint` bracket raw mutations that happen outside the commit primitive, `nudgeReactivity` publishes those raw changes up to Svelte. Prefer `commitContainer` here (or `commitMultiScope` via `CONTROLLER_KEY`) unless the caller has reason to mutate raw itself (IME composition, cross-block typing, drag/clipboard sync mutate).
+- `CONTAINER_EDIT_KEY` → `ContainerEditActions` — structural `commitContainer` (preferred) plus two out-of-primitive seams: `pushDebouncedCheckpoint` brackets routine typing mutations that happen outside the commit primitive, `nudgeReactivity` publishes those raw changes up to Svelte. Prefer `commitContainer` here (or `commitMultiScope` via `CONTROLLER_KEY`) unless the caller has reason to mutate raw itself (cross-block typing, drag/clipboard sync mutate).
 
 A block reads only the sub-interfaces it actually uses. Containers set only the sub-interfaces they override for their nested children; Svelte context walking delivers everything else from the nearest ancestor that does set it.
 
