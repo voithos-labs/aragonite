@@ -16,6 +16,7 @@
 		EDITOR_LIFETIME_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		WIDGET_SELECTION_KEY,
+		LINK_REF_KEY,
 		type BlockEditActions,
 		type BlockElLookup,
 		type ContainerEditActions,
@@ -27,7 +28,8 @@
 		type StickyColumnDirection,
 		type AmbientPrefix,
 		type ResolveImageUrl,
-		type WidgetSelectionState
+		type WidgetSelectionState,
+		type LinkReferenceResolverRef
 	} from '../../contracts';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -92,7 +94,7 @@
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
-	const linkRef = getContext<{ current?: LinkReferenceResolver } | undefined>('linkRef');
+	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */

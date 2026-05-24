@@ -56,8 +56,8 @@ registerBlockComponent('table', {
 //   - Permanent fallbacks (indentedCode, htmlBlock, linkReferenceDefinition):
 //     stay raw-editable as the final shape; no dedicated component is planned.
 //     The visible quality gap vs fenced code / inline content is the design
-//     choice. LRD additionally gets distinct CSS via the data-block-kind
-//     attribute on BlockHost (see 0.6.6.1 changelog).
+//     choice. LRD additionally gets distinct CSS via the `data-block-kind`
+//     attribute that BlockHost sets on each block element.
 //   - Placeholders (tableRow, tableCell, unrecognized): tableRow / tableCell
 //     normally render through TableBlock's own logic — the registration here
 //     is a defensive fallback for orphaned nodes. `unrecognized` graduates to

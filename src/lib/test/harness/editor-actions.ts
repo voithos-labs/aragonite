@@ -79,7 +79,6 @@ export function makeStubFocus(): FocusActions {
 export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
-		pushCheckpoint: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
 		nudgeReactivity: vi.fn()
 	};

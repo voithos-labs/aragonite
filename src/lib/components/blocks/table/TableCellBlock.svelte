@@ -443,8 +443,8 @@
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so the proper representation is
-			// a literal <br>. The inline-HTML pipeline (0.6.7.1) renders <br> as a
-			// live widget producing a visible line break inside the cell.
+			// a literal <br>. The inline-HTML pipeline renders <br> as a live
+			// widget producing a visible line break inside the cell.
 			e.preventDefault();
 			if (!el) return;
 			const offset = getCursorOffsetHelper(el) ?? 0;
