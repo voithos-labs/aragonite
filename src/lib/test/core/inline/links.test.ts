@@ -71,7 +71,7 @@ describe('trimTrailingPunctuation (GFM §6.9)', () => {
 	});
 
 	it('keeps final semicolon when preceded by numeric entity (&#39;)', () => {
-		const raw = "https://example.com/?a=&#39;";
+		const raw = 'https://example.com/?a=&#39;';
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
 	});
 
