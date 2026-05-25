@@ -10,6 +10,7 @@ import type { CstNode } from '../core/nodes';
 import { trimTrailingLineEnding, displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,
+	bumpLeadingTrivia,
 	mergeWithNext as performMergeNext,
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
@@ -31,6 +32,21 @@ export function createBlockEditActions(
 		// ── Structural split / merge / delete ─────────────────────────────────
 
 		async splitBlock(blockIndex: number, offset: number): Promise<void> {
+			if (offset === 0 && displayLength(deps.doc.children[blockIndex].raw) > 0) {
+				// performSplit at offset 0 of a non-empty block would synthesize
+				// an empty leading paragraph whose '\n' raw collapses into trivia
+				// on reparse — the live tree desyncs from serialize(parse(source)).
+				// Bump the block's own leadingTrivia instead so the round-trip
+				// holds. (Empty blocks fall through: their splitNode result is
+				// [empty, empty], which is the intended rapid-Enter behavior.)
+				await controller.commitStructural({
+					snapshot: { blockIndex, offset: 0 },
+					mutate: (children) => bumpLeadingTrivia({ children }, blockIndex),
+					op: { kind: 'split', detail: { at: 0 } },
+					afterTick: () => deps.blockRefs[blockIndex]?.focus(0)
+				});
+				return;
+			}
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset },
 				mutate: (children) => performSplit({ children }, blockIndex, offset),

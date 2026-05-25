@@ -10,6 +10,7 @@ import type { CstNode } from '../core/nodes';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import {
 	splitNode as performSplit,
+	bumpLeadingTrivia,
 	mergeIntoPrevDeepLeaf,
 	mergeWithNext as performMergeNext,
 	deleteNode as performDelete,
@@ -35,6 +36,27 @@ export function createNestedBlockEdit(
 		// ── Structural mutations ───────────────────────────────────────────────
 		async splitBlock(innerIndex: number, offset: number): Promise<void> {
 			if (!deps.node.children) return;
+			if (offset === 0 && displayLength(deps.node.children[innerIndex].raw) > 0) {
+				// See block-edit.ts:splitBlock — performSplit at offset 0 of a
+				// non-empty block would synthesize an empty leading paragraph
+				// that desyncs from reparse.
+				await parent.containerEdit.commitContainer({
+					containerNode: deps.node,
+					state,
+					snapshot: { blockIndex: deps.index, offset: 0 },
+					mutate: (children) => {
+						const change = bumpLeadingTrivia({ children }, innerIndex);
+						deps.node.children = children;
+						rebuildRaw();
+						return change;
+					},
+					op: { kind: 'split', detail: { at: 0 }, eventPath: [deps.index, innerIndex] },
+					afterTick: () => {
+						state.innerBlockRefs[innerIndex]?.focus(0);
+					}
+				});
+				return;
+			}
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
 				state,
