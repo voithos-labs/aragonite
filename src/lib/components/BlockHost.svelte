@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
+	import type { AmbientPrefix, BlockComponent } from '../block-component';
+	import type { CstNode } from '../core/nodes';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 	import { getBlockComponent } from '../schema/block-component-registry';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
-	import '../schema/block-components';
 
 	let {
 		node,

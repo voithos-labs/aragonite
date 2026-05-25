@@ -24,12 +24,14 @@ export type {
 
 // ── Editor runtime ──────────────────────────────────────────────────────────
 
-export { LIST_CONTEXT_KEY } from './contracts';
-export type { BlockComponent, UndoManager, UndoEntry, ListContext } from './contracts';
+export type { ListContext } from './action-contracts';
+export type { BlockComponent } from './block-component';
+export { LIST_CONTEXT_KEY } from './editor-keys';
 export { cloneDocument } from './tree-operations/clone';
 export { assignIds, generateBlockId } from './tree-operations/block-id';
 export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
-export { createUndoManager } from './undo-manager';
+export { createUndoManager } from './undo/manager';
+export type { UndoEntry, UndoManager } from './undo/types';
 
 // ── Events surface ─────────────────────────────────────────────────────────
 

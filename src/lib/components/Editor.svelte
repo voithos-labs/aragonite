@@ -1,30 +1,30 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
+	import type { BlockComponent } from '../block-component';
+	import type { Document } from '../core/nodes';
 	import {
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		BLOCK_EDIT_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
+		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
-		PASTE_COORDINATOR_KEY,
-		STICKY_COLUMN_KEY,
-		SELECTION_KEY,
-		WIDGET_SELECTION_KEY,
-		RESOLVE_IMAGE_URL_KEY,
-		BLOCK_EL_LOOKUP_KEY,
-		BLOCK_COMPONENT_LOOKUP_KEY,
 		DOC_KEY,
-		EDITOR_ROOT_KEY,
 		EDITOR_LIFETIME_KEY,
+		EDITOR_ROOT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
 		LINK_REF_KEY,
-		type BlockElLookup,
+		PASTE_COORDINATOR_KEY,
+		RESOLVE_IMAGE_URL_KEY,
+		SELECTION_KEY,
+		STICKY_COLUMN_KEY,
+		WIDGET_SELECTION_KEY,
 		type BlockComponentLookup,
+		type BlockElLookup,
 		type DocumentGetter,
-		type BlockComponent,
-		type Document,
 		type EditorSelection,
 		type ResolveImageUrl
-	} from '../contracts';
+	} from '../editor-keys';
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -40,7 +40,7 @@
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
 	} from '../core/inline/link-reference-resolver';
-	import { createUndoManager } from '../undo-manager';
+	import { createUndoManager } from '../undo/manager';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -50,6 +50,7 @@
 	import ImageProperties from './image/ImageProperties.svelte';
 	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image/image-edit-commit';
+	import './built-in-blocks';
 
 	bootstrapCodeLanguages();
 

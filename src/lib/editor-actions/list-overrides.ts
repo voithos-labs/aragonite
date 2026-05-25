@@ -9,10 +9,10 @@ import type {
 	BlockEditActions,
 	ContainerEditActions,
 	FocusActions,
-	ListContext,
-	CstNode
-} from '../contracts';
-import { CURSOR_END } from '../contracts';
+	ListContext
+} from '../action-contracts';
+import { CURSOR_END } from '../block-component';
+import type { CstNode } from '../core/nodes';
 import {
 	deleteNode as performDelete,
 	unwrapFirstItemFromList,

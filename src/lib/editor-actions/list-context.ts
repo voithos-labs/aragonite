@@ -4,13 +4,9 @@
  * `commitMultiScope`.
  */
 
+import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
+import { FOCUS_LAST_START } from '../block-component';
 import type { CstNode, ListItemMetadata } from '../core/nodes';
-import {
-	FOCUS_LAST_START,
-	type BlockEditActions,
-	type FocusActions,
-	type ListContext
-} from '../contracts';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';

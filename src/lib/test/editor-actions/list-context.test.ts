@@ -9,7 +9,7 @@ import {
 	makeStubFocus,
 	makeEditorActionsDeps
 } from '../harness/editor-actions';
-import type { CstNode } from '../../contracts';
+import type { CstNode } from '../../core/nodes';
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 

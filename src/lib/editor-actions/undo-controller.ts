@@ -5,7 +5,10 @@
  */
 
 import { tick } from 'svelte';
-import type { BlockComponent, CstNode, EditorSelection, UndoEntry } from '../contracts';
+import type { BlockComponent } from '../block-component';
+import type { CstNode } from '../core/nodes';
+import type { EditorSelection } from '../editor-keys';
+import type { UndoEntry } from '../undo/types';
 import type { SelectionPoint } from '../selection/primitives';
 import { cloneDocument } from '../tree-operations/clone';
 import { readCurrentSelection } from '../selection/native-bridge';
@@ -17,7 +20,7 @@ import type {
 	EditorActionsDeps,
 	UndoController
 } from './deps';
-import type { OpDescriptor } from '../debug/operations-log';
+import type { OpDescriptor } from '../action-contracts';
 import type { EditEvent } from '../editor-events';
 import {
 	applyStructuralChangeToIdsRefs,

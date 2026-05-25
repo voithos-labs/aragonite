@@ -6,7 +6,7 @@ describe('moveFocus past the last block', () => {
 		const { createEditorEvents } = await import('$lib/editor/editor-events');
 		const { createUndoController } = await import('$lib/editor/editor-actions/undo-controller');
 		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
-		const { createUndoManager } = await import('$lib/editor/undo-manager');
+		const { createUndoManager } = await import('$lib/editor/undo/manager');
 		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
 
 		const events = createEditorEvents();

@@ -5,7 +5,7 @@ import {
 	FOCUS_LAST_START,
 	type BlockComponent,
 	type StickyColumnDirection
-} from '../contracts';
+} from '../block-component';
 import {
 	dispatchFocusByPath,
 	dispatchFocusAtColumn,

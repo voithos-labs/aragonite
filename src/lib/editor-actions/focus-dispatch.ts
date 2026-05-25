@@ -3,13 +3,13 @@
  * No Svelte context or reactivity; inputs are passed in as parameters.
  */
 
-import type {
-	BlockComponent,
-	FocusActions,
-	FocusPosition,
-	StickyColumnDirection
-} from '../contracts';
-import { CURSOR_END } from '../contracts';
+import type { FocusActions } from '../action-contracts';
+import {
+	CURSOR_END,
+	type BlockComponent,
+	type FocusPosition,
+	type StickyColumnDirection
+} from '../block-component';
 import type { StickyColumnState } from '../cursor/sticky-column';
 
 /**

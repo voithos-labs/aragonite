@@ -6,7 +6,7 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { BlockElLookup } from '../contracts';
+import type { BlockElLookup } from '../editor-keys';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
 import { cellAtPoint } from '../components/blocks/table/cell-pointer';

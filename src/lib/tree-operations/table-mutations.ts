@@ -2,7 +2,7 @@
 // (commitContainer / commitMultiScope) and rebuildContainerRaw; these helpers
 // touch neither reactivity, undo, nor raw.
 
-import type { CstNode, TableMetadata, TableRowMetadata, TableAlignment } from '../../../core/nodes';
+import type { CstNode, TableMetadata, TableRowMetadata, TableAlignment } from '../core/nodes';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
 

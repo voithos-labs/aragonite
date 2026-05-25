@@ -9,8 +9,8 @@
  * where keeping the pasted list separate preserves its semantic type.
  */
 
+import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { CURSOR_END } from '../../contracts';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildAncestryRawForLeaf } from '../../schema/container-raw';

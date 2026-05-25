@@ -4,7 +4,8 @@
  * count so out-of-range delegation routes through the parent correctly.
  */
 
-import type { FocusActions, FocusPosition } from '../contracts';
+import type { FocusActions } from '../action-contracts';
+import type { FocusPosition } from '../block-component';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
 import type { NestedActionsDeps } from './nested-actions';

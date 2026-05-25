@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../core/parser';
-import { serialize } from '../core/serializer';
-import { assignIds } from '../tree-operations/block-id';
-import { createUndoManager } from '../undo-manager';
-import type { UndoEntry } from '../contracts';
+import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
+import { assignIds } from '../../tree-operations/block-id';
+import { createUndoManager } from '../../undo/manager';
+import type { UndoEntry } from '../../undo/types';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	const snapshot = parse(source);

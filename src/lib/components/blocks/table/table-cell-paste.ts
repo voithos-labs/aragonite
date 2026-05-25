@@ -4,8 +4,8 @@
  * The structural hook is a sentinel — see its body.
  */
 
+import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
-import { CURSOR_END } from '../../../contracts';
 import type {
 	InlinePasteResult,
 	PasteRange,

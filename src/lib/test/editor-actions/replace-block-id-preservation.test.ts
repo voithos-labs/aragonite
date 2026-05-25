@@ -10,7 +10,7 @@ import {
 	makeStubFocus,
 	makeEditorActionsDeps
 } from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/contracts';
+import type { CstNode } from '$lib/editor/core/nodes';
 
 function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;

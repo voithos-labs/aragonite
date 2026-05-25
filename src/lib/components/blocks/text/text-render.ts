@@ -6,7 +6,9 @@
  * Cursor save/restore stays in the SFC — those writes touch $state.
  */
 
-import type { AmbientPrefix, CstNode, ResolveImageUrl } from '../../../contracts';
+import type { AmbientPrefix } from '../../../block-component';
+import type { CstNode } from '../../../core/nodes';
+import type { ResolveImageUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';

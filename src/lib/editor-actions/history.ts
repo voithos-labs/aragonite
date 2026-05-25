@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import type { HistoryActions } from '../contracts';
+import type { HistoryActions } from '../action-contracts';
 import { applySelectionToDom } from '../selection/native-bridge';
 import { parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';

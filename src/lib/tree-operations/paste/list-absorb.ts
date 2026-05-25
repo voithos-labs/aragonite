@@ -13,8 +13,8 @@
  * through to the default structural paste (nested sub-list).
  */
 
+import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { CURSOR_END } from '../../contracts';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import {

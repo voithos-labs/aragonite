@@ -28,7 +28,7 @@ import { classifyTableSelectionCoverage } from './range-delete-table';
 import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn
-} from '../components/blocks/table/table-mutations';
+} from '../tree-operations/table-mutations';
 import { rebuildContainerRaw, rebuildTableRowRaw } from '../schema/container-raw';
 
 // ── Public API ─────────────────────────────────────────────────────────────

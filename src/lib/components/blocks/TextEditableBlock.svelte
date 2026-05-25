@@ -1,38 +1,42 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
+	import type {
+		BlockEditActions,
+		ContainerEditActions,
+		FocusActions,
+		HistoryActions
+	} from '../../action-contracts';
 	import {
+		type AmbientPrefix,
+		type BlockComponent,
+		type StickyColumnDirection
+	} from '../../block-component';
+	import type { CstNode } from '../../core/nodes';
+	import {
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		BLOCK_EDIT_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
-		PASTE_COORDINATOR_KEY,
-		LIST_CONTEXT_KEY,
+		DOC_KEY,
+		EDITOR_LIFETIME_KEY,
+		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		CONTAINER_EDIT_KEY,
-		STICKY_COLUMN_KEY,
-		SELECTION_KEY,
-		BLOCK_EL_LOOKUP_KEY,
-		BLOCK_COMPONENT_LOOKUP_KEY,
-		DOC_KEY,
-		EDITOR_ROOT_KEY,
-		EDITOR_LIFETIME_KEY,
-		RESOLVE_IMAGE_URL_KEY,
-		WIDGET_SELECTION_KEY,
 		LINK_REF_KEY,
-		type BlockEditActions,
-		type BlockElLookup,
+		LIST_CONTEXT_KEY,
+		PASTE_COORDINATOR_KEY,
+		RESOLVE_IMAGE_URL_KEY,
+		SELECTION_KEY,
+		STICKY_COLUMN_KEY,
+		WIDGET_SELECTION_KEY,
 		type BlockComponentLookup,
-		type ContainerEditActions,
+		type BlockElLookup,
 		type DocumentGetter,
-		type FocusActions,
-		type HistoryActions,
-		type CstNode,
-		type BlockComponent,
-		type StickyColumnDirection,
-		type AmbientPrefix,
+		type LinkReferenceResolverRef,
 		type ResolveImageUrl,
-		type WidgetSelectionState,
-		type LinkReferenceResolverRef
-	} from '../../contracts';
+		type WidgetSelectionState
+	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';

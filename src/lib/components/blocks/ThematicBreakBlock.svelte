@@ -1,15 +1,9 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import {
-		BLOCK_EDIT_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
-		type BlockEditActions,
-		type FocusActions,
-		type HistoryActions,
-		type CstNode,
-		type BlockComponent
-	} from '../../contracts';
+	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
+	import type { BlockComponent } from '../../block-component';
+	import type { CstNode } from '../../core/nodes';
+	import { BLOCK_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 	import { displayLength } from '../../core/lines';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

@@ -5,13 +5,8 @@
  * formatting shortcuts) stay in each component.
  */
 
-import type {
-	BlockElLookup,
-	BlockComponentLookup,
-	DocumentGetter,
-	FocusActions,
-	HistoryActions
-} from '../contracts';
+import type { FocusActions, HistoryActions } from '../action-contracts';
+import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import { PRESERVE_KEYS_NON_ARROW } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';

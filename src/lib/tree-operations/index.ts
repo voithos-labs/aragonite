@@ -19,6 +19,16 @@ export { reconcileTaskMetadata } from './list/reconcile-task';
 
 export { unwrapFirstChildFromBlockquote } from './blockquote';
 
+export {
+	insertEmptyRow,
+	insertEmptyColumn,
+	deleteRow,
+	deleteColumn,
+	cycleAlignment
+} from './table-mutations';
+export { copyRectangleAsSubTable } from './sub-table-copy';
+export type { CellPos } from './sub-table-copy';
+
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
 export { buildPastedReplacement } from './paste-replacement';

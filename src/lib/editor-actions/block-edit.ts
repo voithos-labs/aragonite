@@ -4,7 +4,9 @@
  * in one place.
  */
 
-import { CURSOR_END, type BlockEditActions, type CstNode } from '../contracts';
+import type { BlockEditActions } from '../action-contracts';
+import { CURSOR_END } from '../block-component';
+import type { CstNode } from '../core/nodes';
 import { trimTrailingLineEnding, displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,

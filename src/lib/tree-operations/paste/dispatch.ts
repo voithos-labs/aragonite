@@ -9,21 +9,21 @@
  * may address a block about to be unmounted by the range delete.
  */
 
+import type { BlockEditActions } from '../../action-contracts';
+import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import type { PasteCommitCoordinator } from './paste-deps';
-import type { BlockEditActions } from '../../contracts';
 import { parse } from '../../core/parser';
 import { nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange } from '../paste-surfaces';
-import { pickPasteStrategy, materializeBlankLines } from './strategy';
-import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyInlineResult, applyStructuralResult } from './apply';
-import { findContainerMatchingUnwrap, applyContainerMatchingPaste } from './container-match';
-import { findListAbsorb, applyListAbsorb } from './list-absorb';
-import { findListBreakOut, applyListBreakOut } from './list-break-out';
-import { sliceTableAtRow } from './table-slice';
+import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
+import { defaultInlineHook, defaultStructuralHook } from './hooks';
+import { applyListAbsorb, findListAbsorb } from './list-absorb';
+import { applyListBreakOut, findListBreakOut } from './list-break-out';
+import type { PasteCommitCoordinator } from './paste-deps';
 import { replaceBlockAtParent } from './replace-block-at-parent';
-import { CURSOR_END } from '../../contracts';
+import { materializeBlankLines, pickPasteStrategy } from './strategy';
+import { sliceTableAtRow } from './table-slice';
 
 export type PasteStrategy = 'inline' | 'structural';
 
