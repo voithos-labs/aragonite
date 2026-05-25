@@ -17,12 +17,12 @@ export function parseLinkReferenceDefinition(
 	leadingTrivia: string
 ): { node: CstNode; nextIndex: number } | null {
 	const first = lines[startIndex];
-	const openMatch = first.text.match(/^ {0,3}\[([^\]]+)\]:(.*)$/);
-	if (!openMatch) return null;
-	const label = openMatch[1];
+	const opener = matchLabelOpener(first.text);
+	if (!opener) return null;
+	const { label, afterColon } = opener;
 	if (label.startsWith('^')) return null;
 
-	const segment = openMatch[2].replace(/^[ \t]*/, '');
+	const segment = afterColon.replace(/^[ \t]*/, '');
 	let url: string | undefined;
 	let title: string | undefined;
 	let lineCursor = startIndex;
@@ -78,6 +78,32 @@ export function parseLinkReferenceDefinition(
 		},
 		nextIndex: lineCursor + 1
 	};
+}
+
+const ESCAPABLE = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~');
+
+// CommonMark §4.7: brackets inside a label may be backslash-escaped. Walks one
+// line for `[label]:` honoring escapes. Multi-line labels and unescaped-`[`
+// rejection are out of scope (status quo of the line-oriented parser).
+function matchLabelOpener(line: string): { label: string; afterColon: string } | null {
+	let i = 0;
+	while (i < line.length && i < 3 && line[i] === ' ') i++;
+	if (line[i] !== '[') return null;
+	const labelStart = i + 1;
+	let j = labelStart;
+	while (j < line.length) {
+		const ch = line[j];
+		if (ch === '\\' && j + 1 < line.length && ESCAPABLE.has(line[j + 1])) {
+			j += 2;
+			continue;
+		}
+		if (ch === ']') break;
+		j++;
+	}
+	if (j >= line.length || line[j] !== ']') return null;
+	if (j + 1 >= line.length || line[j + 1] !== ':') return null;
+	if (j === labelStart) return null;
+	return { label: line.slice(labelStart, j), afterColon: line.slice(j + 2) };
 }
 
 function parseUrl(s: string): { url: string; consumed: number } | null {

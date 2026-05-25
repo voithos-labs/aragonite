@@ -49,6 +49,14 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 /**
  * Split the node at `blockIndex` into two at raw `offset` (display-relative,
  * line-ending preserved). First half inherits the original ID via `idMap`.
+ *
+ * Round-trip caveat at `offset === 0` on a non-empty block: the leading half
+ * is `'\n'`, which reparses as an empty paragraph and collapses into trivia
+ * on `parse(serialize(...))`. `splitBlock` routes that case to
+ * `bumpLeadingTrivia` instead. The list `splitItemAtOffset` path keeps the
+ * two-output shape — the empty first half becomes the empty list-item above
+ * the new sibling, which the list serializer represents as `- \n` and
+ * reparses back to the same shape.
  */
 export function splitNode(
 	parent: NodeParent,
@@ -82,6 +90,20 @@ export function splitNode(
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 	return { op: 'replace', at: blockIndex, count: 1, newCount: 2, idMap: { 0: 0 } };
+}
+
+/**
+ * Enter-at-block-start companion to `splitNode`. Prepends a blank line into
+ * the block's `leadingTrivia` and keeps the node in place — the round-trip
+ * shape matches what `parse(serialize(tree))` would produce for a leading
+ * blank line.
+ */
+export function bumpLeadingTrivia(parent: NodeParent, blockIndex: number): StructuralChange {
+	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
+	const node = parent.children[blockIndex];
+	const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	node.leadingTrivia = (node.leadingTrivia ?? '') + lineEnding;
+	return { op: 'replace', at: blockIndex, count: 1, newCount: 1, idMap: { 0: 0 } };
 }
 
 // ── Merge ──

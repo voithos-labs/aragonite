@@ -177,20 +177,16 @@
 	export const editable = true;
 	export const focusable = true;
 
+	// 2D surface — one integer can't address a cell. Callers that need a
+	// specific cell use the deep `focusByPath`; this mirrors
+	// `createContainerBlockComponent.focus`'s 0-or-last collapse.
 	export function focus(offset: number): void {
 		if (rowCount === 0) return;
 		if (offset === 0) {
 			focusCell(0, 0, 'start');
 			return;
 		}
-		const cellCount = columnCount * rowCount;
-		if (offset >= cellCount) {
-			focusCell(rowCount - 1, columnCount - 1, 'end');
-			return;
-		}
-		// Half-open cell-index convention: offset N (1..cellCount-1) lands at cell N-1 'start'.
-		const cellIdx = offset - 1;
-		focusCell(Math.floor(cellIdx / columnCount), cellIdx % columnCount, 'start');
+		focusCell(rowCount - 1, columnCount - 1, 'end');
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -206,9 +202,10 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
+	// See `focus()` — 2D surface, no shallow offset. Cursor location comes
+	// from `getCursorPosition` below, which selection consumers prefer.
 	export function getCursorOffset(): number | null {
-		if (!focusedCell) return null;
-		return focusedCell.rowIdx * columnCount + focusedCell.colIdx;
+		return null;
 	}
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {

@@ -247,6 +247,26 @@
 				const state = getStateForNode(node);
 				return state ? [...state.innerBlockIds] : [];
 			},
+			// ── BlockComponent surface probe ─────────────────────────────────
+			/**
+			 * Lets E2E specs assert the shallow/deep cursor contract that
+			 * `getSelection()` hides — e.g., a 2D surface like TableBlock must
+			 * null its shallow getCursorOffset because (row, col) can't be
+			 * losslessly packed into one integer.
+			 */
+			getBlockCursorSurface: (
+				path: number[]
+			): {
+				exists: boolean;
+				cursorOffset: number | null;
+				cursorPosition: { path: number[]; offset: number } | null;
+			} => {
+				const block = editor.getBlockComponent(path);
+				if (!block) return { exists: false, cursorOffset: null, cursorPosition: null };
+				const cursorOffset = block.getCursorOffset();
+				const cursorPosition = block.getCursorPosition?.() ?? null;
+				return { exists: true, cursorOffset, cursorPosition };
+			},
 			// ── BlockListState consistency probe ─────────────────────────────
 			/**
 			 * Walk the live CST — NOT a re-parse — and report any container

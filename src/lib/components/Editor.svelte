@@ -399,6 +399,21 @@
 	export function getDocument() {
 		return doc;
 	}
+
+	/**
+	 * Test-only path → BlockComponent lookup, parallel to the internal
+	 * `BLOCK_COMPONENT_LOOKUP_KEY` context. Used by E2E specs that need to
+	 * assert per-block surface contracts (`getCursorOffset`,
+	 * `getCursorPosition`) that `getSelection()` collapses away.
+	 */
+	export function getBlockComponent(path: number[]): BlockComponent | null {
+		if (path.length === 0) return null;
+		const [first, ...rest] = path;
+		const ref = blockRefs[first];
+		if (!ref) return null;
+		if (rest.length === 0) return ref;
+		return ref.getBlockComponentByPath?.(rest) ?? null;
+	}
 </script>
 
 <div class="editor" bind:this={editorEl}>
