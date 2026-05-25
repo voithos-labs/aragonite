@@ -1,14 +1,10 @@
-import type { Document, CstNode } from '../core/nodes';
-import type {
-	BlockComponent,
-	BlockElLookup,
-	EditorSelection,
-	UndoEntry,
-	UndoManager
-} from '../contracts';
+import type { OpDescriptor, OperationKind } from '../action-contracts';
+import type { BlockComponent } from '../block-component';
+import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { BlockElLookup, EditorSelection } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import type { OperationKind, OpDescriptor } from '../debug/operations-log';
+import type { UndoEntry, UndoManager } from '../undo/types';
 import type { EditorEvents } from '../editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';

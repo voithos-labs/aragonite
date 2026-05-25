@@ -8,14 +8,9 @@
  * passthroughs to their dedicated modules.
  */
 
+import type { BlockEditActions, ContainerEditActions } from '../action-contracts';
+import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { SelectionState } from './selection-state.svelte';
-import type {
-	BlockElLookup,
-	BlockComponentLookup,
-	BlockEditActions,
-	ContainerEditActions,
-	DocumentGetter
-} from '../contracts';
 import type { CstNode } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './cross-block-ops';

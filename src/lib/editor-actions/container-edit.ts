@@ -5,8 +5,7 @@
  * the commit primitive.
  */
 
-import type { ContainerEditActions } from '../contracts';
-import type { OperationKind } from '../debug/operations-log';
+import type { ContainerEditActions, OperationKind } from '../action-contracts';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createContainerEditActions(

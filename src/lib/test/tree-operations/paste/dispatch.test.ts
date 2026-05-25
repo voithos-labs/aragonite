@@ -15,7 +15,7 @@ import { parse } from '../../../core/parser';
 import { registerBlockListState } from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
-import type { BlockComponent } from '../../../contracts';
+import type { BlockComponent } from '../../../block-component';
 import type { UndoController } from '../../../editor-actions/deps';
 
 function makePara(raw: string): CstNode {

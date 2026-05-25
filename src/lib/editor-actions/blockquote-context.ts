@@ -4,7 +4,8 @@
  * `createStandardNestedActions`.
  */
 
-import type { BlockEditActions, FocusActions, CstNode } from '../contracts';
+import type { BlockEditActions, FocusActions } from '../action-contracts';
+import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import { unwrapFirstChildFromBlockquote } from '../tree-operations/blockquote';

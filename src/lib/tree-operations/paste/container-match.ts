@@ -4,8 +4,8 @@
  * the matching ancestor instead of nesting a sub-container.
  */
 
+import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { CURSOR_END } from '../../contracts';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';

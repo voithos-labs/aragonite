@@ -3,14 +3,14 @@
  * sub-interface bundles for Editor.svelte to wire into Svelte context.
  */
 
-import type { EditorActionsDeps, UndoController } from './deps';
 import type {
 	BlockEditActions,
-	FocusActions,
-	HistoryActions,
 	ContainerEditActions,
-	UndoEntry
-} from '../contracts';
+	FocusActions,
+	HistoryActions
+} from '../action-contracts';
+import type { UndoEntry } from '../undo/types';
+import type { EditorActionsDeps, UndoController } from './deps';
 import { createUndoController } from './undo-controller';
 import { createBlockEditActions } from './block-edit';
 import { createFocusActions } from './focus';

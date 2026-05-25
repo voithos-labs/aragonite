@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { CstNode, BlockComponent, AmbientPrefix } from '../contracts';
+	import type { AmbientPrefix, BlockComponent } from '../block-component';
+	import type { CstNode } from '../core/nodes';
 	import BlockHost from './BlockHost.svelte';
 
 	// setRef/getRef are owner-supplied callbacks. A bind:blockRefs $bindable

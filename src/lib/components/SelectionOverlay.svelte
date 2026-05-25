@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SELECTION_KEY, EDITOR_ROOT_KEY, SELECTION_END, type BlockComponent } from '../contracts';
+	import { SELECTION_END, type BlockComponent } from '../block-component';
+	import { EDITOR_ROOT_KEY, SELECTION_KEY } from '../editor-keys';
 	import type { SelectionState } from '../selection/selection-state.svelte';
 	import {
 		normalize,

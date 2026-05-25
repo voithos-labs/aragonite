@@ -4,12 +4,9 @@
  * SFC stays focused on render and lifecycle.
  */
 
-import type {
-	BlockEditActions,
-	CstNode,
-	DocumentGetter,
-	WidgetSelectionState
-} from '../../../contracts';
+import type { BlockEditActions } from '../../../action-contracts';
+import type { CstNode } from '../../../core/nodes';
+import type { DocumentGetter, WidgetSelectionState } from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block-dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/contracts';
+import type { CstNode } from '$lib/editor/core/nodes';
 import type { EditEvent } from '$lib/editor/editor-events';
 
 function makeNode(kind: string, raw: string): CstNode {

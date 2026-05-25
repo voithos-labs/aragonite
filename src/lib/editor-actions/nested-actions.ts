@@ -7,8 +7,9 @@
  */
 
 import { setContext } from 'svelte';
-import type { BlockEditActions, FocusActions, ContainerEditActions, CstNode } from '../contracts';
-import { BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY } from '../contracts';
+import type { BlockEditActions, ContainerEditActions, FocusActions } from '../action-contracts';
+import type { CstNode } from '../core/nodes';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY } from '../editor-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';

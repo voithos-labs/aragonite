@@ -8,6 +8,31 @@ import type { CstNode } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { BlockComponent, FocusPosition } from './block-component';
 
+// ── Operation vocabulary ───────────────────────────────────────────────────
+
+export type OperationKind =
+	| 'split'
+	| 'merge'
+	| 'delete'
+	| 'input'
+	| 'updateContent'
+	| 'replaceBlock'
+	| 'paste'
+	| 'appendBlock'
+	| 'metadataUpdate'
+	| 'undo'
+	| 'redo'
+	| 'tableInsertRow'
+	| 'tableDeleteRow'
+	| 'tableInsertColumn'
+	| 'tableDeleteColumn'
+	| 'tableCycleAlignment';
+
+export interface OpDescriptor {
+	kind: OperationKind;
+	detail?: Record<string, unknown>;
+}
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {

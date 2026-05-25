@@ -8,7 +8,7 @@ import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize } from './primitives';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
-import { copyRectangleAsSubTable } from '../components/blocks/table/sub-table-copy';
+import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

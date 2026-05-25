@@ -4,8 +4,8 @@ import {
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
 } from '../../editor-actions/focus-dispatch';
-import type { FocusActions } from '../../contracts';
-import { CURSOR_END } from '../../contracts';
+import type { FocusActions } from '../../action-contracts';
+import { CURSOR_END } from '../../block-component';
 import { mockRef, makeStickyColumn } from '../harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {

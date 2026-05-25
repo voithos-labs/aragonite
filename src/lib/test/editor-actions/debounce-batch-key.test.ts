@@ -9,7 +9,7 @@ import {
 	makeStubFocus,
 	makeEditorActionsDeps
 } from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/contracts';
+import type { CstNode } from '$lib/editor/core/nodes';
 
 function makeContainer(childRaws: string[]): CstNode {
 	return {

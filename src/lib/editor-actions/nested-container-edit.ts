@@ -4,7 +4,8 @@
  * to the enclosing container's coordinate system.
  */
 
-import type { ContainerEditActions, CstNode } from '../contracts';
+import type { ContainerEditActions } from '../action-contracts';
+import type { CstNode } from '../core/nodes';
 import type { NestedActionsDeps } from './nested-actions';
 
 export function createNestedContainerEdit(deps: NestedActionsDeps): ContainerEditActions {

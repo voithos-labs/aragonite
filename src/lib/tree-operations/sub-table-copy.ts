@@ -1,4 +1,4 @@
-import type { CstNode, TableAlignment, TableMetadata } from '../../../core/nodes';
+import type { CstNode, TableAlignment, TableMetadata } from '../core/nodes';
 
 export interface CellPos {
 	rowIdx: number;

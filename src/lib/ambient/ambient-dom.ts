@@ -3,8 +3,8 @@
  * prefix container blocks contribute to their first prose child's textContent.
  */
 
-import type { AmbientPrefix } from '../contracts';
-import { devWarn } from '../diagnostics/dev-warn';
+import type { AmbientPrefix } from '../block-component';
+import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	const normalized = typeof prefix === 'string' ? { text: prefix } : prefix;

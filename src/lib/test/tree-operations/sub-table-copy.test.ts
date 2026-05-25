@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../../core/parser';
-import { copyRectangleAsSubTable } from '../../../components/blocks/table/sub-table-copy';
+import { parse } from '../../core/parser';
+import { copyRectangleAsSubTable } from '../../tree-operations/sub-table-copy';
 
 const SOURCE = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 

@@ -1,4 +1,4 @@
-import type { UndoManager, UndoEntry } from './contracts';
+import type { UndoManager, UndoEntry } from './types';
 
 const MAX_UNDO = 200;
 

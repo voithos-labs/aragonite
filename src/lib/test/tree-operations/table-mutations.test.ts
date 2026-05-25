@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../../core/parser';
+import { parse } from '../../core/parser';
 import {
 	insertEmptyRow,
 	insertEmptyColumn,
 	deleteRow,
 	deleteColumn,
 	cycleAlignment
-} from '../../../components/blocks/table/table-mutations';
-import type { TableMetadata, TableRowMetadata } from '../../../core/nodes';
+} from '../../tree-operations/table-mutations';
+import type { TableMetadata, TableRowMetadata } from '../../core/nodes';
 
 function parseTable(src: string) {
 	return parse(src).children[0];

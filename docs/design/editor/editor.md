@@ -98,8 +98,7 @@ This rendering mode maps to the CST phases:
 Cross-cutting block-kind metadata lives in `src/lib/editor/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither (otherwise the layer DAG cycles).
 
 - **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, and optional content-range / raw-rebuild hooks. New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
-- **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds.
-- **Component registrations** — built-in registrations, side-effect import.
+- **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds. Built-in component registrations live in `components/built-in-blocks.ts` (top-of-DAG wire-up, imported once at editor mount).
 - **Merge rules** — eligibility predicates for backspace merge: `isMergeEligible`, `isBlockEditable`, `findMergeTarget`, walker for the deepest mergeable leaf, and merge-role lookup.
 - **Container raw rebuild** — per-kind raw rebuild plus ancestry dispatch (`rebuildContainerRaw`, `rebuildAncestryRaw`, `rebuildAncestryRawForLeaf`).
 
