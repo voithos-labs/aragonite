@@ -4,7 +4,7 @@
  * values are invariant to vertical scrolling inside the editor.
  */
 
-import type { StickyColumnDirection } from '../contracts';
+import type { StickyColumnDirection } from '../block-component';
 import { containerRawLength, findRawOffsetTarget } from './widget-offset';
 
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null {

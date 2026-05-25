@@ -7,8 +7,8 @@
  * children.
  */
 
+import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import type { BlockComponent } from '../contracts';
 import { assignIds } from '../tree-operations/block-id';
 import { registerBlockListState } from './state-registry';
 

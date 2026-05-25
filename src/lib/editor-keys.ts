@@ -21,6 +21,7 @@ export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
 export const SELECTION_KEY = Symbol('selection');
+export type { EditorSelection } from './selection/primitives';
 
 export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
 export type { WidgetSelectionState };

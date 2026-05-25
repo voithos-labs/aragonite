@@ -1,33 +1,12 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type OperationKind =
-	| 'split'
-	| 'merge'
-	| 'delete'
-	| 'input'
-	| 'updateContent'
-	| 'replaceBlock'
-	| 'paste'
-	| 'appendBlock'
-	| 'metadataUpdate'
-	| 'undo'
-	| 'redo'
-	| 'tableInsertRow'
-	| 'tableDeleteRow'
-	| 'tableInsertColumn'
-	| 'tableDeleteColumn'
-	| 'tableCycleAlignment';
+import type { OperationKind } from '../action-contracts';
 
 export interface OperationEntry {
 	op: OperationKind;
 	path: number[];
 	detail: Record<string, unknown>;
 	t: number;
-}
-
-export interface OpDescriptor {
-	kind: OperationKind;
-	detail?: Record<string, unknown>;
 }
 
 export interface OperationsLog {

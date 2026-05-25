@@ -1,17 +1,22 @@
 /**
- * Built-in block component registrations. Imported for side effects — the
- * `import` populates the registry idempotently. Plugin authors mirror this
- * shape for their own kinds.
+ * Built-in block component registrations. Imported once for side effects from
+ * the editor's mount path. Plugin authors mirror this shape for their own kinds.
+ *
+ * Lives in `components/` rather than `schema/` so the schema layer has no
+ * downstream imports — registration is a top-of-DAG wire-up.
  */
 
 import type { CstNode } from '../core/nodes';
-import TextEditableBlock from '../components/blocks/TextEditableBlock.svelte';
-import CodeBlock from '../components/blocks/CodeBlock.svelte';
-import ThematicBreakBlock from '../components/blocks/ThematicBreakBlock.svelte';
-import BlockquoteBlock from '../components/blocks/BlockquoteBlock.svelte';
-import ListBlock from '../components/blocks/ListBlock.svelte';
-import TableBlock from '../components/blocks/table/TableBlock.svelte';
-import { registerBlockComponent, type BlockComponentEntry } from './block-component-registry';
+import {
+	registerBlockComponent,
+	type BlockComponentEntry
+} from '../schema/block-component-registry';
+import TextEditableBlock from './blocks/TextEditableBlock.svelte';
+import CodeBlock from './blocks/CodeBlock.svelte';
+import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
+import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
+import ListBlock from './blocks/ListBlock.svelte';
+import TableBlock from './blocks/table/TableBlock.svelte';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {
 	const level = (node.metadata as { level?: number } | undefined)?.level ?? 1;
@@ -51,17 +56,8 @@ registerBlockComponent('table', {
 	component: TableBlock as unknown as BlockComponentEntry['component']
 });
 
-// Kinds rendered via TextEditableBlock's raw-block surface (contenteditable on
-// `raw`, no inline parsing / marker styling). Two categories share this entry:
-//   - Permanent fallbacks (indentedCode, htmlBlock, linkReferenceDefinition):
-//     stay raw-editable as the final shape; no dedicated component is planned.
-//     The visible quality gap vs fenced code / inline content is the design
-//     choice. LRD additionally gets distinct CSS via the `data-block-kind`
-//     attribute that BlockHost sets on each block element.
-//   - Placeholders (tableRow, tableCell, unrecognized): tableRow / tableCell
-//     normally render through TableBlock's own logic — the registration here
-//     is a defensive fallback for orphaned nodes. `unrecognized` graduates to
-//     its own kind when parser support for the syntax is added.
+// tableRow / tableCell normally render through TableBlock's own logic — these
+// entries are a defensive fallback for orphaned nodes.
 registerBlockComponent('indentedCode', textAsRawBlock);
 registerBlockComponent('htmlBlock', textAsRawBlock);
 registerBlockComponent('linkReferenceDefinition', textAsRawBlock);

@@ -7,7 +7,7 @@
 
 import type { InlineNode } from '../core/nodes';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import type { UndoEntry } from '../contracts';
+import type { UndoEntry } from '../undo/types';
 import type { OperationsLog, OperationEntry } from './operations-log';
 
 export { dumpTree } from './dump-tree';

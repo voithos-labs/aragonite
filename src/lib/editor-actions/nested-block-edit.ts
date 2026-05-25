@@ -4,8 +4,9 @@
  * snapshot, op-event, and reactivity ceremony lives in one place.
  */
 
-import type { BlockEditActions, CstNode } from '../contracts';
-import { CURSOR_END } from '../contracts';
+import type { BlockEditActions } from '../action-contracts';
+import { CURSOR_END } from '../block-component';
+import type { CstNode } from '../core/nodes';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import {
 	splitNode as performSplit,

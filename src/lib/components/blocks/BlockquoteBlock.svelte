@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import type {
+		BlockEditActions,
+		ContainerEditActions,
+		FocusActions
+	} from '../../action-contracts';
+	import type { CstNode } from '../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
-		FOCUS_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
-		STICKY_COLUMN_KEY,
-		type BlockEditActions,
-		type FocusActions,
-		type ContainerEditActions,
-		type CstNode
-	} from '../../contracts';
+		FOCUS_KEY,
+		STICKY_COLUMN_KEY
+	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { rebuildBlockquoteRaw } from '../../schema/container-raw';

@@ -4,8 +4,8 @@
  * descriptor advertises `supportsInline` at module-load time.
  */
 
+import { CURSOR_END } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
-import { CURSOR_END } from '../../contracts';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import {

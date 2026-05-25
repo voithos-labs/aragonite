@@ -5,9 +5,9 @@
  * backwards import from `tree-operations/paste/* -> editor-actions/`.
  */
 
-import type { BlockComponent } from '../../contracts';
+import type { OperationKind } from '../../action-contracts';
+import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
-import type { OperationKind } from '../../debug/operations-log';
 import type { StructuralChange } from '../structural-change';
 
 export interface MultiScopeTarget {

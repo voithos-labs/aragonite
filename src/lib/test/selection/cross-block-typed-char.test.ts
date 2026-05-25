@@ -6,11 +6,12 @@ import { createUndoController } from '$lib/editor/editor-actions/undo-controller
 import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createUndoManager } from '$lib/editor/undo-manager';
+import { createUndoManager } from '$lib/editor/undo/manager';
 import { createEditorEvents } from '$lib/editor/editor-events';
 import { parse } from '$lib/editor/core/parser';
 import { mockRef, makeStickyColumn } from '$lib/editor/test/harness/editor-actions';
-import type { BlockComponent, CstNode } from '$lib/editor/contracts';
+import type { BlockComponent } from '$lib/editor/block-component';
+import type { CstNode } from '$lib/editor/core/nodes';
 import type { EditEvent } from '$lib/editor/editor-events';
 import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
 

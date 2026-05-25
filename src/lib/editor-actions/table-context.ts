@@ -4,8 +4,8 @@
  * tracking, DOM helpers, and BlockComponent — only structural mutations live here.
  */
 
+import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { CstNode, TableMetadata } from '../core/nodes';
-import type { CellPosition, ContainerEditActions, TableContext } from '../contracts';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -17,7 +17,7 @@ import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn,
 	cycleAlignment as mutCycleAlignment
-} from '../components/blocks/table/table-mutations';
+} from '../tree-operations/table-mutations';
 
 export interface TableMutationsContextDeps {
 	get node(): CstNode;

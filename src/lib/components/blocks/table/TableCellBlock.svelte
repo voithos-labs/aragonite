@@ -1,32 +1,33 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
+	import type {
+		BlockEditActions,
+		ContainerEditActions,
+		FocusActions,
+		HistoryActions,
+		TableContext
+	} from '../../../action-contracts';
+	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
+	import type { CstNode } from '../../../core/nodes';
 	import {
+		BLOCK_COMPONENT_LOOKUP_KEY,
 		BLOCK_EDIT_KEY,
+		BLOCK_EL_LOOKUP_KEY,
+		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
-		PASTE_COORDINATOR_KEY,
+		DOC_KEY,
+		EDITOR_LIFETIME_KEY,
+		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		CONTAINER_EDIT_KEY,
-		STICKY_COLUMN_KEY,
+		PASTE_COORDINATOR_KEY,
 		SELECTION_KEY,
-		BLOCK_EL_LOOKUP_KEY,
-		BLOCK_COMPONENT_LOOKUP_KEY,
-		DOC_KEY,
-		EDITOR_ROOT_KEY,
-		EDITOR_LIFETIME_KEY,
+		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
-		type BlockEditActions,
-		type BlockElLookup,
 		type BlockComponentLookup,
-		type ContainerEditActions,
-		type DocumentGetter,
-		type FocusActions,
-		type HistoryActions,
-		type CstNode,
-		type BlockComponent,
-		type StickyColumnDirection,
-		type TableContext
-	} from '../../../contracts';
+		type BlockElLookup,
+		type DocumentGetter
+	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
@@ -60,7 +61,7 @@
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
-	import { copyRectangleAsSubTable } from './sub-table-copy';
+	import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 	import {
 		installCellDragListener,
 		handleCellShiftClick,

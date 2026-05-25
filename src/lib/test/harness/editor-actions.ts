@@ -2,18 +2,17 @@
 
 import { vi } from 'vitest';
 import type {
-	BlockComponent,
 	BlockEditActions,
 	ContainerEditActions,
-	FocusActions,
-	CstNode,
-	Document
-} from '$lib/editor/contracts';
-import type { EditorActionsDeps } from '$lib/editor/editor-actions/deps';
+	FocusActions
+} from '$lib/editor/action-contracts';
+import type { BlockComponent } from '$lib/editor/block-component';
+import type { CstNode, Document } from '$lib/editor/core/nodes';
 import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-import type { BlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import type { EditorActionsDeps } from '$lib/editor/editor-actions/deps';
 import type { EditorEvents } from '$lib/editor/editor-events';
-import { createUndoManager } from '$lib/editor/undo-manager';
+import type { BlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import { createUndoManager } from '$lib/editor/undo/manager';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/editor-events';
 

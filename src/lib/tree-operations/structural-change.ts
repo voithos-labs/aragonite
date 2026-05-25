@@ -7,7 +7,7 @@
  * indices — e.g., split's first half inherits the original ID.
  */
 
-import type { BlockComponent } from '../contracts';
+import type { BlockComponent } from '../block-component';
 import { generateBlockId } from './block-id';
 
 export type StructuralChange =
