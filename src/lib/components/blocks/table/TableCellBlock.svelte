@@ -35,7 +35,6 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
-	import { collectCrossBlockText } from '../../../selection/clipboard-text';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import {
 		createRangeFromOffsets,
@@ -57,6 +56,10 @@
 	} from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
+	import {
+		writeCrossBlockCopy,
+		writeCrossBlockCut
+	} from '../../../selection/cross-block-clipboard';
 	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
@@ -532,14 +535,7 @@
 			return;
 		}
 
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.preventDefault();
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			return;
-		}
+		writeCrossBlockCopy(e, { selection, getDoc, crossBlock });
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
@@ -557,14 +553,7 @@
 			return;
 		}
 
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			await crossBlock.performCrossBlockDeleteFromEvent();
-			return;
-		}
+		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
 
 		// Intra-cell: slice node.raw at the selection, write the slice, and
 		// commit the truncation through blockEdit so the CST and undo stack
