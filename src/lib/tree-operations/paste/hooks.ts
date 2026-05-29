@@ -5,7 +5,7 @@
  */
 
 import { CURSOR_END } from '../../block-component';
-import type { CstNode } from '../../core/nodes';
+import type { BlockKind, CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import {
@@ -19,10 +19,12 @@ import {
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
-import {
-	tableCellInlinePaste,
-	tableCellStructuralPaste
-} from '../../components/blocks/table/table-cell-paste';
+
+// Kinds whose surface is registered by their component (top of the DAG) instead
+// of the default loop below. Skipping them keeps a single registrar per kind, so
+// correctness doesn't hinge on whether this module loads before or after the
+// component wire-up.
+const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
 export function defaultInlineHook(
 	node: CstNode,
@@ -78,6 +80,7 @@ export function defaultStructuralHook(
 // completed before this module's top-level executes. Plugin kinds registering
 // after this point must register their own paste surface.
 for (const kind of getAllRegisteredKinds()) {
+	if (BESPOKE_SURFACE_KINDS.has(kind)) continue;
 	if (tryGetBlockKindDescriptor(kind)?.supportsInline) {
 		registerPasteSurface({
 			kind,
@@ -86,17 +89,6 @@ for (const kind of getAllRegisteredKinds()) {
 		});
 	}
 }
-
-// Override the auto-registered defaults for tableCell. The structural sentinel
-// is never invoked — pasteDispatch intercepts tableCell + structural before
-// reaching the surface hook. Registering it (instead of leaving onStructuralPaste
-// undefined) keeps surfaceForcesInline === false so structural clipboards reach
-// the break-and-splice branch instead of being forced through inline.
-registerPasteSurface({
-	kind: 'tableCell',
-	onInlinePaste: tableCellInlinePaste,
-	onStructuralPaste: tableCellStructuralPaste
-});
 
 /** Test-only: produce a default text surface descriptor. */
 export function __getDefaultTextSurface(kind: PasteSurface['kind']): PasteSurface {

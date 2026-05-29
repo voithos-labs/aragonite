@@ -14,7 +14,7 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
 import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
-import { collectCrossBlockText } from '../../../selection/clipboard-text';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block-clipboard';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
 export interface TextClipboardDeps {
@@ -50,13 +50,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		e.preventDefault();
 		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
 		// and unreliable in Tauri's wry webview.
-		if (deps.selection.isCrossBlock && deps.selection.anchor && deps.selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(deps.getDoc(), deps.selection.anchor, deps.selection.focus)
-			);
-			return;
-		}
+		if (writeCrossBlockCopy(e, deps)) return;
 		e.clipboardData?.setData('text/plain', getSelectedTextFromRaw());
 	}
 
@@ -64,15 +58,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		deps.stickyColumn.reset();
 		e.preventDefault();
 
-		// Sync clipboard write, then async delete — clipboard is populated even if the delete is interrupted.
-		if (deps.selection.isCrossBlock && deps.selection.anchor && deps.selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(deps.getDoc(), deps.selection.anchor, deps.selection.focus)
-			);
-			await deps.crossBlock.performCrossBlockDeleteFromEvent();
-			return;
-		}
+		if (await writeCrossBlockCut(e, deps)) return;
 
 		const selectedText = getSelectedTextFromRaw();
 		if (!selectedText) return;

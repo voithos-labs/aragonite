@@ -1,7 +1,7 @@
 /**
- * Inline + structural paste hooks for tableCell. Both live together so the
- * tableCell PasteSurface registration in dispatch.ts can wire them as a pair.
- * The structural hook is a sentinel — see its body.
+ * Inline + structural paste hooks for tableCell, exposed as a PasteSurface that
+ * the editor mount registers (see built-in-blocks.ts). The structural hook is a
+ * sentinel — see its body.
  */
 
 import { CURSOR_END } from '../../../block-component';
@@ -9,6 +9,7 @@ import type { CstNode } from '../../../core/nodes';
 import type {
 	InlinePasteResult,
 	PasteRange,
+	PasteSurface,
 	StructuralPasteResult
 } from '../../../tree-operations/paste-surfaces';
 
@@ -70,3 +71,13 @@ export function tableCellStructuralPaste(
 		focusOffset: CURSOR_END
 	};
 }
+
+// onStructuralPaste is never invoked — pasteDispatch intercepts tableCell +
+// structural before reaching the surface hook. It's present (rather than
+// omitted) so surfaceForcesInline stays false, letting structural clipboards
+// reach the break-and-splice branch instead of being forced through inline.
+export const tableCellPasteSurface: PasteSurface = {
+	kind: 'tableCell',
+	onInlinePaste: tableCellInlinePaste,
+	onStructuralPaste: tableCellStructuralPaste
+};

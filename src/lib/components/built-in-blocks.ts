@@ -11,12 +11,14 @@ import {
 	registerBlockComponent,
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
+import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import TextEditableBlock from './blocks/TextEditableBlock.svelte';
 import CodeBlock from './blocks/CodeBlock.svelte';
 import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
 import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 import ListBlock from './blocks/ListBlock.svelte';
 import TableBlock from './blocks/table/TableBlock.svelte';
+import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {
 	const level = (node.metadata as { level?: number } | undefined)?.level ?? 1;
@@ -65,3 +67,9 @@ registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
 registerBlockComponent('tableRow', textAsRawBlock);
 registerBlockComponent('tableCell', textAsRawBlock);
 registerBlockComponent('unrecognized', textAsRawBlock);
+
+// tableCell is the one supportsInline kind with bespoke paste semantics, so its
+// surface registers here rather than via the default loop in paste/hooks.ts
+// (which skips it). Pipe-escaping cell paste would silently revert to the plain
+// inline default if both registrars ran and order let the default win.
+registerPasteSurface(tableCellPasteSurface);

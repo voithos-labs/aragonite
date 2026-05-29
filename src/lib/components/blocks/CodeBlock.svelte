@@ -46,7 +46,7 @@
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
-	import { collectCrossBlockText } from '../../selection/clipboard-text';
+	import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block-clipboard';
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -428,27 +428,14 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			return;
-		}
+		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
-		if (selection.isCrossBlock && selection.anchor && selection.focus) {
-			e.clipboardData?.setData(
-				'text/plain',
-				collectCrossBlockText(getDoc(), selection.anchor, selection.focus)
-			);
-			await crossBlock.performCrossBlockDeleteFromEvent();
-			return;
-		}
+		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 
 		if (!el) return;
