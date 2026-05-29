@@ -56,8 +56,9 @@ registerBlockComponent('table', {
 	component: TableBlock as unknown as BlockComponentEntry['component']
 });
 
-// tableRow / tableCell normally render through TableBlock's own logic — these
-// entries are a defensive fallback for orphaned nodes.
+// Raw-editable fallback for kinds with no dedicated rendered surface.
+// tableRow / tableCell normally render inside TableBlock — these entries only
+// catch orphaned nodes that reach BlockHost directly.
 registerBlockComponent('indentedCode', textAsRawBlock);
 registerBlockComponent('htmlBlock', textAsRawBlock);
 registerBlockComponent('linkReferenceDefinition', textAsRawBlock);

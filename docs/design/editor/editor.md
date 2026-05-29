@@ -61,7 +61,7 @@ The document renders as a vertical stack of block components, one per CST node. 
 - Text blocks (paragraphs, headings) use `contenteditable`
 - Code blocks could use `contenteditable`, a `<textarea>`, or an embedded CodeMirror
 - Tables could use a grid of inputs/cells
-- Non-editable blocks (thematic breaks, images) render as static elements with focus support
+- Non-editable blocks (thematic breaks) render as static elements with focus support; images render inline as atomic widgets, not as their own block
 
 Not all blocks require `contenteditable`. A block only needs to conform to the common interface.
 
@@ -74,8 +74,9 @@ Examples:
 - `TextEditableBlock` (paragraph, heading, raw): `{ editable: true, focusable: true }` — contenteditable, parameterized by CSS class
 - `CodeBlock`: `{ editable: true, focusable: true }` — contenteditable editing surface with live syntax highlighting
 - `ThematicBreakBlock`: `{ editable: false, focusable: true }` — arrow-key navigable, Enter creates a paragraph below, Backspace deletes it
-- `BlockquoteBlock`, `ListBlock`, `ListItemBlock`: `{ editable: true, focusable: true }` — containers delegate focus to inner children
-- `ImageBlock` (future): `{ editable: false, focusable: true }` — focusable for keyboard navigation and deletion
+- `BlockquoteBlock`, `ListBlock`, `ListItemBlock`, `TableBlock`: `{ editable: true, focusable: true }` — containers delegate focus to inner children
+
+Images are not a block kind — they render inline as atomic widgets inside prose blocks (see Atomic inline widgets).
 
 The orchestration layer checks `editable`/`focusable` before calling `focus()` or `getCursorOffset()`.
 
@@ -159,7 +160,7 @@ The CST is always up-to-date (updated on every input event). The DOM is only pat
 
 ### Atomic inline widgets
 
-Some inline nodes render as opaque widgets — `contenteditable="false"` islands with no visible caret-able interior (today: image; future: math, footnote refs, plugin widgets). They contribute their raw bytes via `data-source-start` / `data-source-end` attributes on the widget root, **not** via textContent. The cursor is addressable only at the widget's leading and trailing edges.
+Some inline nodes render as opaque widgets — `contenteditable="false"` islands with no visible caret-able interior (images, and live raw HTML such as `<br>`; future: math, footnote refs, plugin widgets). They contribute their raw bytes via `data-source-start` / `data-source-end` attributes on the widget root, **not** via textContent. The cursor is addressable only at the widget's leading and trailing edges.
 
 `cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw-content offsets. `rawOffsetAtNode` walks the container in document order summing text-node lengths and widget raw lengths to compute the raw position of a Range endpoint; `findRawOffsetTarget` is the inverse, locating the DOM `(node, offset)` pair for a target raw offset and snapping widget-interior targets to the nearest edge. All cursor I/O — `ambient/ambient-cursor.ts`, `cursor/sticky-measure.ts`, `selection/native-bridge.ts`, `TextEditableBlock`'s setSelection / measurePartialRects / extendSelectionToRaw — routes through these helpers.
 
@@ -170,7 +171,7 @@ Two cross-block focus behaviors compose with the atomic-widget primitive:
 - **Vertical-skip**: blocks whose only inline content is widgets implement `isVerticallyTransparent()` returning true. ArrowUp/Down dispatch passes through them in the requested direction without stopping. Container blocks (list item, blockquote) recurse — a list item with one image-only paragraph is itself transparent.
 - **Edge-widget select**: when cross-block ArrowLeft/Right lands at the `'end'` / `'start'` of a paragraph that ends/starts with a widget, the dispatcher calls `selectEdgeWidget('end' | 'start')` instead of placing a no-op caret at the widget edge. One press selects; the existing widget-selected ArrowLeft/Right then steps out (or cross-blocks if there's no text before/after the widget).
 
-To add a new atomic inline widget kind: render its DOM root with `[data-image-widget]` (or generalize the matcher to `[data-atomic-widget]` when the second widget kind ships) and set `data-source-start` / `data-source-end` to the widget's raw range. The translation, vertical-skip, and edge-select all dispatch on these attributes alone — no per-widget plumbing needed.
+To add a new atomic inline widget kind: render its DOM root with `[data-inline-widget]` — the generic atomic-widget marker the cursor walker, selection painter, and raw reader all key off — and set `data-source-start` / `data-source-end` to the widget's raw range. Images add an `[data-image-widget]` marker for image-specific paths, but the generic machinery only needs `[data-inline-widget]`. The translation, vertical-skip, and edge-select all dispatch on these attributes alone — no per-widget plumbing needed.
 
 ## Orchestration
 
@@ -504,7 +505,7 @@ The CST defines one document root plus 13 block kinds the editor must handle. Bl
 | IndentedCode            | `indentedCode`            | Raw-editable block (until dedicated component built). Merge: not mergeable                                                                                                                                                              |
 | HtmlBlock               | `htmlBlock`               | Raw-editable block. Merge: not mergeable                                                                                                                                                                                                |
 | LinkReferenceDefinition | `linkReferenceDefinition` | Raw-editable block. Editing an LRD triggers a document-wide inline re-parse so reference-style links/images update — the editor shell rebuilds the LRD map and re-runs `parseAllInlineContent` after every commit. Merge: not mergeable |
-| Table                   | `table`                   | Grid editor (future). Raw-editable until then. Merge: not mergeable                                                                                                                                                                     |
+| Table                   | `table`                   | Container — per-cell editable grid (`tableRow` / `tableCell` children) with cell navigation and column-aware traversal. Merge: not mergeable                                                                                            |
 | UnrecognizedBlock       | `unrecognized`            | Raw-editable block. This is the catch-all for any syntax the parser doesn't recognize. Merge: two adjacent unrecognized blocks are mergeable (concatenate raw). Split: produces two unrecognized blocks                                 |
 | Blockquote              | `blockquote`              | Container — recursive BlockList (see Container Blocks section)                                                                                                                                                                          |
 | List                    | `list`                    | Container — renders ListItem children                                                                                                                                                                                                   |
