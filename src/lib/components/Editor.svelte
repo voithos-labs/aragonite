@@ -119,9 +119,7 @@
 			// Action-site `parseAllInlineContent` calls (in editor-actions/, tree-operations/,
 			// selection/) build unresolved-reference inline trees because they don't have
 			// a resolver in scope. Refresh the whole doc on every structural commit so
-			// references stay coherent regardless of which path produced the trees. Aligns
-			// with Phase 2's "regenerate fearlessly" stance — no resolver-state cache to
-			// keep coherent across action-site bypasses.
+			// references stay coherent regardless of which path produced the trees.
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
 			currentResolver = newMap.resolve;
@@ -402,9 +400,7 @@
 
 	/**
 	 * Test-only path → BlockComponent lookup, parallel to the internal
-	 * `BLOCK_COMPONENT_LOOKUP_KEY` context. Used by E2E specs that need to
-	 * assert per-block surface contracts (`getCursorOffset`,
-	 * `getCursorPosition`) that `getSelection()` collapses away.
+	 * `BLOCK_COMPONENT_LOOKUP_KEY` context.
 	 */
 	export function getBlockComponent(path: number[]): BlockComponent | null {
 		if (path.length === 0) return null;

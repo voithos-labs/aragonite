@@ -43,7 +43,7 @@ Phase 3 proposed an ownership flip: the inline tree would become authoritative, 
 The tree has three categories of nodes:
 
 - **Document** — the root node
-- **Container blocks** — hold child nodes (Blockquote, List, ListItem)
+- **Container blocks** — hold child nodes (Blockquote, List, ListItem, Table, TableRow)
 - **Leaf blocks** — terminal nodes with no children
 
 ### Node Type
@@ -54,9 +54,9 @@ All nodes are **mutable plain objects** — no class hierarchy. There is one `Cs
 
 Node kind categories:
 
-- **Container kinds** (blockquote, list, listItem) carry `children`, `innerPrefix`, and `innerSuffix`.
+- **Container kinds** carry `children`. Blockquote, list, and listItem also carry `innerPrefix`/`innerSuffix`; table and tableRow hold their grid children directly without an inner prefix/suffix pair.
 - **Prose kinds** (paragraph, heading, setextHeading) carry `inlineContent` (populated by the inline parser).
-- **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, table, unrecognized) have no children or inline content.
+- **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, tableCell, unrecognized) have no children or inline content.
 
 Why a flat interface instead of a mapped-type discriminated union: the editor mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would make in-place mutation a type error.
 
@@ -64,7 +64,7 @@ Why a flat interface instead of a mapped-type discriminated union: the editor mu
 
 All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full source text). The root `Document` additionally carries `prefix`/`suffix` for document-level whitespace.
 
-**Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), `childIds` (parallel-indexed stable IDs for keyed rendering — see `editor.md` § Block Identity), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content.
+**Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), `childIds` (parallel-indexed stable IDs for keyed rendering — see `editor.md` § Block Identity), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content. Table and tableRow are also containers — they hold their grid children (`tableRow` / `tableCell`) but parse the cell layout straight from `raw` rather than via an inner prefix/suffix.
 
 **Prose blocks** (paragraph, heading, setextHeading) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
 
@@ -89,19 +89,21 @@ Inline content is a tree of `InlineNode` objects representing the inline syntax 
 
 **Inline node kinds:**
 
-| Kind              | Fields                      | Description                                                                   |
-| ----------------- | --------------------------- | ----------------------------------------------------------------------------- |
-| `text`            | `text`                      | Plain text with no markup                                                     |
-| `emphasis`        | `children`                  | `*text*` or `_text_`                                                          |
-| `strong`          | `children`                  | `**text**` or `__text__`                                                      |
-| `strikethrough`   | `children`                  | `~~text~~` (GFM extension)                                                    |
-| `inlineCode`      | `text`                      | `` `code` `` — no nested children                                             |
-| `link`            | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind) |
-| `image`           | `alt`, `url`, `title?`      | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind) |
-| `autolink`        | `url`                       | `<url>` or GFM bare URL                                                       |
-| `hardLineBreak`   | —                           | Trailing `\` or two spaces before `\n`                                        |
-| `escape`          | —                           | `\<punct>` — backslash neutralizes the next ASCII-punctuation character       |
-| `entityReference` | `decoded`                   | `&name;`, `&#dec;`, or `&#xhex;` HTML entity                                  |
+| Kind                  | Fields                      | Description                                                                                                          |
+| --------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `text`                | `text`                      | Plain text with no markup                                                                                            |
+| `emphasis`            | `children`                  | `*text*` or `_text_`                                                                                                 |
+| `strong`              | `children`                  | `**text**` or `__text__`                                                                                             |
+| `strikethrough`       | `children`                  | `~~text~~` (GFM extension)                                                                                           |
+| `inlineCode`          | `text`                      | `` `code` `` — no nested children                                                                                    |
+| `link`                | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]` (reference-style reuses the same kind)                                        |
+| `image`               | `alt`, `url`, `title?`      | `![alt](url "title")` or `![alt][ref]` (reference-style reuses the same kind)                                        |
+| `autolink`            | `url`                       | `<url>` or GFM bare URL                                                                                              |
+| `hardLineBreak`       | —                           | Trailing `\` or two spaces before `\n`                                                                               |
+| `escape`              | —                           | `\<punct>` — backslash neutralizes the next ASCII-punctuation character                                              |
+| `entityReference`     | `decoded`                   | `&name;`, `&#dec;`, or `&#xhex;` HTML entity                                                                         |
+| `unresolvedReference` | `label`, `refKind`          | `[text][ref]` / `![alt][ref]` whose label has no matching definition; `refKind` distinguishes the link vs image form |
+| `rawHtml`             | —                           | Inline raw HTML tag; allowlisted tags (`<br>`) render as atomic widgets                                              |
 
 Inline nodes nest. For example, `**bold *and italic***` produces a Strong node containing a Text child ("bold ") and an Emphasis child, which itself contains a Text child ("and italic"). Each node (including wrapper nodes like Strong and Emphasis) has `start`/`end` offsets covering the full range in `raw`, including the markers. This allows the editor to map DOM cursor positions to `raw` offsets and vice versa.
 
