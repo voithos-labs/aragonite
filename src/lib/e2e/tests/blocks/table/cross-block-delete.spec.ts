@@ -204,4 +204,27 @@ test.describe('table block: cross-block delete', () => {
 		);
 		expect(focusedPath).toBe('[0]');
 	});
+
+	test('keyboard Shift+ArrowDown from a cell into the paragraph below deletes without corrupting the grid', async ({
+		page
+	}) => {
+		await editor.loadContent(`${TABLE_2x3}\nafter\n`);
+		// Anchor in the bottom-right cell, then extend into the paragraph below via
+		// the keyboard table-extend path (distinct from pointer drag / Ctrl+Shift+End).
+		await page.locator('[role="cell"]').nth(5).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.waitForNoSourceMutation();
+		const source = await editor.bridge.getSource();
+		// The table grid must stay valid: external paragraph text must never be
+		// fused into a table cell. The bug produced `| 3 | 4after\n |`. The correct
+		// table-aware delete clears the anchor cell and leaves "after" a paragraph.
+		expect(source).toContain('| --- | --- |');
+		expect(source).not.toContain('4after');
+		expect(source).toContain('| 3 |  |');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+	});
 });
