@@ -13,6 +13,7 @@ import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes } from '../../../core/inline-render';
+import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 
@@ -67,7 +68,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
 				resolveImageUrl: deps.resolveImageUrl,
-				paragraphPath: deps.myPath
+				paragraphPath: deps.myPath,
+				buildImageWidget
 			})
 		);
 		return frag;
