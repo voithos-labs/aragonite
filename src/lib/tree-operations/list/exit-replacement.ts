@@ -61,18 +61,20 @@ export function buildExitReplacement(
 
 	const exitParagraph: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 
+	// Preserve the original list's starting number across the split.
+	const base = orderedBaseOf(items[0]);
+
 	const blocks: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
-		blocks.push(assembleListHalf(list, firstHalfItems, 1));
+		blocks.push(assembleListHalf(list, firstHalfItems, base));
 	}
 	const paragraphIndex = blocks.length;
 	blocks.push(exitParagraph);
 	for (const lifted of liftedBlocks) blocks.push(lifted);
 	if (secondHalfItems.length > 0) {
-		// Continue the sequence across the gap: 1, 2, [exit], 3 — not ...4
-		// (the exited slot doesn't burn a number) and not ...1.
-		const secondHalfStart =
-			firstHalfItems.length > 0 ? firstHalfItems.length + 1 : orderedBaseOf(items[0]);
+		// Continue the sequence across the gap: base, base+1, [exit], base+2 —
+		// the exited slot doesn't burn a number.
+		const secondHalfStart = base + firstHalfItems.length;
 		blocks.push(assembleListHalf(list, secondHalfItems, secondHalfStart));
 	}
 
