@@ -31,6 +31,8 @@ Leaf and container blocks alike read from the concern-specific sub-interface con
 
 A block reads only the sub-interfaces it actually uses. Containers set only the sub-interfaces they override for their nested children; Svelte context walking delivers everything else from the nearest ancestor that does set it.
 
+The undo/commit _ceremony_ (commit primitive, snapshot debounce) lives in `editor-actions/undo-controller.ts`; `undo/` holds only the undo stack and its entry type.
+
 ## Registration
 
 Two registration steps per new block kind:

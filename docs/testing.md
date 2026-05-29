@@ -32,27 +32,31 @@ Unit tests can be scoped to a single concept area:
 | `test:editor:reactivity`     | Block-list state and state registry                        |
 | `test:editor:selection`      | Selection-state logic                                      |
 | `test:editor:blocks`         | Per-block unit tests (code block, etc.)                    |
+| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection   |
+| `test:editor:undo`           | Undo stack and entry management                            |
 | `test:editor:debug`          | Debug engine helpers and operations log                    |
 
 E2E tests are grouped into Playwright projects:
 
-| Script                   | Covers                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| `test:e2e:top`           | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers |
-| `test:e2e:blocks`        | All per-block specs under `tests/blocks/`                                     |
-| `test:e2e:blocks:list`   | List block specs only                                                         |
-| `test:e2e:blocks:code`   | Code block specs only                                                         |
-| `test:e2e:blocks:image`  | Image block specs only                                                        |
-| `test:e2e:clipboard`     | Cut / copy / paste (excludes exploration)                                     |
-| `test:e2e:exploration`   | Clipboard exploration / manual-verification scenarios                         |
-| `test:e2e:selection`     | Cross-block selection behavior                                                |
-| `test:e2e:sticky-column` | Vertical cursor column tracking across block transitions                      |
+| Script                       | Covers                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `test:e2e:top`               | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers |
+| `test:e2e:blocks`            | All per-block specs under `tests/blocks/`                                     |
+| `test:e2e:blocks:list`       | List block specs only                                                         |
+| `test:e2e:blocks:code`       | Code block specs only                                                         |
+| `test:e2e:blocks:image`      | Image block specs only                                                        |
+| `test:e2e:blocks:table`      | Table block specs only                                                        |
+| `test:e2e:blocks:blockquote` | Blockquote block specs only                                                   |
+| `test:e2e:clipboard`         | Cut / copy / paste (excludes exploration)                                     |
+| `test:e2e:exploration`       | Clipboard exploration / manual-verification scenarios                         |
+| `test:e2e:selection`         | Cross-block selection behavior                                                |
+| `test:e2e:sticky-column`     | Vertical cursor column tracking across block transitions                      |
 
 ## Unit Tests (Vitest)
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `undo-manager`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
+Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. When a SUT moves into a subdirectory the test follows — e.g. the undo manager lives at `undo/manager.ts` and its test at `test/undo/manager.test.ts`. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
 Tests that import a sub-path directly (e.g. `tree-operations/list/m1-contract` rather than the `tree-operations` barrel) mirror at the deeper path — `test/tree-operations/list/m1-contract.test.ts`. Test directory depth follows import depth, not just the directory the SUT lives in.
 
@@ -83,7 +87,7 @@ Feature-level specs live in `src/lib/editor/e2e/tests/` and cover: test-harness 
 
 Requirement files in `src/lib/editor/e2e/requirements/` pair one-to-one with spec files under `src/lib/editor/e2e/tests/`. When a subdirectory's specs split further (e.g. `tests/sticky-column/` into several files), the requirements split with them. The filesystem is the authoritative list of what's covered — if a spec has no requirement file or vice versa, one or the other is out of lockstep.
 
-**Per-block subfolder rule.** Create a per-block subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` npm script when a block area reaches 3 or more spec files. Below that threshold, specs live flat under the parent category. The `list/` and `code/` subfolders both earned their own category scripts this way. `blockquote/` uses the subfolder structure for consistency with its siblings but has a single spec and no dedicated script.
+**Per-block subfolder rule.** Create a per-block subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` npm script when a block area reaches 3 or more spec files. Below that threshold, specs live flat under the parent category. The per-block subfolders (list, code, image, table, blockquote) each earned their own category script this way.
 
 ### Writing New E2E Tests
 
@@ -117,7 +121,7 @@ test.describe('my feature', () => {
 
 **Use `getDomBlockCount()` for structural assertions after split.** The test bridge's `getBlockCount()` re-parses the serialized source, which may absorb empty blocks as whitespace. `getDomBlockCount()` counts DOM elements, reflecting the editor's true internal state.
 
-**Test structural operations with container navigation, not just flat paragraphs.** Structural operations (split, merge, delete) shift block indices. Container blocks (blockquote, list) use their `index` prop in delegation chains when focus exits the container. A test that splits a paragraph and then navigates through flat paragraphs won't catch stale-index or stale-ref bugs — the delegation chain is only one hop deep. Always include a test that performs the structural operation and then navigates _through_ a container block to verify the full delegation chain works. See "focus traversal after block insertion" in `tests/keyboard-navigation.spec.ts` for the pattern.
+**Test structural operations with container navigation, not just flat paragraphs.** Structural operations (split, merge, delete) shift block indices. Container blocks (blockquote, list) use their `index` prop in delegation chains when focus exits the container. A test that splits a paragraph and then navigates through flat paragraphs won't catch stale-index or stale-ref bugs — the delegation chain is only one hop deep. Always include a test that performs the structural operation and then navigates _through_ a container block to verify the full delegation chain works. See the "focus traversal after block insertion" pattern under `tests/keyboard-navigation/`.
 
 **Use "type and check where it appeared" for focus assertions.** `getSource()` serializes the CST, which is always correct regardless of focus state. To verify where focus actually landed after a navigation operation, type a marker character and assert on its position in the source. `getSource()`-only assertions can't detect focus bugs.
 
