@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImageDimensions } from '../../components/image/image-dimensions';
+import { parseImageDimensions } from '../../../core/inline/image-dimensions';
 
 describe('parseImageDimensions', () => {
 	it.each([
