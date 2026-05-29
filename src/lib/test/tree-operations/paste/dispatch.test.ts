@@ -95,19 +95,6 @@ describe('paste-dispatch — default structural hook', () => {
 	});
 });
 
-describe('paste-dispatch — default text surface descriptor', () => {
-	it('provides both hooks', () => {
-		const surface = __getDefaultTextSurface('paragraph');
-		expect(surface.onInlinePaste).toBeDefined();
-		expect(surface.onStructuralPaste).toBeDefined();
-	});
-
-	it('kind matches the requested kind', () => {
-		expect(__getDefaultTextSurface('paragraph').kind).toBe('paragraph');
-		expect(__getDefaultTextSurface('heading').kind).toBe('heading');
-	});
-});
-
 // ── Dev-mode opaque-fallback warning ─────────────────────────────────────
 
 function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {

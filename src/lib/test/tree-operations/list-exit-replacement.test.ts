@@ -143,6 +143,22 @@ describe('buildExitReplacement', () => {
 		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^3\./);
 	});
 
+	it('ordered middle exit preserves a non-1 starting number across both halves', () => {
+		const list = parseList('5. five\n6. six\n7. seven\n8. eight\n');
+		blankFirstParagraph(list.children![2]);
+
+		const { blocks } = buildExitReplacement(list, 2);
+
+		expect(blocks).toHaveLength(3);
+		const firstHalf = blocks[0];
+		const secondHalf = blocks[2];
+		// Surviving first half keeps the original base, not a reset to 1.
+		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^5\./);
+		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^6\./);
+		// Exit slot doesn't burn a number; "eight" continues at 7.
+		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^7\./);
+	});
+
 	it('input list is not mutated', () => {
 		const list = parseList('- A\n- B\n- C\n');
 		const before = serialize({ children: [list], prefix: '', suffix: '' });
