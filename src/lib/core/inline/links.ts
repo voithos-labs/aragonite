@@ -7,7 +7,7 @@
  */
 
 import type { InlineNode } from '../nodes';
-import { parseImageDimensions } from '../../components/image/image-dimensions';
+import { parseImageDimensions } from './image-dimensions';
 import { parseInline } from './index';
 import { normalizeLinkLabel, type LinkReferenceResolver } from './link-reference-resolver';
 
