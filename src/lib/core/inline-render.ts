@@ -5,7 +5,6 @@
  */
 
 import type { InlineNode } from './nodes';
-import { buildImageWidget } from '../components/image/widget-dom';
 import { buildLiveHtmlWidget, isLiveHtmlTag } from './inline/raw-html-widget';
 
 // ── Render options ──────────────────────────────────────────────────────────
@@ -14,6 +13,15 @@ export interface RenderInlineOptions {
 	renderImagesAsWidgets?: boolean;
 	resolveImageUrl?: (rawUrl: string) => string;
 	paragraphPath?: number[];
+	/**
+	 * Builds the atomic image-widget DOM. Injected by the component layer so
+	 * `core/` owns no image-widget specifics; absent → images render alt-only.
+	 */
+	buildImageWidget?: (
+		node: InlineNode,
+		raw: string,
+		opts: { resolveImageUrl: (rawUrl: string) => string; paragraphPath: number[] }
+	) => Node;
 }
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
@@ -173,9 +181,9 @@ export function renderInlineNodes(
 			case 'image': {
 				const renderWidgets = opts.renderImagesAsWidgets ?? true;
 				const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
-				if (renderWidgets) {
+				if (renderWidgets && opts.buildImageWidget) {
 					frag.appendChild(
-						buildImageWidget(node, raw, {
+						opts.buildImageWidget(node, raw, {
 							resolveImageUrl: resolveUrl,
 							paragraphPath: opts.paragraphPath ?? []
 						})
