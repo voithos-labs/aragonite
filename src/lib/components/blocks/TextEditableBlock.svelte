@@ -43,7 +43,6 @@
 	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 	import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
 	import { isLiveWidgetInline } from '../../core/inline/raw-html-widget';
-	import type { InlineNode } from '../../core/nodes';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../cursor/cursor-utils';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
@@ -52,6 +51,14 @@
 	import { createTextClipboard } from './text/text-clipboard';
 	import { createTextRender } from './text/text-render';
 	import { caretIsInTextContent } from './text/click-snap-guard';
+	import {
+		widgetAtCursor,
+		findWidgetNodeByStart,
+		findFirstEdgeWidget,
+		findLastEdgeWidget,
+		rawHasNoTextBefore,
+		rawHasNoTextAfter
+	} from './text/widget-adjacency';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -283,7 +290,10 @@
 	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
 		const inlines = node.inlineContent ?? [];
 		if (inlines.length === 0) return false;
-		const target = side === 'start' ? findFirstEdgeWidget(inlines) : findLastEdgeWidget(inlines);
+		const target =
+			side === 'start'
+				? findFirstEdgeWidget(inlines, node.raw)
+				: findLastEdgeWidget(inlines, node.raw);
 		if (!target) return false;
 		// Focus the contenteditable so subsequent key events route to this
 		// block's keydown handler, where the widget-selected branch can run.
@@ -442,7 +452,11 @@
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
 		const selectedWidget = widgetSelection.getSelected();
 		if (selectedWidget !== null) {
-			const widget = findWidgetNodeByStart(selectedWidget.sourceStart);
+			const widget = findWidgetNodeByStart(
+				selectedWidget.sourceStart,
+				node.inlineContent,
+				node.raw
+			);
 			const widgetIsHere =
 				widget !== null && widgetSelection.isSelected(myPath, selectedWidget.sourceStart);
 			if (widgetIsHere) {
@@ -484,7 +498,7 @@
 				}
 				if (e.key === 'ArrowLeft') {
 					e.preventDefault();
-					if (rawHasNoTextBefore(widget.start)) {
+					if (rawHasNoTextBefore(node.raw, widget.start)) {
 						widgetSelection.clear();
 						await focusActions.moveFocus(index - 1, 'end');
 					} else {
@@ -495,7 +509,7 @@
 				}
 				if (e.key === 'ArrowRight') {
 					e.preventDefault();
-					if (rawHasNoTextAfter(widget.end)) {
+					if (rawHasNoTextAfter(node.raw, widget.end)) {
 						widgetSelection.clear();
 						await focusActions.moveFocus(index + 1, 'start');
 					} else {
@@ -562,7 +576,7 @@
 		})();
 
 		if (effectiveOffset !== null) {
-			const widgetAt = widgetAtCursor(effectiveOffset);
+			const widgetAt = widgetAtCursor(effectiveOffset, node.inlineContent, node.raw);
 			if (widgetAt) {
 				if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
 					e.preventDefault();
@@ -776,64 +790,6 @@
 	}
 
 	// ── Widget adjacency ───────────────────────────────────────────────
-
-	function widgetAtCursor(
-		off?: number | null
-	): { start: number; end: number; atRight: boolean } | null {
-		const o = off ?? cursor.getRaw();
-		if (o === null) return null;
-		const inlines = node.inlineContent ?? [];
-		for (const inline of inlines) {
-			if (!isLiveWidgetInline(inline, node.raw)) continue;
-			if (o === inline.start) return { start: inline.start, end: inline.end, atRight: false };
-			if (o === inline.end) return { start: inline.start, end: inline.end, atRight: true };
-		}
-		return null;
-	}
-
-	function findWidgetNodeByStart(sourceStart: number): { start: number; end: number } | null {
-		for (const inline of node.inlineContent ?? []) {
-			if (isLiveWidgetInline(inline, node.raw) && inline.start === sourceStart) {
-				return { start: inline.start, end: inline.end };
-			}
-		}
-		return null;
-	}
-
-	function findFirstEdgeWidget(
-		inlines: ReadonlyArray<InlineNode>
-	): { start: number; end: number } | null {
-		for (const inline of inlines) {
-			if (isLiveWidgetInline(inline, node.raw)) {
-				return { start: inline.start, end: inline.end };
-			}
-			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
-			return null;
-		}
-		return null;
-	}
-
-	function findLastEdgeWidget(
-		inlines: ReadonlyArray<InlineNode>
-	): { start: number; end: number } | null {
-		for (let i = inlines.length - 1; i >= 0; i--) {
-			const inline = inlines[i];
-			if (isLiveWidgetInline(inline, node.raw)) {
-				return { start: inline.start, end: inline.end };
-			}
-			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
-			return null;
-		}
-		return null;
-	}
-
-	function rawHasNoTextBefore(offset: number): boolean {
-		return node.raw.slice(0, offset).trim() === '';
-	}
-
-	function rawHasNoTextAfter(offset: number): boolean {
-		return node.raw.slice(offset).trim() === '';
-	}
 
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		if (!el) return null;

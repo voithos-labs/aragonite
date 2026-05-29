@@ -50,6 +50,7 @@
 	import ImageProperties from './image/ImageProperties.svelte';
 	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image/image-edit-commit';
+	import { imageFieldsFromInline } from './image/image-source-bytes';
 	import './built-in-blocks';
 
 	bootstrapCodeLanguages();
@@ -434,13 +435,7 @@
 				{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
 					<ImageProperties
 						target={sel}
-						fields={{
-							alt: ctx.image.alt ?? '',
-							url: ctx.image.url ?? '',
-							...(ctx.image.title !== undefined ? { title: ctx.image.title } : {}),
-							...(ctx.image.width !== undefined ? { width: ctx.image.width } : {}),
-							...(ctx.image.height !== undefined ? { height: ctx.image.height } : {})
-						}}
+						fields={imageFieldsFromInline(ctx.image)}
 						onCommit={imageEdit.commitImageEdit}
 						onDismiss={imageEdit.dismissImagePopover}
 					/>
