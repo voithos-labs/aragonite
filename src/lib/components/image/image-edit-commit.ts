@@ -93,6 +93,9 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const resolved = resolvePathToParagraph(paragraphPath);
 		if (!resolved) return;
 		const { paragraph } = resolved;
+		// Nothing to persist — skip the commit so a no-op edit (e.g. a popover
+		// dismiss after a resize already wrote the change) adds no undo entry.
+		if (newRaw === paragraph.raw) return;
 		const snapshot = { blockIndex: paragraphPath[0], offset: 0 };
 		const mutate = () => {
 			paragraph.raw = newRaw;

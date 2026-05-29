@@ -6,7 +6,12 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { isProseKind, parseInline, getContentRange } from '../../core/inline';
+import {
+	isProseKind,
+	parseInline,
+	getContentRange,
+	parseAllInlineContent
+} from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import {
@@ -15,6 +20,7 @@ import {
 } from '../../schema/container-raw';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import { ensureListItemNewlineTerminated } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 
 interface ContainerUnwrap {
@@ -120,6 +126,10 @@ export async function applyContainerMatchingPaste(
 		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
 		mutate: (scopeChildren) => {
 			const children = scopeChildren[0].children;
+			for (const item of unwrap.items) {
+				if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
+			}
+			parseAllInlineContent(unwrap.items);
 			children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
 			outer.children = children;
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
