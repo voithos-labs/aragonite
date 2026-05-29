@@ -41,7 +41,7 @@ describe('image edit commit — redundant-commit guard (E1)', () => {
 		// Commit the image's existing fields back — produces byte-identical raw.
 		// (Mirrors a popover dismiss after a resize already persisted the change.)
 		committer.commitImageEdit(
-			{ paragraphPath: [0], sourceStart: image.start },
+			{ paragraphPath: [0], sourceStart: image.start, preSelectOffset: 0 },
 			{ alt: image.alt ?? '', url: image.url ?? '' }
 		);
 		await Promise.resolve();
