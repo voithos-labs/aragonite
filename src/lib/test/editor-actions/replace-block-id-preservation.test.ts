@@ -3,7 +3,9 @@ import { createUndoController } from '$lib/editor/editor-actions/undo-controller
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
+import { createListOverrides } from '$lib/editor/editor-actions/list-overrides';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import { parse } from '$lib/editor/core/parser';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
@@ -178,5 +180,80 @@ describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 		expect(listItem?.kind).toBe('listItem');
 		expect(listItem?.children?.length).toBeGreaterThan(0);
 		expect(listItem?.children?.[0].kind).toBe('paragraph');
+	});
+});
+
+// ── C3: list-overrides replaceBlock preserves the surviving item's id ────────
+
+// The surviving first item must keep its id so Svelte's keyed {#each} preserves
+// the component (IME / pending input) instead of destroy+recreate.
+function makeListSetup() {
+	const listNode = parse('- a\n- b\n').children[0];
+	expect(listNode.kind).toBe('list');
+
+	const { deps } = makeEditorActionsDeps([listNode]);
+	const controller = createUndoController(deps);
+	const containerEdit = createContainerEditActions(deps, controller);
+
+	const listState = createBlockListState(() => listNode);
+
+	const bundle = createStandardNestedActions(
+		listState,
+		{
+			index: 0,
+			get node() {
+				return listNode;
+			},
+			rebuildRaw: vi.fn(),
+			stickyColumn: makeStickyColumn(),
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit
+			}
+		},
+		createListOverrides({
+			index: 0,
+			get node() {
+				return listNode;
+			},
+			state: listState,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentContainerEdit: containerEdit,
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined
+		})
+	);
+
+	return { bundle, listNode, listState };
+}
+
+describe('list-overrides replaceBlock id preservation', () => {
+	it('surviving first item inherits its original id (single replacement)', async () => {
+		const { bundle, listState } = makeListSetup();
+		const originalFirstId = listState.innerBlockIds[0];
+		const originalSecondId = listState.innerBlockIds[1];
+		const replacement = parse('- replaced\n').children[0].children![0];
+
+		await bundle.blockEdit.replaceBlock(0, [replacement]);
+
+		expect(listState.innerBlockIds).toHaveLength(2);
+		expect(listState.innerBlockIds[0]).toBe(originalFirstId);
+		expect(listState.innerBlockIds[1]).toBe(originalSecondId);
+	});
+
+	it('expansion: first item inherits, additional items get fresh ids', async () => {
+		const { bundle, listState } = makeListSetup();
+		const originalFirstId = listState.innerBlockIds[0];
+		const originalSecondId = listState.innerBlockIds[1];
+		const expansion = parse('- x\n- y\n').children[0].children!;
+
+		await bundle.blockEdit.replaceBlock(0, expansion);
+
+		expect(listState.innerBlockIds).toHaveLength(3);
+		expect(listState.innerBlockIds[0]).toBe(originalFirstId);
+		expect(listState.innerBlockIds[1]).not.toBe(originalFirstId);
+		expect(listState.innerBlockIds[1]).not.toBe(originalSecondId);
+		expect(listState.innerBlockIds[2]).toBe(originalSecondId);
 	});
 });

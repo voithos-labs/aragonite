@@ -212,7 +212,8 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 							op: 'replace',
 							at: itemIndex,
 							count: 1,
-							newCount: normalizedReplacement.length
+							newCount: normalizedReplacement.length,
+							idMap: { 0: 0 }
 						};
 					},
 					op: {
