@@ -5,7 +5,7 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { Document } from '../core/nodes';
+import type { Document, TableMetadata } from '../core/nodes';
 import type { BlockComponentLookup } from '../editor-keys';
 import {
 	readNativeCaretInBlock,
@@ -27,15 +27,14 @@ import { displayLength } from '../core/lines';
  */
 export function enterCrossBlockFromKeyboard(
 	selection: SelectionState,
+	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[]
 ): boolean {
 	const anchorPoint = readNativeCaretInBlock(currentBlockEl, currentBlockPath);
 	if (!anchorPoint) return false;
-	selection.enterCrossBlock(anchorPoint, {
-		path: anchorPoint.path.slice(),
-		offset: anchorPoint.offset
-	});
+	const anchor = normalizeTableEndpoint(doc, anchorPoint.path, anchorPoint.offset);
+	selection.enterCrossBlock(anchor, { path: anchor.path.slice(), offset: anchor.offset });
 	// Collapse (not clear) so the focus block retains a caret — otherwise
 	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
@@ -100,9 +99,10 @@ export function extendFocusToNextBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
+			return false;
 	}
-	selection.extendFocus({ path: leafTarget, offset: 0 });
+	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, 0));
 	return true;
 }
 
@@ -128,10 +128,11 @@ export function extendFocusToPreviousBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
+			return false;
 	}
 	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
-	selection.extendFocus({ path: leafTarget, offset });
+	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, offset));
 	return true;
 }
 
@@ -159,11 +160,12 @@ export function extendFocusToDocEdge(
 	if (!target) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
+			return false;
 	}
 
 	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
-	selection.extendFocus({ path: target, offset });
+	selection.extendFocus(normalizeTableEndpoint(doc, target, offset));
 	return true;
 }
 
@@ -327,4 +329,25 @@ function leafOffsetEnd(doc: Document, path: number[]): number {
 	if (!node || !('raw' in node) || typeof node.raw !== 'string') return 0;
 	// raw includes a trailing newline; the cursor works in display space.
 	return displayLength(node.raw);
+}
+
+/**
+ * A cross-block selection endpoint inside a table must address the table block
+ * by row-major cell index (`[tableIdx]` + cellIdx), matching the pointer-drag
+ * representation. A deep `[tableIdx, row, col]` leaf path with a character
+ * offset routes the delete through the generic (non-table-aware) path, which
+ * merges external text into a cell and corrupts the grid. Non-table paths pass
+ * through unchanged.
+ */
+function normalizeTableEndpoint(doc: Document, path: number[], offset: number): SelectionPoint {
+	for (let d = 0; d < path.length - 1; d++) {
+		const node = nodeAt(doc, path.slice(0, d + 1));
+		if (node && 'kind' in node && node.kind === 'table') {
+			const colCount = (node.metadata as TableMetadata).columnCount;
+			const rowIdx = path[d + 1];
+			const colIdx = path[d + 2] ?? 0;
+			return { path: path.slice(0, d + 1), offset: rowIdx * colCount + colIdx };
+		}
+	}
+	return { path: path.slice(), offset };
 }

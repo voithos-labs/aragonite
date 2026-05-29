@@ -36,3 +36,7 @@ Intra-table Backspace dispatches by what the selection covers:
 
 - A single Ctrl+Z restores the document after a cross-block delete that traverses a table or
   triggers a coverage-driven row/column/table delete.
+- Entering the cross-block selection by **keyboard** (Shift+ArrowDown from a cell into the
+  paragraph below) produces the same table-aware delete as pointer drag — the table endpoint is
+  represented by cell index (`[tableIdx]` + cell), not a deep cell leaf path, so the delete never
+  falls through to the generic merge that would fuse paragraph text into a cell.
