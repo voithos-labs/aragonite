@@ -1,9 +1,7 @@
 /**
- * Single source of truth for "what scrolls." Used by drag-pointer (walks up
- * from pointer-current element) and SelectionOverlay (walks down from the
- * block-host wrapper into the rendered content). Different lookup directions
- * because the consumers' contexts differ — drag-pointer asks "what scrolls
- * around me," overlay asks "what scrolls inside me."
+ * Single source of truth for "what scrolls." Two directions for two questions:
+ * `nearestScrollContainer` walks up ("what scrolls around me"),
+ * `firstScrollableDescendant` walks down ("what scrolls inside me").
  */
 
 const SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
