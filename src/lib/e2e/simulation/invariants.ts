@@ -1,0 +1,164 @@
+import type { Page } from '@playwright/test';
+import type { EditorPage } from '../editor-page';
+import type { ExpectationTracker } from './expectation';
+import type { ErrorCollector } from './error-collector';
+
+export interface SimContext {
+	page: Page;
+	editor: EditorPage;
+	tracker: ExpectationTracker;
+	errors: ErrorCollector;
+	label: string;
+}
+
+// ── Content oracles ─────────────────────────────────────────────────────────
+
+/**
+ * The primary per-keystroke content oracle. On timeout the failure is a
+ * readable expected-vs-actual diff plus full debug dumps, never an opaque
+ * "waitForFunction timed out" — a dropped or reversed char shows immediately.
+ */
+export async function settleTypedSource(ctx: SimContext, expected: string): Promise<void> {
+	try {
+		await ctx.editor.bridge.waitForSourceEquals(expected, 2000);
+	} catch {
+		const actual = await ctx.editor.bridge.getSource();
+		const [tree, sel, ops] = await Promise.all([
+			ctx.page.evaluate(() => (window as any).__test.dumpTree()),
+			ctx.page.evaluate(() => (window as any).__test.dumpSelection()),
+			ctx.page.evaluate(() => (window as any).__test.dumpOperationsLog())
+		]);
+		throw new Error(
+			`[${ctx.label}] source mismatch after keystroke.\n` +
+				`EXPECTED: ${JSON.stringify(expected)}\n` +
+				`ACTUAL:   ${JSON.stringify(actual)}\n` +
+				`--- CST ---\n${tree}\n--- SELECTION ---\n${sel}\n--- OPS ---\n${ops}`
+		);
+	}
+}
+
+export async function assertContainsInOrder(
+	ctx: SimContext,
+	phrases: readonly string[]
+): Promise<void> {
+	const source = await ctx.editor.bridge.getSource();
+	let cursor = 0;
+	for (const phrase of phrases) {
+		const at = source.indexOf(phrase, cursor);
+		if (at < 0) {
+			throw new Error(
+				`[${ctx.label}] phrase ${JSON.stringify(phrase)} not found in order ` +
+					`(searched from offset ${cursor}).\nSOURCE: ${JSON.stringify(source)}`
+			);
+		}
+		cursor = at + phrase.length;
+	}
+}
+
+export async function assertEndState(ctx: SimContext, canonicalTarget: string): Promise<void> {
+	const final = await ctx.editor.bridge.getSource();
+	if (final === canonicalTarget) return;
+	throw new Error(
+		`[${ctx.label}] end-state diverged from canonical (typing != loading).\n` +
+			`EXPECTED: ${JSON.stringify(canonicalTarget)}\n` +
+			`ACTUAL:   ${JSON.stringify(final)}\n` +
+			describeDiff(canonicalTarget, final)
+	);
+}
+
+// ── Structural / consistency oracles ────────────────────────────────────────
+
+export async function assertNoErrors(ctx: SimContext): Promise<void> {
+	ctx.errors.assertNone();
+}
+
+export async function assertNestedStateConsistent(ctx: SimContext): Promise<void> {
+	const violations = await ctx.page.evaluate(() =>
+		(window as any).__test.auditBlockListStateConsistency()
+	);
+	if (violations.length) {
+		throw new Error(
+			`[${ctx.label}] nested BlockListState desync:\n${JSON.stringify(violations, null, 2)}`
+		);
+	}
+}
+
+export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
+	const stable = await ctx.page.evaluate(() => (window as any).__test.roundTripStable());
+	if (!stable) {
+		const source = await ctx.editor.bridge.getSource();
+		throw new Error(
+			`[${ctx.label}] serializer not stable against live CST.\nSOURCE: ${JSON.stringify(source)}`
+		);
+	}
+}
+
+export async function assertFocusBlock(
+	ctx: SimContext,
+	expectedBlockPath: number[]
+): Promise<void> {
+	const sel = await ctx.editor.bridge.getSelectionPaths();
+	const actual = sel?.focus.path ?? null;
+	if (!actual || !pathsEqual(actual, expectedBlockPath)) {
+		throw new Error(
+			`[${ctx.label}] click landed in the wrong block.\n` +
+				`EXPECTED focus path: ${JSON.stringify(expectedBlockPath)}\n` +
+				`ACTUAL focus path:   ${JSON.stringify(actual)}`
+		);
+	}
+}
+
+// ── History oracle ──────────────────────────────────────────────────────────
+
+/**
+ * Wraps a gesture in its own undo batch and asserts exact undo + redo. The
+ * input batcher coalesces keystrokes within ~250ms, so the gesture must be
+ * fenced by batch flushes on both sides or Ctrl+Z would overshoot into the
+ * prior batch and false-positive. Leaves the editor in the post-gesture state
+ * and resyncs the tracker to it.
+ */
+export async function undoRedoDifferential(
+	ctx: SimContext,
+	gesture: () => Promise<void>
+): Promise<void> {
+	await ctx.editor.waitForUndoBatchFlush();
+	const before = await ctx.editor.bridge.getSource();
+	await gesture();
+	await ctx.editor.waitForUndoBatchFlush();
+	const after = await ctx.editor.bridge.getSource();
+
+	await ctx.editor.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000).catch(async () => {
+		throw new Error(
+			`[${ctx.label}] undo did not restore.\n` +
+				`BEFORE: ${JSON.stringify(before)}\n` +
+				`GOT:    ${JSON.stringify(await ctx.editor.bridge.getSource())}`
+		);
+	});
+
+	await ctx.editor.redo();
+	await ctx.editor.bridge.waitForSourceEquals(after, 3000).catch(async () => {
+		throw new Error(
+			`[${ctx.label}] redo did not re-apply.\n` +
+				`AFTER: ${JSON.stringify(after)}\n` +
+				`GOT:   ${JSON.stringify(await ctx.editor.bridge.getSource())}`
+		);
+	});
+
+	ctx.tracker.resync(after);
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+function pathsEqual(a: number[], b: number[]): boolean {
+	return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+function describeDiff(expected: string, actual: string): string {
+	let i = 0;
+	const max = Math.min(expected.length, actual.length);
+	while (i < max && expected[i] === actual[i]) i++;
+	const context = 16;
+	const slice = (s: string) => JSON.stringify(s.slice(Math.max(0, i - context), i + context));
+	return `first divergence at index ${i}:\n  expected …${slice(expected)}…\n  actual   …${slice(actual)}…`;
+}
