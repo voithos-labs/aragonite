@@ -119,8 +119,9 @@
 			});
 			// Action-site `parseAllInlineContent` calls (in editor-actions/, tree-operations/,
 			// selection/) build unresolved-reference inline trees because they don't have
-			// a resolver in scope. Refresh the whole doc on every structural commit so
-			// references stay coherent regardless of which path produced the trees.
+			// a resolver in scope. Refresh the whole doc on every emitted `edit` event
+			// (structural commits and the debounced input flush alike) so references stay
+			// coherent regardless of which path produced the trees.
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
 			currentResolver = newMap.resolve;
