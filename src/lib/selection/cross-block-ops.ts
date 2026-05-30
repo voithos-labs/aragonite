@@ -107,8 +107,13 @@ export async function performCrossBlockDelete(
  * Synchronous variant for compositionstart — no await, no caret restore.
  * compositionstart handlers cannot await (the IME swallows the composition
  * if we yield), so this stays on the legacy snapshot + mutate + notify path.
- * The IME composition bracket hides any transient innerBlockIds/children
- * desync until compositionend re-renders from the post-mutation CST.
+ *
+ * Known limitation: unlike the commit primitive, this skips StructuralChange
+ * id/ref maintenance. After a cross-block composition-delete that leaves
+ * surviving blocks, the shell blockIds (and nested childIds) drift from
+ * children — the keyed {#each} re-keys survivors, causing component churn and
+ * stale refs (no content corruption). Accepted for this rare path; a full fix
+ * would sync ids/refs here. See forge-review finding C2.
  */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): SelectionPoint | null {
 	const { start, end } = resolveStartEnd(ctx.selection);
