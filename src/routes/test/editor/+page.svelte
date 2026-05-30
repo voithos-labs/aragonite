@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Editor from '$lib/editor/components/Editor.svelte';
 	import { parse } from '$lib/editor/core/parser';
+	import { serialize } from '$lib/editor/core/serializer';
 	import { SHOWCASE_CONTENT } from '$lib/editor/e2e/test-content';
 	import { applyTheme, DEFAULT_THEME } from '$lib/theme';
 	import {
@@ -172,6 +173,10 @@
 					anchor: { path: sel.anchor.path, offset: sel.anchor.offset },
 					focus: { path: sel.focus.path, offset: sel.focus.offset }
 				};
+			},
+			roundTripStable: (): boolean => {
+				const src = editor.getSource();
+				return serialize(parse(src)) === src;
 			},
 			// ── Debug engine surface ──────────────────────────────────────────
 			dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
