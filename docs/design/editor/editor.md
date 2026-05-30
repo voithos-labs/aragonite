@@ -135,7 +135,7 @@ The CST is the document-level source of truth. Within a single block during acti
 
 User types → browser updates DOM → `input` event reads `textContent` → CST `raw` updated → single-block re-parse refreshes metadata and inline content → if the block's kind changed, re-render with the new component type.
 
-The common case (no kind change) requires no DOM patching — the browser's update and the CST agree. Prose blocks rebuild their styled span tree from `inlineContent` on every input; cursor offsets map to `raw` positions unchanged.
+The common case (no kind change) requires no DOM patching — the browser's update and the CST agree. Prose blocks rebuild their styled span tree by re-parsing `raw` on every input (not from the `inlineContent` cache — see § Reactive State Plumbing); cursor offsets map to `raw` positions unchanged.
 
 ### Intercepted Operations
 
