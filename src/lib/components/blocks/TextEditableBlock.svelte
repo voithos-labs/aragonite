@@ -374,7 +374,7 @@
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of node.inlineContent ?? []) {
-			if (inline.kind !== 'image') continue;
+			if (!isLiveWidgetInline(inline, node.raw)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = el.querySelector(`[data-inline-widget][data-source-start="${inline.start}"]`);
 			if (widget) {
@@ -762,9 +762,9 @@
 		// caret renders there and a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of node.inlineContent ?? []) {
-			if (inline.kind !== 'image') continue;
+			if (!isLiveWidgetInline(inline, node.raw)) continue;
 			const widget = el.querySelector(
-				`[data-image-widget][data-source-start="${inline.start}"]`
+				`[data-inline-widget][data-source-start="${inline.start}"]`
 			) as HTMLElement | null;
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();

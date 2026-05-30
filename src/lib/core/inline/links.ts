@@ -347,6 +347,20 @@ function findMatchingBracket(
 	return -1;
 }
 
+// CommonMark §4.7: brackets inside a reference label may be backslash-escaped.
+// Returns the next unescaped `]` in [from, end), or -1 — matching the LRD
+// parser's escape-aware label scan so both sides resolve the same label.
+function indexOfUnescapedBracket(raw: string, from: number, end: number): number {
+	for (let i = from; i < end; i++) {
+		if (raw[i] === '\\') {
+			i++; // skip the escaped char (covers `\]` and `\\`)
+			continue;
+		}
+		if (raw[i] === ']') return i;
+	}
+	return -1;
+}
+
 /**
  * Try the three reference forms against a `[…]` pair at [pos, bracketClose].
  * Full and collapsed both *commit* to the reference shape — if their label
@@ -366,7 +380,7 @@ function matchReferenceLink(
 
 	// Form 1: full reference [text][label]
 	if (bracketClose + 1 < end && raw[bracketClose + 1] === '[') {
-		const labelClose = raw.indexOf(']', bracketClose + 2);
+		const labelClose = indexOfUnescapedBracket(raw, bracketClose + 2, end);
 		if (labelClose !== -1 && labelClose < end) {
 			const labelRaw = raw.slice(bracketClose + 2, labelClose);
 			if (labelRaw.length > 0) {
@@ -476,7 +490,7 @@ function matchReferenceImage(
 
 	// Form 1: full reference ![alt][label]
 	if (bracketClose + 1 < end && raw[bracketClose + 1] === '[') {
-		const labelClose = raw.indexOf(']', bracketClose + 2);
+		const labelClose = indexOfUnescapedBracket(raw, bracketClose + 2, end);
 		if (labelClose !== -1 && labelClose < end) {
 			const labelRaw = raw.slice(bracketClose + 2, labelClose);
 			if (labelRaw.length > 0) {

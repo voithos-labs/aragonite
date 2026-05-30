@@ -435,6 +435,14 @@ describe('reference-style link resolution (CommonMark §6.3)', () => {
 		expect(links[0].title).toBe('Go now');
 	});
 
+	it('full reference: backslash-escaped bracket in the label resolves (CommonMark §4.7)', () => {
+		// The LRD parser is escape-aware; the inline scanner must match it.
+		const nodes = inlineWithRefs('[text][a\\]b]', '[a\\]b]: https://example.com');
+		const links = nodes.filter((n) => n.kind === 'link');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('https://example.com');
+	});
+
 	it('full reference: text portion is parsed as inline children', () => {
 		const nodes = inlineWithRefs('[**bold** text][go]', '[go]: https://example.com');
 		const links = nodes.filter((n) => n.kind === 'link');
