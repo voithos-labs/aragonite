@@ -35,7 +35,16 @@ export class Recorder {
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		const index = this.entries.length;
 		const screenshot = `${pad(index)}-${label}.png`;
-		await this.editor.screenshot(`simulation/${this.runId}/${pad(index)}-${label}`);
+		// Let any pending reactive render + layout flush before the screenshot so
+		// the captured frame reflects settled state, not a mid-transition one.
+		await this.editor.waitForRenderFlush();
+		// Full-page, not viewport-only: a long note runs past the fold, and the
+		// visual review needs the whole document at each checkpoint (a viewport
+		// shot would clip trailing blocks like a standalone image at the end).
+		await this.page.screenshot({
+			path: `test-results/simulation/${this.runId}/${screenshot}`,
+			fullPage: true
+		});
 		const [expectedSource, cstDump, selection, undoStack] = await Promise.all([
 			this.editor.bridge.getSource(),
 			this.page.evaluate(() => (window as any).__test.dumpTree()),

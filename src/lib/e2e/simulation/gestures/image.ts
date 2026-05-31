@@ -50,11 +50,24 @@ export async function resizeImage(
 
 	const start = widthFromSource(await editor.bridge.getSource());
 	const delta = direction === 'right' ? KEYBOARD_STEP : -KEYBOARD_STEP;
+	let expected = start;
 	for (let step = 1; step <= steps; step++) {
 		await page.keyboard.press(direction === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowLeft');
-		const expected = Math.max(KEYBOARD_MIN_WIDTH, start + delta * step);
+		expected = Math.max(KEYBOARD_MIN_WIDTH, start + delta * step);
 		await editor.bridge.waitForSourceContains(`|${expected}`);
 	}
+	// Settle on the RENDERED width, not just the source `|N`: the widget re-renders
+	// from the new raw on a reactive effect that can lag the source commit, so a
+	// checkpoint screenshot taken on the source alone may catch the image still at
+	// its pre-resize size.
+	await page.waitForFunction(
+		(w) => {
+			const img = document.querySelector('[data-image-widget] img') as HTMLImageElement | null;
+			return !!img && Math.abs(img.getBoundingClientRect().width - w) <= 1;
+		},
+		expected,
+		{ timeout: 2000 }
+	);
 	tracker.resync(await editor.bridge.getSource());
 }
 
