@@ -5,7 +5,7 @@ import { ExpectationTracker } from './expectation';
 import { attachErrorCollector } from './error-collector';
 import { Gestures } from './gestures';
 import { Recorder, runDirForSeed } from './recorder';
-import type { NoteFixture } from './notes/biology-note';
+import type { NoteFixture } from './notes/types';
 import {
 	type SimContext,
 	assertContainsInOrder,
@@ -54,32 +54,60 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	const tracker = new ExpectationTracker(baseline);
 	const ctx: SimContext = { page, editor, tracker, errors, label: 'session' };
 	const rng = makeRng(opts.seed);
-	const g = new Gestures(ctx, rng, { typoRate: 0.15 });
 
 	const recorder = opts.capture ? new Recorder(page, editor, runDirForSeed(opts.seed)) : null;
+	const g = new Gestures(ctx, rng, {
+		typoRate: 0.15,
+		onCheckpoint: recorder ? (label, gesture) => recorder.checkpoint(label, gesture) : undefined
+	});
 
 	ctx.label = 'build';
 	await opts.note.build(g);
 
-	ctx.label = 'checkpoint';
-	await assertNoErrors(ctx);
-	await assertNestedStateConsistent(ctx);
-	await assertRoundTripStable(ctx);
-	await assertContainsInOrder(ctx, ['Photosynthesis', 'Chloroplasts', 'oxygen', 'Glucose']);
-	await recorder?.checkpoint('note-built', 'build');
+	// The post-build oracles can throw on a known, deferred desync the headline
+	// note reaches (docs/issues.md: list-exit innerBlockRefs) — finalize in a
+	// finally so the mid-build capture manifest still lands for the visual review,
+	// then re-throw so the oracle failure is never masked.
+	try {
+		ctx.label = 'checkpoint';
+		await assertNoErrors(ctx);
+		await assertNestedStateConsistent(ctx);
+		await assertRoundTripStable(ctx);
+		await assertContainsInOrder(ctx, opts.note.landmarks);
+		await recorder?.checkpoint('note-built', 'build');
 
-	ctx.label = 'undo-redo-differential';
-	await runRevertingDifferential(ctx);
+		ctx.label = 'jump-back-detour';
+		await runJumpBackDetour(ctx, g);
+		await recorder?.checkpoint('detour-done', 'jump-back');
 
-	ctx.label = 'reposition';
+		ctx.label = 'undo-redo-differential';
+		await runRevertingDifferential(ctx);
+
+		ctx.label = 'end-state';
+		await assertNoErrors(ctx);
+		await assertRoundTripStable(ctx);
+		await assertEndState(ctx, canonical);
+	} finally {
+		await recorder?.finalize();
+	}
+}
+
+/**
+ * Click back into the first top-level block (CRITICAL-2: clickToReposition asserts
+ * the focus block path), make a cancelling edit there — one char typed then removed
+ * — and confirm net-identity before continuing, so the end-state equality oracle
+ * still holds. The edit is resync-based, not tracker-predicted: the tracker's
+ * append rule inserts at end-of-content, but this caret is mid-document, so a raw
+ * keystroke plus a source-delta settle is the only sound observation here.
+ */
+async function runJumpBackDetour(ctx: SimContext, g: Gestures): Promise<void> {
+	const clean = await ctx.editor.bridge.getSource();
 	await g.clickToReposition([0], 0);
-
-	ctx.label = 'end-state';
-	await assertNoErrors(ctx);
-	await assertRoundTripStable(ctx);
-	await assertEndState(ctx, canonical);
-
-	await recorder?.finalize();
+	await ctx.editor.typeSlowly('z');
+	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, clean);
+	await ctx.editor.page.keyboard.press('Backspace');
+	await ctx.editor.bridge.waitForSourceEquals(clean);
+	ctx.tracker.resync(clean);
 }
 
 /**
