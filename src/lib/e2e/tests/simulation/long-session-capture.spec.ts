@@ -13,11 +13,9 @@ test.describe('note-taking simulation: long-session capture', () => {
 		await editor.goto();
 	});
 
-	// The full note exits three lists and trips the known list-exit innerBlockRefs
-	// desync (docs/issues.md). runSession finalizes the capture manifest before the
-	// oracle throws, so the artifacts still land. Remove this annotation when the
-	// desync is fixed — Playwright will then report this as passing unexpectedly.
-	test.fail();
+	// The full note exercises every HOLD construct and exits three lists; the
+	// always-on oracles (nested-state consistency, round-trip, no-errors,
+	// undo/redo differential) must all hold across the whole session.
 	test('builds the full biology note and records a checkpoint manifest', async ({ page }) => {
 		await runSession(page, editor, { seed: 7, note: BIOLOGY_NOTE, capture: true });
 	});

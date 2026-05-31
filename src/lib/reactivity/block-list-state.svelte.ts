@@ -7,6 +7,7 @@
  * children.
  */
 
+import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { assignIds } from '../tree-operations/block-id';
@@ -55,6 +56,20 @@ export function createBlockListState(getNode: () => CstNode): BlockListState {
 			node.childIds = assignIds(node.children ?? []);
 		}
 		registerBlockListState(node, state);
+
+		// A parent-scope replace can reuse this component instance with a node
+		// prop that has fewer children than before (e.g. list-exit replaces the
+		// list with a shorter list whose id is idMap-preserved). The inner {#each}
+		// re-keys and sets innerBlockRefs[0..n) by index, but index-keyed
+		// ref-setting never clears the stale trailing slots left by the longer
+		// prior node. Reconcile length so refs tracks children — the
+		// innerBlockIds getter already tracks node.childIds for free.
+		const childCount = node.children?.length ?? 0;
+		untrack(() => {
+			if (innerBlockRefs.length > childCount) {
+				innerBlockRefs = innerBlockRefs.slice(0, childCount);
+			}
+		});
 	});
 
 	return state;

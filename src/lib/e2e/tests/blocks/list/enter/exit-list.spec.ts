@@ -30,6 +30,28 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(counts.listItems).toBe(2);
 	});
 
+	// Regression (found by the note-taking simulation's always-on nested-state
+	// oracle): exiting a list reuses the ListBlock component instance (the
+	// document-scope replace idMap-preserves the list's id) and swaps in a
+	// shorter list node. The inner {#each} re-keys, but innerBlockRefs kept its
+	// stale trailing slot — auditBlockListStateConsistency reported refsLen =
+	// childrenLen + 1. The DOM-count assertion above can't see it; the audit can.
+	test('Enter exiting a list leaves the surviving list BlockListState in sync', async () => {
+		await editor.loadContent('- Alpha\n- Beta\n');
+		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });
+		await beta.click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('- \n');
+		await editor.page.keyboard.press('Enter');
+		await editor.waitForListItemCount(2);
+
+		const violations = await editor.page.evaluate(
+			() => (window as any).__test.auditBlockListStateConsistency() ?? []
+		);
+		expect(violations).toEqual([]);
+	});
+
 	test('Enter on empty only item exits list', async () => {
 		await editor.loadContent('- Only\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Only' });

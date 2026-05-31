@@ -64,10 +64,9 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	ctx.label = 'build';
 	await opts.note.build(g);
 
-	// The post-build oracles can throw on a known, deferred desync the headline
-	// note reaches (docs/issues.md: list-exit innerBlockRefs) — finalize in a
-	// finally so the mid-build capture manifest still lands for the visual review,
-	// then re-throw so the oracle failure is never masked.
+	// Finalize the capture manifest in a `finally` so that if any oracle throws
+	// mid-session, the screenshots + state dumps gathered up to that point still
+	// land for the visual review — then the failure re-throws, never masked.
 	try {
 		ctx.label = 'checkpoint';
 		await assertNoErrors(ctx);

@@ -8,10 +8,10 @@ import type { NoteFixture } from './types';
  * round-trip stability, the undo/redo differential, and a checkpoint — while
  * staying well under the smoke wall-time budget.
  *
- * The list is the last block and is never exited, deliberately sidestepping the
- * list-exit `innerBlockRefs` desync logged in docs/issues.md. The headline
- * BIOLOGY_NOTE exercises that path (and every other HOLD construct) and belongs
- * in the gated capture spec until the desync is fixed.
+ * Kept short and terminal-list-only so the default `npm test` smoke stays well
+ * under its wall-time budget. The headline BIOLOGY_NOTE exercises every HOLD
+ * construct (list exits, blockquote, code, image resize, …) in the gated
+ * capture spec.
  */
 export const SMOKE_NOTE: NoteFixture = {
 	name: 'smoke-note',
