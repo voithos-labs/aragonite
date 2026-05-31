@@ -7,7 +7,14 @@ import {
 	pasteHere,
 	selectAndDelete
 } from './gestures/selection';
-import { indent, outdent, softEnter, startQuote, toggleTask } from './gestures/structure';
+import {
+	continueQuote,
+	indent,
+	outdent,
+	softEnter,
+	startQuote,
+	toggleTask
+} from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 
 /**
@@ -127,6 +134,10 @@ export class Gestures {
 
 	startQuote(text: string): Promise<void> {
 		return startQuote(this.ctx, text);
+	}
+
+	continueQuote(text: string): Promise<void> {
+		return continueQuote(this.ctx, text);
 	}
 
 	toggleTask(listItemPath: number[]): Promise<void> {
