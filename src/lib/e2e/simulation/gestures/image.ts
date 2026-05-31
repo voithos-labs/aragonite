@@ -54,7 +54,8 @@ export async function resizeImage(
 	for (let step = 1; step <= steps; step++) {
 		await page.keyboard.press(direction === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowLeft');
 		expected = Math.max(KEYBOARD_MIN_WIDTH, start + delta * step);
-		await editor.bridge.waitForSourceContains(`|${expected}`);
+		// Match the full `|N]` token — a bare `|420` is a prefix of `|4200`.
+		await editor.bridge.waitForSourceContains(`|${expected}]`);
 	}
 	// Settle on the RENDERED width, not just the source `|N`: the widget re-renders
 	// from the new raw on a reactive effect that can lag the source commit, so a
