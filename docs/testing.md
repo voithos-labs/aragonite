@@ -115,7 +115,7 @@ test.describe('my feature', () => {
 
 ### Key Patterns and Gotchas
 
-**Use `insertText`, not `type`, for multi-character input.** Playwright's `keyboard.type()` sends one character at a time. The editor's inline re-rendering pipeline resets the cursor after each character, causing reversed text. Use `editor.typeText(text)` (which calls `keyboard.insertText()`) instead — it fires a single input event.
+**Pace per-character typing with a state settle.** Two input helpers coexist. `editor.typeText(text)` fires one `insertText` event (fast, atomic) — use it when only the end state matters. `editor.typeSlowly(text)` sends real per-character `keydown`/`input`/`keyup` cycles — use it when per-keystroke behavior matters (formatting like `**`, kind changes like `# `, code auto-close). Per-character typing is correct **when each character settles** before the next (a `bridge.waitForSource*` or DOM-count predicate); an older reversed-text bug came from fast _unsettled_ `keyboard.type` racing the inline re-render's cursor restore — a settle avoids it. Don't fire unsettled `keyboard.type` in a tight loop.
 
 **Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** These use `evaluate()` to set the cursor via the Selection API. The native `End`/`Home` keys work for simple cases but can be unreliable with inline-rendered spans.
 
@@ -130,6 +130,34 @@ test.describe('my feature', () => {
 **Selector helpers live in `EditorPage`.** Each block sits inside a `.block-host` positioning container alongside its `SelectionOverlay` sibling — `getBlock(i)` skips the overlay sibling. Write tests against the helpers; reach for raw selectors only when adding a new helper.
 
 **Marker prefixes count toward block text.** Headings, list items, and other ambient-marker blocks render their markers as dimmed spans inside the contenteditable. `getBlockText(i)` returns the full text including the marker.
+
+## Note-Taking Simulation
+
+A long, realistic note-taking session driven through real input, complementing the short per-feature specs. It types a full GFM note from an empty document character-by-character with messy human behavior (typos+corrections, click-back edits, select/delete, copy/paste, image resize, undo/redo) and checks strong correctness oracles continuously. Where single-scenario specs each exercise one operation, this accumulates state across hundreds of gestures and surfaces interaction bugs no isolated test reaches (its first run caught a list-exit nested-state desync the per-feature specs missed).
+
+```
+seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/editor)
+                          │                                      │
+                  Gestures · ExpectationTracker          window.__test oracles
+                          │
+                  invariants (per-keystroke equality, undo/redo differential,
+                  end-state equality, nested-state audit, no-errors, round-trip)
+                          │
+                  Recorder → test-results/simulation/<run>/{*.png, manifest.json}
+```
+
+Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state.
+
+**Running it:**
+
+| Command | Scope |
+| --- | --- |
+| `npm run test:e2e:simulation` | The deterministic smoke (`transcription-smoke.spec.ts`) — runs in `npm test`; fast, bounded note. |
+| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated full-note capture (`long-session-capture.spec.ts`) — writes checkpoint screenshots + `manifest.json`. |
+
+### Agentic visual review
+
+The capture pairs each checkpoint screenshot with the known source at that moment (in `manifest.json`). What the user _sees_ — heading sizes, dimmed markers, bold/italic, list alignment, resized image width, the correct block kind — isn't easily asserted in code, so a vision-capable agent reviews it: open `manifest.json`, view each PNG alongside its `expectedSource`, and report rendering/structural mismatches by severity. This is **discovery + a periodic quality report, not a CI gate** (agent vision is subjective). Re-run after substantive editor changes; see `docs/superpowers/specs/2026-05-30-note-taking-simulation-visual-review.md` for the first run's report. The simulation project pins a tall viewport so a long note stays in frame (the editor scrolls internally, so a short viewport would clip the note's tail).
 
 ## Debug Panel
 
