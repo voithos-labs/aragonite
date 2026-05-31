@@ -18,15 +18,19 @@ wall-time budget.
 
 - injected typos self-correct: a wrong neighbor key is typed, settled, then
   backspaced out before the intended char, netting to identity on the source
+- jump-back edit nets to identity: after clicking into the first block, a char is
+  typed mid-document and backspaced out, returning the source to its pre-detour
+  value before the end-state oracle runs
 - empty baseline calibration: after clearing, the source is exactly `"\n"`;
   a different value stops the session loudly rather than masking the drift
 
 ## User interactions
 
 - typing uses per-character keyboard events (not a programmatic value set)
-- click to reposition uses a real pointer click; the focus block path must equal
-  the clicked target (a wrong-block landing is a hard failure, never recorded as
-  truth)
+- jump back to edit an earlier section: a real pointer click repositions into the
+  first block, the focus block path must equal the clicked target (a wrong-block
+  landing is a hard failure, never recorded as truth), then a cancelling edit is
+  made there
 - undo / redo use real cross-platform keyboard shortcuts and restore the exact
   pre/post-gesture source around a forced batch boundary
 

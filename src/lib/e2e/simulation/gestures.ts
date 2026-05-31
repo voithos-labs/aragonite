@@ -1,5 +1,14 @@
 import type { Rng } from './rng';
 import { type SimContext, assertFocusBlock, settleTypedSource } from './invariants';
+import {
+	applyBold,
+	applyItalic,
+	copySelection,
+	pasteHere,
+	selectAndDelete
+} from './gestures/selection';
+import { indent, outdent, softEnter, startQuote, toggleTask } from './gestures/structure';
+import { insertImage, resizeImage } from './gestures/image';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -8,15 +17,32 @@ import { type SimContext, assertFocusBlock, settleTypedSource } from './invarian
  * never a bare sleep. Phase 1 ships the subset the smoke needs; later batches
  * add new methods against this frozen surface without changing signatures.
  */
+export interface GestureOpts {
+	typoRate?: number;
+	onCheckpoint?: (label: string, gesture: string) => Promise<void>;
+}
+
 export class Gestures {
 	private readonly typoRate: number;
+	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
 
 	constructor(
 		private readonly ctx: SimContext,
 		private readonly rng: Rng,
-		opts: { typoRate?: number } = {}
+		opts: GestureOpts = {}
 	) {
 		this.typoRate = opts.typoRate ?? 0;
+		this.onCheckpoint = opts.onCheckpoint;
+	}
+
+	/**
+	 * Annotate a build boundary so the recorder can capture mid-build state. The
+	 * fixture marks structural units as it authors them; the orchestrator decides
+	 * whether anything is listening (only the capture run wires a hook). A no-op
+	 * when unwired, so it mutates nothing and stays out of the deterministic spine.
+	 */
+	async checkpoint(label: string, gesture: string): Promise<void> {
+		await this.onCheckpoint?.(label, gesture);
 	}
 
 	// ── Typing ────────────────────────────────────────────────────────────────
@@ -60,6 +86,59 @@ export class Gestures {
 		await page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(hostsBefore + 1);
 		tracker.resync(await editor.bridge.getSource());
+	}
+
+	// ── Delegators ──────────────────────────────────────────────────────────────
+	// Thin facade over the per-concern free functions in gestures/. They take the
+	// SimContext explicitly so they stay unit-addressable and the frozen class
+	// surface grows without bloating this file.
+
+	selectAndDelete(count: number): Promise<void> {
+		return selectAndDelete(this.ctx, count);
+	}
+
+	copySelection(): Promise<void> {
+		return copySelection(this.ctx);
+	}
+
+	pasteHere(): Promise<void> {
+		return pasteHere(this.ctx);
+	}
+
+	applyBold(): Promise<void> {
+		return applyBold(this.ctx);
+	}
+
+	applyItalic(): Promise<void> {
+		return applyItalic(this.ctx);
+	}
+
+	softEnter(): Promise<void> {
+		return softEnter(this.ctx);
+	}
+
+	indent(): Promise<void> {
+		return indent(this.ctx);
+	}
+
+	outdent(): Promise<void> {
+		return outdent(this.ctx);
+	}
+
+	startQuote(text: string): Promise<void> {
+		return startQuote(this.ctx, text);
+	}
+
+	toggleTask(listItemPath: number[]): Promise<void> {
+		return toggleTask(this.ctx, listItemPath);
+	}
+
+	insertImage(alt: string, url: string): Promise<void> {
+		return insertImage(this.ctx, alt, url);
+	}
+
+	resizeImage(direction: 'left' | 'right', steps: number): Promise<void> {
+		return resizeImage(this.ctx, direction, steps);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
