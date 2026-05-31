@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
-import { BIOLOGY_NOTE } from '../../simulation/notes/biology-note';
+import { SMOKE_NOTE } from '../../simulation/notes/smoke-note';
 
 test.describe('note-taking simulation: transcription smoke', () => {
 	let editor: EditorPage;
@@ -12,6 +12,6 @@ test.describe('note-taking simulation: transcription smoke', () => {
 	});
 
 	test('drives a short note from empty and the oracle suite holds', async ({ page }) => {
-		await runSession(page, editor, { seed: 1, note: BIOLOGY_NOTE, capture: false });
+		await runSession(page, editor, { seed: 1, note: SMOKE_NOTE, capture: false });
 	});
 });
