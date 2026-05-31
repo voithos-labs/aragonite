@@ -53,9 +53,12 @@ export async function outdent(ctx: SimContext): Promise<void> {
 export async function startQuote(ctx: SimContext, text: string): Promise<void> {
 	const { editor, tracker } = ctx;
 	await editor.typeSlowly('>');
-	await editor.bridge.waitForSourceContains('>');
 	await editor.typeSlowly(text);
-	await editor.bridge.waitForSourceContains(text);
+	// Settle on the whole `> ${text}` line: the canonical space appears only once
+	// the body arrives and reclassification commits, so a bare `>` settle would
+	// land before the block became a blockquote and could resync a half-applied
+	// source.
+	await editor.bridge.waitForSourceContains(`> ${text}`);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }
