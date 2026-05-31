@@ -64,6 +64,25 @@ export async function startQuote(ctx: SimContext, text: string): Promise<void> {
 }
 
 /**
+ * Continue an open blockquote onto a new line. Pressing Enter inside a quote keeps
+ * the caret in the quote and auto-inserts the `> ` continuation marker, so this
+ * adds a soft line break (same paragraph) rather than a new top-level block — the
+ * frozen `pressEnter` would mis-settle on a block-host increment. The Enter and the
+ * marker are auto-behavior, so this types the body afterward, settles on the whole
+ * `> ${text}` line appearing, and resyncs. Fixtures pass `text` without a leading
+ * `>` or space. Use after `startQuote` (or another `continueQuote`) to build a
+ * multi-line single-paragraph blockquote.
+ */
+export async function continueQuote(ctx: SimContext, text: string): Promise<void> {
+	const { editor, tracker } = ctx;
+	await editor.page.keyboard.press('Enter');
+	await editor.typeSlowly(text);
+	await editor.bridge.waitForSourceContains(`> ${text}`);
+	await editor.waitForRenderFlush();
+	tracker.resync(await editor.bridge.getSource());
+}
+
+/**
  * Real pointer click on the task checkbox of the list item at `listItemPath`.
  * The descendant selector also matches checkboxes in sub-lists nested under the
  * item, but the item's own checkbox renders on its first-child paragraph (ahead
