@@ -14,3 +14,7 @@ Enter on an item whose first paragraph is empty exits the list. Position-aware b
   - Mismatched-type nested lists (e.g. ordered inside unordered) lift out as a separate top-level block
   - Non-list trailing children (extra paragraphs in a loose item, fenced code, etc.) lift out as separate top-level blocks
   - Order: lifted blocks appear immediately after the new exit paragraph, preserving the document order they had inside the exited item
+
+## State consistency
+
+- After exiting a list, the surviving list's `BlockListState` stays in sync — `auditBlockListStateConsistency()` reports no violation (the reused ListBlock component's `innerBlockRefs` must not retain a stale trailing slot for the removed item)
