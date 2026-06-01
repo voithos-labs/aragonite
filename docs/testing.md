@@ -143,16 +143,16 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
                   invariants (per-keystroke equality, undo/redo differential,
                   end-state equality, nested-state audit, no-errors, round-trip)
                           │
-                  Recorder → test-results/simulation/<run>/{*.png, manifest.json}
+                  Recorder → simulation-captures/<run>/{*.png, manifest.json}
 ```
 
 Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state.
 
 **Running it:**
 
-| Command | Scope |
-| --- | --- |
-| `npm run test:e2e:simulation` | The deterministic smoke (`transcription-smoke.spec.ts`) — runs in `npm test`; fast, bounded note. |
+| Command                                     | Scope                                                                                                                |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:e2e:simulation`               | The deterministic smoke (`transcription-smoke.spec.ts`) — runs in `npm test`; fast, bounded note.                    |
 | `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated full-note capture (`long-session-capture.spec.ts`) — writes checkpoint screenshots + `manifest.json`. |
 
 ### Agentic visual review
