@@ -18,19 +18,19 @@ export interface ManifestEntry {
  * Pairs a screenshot with the known editor state at each clean checkpoint so a
  * vision agent can later judge what looks broken against the recorded source.
  * The run directory is seed-derived (no timestamp) so two runs of the same seed
- * overwrite identically — determinism extends to the captured artifacts.
+ * overwrite identically — determinism extends to the captured artifacts. It
+ * lives OUTSIDE `test-results/` (see `runDirForSeed`) because Playwright wipes
+ * `test-results/` at the start of every run — the captures must survive the
+ * next test invocation for the visual review to use them.
  */
 export class Recorder {
 	private readonly entries: ManifestEntry[] = [];
-	private readonly runId: string;
 
 	constructor(
 		private readonly page: Page,
 		private readonly editor: EditorPage,
 		private readonly runDir: string
-	) {
-		this.runId = runDir.split(/[\\/]/).pop() ?? runDir;
-	}
+	) {}
 
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		const index = this.entries.length;
@@ -42,7 +42,7 @@ export class Recorder {
 		// visual review needs the whole document at each checkpoint (a viewport
 		// shot would clip trailing blocks like a standalone image at the end).
 		await this.page.screenshot({
-			path: `test-results/simulation/${this.runId}/${screenshot}`,
+			path: `${this.runDir}/${screenshot}`,
 			fullPage: true
 		});
 		const [expectedSource, cstDump, selection, undoStack] = await Promise.all([
@@ -70,7 +70,7 @@ export class Recorder {
 }
 
 export function runDirForSeed(seed: number): string {
-	return `test-results/simulation/seed-${seed}`;
+	return `simulation-captures/seed-${seed}`;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
