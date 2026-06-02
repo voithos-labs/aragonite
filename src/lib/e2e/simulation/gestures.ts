@@ -10,12 +10,15 @@ import {
 import {
 	continueQuote,
 	indent,
+	indentEmptyItem,
 	outdent,
 	softEnter,
 	startQuote,
-	toggleTask
+	toggleTask,
+	typeFreshItem
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
+import { lateCorrection } from './gestures/correction';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -65,6 +68,15 @@ export class Gestures {
 		}
 	}
 
+	/**
+	 * Type the first line of a freshly-created list item. The first char resyncs
+	 * around the marker materialization; the rest predicts. Lets a fixture nest
+	 * past the two-level ceiling that char-by-char `typeText` hits on a nested item.
+	 */
+	typeFreshItem(text: string): Promise<void> {
+		return typeFreshItem(this.ctx, text);
+	}
+
 	// ── Navigation / repositioning ──────────────────────────────────────────────
 
 	/**
@@ -82,6 +94,15 @@ export class Gestures {
 		await editor.waitForRenderFlush();
 		await assertFocusBlock(this.ctx, targetBlockPath);
 		tracker.resync(await editor.bridge.getSource());
+	}
+
+	/**
+	 * Jump back into an earlier top-level block and make a net-identity edit there —
+	 * models noticing an earlier typo and going to fix it. Reuses clickToReposition's
+	 * block-path assertion; leaves the document unchanged, so end-state equality holds.
+	 */
+	lateCorrection(targetBlockPath: number[]): Promise<void> {
+		return lateCorrection(this.ctx, this, targetBlockPath);
 	}
 
 	// ── Structure ───────────────────────────────────────────────────────────────
@@ -128,6 +149,15 @@ export class Gestures {
 		return indent(this.ctx);
 	}
 
+	/**
+	 * Nest the empty item just created by `pressEnter` one level deeper. The cadence
+	 * `pressEnter` → `indentEmptyItem` → `typeFreshItem` builds bullet nesting past
+	 * the two-level ceiling that indenting a filled item hits.
+	 */
+	indentEmptyItem(): Promise<void> {
+		return indentEmptyItem(this.ctx);
+	}
+
 	outdent(): Promise<void> {
 		return outdent(this.ctx);
 	}
@@ -153,6 +183,17 @@ export class Gestures {
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
+
+	/**
+	 * Flush the input batcher at a semantic boundary so the next gesture starts a
+	 * fresh undo entry. Without this, the batcher coalesces keystrokes within ~250ms
+	 * into one entry; a note that wants a real multi-entry undo stack calls this
+	 * between the units it wants separately undoable. A fixed deterministic wait, not
+	 * wall-clock-variable — it is the proven undo-batch fence the differential uses.
+	 */
+	pause(): Promise<void> {
+		return this.ctx.editor.waitForUndoBatchFlush();
+	}
 
 	async undo(): Promise<void> {
 		await this.ctx.editor.undo();

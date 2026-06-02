@@ -1,4 +1,4 @@
-import type { SimContext } from '../invariants';
+import { type SimContext, settleTypedSource } from '../invariants';
 
 /**
  * Structural gestures that trigger editor auto-behavior — indent/outdent renumber
@@ -40,6 +40,61 @@ export async function indent(ctx: SimContext): Promise<void> {
 
 export async function outdent(ctx: SimContext): Promise<void> {
 	await actThenResync(ctx, () => ctx.page.keyboard.press('Shift+Tab'));
+}
+
+/**
+ * Tab to nest a freshly-created EMPTY list item one level deeper, the move that
+ * lifts the two-level ceiling. Indenting a filled trailing item doesn't nest it
+ * under its sibling, but indenting the empty item Enter just created does — so the
+ * deep-nesting cadence is `pressEnter` → this → `typeFreshItem`, repeated. Unlike
+ * `indent`, this can't settle on a source delta: an empty item's marker is trimmed
+ * at every depth, so the nest leaves the serialized source unchanged. It settles on
+ * the FOCUSED item's path growing deeper — the indent wraps the item in a new nested
+ * list, so its own path strictly lengthens regardless of how deep other regions of
+ * the note already are (a global-deepest poll would false-fire when a deeper list
+ * sits earlier in the document). It does NOT resync: the source is unchanged here;
+ * the marker (and its resync) materializes on `typeFreshItem`'s first char. A no-op
+ * indent (already at the editor's nest cap) leaves the path unchanged, so the settle
+ * times out and the gesture fails loudly.
+ */
+export async function indentEmptyItem(ctx: SimContext): Promise<void> {
+	const before = await ctx.editor.bridge.getSelectionPaths();
+	const baseline = before?.focus.path.length ?? 0;
+	await ctx.page.keyboard.press('Tab');
+	await ctx.page.waitForFunction(
+		(min) => {
+			const sel = (window as any).__test?.getSelectionPaths?.();
+			return (sel?.focus?.path?.length ?? 0) > min;
+		},
+		baseline,
+		{ timeout: 2000, polling: 16 }
+	);
+	await ctx.page.keyboard.press('End');
+	await ctx.editor.waitForRenderFlush();
+}
+
+/**
+ * Type the first line of a freshly-created list item — the one case the printable
+ * tracker can't predict. An empty nested item trims its marker in the serialized
+ * source, so the first body char makes the editor MATERIALIZE the marker and the
+ * source grows by more than the typed char (same class as the blockquote canonical
+ * space). The first char therefore settles on a source delta and resyncs, exactly
+ * like the auto-behavior gestures; the rest of `text` predicts normally because the
+ * item is now the last block and the caret sits at end-of-content. Use for every
+ * Enter-created item — it is correct at any depth, including top level, where the
+ * delta is just the typed char. Deterministic: no typo injection on this path.
+ */
+export async function typeFreshItem(ctx: SimContext, text: string): Promise<void> {
+	const { editor, tracker } = ctx;
+	if (text.length === 0) return;
+	const before = await editor.bridge.getSource();
+	await editor.typeSlowly(text[0]);
+	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	tracker.resync(await editor.bridge.getSource());
+	for (const ch of text.slice(1)) {
+		await editor.typeSlowly(ch);
+		await settleTypedSource(ctx, tracker.appendChar(ch));
+	}
 }
 
 /**
