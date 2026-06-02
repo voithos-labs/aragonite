@@ -59,6 +59,9 @@
 			get node() {
 				return node;
 			},
+			get path() {
+				return myPath;
+			},
 			state,
 			parentBlockEdit,
 			parentFocus,
