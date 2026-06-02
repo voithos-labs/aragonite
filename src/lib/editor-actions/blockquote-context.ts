@@ -5,11 +5,11 @@
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import { unwrapFirstChildFromBlockquote } from '../tree-operations/blockquote';
-import { rebuildBlockquoteRaw } from '../schema/container-raw';
+import { rebuildBlockquoteRaw, rebuildAncestryRawForLeaf } from '../schema/container-raw';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsBundle } from './nested-actions';
 import type { UndoController } from './deps';
@@ -17,6 +17,7 @@ import type { UndoController } from './deps';
 export interface BlockquoteContextDeps {
 	get index(): number;
 	get node(): CstNode;
+	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
@@ -46,6 +47,11 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 								// Sync before rebuild — rebuildBlockquoteRaw reads node.children directly.
 								node.children = scopeChildren[0].children;
 								rebuildBlockquoteRaw(node);
+								// A nested quote's own raw rebuild doesn't reach its ancestors;
+								// without this the outer quote's raw keeps the deleted line's
+								// `> ` continuation and the source strands an empty `> >`.
+								const doc = deps.controller.getDocScope().node as unknown as Document;
+								rebuildAncestryRawForLeaf(doc, deps.path);
 								return [change];
 							},
 							op: {
