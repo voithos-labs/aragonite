@@ -1,12 +1,16 @@
 # Feature: Diverse-notes capture (note-taking simulation)
 
-Two longer, more diverse note sessions than the headline biology note, each driven
-entirely through real keyboard, mouse, and clipboard input from an empty document
-and guarded by the full harness oracle suite. They exist to surface bugs over
-constructs the biology note deliberately avoided: dense inline variety (the
-feature-tour note) and deep container nesting (the project-plan note). Gated behind
-`SIM_CAPTURE` so they stay out of the default suite; each records a screenshot +
-state manifest per structural unit for an agentic visual review.
+Several longer, more diverse note sessions than the headline biology note, each
+driven entirely through real keyboard, mouse, and clipboard input from an empty
+document and guarded by the full harness oracle suite. They surface bugs over
+constructs the biology note avoided, and some deliberately place a previously
+blind-spot construct into their **equality spine** so typing ≡ loading guards it on
+every run: dense inline variety (feature-tour), deep container nesting (project-plan),
+a three-level outline (outline), a nested `> >` blockquote (reading-notes — the
+regression spine for the nested-blockquote-exit fix), plus two genre notes
+(meeting-minutes, README). Gated behind `SIM_CAPTURE` so they stay out of the default
+suite; each records a screenshot + state manifest per structural unit for an agentic
+visual review.
 
 ## Happy paths
 
@@ -19,6 +23,18 @@ state manifest per structural unit for an agentic visual review.
   nested bullets, an ordered list with a nested ordered sub-item, a mixed
   checked/unchecked task list, a multi-line blockquote, a fenced code block,
   several headings, and a resized image; end-state equals the canonical note
+- outline note builds a three-level nested bullet list via the deep-nesting cadence
+  (type item → indent the empty trailing item → type the fresh item); the
+  three-level structure is in the equality spine, so a nesting regression fails
+  end-state equality
+- reading-notes note builds a nested `> >` blockquote (typed `>` then `>` then body);
+  the nested quote is in the equality spine — the regression guard the
+  nested-blockquote-exit fix shipped without
+- meeting-minutes note builds headings, attendee bullets, a decision blockquote, an
+  ordered agenda, and a task list with a nested action item; end-state equals the
+  canonical note
+- README note builds a link-bearing intro, ordered steps with inline code, a fenced
+  code block, and a links section; end-state equals the canonical note
 - each session records one screenshot + manifest entry per completed structural
   unit, plus the post-build `note-built` and `detour-done` checkpoints; the
   manifest lands at a seed-derived directory so a second run overwrites identically
@@ -33,7 +49,13 @@ state manifest per structural unit for an agentic visual review.
   continuation line in the same paragraph rather than splitting a new block
 - nested-list cadence: an item is typed at its creation level then indented, and
   the empty trailing item is outdented back to top level before the next item is
-  typed — the only tracker-safe nesting shape
+  typed
+- deep nesting reaches three levels via press-Enter → indent-the-empty-item →
+  type-fresh-item; indenting the empty item produces no source delta, so the gesture
+  settles on the focused item's path lengthening
+- nested blockquote exit: building and round-tripping a `> >` nested quote leaves no
+  stranded empty `> >` continuation line (the reading-notes spine guard for the
+  exit-collapse fix)
 - task toggle flips the first checklist item from unchecked to checked via a real
   checkbox click; the resulting `[x]` matches the canonical note
 
