@@ -74,6 +74,35 @@ export async function indentEmptyItem(ctx: SimContext): Promise<void> {
 }
 
 /**
+ * The mirror of `indentEmptyItem`: lift a freshly-created EMPTY list item one level
+ * back out, the move that returns to a shallower branch after typing a deep one. An
+ * empty item trims its marker at every depth, so the outdent leaves the serialized
+ * source unchanged and the source-delta `outdent` would hang waiting for a delta
+ * that never comes (it only sees one when the outdent crosses a list-exit boundary).
+ * This settles on the FOCUSED item's path strictly SHORTENING — the unnest unwraps
+ * the item from its enclosing nested list. Like `indentEmptyItem`, it does NOT
+ * resync: the marker (and its resync) materializes on the next `typeFreshItem`'s
+ * first char. A no-op outdent (already at top level) leaves the path unchanged, so
+ * the settle times out and the gesture fails loudly.
+ */
+export async function outdentEmptyItem(ctx: SimContext): Promise<void> {
+	const before = await ctx.editor.bridge.getSelectionPaths();
+	const baseline = before?.focus.path.length ?? 0;
+	await ctx.page.keyboard.press('Shift+Tab');
+	await ctx.page.waitForFunction(
+		(max) => {
+			const sel = (window as any).__test?.getSelectionPaths?.();
+			const len = sel?.focus?.path?.length ?? Infinity;
+			return len < max;
+		},
+		baseline,
+		{ timeout: 2000, polling: 16 }
+	);
+	await ctx.page.keyboard.press('End');
+	await ctx.editor.waitForRenderFlush();
+}
+
+/**
  * Type the first line of a freshly-created list item — the one case the printable
  * tracker can't predict. An empty nested item trims its marker in the serialized
  * source, so the first body char makes the editor MATERIALIZE the marker and the
@@ -133,6 +162,27 @@ export async function continueQuote(ctx: SimContext, text: string): Promise<void
 	await editor.page.keyboard.press('Enter');
 	await editor.typeSlowly(text);
 	await editor.bridge.waitForSourceContains(`> ${text}`);
+	await editor.waitForRenderFlush();
+	tracker.resync(await editor.bridge.getSource());
+}
+
+/**
+ * Nest one level deeper inside an open blockquote, producing a `> > ${text}` line.
+ * Enter continues the outer quote, then a typed `>` reclassifies the continuation
+ * into a nested quote — the editor materializes both canonical spaces (`> > `) as
+ * the body arrives, so this types `>` then the body WITHOUT manual spaces and lets
+ * the editor normalize. The reclassification plus space materialization is the same
+ * auto-behavior `startQuote` absorbs, so this settles on the whole `> > ${text}`
+ * line and resyncs rather than predicting char-by-char. Fixtures pass `text` bare.
+ * Use after `startQuote` to put a `> >` nested quote in the equality spine — the
+ * regression guard the nested-blockquote-exit fix lacked.
+ */
+export async function nestQuote(ctx: SimContext, text: string): Promise<void> {
+	const { editor, tracker } = ctx;
+	await editor.page.keyboard.press('Enter');
+	await editor.typeSlowly('>');
+	await editor.typeSlowly(text);
+	await editor.bridge.waitForSourceContains(`> > ${text}`);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../editor-page';
-import { makeRng } from './rng';
+import { makeRng, type Rng } from './rng';
 import { ExpectationTracker } from './expectation';
 import { attachErrorCollector } from './error-collector';
 import { Gestures } from './gestures';
@@ -79,6 +79,9 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await g.lateCorrection([0]);
 		await recorder?.checkpoint('detour-done', 'jump-back');
 
+		ctx.label = 'cancelling-detours';
+		await runCancellingDetours(ctx, g, rng);
+
 		ctx.label = 'undo-redo-differential';
 		await runRevertingDifferential(ctx);
 
@@ -105,4 +108,69 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 	await ctx.editor.undo();
 	await ctx.editor.bridge.waitForSourceEquals(clean, 3000);
 	ctx.tracker.resync(clean);
+}
+
+/**
+ * Seeded realism detours that each NET TO IDENTITY: a user pausing, then noticing a
+ * stray earlier edit and reverting it. Every detour restores the exact pre-detour
+ * source (asserted before continuing), so the end-state equality oracle still holds
+ * for every note and seed. The seed gates which fire, so different seeds exercise
+ * different undo-batch shapes — the multi-seed runner fuzzes those interleavings.
+ *
+ * The `pause()`s are the load-bearing piece, not decoration: each flushes the input
+ * batcher so the delete that follows lands in its own undo entry. Without the fence
+ * a single Ctrl+Z could overshoot into the prior edit's batch and miss the restore.
+ */
+async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
+	if (rng.chance(0.5)) await g.pause();
+
+	if (rng.chance(0.7)) {
+		await selectDeleteUndoDetour(ctx, g, rng);
+	}
+
+	if (rng.chance(0.5)) await g.pause();
+
+	if (rng.chance(0.5)) {
+		await copyPasteUndoDetour(ctx, g);
+	}
+}
+
+/**
+ * Click into the title block, select a few chars from end-of-line, Delete them, then
+ * undo. Block 0 is a heading or paragraph in every note, so `End` + a small leftward
+ * selection always has chars to remove. The pre-delete `pause` fences the delete into
+ * its own undo batch so one Ctrl+Z reverses exactly it; the closing assertion proves
+ * the restore is byte-exact (a failure here would be a real undo bug, not a flake).
+ */
+async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await g.pause();
+	await g.clickToReposition([0], 0);
+	await ctx.page.keyboard.press('End');
+	await g.selectAndDelete(rng.int(3, 6));
+	await g.pause();
+	await g.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
+	ctx.tracker.resync(before);
+}
+
+/**
+ * Copy a few chars from the title, paste them at the caret, then undo the paste —
+ * net identity. Like the delete detour it fences with `pause` and asserts byte-exact
+ * restoration. Copy/paste leaves the clipboard dirty but the source unchanged once
+ * the paste is undone, which is all the end-state oracle observes.
+ */
+async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await g.pause();
+	await g.clickToReposition([0], 0);
+	await ctx.page.keyboard.press('End');
+	await g.selectChars(4);
+	await g.copySelection();
+	await ctx.page.keyboard.press('End');
+	await g.pasteHere();
+	await g.pause();
+	await g.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
+	ctx.tracker.resync(before);
 }
