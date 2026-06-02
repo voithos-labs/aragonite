@@ -5,13 +5,16 @@ import {
 	applyItalic,
 	copySelection,
 	pasteHere,
-	selectAndDelete
+	selectAndDelete,
+	selectChars
 } from './gestures/selection';
 import {
 	continueQuote,
 	indent,
 	indentEmptyItem,
+	nestQuote,
 	outdent,
+	outdentEmptyItem,
 	softEnter,
 	startQuote,
 	toggleTask,
@@ -121,6 +124,11 @@ export class Gestures {
 	// SimContext explicitly so they stay unit-addressable and the frozen class
 	// surface grows without bloating this file.
 
+	/** Extend a selection `count` chars from the caret (leftward; negative = rightward). */
+	selectChars(count: number): Promise<void> {
+		return selectChars(this.ctx, count);
+	}
+
 	selectAndDelete(count: number): Promise<void> {
 		return selectAndDelete(this.ctx, count);
 	}
@@ -162,12 +170,30 @@ export class Gestures {
 		return outdent(this.ctx);
 	}
 
+	/**
+	 * Lift the empty item just created by `pressEnter` back out one level — the mirror
+	 * of `indentEmptyItem`, used to return to a shallower branch after typing a deeper
+	 * one. Settles on the focused item's path shortening; the next `typeFreshItem`
+	 * materializes its marker.
+	 */
+	outdentEmptyItem(): Promise<void> {
+		return outdentEmptyItem(this.ctx);
+	}
+
 	startQuote(text: string): Promise<void> {
 		return startQuote(this.ctx, text);
 	}
 
 	continueQuote(text: string): Promise<void> {
 		return continueQuote(this.ctx, text);
+	}
+
+	/**
+	 * Nest one level deeper inside an open blockquote, producing a `> > ${text}` line —
+	 * the typed nested-quote the equality spine needs to guard the `> >` exit fix.
+	 */
+	nestQuote(text: string): Promise<void> {
+		return nestQuote(this.ctx, text);
 	}
 
 	toggleTask(listItemPath: number[]): Promise<void> {
