@@ -76,7 +76,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await recorder?.checkpoint('note-built', 'build');
 
 		ctx.label = 'jump-back-detour';
-		await runJumpBackDetour(ctx, g);
+		await g.lateCorrection([0]);
 		await recorder?.checkpoint('detour-done', 'jump-back');
 
 		ctx.label = 'undo-redo-differential';
@@ -89,24 +89,6 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 	} finally {
 		await recorder?.finalize();
 	}
-}
-
-/**
- * Click back into the first top-level block (CRITICAL-2: clickToReposition asserts
- * the focus block path), make a cancelling edit there — one char typed then removed
- * — and confirm net-identity before continuing, so the end-state equality oracle
- * still holds. The edit is resync-based, not tracker-predicted: the tracker's
- * append rule inserts at end-of-content, but this caret is mid-document, so a raw
- * keystroke plus a source-delta settle is the only sound observation here.
- */
-async function runJumpBackDetour(ctx: SimContext, g: Gestures): Promise<void> {
-	const clean = await ctx.editor.bridge.getSource();
-	await g.clickToReposition([0], 0);
-	await ctx.editor.typeSlowly('z');
-	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, clean);
-	await ctx.editor.page.keyboard.press('Backspace');
-	await ctx.editor.bridge.waitForSourceEquals(clean);
-	ctx.tracker.resync(clean);
 }
 
 /**
