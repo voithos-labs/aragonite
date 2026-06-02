@@ -133,7 +133,9 @@ test.describe('my feature', () => {
 
 ## Note-Taking Simulation
 
-A long, realistic note-taking session driven through real input, complementing the short per-feature specs. It types a full GFM note from an empty document character-by-character with messy human behavior (typos+corrections, click-back edits, select/delete, copy/paste, image resize, undo/redo) and checks strong correctness oracles continuously. Where single-scenario specs each exercise one operation, this accumulates state across hundreds of gestures and surfaces interaction bugs no isolated test reaches (its first run caught a list-exit nested-state desync the per-feature specs missed).
+Long, realistic note-taking sessions driven through real input, complementing the short per-feature specs. Each session types a full GFM note from an empty document character-by-character with messy human behavior (typos+corrections, click-back edits, select/delete, copy/paste, image resize, undo/redo) and checks strong correctness oracles continuously. Where single-scenario specs each exercise one operation, a session accumulates state across hundreds of gestures and surfaces interaction bugs no isolated test reaches (its first run caught a list-exit nested-state desync the per-feature specs missed).
+
+The note set spans genres — a class note, a markdown feature-tour, a project plan, a three-level outline, reading notes, meeting minutes, a README, plus a short smoke. Several deliberately place a previously-blind-spot construct in their **equality spine** — deep bullet nesting (the outline), a nested `> >` blockquote (the reading notes) — so the typing≡loading guards exercise it on every run.
 
 ```
 seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/editor)
@@ -143,21 +145,27 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
                   invariants (per-keystroke equality, undo/redo differential,
                   end-state equality, nested-state audit, no-errors, round-trip)
                           │
-                  Recorder → simulation-captures/<run>/{*.png, manifest.json}
+                  Recorder → simulation-captures/seed-<N>/{*.png, manifest.json}
 ```
 
-Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state.
+Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state. Typing into a freshly-created item — whose marker only materializes on its first body char — is one such resync point, not a prediction, so the deep-nesting cadence (press-Enter → indent-empty-item → type-fresh-item) fits the same predict-printable / resync-after-auto-behavior principle.
+
+**Multi-seed fuzzing.** A runner drives one note across many seeds, one test per seed. The seed selects the typo stream and which **net-identity detours** fire, so each seed is a distinct interleaving where transient-state bugs hide. `runSession` injects those detours — a pause that fences the undo batch, then select-delete-undo, then copy-paste-undo — each asserting byte-exact restoration of its pre-detour source. They exercise undo, selection, and clipboard mid-session while end-state equality still holds for every seed.
+
+**Parallelism.** The `e2e-simulation` project runs `fullyParallel` across multiple workers — sessions are fully independent (own page, own seeded PRNG, no shared state), and the asserted artifact is the timing-independent source — so the full capture suite finishes in seconds (~20s on a typical machine).
 
 **Running it:**
 
-| Command                                     | Scope                                                                                                                |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`               | The deterministic smoke (`transcription-smoke.spec.ts`) — runs in `npm test`; fast, bounded note.                    |
-| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated full-note capture (`long-session-capture.spec.ts`) — writes checkpoint screenshots + `manifest.json`. |
+| Command                                     | Scope                                                                                                                                                    |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:e2e:simulation`               | The deterministic smoke — runs in `npm test`; fast, bounded note, oracles only.                                                                          |
+| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated full capture suite (every note) plus the multi-seed fuzz — writes screenshots + per-checkpoint `manifest.json` to `simulation-captures/`. |
 
 ### Agentic visual review
 
-The capture pairs each checkpoint screenshot with the known source at that moment (in `manifest.json`). What the user _sees_ — heading sizes, dimmed markers, bold/italic, list alignment, resized image width, the correct block kind — isn't easily asserted in code, so a vision-capable agent reviews it: open `manifest.json`, view each PNG alongside its `expectedSource`, and report rendering/structural mismatches by severity. This is **discovery + a periodic quality report, not a CI gate** (agent vision is subjective). Re-run after substantive editor changes; see `docs/superpowers/specs/2026-05-30-note-taking-simulation-visual-review.md` for the first run's report. The simulation project pins a tall viewport so a long note stays in frame (the editor scrolls internally, so a short viewport would clip the note's tail).
+A capture run pairs each checkpoint screenshot with the known source at that moment (in `manifest.json`). What the user _sees_ — heading sizes, dimmed markers, bold/italic, list alignment, resized image width, the correct block kind — isn't easily asserted in code, so a vision-capable agent reviews it: open `manifest.json`, view each PNG alongside its `expectedSource`, and report rendering/structural mismatches by severity. This is **discovery + a periodic quality report, not a CI gate** (agent vision is subjective). Re-run after substantive editor changes. The simulation project pins a tall viewport so a long note stays in frame (the editor scrolls internally, so a short viewport would clip the note's tail).
+
+Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directory per seed). They live **outside** `test-results/` on purpose — Playwright wipes that directory at the start of every run, so captures kept there wouldn't survive the next test invocation the review needs them for.
 
 ## Debug Panel
 

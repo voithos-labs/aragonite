@@ -103,7 +103,10 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 	const clean = await ctx.editor.bridge.getSource();
 	await undoRedoDifferential(ctx, async () => {
 		await ctx.editor.typeSlowly('X');
-		await ctx.editor.bridge.waitForSourceContains('X', 2000);
+		// Confirm the keystroke landed via a source delta, not a content match: a
+		// `waitForSourceContains('X')` would false-pass on any note whose source
+		// already contains an 'X'.
+		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, clean, 2000);
 	});
 	await ctx.editor.undo();
 	await ctx.editor.bridge.waitForSourceEquals(clean, 3000);
