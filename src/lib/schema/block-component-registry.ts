@@ -19,6 +19,21 @@ export interface BlockComponentEntry {
 	extraProps?: (node: CstNode) => Record<string, unknown>;
 }
 
+/**
+ * Typed constructor for a component-registry entry. The `Component<P, BlockComponent>`
+ * parameter enforces the one invariant that matters — the component's exported
+ * surface is `BlockComponent` — at the call site. The single internal cast widens
+ * props to the registry's `Record<string, unknown>`; props are contravariant, so
+ * a component with specific props can't be assigned directly, but BlockHost always
+ * supplies the correct props at runtime.
+ */
+export function defineBlockComponent<P extends Record<string, unknown>>(
+	component: Component<P, BlockComponent>,
+	extraProps?: (node: CstNode) => Record<string, unknown>
+): BlockComponentEntry {
+	return { component: component as BlockComponentEntry['component'], extraProps };
+}
+
 const registry = new Map<BlockKind, BlockComponentEntry>();
 
 export function registerBlockComponent(kind: BlockKind, entry: BlockComponentEntry): void {

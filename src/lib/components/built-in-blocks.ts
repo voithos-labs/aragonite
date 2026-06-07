@@ -8,6 +8,7 @@
 
 import type { CstNode } from '../core/nodes';
 import {
+	defineBlockComponent,
 	registerBlockComponent,
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
@@ -25,38 +26,21 @@ function headingExtraProps(node: CstNode): Record<string, unknown> {
 	return { blockClass: `heading-${level}` };
 }
 
-const textAsRawBlock: BlockComponentEntry = {
-	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
-	extraProps: () => ({ blockClass: 'raw-block' })
-};
+const textAsRawBlock: BlockComponentEntry = defineBlockComponent(TextEditableBlock, () => ({
+	blockClass: 'raw-block'
+}));
 
-registerBlockComponent('paragraph', {
-	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
-	extraProps: () => ({ blockClass: 'paragraph-block' })
-});
-registerBlockComponent('heading', {
-	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
-	extraProps: headingExtraProps
-});
-registerBlockComponent('setextHeading', {
-	component: TextEditableBlock as unknown as BlockComponentEntry['component'],
-	extraProps: headingExtraProps
-});
-registerBlockComponent('thematicBreak', {
-	component: ThematicBreakBlock as unknown as BlockComponentEntry['component']
-});
-registerBlockComponent('fencedCode', {
-	component: CodeBlock as unknown as BlockComponentEntry['component']
-});
-registerBlockComponent('blockquote', {
-	component: BlockquoteBlock as unknown as BlockComponentEntry['component']
-});
-registerBlockComponent('list', {
-	component: ListBlock as unknown as BlockComponentEntry['component']
-});
-registerBlockComponent('table', {
-	component: TableBlock as unknown as BlockComponentEntry['component']
-});
+registerBlockComponent(
+	'paragraph',
+	defineBlockComponent(TextEditableBlock, () => ({ blockClass: 'paragraph-block' }))
+);
+registerBlockComponent('heading', defineBlockComponent(TextEditableBlock, headingExtraProps));
+registerBlockComponent('setextHeading', defineBlockComponent(TextEditableBlock, headingExtraProps));
+registerBlockComponent('thematicBreak', defineBlockComponent(ThematicBreakBlock));
+registerBlockComponent('fencedCode', defineBlockComponent(CodeBlock));
+registerBlockComponent('blockquote', defineBlockComponent(BlockquoteBlock));
+registerBlockComponent('list', defineBlockComponent(ListBlock));
+registerBlockComponent('table', defineBlockComponent(TableBlock));
 
 // Raw-editable fallback for kinds with no dedicated rendered surface.
 // tableRow / tableCell normally render inside TableBlock — these entries only
