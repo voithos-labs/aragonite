@@ -68,20 +68,20 @@ All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full s
 
 **Prose blocks** (paragraph, heading, setextHeading) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
 
-**Other leaf blocks** carry kind-specific metadata where applicable. The `unrecognized` kind is the catch-all — any syntax the parser doesn't recognize round-trips as an unrecognized block.
+**Other leaf blocks** carry kind-specific metadata where applicable. The `unrecognized` kind is a reserved catch-all contract — see § Design Invariants for why no parser path emits it today.
 
 ### Design Invariants
 
 - **`raw` is the source of truth for serialization.** Metadata is derived from raw but never participates in round-trip.
 - **`leadingTrivia`** captures blank lines between blocks in the parent context. Combined with `Document.prefix`/`suffix` and container `innerPrefix`/`innerSuffix`, every whitespace character in the source is accounted for.
-- **Container blocks store `raw` as the full outer source text** (with `> ` prefixes, list markers, indentation, etc.). Children are a decomposition of the inner (stripped) content. The primary correctness invariant is document-level round-trip. A secondary invariant: stripping the container syntax from `raw` produces the same result as serializing the children.
-- **`unrecognized` is the catch-all kind.** Any syntax the parser doesn't recognize round-trips perfectly as an unrecognized block. When support for a new block type is added, it graduates from `unrecognized` to its own kind. No data loss at any stage.
+- **Container blocks store `raw` as the full outer source text** (with `> ` prefixes, list markers, indentation, etc.). Children are a decomposition of the inner (stripped) content. The primary correctness invariant is document-level round-trip. A secondary invariant holds for **strip** containers only — blockquote, list, listItem (`containerContract: 'strip'` on the block-kind descriptor): stripping the container syntax from `raw` produces the same result as serializing the children. **Grid** containers (table, tableRow — `containerContract: 'grid'`) parse their cell layout straight from `raw` rather than via a strippable prefix, so they are exempt; their children are addressed positionally, not by stripping.
+- **`unrecognized` is a reserved catch-all kind, not one the parser produces today.** `paragraph` is the total fallback — any line the block openers don't claim is absorbed into a paragraph, which round-trips losslessly by storing the bytes in `raw`. Markdown has no malformed-input case that needs a tree-sitter-style error node, so no parser path currently emits `unrecognized`. The kind is kept as the contract for future or plugin-authored block types: a syntax could land as `unrecognized` (round-tripping by `raw` like any block) and graduate to its own kind when support is added, with no data loss at any stage.
 
 ### Serialization
 
 Trivially recursive. At the document level, `raw` on each top-level node already contains the full outer source text, so serialization never needs to recurse into children. It concatenates the document prefix, then each child's leading trivia and raw source in order, then the document suffix.
 
-For test-time verification of container internals, the inner content can be reconstructed from children by concatenating the container's inner prefix, each child's leading trivia and raw source, and the inner suffix. This produces the stripped inner content (e.g., without `> ` prefixes for blockquotes). The invariant is: stripping the container syntax from `raw` yields the same result as serializing the children.
+For test-time verification of strip-container internals, the inner content can be reconstructed from children by concatenating the container's inner prefix, each child's leading trivia and raw source, and the inner suffix. This produces the stripped inner content (e.g., without `> ` prefixes for blockquotes). The invariant — strip containers only — is: stripping the container syntax from `raw` yields the same result as serializing the children. Grid containers (table, tableRow) have no inner prefix/suffix to strip and are exempt.
 
 ### Inline Node Types (Phase 2)
 
@@ -143,7 +143,7 @@ Same approach for list items — strip the indentation/marker, parse inner conte
 
 - **Inline parsing is separate** — the block parser does not parse inline syntax. Inline parsing is triggered by the editor layer, not the block parser (see inline-parsing.md).
 - **No incremental parsing** — full re-parse every time; incremental is an optimization that can be added later without architectural changes.
-- **No error recovery machinery** — unrecognized syntax falls through to `unrecognized` blocks or gets absorbed into a paragraph.
+- **No error recovery machinery** — any line the block openers don't claim is absorbed into a paragraph (the total fallback). The `unrecognized` kind is reserved for future/plugin block types, not produced by today's parser (see § Design Invariants).
 
 ## GFM Block Coverage
 
@@ -162,7 +162,7 @@ All GFM block types are implemented and have their own node kinds:
 | HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.        |
 | Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                |
 | Tables                     | `table`                   | GFM extension, pipe syntax          |
-| Unrecognized               | `unrecognized`            | Catch-all for unknown syntax        |
+| Unrecognized               | `unrecognized`            | Reserved catch-all; not parser-emitted today (paragraph is the fallback) |
 
 ### Inline Syntax
 
@@ -179,4 +179,4 @@ All GFM block types are implemented and have their own node kinds:
 
 ### Custom Extensions
 
-New block types are additive — a kind string, optional metadata, and a parser matcher. Unrecognized syntax graduates to its own kind. The tree is agnostic to kind strings.
+New block types are additive — a kind string, optional metadata, and a parser matcher. A future or plugin-authored syntax can land as `unrecognized` and graduate to its own kind once a matcher exists. The tree is agnostic to kind strings.
