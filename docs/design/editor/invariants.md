@@ -1,6 +1,12 @@
 # Editor Invariants — Catalog & Enforcement
 
-Living reference for the editor's load-bearing invariants and how each is enforced. Design rationale and full row detail: `docs/superpowers/specs/2026-06-06-loud-invariants-design.md`.
+Living reference for the editor's load-bearing invariants and how each is enforced.
+
+## Design
+
+The editor's load-bearing contracts — round-trip fidelity, the `textContent === ambientPrefix + raw` spine, register-then-augment ordering, op-vocabulary parity, the inline-offset partition — were enforced by convention and example tests. Break one and you get silent corruption surfacing layers downstream, not a loud failure at the seam. This catalog converts that surface into loud, located failure, hardened before the 0.8.3 schema-seam freeze and the 1.2 plugin API bind external code to the contracts.
+
+The unifying principle is **one catalog, one shared predicate per invariant, read by two consumers**: a runtime DEV assertion at the seam where the invariant can break, and a property/source-scan test — never logic duplicated between guard and test. Predicates are pure functions in `src/lib/editor/invariants/`, returning a violation or null; tests import them directly. The `assertInvariant` channel that runs them at runtime is dev-only and non-crashing (a false positive must never crash a real editor) and tree-shakes to a no-op in production — zero assertion cost. Per-commit checks are scoped to the touched subtree, never the whole document, so the guards stay safe to run during the large-doc workflow the project targets.
 
 **Enforcement codes:** A = runtime DEV assertion · P = property test (fast-check) · N = negative fixture · T = compile-time type guard · L = lint/source-scan · D = doc.
 
