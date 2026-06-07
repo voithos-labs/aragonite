@@ -14,6 +14,14 @@ export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
 	isContainer: boolean;
+	/**
+	 * Shape of a container's raw↔children relationship (container kinds only).
+	 * `'strip'` — `raw` is outer syntax around a strip-and-recurse decomposition,
+	 * so `strip(raw) === serialize(children)` holds (blockquote/list/listItem).
+	 * `'grid'` — cells parse straight from `raw`, so that invariant does NOT hold
+	 * and the container is exempt from the stale-raw check (table/tableRow).
+	 */
+	containerContract?: 'strip' | 'grid';
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
@@ -164,12 +172,14 @@ registerBlockKind('table', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: true,
+	containerContract: 'grid',
 	supportsInline: false
 });
 registerBlockKind('tableRow', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: true,
+	containerContract: 'grid',
 	supportsInline: false
 });
 registerBlockKind('tableCell', {
@@ -190,17 +200,20 @@ registerBlockKind('blockquote', {
 	mergeRole: 'container',
 	editable: true,
 	isContainer: true,
+	containerContract: 'strip',
 	supportsInline: false
 });
 registerBlockKind('list', {
 	mergeRole: 'container',
 	editable: true,
 	isContainer: true,
+	containerContract: 'strip',
 	supportsInline: false
 });
 registerBlockKind('listItem', {
 	mergeRole: 'container',
 	editable: true,
 	isContainer: true,
+	containerContract: 'strip',
 	supportsInline: false
 });
