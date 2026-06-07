@@ -6,7 +6,8 @@
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
 import { FOCUS_LAST_START } from '../block-component';
-import type { CstNode, ListItemMetadata } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
@@ -39,9 +40,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const prevItem = node.children[itemIndex - 1];
 			if (!prevItem.children) return;
 
-			const ordered = (node.metadata as { ordered: boolean }).ordered;
+			const ordered = metadataOf(node, 'list').ordered;
 			const existingNestedList = prevItem.children.find(
-				(c) => c.kind === 'list' && (c.metadata as { ordered: boolean }).ordered === ordered
+				(c) => c.kind === 'list' && metadataOf(c, 'list').ordered === ordered
 			);
 
 			// Scope 0 = outer list (item removed).
@@ -128,7 +129,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			if (!node.children) return;
 
 			if (!newItem) {
-				const prevMeta = node.children[itemIndex]?.metadata as ListItemMetadata | undefined;
+				const prevItem = node.children[itemIndex];
+				const prevMeta = prevItem ? metadataOf(prevItem, 'listItem') : undefined;
 				const prevMarker = prevMeta?.marker ?? '- ';
 				const marker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 				const inheritTask = prevMeta?.taskItem === true;
@@ -205,7 +207,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const prevMarker = (item.metadata as { marker?: string })?.marker ?? '- ';
+					const prevMarker = metadataOf(item, 'listItem')?.marker ?? '- ';
 					const newMarker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 					const newItem: CstNode = {
 						kind: 'listItem',
@@ -213,7 +215,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						raw: '',
 						metadata: {
 							marker: newMarker,
-							taskItem: (item.metadata as { taskItem?: boolean }).taskItem ?? false,
+							taskItem: metadataOf(item, 'listItem').taskItem ?? false,
 							taskChecked: false,
 							taskMarker: null
 						},

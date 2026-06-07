@@ -15,7 +15,8 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document, TableMetadata } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from '../editor-actions/deps';
 import { applyCollapsedCaret } from './native-bridge';
 import { rangeDelete } from './range-delete';
@@ -185,7 +186,7 @@ async function maybeCommitTableCoverageDelete(
 	options: { skipSnapshot?: boolean } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<{ caret: SelectionPoint | null } | null> {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
@@ -327,7 +328,7 @@ async function commitColumnDelete(
 			for (const row of liveRows) rebuildTableRowRaw(row);
 			rebuildContainerRaw(table);
 
-			const newColumnCount = (table.metadata as TableMetadata).columnCount;
+			const newColumnCount = metadataOf(table, 'table').columnCount;
 			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();

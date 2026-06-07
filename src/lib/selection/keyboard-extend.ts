@@ -5,7 +5,8 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { Document, TableMetadata } from '../core/nodes';
+import type { Document } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { BlockComponentLookup } from '../editor-keys';
 import {
 	readNativeCaretInBlock,
@@ -343,7 +344,7 @@ function normalizeTableEndpoint(doc: Document, path: number[], offset: number): 
 	for (let d = 0; d < path.length - 1; d++) {
 		const node = nodeAt(doc, path.slice(0, d + 1));
 		if (node && 'kind' in node && node.kind === 'table') {
-			const colCount = (node.metadata as TableMetadata).columnCount;
+			const colCount = metadataOf(node, 'table').columnCount;
 			const rowIdx = path[d + 1];
 			const colIdx = path[d + 2] ?? 0;
 			return { path: path.slice(0, d + 1), offset: rowIdx * colCount + colIdx };
