@@ -55,7 +55,7 @@ test.describe('image backspace/delete + type-replace', () => {
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches((src) => !src.includes('![cat]'));
+		await editor.bridge.waitForSourceNotContains('![cat]');
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
