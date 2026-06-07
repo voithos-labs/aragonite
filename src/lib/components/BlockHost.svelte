@@ -2,9 +2,11 @@
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
 	import type { CstNode } from '../core/nodes';
 	import SelectionOverlay from './SelectionOverlay.svelte';
+	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
 	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 	import { getBlockComponent } from '../schema/block-component-registry';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
+	import { devWarn } from '../dev-warn';
 
 	let {
 		node,
@@ -31,6 +33,12 @@
 
 	let entry = $derived(getBlockComponent(node.kind));
 
+	// A kind with no registered component falls back to a visible raw-editable
+	// surface (below) rather than silently rendering nothing.
+	$effect(() => {
+		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
+	});
+
 	$effect(() => {
 		if (!setRef || !getRef) return;
 		return publishRefSlot(index, ref, setRef, getRef);
@@ -53,6 +61,8 @@
 			bind:this={ref}
 			{...entry.extraProps?.(node) ?? {}}
 		/>
+	{:else}
+		<TextEditableBlock {node} {index} {myPath} {ambientPrefix} bind:this={ref} blockClass="raw-block" />
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
