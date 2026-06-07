@@ -2,14 +2,15 @@
 // (commitContainer / commitMultiScope) and rebuildContainerRaw; these helpers
 // touch neither reactivity, undo, nor raw.
 
-import type { CstNode, TableMetadata, TableRowMetadata, TableAlignment } from '../core/nodes';
+import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function insertEmptyRow(table: CstNode, rowIdx: number, side: 'above' | 'below'): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const newRow: CstNode = {
 		kind: 'tableRow',
 		leadingTrivia: '',
@@ -26,7 +27,7 @@ export function insertEmptyRow(table: CstNode, rowIdx: number, side: 'above' | '
 }
 
 export function insertEmptyColumn(table: CstNode, colIdx: number, side: 'left' | 'right'): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const insertAt = side === 'left' ? colIdx : colIdx + 1;
 	for (const row of table.children ?? []) {
 		row.children!.splice(insertAt, 0, {
@@ -47,12 +48,12 @@ export function deleteRow(table: CstNode, rowIdx: number): void {
 	const willRemoveHeader = rowIdx === 0;
 	rows.splice(rowIdx, 1);
 	if (willRemoveHeader && rows.length > 0) {
-		(rows[0].metadata as TableRowMetadata).isHeader = true;
+		metadataOf(rows[0], 'tableRow').isHeader = true;
 	}
 }
 
 export function deleteColumn(table: CstNode, colIdx: number): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	for (const row of table.children ?? []) {
 		row.children!.splice(colIdx, 1);
 	}
@@ -61,7 +62,7 @@ export function deleteColumn(table: CstNode, colIdx: number): void {
 }
 
 export function cycleAlignment(table: CstNode, colIdx: number): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const current = meta.alignments[colIdx];
 	// 'none' renders identically to 'left' (no text-align override), so stepping
 	// through it would look like a stuck press. From 'none' jump straight to

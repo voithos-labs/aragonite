@@ -6,6 +6,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
 
@@ -25,7 +26,7 @@ export function buildExitReplacement(
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	const items = list.children ?? [];
 	const exitedItem = items[itemIndex];
-	const parentOrdered = (list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
 	// Matching-type nested lists flatten into `promotedItems` for re-merge
 	// into the surviving halves; everything else lifts as a top-level block.
@@ -34,8 +35,7 @@ export function buildExitReplacement(
 	if (exitedItem?.children && exitedItem.children.length > 1) {
 		for (const child of exitedItem.children.slice(1)) {
 			if (child.kind === 'list' && child.children) {
-				const childOrdered =
-					(child.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+				const childOrdered = metadataOf(child, 'list')?.ordered ?? false;
 				if (childOrdered === parentOrdered) {
 					for (const nestedItem of child.children) {
 						const cloned = cloneNode(nestedItem);
