@@ -18,7 +18,7 @@ Seams: commit primitive = `invariants/install.ts` `assertCommittedNodes`, invoke
 | G1.4 | No container `setContext`s `HISTORY_KEY` | A·L·N | `context-keys.ts` · `editor-actions/nested-actions.ts` `setNestedActionsContexts` · `context-keys.test.ts` |
 | G1.5 | Category↔field legality (leaf/prose/container fields; valid `mergeRole`) | A·P·N | `node-shape.ts` `checkCategoryFields` · commit primitive · `category-fields.test.ts` |
 | G1.6 | `cloneMetadata` clone-safety | A·P | `node-shape.ts` `checkCloneSafeMetadata` · `tree-operations/clone.ts` `cloneNode` · `clone-safe-metadata.test.ts` |
-| G1.7 | Metadata-driven-raw writes go through `updateBlockMetadata` | A·N | (write-path marker) · `editor-actions/block-edit.ts` `updateBlockMetadata` · `editor-actions/update-block-metadata.test.ts` (G1.1 stale-raw is the runtime backstop) |
+| G1.7 | Metadata-driven-raw writes go through `updateBlockMetadata` | A·N | (no dedicated predicate) · `editor-actions/block-edit.ts` `updateBlockMetadata` rebuilds raw after the merge · `editor-actions/update-block-metadata.test.ts` (G1.1 stale-raw is the runtime backstop for bypasses) |
 | G1.8 | `getContentRange` well-formed per prose kind | A·P·N | `descriptor.ts` `checkContentRange` · commit primitive · `descriptor.test.ts` |
 
 ## Group 2 — Property/regression-tested (P·N)
