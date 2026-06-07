@@ -1,6 +1,6 @@
 import type { CstNode } from '../core/nodes';
+import { parse } from '../core/parser';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
-import { cloneNode } from '../tree-operations/clone';
 import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
@@ -54,26 +54,49 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 // ── G1.1: container raw not stale ─────────────────────────────────────────────
 
 /**
- * G1.1 — a strip container's `raw` is in sync with its `children`. Clones the
- * node (never mutates the input), runs the kind's `rebuildRaw` on the clone,
- * and compares. Strip containers only; grid containers (table/tableRow) and
- * leaves are exempt — their raw↔children relationship doesn't satisfy
- * `strip(raw) === serialize(children)`.
+ * G1.1 — a strip container's `raw` agrees with its `children`: `strip(raw) ===
+ * serialize(children)`. Checked semantically by re-parsing `node.raw` and
+ * structurally comparing the result's children to `node.children` — a faithful
+ * node re-parses to the same children; a drifted one does not. This is
+ * canonicalization-proof, unlike comparing against a `rebuildRaw` that
+ * re-derives the `> ` prefix / strips indentation the parser preserved.
+ *
+ * Strip containers only; grid containers (table/tableRow) and leaves are exempt.
  */
 export function checkStaleRaw(node: CstNode): InvariantViolation | null {
-	const d = getBlockKindDescriptor(node.kind);
-	if (d.containerContract !== 'strip' || !d.rebuildRaw) return null;
+	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
-	const clone = cloneNode(node);
-	d.rebuildRaw(clone);
-	if (clone.raw !== node.raw) {
+	// `listItem` is never a top-level block, so its raw re-parses to a wrapping
+	// `list`; unwrap one level by kind to reach the grammatical correspondent.
+	const top = parse(node.raw).children[0];
+	const correspondent =
+		top?.kind === node.kind ? top : top?.children?.find((c) => c.kind === node.kind);
+
+	if (!structurallyEqualChildren(correspondent?.children, node.children)) {
 		return {
 			code: 'stale-container-raw',
 			message: `${node.kind} raw is stale relative to its children`,
-			detail: { kind: node.kind, rawLen: node.raw.length, rebuiltLen: clone.raw.length }
+			detail: { kind: node.kind }
 		};
 	}
 	return null;
+}
+
+/** Recursively equal on `kind`, `leadingTrivia`, and `raw` (raw is the source of truth). */
+function structurallyEqualChildren(
+	a: readonly CstNode[] | undefined,
+	b: readonly CstNode[] | undefined
+): boolean {
+	const left = a ?? [];
+	const right = b ?? [];
+	if (left.length !== right.length) return false;
+	for (let i = 0; i < left.length; i++) {
+		if (left[i].kind !== right[i].kind) return false;
+		if (left[i].leadingTrivia !== right[i].leadingTrivia) return false;
+		if (left[i].raw !== right[i].raw) return false;
+		if (!structurallyEqualChildren(left[i].children, right[i].children)) return false;
+	}
+	return true;
 }
 
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
