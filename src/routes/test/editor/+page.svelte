@@ -15,7 +15,11 @@
 	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
 	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
 	import { getStateForNode } from '$lib/editor/reactivity/state-registry';
-	import type { CstNode } from '$lib/editor/core/nodes';
+	import type { BlockKind, CstNode } from '$lib/editor/core/nodes';
+	import {
+		registerBlockKind,
+		tryGetBlockKindDescriptor
+	} from '$lib/editor/schema/block-kind-descriptor';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
@@ -157,6 +161,26 @@
 			getBlockKind: (index: number) => {
 				const doc = parse(editor.getSource());
 				return doc.children[index]?.kind ?? '';
+			},
+			// Force a top-level block to a kind with a descriptor but NO registered
+			// component, so it reaches BlockHost's no-component branch. Exercises the
+			// visible-raw fallback (a kind outside ALL_BLOCK_KINDS, so it doesn't
+			// perturb the startup registry-completeness check).
+			makeBlockOrphan: (index: number): void => {
+				const kind = 'orphanTest' as BlockKind;
+				if (!tryGetBlockKindDescriptor(kind)) {
+					registerBlockKind(kind, {
+						mergeRole: 'not-mergeable',
+						editable: true,
+						isContainer: false,
+						supportsInline: false
+					});
+				}
+				const doc = editor.getDocument();
+				const node = doc.children[index] as CstNode | undefined;
+				if (!node) return;
+				node.kind = kind;
+				doc.children = [...doc.children];
 			},
 			isCrossBlockActive: () => {
 				return document.querySelector('[data-cross-block]') !== null;
