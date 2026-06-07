@@ -6,25 +6,32 @@
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
+declare const cursorEndBrand: unique symbol;
+/** Branded `number`: a focus offset meaning "end of content", not a position. */
+export type CursorEnd = number & { readonly [cursorEndBrand]: true };
+
+declare const selectionEndBrand: unique symbol;
+/** Branded `number`: a measurePartialRects endOffset meaning "end of range". */
+export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
+
 /**
- * "Place cursor at end of content." focus() clamps to content length, so the
- * exact value just needs to exceed any plausible block size. Distinct from
- * SELECTION_END because callers do arithmetic on this offset, whereas
- * SELECTION_END is an opt-in sentinel each surface interprets in its own
- * coordinate system.
+ * "Place cursor at end of content." The focus walkers fall through to their
+ * end-of-content fallback whenever the requested offset exceeds the block's
+ * length, so MAX_SAFE_INTEGER lands at the end of any block. A finite value
+ * (the former 999999) instead landed mid-block once content was longer.
  */
-export const CURSOR_END = 999999;
+export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
 
 /** Cascade focus to the last descendant and place the cursor at its start. */
 export const FOCUS_LAST_START = -1;
 
 /**
  * "End of this block's measurable range" for measurePartialRects' endOffset.
- * Each surface interprets it in its own coordinate system; the value is
- * Number.MAX_SAFE_INTEGER so text surfaces fall through to native range
- * clamping without special-casing.
+ * Each surface interprets it in its own coordinate system; MAX_SAFE_INTEGER
+ * lets text surfaces fall through to native range clamping without special-
+ * casing, and TableBlock matches it explicitly to select through the last cell.
  */
-export const SELECTION_END = Number.MAX_SAFE_INTEGER;
+export const SELECTION_END = Number.MAX_SAFE_INTEGER as SelectionEnd;
 
 // ── Helper types ───────────────────────────────────────────────────────────
 

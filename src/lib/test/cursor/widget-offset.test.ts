@@ -90,6 +90,19 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		expect(pos!.offset).toBe(0);
 	});
 
+	it('falls back to end-of-content when target exceeds the block length', () => {
+		// CURSOR_END (= MAX_SAFE_INTEGER) relies on this fallback to land the
+		// caret at the end of any block; a finite sentinel below the length
+		// would instead resolve mid-block.
+		const text = document.createTextNode('hello');
+		el.appendChild(text);
+
+		const pos = findRawOffsetTarget(el, Number.MAX_SAFE_INTEGER);
+		expect(pos).not.toBeNull();
+		expect(pos!.node).toBe(text);
+		expect(pos!.offset).toBe('hello'.length);
+	});
+
 	it('rawOffsetAtNode reads zero from sentinel positions (preserves text-content invariants)', () => {
 		const leading = sentinel();
 		const w = widget(0, 10);
