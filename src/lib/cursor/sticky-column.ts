@@ -64,3 +64,17 @@ export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 	'Alt',
 	'Meta'
 ];
+
+/** What a keydown does to sticky column, decided purely from `e.key`. */
+export type StickyKeyAction = 'capture' | 'reset' | 'preserve';
+
+/**
+ * The keydown→sticky decision the shared prelude enacts. Pure on the key so it
+ * is testable without DOM; `handleSharedKeydown` reads it and supplies the
+ * pixel X for the capture branch.
+ */
+export function classifyStickyKey(key: string): StickyKeyAction {
+	if (key === 'ArrowUp' || key === 'ArrowDown') return 'capture';
+	if (PRESERVE_KEYS_NON_ARROW.includes(key)) return 'preserve';
+	return 'reset';
+}
