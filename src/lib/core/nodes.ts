@@ -21,6 +21,32 @@ export type ContainerBlockKind = 'blockquote' | 'list' | 'listItem' | 'table' | 
 
 export type BlockKind = LeafBlockKind | ContainerBlockKind;
 
+/**
+ * Exhaustive manifest of every BlockKind. The `Record<BlockKind, true>` type
+ * forces the compiler to flag a missing or stray member, so this is the single
+ * union-derived source for "iterate over all kinds" — replacing hand-maintained
+ * kind lists that pass vacuously when a member is forgotten.
+ */
+export const BLOCK_KIND_TABLE: Record<BlockKind, true> = {
+	heading: true,
+	setextHeading: true,
+	paragraph: true,
+	fencedCode: true,
+	thematicBreak: true,
+	indentedCode: true,
+	htmlBlock: true,
+	linkReferenceDefinition: true,
+	tableCell: true,
+	unrecognized: true,
+	blockquote: true,
+	list: true,
+	listItem: true,
+	table: true,
+	tableRow: true
+};
+
+export const ALL_BLOCK_KINDS = Object.keys(BLOCK_KIND_TABLE) as BlockKind[];
+
 // ── Metadata ────────────────────────────────────────────────────────────────
 
 export interface HeadingMetadata {
