@@ -27,6 +27,17 @@ export function rebuildBlockquoteRaw(node: CstNode): void {
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /**
+ * G1.7 — metadata fields a container's `rebuildRaw` feeds into `raw`. Writing
+ * one of these outside `updateBlockMetadata` (which rebuilds the container)
+ * leaves `raw` stale relative to metadata; the stale-raw check (G1.1) at the
+ * commit seams catches that on the touched listItem. Kept here next to the
+ * rebuild that reads them so the list stays honest as fields are added.
+ */
+export const RAW_FEEDING_METADATA_FIELDS: Readonly<Record<string, readonly string[]>> = {
+	listItem: ['marker', 'taskMarker']
+};
+
+/**
  * Rebuild a list item's `raw`: first line gets the marker, continuation
  * lines get indentation. Blank lines stay unindented — GFM loose-list form.
  */

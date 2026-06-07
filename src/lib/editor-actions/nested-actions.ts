@@ -9,7 +9,9 @@
 import { setContext } from 'svelte';
 import type { BlockEditActions, ContainerEditActions, FocusActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
-import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY } from '../editor-keys';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../editor-keys';
+import { assertInvariant } from '../invariants/assert';
+import { checkNoContainerHistoryKey } from '../invariants/context-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
@@ -70,6 +72,8 @@ export function createStandardNestedActions(
 
 /** Set the three container sub-interface contexts in one call. */
 export function setNestedActionsContexts(bundle: NestedActionsBundle): void {
+	const keys = [BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY];
+	assertInvariant('container-history-key', () => checkNoContainerHistoryKey(keys, HISTORY_KEY));
 	setContext(BLOCK_EDIT_KEY, bundle.blockEdit);
 	setContext(FOCUS_KEY, bundle.focus);
 	setContext(CONTAINER_EDIT_KEY, bundle.containerEdit);
