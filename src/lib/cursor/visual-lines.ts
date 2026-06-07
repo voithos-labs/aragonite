@@ -9,6 +9,13 @@
  * measuring around a real text node always returns a valid rect.
  */
 
+// Cursor counts as on the boundary line when its Y is within this fraction of a
+// line height of the first/last line's Y — sub-line so sub/superscript or
+// inline-image jitter on the same line doesn't read as a different line.
+const SAME_LINE_TOLERANCE = 0.8;
+// CSS `line-height: normal` parses to NaN; fall back to a sane pixel height.
+const FALLBACK_LINE_HEIGHT = 20;
+
 export function getRangeTop(range: Range): number | null {
 	const rects = range.getClientRects();
 	if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
@@ -107,8 +114,8 @@ export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): bo
 		return fallbackOffset === 0;
 	}
 
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
-	return Math.abs(cursorTop - startTop) < lineHeight * 0.8;
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
+	return Math.abs(cursorTop - startTop) < lineHeight * SAME_LINE_TOLERANCE;
 }
 
 export function isAtLastVisualLine(
@@ -146,6 +153,6 @@ export function isAtLastVisualLine(
 		return fallbackOffset === textLen;
 	}
 
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
-	return Math.abs(cursorTop - endTop) < lineHeight * 0.8;
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
+	return Math.abs(cursorTop - endTop) < lineHeight * SAME_LINE_TOLERANCE;
 }

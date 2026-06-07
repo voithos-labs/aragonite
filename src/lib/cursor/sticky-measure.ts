@@ -7,6 +7,11 @@
 import type { StickyColumnDirection } from '../block-component';
 import { containerRawLength, findRawOffsetTarget } from './widget-offset';
 
+// A candidate counts as "on the probe line" when its rect overlaps the line band
+// padded by half a line height on each side — wide enough to catch ascender/
+// descender variation, narrow enough to exclude the neighbouring line.
+const LINE_BAND_TOLERANCE = 0.5;
+
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
@@ -88,7 +93,7 @@ export function findOffsetNearestX(
 	const lineTop = lineProbe.top;
 	const lineBottom = lineProbe.bottom;
 	const lineHeight = Math.max(1, lineBottom - lineTop);
-	const tolerance = lineHeight * 0.5;
+	const tolerance = lineHeight * LINE_BAND_TOLERANCE;
 
 	let bestOffset = candidates[0].offset;
 	let bestDelta = Infinity;
