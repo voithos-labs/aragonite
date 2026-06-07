@@ -43,5 +43,5 @@ function cloneMetadata(meta: NonNullable<CstNode['metadata']>): NonNullable<CstN
 	for (const [k, v] of Object.entries(meta)) {
 		out[k] = Array.isArray(v) ? [...v] : v;
 	}
-	return out as NonNullable<CstNode['metadata']>;
+	return out as unknown as NonNullable<CstNode['metadata']>;
 }
