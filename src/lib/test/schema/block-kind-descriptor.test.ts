@@ -1,37 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
+import { ALL_BLOCK_KINDS } from '../../core/nodes';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
 
-const ALL_KINDS: BlockKind[] = [
-	'paragraph',
-	'heading',
-	'setextHeading',
-	'fencedCode',
-	'thematicBreak',
-	'indentedCode',
-	'htmlBlock',
-	'linkReferenceDefinition',
-	'table',
-	'tableRow',
-	'tableCell',
-	'unrecognized',
-	'blockquote',
-	'list',
-	'listItem'
-];
-
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {
-		for (const kind of ALL_KINDS) {
+		for (const kind of ALL_BLOCK_KINDS) {
 			expect(tryGetBlockKindDescriptor(kind)).toBeDefined();
 		}
 	});
 
 	it('marks thematicBreak as non-editable and every other kind as editable', () => {
-		for (const kind of ALL_KINDS) {
+		for (const kind of ALL_BLOCK_KINDS) {
 			const d = getBlockKindDescriptor(kind);
 			const expected = kind !== 'thematicBreak';
 			expect(d.editable, `${kind}.editable`).toBe(expected);
@@ -40,7 +23,7 @@ describe('block-kind-descriptor registry', () => {
 
 	it('marks blockquote/list/listItem/table/tableRow as containers and nothing else', () => {
 		const containers: BlockKind[] = ['blockquote', 'list', 'listItem', 'table', 'tableRow'];
-		for (const kind of ALL_KINDS) {
+		for (const kind of ALL_BLOCK_KINDS) {
 			const d = getBlockKindDescriptor(kind);
 			expect(d.isContainer, `${kind}.isContainer`).toBe(containers.includes(kind));
 		}
@@ -125,7 +108,7 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 	});
 
 	it('only paragraph/heading/setextHeading/tableCell support inline', () => {
-		const inlineKinds = ALL_KINDS.filter((k) => getBlockKindDescriptor(k).supportsInline);
+		const inlineKinds = ALL_BLOCK_KINDS.filter((k) => getBlockKindDescriptor(k).supportsInline);
 		expect(inlineKinds.sort()).toEqual(['heading', 'paragraph', 'setextHeading', 'tableCell']);
 	});
 });
