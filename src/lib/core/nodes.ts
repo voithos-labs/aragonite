@@ -112,6 +112,39 @@ export type BlockMetadata =
 	| ListMetadata
 	| ListItemMetadata;
 
+/**
+ * Maps each metadata-carrying BlockKind to its metadata interface. The five
+ * kinds with no metadata (paragraph, indentedCode, htmlBlock, tableCell,
+ * unrecognized) are intentionally absent — `metadataOf` rejects them.
+ */
+export interface BlockMetadataByKind {
+	heading: HeadingMetadata;
+	setextHeading: SetextHeadingMetadata;
+	fencedCode: FencedCodeMetadata;
+	thematicBreak: ThematicBreakMetadata;
+	linkReferenceDefinition: LinkReferenceDefinitionMetadata;
+	table: TableMetadata;
+	tableRow: TableRowMetadata;
+	blockquote: BlockquoteMetadata;
+	list: ListMetadata;
+	listItem: ListItemMetadata;
+}
+
+/**
+ * Typed read of a node's metadata for a known kind. `CstNode.metadata` is the
+ * `BlockMetadata` union and the flat-node model can't discriminate it by `kind`
+ * (kind stays reassignable), so reading a specific kind's metadata needs a cast.
+ * This is the one place that cast lives; the `kind` argument selects the return
+ * interface. Pass the kind you've already established for `node`.
+ */
+export function metadataOf<K extends keyof BlockMetadataByKind>(
+	node: CstNode,
+	kind: K
+): BlockMetadataByKind[K] {
+	void kind;
+	return node.metadata as BlockMetadataByKind[K];
+}
+
 // ── Inline Node Types ──────────────────────────────────────────────────────
 
 export type InlineNodeKind =
