@@ -1,4 +1,6 @@
 import type { CstNode, Document } from '../core/nodes';
+import { assertInvariant } from '../invariants/assert';
+import { checkCloneSafeMetadata } from '../invariants/node-shape';
 
 // ── Document ────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,7 @@ export function cloneNode(node: CstNode): CstNode {
 	};
 
 	if (node.metadata) {
+		assertInvariant('clone-safe-metadata', () => checkCloneSafeMetadata(node));
 		cloned.metadata = cloneMetadata(node.metadata);
 	}
 

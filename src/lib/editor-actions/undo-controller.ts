@@ -27,6 +27,8 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import { assertCommittedNodes } from '../invariants/install';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────
 
@@ -52,6 +54,34 @@ export interface MultiScopeMutable {
  * / Google Docs) is a potential refinement.
  */
 const UNDO_DEBOUNCE_MS = 250;
+
+// ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
+
+/**
+ * Top-level nodes a document-scope commit produced. Insert/replace name their
+ * new positions in the StructuralChange; a `noop` (in-place kind change) names
+ * nothing, so the caller passes the leaf via `explicit`.
+ */
+function touchedFromChange(
+	change: StructuralChange,
+	children: CstNode[],
+	explicit: CstNode[] | undefined
+): CstNode[] {
+	if (change.op === 'insert') return children.slice(change.at, change.at + change.count);
+	if (change.op === 'replace') return children.slice(change.at, change.at + change.newCount);
+	return explicit ?? [];
+}
+
+/** A directly-mutated container plus its direct children (the changed leaves a strip rebuild concatenates). */
+function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNode[] {
+	if (!containers) return [];
+	const out: CstNode[] = [];
+	for (const c of containers) {
+		out.push(c);
+		if (c.children) out.push(...c.children);
+	}
+	return out;
+}
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -175,6 +205,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				op?: OpDescriptor;
 				eventPath: number[];
 				afterTick?: () => void;
+				/**
+				 * Nodes for the dev invariant check when the StructuralChange doesn't
+				 * name them. Split/insert/replace are derived from the change; an
+				 * in-place kind change (`op: 'noop'`) must point at its leaf here.
+				 */
+				touchedNodes?: CstNode[];
 		  }
 		| {
 				kind: 'container';
@@ -191,6 +227,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				op?: OpDescriptor;
 				eventPath: number[];
 				afterTick?: () => void;
+				/** Directly-mutated containers (innermost scopes) for the dev invariant check. */
+				touchedNodes?: CstNode[];
 		  };
 
 	async function __commit(args: CommitArgs): Promise<void> {
@@ -227,9 +265,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 
 			args.publish(childrenCopy, idsCopy, refsCopy);
+			if (import.meta.env.DEV) {
+				assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+			}
 		} else {
 			args.mutate();
 			args.publish();
+			if (import.meta.env.DEV) {
+				assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes));
+			}
 		}
 
 		if (args.op) {
@@ -251,7 +295,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	/** `snapshot: 'skip'` lets composite operations share a single undo entry. */
 
 	async function commitStructural(args: CommitStructuralArgs): Promise<void> {
-		const { snapshot, mutate, op, afterTick } = args;
+		const { snapshot, mutate, op, afterTick, touchedNodes } = args;
 		// eventPath derives from the snapshot when one is pushed; 'skip' means a
 		// caller already owns the event path, so fall back to [] when no snapshot
 		// coordinate is available.
@@ -267,7 +311,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op,
 			eventPath,
-			afterTick
+			afterTick,
+			touchedNodes
 		});
 	}
 
@@ -298,7 +343,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op: op ? { kind: op.kind, detail: op.detail } : undefined,
 			eventPath: op?.eventPath ?? [],
-			afterTick
+			afterTick,
+			touchedNodes: [containerNode]
 		});
 	}
 
@@ -353,7 +399,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op: op ? { kind: op.kind, detail: op.detail } : undefined,
 			eventPath: op?.eventPath ?? [],
-			afterTick
+			afterTick,
+			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
+			touchedNodes: scopes
+				.map((s) => s.node)
+				.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
 		});
 	}
 
