@@ -35,6 +35,7 @@ Unit tests can be scoped to a single concept area:
 | `test:editor:image`          | Image dimensions, resize, source bytes, widget selection   |
 | `test:editor:undo`           | Undo stack and entry management                            |
 | `test:editor:debug`          | Debug engine helpers and operations log                    |
+| `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards |
 
 E2E tests are grouped into Playwright projects:
 
@@ -59,6 +60,8 @@ Pure TypeScript — no DOM, no browser. The most important invariant: `serialize
 Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. When a SUT moves into a subdirectory the test follows — e.g. the undo manager lives at `undo/manager.ts` and its test at `test/undo/manager.test.ts`. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
 Tests that import a sub-path directly (e.g. `tree-operations/list/m1-contract` rather than the `tree-operations` barrel) mirror at the deeper path — `test/tree-operations/list/m1-contract.test.ts`. Test directory depth follows import depth, not just the directory the SUT lives in.
+
+The invariant catalog (`test/invariants/`, with shared arbitraries under `test/invariants/arbitraries/` and source-scan guards under `test/invariants/lint/`) deliberately bends the mirror rule: the catalog is cross-cutting — like the root-level `round-trip*.test.ts` — and lives in one place so the whole set is legible. See `docs/design/editor/invariants.md`.
 
 ## E2E Tests (Playwright)
 
