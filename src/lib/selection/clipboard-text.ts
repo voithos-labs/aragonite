@@ -6,7 +6,7 @@ import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
-import { walkBetween, normalize } from './primitives';
+import { walkBetween, normalize, assertCharOffset } from './primitives';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
@@ -57,37 +57,43 @@ export function collectCrossBlockText(
 		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const allCellsCount = tableNode.children!.length * colCount;
 		startTail = emitTablePortion(tableNode, start.offset, allCellsCount);
-	} else if (start.offset === 0 && start.path.length > 1) {
-		const promoted = promoteToContainer(doc, start.path, end.path, 'start');
-		if (promoted) {
-			effectiveStartPath = promoted.path;
-			startTail = promoted.raw;
-		} else {
-			startTail = startRaw.slice(start.offset);
-		}
-	} else if (start.offset > 0 && start.path.length > 1) {
-		startTail =
-			startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(start.offset);
 	} else {
-		startTail = startRaw.slice(start.offset);
+		const startOffset = assertCharOffset(start, 'collectCrossBlockText:start');
+		if (startOffset === 0 && start.path.length > 1) {
+			const promoted = promoteToContainer(doc, start.path, end.path, 'start');
+			if (promoted) {
+				effectiveStartPath = promoted.path;
+				startTail = promoted.raw;
+			} else {
+				startTail = startRaw.slice(startOffset);
+			}
+		} else if (startOffset > 0 && start.path.length > 1) {
+			startTail =
+				startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(startOffset);
+		} else {
+			startTail = startRaw.slice(startOffset);
+		}
 	}
 
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if ('kind' in endNode && (endNode as CstNode).kind === 'table') {
 		endHead = emitTablePortion(endNode as CstNode, 0, end.offset);
-	} else if (end.offset === displayLength(endRaw) && end.path.length > 1) {
-		const promoted = promoteToContainer(doc, end.path, start.path, 'end');
-		if (promoted) {
-			effectiveEndPath = promoted.path;
-			endHead = promoted.raw;
-		} else {
-			endHead = endRaw.slice(0, end.offset);
-		}
-	} else if (end.offset > 0 && end.offset < displayLength(endRaw) && end.path.length > 1) {
-		endHead = endPartialWithContainerMarker(doc, end, endRaw) ?? endRaw.slice(0, end.offset);
 	} else {
-		endHead = endRaw.slice(0, end.offset);
+		const endOffset = assertCharOffset(end, 'collectCrossBlockText:end');
+		if (endOffset === displayLength(endRaw) && end.path.length > 1) {
+			const promoted = promoteToContainer(doc, end.path, start.path, 'end');
+			if (promoted) {
+				effectiveEndPath = promoted.path;
+				endHead = promoted.raw;
+			} else {
+				endHead = endRaw.slice(0, endOffset);
+			}
+		} else if (endOffset > 0 && endOffset < displayLength(endRaw) && end.path.length > 1) {
+			endHead = endPartialWithContainerMarker(doc, end, endRaw) ?? endRaw.slice(0, endOffset);
+		} else {
+			endHead = endRaw.slice(0, endOffset);
+		}
 	}
 
 	let middle = '';

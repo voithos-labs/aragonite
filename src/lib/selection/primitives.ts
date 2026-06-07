@@ -6,16 +6,26 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { isPathBetween } from './path-math';
+import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 /**
- * A single selection endpoint: path of child indices plus character offset
- * into the leaf's `raw`. Empty path is the document root.
+ * A single selection endpoint: path of child indices plus an offset whose
+ * meaning depends on `cellCoordinate`. Empty path is the document root.
+ *
+ * `offset` is a character index into the leaf's `raw` by default. On a table
+ * endpoint it is instead a row-major cell index (`cellCoordinate: true`), with
+ * the path addressing the table block rather than a deep cell leaf. The generic
+ * document-order ops here (`comparePaths`, `normalize`, `walkBetween`,
+ * `classifyBlockForSelection`) compare offsets numerically and are correct under
+ * either meaning. Sites that slice `raw` by `offset` must read it through
+ * {@link assertCharOffset} so a stray cell coordinate is caught in DEV.
  */
 export interface SelectionPoint {
 	path: number[];
 	offset: number;
+	cellCoordinate?: boolean;
 }
 
 /**
@@ -33,6 +43,18 @@ export interface EditorSelection {
  * the original block. Null when no drag is active.
  */
 export type SelectionDragStart = SelectionPoint | null;
+
+/**
+ * Read a point's offset where it must be a character index (the caller slices
+ * `raw` or places a caret by character). Warns in DEV if the point carries a
+ * cell coordinate; always returns the raw offset value.
+ */
+export function assertCharOffset(point: SelectionPoint, tag: string): number {
+	if (point.cellCoordinate) {
+		devWarn(tag, 'char-offset site received a cell-coordinate SelectionPoint', point);
+	}
+	return point.offset;
+}
 
 // ── Path comparison ────────────────────────────────────────────────────────
 

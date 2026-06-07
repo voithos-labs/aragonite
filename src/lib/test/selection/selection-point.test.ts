@@ -1,7 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { comparePaths, normalize, type SelectionPoint } from '../../selection/primitives';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
+import { devWarn } from '../../dev-warn';
+import {
+	assertCharOffset,
+	comparePaths,
+	normalize,
+	type SelectionPoint
+} from '../../selection/primitives';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
+const cell = (path: number[], offset: number): SelectionPoint => ({
+	path,
+	offset,
+	cellCoordinate: true
+});
 
 describe('comparePaths', () => {
 	it('returns 0 for equal paths', () => {
@@ -55,5 +68,49 @@ describe('normalize', () => {
 		const result = normalize({ anchor: pt, focus: pt });
 		expect(result.start).toEqual(pt);
 		expect(result.end).toEqual(pt);
+	});
+});
+
+describe('assertCharOffset', () => {
+	beforeEach(() => vi.mocked(devWarn).mockClear());
+
+	it('returns a char point offset without warning', () => {
+		const offset = assertCharOffset(P([0], 7), 'tag');
+		expect(offset).toBe(7);
+		expect(devWarn).not.toHaveBeenCalled();
+	});
+
+	it('returns the offset but trips the guard on a cell-coordinate point', () => {
+		const point = cell([0], 3);
+		expect(assertCharOffset(point, 'tag')).toBe(3);
+		expect(devWarn).toHaveBeenCalledTimes(1);
+		expect(devWarn).toHaveBeenCalledWith(
+			'tag',
+			'char-offset site received a cell-coordinate SelectionPoint',
+			point
+		);
+	});
+});
+
+describe('ordering is meaning-agnostic for offset', () => {
+	it('orders same-path cell points by offset identically to char points', () => {
+		const charLo = P([2], 1);
+		const charHi = P([2], 4);
+		const cellLo = cell([2], 1);
+		const cellHi = cell([2], 4);
+
+		// comparePaths ignores offset entirely — both pairs tie on path.
+		expect(comparePaths(charLo.path, charHi.path)).toBe(0);
+		expect(comparePaths(cellLo.path, cellHi.path)).toBe(0);
+
+		// normalize's offset tiebreak treats cell offsets exactly like char offsets.
+		expect(normalize({ anchor: cellHi, focus: cellLo })).toEqual({
+			start: cellLo,
+			end: cellHi
+		});
+		expect(normalize({ anchor: charHi, focus: charLo })).toEqual({
+			start: charLo,
+			end: charHi
+		});
 	});
 });
