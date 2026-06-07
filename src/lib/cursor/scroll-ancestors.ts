@@ -1,7 +1,13 @@
 /**
- * Single source of truth for "what scrolls." Two directions for two questions:
- * `nearestScrollContainer` walks up ("what scrolls around me"),
- * `firstScrollableDescendant` walks down ("what scrolls inside me").
+ * Source of truth for "what scrolls" for the selection-overlay re-measure. Two
+ * directions for two questions: `nearestScrollContainer` walks up ("what scrolls
+ * around me"), `firstScrollableDescendant` walks down ("what scrolls inside me").
+ *
+ * Qualified: drag autoscroll (`selection/drag-pointer.ts`) walks its own
+ * ancestors and counts only `auto`/`scroll`, not `hidden`. So a `hidden`-overflow
+ * container is honored here (overlay re-measures against it) but ignored by drag
+ * autoscroll. The divergence is deliberate-by-default, not unified — revisit if a
+ * `hidden`-overflow scroll container ever needs drag autoscroll.
  */
 
 const SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);

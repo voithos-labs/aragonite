@@ -434,7 +434,7 @@ Every structural mutation routes through a single internal commit helper. Three 
 - **Container scope** — operations confined to a single container's children array (nested split/merge/delete, nested paste, list item reorder inside one list).
 - **Multi-scope** — operations that touch multiple container states in one logical step (cross-container delete, indent/unindent). One snapshot, one edit event, atomic reactivity publish across all touched scopes.
 
-All three entry points delegate to one internal commit helper that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, record an op-log entry, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). Callers pick their scope; they don't assemble the ceremony themselves. The commit primitive is the canonical entry for new structural mutations. An older begin/end bracketing pair survives in three live roles the commit primitive doesn't cover: the debounced text-input snapshot, IME composition entry, and a reactivity-nudge cross-block dispatch uses after direct raw mutation. Naming and scope of those endpoints is a v0.7 cleanup item.
+All three entry points delegate to one internal commit helper that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). The op-log is not a ceremony step — it subscribes to the `edit` event downstream (see § Event Seam). Callers pick their scope; they don't assemble the ceremony themselves. The commit primitive is the canonical entry for new structural mutations. An older begin/end bracketing pair survives in three live roles the commit primitive doesn't cover: the debounced text-input snapshot, IME composition entry, and a reactivity-nudge cross-block dispatch uses after direct raw mutation. Naming and scope of those endpoints is a v0.7 cleanup item.
 
 ### Event Seam
 
@@ -486,7 +486,7 @@ Both arrays are the `{#each}` key source for their respective `BlockList`. They 
 
 ### State registry
 
-Cross-block paste, cross-block delete, and multi-scope commit need to look up a `BlockListState` (keyed-id array + ref array) from a CstNode reference. The mapping is held in `reactivity/state-registry.ts` as a module-global WeakMap. Each `BlockList` registers its state on mount and deregisters on destroy. Lookups split between a strict variant (throws if absent — for paths that must succeed) and a nullable variant.
+Cross-block paste, cross-block delete, and multi-scope commit need to look up a `BlockListState` (keyed-id array + ref array) from a CstNode reference. The mapping is held in `reactivity/state-registry.ts` as a module-global WeakMap keyed by the container node. Each `BlockList` registers its state on mount (a re-mount overwrites the prior entry); there is no deregister step — because the key is the node, an entry becomes collectable as soon as the node leaves the tree, so the WeakMap GCs it without an explicit teardown. Lookups split between a strict variant (throws if absent — for paths that must succeed) and a nullable variant.
 
 The registry is module-global, which means multiple editor instances on the same page share it. Today's app mounts one editor at a time; multi-instance isolation is a future-roadmap concern.
 

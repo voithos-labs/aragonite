@@ -51,6 +51,11 @@ export interface DomPosition {
 	offset: number;
 }
 
+/**
+ * DOM-layer lookup: maps a raw offset to a live `(node, offset)` DOM position.
+ * The model-layer counterpart is `core/inline-render.ts` `findNodeAtOffset`,
+ * which maps the same offset to a CST inline node without touching the DOM.
+ */
 export function findRawOffsetTarget(container: HTMLElement, target: number): DomPosition | null {
 	let count = 0;
 	let exact: DomPosition | null = null;
