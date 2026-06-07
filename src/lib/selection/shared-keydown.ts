@@ -8,7 +8,7 @@
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import { PRESERVE_KEYS_NON_ARROW } from '../cursor/sticky-column';
+import { classifyStickyKey } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block-dispatch';
 import {
@@ -69,10 +69,11 @@ export async function handleSharedKeydown(
 	if (!el) return false;
 
 	// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
-	if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+	const stickyAction = classifyStickyKey(e.key);
+	if (stickyAction === 'capture') {
 		const x = getCurrentCursorEditorRelativeX(el);
 		if (x !== null) ctx.stickyColumn.capture(x);
-	} else if (!PRESERVE_KEYS_NON_ARROW.includes(e.key)) {
+	} else if (stickyAction === 'reset') {
 		ctx.stickyColumn.reset();
 	}
 
