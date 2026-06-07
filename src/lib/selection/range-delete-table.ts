@@ -9,7 +9,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, comparePaths } from './primitives';
+import { walkBetween, comparePaths, assertCharOffset } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
@@ -142,7 +142,7 @@ function deleteFromProseIntoTable(
 	table: CstNode
 ): RangeDeleteResult {
 	const startRaw = startBlock.raw;
-	const truncatedRaw = startRaw.slice(0, start.offset);
+	const truncatedRaw = startRaw.slice(0, assertCharOffset(start, 'deleteFromProseIntoTable:start'));
 	const truncatedReplacement = reparseWithFallback(truncatedRaw, startBlock.leadingTrivia);
 
 	const result = deleteCellsAndCollapse(table, 0, end.offset);
@@ -192,7 +192,7 @@ function deleteFromTableIntoProse(
 
 	const endRaw = endBlock.raw;
 	const lineEnding = endRaw.endsWith('\r\n') ? '\r\n' : '\n';
-	const tailRaw = endRaw.slice(end.offset);
+	const tailRaw = endRaw.slice(assertCharOffset(end, 'deleteFromTableIntoProse:end'));
 	const survivingTailRaw = tailRaw.length === 0 ? lineEnding : tailRaw;
 	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
 

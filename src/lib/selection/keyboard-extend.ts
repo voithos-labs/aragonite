@@ -347,7 +347,11 @@ function normalizeTableEndpoint(doc: Document, path: number[], offset: number): 
 			const colCount = metadataOf(node, 'table').columnCount;
 			const rowIdx = path[d + 1];
 			const colIdx = path[d + 2] ?? 0;
-			return { path: path.slice(0, d + 1), offset: rowIdx * colCount + colIdx };
+			return {
+				path: path.slice(0, d + 1),
+				offset: rowIdx * colCount + colIdx,
+				cellCoordinate: true
+			};
 		}
 	}
 	return { path: path.slice(), offset };
