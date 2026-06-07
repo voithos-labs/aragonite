@@ -28,7 +28,18 @@ Each node carries `start`/`end` byte offsets into the parent block's `raw`, cove
 
 ### Scope
 
-The inline parser operates on the content range within a block's `raw` — after block-level markers (e.g., after `## ` for headings). The content range is determined via the block-kind descriptor's `getContentRange` hook, so prose-kind registration is the single source. Returned nodes carry offsets relative to the full `raw`.
+The inline parser operates on the content range within a block's `raw` — after block-level markers (e.g., after `## ` for headings). The content range is determined via the block-kind descriptor's `getContentRange` hook, so prose-kind registration is the single source. Returned nodes carry offsets relative to that block's own `raw`.
+
+### Coordinate spaces
+
+Inline offsets live in **one** space: the prose block's own `raw`. For a prose block inside a strip container (blockquote, list), that `raw` is a slice of the container's **stripped inner buffer** — the parser strips the `> `/marker/indent prefix before parsing children, so a child's `raw` never contains the container syntax. This is a distinct space from the **container's** `raw`, which keeps the prefix.
+
+The two spaces are bridged **structurally**, not by any runtime offset-rebasing function:
+
+- **In** (parse): the container parser strips its prefix once, then parses children from the stripped buffer.
+- **Out** (serialize): `serialize(children)` / the descriptor's `rebuildRaw` re-applies the prefix. This is the strip-container secondary invariant (`strip(raw) === serialize(children)`; see syntax-tree.md).
+
+There is no function that maps an inline offset into the container's `raw`, because nothing needs one — inline parsing, cursor offsets, and selection all work in the prose block's own `raw`. The only *runtime* coordinate translation is DOM ↔ raw, handled by the ambient-prefix contract (`textContent === ambientPrefix + raw`) through `cursor/widget-offset.ts` — see the Rendering section's Key invariant.
 
 ### Parsing pipeline
 
