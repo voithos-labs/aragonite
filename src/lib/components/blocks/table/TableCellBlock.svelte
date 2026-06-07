@@ -31,7 +31,8 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import type { TableAlignment, TableMetadata } from '../../../core/nodes';
+	import type { TableAlignment } from '../../../core/nodes';
+	import { metadataOf } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
@@ -514,7 +515,7 @@
 		if (!isIntraTableMultiCell || !sel.anchor || !sel.focus) return null;
 		const tableNode = nodeAt(getDoc(), sel.anchor.path);
 		if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return null;
-		const colCount = (tableNode.metadata as TableMetadata).columnCount;
+		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const a = {
 			rowIdx: Math.floor(sel.anchor.offset / colCount),
 			colIdx: sel.anchor.offset % colCount
