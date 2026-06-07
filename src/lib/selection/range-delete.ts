@@ -8,7 +8,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import { parse } from '../core/parser';
-import { walkBetween, comparePaths } from './primitives';
+import { walkBetween, comparePaths, assertCharOffset } from './primitives';
 import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
@@ -48,7 +48,9 @@ export function rangeDelete(
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const startRaw = (startBlock as CstNode).raw;
 	const endRaw = (endBlock as CstNode).raw;
-	const mergedRaw = startRaw.slice(0, start.offset) + endRaw.slice(end.offset);
+	const startOffset = assertCharOffset(start, 'rangeDelete:prose-merge-start');
+	const endOffset = assertCharOffset(end, 'rangeDelete:prose-merge-end');
+	const mergedRaw = startRaw.slice(0, startOffset) + endRaw.slice(endOffset);
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
@@ -56,7 +58,7 @@ export function rangeDelete(
 		rebuildAncestryRawForLeaf(doc, start.path);
 		return {
 			newDoc: doc,
-			collapsedCaret: { path: start.path.slice(), offset: start.offset }
+			collapsedCaret: { path: start.path.slice(), offset: startOffset }
 		};
 	}
 
