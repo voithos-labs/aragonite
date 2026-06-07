@@ -129,3 +129,28 @@ describe('renderImagesAsWidgets descriptor flag', () => {
 		expect(d.renderImagesAsWidgets).toBe(false);
 	});
 });
+
+describe('containerContract — strip vs grid container shape', () => {
+	const STRIP: BlockKind[] = ['blockquote', 'list', 'listItem'];
+	const GRID: BlockKind[] = ['table', 'tableRow'];
+
+	it('every container declares a contract; non-containers declare none', () => {
+		for (const kind of ALL_BLOCK_KINDS) {
+			const d = getBlockKindDescriptor(kind);
+			if (d.isContainer) {
+				expect(d.containerContract, `${kind}.containerContract`).toBeDefined();
+			} else {
+				expect(d.containerContract, `${kind}.containerContract`).toBeUndefined();
+			}
+		}
+	});
+
+	it('classifies strip containers as strip and grid containers as grid', () => {
+		for (const kind of STRIP) {
+			expect(getBlockKindDescriptor(kind).containerContract, kind).toBe('strip');
+		}
+		for (const kind of GRID) {
+			expect(getBlockKindDescriptor(kind).containerContract, kind).toBe('grid');
+		}
+	});
+});
