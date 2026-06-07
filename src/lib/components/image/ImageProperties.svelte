@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
 	import type { WidgetTarget } from './widget-selection-state.svelte';
 
@@ -14,13 +15,13 @@
 		onDismiss: () => void;
 	} = $props();
 
-	let url = $state(fields.url);
-	let alt = $state(fields.alt);
-	let titleInput = $state(fields.title ?? '');
+	let url = $state(untrack(() => fields.url));
+	let alt = $state(untrack(() => fields.alt));
+	let titleInput = $state(untrack(() => fields.title ?? ''));
 	let titleTouched = $state(false);
 	let popoverEl: HTMLDivElement | undefined = $state();
 
-	const initialBytes = buildImageSourceBytes(fields);
+	const initialBytes = untrack(() => buildImageSourceBytes(fields));
 
 	// Outside-click dismisses; the actual commit runs in $effect cleanup so
 	// the dismiss path (this), the image-switch path (key change), and the
