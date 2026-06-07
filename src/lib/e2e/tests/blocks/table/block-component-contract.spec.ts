@@ -12,7 +12,7 @@ type CursorSurface = {
 async function readTableSurface(page: import('@playwright/test').Page): Promise<CursorSurface> {
 	return page.evaluate(() =>
 		(
-			window as { __test: { getBlockCursorSurface(p: number[]): CursorSurface } }
+			window as unknown as { __test: { getBlockCursorSurface(p: number[]): CursorSurface } }
 		).__test.getBlockCursorSurface([0])
 	);
 }

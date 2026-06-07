@@ -8,6 +8,8 @@ import { READING_NOTES_NOTE } from '../../simulation/notes/reading-notes-note';
 import { MEETING_MINUTES_NOTE } from '../../simulation/notes/meeting-minutes-note';
 import { README_NOTE } from '../../simulation/notes/readme-note';
 
+declare const process: { env: Record<string, string | undefined> };
+
 test.skip(!process.env.SIM_CAPTURE, 'set SIM_CAPTURE=1 to run the capture session');
 
 // Longer, more diverse notes than the headline biology note, run through the same

@@ -35,7 +35,7 @@ test.describe('image cross-block selection', () => {
 		// is a single addressable unit so a second press would extend into 'b'.
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches((src) => !src.includes('![cat]'));
+		await editor.bridge.waitForSourceNotContains('![cat]');
 		expect(await editor.bridge.getSource()).toContain('ab\n');
 	});
 
