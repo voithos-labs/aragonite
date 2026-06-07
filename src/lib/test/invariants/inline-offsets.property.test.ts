@@ -1,0 +1,84 @@
+import { describe, it } from 'vitest';
+import fc from 'fast-check';
+import type { InlineNode } from '../../core/nodes';
+import { parseInline } from '../../core/inline';
+import { arbInlineSource } from './arbitraries';
+
+// G2.5: the inline tree tiles the content range. NOT leaf-exhaustive — a wrapped
+// node's open/close markers live in the gap between its `start` and its first
+// child's `start` (and last child's `end`..its `end`); the renderer pulls them
+// from exactly there (`raw.slice(node.start, children[0].start)`). The real,
+// load-bearing invariant is:
+//   - siblings at every level are contiguous and non-overlapping (prev.end === next.start)
+//   - every parent's range contains its children's (start <= firstChild.start, lastChild.end <= end)
+//   - the TOP level covers [contentStart, contentEnd) with no edge gap
+// Inner levels legitimately have edge gaps (markers); the top level does not.
+// Cursor mapping (findNodeAtOffset) depends on this holding for every input.
+
+const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+
+function assertPartition(nodes: InlineNode[], rangeStart: number, rangeEnd: number): void {
+	if (nodes.length === 0) {
+		if (rangeStart !== rangeEnd) {
+			throw new Error(`empty node list for non-empty range [${rangeStart},${rangeEnd})`);
+		}
+		return;
+	}
+	if (nodes[0].start !== rangeStart) {
+		throw new Error(`top-level gap: first node starts at ${nodes[0].start}, range at ${rangeStart}`);
+	}
+	if (nodes[nodes.length - 1].end !== rangeEnd) {
+		throw new Error(
+			`top-level gap: last node ends at ${nodes[nodes.length - 1].end}, range at ${rangeEnd}`
+		);
+	}
+	assertLevel(nodes);
+}
+
+function assertLevel(nodes: InlineNode[]): void {
+	for (let i = 0; i < nodes.length; i++) {
+		const n = nodes[i];
+		if (n.end < n.start) throw new Error(`inverted range on ${n.kind}[${n.start},${n.end}]`);
+		if (i > 0 && nodes[i - 1].end !== n.start) {
+			throw new Error(
+				`sibling gap/overlap: ${nodes[i - 1].kind} ends ${nodes[i - 1].end}, ` +
+					`${n.kind} starts ${n.start}`
+			);
+		}
+		if (n.children && n.children.length > 0) {
+			const first = n.children[0];
+			const last = n.children[n.children.length - 1];
+			if (n.start > first.start) {
+				throw new Error(`${n.kind} start ${n.start} after child start ${first.start}`);
+			}
+			if (last.end > n.end) {
+				throw new Error(`${n.kind} end ${n.end} before child end ${last.end}`);
+			}
+			assertLevel(n.children);
+		}
+	}
+}
+
+describe('G2.5 inline-tree offset partition', () => {
+	it('siblings contiguous, parents contain children, top level covers content', () => {
+		fc.assert(
+			fc.property(arbInlineSource, (source) => {
+				const nodes = parseInline(source, 0, source.length);
+				assertPartition(nodes, 0, source.length);
+			}),
+			PARAMS
+		);
+	});
+
+	it('holds under a non-zero content start (heading-style offset)', () => {
+		fc.assert(
+			fc.property(arbInlineSource, (content) => {
+				const prefix = '## ';
+				const raw = prefix + content;
+				const nodes = parseInline(raw, prefix.length, raw.length);
+				assertPartition(nodes, prefix.length, raw.length);
+			}),
+			PARAMS
+		);
+	});
+});
