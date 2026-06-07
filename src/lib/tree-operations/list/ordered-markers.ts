@@ -5,6 +5,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { rebuildListItemRaw } from '../../schema/container-raw';
 
 /**
@@ -17,11 +18,11 @@ import { rebuildListItemRaw } from '../../schema/container-raw';
  */
 export function renumberOrderedList(list: CstNode, fromIndex = 0): void {
 	if (!list.children) return;
-	if (!(list.metadata as { ordered?: boolean } | undefined)?.ordered) return;
+	if (!metadataOf(list, 'list')?.ordered) return;
 	for (let j = fromIndex; j < list.children.length; j++) {
 		const prevNum =
-			j > 0 ? parseInt((list.children[j - 1].metadata as { marker: string }).marker, 10) || 0 : 0;
-		const meta = list.children[j].metadata as { marker: string };
+			j > 0 ? parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0 : 0;
+		const meta = metadataOf(list.children[j], 'listItem');
 		const suffix = meta.marker.replace(/^\d+/, '');
 		meta.marker = String(prevNum + 1) + suffix;
 		rebuildListItemRaw(list.children[j]);
@@ -35,15 +36,14 @@ export function renumberOrderedList(list: CstNode, fromIndex = 0): void {
  * Caller renumbers afterward — this only touches marker style.
  */
 export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
-	const parentOrdered =
-		(parentList.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const meta = item.metadata as { marker: string };
+	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
+	const meta = metadataOf(item, 'listItem');
 	const itemOrdered = /^\d/.test(meta.marker);
 	if (itemOrdered === parentOrdered) return;
 
 	const siblings = parentList.children ?? [];
 	const templateMarker =
-		siblings.length > 0 ? (siblings[0].metadata as { marker: string }).marker : undefined;
+		siblings.length > 0 ? metadataOf(siblings[0], 'listItem').marker : undefined;
 
 	if (parentOrdered) {
 		const suffix = templateMarker?.replace(/^\d+/, '') ?? '. ';

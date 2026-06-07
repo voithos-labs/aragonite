@@ -6,7 +6,8 @@
  * text a fresh parse would treat as a task, but the live CST stays plain.
  */
 
-import type { CstNode, ListItemMetadata } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 
 const TASK_REGEX = /^\[( |x|X)\]\s+/;
 
@@ -22,7 +23,7 @@ export function reconcileTaskMetadata(listItem: CstNode): void {
 	const firstChild = listItem.children?.[0];
 	if (!firstChild || firstChild.kind !== 'paragraph') return;
 
-	const meta = listItem.metadata as ListItemMetadata | undefined;
+	const meta = metadataOf(listItem, 'listItem');
 	if (!meta) return;
 
 	const firstLineEnd = firstChild.raw.indexOf('\n');

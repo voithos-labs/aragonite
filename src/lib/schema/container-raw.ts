@@ -6,7 +6,8 @@
  * rebuildRaw on their descriptor.
  */
 
-import type { CstNode, Document, TableAlignment, TableMetadata } from '../core/nodes';
+import type { CstNode, Document, TableAlignment } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
@@ -32,7 +33,7 @@ export function rebuildBlockquoteRaw(node: CstNode): void {
 export function rebuildListItemRaw(node: CstNode): void {
 	if (!node.children || !node.metadata) return;
 
-	const meta = node.metadata as { marker?: string; taskMarker?: string | null };
+	const meta = metadataOf(node, 'listItem');
 	const marker = meta.marker ?? '- ';
 	const taskMarker = meta.taskMarker ?? '';
 	const indent = ' '.repeat(marker.length);
@@ -77,7 +78,7 @@ export function rebuildTableRowRaw(node: CstNode): void {
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
-	const meta = node.metadata as TableMetadata;
+	const meta = metadataOf(node, 'table');
 	for (const row of node.children) rebuildTableRowRaw(row);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);

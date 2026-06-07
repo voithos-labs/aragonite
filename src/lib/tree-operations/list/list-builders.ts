@@ -4,6 +4,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
 import { parseFirstBlock } from '../parse-block';
@@ -38,9 +39,9 @@ export function assembleListHalf(
 
 	// renumberOrderedList's fromIndex=0 path always restarts at 1 — seed
 	// items[0] manually to renumber from an arbitrary base.
-	const ordered = (half.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const ordered = metadataOf(half, 'list')?.ordered ?? false;
 	if (ordered && items.length > 0) {
-		const firstMeta = items[0].metadata as { marker: string };
+		const firstMeta = metadataOf(items[0], 'listItem');
 		const suffix = firstMeta.marker.replace(/^\d+/, '') || '. ';
 		firstMeta.marker = String(startNumber) + suffix;
 		rebuildListItemRaw(items[0]);
@@ -76,7 +77,7 @@ export function buildListItemWithContent(template: CstNode, children: CstNode[])
 /** Read an item's marker as an integer base, defaulting to 1 for non-numeric markers. */
 export function orderedBaseOf(item: CstNode | undefined): number {
 	if (!item) return 1;
-	const marker = (item.metadata as { marker?: string } | undefined)?.marker ?? '';
+	const marker = metadataOf(item, 'listItem')?.marker ?? '';
 	const n = parseInt(marker, 10);
 	return Number.isFinite(n) && n > 0 ? n : 1;
 }
@@ -88,7 +89,7 @@ export function orderedBaseOf(item: CstNode | undefined): number {
 export function readOrderedSuffix(list: CstNode): string {
 	const first = list.children?.[0];
 	if (!first) return '. ';
-	const marker = (first.metadata as { marker?: string } | undefined)?.marker ?? '1. ';
+	const marker = metadataOf(first, 'listItem')?.marker ?? '1. ';
 	return marker.replace(/^\d+/, '') || '. ';
 }
 

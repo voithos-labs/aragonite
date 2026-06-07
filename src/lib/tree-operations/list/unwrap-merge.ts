@@ -6,6 +6,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../schema/container-raw';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
@@ -25,7 +26,7 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 	}
 
 	const clonedList: CstNode = cloneNode(list);
-	const parentOrdered = (clonedList.metadata as { ordered: boolean } | undefined)?.ordered ?? false;
+	const parentOrdered = metadataOf(clonedList, 'list')?.ordered ?? false;
 
 	const firstItem = clonedList.children![0];
 	if (!firstItem.children || firstItem.children.length === 0) {
@@ -42,7 +43,7 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 
 	for (const child of firstItem.children) {
 		if (child.kind === 'list') {
-			const childOrdered = (child.metadata as { ordered: boolean } | undefined)?.ordered ?? false;
+			const childOrdered = metadataOf(child, 'list')?.ordered ?? false;
 			if (childOrdered === parentOrdered) {
 				if (child.children) {
 					for (const item of child.children) {
@@ -83,8 +84,8 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 	// Preserve the original list's starting number: seed item 0, then
 	// continue the sequence from item 1.
 	if (parentOrdered) {
-		const base = parseInt((firstItem.metadata as { marker: string }).marker, 10) || 1;
-		const firstMeta = remainingItems[0].metadata as { marker: string };
+		const base = parseInt(metadataOf(firstItem, 'listItem').marker, 10) || 1;
+		const firstMeta = metadataOf(remainingItems[0], 'listItem');
 		firstMeta.marker = String(base) + firstMeta.marker.replace(/^\d+/, '');
 		rebuildListItemRaw(remainingItems[0]);
 		renumberOrderedList(remainingList, 1);
@@ -237,7 +238,7 @@ export function mergeListItemIntoPrevious(
 
 	rebuildAncestryRaw(list, targetPath);
 
-	if ((list.metadata as { ordered?: boolean } | undefined)?.ordered) {
+	if (metadataOf(list, 'list')?.ordered) {
 		renumberOrderedList(list);
 		rebuildListRaw(list);
 	}

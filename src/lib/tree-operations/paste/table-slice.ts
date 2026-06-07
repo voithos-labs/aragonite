@@ -5,6 +5,7 @@
  */
 
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { rebuildContainerRaw } from '../../schema/container-raw';
 
 export type RowGoes = 'first' | 'second';
@@ -15,7 +16,7 @@ export function sliceTableAtRow(
 	rowGoes: RowGoes
 ): { firstHalf: CstNode | null; secondHalf: CstNode | null } {
 	const rows = table.children!;
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 
 	const splitAt = rowGoes === 'first' ? sliceRow + 1 : sliceRow;
 	const firstRows = rows.slice(0, splitAt);

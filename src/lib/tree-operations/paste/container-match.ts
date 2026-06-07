@@ -6,6 +6,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import {
 	isProseKind,
 	parseInline,
@@ -65,8 +66,8 @@ export function findContainerMatchingUnwrap(
 		if (ancestor.kind !== topBlock.kind) continue;
 
 		if (topBlock.kind === 'list') {
-			const ancOrd = (ancestor.metadata as { ordered?: boolean } | undefined)?.ordered;
-			const topOrd = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered;
+			const ancOrd = metadataOf(ancestor, 'list')?.ordered;
+			const topOrd = metadataOf(topBlock, 'list')?.ordered;
 			if (ancOrd !== topOrd) continue;
 		}
 

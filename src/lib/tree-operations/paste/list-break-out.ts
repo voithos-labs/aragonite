@@ -11,6 +11,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildAncestryRawForLeaf } from '../../schema/container-raw';
@@ -60,9 +61,8 @@ export function findListBreakOut(
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
 	if (!enclosing) return null;
 
-	const listOrdered =
-		(enclosing.list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const pastedOrdered = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const listOrdered = metadataOf(enclosing.list, 'list')?.ordered ?? false;
+	const pastedOrdered = metadataOf(topBlock, 'list')?.ordered ?? false;
 	if (listOrdered === pastedOrdered) return null;
 
 	return {

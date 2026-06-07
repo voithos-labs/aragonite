@@ -1,4 +1,5 @@
-import type { CstNode, TableAlignment, TableMetadata } from '../core/nodes';
+import type { CstNode, TableAlignment } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 
 export interface CellPos {
 	rowIdx: number;
@@ -26,7 +27,7 @@ export function copyRectangleAsSubTable(table: CstNode, a: CellPos, b: CellPos):
 		return cellRaws[0][0];
 	}
 
-	const alignments = (table.metadata as TableMetadata).alignments.slice(minCol, maxCol + 1);
+	const alignments = metadataOf(table, 'table').alignments.slice(minCol, maxCol + 1);
 
 	const lines: string[] = [];
 	lines.push(formatRow(cellRaws[0]));

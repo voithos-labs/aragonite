@@ -15,6 +15,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import {
@@ -65,9 +66,8 @@ export function findListAbsorb(
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
 	if (!enclosing) return null;
 
-	const listOrdered =
-		(enclosing.list.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
-	const pastedOrdered = (topBlock.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const listOrdered = metadataOf(enclosing.list, 'list')?.ordered ?? false;
+	const pastedOrdered = metadataOf(topBlock, 'list')?.ordered ?? false;
 	if (listOrdered !== pastedOrdered) return null;
 
 	return {
@@ -114,7 +114,7 @@ export async function applyListAbsorb(
 	}
 	parseAllInlineContent(replacement);
 
-	const outerOrdered = (outer.metadata as { ordered?: boolean } | undefined)?.ordered ?? false;
+	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
 
 	// Pre-compute final markers on the replacement items BEFORE splice. Svelte 5's
@@ -126,7 +126,7 @@ export async function applyListAbsorb(
 		const suffix = readOrderedSuffix(outer);
 		for (let i = 0; i < replacement.length; i++) {
 			const item = replacement[i];
-			const meta = item.metadata as { marker?: string } | undefined;
+			const meta = metadataOf(item, 'listItem');
 			if (meta) {
 				meta.marker = String(plan.itemIndex + 1 + i) + suffix;
 				rebuildListItemRaw(item);

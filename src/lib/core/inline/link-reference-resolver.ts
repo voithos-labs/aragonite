@@ -4,6 +4,7 @@
  */
 
 import type { CstNode } from '../nodes';
+import { metadataOf } from '../nodes';
 
 /**
  * Normalize a link label per CommonMark §4.7:
@@ -56,7 +57,7 @@ export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedReference>): void {
 	for (const node of nodes) {
 		if (node.kind === 'linkReferenceDefinition') {
-			const meta = node.metadata as { label?: string; url?: string; title?: string } | undefined;
+			const meta = metadataOf(node, 'linkReferenceDefinition');
 			if (meta?.label === undefined || meta.url === undefined) continue;
 			const key = normalizeLinkLabel(meta.label);
 			if (entries.has(key)) continue; // first-wins
