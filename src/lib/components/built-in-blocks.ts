@@ -7,6 +7,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import {
 	defineBlockComponent,
 	registerBlockComponent,
@@ -22,7 +23,7 @@ import TableBlock from './blocks/table/TableBlock.svelte';
 import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {
-	const level = (node.metadata as { level?: number } | undefined)?.level ?? 1;
+	const level = metadataOf(node, 'heading')?.level ?? 1;
 	return { blockClass: `heading-${level}` };
 }
 

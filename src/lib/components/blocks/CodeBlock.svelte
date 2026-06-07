@@ -58,7 +58,7 @@
 	import { computeAutoPair } from './code/code-beforeinput';
 	import { computeFenceExit } from './code/code-fence-exit';
 	import { classifyFenceBoundary } from './code/code-fence-boundary';
-	import type { FencedCodeMetadata } from '../../core/nodes';
+	import { metadataOf } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 
@@ -260,7 +260,7 @@
 		const selOffsets = getSelectionOffsetsHelper(el);
 		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
 
-		const meta = node.metadata as FencedCodeMetadata;
+		const meta = metadataOf(node, 'fencedCode');
 		const result = computeAutoPair({
 			text,
 			selection: selOffsets ?? { start: offset, end: offset },
@@ -344,7 +344,7 @@
 			e.preventDefault();
 			const offset = getCursorOffsetHelper(el) ?? 0;
 			const text = getDisplayText();
-			const meta = node.metadata as FencedCodeMetadata;
+			const meta = metadataOf(node, 'fencedCode');
 
 			const exit = computeFenceExit({ text, offset, meta });
 			if (exit.kind !== 'none') {

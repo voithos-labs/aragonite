@@ -4,14 +4,14 @@
  * and computeCodePaste handles the fence-bump invariant.
  */
 
-import type { FencedCodeMetadata } from '../../../core/nodes';
+import { metadataOf } from '../../../core/nodes';
 import type { PasteSurface, InlinePasteResult } from '../../../tree-operations/paste-surfaces';
 import { computeCodePaste } from './code-paste';
 
 export const codePasteSurface: PasteSurface = {
 	kind: 'fencedCode',
 	onInlinePaste(node, offset, text, preDelete): InlinePasteResult {
-		const meta = node.metadata as FencedCodeMetadata;
+		const meta = metadataOf(node, 'fencedCode');
 		const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
 		const display = node.raw.endsWith(lineEnding)
 			? node.raw.slice(0, -lineEnding.length)

@@ -23,7 +23,7 @@
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY
 	} from '../../../editor-keys';
-	import type { TableMetadata } from '../../../core/nodes';
+	import { metadataOf } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -56,7 +56,7 @@
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 
-	const meta = $derived(node.metadata as TableMetadata);
+	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 

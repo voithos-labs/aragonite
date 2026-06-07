@@ -5,6 +5,7 @@ import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
 import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resolver';
 import { parseInline } from '../../../core/inline/index';
+import { metadataOf } from '../../../core/nodes';
 
 // ── Escaped brackets in labels (CommonMark §4.7) ────────────────────────────
 
@@ -17,28 +18,28 @@ describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
 	it('parses a label containing \\]', () => {
 		const result = parseOne('[foo\\]bar]: /url\n');
 		expect(result).not.toBeNull();
-		expect(result?.node.metadata?.label).toBe('foo\\]bar');
-		expect(result?.node.metadata?.url).toBe('/url');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').label).toBe('foo\\]bar');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').url).toBe('/url');
 	});
 
 	it('parses a label containing \\[', () => {
 		const result = parseOne('[foo\\[bar]: /url\n');
 		expect(result).not.toBeNull();
-		expect(result?.node.metadata?.label).toBe('foo\\[bar');
-		expect(result?.node.metadata?.url).toBe('/url');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').label).toBe('foo\\[bar');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').url).toBe('/url');
 	});
 
 	it('parses a label with multiple escaped brackets', () => {
 		const result = parseOne('[a\\]b\\]c]: /url\n');
 		expect(result).not.toBeNull();
-		expect(result?.node.metadata?.label).toBe('a\\]b\\]c');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').label).toBe('a\\]b\\]c');
 	});
 
 	it('treats \\\\ (escaped backslash) before ] as terminating the label', () => {
 		// `\\` consumes both backslashes; the following `]` is unescaped and closes the label.
 		const result = parseOne('[foo\\\\]: /url\n');
 		expect(result).not.toBeNull();
-		expect(result?.node.metadata?.label).toBe('foo\\\\');
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').label).toBe('foo\\\\');
 	});
 
 	it('returns null for an unterminated label (no closing bracket)', () => {
