@@ -5,6 +5,11 @@
  *
  * `idMap` on `replace` lets callers preserve IDs for specific new-position
  * indices — e.g., split's first half inherits the original ID.
+ *
+ * Every variant describes ONE contiguous `at`/`count` window. An op that edits
+ * two disjoint index ranges can't be a single StructuralChange — it splits into
+ * separate commits, or uses the multi-scope commit path (which syncs ids/refs
+ * inside its own callback instead of returning a change here).
  */
 
 import type { BlockComponent } from '../block-component';
