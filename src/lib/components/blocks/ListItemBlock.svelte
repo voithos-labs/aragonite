@@ -16,7 +16,7 @@
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY
 	} from '../../editor-keys';
-	import type { ListItemMetadata } from '../../core/nodes';
+	import { metadataOf } from '../../core/nodes';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { displayLength } from '../../core/lines';
@@ -64,7 +64,7 @@
 	const state = createBlockListState(() => node);
 
 	function toggleTask(): void {
-		const meta = node.metadata as ListItemMetadata | undefined;
+		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return;
 
 		if (selection?.isCrossBlock) {
@@ -80,7 +80,7 @@
 	}
 
 	const taskCheckedAttr = $derived.by(() => {
-		const meta = node.metadata as ListItemMetadata | undefined;
+		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return undefined;
 		return meta.taskChecked ? 'true' : 'false';
 	});
@@ -183,7 +183,7 @@
 			getRef={(i) => state.innerBlockRefs[i]}
 			parentPath={myPath}
 			ambientPrefixForFirst={buildTaskItemAmbient(
-				node.metadata as ListItemMetadata | undefined,
+				metadataOf(node, 'listItem'),
 				toggleTask
 			)}
 		/>
