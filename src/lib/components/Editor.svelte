@@ -51,9 +51,12 @@
 	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image/image-edit-commit';
 	import { imageFieldsFromInline } from './image/image-source-bytes';
+	import { runStartupInvariantChecks } from '../invariants/install';
+	import '../schema/container-raw';
 	import './built-in-blocks';
 
 	bootstrapCodeLanguages();
+	runStartupInvariantChecks();
 
 	let {
 		source = '',

@@ -163,6 +163,7 @@ export function createBlockEditActions(
 					snapshot: 'skip',
 					mutate: () => ({ op: 'noop' }),
 					op: { kind: 'updateContent', detail: { length: text.length } },
+					touchedNodes: [deps.doc.children[blockIndex]],
 					afterTick: () => {
 						deps.blockRefs[blockIndex]?.focus(focusOffset);
 					}

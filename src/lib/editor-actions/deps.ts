@@ -29,6 +29,8 @@ export interface CommitStructuralArgs {
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: OpDescriptor;
 	afterTick?: () => void;
+	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
+	touchedNodes?: CstNode[];
 }
 
 export interface CommitContainerStructuralArgs {
