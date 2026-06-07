@@ -3,7 +3,8 @@
  */
 
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document, TableMetadata } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize } from './primitives';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
@@ -53,7 +54,7 @@ export function collectCrossBlockText(
 	let startTail: string;
 	if ('kind' in startNode && (startNode as CstNode).kind === 'table') {
 		const tableNode = startNode as CstNode;
-		const colCount = (tableNode.metadata as TableMetadata).columnCount;
+		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const allCellsCount = tableNode.children!.length * colCount;
 		startTail = emitTablePortion(tableNode, start.offset, allCellsCount);
 	} else if (start.offset === 0 && start.path.length > 1) {
@@ -135,7 +136,7 @@ function emitTablePortion(
 	endCellIdxExclusive: number
 ): string {
 	if (startCellIdx >= endCellIdxExclusive) return '';
-	const colCount = (table.metadata as TableMetadata).columnCount;
+	const colCount = metadataOf(table, 'table').columnCount;
 	const allCellsCount = table.children!.length * colCount;
 	if (startCellIdx === 0 && endCellIdxExclusive === allCellsCount) {
 		return table.raw;

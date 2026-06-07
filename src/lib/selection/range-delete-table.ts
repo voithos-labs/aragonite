@@ -3,7 +3,8 @@
  * indices, so prose raw-merge doesn't apply.
  */
 
-import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import { parse } from '../core/parser';
@@ -99,7 +100,7 @@ function deleteWithinTable(
 	rebuildContainerRaw(table);
 	rebuildAncestryRawForLeaf(doc, start.path);
 
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
 	const anchorRow = Math.floor(start.offset / cellsPerRow);
 	const anchorCol = start.offset - anchorRow * cellsPerRow;
@@ -111,7 +112,7 @@ function deleteWithinTable(
 }
 
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
 	const aRow = Math.floor(anchorCellIdx / cellsPerRow);
 	const aCol = anchorCellIdx - aRow * cellsPerRow;
@@ -242,7 +243,7 @@ function caretForCase2(table: CstNode, start: SelectionPoint, result: ClearResul
 	if (result === 'tableEmpty') {
 		return { path: start.path.slice(), offset: start.offset };
 	}
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
 	const anchorRow = Math.floor(start.offset / cellsPerRow);
 	const anchorCol = start.offset - anchorRow * cellsPerRow;
@@ -328,7 +329,7 @@ function deleteCellsAndCollapse(
 	if (startCellIdx >= endCellIdx) return 'tableSurvives';
 	clearCellsInRange(table, startCellIdx, endCellIdx);
 
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const rows = table.children!;
 	const cellsPerRow = meta.columnCount;
 
@@ -350,13 +351,13 @@ function deleteCellsAndCollapse(
 
 	if (rows.length === 0) return 'tableEmpty';
 	if (headerRemoved) {
-		(rows[0].metadata as TableRowMetadata).isHeader = true;
+		metadataOf(rows[0], 'tableRow').isHeader = true;
 	}
 	return 'tableSurvives';
 }
 
 function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: number): void {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
 	const rows = table.children!;
 	const touchedRows = new Set<number>();
@@ -370,7 +371,7 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 }
 
 function totalCellCount(table: CstNode): number {
-	const meta = table.metadata as TableMetadata;
+	const meta = metadataOf(table, 'table');
 	return (table.children?.length ?? 0) * meta.columnCount;
 }
 

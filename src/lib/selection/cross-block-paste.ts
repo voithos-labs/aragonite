@@ -6,7 +6,8 @@
 
 import type { CrossBlockDispatchContext } from './cross-block-dispatch';
 import type { CrossBlockMutationContext } from './cross-block-ops';
-import type { CstNode, Document, TableMetadata } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { SelectionState } from './selection-state.svelte';
 import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete } from './cross-block-ops';
@@ -107,7 +108,7 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	if (!pathsEqual(anchor.path, focus.path)) return false;
 	const node = nodeAt(doc, anchor.path);
 	if (!node || node.kind !== 'table') return false;
-	const meta = node.metadata as TableMetadata;
+	const meta = metadataOf(node, 'table');
 	const rowCount = node.children?.length ?? 0;
 	const cellCount = meta.columnCount * rowCount;
 	if (cellCount === 0) return false;

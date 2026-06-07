@@ -5,7 +5,8 @@
  */
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
-import type { CstNode, TableMetadata } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
+import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -135,7 +136,7 @@ export function createTableMutationsContext(
 				afterTick: () => {
 					const newRowCount = node.children?.length ?? 0;
 					if (newRowCount === 0) return;
-					const columnCount = (node.metadata as TableMetadata).columnCount;
+					const columnCount = metadataOf(node, 'table').columnCount;
 					const targetRow = Math.min(rowIdx, newRowCount - 1);
 					const targetCol = focusedCell ? Math.min(focusedCell.colIdx, columnCount - 1) : 0;
 					focusCell(targetRow, targetCol, 'start');
@@ -145,7 +146,7 @@ export function createTableMutationsContext(
 
 		async deleteColumn(colIdx) {
 			const { node, focusCell, focusedCell } = deps;
-			const meta = node.metadata as TableMetadata;
+			const meta = metadataOf(node, 'table');
 			if (meta.columnCount <= 1) return;
 			await commitColumnEdit({
 				rowChangeAt: colIdx,
@@ -153,7 +154,7 @@ export function createTableMutationsContext(
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
 				rowChange: (at) => ({ op: 'delete', at, count: 1 }),
 				afterTick: () => {
-					const newColumnCount = (node.metadata as TableMetadata).columnCount;
+					const newColumnCount = metadataOf(node, 'table').columnCount;
 					if (newColumnCount === 0) return;
 					const targetCol = Math.min(colIdx, newColumnCount - 1);
 					const targetRow = focusedCell?.rowIdx ?? 0;
