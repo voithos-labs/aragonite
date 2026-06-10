@@ -37,7 +37,7 @@ The undo/commit _ceremony_ (commit primitive, snapshot debounce) lives in `edito
 
 Two registration steps per new block kind:
 
-1. **Descriptor** — call `registerBlockKind(kind, { mergeRole, editable, isContainer, supportsInline, getContentRange?, rebuildRaw? })` in `schema/block-kind-descriptor.ts`. `supportsInline` marks prose kinds that carry an inline tree; `getContentRange` returns the content offset range within `raw` for the inline parser; `rebuildRaw` is required for container kinds and is patched in from `schema/container-raw.ts` via `augmentBlockKind`.
+1. **Descriptor** — call `registerBlockKind(kind, descriptor)` in `schema/block-kind-descriptor.ts` with the core fields (merge role, editable / container / inline-support flags) plus whichever optional hooks apply (content range, raw rebuild, container contract, image-widget opt-out, foreign-drag hit-test) — `BlockKindDescriptor` documents each. `rebuildRaw` is required for container kinds and is patched in from `schema/container-raw.ts` via `augmentBlockKind`.
 2. **Component** — call `registerBlockComponent(kind, { component, extraProps? })` in `components/built-in-blocks.ts`. `extraProps` returns any per-node props beyond the standard `{ node, index, myPath, ambientPrefix, ref }` set (e.g. TextEditableBlock's `blockClass`). BlockHost looks up by kind via the registry.
 
 Consumers (merge-rules, BlockHost, SelectionOverlay, paste-dispatch, inline pipeline, container-raw dispatch) read from these two registries rather than each maintaining their own per-kind list.

@@ -98,7 +98,7 @@ This rendering mode maps to the CST phases:
 
 Cross-cutting block-kind metadata lives in `src/lib/editor/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither (otherwise the layer DAG cycles).
 
-- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, and optional content-range / raw-rebuild hooks. New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
+- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, and optional per-kind hooks (e.g. content range, raw rebuild, foreign-drag hit-test, image-widget opt-out). New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
 - **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds. Built-in component registrations live in `components/built-in-blocks.ts` (top-of-DAG wire-up, imported once at editor mount).
 - **Merge rules** — eligibility predicates for backspace merge: `isMergeEligible`, `isBlockEditable`, `findMergeTarget`, walker for the deepest mergeable leaf, and merge-role lookup.
 - **Container raw rebuild** — per-kind raw rebuild plus ancestry dispatch (`rebuildContainerRaw`, `rebuildAncestryRaw`, `rebuildAncestryRawForLeaf`).
@@ -319,7 +319,7 @@ Two files in `ambient/` plus the shared `cursor/widget-offset.ts` keep the textC
 
 - **`ambient/ambient-dom.ts`** — DOM construction and lookup for the `md-marker` span (inert string form, or interactive form with embedded ranges).
 - **`ambient/ambient-cursor.ts`** — wraps the cursor IO factory so DOM-offset reads and writes account for the ambient prefix; routes through `cursor/widget-offset.ts` for the raw-aware DOM walk.
-- **`cursor/widget-offset.ts`** — single source of truth for DOM ↔ raw offset translation. Walks text-node lengths and image-widget raw lengths (via `data-source-start` / `data-source-end`) so widgets can be atomic without polluting textContent.
+- **`cursor/widget-offset.ts`** — single source of truth for DOM ↔ raw offset translation. Walks text-node lengths and atomic-widget raw lengths (via `data-source-start` / `data-source-end`) so widgets can be atomic without polluting textContent; the same raw-aware walk backs the shared raw-text reader prose blocks and table cells use to read `raw` back from the DOM.
 
 ### Impact on Block Identity and Selection
 

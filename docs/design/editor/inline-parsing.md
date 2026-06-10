@@ -2,7 +2,7 @@
 
 ## Goal
 
-Parse inline markdown syntax within prose blocks (paragraph, heading, setextHeading) to produce an inline node tree. The editor renders this tree as styled spans with visible but dimmed markers. This is CST Phase 2 — `raw` remains the source of truth, and the inline tree is a rendering cache derived from it.
+Parse inline markdown syntax within inline-bearing blocks — kinds registering `supportsInline` on the block-kind descriptor (paragraph, heading, setextHeading, tableCell) — to produce an inline node tree. The editor renders this tree as styled spans with visible but dimmed markers; table cells run the same parse + styled-render pipeline, just with no ambient prefix or block marker. This is CST Phase 2 — `raw` remains the source of truth, and the inline tree is a rendering cache derived from it.
 
 ## Key Design Decisions
 
@@ -39,7 +39,7 @@ The two spaces are bridged **structurally**, not by any runtime offset-rebasing 
 - **In** (parse): the container parser strips its prefix once, then parses children from the stripped buffer.
 - **Out** (serialize): `serialize(children)` / the descriptor's `rebuildRaw` re-applies the prefix. This is the strip-container secondary invariant (`strip(raw) === serialize(children)`; see syntax-tree.md).
 
-There is no function that maps an inline offset into the container's `raw`, because nothing needs one — inline parsing, cursor offsets, and selection all work in the prose block's own `raw`. The only *runtime* coordinate translation is DOM ↔ raw, handled by the ambient-prefix contract (`textContent === ambientPrefix + raw`) through `cursor/widget-offset.ts` — see the Rendering section's Key invariant.
+There is no function that maps an inline offset into the container's `raw`, because nothing needs one — inline parsing, cursor offsets, and selection all work in the prose block's own `raw`. The only _runtime_ coordinate translation is DOM ↔ raw, handled by the ambient-prefix contract (`textContent === ambientPrefix + raw`) through `cursor/widget-offset.ts` — see the Rendering section's Key invariant.
 
 ### Parsing pipeline
 
@@ -66,21 +66,21 @@ The renderer takes the inline node array and the block's `raw` string, producing
 
 Kind-to-DOM mapping:
 
-| Kind                | DOM output                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| text                | Text node                                                                                  |
-| inlineCode          | marker spans (dim) + text node for content                                                 |
-| emphasis            | marker spans (dim) + `<em>` wrapping recursive children                                    |
-| strong              | marker spans (dim) + `<strong>` wrapping recursive children                                |
-| strikethrough       | marker spans (dim) + `<s>` wrapping recursive children                                     |
-| link                | marker from `raw` slice for `[` and `](url)` + `<a>` wrapping recursive children           |
-| image               | atomic `<img>` widget (`contenteditable="false"`); see the Key invariant below             |
-| autolink            | styled span for URL                                                                        |
-| hardLineBreak       | marker span for `\` or spaces + text node `\n` (not `<br>`)                                |
-| escape              | marker span (dim) for `\` + text node for the escaped character                            |
-| entityReference     | styled span for the full `&...;` source (named, decimal, or hex)                           |
-| unresolvedReference | styled span for the literal source of a reference whose label has no matching definition   |
-| rawHtml             | allowlisted tags (`<br>`) render as atomic widgets; other raw HTML as a styled source span |
+| Kind                | DOM output                                                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| text                | Text node                                                                                                                                                                                   |
+| inlineCode          | marker spans (dim) + text node for content                                                                                                                                                  |
+| emphasis            | marker spans (dim) + `<em>` wrapping recursive children                                                                                                                                     |
+| strong              | marker spans (dim) + `<strong>` wrapping recursive children                                                                                                                                 |
+| strikethrough       | marker spans (dim) + `<s>` wrapping recursive children                                                                                                                                      |
+| link                | marker from `raw` slice for `[` and `](url)` + `<a>` wrapping recursive children                                                                                                            |
+| image               | atomic `<img>` widget (`contenteditable="false"`) — see the Key invariant below — unless the kind opts out via the descriptor's `renderImagesAsWidgets` (table cells fall back to alt text) |
+| autolink            | styled span for URL                                                                                                                                                                         |
+| hardLineBreak       | marker span for `\` or spaces + text node `\n` (not `<br>`)                                                                                                                                 |
+| escape              | marker span (dim) for `\` + text node for the escaped character                                                                                                                             |
+| entityReference     | styled span for the full `&...;` source (named, decimal, or hex)                                                                                                                            |
+| unresolvedReference | styled span for the literal source of a reference whose label has no matching definition                                                                                                    |
+| rawHtml             | allowlisted tags (`<br>`) render as atomic widgets; other raw HTML as a styled source span                                                                                                  |
 
 **Key invariant:** Every character in `raw` has a corresponding text node in the DOM, **except for atomic widgets** (images, and live raw HTML such as `<br>`; future: math, footnote refs). Atomic widgets render as `[data-inline-widget]` `contenteditable="false"` elements with no textContent — `[data-inline-widget]` is the generic marker the cursor machinery keys off, regardless of widget kind. Their raw bytes are stored on `data-source-start` / `data-source-end` attributes and reconstructed during input via `node.raw.slice(start, end)`. Markers are visible text in dimmed spans. For widget-free prose, the contenteditable's textContent equals `ambientPrefix + raw` (minus trailing line ending), where `ambientPrefix` is a read-only string contributed by a parent container to its first prose child (e.g., a list item contributes its `- ` marker). `cursor/widget-offset.ts` walks the DOM raw-aware (text-node lengths plus widget raw lengths) to translate between DOM Range positions and raw offsets in either direction.
 
@@ -95,6 +95,6 @@ Cursor offsets map directly to `raw` positions because markers are visible text 
 
 ## Per-Input Flow
 
-On every input in a prose block: read textContent → update `raw` → re-parse inline tree → rebuild span tree → restore cursor.
+On every input in an inline-bearing block: read textContent → update `raw` → re-parse inline tree → rebuild span tree → restore cursor.
 
-IME composition suppresses the re-render until composition ends. Non-prose blocks are unchanged.
+IME composition suppresses the re-render until composition ends. Blocks without inline support are unchanged.

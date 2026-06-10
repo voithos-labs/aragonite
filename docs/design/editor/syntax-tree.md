@@ -55,8 +55,8 @@ All nodes are **mutable plain objects** — no class hierarchy. There is one `Cs
 Node kind categories:
 
 - **Container kinds** carry `children`. Blockquote, list, and listItem also carry `innerPrefix`/`innerSuffix`; table and tableRow hold their grid children directly without an inner prefix/suffix pair.
-- **Prose kinds** (paragraph, heading, setextHeading) carry `inlineContent` (populated by the inline parser).
-- **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, tableCell, unrecognized) have no children or inline content.
+- **Inline-bearing kinds** — those registering `supportsInline` on their block-kind descriptor (paragraph, heading, setextHeading, tableCell) — carry `inlineContent` (populated by the inline parser).
+- **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, unrecognized) have no children or inline content.
 
 Why a flat interface instead of a mapped-type discriminated union: the editor mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would make in-place mutation a type error.
 
@@ -66,7 +66,7 @@ All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full s
 
 **Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), `childIds` (parallel-indexed stable IDs for keyed rendering — see `editor.md` § Block Identity), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content. Table and tableRow are also containers — they hold their grid children (`tableRow` / `tableCell`) but parse the cell layout straight from `raw` rather than via an inner prefix/suffix.
 
-**Prose blocks** (paragraph, heading, setextHeading) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
+**Inline-bearing blocks** (kinds registering `supportsInline`: paragraph, heading, setextHeading, tableCell) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
 
 **Other leaf blocks** carry kind-specific metadata where applicable. The `unrecognized` kind is a reserved catch-all contract — see § Design Invariants for why no parser path emits it today.
 
@@ -149,19 +149,19 @@ Same approach for list items — strip the indentation/marker, parse inner conte
 
 All GFM block types are implemented and have their own node kinds:
 
-| Block Type                 | Kind                      | Notes                               |
-| -------------------------- | ------------------------- | ----------------------------------- |
-| ATX headings               | `heading`                 | `# ` through `###### `              |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`       |
-| Paragraphs                 | `paragraph`               | Fallback for unstructured text      |
-| Fenced code blocks         | `fencedCode`              | ` ``` ` and `~~~` with info string  |
-| Indented code blocks       | `indentedCode`            | 4-space indent                      |
-| Blockquotes                | `blockquote`              | Container, recursive children       |
-| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes |
-| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___` variants        |
-| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.        |
-| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                |
-| Tables                     | `table`                   | GFM extension, pipe syntax          |
+| Block Type                 | Kind                      | Notes                                                                    |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| ATX headings               | `heading`                 | `# ` through `###### `                                                   |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`                                            |
+| Paragraphs                 | `paragraph`               | Fallback for unstructured text                                           |
+| Fenced code blocks         | `fencedCode`              | ` ``` ` and `~~~` with info string                                       |
+| Indented code blocks       | `indentedCode`            | 4-space indent                                                           |
+| Blockquotes                | `blockquote`              | Container, recursive children                                            |
+| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes                                      |
+| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___` variants                                             |
+| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.                                             |
+| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                                                     |
+| Tables                     | `table`                   | GFM extension, pipe syntax                                               |
 | Unrecognized               | `unrecognized`            | Reserved catch-all; not parser-emitted today (paragraph is the fallback) |
 
 ### Inline Syntax
