@@ -2,7 +2,9 @@
  * Ambient-aware cursor I/O for prose contenteditable surfaces. Translates
  * between raw offsets (CST-facing) and DOM offsets (browser-facing) while
  * respecting the leading ambient marker span that container blocks (e.g.
- * list items) contribute to their first prose child.
+ * list items) contribute to their first prose child. Zero-ambient surfaces
+ * (e.g. table cells) are first-class consumers — `getAmbientLength: () => 0`
+ * reduces the IO to plain widget-aware raw-offset translation.
  */
 
 import { rawOffsetAtNode, findRawOffsetTarget } from '../cursor/widget-offset';
