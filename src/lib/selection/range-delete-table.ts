@@ -170,7 +170,7 @@ function deleteFromProseIntoTable(
 	for (const path of deletionPaths) {
 		rebuildAncestryRawForLeaf(doc, path);
 	}
-	if (result === 'tableSurvives') rebuildAncestryRawForLeaf(doc, end.path);
+	if (result === 'tableSurvives') rebuildAncestryRawForLeaf(doc, survivorPath(doc, table));
 
 	return {
 		newDoc: doc,
@@ -218,50 +218,49 @@ function deleteFromTableIntoProse(
 		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
+	const tailPath = survivorPath(doc, tailReplacement[0]);
+
 	if (tableResult === 'tableSurvives') {
 		rebuildContainerRaw(table);
 		rebuildAncestryRawForLeaf(doc, start.path);
 	}
-	rebuildAncestryRawForLeaf(doc, end.path);
+	rebuildAncestryRawForLeaf(doc, tailPath);
 	for (const path of deletionPaths) {
 		rebuildAncestryRawForLeaf(doc, path);
 	}
 
-	return {
-		newDoc: doc,
-		collapsedCaret: caretForCase2(table, start, tableResult)
-	};
+	// Spec § Cross-block delete Case 2: when the table is fully consumed, the
+	// caret lands at the start of the reparsed surviving tail — never the
+	// deleted table; otherwise in the table's surviving anchor cell.
+	const collapsedCaret: SelectionPoint =
+		tableResult === 'tableEmpty'
+			? { path: tailPath, offset: 0 }
+			: survivingAnchorCellCaret(table, start.path, start.offset);
+
+	return { newDoc: doc, collapsedCaret };
 }
 
-// Spec § Cross-block delete Case 2: cursor lands at "end of surviving anchor
-// cell content"; if the anchor row was removed, fall back to end of the last
-// cell of row r-1. The surviving anchor cell is empty (Case 2 always clears
-// from the anchor cell onward), so the offset there is 0 — but we still need
-// the deep [tablePath, rowIdx, colIdx] path so the caret-restore lands inside
-// the cell's contenteditable, not on the table's outer wrapper.
-function caretForCase2(table: CstNode, start: SelectionPoint, result: ClearResult): SelectionPoint {
-	if (result === 'tableEmpty') {
-		return { path: start.path.slice(), offset: start.offset };
-	}
-	const meta = metadataOf(table, 'table');
-	const cellsPerRow = meta.columnCount;
-	const anchorRow = Math.floor(start.offset / cellsPerRow);
-	const anchorCol = start.offset - anchorRow * cellsPerRow;
+// Deep [...tablePath, row, col] caret into the surviving table's anchor cell:
+// the cell is cleared from the anchor onward, so its end offset is its
+// displayLength (0 when fully cleared). anchorCol === 0 means the anchor row
+// itself was removed — fall back to the end of the previous row's last cell.
+function survivingAnchorCellCaret(
+	table: CstNode,
+	startPath: number[],
+	anchorCellIdx: number
+): SelectionPoint {
+	const cellsPerRow = metadataOf(table, 'table').columnCount;
+	const anchorRow = Math.floor(anchorCellIdx / cellsPerRow);
+	const anchorCol = anchorCellIdx - anchorRow * cellsPerRow;
 
 	if (anchorCol > 0) {
 		const cell = table.children![anchorRow].children![anchorCol];
-		return {
-			path: [...start.path, anchorRow, anchorCol],
-			offset: displayLength(cell.raw)
-		};
+		return { path: [...startPath, anchorRow, anchorCol], offset: displayLength(cell.raw) };
 	}
 	const survivorRow = anchorRow - 1;
 	const survivorCol = cellsPerRow - 1;
 	const survivor = table.children![survivorRow].children![survivorCol];
-	return {
-		path: [...start.path, survivorRow, survivorCol],
-		offset: displayLength(survivor.raw)
-	};
+	return { path: [...startPath, survivorRow, survivorCol], offset: displayLength(survivor.raw) };
 }
 
 // ── Case 1+2 hybrid: both endpoints are tables ─────────────────────────────
@@ -293,22 +292,87 @@ function deleteAcrossTwoTables(
 		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
+	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
+
 	if (startResult === 'tableSurvives') {
 		rebuildContainerRaw(startTable);
 		rebuildAncestryRawForLeaf(doc, start.path);
 	}
-	if (endResult === 'tableSurvives') {
+	if (endTablePath) {
 		rebuildContainerRaw(endTable);
-		rebuildAncestryRawForLeaf(doc, end.path);
+		rebuildAncestryRawForLeaf(doc, endTablePath);
 	}
 	for (const path of deletionPaths) {
 		rebuildAncestryRawForLeaf(doc, path);
 	}
 
-	return {
-		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
-	};
+	let collapsedCaret: SelectionPoint;
+	if (startResult === 'tableSurvives') {
+		// Start table keeps its slot (deletions are all at or after start.path).
+		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, start.offset);
+	} else if (endTablePath) {
+		// Start emptied → its block removed and the end table shifted. Land in
+		// its first surviving cell (row 0, col 0).
+		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
+	} else {
+		// Both tables removed.
+		collapsedCaret = caretAfterBothTablesRemoved(doc, start.path);
+	}
+
+	return { newDoc: doc, collapsedCaret };
+}
+
+// Both tables across the range were removed. Anchor-side convention: prefer
+// the end of the nearest surviving block before the deleted range; else the
+// start of the first surviving block after it; else materialize an empty
+// paragraph (the document emptied — mirrors the prose rangeDelete fallback).
+// Adjacent surviving tables get deep cell carets, never a shallow table path.
+function caretAfterBothTablesRemoved(doc: Document, startPath: number[]): SelectionPoint {
+	const children = doc.children;
+	const beforeIdx = startPath[0] - 1;
+
+	if (beforeIdx >= 0) {
+		const before = children[beforeIdx];
+		if (before.kind === 'table') return lastCellCaret(before, [beforeIdx]);
+		return { path: [beforeIdx], offset: displayLength(before.raw) };
+	}
+	if (children.length > 0) {
+		return children[0].kind === 'table'
+			? { path: [0, 0, 0], offset: 0 }
+			: { path: [0], offset: 0 };
+	}
+
+	doc.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+	return { path: [0], offset: 0 };
+}
+
+function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
+	const lastRow = table.children!.length - 1;
+	const lastCol = metadataOf(table, 'table').columnCount - 1;
+	const cell = table.children![lastRow].children![lastCol];
+	return { path: [...tablePath, lastRow, lastCol], offset: displayLength(cell.raw) };
+}
+
+// ── Post-delete path resolution ────────────────────────────────────────────
+
+// Deletions and ancestor cleanup shift sibling indices at arbitrary depths, so
+// surviving blocks are located by identity instead of index arithmetic.
+function survivorPath(doc: Document, node: CstNode): number[] {
+	const path = pathOfNode(doc, node);
+	if (!path) {
+		throw new Error('tableAwareRangeDelete: surviving block not found after deletions');
+	}
+	return path;
+}
+
+function pathOfNode(parent: Document | CstNode, target: CstNode): number[] | null {
+	const children = parent.children ?? [];
+	for (let i = 0; i < children.length; i++) {
+		if (children[i] === target) return [i];
+		const sub = pathOfNode(children[i], target);
+		if (sub) return [i, ...sub];
+	}
+	return null;
 }
 
 // ── Cell-range cleanup ─────────────────────────────────────────────────────

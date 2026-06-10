@@ -101,7 +101,7 @@ describe('createStandardNestedActions', () => {
 				});
 
 				let continuationRan = false;
-				const pending = bundle.blockEdit[method](innerIndex).then(() => {
+				const pending = Promise.resolve(bundle.blockEdit[method](innerIndex)).then(() => {
 					continuationRan = true;
 				});
 

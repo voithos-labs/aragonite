@@ -40,3 +40,7 @@ Intra-table Backspace dispatches by what the selection covers:
   paragraph below) produces the same table-aware delete as pointer drag — the table endpoint is
   represented by cell index (`[tableIdx]` + cell), not a deep cell leaf path, so the delete never
   falls through to the generic merge that would fuse paragraph text into a cell.
+- Typing a character over a cross-block selection spanning two **separate top-level tables** (both
+  surviving the delete) lands the typed character inside the start table's surviving anchor cell —
+  it never slices the table's grid markup (`| A | B |`) mid-row. The collapsed caret is a deep cell
+  leaf with a char offset, not a cell-index offset on the table block.
