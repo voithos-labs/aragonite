@@ -12,27 +12,29 @@ import { readEditorFile, stripComments } from './scan-source';
 
 const RENDER_DOM_FILE = 'components/blocks/text/text-render.ts';
 const TEXT_BLOCK_FILE = 'components/blocks/TextEditableBlock.svelte';
+const CELL_RENDER_FILE = 'components/blocks/table/cell-render.ts';
+const CELL_BLOCK_FILE = 'components/blocks/table/TableCellBlock.svelte';
 
 function readsInlineContent(code: string): boolean {
 	return /\.inlineContent\b/.test(code);
 }
 
 /**
- * Extract the render `$effect` block from TextEditableBlock by anchoring on the
- * `textRender.render` dispatch, walking back to the enclosing `$effect(`, and
+ * Extract a render `$effect` block by anchoring on its render dispatch (e.g.
+ * `textRender.render`), walking back to the enclosing `$effect(`, and
  * brace-matching to its close. Returns null if the anchor is absent — callers
  * must treat null as a hard failure so a rename can't silently disable the scan.
  */
-export function extractRenderEffect(rawText: string): string | null {
+export function extractRenderEffect(rawText: string, anchor = 'textRender.render'): string | null {
 	const code = stripComments(rawText);
-	const anchor = code.indexOf('textRender.render');
-	if (anchor === -1) return null;
+	const anchorAt = code.indexOf(anchor);
+	if (anchorAt === -1) return null;
 
-	const effectStart = code.lastIndexOf('$effect(', anchor);
+	const effectStart = code.lastIndexOf('$effect(', anchorAt);
 	if (effectStart === -1) return null;
 
 	const braceOpen = code.indexOf('{', effectStart);
-	if (braceOpen === -1 || braceOpen > anchor) return null;
+	if (braceOpen === -1 || braceOpen > anchorAt) return null;
 
 	let depth = 0;
 	for (let i = braceOpen; i < code.length; i++) {
@@ -58,6 +60,19 @@ describe('G4.2 no .inlineContent read in the render path', () => {
 		// Fail loud if the anchor vanished (rename/refactor) — a silent pass would
 		// leave the render path unguarded.
 		expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
+		expect(readsInlineContent(effect!)).toBe(false);
+	});
+
+	it('cell-render.ts (whole render DOM-build file) does not read .inlineContent', () => {
+		const file = readEditorFile(CELL_RENDER_FILE);
+		expect(file.text.length).toBeGreaterThan(0);
+		expect(readsInlineContent(file.code)).toBe(false);
+	});
+
+	it('TableCellBlock render $effect does not read .inlineContent', () => {
+		const file = readEditorFile(CELL_BLOCK_FILE);
+		const effect = extractRenderEffect(file.text, 'cellRender.render');
+		expect(effect, 'cell render $effect anchor "cellRender.render" not found').not.toBeNull();
 		expect(readsInlineContent(effect!)).toBe(false);
 	});
 

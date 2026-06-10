@@ -20,13 +20,15 @@
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
 		type BlockComponentLookup,
 		type BlockElLookup,
-		type DocumentGetter
+		type DocumentGetter,
+		type LinkReferenceResolverRef
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -37,14 +39,14 @@
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+	import { hasSelection as hasSelectionHelper } from '../../../cursor/cursor-utils';
 	import {
-		createRangeFromOffsets,
-		setCursorOffset as setCursorOffsetHelper,
-		getCursorOffset as getCursorOffsetHelper,
-		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
-		getSelectionOffsets as getSelectionOffsetsHelper,
-		hasSelection as hasSelectionHelper
-	} from '../../../cursor/cursor-utils';
+		rawOffsetAtNode,
+		rawTextOfNode,
+		containerRawLength,
+		createRangeAtRawOffsets
+	} from '../../../cursor/widget-offset';
+	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import {
 		findOffsetNearestX,
 		getCurrentCursorEditorRelativeX
@@ -72,6 +74,7 @@
 		cellCoordsOfElement,
 		type CellAnchor
 	} from './cell-pointer';
+	import { createCellRender } from './cell-render';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -149,11 +152,19 @@
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
+	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let preEditOffset = 0;
+
+	// Cells carry no ambient marker; at zero ambient the factory is plain
+	// widget-aware raw-unit cursor IO (textContent math undercounts widget bytes).
+	const cursor = createAmbientCursorIO({
+		getEl: () => el ?? null,
+		getAmbientLength: () => 0
+	});
 
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => el ?? null,
@@ -170,7 +181,7 @@
 		blockEdit,
 		controller,
 		pasteCoordinator,
-		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
+		getCursorOffset: () => cursor.getRaw(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
@@ -179,9 +190,9 @@
 
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
-		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
-		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
-		getTextLen: () => (el?.textContent ?? '').length,
+		getCursorOffset: () => cursor.getRaw(),
+		getFocusOffset: () => getRawFocusOffset(),
+		getTextLen: () => (el ? containerRawLength(el) : 0),
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		crossBlock,
@@ -202,17 +213,17 @@
 	export function focus(offset: number): void {
 		if (!el) return;
 		el.focus();
-		setCursorOffsetHelper(el, Math.max(0, offset));
+		cursor.setRaw(Math.max(0, offset));
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (!el) return;
 		el.focus();
-		setCursorOffsetHelper(el, findOffsetNearestX(el, x, from));
+		cursor.setRaw(findOffsetNearestX(el, x, from));
 	}
 
 	export function getCursorOffset(): number | null {
-		return el ? getCursorOffsetHelper(el) : null;
+		return cursor.getRaw();
 	}
 
 	export function getSelectedText(): string {
@@ -221,7 +232,7 @@
 
 	export function setSelection(start: number, end: number): void {
 		if (!el) return;
-		const range = createRangeFromOffsets(el, start, end);
+		const range = createRangeAtRawOffsets(el, start, end);
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
@@ -252,36 +263,60 @@
 
 	// ── Render pipeline ────────────────────────────────────────────────────
 
-	function getDisplayText(): string {
-		return trimTrailingLineEnding(node.raw);
-	}
+	const cellRender = createCellRender({
+		get el() {
+			return el ?? null;
+		},
+		get node() {
+			return node;
+		},
+		get linkRef() {
+			return linkRef;
+		}
+	});
 
 	$effect(() => {
 		if (!el) return;
-		const display = getDisplayText();
-		if (el.textContent !== display) {
-			el.textContent = display;
-		}
+		cellRender.render({ forceRebuild: pendingCursorOffset !== null });
 		if (pendingCursorOffset !== null) {
-			setCursorOffsetHelper(el, pendingCursorOffset);
+			cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});
+
+	// Walk children rather than reading textContent: a rendered widget (e.g. the
+	// <br> br-widget) carries zero textContent but several raw bytes, so
+	// textContent would undercount and misplace boundary-nav / insert offsets.
+	function readCellText(): string {
+		if (!el) return '';
+		let out = '';
+		for (const child of Array.from(el.childNodes)) {
+			out += rawTextOfNode(child, node.raw);
+		}
+		return out;
+	}
+
+	function getRawFocusOffset(): number | null {
+		if (!el) return null;
+		const sel = window.getSelection();
+		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+		return rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	function onInput(): void {
 		stickyColumn.reset();
 		if (composing || !el) return;
-		const text = el.textContent ?? '';
-		const savedOffset = getCursorOffsetHelper(el) ?? 0;
+		const text = readCellText();
+		const savedOffset = cursor.getRaw() ?? 0;
 		blockEdit.updateBlockContent(index, text, preEditOffset, savedOffset);
 		pendingCursorOffset = savedOffset;
 	}
 
 	function onCompositionStart(): void {
 		if (!el) return;
-		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		preEditOffset = cursor.getRaw() ?? 0;
 		crossBlock.handleCompositionStart();
 		composing = true;
 	}
@@ -294,9 +329,9 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
-		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		preEditOffset = cursor.getRaw() ?? 0;
 		const pos = { rowIdx, colIdx };
-		const textLen = (el.textContent ?? '').length;
+		const textLen = containerRawLength(el);
 		const offset = preEditOffset;
 		const collapsed = !hasSelectionHelper();
 
@@ -457,8 +492,8 @@
 			// widget producing a visible line break inside the cell.
 			e.preventDefault();
 			if (!el) return;
-			const offset = getCursorOffsetHelper(el) ?? 0;
-			const text = el.textContent ?? '';
+			const offset = cursor.getRaw() ?? 0;
+			const text = readCellText();
 			const inserted = '<br>';
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
 			blockEdit.updateBlockContent(index, newText, offset, offset + inserted.length);
@@ -561,7 +596,7 @@
 		// stay in step. The native deleteByCut path would mutate the DOM
 		// out from under the CST and leave a stale snapshot anchor.
 		if (!el) return;
-		const offsets = getSelectionOffsetsHelper(el);
+		const offsets = cursor.getRawSelection();
 		if (!offsets || offsets.start === offsets.end) return;
 		const display = trimTrailingLineEnding(node.raw);
 		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
@@ -579,8 +614,8 @@
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
-		const selOffsets = getSelectionOffsetsHelper(el);
-		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
+		const selOffsets = cursor.getRawSelection();
+		const offset = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
 
 		const result = await pasteDispatch(
 			{

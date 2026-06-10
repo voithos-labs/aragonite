@@ -133,6 +133,24 @@ export function containerRawLength(container: HTMLElement): number {
 	return count;
 }
 
+/** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
+export function rawTextOfNode(domNode: Node, raw: string): string {
+	if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
+	if (domNode.nodeType === Node.ELEMENT_NODE) {
+		const el = domNode as Element;
+		if (el.matches?.(WIDGET_SELECTOR)) {
+			const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
+			const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
+			if (Number.isNaN(start) || Number.isNaN(end)) return '';
+			return raw.slice(start, end);
+		}
+		let out = '';
+		for (const child of Array.from(el.childNodes)) out += rawTextOfNode(child, raw);
+		return out;
+	}
+	return '';
+}
+
 export function createRangeAtRawOffsets(
 	container: HTMLElement,
 	start: number,
