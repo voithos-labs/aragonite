@@ -32,6 +32,34 @@ function fakeParentBundles() {
 	};
 }
 
+function makeDeferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((r) => {
+		resolve = r;
+	});
+	return { promise, resolve };
+}
+
+function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'deleteBlock') {
+	const deferred = makeDeferred();
+	const parent = fakeParentBundles();
+	parent.blockEdit[method] = vi.fn(() => deferred.promise);
+	return { deferred, parent };
+}
+
+// Each method's upward-delegation boundary: the inner index that triggers it
+// and the single-child node shape (mergeWithNext/deleteBlock need the inner
+// block to be the last/only child; mergeWithPrevious triggers at index 0).
+const delegationCases = [
+	{
+		method: 'mergeWithPrevious' as const,
+		children: () => [makePara('a\n'), makePara('b\n')],
+		innerIndex: 0
+	},
+	{ method: 'mergeWithNext' as const, children: () => [makePara('a\n')], innerIndex: 0 },
+	{ method: 'deleteBlock' as const, children: () => [makePara('a\n')], innerIndex: 0 }
+];
+
 describe('createStandardNestedActions', () => {
 	it('focus.moveFocus delegates upward when innerIndex is out of range', async () => {
 		const node = makeNode([makePara('a\n')]);
@@ -55,43 +83,38 @@ describe('createStandardNestedActions', () => {
 		expect(parent.focus.moveFocus).toHaveBeenCalledWith(8, 'start');
 	});
 
-	it('blockEdit.mergeWithPrevious delegates upward at innerIndex=0', async () => {
-		const node = makeNode([makePara('a\n'), makePara('b\n')]);
-		const state = createBlockListState(() => node);
-		const parent = fakeParentBundles();
+	describe('upward delegation awaits the parent before resolving', () => {
+		for (const { method, children, innerIndex } of delegationCases) {
+			it(`${method} resolves only after the parent's delegated op settles`, async () => {
+				const node = makeNode(children());
+				const state = createBlockListState(() => node);
+				const { deferred, parent } = makeParentDeferring(method);
 
-		const bundle = createStandardNestedActions(state, {
-			index: 3,
-			get node() {
-				return node;
-			},
-			rebuildRaw: vi.fn(),
-			stickyColumn: makeStickyColumn(),
-			parent
-		});
+				const bundle = createStandardNestedActions(state, {
+					index: 3,
+					get node() {
+						return node;
+					},
+					rebuildRaw: vi.fn(),
+					stickyColumn: makeStickyColumn(),
+					parent
+				});
 
-		await bundle.blockEdit.mergeWithPrevious(0);
+				let continuationRan = false;
+				const pending = bundle.blockEdit[method](innerIndex).then(() => {
+					continuationRan = true;
+				});
 
-		expect(parent.blockEdit.mergeWithPrevious).toHaveBeenCalledWith(3);
-	});
+				// Drain microtasks: the method's body has run, but the parent's
+				// promise is still pending — the continuation must not have fired.
+				await Promise.resolve();
+				expect(continuationRan).toBe(false);
+				expect(parent.blockEdit[method]).toHaveBeenCalledWith(3);
 
-	it('blockEdit.deleteBlock on last remaining child delegates upward', async () => {
-		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(() => node);
-		const parent = fakeParentBundles();
-
-		const bundle = createStandardNestedActions(state, {
-			index: 3,
-			get node() {
-				return node;
-			},
-			rebuildRaw: vi.fn(),
-			stickyColumn: makeStickyColumn(),
-			parent
-		});
-
-		await bundle.blockEdit.deleteBlock(0);
-
-		expect(parent.blockEdit.deleteBlock).toHaveBeenCalledWith(3);
+				deferred.resolve();
+				await pending;
+				expect(continuationRan).toBe(true);
+			});
+		}
 	});
 });
