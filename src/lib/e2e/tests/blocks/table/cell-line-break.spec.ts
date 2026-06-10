@@ -24,8 +24,16 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 		expect(await editor.bridge.getSource()).toContain('| Left<br>Right |');
 	});
 
-	// Visible line-break rendering in cells depends on a cell-inline-render
-	// migration (deferred — see docs/issues.md). The current ship is byte-level:
-	// the <br> tag lands in the source; the cell displays it as literal text
-	// until cells switch to using the inline-render pipeline.
+	test('the inserted <br> renders as a visible widget, not literal text', async ({ page }) => {
+		await editor.loadContent(TABLE_1COL);
+		await page.locator('[role="cell"]').nth(1).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+Enter');
+		await editor.bridge.waitForSourceContains('Left<br>');
+
+		const cell = page.locator('[role="cell"]').nth(1);
+		await expect(cell.locator('.md-br-widget')).toHaveCount(1);
+		// The literal "<br>" string must NOT appear as cell text.
+		await expect(cell).not.toContainText('<br>');
+	});
 });

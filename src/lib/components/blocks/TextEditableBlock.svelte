@@ -67,7 +67,11 @@
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
-	import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../cursor/widget-offset';
+	import {
+		rawOffsetAtNode,
+		rawTextOfNode,
+		createRangeAtRawOffsets
+	} from '../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 	import { buildImageSourceBytes, type ImageFields } from '../image/image-source-bytes';
@@ -409,28 +413,9 @@
 		let out = '';
 		for (const child of Array.from(el.childNodes)) {
 			if (child === ambient) continue;
-			out += rawTextOf(child);
+			out += rawTextOfNode(child, node.raw);
 		}
 		return out;
-	}
-
-	// Widgets carry no textContent — rebuild their raw bytes from
-	// data-source-start/end so the round-trip survives edits around the widget.
-	function rawTextOf(domNode: Node): string {
-		if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
-		if (domNode.nodeType === Node.ELEMENT_NODE) {
-			const widget = domNode as Element;
-			if (widget.matches?.('[data-inline-widget]')) {
-				const start = parseInt(widget.getAttribute('data-source-start') ?? '', 10);
-				const end = parseInt(widget.getAttribute('data-source-end') ?? '', 10);
-				if (Number.isNaN(start) || Number.isNaN(end)) return '';
-				return node.raw.slice(start, end);
-			}
-			let out = '';
-			for (const child of Array.from(widget.childNodes)) out += rawTextOf(child);
-			return out;
-		}
-		return '';
 	}
 
 	function onCompositionStart(): void {
