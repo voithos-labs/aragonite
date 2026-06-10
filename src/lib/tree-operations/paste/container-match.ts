@@ -97,7 +97,7 @@ export function findContainerMatchingUnwrap(
 
 /** One leaf child whose raw has no visible content (post-cross-block-delete stub). */
 function isEmptyContainerChild(node: CstNode): boolean {
-	if (!node.children || node.children.length === 0) return true;
+	if (!node.children || node.children.length === 0) return node.raw.trim() === '';
 	if (node.children.length !== 1) return false;
 	const c = node.children[0];
 	if (c.kind !== 'paragraph') return false;

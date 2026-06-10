@@ -227,4 +227,28 @@ test.describe('table block: cross-block delete', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});
+
+	test('typing over a selection spanning two separate tables lands in the anchor cell, no grid corruption', async ({
+		page
+	}) => {
+		// Two adjacent top-level 2x3 tables. Drag from a cell in the first table
+		// into a cell in the second (both survive the delete), then type directly
+		// over the active selection — type-replace deletes the range and splices
+		// the typed character at the collapsed caret.
+		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
+		const cells = page.locator('[role="cell"]');
+		// First table has 6 cells (0..5); second table starts at index 6.
+		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(8));
+		await dragBetween(page, fromBox, toBox);
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('Z');
+		// The bug returned a table-block path with a cell-index offset, so the
+		// type-replace slice spliced Z into the grid markup ("| AZ | B |"). The
+		// fixed caret is a deep cell leaf: Z lands inside the cleared anchor cell.
+		await editor.bridge.waitForSourceContains('| 1 | Z |');
+		const src = await editor.bridge.getSource();
+		expect(src).toContain('| --- | --- |');
+		expect(src).not.toMatch(/\|\s*A\s*Z/);
+	});
 });

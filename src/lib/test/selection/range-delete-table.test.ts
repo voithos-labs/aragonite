@@ -70,6 +70,31 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
 		expect(table.children![0].children![0].raw).toBe('1');
 	});
+
+	it('nested end table survives a deleted middle block: container raw rebuilds at the shifted path', () => {
+		// para[0], middle[1], blockquote[2] wrapping the table. Deleting middle
+		// shifts the blockquote to [1] — the ancestry rebuild must follow the
+		// surviving table, not the stale pre-delete end path.
+		const source = 'para\n\nmiddle\n\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n';
+		const doc = parse(source);
+
+		// end.offset = 3 → clears cells 0,1,2: header row removed, body promoted.
+		const result = rangeDelete(doc, { path: [0], offset: 2 }, { path: [2, 0], offset: 3 });
+
+		const survivors = result.newDoc.children;
+		expect(survivors).toHaveLength(2);
+		expect(survivors[0].raw.trimEnd()).toBe('pa');
+		const blockquote = survivors[1];
+		expect(blockquote.kind).toBe('blockquote');
+		const table = blockquote.children![0];
+		expect(table.kind).toBe('table');
+		expect(table.children).toHaveLength(1);
+		expect(table.children![0].children![0].raw).toBe('');
+		expect(table.children![0].children![1].raw).toBe('2');
+		// Blockquote raw must be rebuilt from the surviving table, not left stale.
+		expect(blockquote.raw).not.toContain('A');
+		expect(serialize(result.newDoc)).not.toContain('| A | B |');
+	});
 });
 
 describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)', () => {
@@ -112,6 +137,26 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');
 		expect(result.newDoc.children[0].raw.trimEnd()).toBe('after');
+		expect(result.collapsedCaret).toEqual({ path: [0], offset: 0 });
+	});
+
+	it('table fully consumed into a nested tail: caret addresses the tail at its post-delete path', () => {
+		// Table + blockquote of two paragraphs. Anchor cell 0 → mid-"second":
+		// the table empties out AND the blockquote's first paragraph is deleted,
+		// so the surviving tail shifts at both depths — [1, 1] becomes [0, 0].
+		const source = `${TWO_COL_FOUR_ROW}\n> first\n>\n> second\n`;
+		const doc = parse(source);
+
+		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1, 1], offset: 3 });
+
+		const survivors = result.newDoc.children;
+		expect(survivors).toHaveLength(1);
+		expect(survivors[0].kind).toBe('blockquote');
+		expect(survivors[0].children).toHaveLength(1);
+		expect(survivors[0].children![0].raw.trimEnd()).toBe('ond');
+		// Blockquote raw must be rebuilt from the surviving child, not left stale.
+		expect(survivors[0].raw).not.toContain('first');
+		expect(result.collapsedCaret).toEqual({ path: [0, 0], offset: 0 });
 	});
 });
 
@@ -225,5 +270,104 @@ describe('rangeDelete — table edge cases', () => {
 		expect(table.children![1].children![0].raw).toBe('1');
 		expect(table.children![1].children![1].raw).toBe('');
 		expect(table.children![1].children![2].raw).toBe('');
+	});
+});
+
+const TWO_COL_THREE_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+
+describe('rangeDelete — across two top-level tables (char-addressable caret)', () => {
+	it('both tables survive: caret lands in the start table anchor cell with a char offset', () => {
+		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1),
+		// focus cell 3 of B. A's cell (1,1) clears + its last body row drops; A
+		// survives. B's header row drops; B survives.
+		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [0], offset: 3 }, { path: [1], offset: 3 });
+
+		expect(result.newDoc.children).toHaveLength(2);
+		expect(result.newDoc.children[0].kind).toBe('table');
+		expect(result.newDoc.children[1].kind).toBe('table');
+		// Anchor cell 3 = row 1, col 1 of the (still [0]) start table; it was
+		// cleared, so a char offset of 0 into a real cell leaf.
+		expect(result.collapsedCaret).toEqual({ path: [0, 1, 1], offset: 0 });
+	});
+
+	it('start empties, end survives: caret lands in the first surviving cell of the end table', () => {
+		// Anchor cell 0 of A clears all of A → A removed. B shifts to [0]; its
+		// header row (cells 0,1,2 cleared by focus offset 3) drops, body promotes.
+		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 3 });
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('table');
+		// End table is now [0]; first surviving cell (0,0), char offset 0.
+		expect(result.collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
+	});
+
+	it('start survives, end empties: caret lands in the start table anchor cell', () => {
+		// Anchor cell 3 of A clears A's tail; A survives at [0]. Focus offset 6
+		// (all cells) clears B entirely → B removed.
+		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [0], offset: 3 }, { path: [1], offset: 6 });
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('table');
+		expect(result.collapsedCaret).toEqual({ path: [0, 1, 1], offset: 0 });
+	});
+
+	it('both empty with surrounding paragraphs: caret lands at the end of the preceding paragraph', () => {
+		// Doc: pre[0], A[1], B[2], post[3]. Both tables fully cleared → both
+		// removed. Survivors: pre[0], post[1]. Anchor-side convention: end of the
+		// nearest surviving block before the deleted range = end of "pre".
+		const doc = parse(`pre\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\npost\n`);
+
+		const result = rangeDelete(doc, { path: [1], offset: 0 }, { path: [2], offset: 6 });
+
+		expect(result.newDoc.children).toHaveLength(2);
+		expect(result.newDoc.children[0].kind).toBe('paragraph');
+		expect(result.newDoc.children[1].kind).toBe('paragraph');
+		// "pre" raw is "pre\n" → displayLength 3. Caret at end of "pre".
+		expect(result.collapsedCaret).toEqual({ path: [0], offset: 3 });
+	});
+
+	it('both empty with a preceding table: caret deep-addresses the last cell of the survivor', () => {
+		// Tables [0], [1], [2]. Select all of [1] and [2] → both removed; table
+		// [0] survives untouched. The caret must address [0]'s last cell as a
+		// char-offset leaf, never the table block shallowly.
+		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [1], offset: 0 }, { path: [2], offset: 6 });
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('table');
+		// Last cell of the survivor: row 2 ('| 3 | 4 |'), col 1, raw '4' → offset 1.
+		expect(result.collapsedCaret).toEqual({ path: [0, 2, 1], offset: 1 });
+	});
+
+	it('start empties across an intervening blockquote: end-table path is not over-shifted', () => {
+		// Table A [0], blockquote [1], table B [2]. A empties → removed; the
+		// blockquote AND its inner paragraph are both deletion paths — counting
+		// the nested path as a top-level shift would over-shift B's index.
+		const doc = parse(`${TWO_COL_THREE_ROW}\n> quoted\n\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [2], offset: 3 });
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('table');
+		expect(result.collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
+	});
+
+	it('both empty with no surrounding blocks: caret lands in a materialized empty paragraph', () => {
+		// Doc is only the two tables; clearing both empties the document. Mirror
+		// the prose precedent: materialize one empty paragraph at [0].
+		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 6 });
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('paragraph');
+		expect(result.collapsedCaret).toEqual({ path: [0], offset: 0 });
 	});
 });
