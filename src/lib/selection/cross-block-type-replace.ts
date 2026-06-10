@@ -11,6 +11,7 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { CrossBlockDispatchContext } from './cross-block-dispatch';
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import { performCrossBlockDelete } from './cross-block-ops';
+import { assertCharOffset } from './primitives';
 import { nodeAt } from '../tree-operations/node-ops';
 import { applyCollapsedCaret } from './native-bridge';
 import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
@@ -54,8 +55,9 @@ export async function handleCrossBlockTypeReplace(
 		scopes: [scope],
 		snapshot: 'skip',
 		mutate: () => {
+			const charOffset = assertCharOffset(caret, 'cross-block-type-replace:slice');
 			targetNode.raw =
-				targetNode.raw.slice(0, caret.offset) + typed + targetNode.raw.slice(caret.offset);
+				targetNode.raw.slice(0, charOffset) + typed + targetNode.raw.slice(charOffset);
 			ctx.afterRawMutated?.(targetNode);
 			if (caret.path.length >= 2) rebuildAncestryRawForLeaf(doc, caret.path);
 			return [{ op: 'noop' }];

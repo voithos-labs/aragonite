@@ -11,6 +11,7 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionState } from './selection-state.svelte';
 import { normalizeLineEndings } from '../core/lines';
 import { performCrossBlockDelete } from './cross-block-ops';
+import { assertCharOffset } from './primitives';
 import { applyCollapsedCaret } from './native-bridge';
 import { pasteDispatch } from '../tree-operations/paste/dispatch';
 import { parse } from '../core/parser';
@@ -59,7 +60,7 @@ export async function handleCrossBlockPaste(
 		{
 			pastedText: pasted,
 			targetPath: caret.path,
-			offset: caret.offset
+			offset: assertCharOffset(caret, 'cross-block-paste:dispatch')
 		},
 		{
 			doc,
