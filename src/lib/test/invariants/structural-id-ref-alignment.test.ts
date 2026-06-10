@@ -56,7 +56,11 @@ function makeTop(raws: string[]): TopHarness {
 	return { doc, actions, ids: getBlockIds, refs: getBlockRefs };
 }
 
-function assertAligned(h: { doc: { children: CstNode[] }; ids: () => string[]; refs: () => unknown[] }) {
+function assertAligned(h: {
+	doc: { children: CstNode[] };
+	ids: () => string[];
+	refs: () => unknown[];
+}) {
 	const n = h.doc.children.length;
 	expect(h.ids(), 'id array length').toHaveLength(n);
 	expect(h.refs(), 'ref array length').toHaveLength(n);

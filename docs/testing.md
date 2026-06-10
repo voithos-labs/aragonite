@@ -21,20 +21,20 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                       | Covers                                                     |
-| ---------------------------- | ---------------------------------------------------------- |
-| `test:editor:core`           | Parser, serializer, round-trip invariants                  |
-| `test:editor:tree-ops`       | Tree mutation helpers                                      |
-| `test:editor:editor-actions` | Editor action bundles and commit primitives                |
-| `test:editor:ambient`        | Ambient-marker DOM and offset translation                  |
-| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement  |
-| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules |
-| `test:editor:reactivity`     | Block-list state and state registry                        |
-| `test:editor:selection`      | Selection-state logic                                      |
-| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                    |
-| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection   |
-| `test:editor:undo`           | Undo stack and entry management                            |
-| `test:editor:debug`          | Debug engine helpers and operations log                    |
+| Script                       | Covers                                                       |
+| ---------------------------- | ------------------------------------------------------------ |
+| `test:editor:core`           | Parser, serializer, round-trip invariants                    |
+| `test:editor:tree-ops`       | Tree mutation helpers                                        |
+| `test:editor:editor-actions` | Editor action bundles and commit primitives                  |
+| `test:editor:ambient`        | Ambient-marker DOM and offset translation                    |
+| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement    |
+| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules   |
+| `test:editor:reactivity`     | Block-list state and state registry                          |
+| `test:editor:selection`      | Selection-state logic                                        |
+| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                      |
+| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection     |
+| `test:editor:undo`           | Undo stack and entry management                              |
+| `test:editor:debug`          | Debug engine helpers and operations log                      |
 | `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards |
 
 E2E tests are grouped into Playwright projects:

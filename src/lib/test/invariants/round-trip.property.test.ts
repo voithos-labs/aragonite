@@ -2,12 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import {
-	arbRawString,
-	arbCrlfString,
-	arbDeepNesting,
-	arbGfmDoc
-} from './arbitraries';
+import { arbRawString, arbCrlfString, arbDeepNesting, arbGfmDoc } from './arbitraries';
 
 // G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser
 // is total (never throws; unknown syntax becomes paragraph/unrecognized) and the
@@ -23,31 +18,19 @@ function roundTrips(source: string): boolean {
 
 describe('G2.1 round-trip + totality', () => {
 	it('serialize(parse(s)) === s over raw garbage', () => {
-		fc.assert(
-			fc.property(arbRawString, roundTrips),
-			PARAMS
-		);
+		fc.assert(fc.property(arbRawString, roundTrips), PARAMS);
 	});
 
 	it('serialize(parse(s)) === s over valid-ish GFM docs', () => {
-		fc.assert(
-			fc.property(arbGfmDoc, roundTrips),
-			PARAMS
-		);
+		fc.assert(fc.property(arbGfmDoc, roundTrips), PARAMS);
 	});
 
 	it('preserves mixed CR / LF / CRLF byte-for-byte', () => {
-		fc.assert(
-			fc.property(arbCrlfString, roundTrips),
-			PARAMS
-		);
+		fc.assert(fc.property(arbCrlfString, roundTrips), PARAMS);
 	});
 
 	it('preserves deeply nested container prefixes', () => {
-		fc.assert(
-			fc.property(arbDeepNesting, roundTrips),
-			PARAMS
-		);
+		fc.assert(fc.property(arbDeepNesting, roundTrips), PARAMS);
 	});
 });
 
