@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from '../../core/parser';
+import type { PerfSnapshot } from '../../perf/instruments';
 import {
 	disablePerfInstruments,
 	docByteLength,
@@ -13,6 +14,19 @@ import {
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
+
+const EMPTY: PerfSnapshot = {
+	snapshotCount: 0,
+	snapshotCloneBytes: 0,
+	rebuildDepths: {},
+	parseCount: 0,
+	parseMsTotal: 0,
+	parseBlockCount: 0,
+	inlineRefreshCount: 0,
+	inlineRefreshNodeCount: 0,
+	undoLiveBytes: 0,
+	undoEntryCount: 0
+};
 
 function recordOneOfEach(): void {
 	recordSnapshotClone(100);
@@ -38,9 +52,7 @@ describe('perf instruments', () => {
 
 	it('records nothing while disabled', () => {
 		recordOneOfEach();
-		expect(perfSnapshot().snapshotCloneBytes).toBe(0);
-		expect(perfSnapshot().undoLiveBytes).toBe(0);
-		expect(perfSnapshot().parseCount).toBe(0);
+		expect(perfSnapshot()).toEqual(EMPTY);
 	});
 
 	it('accumulates while enabled', () => {
@@ -79,19 +91,7 @@ describe('perf instruments', () => {
 		enablePerfInstruments();
 		recordOneOfEach();
 		resetPerfInstruments();
-		const s = perfSnapshot();
-		expect(s).toEqual({
-			snapshotCount: 0,
-			snapshotCloneBytes: 0,
-			rebuildDepths: {},
-			parseCount: 0,
-			parseMsTotal: 0,
-			parseBlockCount: 0,
-			inlineRefreshCount: 0,
-			inlineRefreshNodeCount: 0,
-			undoLiveBytes: 0,
-			undoEntryCount: 0
-		});
+		expect(perfSnapshot()).toEqual(EMPTY);
 	});
 
 	it('docByteLength equals serialized length', () => {

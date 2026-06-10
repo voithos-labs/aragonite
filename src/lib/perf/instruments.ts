@@ -99,7 +99,8 @@ export function setUndoGauge(liveBytes: number, entryCount: number): void {
 
 /**
  * Serialized-byte proxy without building the string: document serialization
- * is prefix + Σ(leadingTrivia + raw) + suffix.
+ * is prefix + Σ(leadingTrivia + raw) + suffix. Counts UTF-16 code units —
+ * exact vs `serialize().length`, approximate vs on-disk bytes for non-ASCII.
  */
 export function docByteLength(doc: Document): number {
 	let length = doc.prefix.length + doc.suffix.length;
