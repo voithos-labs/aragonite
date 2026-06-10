@@ -1,7 +1,8 @@
 /**
  * Deterministic markdown fixture generators for the perf harness.
  * Same (shape, targetBytes, seed) always yields identical bytes, so numbers
- * from different runs and machines stay comparable.
+ * from different runs and machines stay comparable. `targetBytes` counts
+ * UTF-16 code units, which equal bytes only while the corpus stays ASCII.
  */
 
 export const FIXTURE_SHAPES = [
