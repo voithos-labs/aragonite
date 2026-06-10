@@ -146,8 +146,7 @@ export function createNestedBlockEdit(
 			if (!deps.node.children) return;
 
 			if (innerIndex >= deps.node.children.length - 1) {
-				parent.blockEdit.mergeWithNext(deps.index);
-				return;
+				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
 			const currKind = deps.node.children[innerIndex].kind;
@@ -199,8 +198,7 @@ export function createNestedBlockEdit(
 			if (!deps.node.children) return;
 
 			if (deps.node.children.length <= 1) {
-				parent.blockEdit.deleteBlock(deps.index);
-				return;
+				return parent.blockEdit.deleteBlock(deps.index);
 			}
 
 			await parent.containerEdit.commitContainer({
