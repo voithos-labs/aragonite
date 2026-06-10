@@ -182,10 +182,7 @@
 			setRef={(i, r) => (state.innerBlockRefs[i] = r)}
 			getRef={(i) => state.innerBlockRefs[i]}
 			parentPath={myPath}
-			ambientPrefixForFirst={buildTaskItemAmbient(
-				metadataOf(node, 'listItem'),
-				toggleTask
-			)}
+			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}
 		/>
 	</div>
 </div>

@@ -19,9 +19,7 @@ const JUNK = { poisoned: true, nested: { deep: [1, 2, 3] } } as const;
 // deterministically; alternating junk vs. undefined catches both a serializer
 // that reads a present-but-wrong field and one that falls back when it's absent.
 function corruptDerivedFields(node: CstNode, useUndefined: () => boolean): void {
-	node.inlineContent = useUndefined()
-		? undefined
-		: (JUNK as unknown as CstNode['inlineContent']);
+	node.inlineContent = useUndefined() ? undefined : (JUNK as unknown as CstNode['inlineContent']);
 	node.metadata = useUndefined() ? undefined : (JUNK as unknown as CstNode['metadata']);
 	if (node.children) {
 		for (const child of node.children) corruptDerivedFields(child, useUndefined);
