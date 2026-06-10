@@ -25,7 +25,9 @@ function assertPartition(nodes: InlineNode[], rangeStart: number, rangeEnd: numb
 		return;
 	}
 	if (nodes[0].start !== rangeStart) {
-		throw new Error(`top-level gap: first node starts at ${nodes[0].start}, range at ${rangeStart}`);
+		throw new Error(
+			`top-level gap: first node starts at ${nodes[0].start}, range at ${rangeStart}`
+		);
 	}
 	if (nodes[nodes.length - 1].end !== rangeEnd) {
 		throw new Error(

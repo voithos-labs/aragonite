@@ -62,7 +62,14 @@
 			{...entry.extraProps?.(node) ?? {}}
 		/>
 	{:else}
-		<TextEditableBlock {node} {index} {myPath} {ambientPrefix} bind:this={ref} blockClass="raw-block" />
+		<TextEditableBlock
+			{node}
+			{index}
+			{myPath}
+			{ambientPrefix}
+			bind:this={ref}
+			blockClass="raw-block"
+		/>
 	{/if}
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural

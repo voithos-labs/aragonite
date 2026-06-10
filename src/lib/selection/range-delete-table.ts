@@ -337,9 +337,7 @@ function caretAfterBothTablesRemoved(doc: Document, startPath: number[]): Select
 		return { path: [beforeIdx], offset: displayLength(before.raw) };
 	}
 	if (children.length > 0) {
-		return children[0].kind === 'table'
-			? { path: [0, 0, 0], offset: 0 }
-			: { path: [0], offset: 0 };
+		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
 	}
 
 	doc.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });

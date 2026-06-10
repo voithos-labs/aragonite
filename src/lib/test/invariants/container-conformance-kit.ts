@@ -111,7 +111,8 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerProfile>> = 
 		ancestry: { mode: 'assert' },
 		multiScope: {
 			mode: 'exempt',
-			reason: 'blockquote inner ops (split/merge/delete) are single-scope; no ≥2-scope author op exists'
+			reason:
+				'blockquote inner ops (split/merge/delete) are single-scope; no ≥2-scope author op exists'
 		},
 		focusBubble: { mode: 'assert' }
 	},
@@ -243,9 +244,10 @@ export async function checkStripLocalIndexAddressing(profile: ContainerProfile):
 	const fixture = profile.localIndexFixture;
 	if (!fixture) throw new Error('checkStripLocalIndexAddressing: profile has no localIndexFixture');
 	const { containerChain, targetChild } = fixture;
-	expect(containerChain.length, 'chain has a top-level container + ≥1 nested level').toBeGreaterThan(
-		1
-	);
+	expect(
+		containerChain.length,
+		'chain has a top-level container + ≥1 nested level'
+	).toBeGreaterThan(1);
 
 	const outer = parse(fixture.source).children[0];
 	const { deps, doc, events } = makeEditorActionsDeps([outer]);
@@ -278,9 +280,10 @@ export async function checkStripLocalIndexAddressing(profile: ContainerProfile):
 	}
 
 	const kindNode = node;
-	expect(kindNode.children!.length, 'kind node has ≥2 children to target a non-first one').toBeGreaterThan(
-		1
-	);
+	expect(
+		kindNode.children!.length,
+		'kind node has ≥2 children to target a non-first one'
+	).toBeGreaterThan(1);
 	const targetMarker = kindNode.children![targetChild].raw;
 
 	const seen: EditEvent[] = [];
@@ -522,26 +525,32 @@ export async function checkFocusBubbleTermination(kind: BlockKind): Promise<void
 	// Outer strip container at its own top edge: receiving moveFocus(-1) it must
 	// delegate to root, not re-enter the inner chain.
 	const outerNode = parse('> a\n>\n> b\n').children[0];
-	const outerFocus = createNestedFocus(seededState(() => outerNode), {
-		index: 3,
-		get node() {
-			return outerNode;
-		},
-		rebuildRaw: () => {},
-		stickyColumn: makeStickyColumn(),
-		parent: { blockEdit: makeStubBlockEdit(), focus: rootFocus, containerEdit: {} as never }
-	});
+	const outerFocus = createNestedFocus(
+		seededState(() => outerNode),
+		{
+			index: 3,
+			get node() {
+				return outerNode;
+			},
+			rebuildRaw: () => {},
+			stickyColumn: makeStickyColumn(),
+			parent: { blockEdit: makeStubBlockEdit(), focus: rootFocus, containerEdit: {} as never }
+		}
+	);
 
 	// The kind's own focus bundle, parented to the outer.
-	const innerFocus = createNestedFocus(seededState(() => innerNode!), {
-		index: 0,
-		get node() {
-			return innerNode!;
-		},
-		rebuildRaw: () => {},
-		stickyColumn: makeStickyColumn(),
-		parent: { blockEdit: makeStubBlockEdit(), focus: outerFocus, containerEdit: {} as never }
-	});
+	const innerFocus = createNestedFocus(
+		seededState(() => innerNode!),
+		{
+			index: 0,
+			get node() {
+				return innerNode!;
+			},
+			rebuildRaw: () => {},
+			stickyColumn: makeStickyColumn(),
+			parent: { blockEdit: makeStubBlockEdit(), focus: outerFocus, containerEdit: {} as never }
+		}
+	);
 
 	// ArrowUp off the top of the inner container → inner delegates to
 	// outer.moveFocus(-1) → outer is at its own top (index 3) → root once at 2.

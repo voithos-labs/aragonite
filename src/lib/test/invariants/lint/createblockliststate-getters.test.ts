@@ -82,7 +82,8 @@ describe('G4.1 createBlockListState getters-only source-scan', () => {
 	});
 
 	it('matcher accepts inline closure and getter-property forms', () => {
-		const good = 'createBlockListState(() => node)\ncreateBlockListState({ get node() { return n; } })';
+		const good =
+			'createBlockListState(() => node)\ncreateBlockListState({ get node() { return n; } })';
 		expect(findByValueCalls('synthetic.ts', good)).toEqual([]);
 	});
 

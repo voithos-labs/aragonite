@@ -26,8 +26,7 @@ const ALLOWLIST: Record<string, string> = {
 	'src/lib/editor/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
 	// Same pointermove throttle for intra-table drag; mirrors drag-pointer.ts but
 	// lives under table/ because it is table-cell specific.
-	'src/lib/editor/components/blocks/table/cell-pointer.ts':
-		'rAF pointermove throttle (table drag)',
+	'src/lib/editor/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
@@ -77,7 +76,12 @@ describe('G4.4 no timing hacks for sequencing', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('matcher flags each timing primitive', () => {
-		for (const primitive of ['setTimeout', 'setInterval', 'queueMicrotask', 'requestAnimationFrame']) {
+		for (const primitive of [
+			'setTimeout',
+			'setInterval',
+			'queueMicrotask',
+			'requestAnimationFrame'
+		]) {
 			expect(findTimingHits('synthetic.ts', `${primitive}(() => x, 0)`)).toEqual([
 				{ relPath: 'synthetic.ts', primitive }
 			]);

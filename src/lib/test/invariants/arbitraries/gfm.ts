@@ -38,7 +38,9 @@ const fencedCode = fc
 		fc.constantFrom('', 'js', 'rust', 'ts'),
 		fc.array(fc.constantFrom('code();', '  indented', 'x = 1', ''), { maxLength: 4 })
 	)
-	.map(([fence, lang, body]) => fence + lang + '\n' + body.map((l) => l + '\n').join('') + fence + '\n');
+	.map(
+		([fence, lang, body]) => fence + lang + '\n' + body.map((l) => l + '\n').join('') + fence + '\n'
+	);
 
 const indentedCode = fc
 	.array(fc.constantFrom('code', 'x = 1', 'more'), { minLength: 1, maxLength: 3 })
@@ -85,12 +87,11 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 		{ arbitrary: table, weight: 2 },
 		// blockquote: prefix every line of an inner block with "> "
 		{
-			arbitrary: tie('block').map(
-				(inner) =>
-					inner
-						.split('\n')
-						.map((line, i, arr) => (i === arr.length - 1 && line === '' ? '' : '> ' + line))
-						.join('\n')
+			arbitrary: tie('block').map((inner) =>
+				inner
+					.split('\n')
+					.map((line, i, arr) => (i === arr.length - 1 && line === '' ? '' : '> ' + line))
+					.join('\n')
 			),
 			weight: 2
 		},

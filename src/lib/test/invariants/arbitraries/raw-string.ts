@@ -33,9 +33,7 @@ const arbFragment = fc.oneof(
  * markers, mixed CR/LF/CRLF, entities, escapes, lazy-quote shapes. Round-trip
  * must hold byte-for-byte regardless of how this parses.
  */
-export const arbRawString = fc
-	.array(arbFragment, { maxLength: 40 })
-	.map((parts) => parts.join(''));
+export const arbRawString = fc.array(arbFragment, { maxLength: 40 }).map((parts) => parts.join(''));
 
 /** CRLF-heavy source: mixed CR, LF, CRLF and lone \r interleaved with content. */
 export const arbCrlfString = fc
