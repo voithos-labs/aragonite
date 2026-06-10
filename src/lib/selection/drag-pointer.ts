@@ -7,9 +7,10 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
+import type { BlockKind } from '../core/nodes';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
-import { cellAtPoint } from '../components/blocks/table/cell-pointer';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { createAutoScroll } from './autoscroll';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -68,8 +69,8 @@ export function installDragListener(
 			return;
 		}
 
-		const offset = hit.isTable
-			? tableCellOffsetAt(hit.element, clientX, clientY)
+		const offset = hit.foreignDragHitTest
+			? hit.foreignDragHitTest(clientX, clientY)
 			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 
@@ -176,14 +177,15 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 
 interface BlockHit {
 	path: number[];
+	/** Editable surface for character-offset hit-testing (or the wrapper when none). */
 	element: HTMLElement;
 	/**
-	 * Tables encode focus offsets as cellIdx, not character offset
-	 * (range-delete-table reads offset as `row * columnCount + col`). When set,
-	 * `element` points to the [role="table"] element so cellAtPoint can resolve
-	 * row/column from the same node tree.
+	 * Set for block kinds with internal coordinate addressing (e.g. table,
+	 * whose offset is a row-major cellIdx, not a character index). Pre-bound to
+	 * the block's wrapper element; resolved from the kind's descriptor so the
+	 * selection layer carries no block-specific DOM knowledge.
 	 */
-	isTable?: boolean;
+	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
 }
 
 function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number): BlockHit | null {
@@ -197,9 +199,18 @@ function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number)
 			if (attr) {
 				try {
 					const path = JSON.parse(attr) as number[];
-					const tableEl = el.querySelector(':scope > [role="table"]') as HTMLElement | null;
-					if (tableEl) {
-						return { path, element: tableEl, isTable: true };
+					const kind = el.getAttribute('data-block-kind');
+					// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
+					const hitTest = kind
+						? tryGetBlockKindDescriptor(kind as BlockKind)?.foreignDragHitTest
+						: undefined;
+					if (hitTest) {
+						const wrapper = el;
+						return {
+							path,
+							element: wrapper,
+							foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
+						};
 					}
 					const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
 					return { path, element: editable ?? el };
@@ -211,19 +222,4 @@ function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number)
 		el = el.parentElement;
 	}
 	return null;
-}
-
-/**
- * Resolve a viewport point inside a table to a cellIdx offset. Returns null
- * when the point falls in cell padding/borders so the caller can hold the
- * previous focus instead of flickering.
- */
-function tableCellOffsetAt(tableEl: HTMLElement, clientX: number, clientY: number): number | null {
-	const cell = cellAtPoint(clientX, clientY, tableEl);
-	if (!cell) return null;
-	const firstRow = tableEl.querySelector(':scope > [data-table-row-idx="0"]');
-	if (!firstRow) return null;
-	const columnCount = firstRow.querySelectorAll(':scope > [role="cell"]').length;
-	if (columnCount === 0) return null;
-	return cell.rowIdx * columnCount + cell.colIdx;
 }

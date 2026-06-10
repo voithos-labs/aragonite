@@ -26,13 +26,14 @@ export interface TextRenderDeps {
 	resolveImageUrl: ResolveImageUrl;
 	get myPath(): number[];
 	get linkResolver(): LinkReferenceResolver | undefined;
+	get linkSignature(): string;
 }
 
 export interface TextRender {
 	/**
 	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw) nor `forceRebuild` demands it.
-	 * Pass `forceRebuild` when a pending cursor restoration needs the DOM
+	 * neither (ambientPrefixText, raw, ref-signature) nor `forceRebuild` demands
+	 * it. Pass `forceRebuild` when a pending cursor restoration needs the DOM
 	 * positions re-anchored even though the rendered key is unchanged.
 	 */
 	render(opts?: { forceRebuild?: boolean }): void;
@@ -85,7 +86,14 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}`;
+		// Reading the signature here (before the early-return) registers the
+		// render $effect's dependency on it, so an LRD change elsewhere
+		// re-renders this block. Gated on a literal `[` because every reference
+		// form needs a bracket — bracketless blocks can't resolve through an
+		// LRD, so folding the signature in for them would re-render the whole
+		// document on every LRD edit for no visible change.
+		const refKeyPart = node.raw.includes('[') ? deps.linkSignature : '';
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 
 		if (isProseKind(node.kind)) {

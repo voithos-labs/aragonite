@@ -67,9 +67,10 @@ describe('link-reference reactivity pipeline', () => {
 		);
 	});
 
-	it('signature is stable across no-op rebuilds (diagnostic property)', () => {
-		// The signature equality is a useful diagnostic for change detection
-		// even though the editor shell no longer uses it to gate re-parsing.
+	it('signature is stable across no-op rebuilds', () => {
+		// Stability across rebuilds is what lets the render-memo key skip a
+		// rebuild when the LRD set is unchanged — an identical signature must
+		// not invalidate a reference block's render.
 		const doc = parse('Just text.\n\n[go]: https://example.com\n');
 		const m1 = buildLinkReferenceMap(doc.children);
 		const m2 = buildLinkReferenceMap(doc.children);

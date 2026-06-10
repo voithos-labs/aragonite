@@ -13,6 +13,7 @@ import {
 	registerBlockComponent,
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
+import { augmentBlockKind } from '../schema/block-kind-descriptor';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import TextEditableBlock from './blocks/TextEditableBlock.svelte';
 import CodeBlock from './blocks/CodeBlock.svelte';
@@ -21,6 +22,7 @@ import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 import ListBlock from './blocks/ListBlock.svelte';
 import TableBlock from './blocks/table/TableBlock.svelte';
 import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
+import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
 function headingExtraProps(node: CstNode): Record<string, unknown> {
 	const level = metadataOf(node, 'heading')?.level ?? 1;
@@ -58,3 +60,8 @@ registerBlockComponent('unrecognized', textAsRawBlock);
 // (which skips it). Pipe-escaping cell paste would silently revert to the plain
 // inline default if both registrars ran and order let the default win.
 registerPasteSurface(tableCellPasteSurface);
+
+// Table owns internal cell addressing, so it registers a foreign-drag hit-test
+// the selection layer dispatches through the descriptor registry — no
+// selection→table-component import.
+augmentBlockKind('table', { foreignDragHitTest: tableDragHitTest });
