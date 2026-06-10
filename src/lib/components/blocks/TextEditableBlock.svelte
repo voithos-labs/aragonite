@@ -223,6 +223,9 @@
 		},
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
+		},
+		get linkSignature(): string {
+			return linkRef?.signature ?? '';
 		}
 	});
 

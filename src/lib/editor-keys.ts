@@ -60,6 +60,8 @@ export type DocumentGetter = () => Document;
 
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
- *  commit without invalidating descendants' getContext bindings. */
+ *  commit without invalidating descendants' getContext bindings. `signature`
+ *  is the LRD-set snapshot that reference-bearing render memos key on so they
+ *  re-render when a definition elsewhere changes. */
 export const LINK_REF_KEY = Symbol('link-ref');
-export type LinkReferenceResolverRef = { current?: LinkReferenceResolver };
+export type LinkReferenceResolverRef = { current?: LinkReferenceResolver; signature?: string };

@@ -38,6 +38,16 @@ export interface BlockKindDescriptor {
 	rebuildRaw?: (node: CstNode) => void;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
+	/**
+	 * Translate a foreign drag's viewport point into an internal focus offset
+	 * for a block kind with its own coordinate addressing (today only `table`,
+	 * whose offset is a row-major cellIdx, not a character index). `blockEl` is
+	 * the `[data-block-path]` wrapper; the impl resolves its own internal DOM.
+	 * Returns null when the point lands outside an addressable region. Patched
+	 * in from `components/built-in-blocks.ts` (top-of-DAG wire-up) so the schema
+	 * layer keeps no downstream component import.
+	 */
+	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 }
 
 // ── Content-range helpers (used by built-in registrations) ─────────────────

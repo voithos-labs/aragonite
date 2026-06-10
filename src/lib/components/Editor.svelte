@@ -70,7 +70,11 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	function initDocument(src: string): { doc: Document; resolver: LinkReferenceResolver } {
+	function initDocument(src: string): {
+		doc: Document;
+		resolver: LinkReferenceResolver;
+		signature: string;
+	} {
 		const d = parse(src);
 		if (d.children.length === 0) {
 			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
@@ -80,7 +84,7 @@
 		}
 		const refMap = buildLinkReferenceMap(d.children);
 		parseAllInlineContent(d.children, refMap.resolve);
-		return { doc: d, resolver: refMap.resolve };
+		return { doc: d, resolver: refMap.resolve, signature: refMap.signature };
 	}
 
 	// Initialize from the `source` prop. doc/blockIds are mutable state
@@ -93,6 +97,7 @@
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
+	let currentSignature = $state<string>(initial.signature);
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -128,6 +133,7 @@
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
 			currentResolver = newMap.resolve;
+			currentSignature = newMap.signature;
 		});
 		return () => dispose();
 	});
@@ -146,6 +152,7 @@
 			stickyColumn.reset();
 			selectionState.clear();
 			currentResolver = reset.resolver;
+			currentSignature = reset.signature;
 		}
 	});
 
@@ -285,6 +292,9 @@
 	setContext(LINK_REF_KEY, {
 		get current(): LinkReferenceResolver {
 			return currentResolver;
+		},
+		get signature(): string {
+			return currentSignature;
 		}
 	});
 
