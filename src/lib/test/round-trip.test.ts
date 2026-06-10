@@ -119,6 +119,10 @@ describe('round-trip: nested list edge cases', () => {
 		{
 			name: 'item with indented code block',
 			source: '- Item\n\n      code line\n'
+		},
+		{
+			name: 'table inside list item',
+			source: '- Item\n  | A | B |\n  | --- | --- |\n  | 1 | 2 |\n'
 		}
 	];
 
@@ -160,7 +164,12 @@ describe('round-trip: indented code blocks', () => {
 		{ name: 'mixed indent', source: '    line 1\n\tline 2\n' },
 		{ name: 'with blank line inside', source: '    line 1\n\n    line 2\n' },
 		{ name: 'after paragraph', source: 'Paragraph.\n\n    code\n' },
-		{ name: 'before paragraph', source: '    code\n\nParagraph.\n' }
+		{ name: 'before paragraph', source: '    code\n\nParagraph.\n' },
+		{
+			// "100. " gives content indent 5, so the 4-space line exits the list
+			name: 'indented code after list (top-level sibling)',
+			source: '100. Item\n\n    code line\n'
+		}
 	];
 
 	for (const { name, source } of cases) {
@@ -324,7 +333,11 @@ describe('round-trip: inline content', () => {
 		{ name: 'entity inside emphasis', source: '*&copy;*\n' },
 		{ name: 'entity inside link text', source: '[&copy; me](https://example.com)\n' },
 		{ name: 'entity inside code span (literal)', source: '`&copy;`\n' },
-		{ name: 'invalid entity stays as text', source: 'this &notreal; survives\n' }
+		{ name: 'invalid entity stays as text', source: 'this &notreal; survives\n' },
+		{
+			name: 'double-backtick code span containing a single backtick',
+			source: 'Use ``a`b`` here.\n'
+		}
 	];
 
 	for (const { name, source } of cases) {
