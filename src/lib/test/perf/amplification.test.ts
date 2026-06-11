@@ -2,7 +2,8 @@
  * Container-raw amplification report: containers materialize their
  * descendants' raw, so Σ(container raw) ÷ serialized doc bytes measures the
  * storage duplication factor. Deterministic for a fixed fixture — the logged
- * factors feed baseline.json; the assertion only guards the math.
+ * factors feed baseline.json; the assertion guards that the walk materializes
+ * content at least once (a broken walk reads ≤1).
  */
 import { expect, test } from 'vitest';
 import type { CstNode } from '../../core/nodes';
@@ -27,7 +28,7 @@ for (const shape of ['nested-containers', 'table-heavy'] as const) {
 			const doc = parse(generateFixture(shape, bytes));
 			const amplification = containerRawBytes(doc.children) / docByteLength(doc);
 			console.log(`${shape} ${bytes}B: container-raw amplification ×${amplification.toFixed(2)}`);
-			expect(amplification).toBeGreaterThan(0);
+			expect(amplification).toBeGreaterThan(1);
 		});
 	}
 }
