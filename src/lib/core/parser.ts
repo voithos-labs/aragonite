@@ -38,6 +38,12 @@ interface ParseBlocksResult {
 	suffix: string;
 }
 
+/**
+ * Stable seam: 0.8.1's block-incremental parsing re-parses ranges through
+ * this window. Contract (pinned by test/core/parse-blocks-window.test.ts):
+ * a [start, end) window aligned to block starts parses identically to a
+ * full parse of the window's text.
+ */
 export function parseBlocks(lines: ParsedLine[], start: number, end: number): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
