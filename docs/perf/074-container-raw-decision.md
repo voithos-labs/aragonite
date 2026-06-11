@@ -9,10 +9,10 @@ Numbers come from the 0.7.7 harness baseline (`src/lib/editor/test/perf/baseline
 Container nodes materialize their full outer source text (`raw`) alongside their children's — every nesting level stores its subtree's text again — and every undo checkpoint deep-clones the whole document. Candidates (spec § Phase C, criteria verbatim):
 
 | Candidate               | Wins if                                                                       | Cost moves to                                                              |
-| ----------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| justified keep          | no fixture shows a cliff (superlinear or budget-busting hot-path/memory cost) | — (sync-before-rebuild already structural via G1.1, shipped 0.7.2)          |
-| derived container raw   | live storage or rebuild amplification cliffs                                  | serialize + mid-edit container-raw reads (paste targeting, merge)           |
-| structural-sharing undo | clone bytes / undo memory cliffs                                              | clone-on-write complexity at the `cloneNode` boundary, keyed by `childIds`  |
+| ----------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| justified keep          | no fixture shows a cliff (superlinear or budget-busting hot-path/memory cost) | — (sync-before-rebuild already structural via G1.1, shipped 0.7.2)         |
+| derived container raw   | live storage or rebuild amplification cliffs                                  | serialize + mid-edit container-raw reads (paste targeting, merge)          |
+| structural-sharing undo | clone bytes / undo memory cliffs                                              | clone-on-write complexity at the `cloneNode` boundary, keyed by `childIds` |
 
 Decision axis: amplification-on-write (materialized raw, re-clone per checkpoint) vs cost-on-read (derived raw moves cost onto serialize and mid-edit container-raw reads).
 
@@ -32,12 +32,12 @@ Amplification = Σ(container `raw` length) ÷ serialized doc length, in UTF-16 c
 
 Every keystroke inside a container re-joins each ancestor's raw, innermost first (`baseline.json` → `ancestryRebuild`):
 
-| Bench                              | Mean ms | rme    | Samples |
-| ---------------------------------- | ------- | ------ | ------- |
-| depth 8, many tiny lists (1MB doc) | 0.0015  | ±9.0%  | 342,180 |
-| breadth: single 100KB list         | 0.149   | ±0.7%  | 3,354   |
-| breadth: single 1MB list           | 2.04    | ±4.1%  | 246     |
-| breadth: single 10MB list          | 23.1    | ±3.8%  | 130     |
+| Bench                              | Mean ms | rme   | Samples |
+| ---------------------------------- | ------- | ----- | ------- |
+| depth 8, many tiny lists (1MB doc) | 0.0015  | ±9.0% | 342,180 |
+| breadth: single 100KB list         | 0.149   | ±0.7% | 3,354   |
+| breadth: single 1MB list           | 2.04    | ±4.1% | 246     |
+| breadth: single 10MB list          | 23.1    | ±3.8% | 130     |
 
 Depth is free; cost is O(size of the largest rebuilt container). One 10MB flat list costs 23.1ms **per keystroke** — alone above a 16ms frame — and each rebuild also allocates a fresh container-raw string of the container's full size (~10MB of churn per keystroke on that shape). At 1MB the same shape costs 2.0ms — inside budget.
 
@@ -60,7 +60,7 @@ DEV overhead is ~10–15%; the cliff is intrinsic, not a test-mode artifact.
 
 Clone cost is **O(node count), not bytes**: a 10MB single paragraph (1 node) clones in 0.1µs because strings copy by reference, while 10MB nested (585,936 nodes) takes 357ms. One-off: a single 10MB flat list (1.44M nodes — a shape not in the committed corpus) clones in ~812ms (DEV).
 
-**What the undo gauge does and does not measure.** `undoLiveBytes` sums a serialized-length proxy per snapshot; at the `MAX_UNDO = 200` entry cap (entries, not bytes) it reads 200 × doc length — 200MB at 1MB, 2.0GB at 10MB. That is **not** heap: post-clone, every string is a shared reference, so a snapshot's real heap cost is its node *objects*. Measured retained heap per snapshot (one-off, process-heap delta over retained clones, no forced GC — approximate):
+**What the undo gauge does and does not measure.** `undoLiveBytes` sums a serialized-length proxy per snapshot; at the `MAX_UNDO = 200` entry cap (entries, not bytes) it reads 200 × doc length — 200MB at 1MB, 2.0GB at 10MB. That is **not** heap: post-clone, every string is a shared reference, so a snapshot's real heap cost is its node _objects_. Measured retained heap per snapshot (one-off, process-heap delta over retained clones, no forced GC — approximate):
 
 | Fixture                | Nodes     | Heap per snapshot | ≈ per node |
 | ---------------------- | --------- | ----------------- | ---------- |
@@ -76,12 +76,12 @@ At-cap arithmetic (sustained editing saturates 200 entries): nested 1MB ≈ 200 
 
 ## Candidate simulations (one-off)
 
-| Measurement                                                            | nested 1MB | nested 10MB | single 10MB list |
-| ---------------------------------------------------------------------- | ---------- | ----------- | ---------------- |
-| full `cloneDocument` (same-run reference, DEV)                          | 43.4 ms    | 400 ms      | 812 ms           |
-| spine-only clone (copy path to edit, share off-spine children by ref)  | 0.0072 ms  | 0.137 ms    | 0.60 ms          |
-| reduction                                                               | ~6,000×    | ~2,900×     | ~1,400×          |
-| bottom-up derive of every container raw (derived-raw cold serialize)    | 11.5 ms    | 101 ms      | 206 ms           |
+| Measurement                                                           | nested 1MB | nested 10MB | single 10MB list |
+| --------------------------------------------------------------------- | ---------- | ----------- | ---------------- |
+| full `cloneDocument` (same-run reference, DEV)                        | 43.4 ms    | 400 ms      | 812 ms           |
+| spine-only clone (copy path to edit, share off-spine children by ref) | 0.0072 ms  | 0.137 ms    | 0.60 ms          |
+| reduction                                                             | ~6,000×    | ~2,900×     | ~1,400×          |
+| bottom-up derive of every container raw (derived-raw cold serialize)  | 11.5 ms    | 101 ms      | 206 ms           |
 
 Today's serialize is a top-level O(doc bytes) join — a few ms at 10MB. Under derived raw, a mid-edit read of one container is a recursive derive of its subtree: µs for the nested fixture's tiny lists, ~206ms for the pathological single 10MB list (the same cliff as Row 2, paid per read instead of per keystroke).
 
@@ -89,9 +89,9 @@ Today's serialize is a top-level O(doc bytes) join — a few ms at 10MB. Under d
 
 **justified keep — "no fixture shows a cliff (superlinear or budget-busting hot-path/memory cost)": fails.** Nothing measured is superlinear, but two budget-busting hot-path/memory costs exist: (a) undo clone at 357ms per checkpoint @10MB nested and 32ms @1MB (production), with per-snapshot heap of 12MB @1MB → ~2.4GB at stack cap on a realistic 1MB document; (b) per-keystroke breadth rebuild at 23.1ms on a 10MB single container — over frame budget, though only on a shape that already cannot render. G1.1 made sync-before-rebuild structural, so keep would require no work — but its own criterion is not met.
 
-**derived container raw — "live storage or rebuild amplification cliffs": not selected by the evidence.** Live storage is a scale-invariant constant factor (×3.55 / ×1.96 / ×2.0) — 3.55MB extra at 1MB nested, 35.5MB at 10MB; linear, and small next to undo-stack heap. The rebuild axis cliffs only when a *single* container approaches MB size: 2.0ms @1MB is in budget, and the 23.1ms @10MB shape is unreachable interactively (render wall). The move would cost: serialize goes from a few ms to 101–206ms @10MB (off the keystroke path), mid-edit container-raw reads go from O(1) to a subtree derive, and G1.1 plus the syntax-tree/editor/invariants contract sections reshape. Decisive against it: the measured cliffs are node-count-bound clone time and snapshot heap, which derived raw does not touch at all.
+**derived container raw — "live storage or rebuild amplification cliffs": not selected by the evidence.** Live storage is a scale-invariant constant factor (×3.55 / ×1.96 / ×2.0) — 3.55MB extra at 1MB nested, 35.5MB at 10MB; linear, and small next to undo-stack heap. The rebuild axis cliffs only when a _single_ container approaches MB size: 2.0ms @1MB is in budget, and the 23.1ms @10MB shape is unreachable interactively (render wall). The move would cost: serialize goes from a few ms to 101–206ms @10MB (off the keystroke path), mid-edit container-raw reads go from O(1) to a subtree derive, and G1.1 plus the syntax-tree/editor/invariants contract sections reshape. Decisive against it: the measured cliffs are node-count-bound clone time and snapshot heap, which derived raw does not touch at all.
 
-**structural-sharing undo — "clone bytes / undo memory cliffs": selected.** Both cliffs on this axis are measured and budget-busting at realistic sizes: 32ms (1MB) / 357ms (10MB) per checkpoint in production, and object-heap retention reaching GBs at the entry cap on a 1MB nested document. The spine-only simulation removes ~99.97% of per-checkpoint time (0.0072ms @1MB, 0.137ms @10MB) and turns per-checkpoint heap from ~0.1–0.25KB × all nodes into O(depth + touched-container children) — KBs to a few MB. What sharing does **not** fix: per-checkpoint *string* divergence on giant-single-container shapes (~10MB retained per checkpoint on the 10MB flat list) — that residual lives on the materialized-raw axis, not the undo axis.
+**structural-sharing undo — "clone bytes / undo memory cliffs": selected.** Both cliffs on this axis are measured and budget-busting at realistic sizes: 32ms (1MB) / 357ms (10MB) per checkpoint in production, and object-heap retention reaching GBs at the entry cap on a 1MB nested document. The spine-only simulation removes ~99.97% of per-checkpoint time (0.0072ms @1MB, 0.137ms @10MB) and turns per-checkpoint heap from ~0.1–0.25KB × all nodes into O(depth + touched-container children) — KBs to a few MB. What sharing does **not** fix: per-checkpoint _string_ divergence on giant-single-container shapes (~10MB retained per checkpoint on the 10MB flat list) — that residual lives on the materialized-raw axis, not the undo axis.
 
 ## Recommendation
 
@@ -99,7 +99,7 @@ Today's serialize is a top-level O(doc bytes) join — a few ms at 10MB. Under d
 
 The evidence sorts cleanly along the spec's axis: amplification-on-write is real but linear and bounded on the storage/rebuild axes at realistic sizes (≤1MB: 3.55MB extra storage, 2ms/keystroke worst-case rebuild), while the undo axis holds the only budget-busting costs at those sizes — a 32ms stall at every typing-batch start and structural op, and a path to multi-GB heap at the undo cap. Clone-on-write keyed by `childIds` eliminates effectively all of both. Derived raw would fix the cheap problems and leave the expensive one.
 
-Cost accepted: clone-on-write complexity at the `cloneNode` boundary — concretely, mutation discipline. Once snapshots alias live subtrees, every in-place mutation (commit primitives *and* the per-component `rebuildRaw` callbacks) must copy shared spine nodes before writing or it corrupts history. The implementation plan's central risk is silent aliasing; it needs an aliasing invariant plus fuzz coverage (the 0.7.5 harness is the natural home).
+Cost accepted: clone-on-write complexity at the `cloneNode` boundary — concretely, mutation discipline. Once snapshots alias live subtrees, every in-place mutation (commit primitives _and_ the per-component `rebuildRaw` callbacks) must copy shared spine nodes before writing or it corrupts history. The implementation plan's central risk is silent aliasing; it needs an aliasing invariant plus fuzz coverage (the 0.7.5 harness is the natural home).
 
 Residual risk of the non-chosen candidates:
 
