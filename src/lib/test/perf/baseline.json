@@ -1,0 +1,52 @@
+{
+	"recorded": "2026-06-10",
+	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
+	"note": "Time rows are report-only references, not gates. Counter rows are machine-independent. Means transcribed from perf-results/editor-bench.json (npm run perf:editor).",
+	"parse": {
+		"flat-prose-100KB-mean-ms": 0.2794,
+		"flat-prose-1MB-mean-ms": 2.7378,
+		"flat-prose-10MB-mean-ms": 31.9736,
+		"nested-containers-100KB-mean-ms": 3.0157,
+		"nested-containers-1MB-mean-ms": 34.7087,
+		"nested-containers-10MB-mean-ms": 394.1457,
+		"many-small-blocks-100KB-mean-ms": 1.5419,
+		"many-small-blocks-1MB-mean-ms": 16.2843,
+		"many-small-blocks-10MB-mean-ms": 223.4213,
+		"single-giant-paragraph-100KB-mean-ms": 0.1063,
+		"single-giant-paragraph-1MB-mean-ms": 1.0616,
+		"single-giant-paragraph-10MB-mean-ms": 10.4765,
+		"reference-heavy-100KB-mean-ms": 0.7214,
+		"reference-heavy-1MB-mean-ms": 7.3814,
+		"reference-heavy-10MB-mean-ms": 84.2312,
+		"table-heavy-100KB-mean-ms": 1.146,
+		"table-heavy-1MB-mean-ms": 13.2967,
+		"table-heavy-10MB-mean-ms": 175.5278
+	},
+	"clone": {
+		"flat-prose-100KB-mean-ms": 0.1498,
+		"flat-prose-1MB-mean-ms": 1.4851,
+		"flat-prose-10MB-mean-ms": 15.2889,
+		"nested-containers-100KB-mean-ms": 3.4198,
+		"nested-containers-1MB-mean-ms": 38.6469,
+		"nested-containers-10MB-mean-ms": 405.9545,
+		"many-small-blocks-100KB-mean-ms": 0.0337,
+		"many-small-blocks-1MB-mean-ms": 0.5543,
+		"many-small-blocks-10MB-mean-ms": 11.0432,
+		"single-giant-paragraph-100KB-mean-ms": 0.0001,
+		"single-giant-paragraph-1MB-mean-ms": 0.0001,
+		"single-giant-paragraph-10MB-mean-ms": 0.0001,
+		"reference-heavy-100KB-mean-ms": 0.5215,
+		"reference-heavy-1MB-mean-ms": 5.2123,
+		"reference-heavy-10MB-mean-ms": 55.8511,
+		"table-heavy-100KB-mean-ms": 2.0649,
+		"table-heavy-1MB-mean-ms": 22.7657,
+		"table-heavy-10MB-mean-ms": 244.0091
+	},
+	"ancestryRebuild": { "depth": 8, "mean-ms": 0.0013 },
+	"counters": {
+		"nested-containers-100KB-amplification": 3.55,
+		"nested-containers-1MB-amplification": 3.55,
+		"table-heavy-100KB-amplification": 1.96,
+		"table-heavy-1MB-amplification": 1.96
+	}
+}
