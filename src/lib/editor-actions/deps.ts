@@ -5,6 +5,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockElLookup, EditorSelection } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
+import type { SharingState } from '../undo/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';
@@ -18,6 +19,7 @@ export interface EditorActionsDeps {
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
 	undoManager: UndoManager;
+	sharing: SharingState;
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;

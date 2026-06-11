@@ -46,7 +46,10 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		expect(node.metadata).toEqual({ taskChecked: true });
+		// Copy-path-on-write: the live node carries the patch; the captured
+		// pre-op node stays pristine for the undo snapshot that shares it.
+		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
+		expect(node.metadata).toEqual({ taskChecked: false });
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
 		expect(evt.op).toBe('metadataUpdate');
@@ -115,7 +118,11 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		expect(node.metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
+		expect(deps.doc.children[0].metadata).toEqual({
+			marker: '- ',
+			taskItem: true,
+			taskChecked: true
+		});
 	});
 
 	it('multi-field patch updates taskChecked and taskMarker atomically', async () => {
@@ -129,13 +136,13 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
 
-		expect(node.metadata).toMatchObject({
+		expect(deps.doc.children[0].metadata).toMatchObject({
 			taskItem: true,
 			taskChecked: true,
 			taskMarker: '[x] '
 		});
 		// taskMarker in metadata must propagate to raw via rebuildListItemRaw.
-		expect(node.raw).toBe('- [x] pending\n');
+		expect(deps.doc.children[0].raw).toBe('- [x] pending\n');
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
 		expect(evt.op).toBe('metadataUpdate');

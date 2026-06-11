@@ -7,6 +7,7 @@ import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordin
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo/manager';
+import { createSharingState } from '$lib/editor/undo/sharing';
 import { createEditorEvents } from '$lib/editor/editor-events';
 import { parse } from '$lib/editor/core/parser';
 import { mockRef, makeStickyColumn } from '$lib/editor/test/harness/editor-actions';
@@ -45,6 +46,7 @@ function makeEnv(source: string) {
 			blockRefs = v;
 		},
 		undoManager: createUndoManager(),
+		sharing: createSharingState(),
 		stickyColumn,
 		selectionState,
 		getBlockElByPath: () => null,
