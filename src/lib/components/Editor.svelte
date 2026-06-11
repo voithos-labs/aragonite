@@ -126,11 +126,12 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// Action-site `parseAllInlineContent` calls (in editor-actions/, tree-operations/,
-			// selection/) build unresolved-reference inline trees because they don't have
-			// a resolver in scope. Refresh the whole doc on every emitted `edit` event
-			// (structural commits and the debounced input flush alike) so references stay
-			// coherent regardless of which path produced the trees.
+			// Sole populator of `inlineContent` after structural ops and undo/redo:
+			// every emitted `edit` event (structural commits, the debounced input
+			// flush, undo/redo) refreshes the whole doc with a fresh resolver here.
+			// Operations must NOT pre-populate the cache — any tree they build is
+			// overwritten by this sweep before a consumer can read it (dead work,
+			// deleted in 0.7.7).
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
 			if (perfEnabled()) recordInlineRefresh(countProseNodes(doc.children));

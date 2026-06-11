@@ -22,7 +22,6 @@ import {
 } from '../tree-operations';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
-import { parseAllInlineContent } from '../core/inline';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import type { NestedActionsDeps } from './nested-actions';
 
@@ -376,7 +375,6 @@ export function createNestedBlockEdit(
 						replacement
 					);
 					for (const node of normalizedReplacement) ensureEditableContainers(node);
-					parseAllInlineContent(normalizedReplacement);
 					children.splice(innerIndex, 1, ...normalizedReplacement);
 					deps.node.children = children;
 					rebuildRaw();

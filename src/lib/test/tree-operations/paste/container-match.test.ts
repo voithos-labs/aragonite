@@ -67,24 +67,6 @@ describe('container-matching paste — empty-target newline-termination (A1)', (
 		// following sibling ("- keep") → "- y- keep" on one line.
 		expect(list.raw).toBe('- x\n- y\n- keep\n');
 	});
-
-	it('populates inline content on spliced items so non-render consumers see fresh trees (A2)', async () => {
-		const doc = parse('- a\n- keep\n');
-		const list = doc.children[0];
-		list.children![0].children![0].raw = '';
-		registerStubState(list);
-
-		await pasteDispatch(
-			{ pastedText: '- x\n- y', targetPath: [0, 0, 0], offset: 0 },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), skipSnapshot: true }
-		);
-
-		// First spliced item's inner paragraph must carry a parsed inline tree —
-		// the sibling absorb/break-out strategies populate it; this branch must too.
-		const firstPastedPara = list.children![0].children![0];
-		expect(firstPastedPara.inlineContent).toBeDefined();
-		expect(firstPastedPara.inlineContent!.length).toBeGreaterThan(0);
-	});
 });
 
 describe('findContainerMatchingUnwrap — blockquote non-empty target (no wholesale replace)', () => {
