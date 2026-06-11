@@ -1,7 +1,8 @@
 /**
  * Factory for the ListContext bundle that a ListBlock provides to its child
  * ListItemBlocks. All list-side structural mutations route through
- * `commitMultiScope`.
+ * `commitMultiScope`, whose owned scope views are the only legal write
+ * targets — never the pre-commit `deps.node` captures.
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
@@ -10,7 +11,9 @@ import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
+import { stampStructuralChange } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
+import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-raw';
 import {
 	renumberOrderedList,
@@ -24,6 +27,7 @@ import { generateBlockId } from '../tree-operations/block-id';
 export interface ListContextDeps {
 	get index(): number;
 	get node(): CstNode;
+	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
@@ -41,35 +45,40 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			if (!prevItem.children) return;
 
 			const ordered = metadataOf(node, 'list').ordered;
-			const existingNestedList = prevItem.children.find(
+			const existingNestedIdx = prevItem.children.findIndex(
 				(c) => c.kind === 'list' && metadataOf(c, 'list').ordered === ordered
 			);
+			const existingNestedList =
+				existingNestedIdx === -1 ? undefined : prevItem.children[existingNestedIdx];
 
 			// Scope 0 = outer list (item removed).
 			// Scope 1 = destination: existing same-kind nested list, or prevItem's
 			//           children (where a new nested list will be appended).
-			const scopes: MultiScopeTarget[] = [{ node, state: deps.state }];
+			const scopes: MultiScopeTarget[] = [{ node, state: deps.state, path: deps.path }];
 
 			if (existingNestedList && existingNestedList.children) {
-				scopes.push({ node: existingNestedList, state: expectStateForNode(existingNestedList) });
+				scopes.push({
+					node: existingNestedList,
+					state: expectStateForNode(existingNestedList),
+					path: [...deps.path, itemIndex - 1, existingNestedIdx]
+				});
 			} else {
-				scopes.push({ node: prevItem, state: expectStateForNode(prevItem) });
-			}
-
-			let destList: CstNode | null = null;
-			if (existingNestedList) {
-				destList = existingNestedList;
+				scopes.push({
+					node: prevItem,
+					state: expectStateForNode(prevItem),
+					path: [...deps.path, itemIndex - 1]
+				});
 			}
 
 			await deps.controller.commitMultiScope({
 				scopes,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scopeChildren) => {
-					const [outerScope, destScope] = scopeChildren;
-
+				mutate: ([outerScope, destScope], sharing) => {
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
 
+					let destList: CstNode;
 					if (existingNestedList) {
+						destList = destScope.node;
 						destScope.children.push(movedItem);
 					} else {
 						destList = {
@@ -80,24 +89,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 							children: [movedItem],
 							childIds: [generateBlockId()]
 						};
+						sharing.stamp(destList);
 						destScope.children.push(destList);
 					}
 
-					// Sync before rebuild — rebuild helpers read node.children directly.
-					node.children = outerScope.children;
-					if (existingNestedList) {
-						existingNestedList.children = destScope.children;
-					} else {
-						prevItem.children = destScope.children;
-					}
-
-					if (destList) {
-						renumberOrderedList(destList);
-						rebuildListRaw(destList);
-					}
-					rebuildListItemRaw(prevItem);
-					renumberOrderedList(node, itemIndex);
-					rebuildListRaw(node);
+					// Renumber writes the moved item's marker — sharing unshares it.
+					renumberOrderedList(destList, 0, sharing);
+					rebuildListRaw(destList);
+					renumberOrderedList(outerScope.node, itemIndex, sharing);
 
 					return [
 						{ op: 'delete', at: itemIndex, count: 1 },
@@ -153,14 +152,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			}
 
 			await deps.controller.commitMultiScope({
-				scopes: [{ node, state: deps.state }],
+				scopes: [{ node, state: deps.state, path: deps.path }],
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scopeChildren) => {
-					scopeChildren[0].children.splice(itemIndex + 1, 0, newItem!);
-					// Sync before rebuild — rebuildListRaw reads node.children directly.
-					node.children = scopeChildren[0].children;
-					renumberOrderedList(node, itemIndex + 1);
-					rebuildListRaw(node);
+				mutate: ([scope], sharing) => {
+					sharing.stamp(newItem!);
+					scope.children.splice(itemIndex + 1, 0, newItem!);
+					renumberOrderedList(scope.node, itemIndex + 1, sharing);
 					return [{ op: 'insert', at: itemIndex + 1, count: 1 }];
 				},
 				op: {
@@ -188,26 +185,26 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Combining both into one commit gives mid-item Enter a single undo entry.
 			await deps.controller.commitMultiScope({
 				scopes: [
-					{ node: outerList, state: deps.state },
-					{ node: item, state: itemState }
+					{ node: outerList, state: deps.state, path: deps.path },
+					{ node: item, state: itemState, path: [...deps.path, itemIndex] }
 				],
 				snapshot: { blockIndex: deps.index, offset },
-				mutate: (scopeChildren) => {
-					const outerChildren = scopeChildren[0].children;
-					const itemChildren = scopeChildren[1].children;
+				mutate: ([outerScope, itemScope], sharing) => {
+					const itemChildren = itemScope.children;
 
 					// Pre-splice length — descriptor must report how many children
 					// we actually removed from this scope (everything from innerIndex
 					// onward), not just the one we split.
 					const preSpliceLen = itemChildren.length;
 
-					performSplit({ children: itemChildren }, innerIndex, offset);
+					const splitChange = performSplit({ children: itemChildren }, innerIndex, offset);
+					stampStructuralChange(itemChildren, splitChange, sharing);
 					const secondHalf = itemChildren.splice(innerIndex + 1);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const prevMarker = metadataOf(item, 'listItem')?.marker ?? '- ';
+					const prevMarker = metadataOf(itemScope.node, 'listItem')?.marker ?? '- ';
 					const newMarker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 					const newItem: CstNode = {
 						kind: 'listItem',
@@ -215,7 +212,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						raw: '',
 						metadata: {
 							marker: newMarker,
-							taskItem: metadataOf(item, 'listItem').taskItem ?? false,
+							taskItem: metadataOf(itemScope.node, 'listItem').taskItem ?? false,
 							taskChecked: false,
 							taskMarker: null
 						},
@@ -224,16 +221,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						childIds: secondHalf.map(() => generateBlockId()),
 						innerSuffix: ''
 					};
-
-					// Sync before rebuild for both scopes.
-					item.children = itemChildren;
-					rebuildListItemRaw(item);
+					sharing.stamp(newItem);
 					rebuildListItemRaw(newItem);
 
-					outerChildren.splice(itemIndex + 1, 0, newItem);
-					outerList.children = outerChildren;
-					renumberOrderedList(outerList, itemIndex + 1);
-					rebuildListRaw(outerList);
+					outerScope.children.splice(itemIndex + 1, 0, newItem);
+					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
 
 					// Net scope-1 change: [innerIndex .. preSpliceLen) replaced by
 					// the single first-half leaf. idMap preserves the split leaf's id.
@@ -266,7 +258,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const parentItem = node.children[parentItemIdx];
 			if (!parentItem?.children) return;
 
-			const item = nestedListNode.children[nestedItemIdx];
+			const nestedIdxInParent = parentItem.children.indexOf(nestedListNode);
+			if (nestedIdxInParent === -1) return;
+
 			// Removing the last item empties the nested list, which needs a third
 			// scope to splice the now-empty list out of parentItem's children.
 			const nestedListWillEmpty = nestedListNode.children.length === 1;
@@ -275,30 +269,41 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Scope 1 = nested list (item spliced out).
 			// Scope 2 (conditional) = parentItem (empty nested list removed).
 			const scopes: MultiScopeTarget[] = [
-				{ node, state: deps.state },
-				{ node: nestedListNode, state: expectStateForNode(nestedListNode) }
+				{ node, state: deps.state, path: deps.path },
+				{
+					node: nestedListNode,
+					state: expectStateForNode(nestedListNode),
+					path: [...deps.path, parentItemIdx, nestedIdxInParent]
+				}
 			];
 			let parentItemScopeIdx = -1;
 			if (nestedListWillEmpty) {
 				parentItemScopeIdx = scopes.length;
-				scopes.push({ node: parentItem, state: expectStateForNode(parentItem) });
+				scopes.push({
+					node: parentItem,
+					state: expectStateForNode(parentItem),
+					path: [...deps.path, parentItemIdx]
+				});
 			}
 
 			await deps.controller.commitMultiScope({
 				scopes,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scopeChildren) => {
-					const outerChildren = scopeChildren[0].children;
-					const nestedChildren = scopeChildren[1].children;
+				mutate: (scopeViews, sharing) => {
+					const outerScope = scopeViews[0];
+					const nestedScope = scopeViews[1];
 
-					nestedChildren.splice(nestedItemIdx, 1);
+					// The promoted item is moved AND written (marker normalization,
+					// renumber) — own it before it leaves the nested list.
+					const item = ensureUnsharedChild(nestedScope.node, nestedItemIdx, sharing);
+					nestedScope.children.splice(nestedItemIdx, 1);
 
 					const changes: StructuralChange[] = new Array(scopes.length);
 					changes[1] = { op: 'delete', at: nestedItemIdx, count: 1 };
 
 					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
-						const parentItemChildren = scopeChildren[parentItemScopeIdx].children;
-						const nestedIdx = parentItemChildren.indexOf(nestedListNode);
+						const parentItemChildren = scopeViews[parentItemScopeIdx].children;
+						const nestedIdx = parentItemChildren.indexOf(nestedScope.node);
 						if (nestedIdx !== -1) {
 							parentItemChildren.splice(nestedIdx, 1);
 							changes[parentItemScopeIdx] = { op: 'delete', at: nestedIdx, count: 1 };
@@ -307,26 +312,16 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						}
 					}
 
-					// Sync before rebuild — rebuild helpers read node.children directly.
-					nestedListNode.children = nestedChildren;
-					if (nestedListWillEmpty && parentItemScopeIdx !== -1) {
-						parentItem.children = scopeChildren[parentItemScopeIdx].children;
-					}
-
 					if (!nestedListWillEmpty) {
-						renumberOrderedList(nestedListNode);
-						rebuildListRaw(nestedListNode);
+						renumberOrderedList(nestedScope.node, 0, sharing);
 					}
-					rebuildListItemRaw(parentItem);
 
-					normalizeItemMarkerToList(item, node);
+					normalizeItemMarkerToList(item, outerScope.node);
 
-					outerChildren.splice(parentItemIdx + 1, 0, item);
+					outerScope.children.splice(parentItemIdx + 1, 0, item);
 					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
 
-					node.children = outerChildren;
-					renumberOrderedList(node, parentItemIdx + 1);
-					rebuildListRaw(node);
+					renumberOrderedList(outerScope.node, parentItemIdx + 1, sharing);
 
 					return changes;
 				},

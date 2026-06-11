@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
+import { createSharingState } from '../../undo/sharing';
 import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../../core/nodes';
 
 function findTable(doc: Document): CstNode | null {
@@ -20,7 +21,12 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const doc = parse(source);
 
 		// end.offset = 3 → clears cells 0,1,2 (header row entirely, plus body row 1's cell 0)
-		const result = rangeDelete(doc, { path: [0], offset: 5 }, { path: [1], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 5 },
+			{ path: [1], offset: 3 },
+			createSharingState()
+		);
 
 		const para = result.newDoc.children[0];
 		expect(para.kind).toBe('paragraph');
@@ -49,7 +55,12 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const source = 'before\n\n| A | B |\n| --- | --- |\n';
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 6 }, { path: [1], offset: 2 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 6 },
+			{ path: [1], offset: 2 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');
@@ -59,7 +70,12 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const source = `head\n\nmiddle\n\n${TWO_COL_FOUR_ROW}`;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 4 }, { path: [2], offset: 2 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 4 },
+			{ path: [2], offset: 2 },
+			createSharingState()
+		);
 
 		const survivors = result.newDoc.children;
 		expect(survivors).toHaveLength(2);
@@ -79,7 +95,12 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const doc = parse(source);
 
 		// end.offset = 3 → clears cells 0,1,2: header row removed, body promoted.
-		const result = rangeDelete(doc, { path: [0], offset: 2 }, { path: [2, 0], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [2, 0], offset: 3 },
+			createSharingState()
+		);
 
 		const survivors = result.newDoc.children;
 		expect(survivors).toHaveLength(2);
@@ -107,7 +128,12 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 		const doc = parse(source);
 
 		// Focus 7 chars in: 'follow ' | 'paragraph'. Drops the 7-char head.
-		const result = rangeDelete(doc, { path: [0], offset: 3 }, { path: [1], offset: 7 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 3 },
+			{ path: [1], offset: 7 },
+			createSharingState()
+		);
 
 		const survivors = result.newDoc.children;
 		expect(survivors).toHaveLength(2);
@@ -132,7 +158,12 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 		const source = `${TWO_COL_FOUR_ROW}\nafter\n`;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 0 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 0 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');
@@ -147,7 +178,12 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 		const source = `${TWO_COL_FOUR_ROW}\n> first\n>\n> second\n`;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1, 1], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [1, 1], offset: 3 },
+			createSharingState()
+		);
 
 		const survivors = result.newDoc.children;
 		expect(survivors).toHaveLength(1);
@@ -165,7 +201,12 @@ describe('rangeDelete — Case 3 (prose → table → prose, full-table span)', 
 		const source = `head text\n\n${TWO_COL_FOUR_ROW}\ntail text\n`;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 4 }, { path: [2], offset: 4 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 4 },
+			{ path: [2], offset: 4 },
+			createSharingState()
+		);
 
 		// head + tail merge: 'head' + ' text' = 'head text\n'
 		expect(result.newDoc.children).toHaveLength(1);
@@ -183,7 +224,12 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		const lastCellIdx =
 			tableBefore.children!.length * (tableBefore.metadata as TableMetadata).columnCount - 1;
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [0], offset: lastCellIdx });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [0], offset: lastCellIdx },
+			createSharingState()
+		);
 
 		const table = result.newDoc.children[0];
 		expect(table.kind).toBe('table');
@@ -205,7 +251,12 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		const source = TWO_COL_FOUR_ROW;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 2 }, { path: [0], offset: 5 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [0], offset: 5 },
+			createSharingState()
+		);
 
 		const table = result.newDoc.children[0];
 		expect(table.children).toHaveLength(4);
@@ -229,7 +280,12 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		const source = TWO_COL_FOUR_ROW;
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 1 }, { path: [0], offset: 7 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 1 },
+			{ path: [0], offset: 7 },
+			createSharingState()
+		);
 
 		const table = result.newDoc.children[0];
 		expect(table.children).toHaveLength(4);
@@ -249,7 +305,12 @@ describe('rangeDelete — table edge cases', () => {
 		const doc = parse(source);
 		const cellCount = 2 * 4;
 
-		const result = rangeDelete(doc, { path: [0], offset: 2 }, { path: [1], offset: cellCount });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1], offset: cellCount },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');
@@ -262,7 +323,12 @@ describe('rangeDelete — table edge cases', () => {
 		const source = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nafter\n';
 		const doc = parse(source);
 
-		const result = rangeDelete(doc, { path: [0], offset: 4 }, { path: [1], offset: 0 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 4 },
+			{ path: [1], offset: 0 },
+			createSharingState()
+		);
 
 		const table = result.newDoc.children[0];
 		expect(table.children).toHaveLength(2);
@@ -282,7 +348,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// survives. B's header row drops; B survives.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [0], offset: 3 }, { path: [1], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 3 },
+			{ path: [1], offset: 3 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(2);
 		expect(result.newDoc.children[0].kind).toBe('table');
@@ -297,7 +368,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// header row (cells 0,1,2 cleared by focus offset 3) drops, body promotes.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 3 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('table');
@@ -310,7 +386,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// (all cells) clears B entirely → B removed.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [0], offset: 3 }, { path: [1], offset: 6 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 3 },
+			{ path: [1], offset: 6 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('table');
@@ -323,7 +404,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// nearest surviving block before the deleted range = end of "pre".
 		const doc = parse(`pre\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\npost\n`);
 
-		const result = rangeDelete(doc, { path: [1], offset: 0 }, { path: [2], offset: 6 });
+		const result = rangeDelete(
+			doc,
+			{ path: [1], offset: 0 },
+			{ path: [2], offset: 6 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(2);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');
@@ -338,7 +424,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// char-offset leaf, never the table block shallowly.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [1], offset: 0 }, { path: [2], offset: 6 });
+		const result = rangeDelete(
+			doc,
+			{ path: [1], offset: 0 },
+			{ path: [2], offset: 6 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('table');
@@ -352,7 +443,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// the nested path as a top-level shift would over-shift B's index.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n> quoted\n\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [2], offset: 3 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [2], offset: 3 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('table');
@@ -364,7 +460,12 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		// the prose precedent: materialize one empty paragraph at [0].
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
-		const result = rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 6 });
+		const result = rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 6 },
+			createSharingState()
+		);
 
 		expect(result.newDoc.children).toHaveLength(1);
 		expect(result.newDoc.children[0].kind).toBe('paragraph');

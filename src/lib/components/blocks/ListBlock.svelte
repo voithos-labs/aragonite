@@ -18,7 +18,6 @@
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { rebuildListRaw } from '../../schema/container-raw';
 	import { createListContext } from '../../editor-actions/list-context';
 	import { createListOverrides } from '../../editor-actions/list-overrides';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
@@ -51,7 +50,9 @@
 			get node() {
 				return node;
 			},
-			rebuildRaw: () => rebuildListRaw(node),
+			get path() {
+				return myPath;
+			},
 			stickyColumn,
 			parent: {
 				blockEdit: parentBlockEdit,
@@ -65,6 +66,9 @@
 			},
 			get node() {
 				return node;
+			},
+			get path() {
+				return myPath;
 			},
 			state,
 			parentBlockEdit,
@@ -82,6 +86,9 @@
 		},
 		get node() {
 			return node;
+		},
+		get path() {
+			return myPath;
 		},
 		state,
 		parentBlockEdit,

@@ -1,6 +1,6 @@
 import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
-import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import { ensureUnsharedChild, ensureUnsharedPath } from '../../tree-operations/unshare';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
@@ -92,25 +92,27 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	async function commitParagraphRaw(paragraphPath: number[], newRaw: string): Promise<void> {
 		const resolved = resolvePathToParagraph(paragraphPath);
 		if (!resolved) return;
-		const { paragraph } = resolved;
 		// Nothing to persist — skip the commit so a no-op edit (e.g. a popover
 		// dismiss after a resize already wrote the change) adds no undo entry.
-		if (newRaw === paragraph.raw) return;
+		if (newRaw === resolved.paragraph.raw) return;
 		const snapshot = { blockIndex: paragraphPath[0], offset: 0 };
-		const mutate = () => {
+		const leafIdx = paragraphPath[paragraphPath.length - 1];
+		const writeRaw = (paragraph: CstNode) => {
 			paragraph.raw = newRaw;
 			if (isProseKind(paragraph.kind)) {
 				const range = getContentRange(paragraph);
 				paragraph.inlineContent = parseInline(paragraph.raw, range.start, range.end);
 			}
-			if (paragraphPath.length > 1) rebuildAncestryRawForLeaf(getDoc(), paragraphPath);
-			return { op: 'noop' as const };
 		};
 
 		if (paragraphPath.length === 1) {
 			await controller.commitStructural({
 				snapshot,
-				mutate,
+				mutate: (children) => {
+					const [owned] = ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
+					writeRaw(owned);
+					return { op: 'noop' as const };
+				},
 				op: { kind: 'updateContent', detail: { length: newRaw.length } }
 			});
 			return;
@@ -119,9 +121,13 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const containerNode = resolved.parent as CstNode;
 		await controller.commitContainerStructural({
 			containerNode,
+			path: paragraphPath.slice(0, -1),
 			state: expectStateForNode(containerNode),
 			snapshot,
-			mutate,
+			mutate: (scope) => {
+				writeRaw(ensureUnsharedChild(scope.node, leafIdx, scope.sharing));
+				return { op: 'noop' as const };
+			},
 			op: { kind: 'updateContent', detail: { length: newRaw.length }, eventPath: paragraphPath }
 		});
 	}

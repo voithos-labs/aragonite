@@ -8,10 +8,8 @@
  * for a cell's path) would silently misroute through the wrong container.
  */
 
-import type { CstNode } from '../../core/nodes';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
-import { nodeAt } from '../node-ops';
-import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext } from './dispatch';
 import { replaceBlockAtParent } from './replace-block-at-parent';
@@ -30,16 +28,17 @@ export function applyInlineResult(
 	ctx: PasteDispatchContext
 ): void {
 	if (ctx.skipSnapshot) {
-		const targetNode = nodeAt(ctx.doc, targetPath) as CstNode | null;
+		// Out-of-ceremony write — the caller pushed the covering snapshot, so
+		// copy-path-on-write happens here.
+		const chain = ensureUnsharedPath(ctx.doc, targetPath, ctx.controller.sharing);
+		const targetNode = chain[chain.length - 1];
 		if (!targetNode) return;
 		targetNode.raw = result.newRaw;
 		if (isProseKind(targetNode.kind)) {
 			const range = getContentRange(targetNode);
 			targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
 		}
-		if (targetPath.length >= 2) {
-			rebuildAncestryRawForLeaf(ctx.doc, targetPath);
-		}
+		rebuildUnsharedChain(chain, ctx.controller.sharing);
 		return;
 	}
 

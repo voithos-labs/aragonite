@@ -103,13 +103,13 @@ function makeNestedSetup() {
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
 
-	const containerState = createBlockListState(() => containerNode);
+	const containerState = createBlockListState(() => deps.doc.children[0]);
 	const bundle = createStandardNestedActions(containerState, {
 		index: 0,
 		get node() {
-			return containerNode;
+			return deps.doc.children[0];
 		},
-		rebuildRaw: vi.fn(),
+		path: [0],
 		stickyColumn: makeStickyColumn(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
@@ -149,7 +149,7 @@ describe('nested replaceBlock id preservation', () => {
 
 describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 	it('synthesized empty list/listItem replacement gets a child paragraph cursor target', async () => {
-		const { bundle, containerNode } = makeNestedSetup();
+		const { bundle, deps } = makeNestedSetup();
 
 		// Synthesize a list with an empty listItem — no child paragraph would
 		// leave the cursor with nowhere to land. ensureEditableContainers must
@@ -174,7 +174,8 @@ describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 
 		await bundle.blockEdit.replaceBlock(0, [synthList]);
 
-		const placedList = containerNode.children?.[0];
+		// The commit replaced the container node — read through the live doc.
+		const placedList = deps.doc.children[0].children?.[0];
 		expect(placedList?.kind).toBe('list');
 		const listItem = placedList?.children?.[0];
 		expect(listItem?.kind).toBe('listItem');
@@ -195,16 +196,16 @@ function makeListSetup() {
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 
-	const listState = createBlockListState(() => listNode);
+	const listState = createBlockListState(() => deps.doc.children[0]);
 
 	const bundle = createStandardNestedActions(
 		listState,
 		{
 			index: 0,
 			get node() {
-				return listNode;
+				return deps.doc.children[0];
 			},
-			rebuildRaw: vi.fn(),
+			path: [0],
 			stickyColumn: makeStickyColumn(),
 			parent: {
 				blockEdit: makeStubBlockEdit(),
@@ -215,8 +216,9 @@ function makeListSetup() {
 		createListOverrides({
 			index: 0,
 			get node() {
-				return listNode;
+				return deps.doc.children[0];
 			},
+			path: [0],
 			state: listState,
 			parentBlockEdit: makeStubBlockEdit(),
 			parentContainerEdit: containerEdit,

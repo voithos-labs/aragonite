@@ -5,6 +5,7 @@ import type { UndoController } from './deps';
 
 export function createPasteCoordinator(controller: UndoController): PasteCommitCoordinator {
 	return {
+		sharing: controller.sharing,
 		commitMultiScope: controller.commitMultiScope,
 		getDocScope: controller.getDocScope
 	};

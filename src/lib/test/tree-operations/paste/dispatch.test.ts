@@ -12,6 +12,7 @@ import {
 	registerPasteSurface
 } from '../../../tree-operations/paste-surfaces';
 import { parse } from '../../../core/parser';
+import { createSharingState } from '../../../undo/sharing';
 import { registerBlockListState } from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
@@ -114,6 +115,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 
 function makeStubController(): UndoController {
 	return {
+		sharing: createSharingState(),
 		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
 		commitStructural: vi.fn(),
@@ -202,7 +204,10 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommitInvocation = targetLeaf.raw;
 				captured.mutate = mutate;
-				mutate(scopes.map(() => ({ children: [] })));
+				mutate(
+					scopes.map((s: { node: CstNode }) => ({ children: [], node: s.node })),
+					createSharingState()
+				);
 			})
 		} as unknown as UndoController;
 
@@ -241,10 +246,11 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 			...makeStubController(),
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommit = targetLeaf.raw;
-				const scopeViews = scopes.map((s: { node: { children?: CstNode[] } }) => ({
-					children: [...(s.node.children ?? [])]
+				const scopeViews = scopes.map((s: { node: CstNode }) => ({
+					children: [...(s.node.children ?? [])],
+					node: s.node
 				}));
-				mutate(scopeViews);
+				mutate(scopeViews, createSharingState());
 			})
 		} as unknown as UndoController;
 
@@ -303,7 +309,7 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
 		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
 			async ({ mutate }) => {
-				mutate([{ children: [...doc.children] }]);
+				mutate([{ children: [...doc.children], node: doc }], createSharingState());
 			}
 		);
 

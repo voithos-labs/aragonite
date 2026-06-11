@@ -10,10 +10,9 @@ import { metadataOf } from '../../core/nodes';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
-import {
-	rebuildContainerRawIfContainer,
-	rebuildAncestryRawForLeaf
-} from '../../schema/container-raw';
+import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
+import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
@@ -118,18 +117,21 @@ export async function applyContainerMatchingPaste(
 	}
 
 	await ctx.controller.commitMultiScope({
-		scopes: [{ node: outer, state: outerState }],
+		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			const children = scopeChildren[0].children;
+		mutate: ([scopeView], sharing) => {
 			for (const item of unwrap.items) {
 				if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
 			}
-			children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
-			outer.children = children;
-			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
-			rebuildAncestryRawForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx]);
-			return [{ op: 'replace', at: unwrap.spliceIndex, count: 1, newCount: unwrap.items.length }];
+			scopeView.children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
+			const change: StructuralChange = {
+				op: 'replace',
+				at: unwrap.spliceIndex,
+				count: 1,
+				newCount: unwrap.items.length
+			};
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'paste',
@@ -173,15 +175,18 @@ async function applyContainerMatchingMerge(
 
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
-			scopes: [{ node: outer, state: outerState }],
+			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 			snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-			mutate: () => {
-				targetLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
-				if (isProseKind(targetLeaf.kind)) {
-					const range = getContentRange(targetLeaf);
-					targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
+			mutate: (_scopeViews, sharing) => {
+				// The merged leaf sits BELOW the scope node — own its full spine.
+				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
+				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
+				ownedLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
+				if (isProseKind(ownedLeaf.kind)) {
+					const range = getContentRange(ownedLeaf);
+					ownedLeaf.inlineContent = parseInline(ownedLeaf.raw, range.start, range.end);
 				}
-				rebuildAncestryRawForLeaf(ctx.doc, merge.targetLeafPath);
+				rebuildUnsharedChain(chain, sharing);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -206,14 +211,18 @@ async function applyContainerMatchingMerge(
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
 	await ctx.controller.commitMultiScope({
-		scopes: [{ node: outer, state: outerState }],
+		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			targetLeaf.raw = displayBefore + firstItemText + targetLineEnding;
+		mutate: ([scopeView], sharing) => {
+			// The merged leaf sits BELOW the scope node — own its full spine.
+			// lastLeaf lives inside the parsed clipboard items (created, safe).
+			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
+			const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
+			ownedLeaf.raw = displayBefore + firstItemText + targetLineEnding;
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
-			if (isProseKind(targetLeaf.kind)) {
-				const range = getContentRange(targetLeaf);
-				targetLeaf.inlineContent = parseInline(targetLeaf.raw, range.start, range.end);
+			if (isProseKind(ownedLeaf.kind)) {
+				const range = getContentRange(ownedLeaf);
+				ownedLeaf.inlineContent = parseInline(ownedLeaf.raw, range.start, range.end);
 			}
 			if (isProseKind(lastLeaf.kind)) {
 				const range = getContentRange(lastLeaf);
@@ -221,18 +230,20 @@ async function applyContainerMatchingMerge(
 			}
 			// Rebuild target's ancestry so the enclosing listItem reflects the
 			// merged paragraph before siblings splice in.
-			rebuildAncestryRawForLeaf(ctx.doc, merge.targetLeafPath);
+			rebuildUnsharedChain(chain, sharing);
 			// Last remaining item's enclosing listItem raw still reflects the
 			// pre-mutation paragraph; rebuild before splicing so the published
 			// children carry correct raws in one reactive flush.
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
-			const children = scopeChildren[0].children;
-			children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
-			outer.children = children;
-			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			rebuildAncestryRawForLeaf(ctx.doc, [...unwrap.outerPath, lastInsertedIdx, 0]);
-			return [{ op: 'insert', at: unwrap.spliceIndex + 1, count: remainingItems.length }];
+			const change: StructuralChange = {
+				op: 'insert',
+				at: unwrap.spliceIndex + 1,
+				count: remainingItems.length
+			};
+			scopeView.children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'paste',

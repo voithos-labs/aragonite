@@ -194,13 +194,13 @@ function makeContainerSetup(containerIndex: number) {
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
 
-	const containerState = createBlockListState(() => containerNode);
+	const containerState = createBlockListState(() => deps.doc.children[containerIndex]);
 	const bundle = createStandardNestedActions(containerState, {
 		index: containerIndex,
 		get node() {
-			return containerNode;
+			return deps.doc.children[containerIndex];
 		},
-		rebuildRaw: vi.fn(),
+		path: [containerIndex],
 		stickyColumn: makeStickyColumn(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
@@ -209,20 +209,22 @@ function makeContainerSetup(containerIndex: number) {
 		}
 	});
 
-	return { bundle, innerNode, containerNode, deps, events, controller };
+	const liveInner = () => deps.doc.children[containerIndex].children![0];
+	const liveContainer = () => deps.doc.children[containerIndex];
+	return { bundle, innerNode, containerNode, liveInner, liveContainer, deps, events, controller };
 }
 
 describe('updateBlockMetadata — container scope', () => {
 	it('mutates inner node metadata and emits metadataUpdate with correct eventPath and fields', async () => {
 		const containerIndex = 2;
-		const { bundle, innerNode, events } = makeContainerSetup(containerIndex);
+		const { bundle, liveInner, events } = makeContainerSetup(containerIndex);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 
-		expect(innerNode.metadata).toMatchObject({ taskChecked: true });
+		expect(liveInner().metadata).toMatchObject({ taskChecked: true });
 
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
@@ -253,22 +255,23 @@ describe('updateBlockMetadata — container scope', () => {
 	});
 
 	it('shallow-merge preserves untouched fields', async () => {
-		const { bundle, innerNode } = makeContainerSetup(1);
+		const { bundle, liveInner } = makeContainerSetup(1);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 
-		expect(innerNode.metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
+		expect(liveInner().metadata).toEqual({ marker: '- ', taskItem: true, taskChecked: true });
 	});
 
 	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
-		// The parent-container staleness guard: without parent rebuildRaw, the
-		// inner listItem.raw updates but the list's composite raw stays stale.
-		const { bundle, innerNode, containerNode } = makeListContainerSetup(1);
+		// The parent-container staleness guard: without the ceremony's ancestry
+		// rebuild, the inner listItem.raw updates but the list's composite raw
+		// stays stale.
+		const { bundle, liveInner, liveContainer } = makeListContainerSetup(1);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
 
-		expect(innerNode.raw).toBe('- [x] pending\n');
-		expect(containerNode.raw).toBe('- [x] pending\n');
+		expect(liveInner().raw).toBe('- [x] pending\n');
+		expect(liveContainer().raw).toBe('- [x] pending\n');
 	});
 });
 
@@ -294,15 +297,13 @@ function makeListContainerSetup(containerIndex: number) {
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
 
-	const containerState = createBlockListState(() => containerNode);
+	const containerState = createBlockListState(() => deps.doc.children[containerIndex]);
 	const bundle = createStandardNestedActions(containerState, {
 		index: containerIndex,
 		get node() {
-			return containerNode;
+			return deps.doc.children[containerIndex];
 		},
-		// Wire real rebuild so parent-container raw assertion is meaningful —
-		// a vi.fn() stub would pass even if the bug returned.
-		rebuildRaw: () => rebuildListRaw(containerNode),
+		path: [containerIndex],
 		stickyColumn: makeStickyColumn(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
@@ -311,5 +312,7 @@ function makeListContainerSetup(containerIndex: number) {
 		}
 	});
 
-	return { bundle, innerNode, containerNode, deps, events, controller };
+	const liveInner = () => deps.doc.children[containerIndex].children![0];
+	const liveContainer = () => deps.doc.children[containerIndex];
+	return { bundle, innerNode, containerNode, liveInner, liveContainer, deps, events, controller };
 }

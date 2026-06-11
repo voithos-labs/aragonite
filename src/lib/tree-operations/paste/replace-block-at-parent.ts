@@ -10,7 +10,7 @@
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
 import { nodeAt } from '../node-ops';
-import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { expectStateForNode } from '../../reactivity/state-registry';
 
 export interface ReplaceBlockAtParentArgs {
@@ -46,7 +46,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	const scope: MultiScopeTarget = isTopLevel
 		? controller.getDocScope()
-		: { node: parentNode!, state: expectStateForNode(parentNode!) };
+		: { node: parentNode!, state: expectStateForNode(parentNode!), path: parentPath };
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
@@ -55,26 +55,21 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	await controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: skipSnapshot ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			const children = scopeChildren[0].children;
-			children.splice(blockIdx, 1, ...replacement);
-			if (!isTopLevel) {
-				parentNode!.children = children;
-				rebuildAncestryRawForLeaf(doc, [...parentPath, blockIdx]);
-			}
+		mutate: ([scopeView], sharing) => {
+			scopeView.children.splice(blockIdx, 1, ...replacement);
 			// First replacement inherits the original block's id + ref when the
 			// kind matches, preserving Svelte component identity (IME composition
 			// state, pending input). Different kinds remount anyway because
 			// BlockHost dispatches by kind.
-			return [
-				{
-					op: 'replace',
-					at: blockIdx,
-					count: 1,
-					newCount: replacement.length,
-					...(sameKindFirst ? { idMap: { 0: 0 } } : {})
-				}
-			];
+			const change: StructuralChange = {
+				op: 'replace',
+				at: blockIdx,
+				count: 1,
+				newCount: replacement.length,
+				...(sameKindFirst ? { idMap: { 0: 0 } } : {})
+			};
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'replaceBlock',

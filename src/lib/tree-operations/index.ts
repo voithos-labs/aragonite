@@ -32,7 +32,16 @@ export type { CellPos } from './sub-table-copy';
 
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
-export { ensureUnsharedPath, ensureUnsharedChild } from './unshare';
+export {
+	ensureUnsharedPath,
+	ensureUnsharedChild,
+	ensureUnsharedNode,
+	ensureUnsharedChildren,
+	ensureUnsharedSubtree,
+	rebuildOwnedContainer,
+	rebuildUnsharedChain,
+	rebuildUnsharedAncestry
+} from './unshare';
 
 export { buildPastedReplacement } from './paste-replacement';
 
@@ -41,3 +50,4 @@ export { cloneDocument, cloneNode } from './clone';
 export { generateBlockId, assignIds } from './block-id';
 
 export type { StructuralChange } from './structural-change';
+export { stampStructuralChange } from './structural-change';

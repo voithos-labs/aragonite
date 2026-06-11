@@ -30,7 +30,7 @@ import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn
 } from '../tree-operations/table-mutations';
-import { rebuildContainerRaw, rebuildTableRowRaw } from '../schema/container-raw';
+import { ensureUnsharedChildren, ensureUnsharedPath } from '../tree-operations/unshare';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -121,7 +121,7 @@ export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): Sel
 	if (!start || !end) return null;
 
 	ctx.pushUndoSnapshot();
-	const { collapsedCaret } = rangeDelete(ctx.getDoc(), start, end);
+	const { collapsedCaret } = rangeDelete(ctx.getDoc(), start, end, ctx.controller.sharing);
 	ctx.selection.collapse();
 	ctx.notifyDocMutated();
 	return collapsedCaret;
@@ -160,7 +160,7 @@ async function commitPureTopLevelDelete(
 		mutate: (topLevelChildren) => {
 			const proxyDoc = { children: topLevelChildren } as Document;
 			const beforeLen = topLevelChildren.length;
-			const result = rangeDelete(proxyDoc, start, end);
+			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing);
 			collapsedCaret = result.collapsedCaret;
 			const afterLen = topLevelChildren.length;
 			ctx.selection.collapse();
@@ -241,6 +241,10 @@ async function commitFullTableDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
+			// deleteNode writes the successor's leadingTrivia.
+			if (tableIdx + 1 < children.length) {
+				ensureUnsharedPath({ children }, [tableIdx + 1], ctx.controller.sharing);
+			}
 			const change = deleteNode({ children }, tableIdx);
 			const survivorCount = children.length;
 			const survivorIdx = Math.min(tableIdx, Math.max(0, survivorCount - 1));
@@ -270,14 +274,14 @@ async function commitRowDelete(
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
 		containerNode: table,
+		path: [tableIdx],
 		state: rowsState,
 		snapshot,
-		mutate: (children) => {
-			mutDeleteRow(table, rowIdx);
-			children.length = 0;
-			children.push(...(table.children ?? []));
-			rebuildContainerRaw(table);
-			const newRowCount = table.children?.length ?? 0;
+		mutate: (scope) => {
+			// deleteRow promotes the next row to header (a metadata write).
+			ensureUnsharedChildren(scope.node, scope.sharing);
+			mutDeleteRow(scope.node, rowIdx);
+			const newRowCount = scope.node.children?.length ?? 0;
 			const targetRow = Math.min(rowIdx, Math.max(0, newRowCount - 1));
 			collapsedCaret = { path: [tableIdx, targetRow, 0], offset: 0 };
 			ctx.selection.collapse();
@@ -305,8 +309,12 @@ async function commitColumnDelete(
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
 	const scopes: MultiScopeTarget[] = [
-		{ node: table, state: rowsState },
-		...rows.map((row) => ({ node: row, state: expectStateForNode(row) }))
+		{ node: table, state: rowsState, path: [tableIdx] },
+		...rows.map((row, i) => ({
+			node: row,
+			state: expectStateForNode(row),
+			path: [tableIdx, i]
+		}))
 	];
 	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
@@ -314,26 +322,18 @@ async function commitColumnDelete(
 	await ctx.controller.commitMultiScope({
 		scopes,
 		snapshot,
-		mutate: (scopeChildren) => {
-			mutDeleteColumn(table, colIdx);
-			const tableScope = scopeChildren[0];
-			tableScope.children.length = 0;
-			tableScope.children.push(...(table.children ?? []));
-			const liveRows = table.children ?? [];
-			for (let i = 0; i < liveRows.length; i++) {
-				const rowScope = scopeChildren[i + 1];
-				rowScope.children.length = 0;
-				rowScope.children.push(...(liveRows[i].children ?? []));
-			}
-			for (const row of liveRows) rebuildTableRowRaw(row);
-			rebuildContainerRaw(table);
+		mutate: (scopeViews) => {
+			// Row scopes own every row, so the column splices land in owned
+			// arrays; raws rebuild on the owned chains after mutate.
+			const ownedTable = scopeViews[0].node;
+			mutDeleteColumn(ownedTable, colIdx);
 
-			const newColumnCount = metadataOf(table, 'table').columnCount;
+			const newColumnCount = metadataOf(ownedTable, 'table').columnCount;
 			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();
 
-			const rowChanges = liveRows.map(
+			const rowChanges = (ownedTable.children ?? []).map(
 				() => ({ op: 'delete', at: colIdx, count: 1 }) satisfies StructuralChange
 			);
 			return [{ op: 'noop' }, ...rowChanges];
@@ -377,7 +377,7 @@ async function commitCrossContainerDelete(
 	}
 
 	for (const t of touched) {
-		scopes.push({ node: t.node, state: t.state });
+		scopes.push({ node: t.node, state: t.state, path: t.path });
 		containerPaths.push(t.path);
 	}
 
@@ -386,24 +386,16 @@ async function commitCrossContainerDelete(
 	await ctx.controller.commitMultiScope({
 		scopes,
 		snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
-		mutate: (scopeChildren) => {
-			// Read lengths by node reference BEFORE mutation. Paths go stale
-			// as rangeDelete splices (middle top-level block shifts indices);
-			// node references stay valid because splices happen in place.
-			const beforeLens = scopes.map((s) => s.node.children?.length ?? 0);
+		mutate: (scopeViews, sharing) => {
+			// Read lengths BEFORE mutation. Paths go stale as rangeDelete
+			// splices (middle top-level block shifts indices); the owned scope
+			// views stay valid because splices happen in place — rangeDelete's
+			// own spine unsharing reuses the already-owned scope nodes.
+			const beforeLens = scopeViews.map((v) => v.children.length);
 
-			const result = rangeDelete(doc, start, end);
+			const result = rangeDelete(doc, start, end, sharing);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
-
-			// Splice-in-place the copy to match live post-mutation children.
-			// The copy is the same array reference commitMultiScope will
-			// publish back to node.children.
-			for (let i = 0; i < scopes.length; i++) {
-				const liveChildren = scopes[i].node.children ?? [];
-				const copy = scopeChildren[i].children;
-				copy.splice(0, copy.length, ...liveChildren);
-			}
 
 			return containerPaths.map((p, i) =>
 				computeScopeDescriptor(
@@ -411,7 +403,7 @@ async function commitCrossContainerDelete(
 					start.path,
 					end.path,
 					beforeLens[i],
-					scopeChildren[i].children.length
+					scopeViews[i].children.length
 				)
 			);
 		},

@@ -6,7 +6,9 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
+import type { SharingState } from '../../undo/sharing';
 import { rebuildListItemRaw } from '../../schema/container-raw';
+import { ensureUnsharedChild } from '../unshare';
 
 /**
  * Renumber an ordered list's items in place starting at `fromIndex`. No-op
@@ -15,17 +17,22 @@ import { rebuildListItemRaw } from '../../schema/container-raw';
  * When `fromIndex` is 0 this resets the sequence to 1, not to the list's
  * original start number. Callers that need a non-1 base must seed item 0
  * manually and then call with `fromIndex=1`.
+ *
+ * Every renumbered item's metadata + raw is WRITTEN — live-tree callers must
+ * pass `sharing` (the list itself already owned) so each item is unshared
+ * first; construction-time callers operating on fresh nodes may omit it.
  */
-export function renumberOrderedList(list: CstNode, fromIndex = 0): void {
+export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: SharingState): void {
 	if (!list.children) return;
 	if (!metadataOf(list, 'list')?.ordered) return;
 	for (let j = fromIndex; j < list.children.length; j++) {
+		const item = sharing ? ensureUnsharedChild(list, j, sharing) : list.children[j];
 		const prevNum =
 			j > 0 ? parseInt(metadataOf(list.children[j - 1], 'listItem').marker, 10) || 0 : 0;
-		const meta = metadataOf(list.children[j], 'listItem');
+		const meta = metadataOf(item, 'listItem');
 		const suffix = meta.marker.replace(/^\d+/, '');
 		meta.marker = String(prevNum + 1) + suffix;
-		rebuildListItemRaw(list.children[j]);
+		rebuildListItemRaw(item);
 	}
 }
 

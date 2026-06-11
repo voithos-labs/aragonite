@@ -71,7 +71,7 @@ describe('createStandardNestedActions', () => {
 			get node() {
 				return node;
 			},
-			rebuildRaw: vi.fn(),
+			path: [7],
 			stickyColumn: makeStickyColumn(),
 			parent
 		});
@@ -95,7 +95,7 @@ describe('createStandardNestedActions', () => {
 					get node() {
 						return node;
 					},
-					rebuildRaw: vi.fn(),
+					path: [3],
 					stickyColumn: makeStickyColumn(),
 					parent
 				});

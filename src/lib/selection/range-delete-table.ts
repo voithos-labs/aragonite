@@ -7,17 +7,21 @@ import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
+import type { SharingState } from '../undo/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
 import { walkBetween, comparePaths, assertCharOffset } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
+import { nodeAt } from '../tree-operations/node-ops';
 import {
-	rebuildAncestryRawForLeaf,
-	rebuildContainerRaw,
-	rebuildTableRowRaw
-} from '../schema/container-raw';
+	ensureUnsharedPath,
+	ensureUnsharedSubtree,
+	rebuildOwnedContainer,
+	rebuildUnsharedAncestry
+} from '../tree-operations/unshare';
+import { rebuildTableRowRaw } from '../schema/container-raw';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -68,21 +72,30 @@ export function tableAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	startBlock: CstNode,
-	endBlock: CstNode
+	sharing: SharingState
 ): RangeDeleteResult {
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 
+	// Own both endpoint spines (and table subtrees — cell raws, row splices,
+	// and header promotion all write at depth) before any capture or mutation.
+	const startChain = ensureUnsharedPath(doc, start.path, sharing);
+	const startBlock = startChain[startChain.length - 1] ?? (nodeAt(doc, start.path) as CstNode);
+	const endBlock = sameBlock
+		? startBlock
+		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? (nodeAt(doc, end.path) as CstNode));
+	if (startBlock.kind === 'table') ensureUnsharedSubtree(startBlock, sharing);
+	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
+
 	if (sameBlock) {
-		return deleteWithinTable(doc, start, end, startBlock);
+		return deleteWithinTable(doc, start, end, startBlock, sharing);
 	}
 	if (startBlock.kind === 'table' && endBlock.kind === 'table') {
-		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock);
+		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing);
 	}
 	if (startBlock.kind === 'table') {
-		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock);
+		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock);
+	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing);
 }
 
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
@@ -94,11 +107,11 @@ function deleteWithinTable(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	table: CstNode
+	table: CstNode,
+	sharing: SharingState
 ): RangeDeleteResult {
 	clearRectangularCells(table, start.offset, end.offset);
-	rebuildContainerRaw(table);
-	rebuildAncestryRawForLeaf(doc, start.path);
+	rebuildUnsharedAncestry(doc, start.path, sharing);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
@@ -139,11 +152,13 @@ function deleteFromProseIntoTable(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	startBlock: CstNode,
-	table: CstNode
+	table: CstNode,
+	sharing: SharingState
 ): RangeDeleteResult {
 	const startRaw = startBlock.raw;
 	const truncatedRaw = startRaw.slice(0, assertCharOffset(start, 'deleteFromProseIntoTable:start'));
 	const truncatedReplacement = reparseWithFallback(truncatedRaw, startBlock.leadingTrivia);
+	for (const node of truncatedReplacement) sharing.stamp(node);
 
 	const result = deleteCellsAndCollapse(table, 0, end.offset);
 
@@ -152,6 +167,10 @@ function deleteFromProseIntoTable(
 	);
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (result === 'tableEmpty') deletionPaths.push(end.path);
+
+	for (const path of deletionPaths) {
+		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
+	}
 
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
@@ -165,12 +184,12 @@ function deleteFromProseIntoTable(
 		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 
-	if (result === 'tableSurvives') rebuildContainerRaw(table);
-	rebuildAncestryRawForLeaf(doc, start.path);
+	if (result === 'tableSurvives') rebuildOwnedContainer(table, sharing);
+	rebuildUnsharedAncestry(doc, start.path, sharing);
 	for (const path of deletionPaths) {
-		rebuildAncestryRawForLeaf(doc, path);
+		rebuildUnsharedAncestry(doc, path, sharing);
 	}
-	if (result === 'tableSurvives') rebuildAncestryRawForLeaf(doc, survivorPath(doc, table));
+	if (result === 'tableSurvives') rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
 
 	return {
 		newDoc: doc,
@@ -185,7 +204,8 @@ function deleteFromTableIntoProse(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	table: CstNode,
-	endBlock: CstNode
+	endBlock: CstNode,
+	sharing: SharingState
 ): RangeDeleteResult {
 	const lastCellIdx = totalCellCount(table);
 	const tableResult = deleteCellsAndCollapse(table, start.offset, lastCellIdx);
@@ -195,12 +215,17 @@ function deleteFromTableIntoProse(
 	const tailRaw = endRaw.slice(assertCharOffset(end, 'deleteFromTableIntoProse:end'));
 	const survivingTailRaw = tailRaw.length === 0 ? lineEnding : tailRaw;
 	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
+	for (const node of tailReplacement) sharing.stamp(node);
 
 	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
 		isPathSubtreeBetween(p, start.path, end.path)
 	);
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (tableResult === 'tableEmpty') deletionPaths.push(start.path);
+
+	for (const path of deletionPaths) {
+		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
+	}
 
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
@@ -221,12 +246,12 @@ function deleteFromTableIntoProse(
 	const tailPath = survivorPath(doc, tailReplacement[0]);
 
 	if (tableResult === 'tableSurvives') {
-		rebuildContainerRaw(table);
-		rebuildAncestryRawForLeaf(doc, start.path);
+		rebuildOwnedContainer(table, sharing);
+		rebuildUnsharedAncestry(doc, start.path, sharing);
 	}
-	rebuildAncestryRawForLeaf(doc, tailPath);
+	rebuildUnsharedAncestry(doc, tailPath, sharing);
 	for (const path of deletionPaths) {
-		rebuildAncestryRawForLeaf(doc, path);
+		rebuildUnsharedAncestry(doc, path, sharing);
 	}
 
 	// Spec § Cross-block delete Case 2: when the table is fully consumed, the
@@ -270,7 +295,8 @@ function deleteAcrossTwoTables(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	startTable: CstNode,
-	endTable: CstNode
+	endTable: CstNode,
+	sharing: SharingState
 ): RangeDeleteResult {
 	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
 	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset);
@@ -281,6 +307,10 @@ function deleteAcrossTwoTables(
 	const deletionPaths: number[][] = [...betweenPaths];
 	if (startResult === 'tableEmpty') deletionPaths.push(start.path);
 	if (endResult === 'tableEmpty') deletionPaths.push(end.path);
+
+	for (const path of deletionPaths) {
+		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
+	}
 
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
@@ -295,15 +325,15 @@ function deleteAcrossTwoTables(
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 
 	if (startResult === 'tableSurvives') {
-		rebuildContainerRaw(startTable);
-		rebuildAncestryRawForLeaf(doc, start.path);
+		rebuildOwnedContainer(startTable, sharing);
+		rebuildUnsharedAncestry(doc, start.path, sharing);
 	}
 	if (endTablePath) {
-		rebuildContainerRaw(endTable);
-		rebuildAncestryRawForLeaf(doc, endTablePath);
+		rebuildOwnedContainer(endTable, sharing);
+		rebuildUnsharedAncestry(doc, endTablePath, sharing);
 	}
 	for (const path of deletionPaths) {
-		rebuildAncestryRawForLeaf(doc, path);
+		rebuildUnsharedAncestry(doc, path, sharing);
 	}
 
 	let collapsedCaret: SelectionPoint;
@@ -316,7 +346,7 @@ function deleteAcrossTwoTables(
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
 		// Both tables removed.
-		collapsedCaret = caretAfterBothTablesRemoved(doc, start.path);
+		collapsedCaret = caretAfterBothTablesRemoved(doc, start.path, sharing);
 	}
 
 	return { newDoc: doc, collapsedCaret };
@@ -327,7 +357,11 @@ function deleteAcrossTwoTables(
 // start of the first surviving block after it; else materialize an empty
 // paragraph (the document emptied — mirrors the prose rangeDelete fallback).
 // Adjacent surviving tables get deep cell carets, never a shallow table path.
-function caretAfterBothTablesRemoved(doc: Document, startPath: number[]): SelectionPoint {
+function caretAfterBothTablesRemoved(
+	doc: Document,
+	startPath: number[],
+	sharing: SharingState
+): SelectionPoint {
 	const children = doc.children;
 	const beforeIdx = startPath[0] - 1;
 
@@ -340,7 +374,9 @@ function caretAfterBothTablesRemoved(doc: Document, startPath: number[]): Select
 		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
 	}
 
-	doc.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+	const filler: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+	sharing.stamp(filler);
+	doc.children.push(filler);
 	return { path: [0], offset: 0 };
 }
 

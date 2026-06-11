@@ -6,6 +6,8 @@
  */
 
 import type { ContainerEditActions, OperationKind } from '../action-contracts';
+import type { CstNode } from '../core/nodes';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createContainerEditActions(
@@ -25,9 +27,24 @@ export function createContainerEditActions(
 			deps.doc.children = [...deps.doc.children];
 		},
 
-		commitContainer({ containerNode, state, snapshot, mutate, op, afterTick }): Promise<void> {
+		withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): void {
+			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
+			write(chain);
+			rebuildUnsharedChain(chain, deps.sharing);
+		},
+
+		commitContainer({
+			containerNode,
+			path,
+			state,
+			snapshot,
+			mutate,
+			op,
+			afterTick
+		}): Promise<void> {
 			return controller.commitContainerStructural({
 				containerNode,
+				path,
 				state,
 				snapshot,
 				mutate,
