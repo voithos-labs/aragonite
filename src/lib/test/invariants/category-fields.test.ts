@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { checkCategoryFields } from '../../invariants/node-shape';
 import { parse } from '../../core/parser';
-import type { CstNode } from '../../core/nodes';
+import { ALL_BLOCK_KINDS, type CstNode } from '../../core/nodes';
 
 function leaf(source: string): CstNode {
 	return parse(source).children[0];
@@ -47,5 +47,12 @@ describe('checkCategoryFields (G1.5)', () => {
 		const bq = leaf('> quoted\n');
 		bq.children = [];
 		expect(checkCategoryFields(bq)).toBeNull();
+	});
+
+	it('accepts ownerEpoch on every kind', () => {
+		for (const kind of ALL_BLOCK_KINDS) {
+			const node: CstNode = { kind, leadingTrivia: '', raw: '', ownerEpoch: 0 };
+			expect(checkCategoryFields(node)).toBeNull();
+		}
 	});
 });

@@ -21,6 +21,8 @@ const MERGE_ROLES: ReadonlySet<MergeRole> = new Set([
  *   - non-prose kinds must not carry `inlineContent`;
  *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers;
  *   - `mergeRole` must be one of the five legal roles.
+ * Editor-level fields (`childIds`, `ownerEpoch`) are deliberately unchecked —
+ * legal on every kind; the predicate forbids category-bound fields only.
  */
 export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	const d = getBlockKindDescriptor(node.kind);
