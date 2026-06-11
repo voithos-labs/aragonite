@@ -2,11 +2,13 @@ import { bench, describe } from 'vitest';
 import { parse } from '../../core/parser';
 import { FIXTURE_SHAPES, generateFixture } from './fixtures/generate';
 
-const SIZES: Array<[label: string, bytes: number, opts: { iterations: number }]> = [
-	['100KB', 100_000, { iterations: 10 }],
-	['1MB', 1_000_000, { iterations: 5 }],
-	['10MB', 10_000_000, { iterations: 2 }]
-];
+const SIZES: Array<[label: string, bytes: number, opts: { iterations?: number; time?: number }]> =
+	[
+		['100KB', 100_000, { iterations: 10 }],
+		['1MB', 1_000_000, { iterations: 5 }],
+		// Real time budget so ~400ms parses still collect a usable sample count.
+		['10MB', 10_000_000, { time: 3_000 }]
+	];
 
 for (const shape of FIXTURE_SHAPES) {
 	describe(`parse ${shape}`, () => {
