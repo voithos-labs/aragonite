@@ -6,10 +6,9 @@
  * rebuildRaw on their descriptor.
  */
 
-import type { CstNode, Document, TableAlignment } from '../core/nodes';
+import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -185,24 +184,4 @@ export function rebuildContainerRaw(node: CstNode): void {
 /** Rebuild `raw` when `node` has a rebuildRaw on its descriptor; no-op otherwise. */
 export function rebuildContainerRawIfContainer(node: CstNode): void {
 	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node);
-}
-
-/**
- * Rebuild `raw` for every container ancestor of `leafPath`, innermost-first.
- * The leaf itself is not rebuilt — callers mutate the leaf's raw before
- * calling. Stops at depth 1 (document root is never rebuilt; serialization
- * reads its children directly).
- */
-export function rebuildAncestryRawForLeaf(doc: Document, leafPath: number[]): void {
-	const ancestors: CstNode[] = [];
-	let cur: CstNode | Document = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		if (!cur.children || leafPath[depth] >= cur.children.length) break;
-		cur = cur.children[leafPath[depth]];
-		ancestors.push(cur as CstNode);
-	}
-	for (let i = ancestors.length - 1; i >= 0; i--) {
-		rebuildContainerRawIfContainer(ancestors[i]);
-	}
-	if (perfEnabled()) recordRebuildDepth(ancestors.length);
 }

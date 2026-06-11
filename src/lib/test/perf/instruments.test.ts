@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from '../../core/parser';
-import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { createSharingState } from '../../undo/sharing';
 import type { PerfSnapshot } from '../../perf/instruments';
 import {
 	disablePerfInstruments,
@@ -111,11 +112,13 @@ describe('perf seams', () => {
 		expect(snap.parseMsTotal).toBeGreaterThanOrEqual(0);
 	});
 
-	it('rebuildAncestryRawForLeaf records one depth sample per pass', () => {
+	it('rebuildUnsharedChain records one depth sample per chain rebuild', () => {
 		const doc = parse('- a\n  - b\n');
+		const sharing = createSharingState();
+		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
+		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		// Nested paragraph's ancestry: list > listItem > list > listItem.
-		rebuildAncestryRawForLeaf(doc, [0, 0, 1, 0, 0]);
-		expect(perfSnapshot().rebuildDepths).toEqual({ 4: 1 });
+		rebuildUnsharedChain(chain, sharing);
+		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });

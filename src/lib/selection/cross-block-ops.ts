@@ -30,7 +30,7 @@ import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn
 } from '../tree-operations/table-mutations';
-import { ensureUnsharedChildren, ensureUnsharedPath } from '../tree-operations/unshare';
+import { ensureUnsharedChildren } from '../tree-operations/unshare';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -241,11 +241,7 @@ async function commitFullTableDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
-			// deleteNode writes the successor's leadingTrivia.
-			if (tableIdx + 1 < children.length) {
-				ensureUnsharedPath({ children }, [tableIdx + 1], ctx.controller.sharing);
-			}
-			const change = deleteNode({ children }, tableIdx);
+			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
 			const survivorCount = children.length;
 			const survivorIdx = Math.min(tableIdx, Math.max(0, survivorCount - 1));
 			collapsedCaret =

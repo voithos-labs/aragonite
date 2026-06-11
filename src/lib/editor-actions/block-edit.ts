@@ -23,7 +23,7 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations';
-import { isMergeEligible, isBlockEditable, findMergeTarget } from '../schema/merge-rules';
+import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
@@ -75,11 +75,7 @@ export function createBlockEditActions(
 				if (!isBlockEditable(prevKind)) {
 					await controller.commitStructural({
 						snapshot: { blockIndex, offset: 0 },
-						mutate: (children) => {
-							// deleteNode writes the successor's leadingTrivia.
-							ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
-							return performDelete({ children }, blockIndex - 1);
-						},
+						mutate: (children) => performDelete({ children }, blockIndex - 1, deps.sharing),
 						op: { kind: 'delete' },
 						afterTick: () => deps.blockRefs[blockIndex - 1]?.focus(0)
 					});
@@ -93,16 +89,7 @@ export function createBlockEditActions(
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: 0 },
 				mutate: (children) => {
-					// The merge writes prev's deep-leaf spine (leaf raw + ancestor raw
-					// rebuild) and the trivia-inheriting successor of the deleted node.
-					const mergeTarget = findMergeTarget(children[blockIndex - 1]);
-					if (mergeTarget) {
-						ensureUnsharedPath({ children }, [blockIndex - 1, ...mergeTarget.path], deps.sharing);
-						if (blockIndex + 1 < children.length) {
-							ensureUnsharedPath({ children }, [blockIndex + 1], deps.sharing);
-						}
-					}
-					mergeResult = mergeIntoPrevDeepLeaf({ children }, blockIndex);
+					mergeResult = mergeIntoPrevDeepLeaf({ children }, blockIndex, deps.sharing);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				op: { kind: 'merge', detail: { direction: 'prev' } },
@@ -132,13 +119,7 @@ export function createBlockEditActions(
 				if (!isBlockEditable(nextKind)) {
 					await controller.commitStructural({
 						snapshot: { blockIndex, offset: CURSOR_END },
-						mutate: (children) => {
-							// deleteNode writes the successor's leadingTrivia.
-							if (blockIndex + 2 < children.length) {
-								ensureUnsharedPath({ children }, [blockIndex + 2], deps.sharing);
-							}
-							return performDelete({ children }, blockIndex + 1);
-						},
+						mutate: (children) => performDelete({ children }, blockIndex + 1, deps.sharing),
 						op: { kind: 'delete' },
 						afterTick: () => deps.blockRefs[blockIndex]?.focus(CURSOR_END)
 					});
@@ -165,13 +146,7 @@ export function createBlockEditActions(
 		async deleteBlock(blockIndex: number): Promise<void> {
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: 0 },
-				mutate: (children) => {
-					// deleteNode writes the successor's leadingTrivia.
-					if (blockIndex + 1 < children.length) {
-						ensureUnsharedPath({ children }, [blockIndex + 1], deps.sharing);
-					}
-					return performDelete({ children }, blockIndex);
-				},
+				mutate: (children) => performDelete({ children }, blockIndex, deps.sharing),
 				op: { kind: 'delete' },
 				afterTick: () => {
 					const focusIndex = Math.min(blockIndex, deps.doc.children.length - 1);

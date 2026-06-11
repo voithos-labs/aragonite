@@ -51,10 +51,9 @@ import { createNestedFocus } from '$lib/editor/editor-actions/nested-focus';
 import { createTableMutationsContext } from '$lib/editor/editor-actions/table-context';
 import { createListContext } from '$lib/editor/editor-actions/list-context';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import {
-	rebuildContainerRawIfContainer,
-	rebuildAncestryRawForLeaf
-} from '$lib/editor/schema/container-raw';
+import { rebuildContainerRawIfContainer } from '$lib/editor/schema/container-raw';
+import { rebuildUnsharedAncestry } from '$lib/editor/tree-operations/unshare';
+import { createSharingState } from '$lib/editor/undo/sharing';
 import {
 	mockRef,
 	makeStickyColumn,
@@ -385,7 +384,8 @@ export function checkStripInnermostFirstAncestry(kind: BlockKind, profile: Conta
 	const marker = `zzmark-${kind}`;
 	leaf.raw = marker + '\n';
 
-	rebuildAncestryRawForLeaf(doc, leafPath);
+	// Fresh sharing state: nothing is shared, so this is a pure ancestry rebuild.
+	rebuildUnsharedAncestry(doc, leafPath, createSharingState());
 
 	expect(root.raw, `root raw reflects the deep leaf edit through "${kind}"`).toContain(marker);
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
+import { rebuildUnsharedAncestry } from '../tree-operations/unshare';
+import { createSharingState } from '../undo/sharing';
 
 describe('round-trip — task items', () => {
 	it('fresh parse + serialize preserves canonical lowercase [x]', () => {
@@ -31,7 +32,7 @@ describe('round-trip — task items', () => {
 		const para = item.children![0];
 
 		para.raw = 'upper more\n';
-		rebuildAncestryRawForLeaf(doc, [0, 0, 0]);
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState());
 
 		expect(serialize(doc)).toBe('- [X] upper more\n');
 	});
@@ -42,7 +43,7 @@ describe('round-trip — task items', () => {
 		const para = doc.children[0].children![0].children![0];
 
 		para.raw = 'extra more\n';
-		rebuildAncestryRawForLeaf(doc, [0, 0, 0]);
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState());
 
 		expect(serialize(doc)).toBe('- [x]  extra more\n');
 	});

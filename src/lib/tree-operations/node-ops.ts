@@ -28,6 +28,8 @@ import { getContentRange, isProseKind, parseInline } from '../core/inline';
 import { trimTrailingLineEnding } from '../core/lines';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
+import type { SharingState } from '../undo/sharing';
+import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import type { StructuralChange } from './structural-change';
 
 // ── Types ──
@@ -139,24 +141,32 @@ export interface MergeIntoPrevResult {
  * Merge `curr` into the deepest prose leaf of `prev`. Unlike `mergeWithPrevious`
  * (which reparses concatenated raw), this writes directly into the deepest leaf
  * via `findMergeTarget` — preserves prev's component identity, IME state, and
- * the leaves' inline caches.
+ * the leaves' inline caches. Pass `sharing` to unshare everything the merge
+ * writes (prev's deep-leaf spine + the deleted node's successor).
  *
  * Returns `null` when no mergeable leaf exists (opaque deepest leaf, empty
  * container, not-mergeable prev kind) so the caller can fall back to move-focus.
  */
 export function mergeIntoPrevDeepLeaf(
 	parent: NodeParent,
-	blockIndex: number
+	blockIndex: number,
+	sharing?: SharingState
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
+	const mergeTarget = findMergeTarget(parent.children[blockIndex - 1]);
+	if (!mergeTarget) return null;
+
+	// The merge writes the deep leaf's raw plus every spine ancestor's rebuilt
+	// raw — unshare the whole spine first, then resolve through the owned copies.
+	let target = mergeTarget.target;
+	if (sharing) {
+		const chain = ensureUnsharedPath(parent, [blockIndex - 1, ...mergeTarget.path], sharing);
+		target = chain[chain.length - 1];
+	}
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
 
-	const mergeTarget = findMergeTarget(prev);
-	if (!mergeTarget) return null;
-
-	const target = mergeTarget.target;
 	const targetRaw = target.raw ?? '';
 	const currRaw = curr.raw ?? '';
 	const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
@@ -175,7 +185,7 @@ export function mergeIntoPrevDeepLeaf(
 		rebuildAncestryRaw(prev, mergeTarget.path);
 	}
 
-	const change = deleteNode(parent, blockIndex);
+	const change = deleteNode(parent, blockIndex, sharing);
 	return { targetPath: mergeTarget.path, joinOffset, change };
 }
 
@@ -197,15 +207,26 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 
 // ── Delete ──
 
-/** Remove the node at `blockIndex`, transferring its leading trivia to the next sibling. */
-export function deleteNode(parent: NodeParent, blockIndex: number): StructuralChange {
+/**
+ * Remove the node at `blockIndex`, transferring its leading trivia to the next
+ * sibling. Pass `sharing` to unshare that successor (the op's only in-place
+ * write) before the transfer — the unshare targets the caller-owned
+ * `parent.children` entry, and only fires when a successor exists.
+ */
+export function deleteNode(
+	parent: NodeParent,
+	blockIndex: number,
+	sharing?: SharingState
+): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const deleted = parent.children[blockIndex];
 
 	if (blockIndex + 1 < parent.children.length) {
-		parent.children[blockIndex + 1].leadingTrivia =
-			deleted.leadingTrivia + parent.children[blockIndex + 1].leadingTrivia;
+		const successor = sharing
+			? ensureUnsharedChild(parent, blockIndex + 1, sharing)
+			: parent.children[blockIndex + 1];
+		successor.leadingTrivia = deleted.leadingTrivia + successor.leadingTrivia;
 	}
 
 	parent.children.splice(blockIndex, 1);
