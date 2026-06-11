@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from '../../core/parser';
+import { rebuildAncestryRawForLeaf } from '../../schema/container-raw';
 import type { PerfSnapshot } from '../../perf/instruments';
 import {
 	disablePerfInstruments,
@@ -36,13 +37,13 @@ function recordOneOfEach(): void {
 	setUndoGauge(1000, 2);
 }
 
-describe('perf instruments', () => {
-	beforeEach(() => {
-		resetPerfInstruments();
-		disablePerfInstruments();
-	});
-	afterEach(() => vi.unstubAllEnvs());
+beforeEach(() => {
+	resetPerfInstruments();
+	disablePerfInstruments();
+});
+afterEach(() => vi.unstubAllEnvs());
 
+describe('perf instruments', () => {
 	it('enable is a no-op outside dev and Vitest', () => {
 		vi.stubEnv('DEV', false);
 		vi.stubEnv('VITEST', '');
@@ -97,5 +98,24 @@ describe('perf instruments', () => {
 	it('docByteLength equals serialized length', () => {
 		const src = '# h\n\n> quote\n\n- a\n- b\n';
 		expect(docByteLength(parse(src))).toBe(src.length);
+	});
+});
+
+describe('perf seams', () => {
+	it('parse() records duration and block count when enabled', () => {
+		enablePerfInstruments();
+		parse('# a\n\nb\n\nc\n');
+		const snap = perfSnapshot();
+		expect(snap.parseCount).toBe(1);
+		expect(snap.parseBlockCount).toBe(3);
+		expect(snap.parseMsTotal).toBeGreaterThanOrEqual(0);
+	});
+
+	it('rebuildAncestryRawForLeaf records one depth sample per pass', () => {
+		const doc = parse('- a\n  - b\n');
+		enablePerfInstruments();
+		// Nested paragraph's ancestry: list > listItem > list > listItem.
+		rebuildAncestryRawForLeaf(doc, [0, 0, 1, 0, 0]);
+		expect(perfSnapshot().rebuildDepths).toEqual({ 4: 1 });
 	});
 });

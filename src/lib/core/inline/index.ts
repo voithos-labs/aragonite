@@ -36,6 +36,20 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
+ * Nodes a full inline sweep re-parses. Lives here rather than in
+ * perf/instruments because isProseKind reads the schema registry and
+ * instruments must stay a leaf module.
+ */
+export function countProseNodes(nodes: CstNode[]): number {
+	let count = 0;
+	for (const node of nodes) {
+		if (isProseKind(node.kind)) count++;
+		if (node.children) count += countProseNodes(node.children);
+	}
+	return count;
+}
+
+/**
  * Refresh `inlineContent` on every prose node in the tree. Used after
  * structural mutations that bypass the per-input reactive pipeline.
  */

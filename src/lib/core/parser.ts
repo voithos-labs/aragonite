@@ -6,6 +6,7 @@
 
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
+import { perfEnabled, recordParse } from '../perf/instruments';
 import { matchFenceOpen, parseFencedCode } from './parsers/fenced-code';
 import { matchHeading } from './parsers/heading';
 import { matchThematicBreak } from './parsers/thematic-break';
@@ -19,8 +20,10 @@ import { parseParagraph } from './parsers/paragraph';
 // ── Public entry point ──────────────────────────────────────────────────
 
 export function parse(source: string): Document {
+	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
 	const result = parseBlocks(lines, 0, lines.length);
+	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
 	return {
 		kind: 'document',
 		prefix: result.prefix,

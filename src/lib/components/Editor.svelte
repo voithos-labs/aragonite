@@ -35,7 +35,8 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { parseAllInlineContent } from '../core/inline';
+	import { countProseNodes, parseAllInlineContent } from '../core/inline';
+	import { perfEnabled, recordInlineRefresh } from '../perf/instruments';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
@@ -132,6 +133,7 @@
 			// coherent regardless of which path produced the trees.
 			const newMap = buildLinkReferenceMap(doc.children);
 			parseAllInlineContent(doc.children, newMap.resolve);
+			if (perfEnabled()) recordInlineRefresh(countProseNodes(doc.children));
 			currentResolver = newMap.resolve;
 			currentSignature = newMap.signature;
 		});
