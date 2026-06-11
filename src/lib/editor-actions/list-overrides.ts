@@ -20,7 +20,6 @@ import {
 	renumberOrderedList,
 	isItemUserEmpty,
 	normalizeReplacementTrivia,
-	ensureUnsharedChild,
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations';
@@ -81,9 +80,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 							state: deps.state,
 							snapshot: { blockIndex: index, offset: 0 },
 							mutate: (scope) => {
-								// deleteNode writes the successor's leadingTrivia.
-								ensureUnsharedChild(scope.node, 1, scope.sharing);
-								const change = performDelete({ children: scope.children }, 0);
+								const change = performDelete({ children: scope.children }, 0, scope.sharing);
 								renumberOrderedList(scope.node, 0, scope.sharing);
 								return change;
 							},
@@ -114,10 +111,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 						state: deps.state,
 						snapshot: { blockIndex: index, offset: 0 },
 						mutate: (scope) => {
-							if (itemIndex + 1 < scope.children.length) {
-								ensureUnsharedChild(scope.node, itemIndex + 1, scope.sharing);
-							}
-							const change = performDelete({ children: scope.children }, itemIndex);
+							const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
 							renumberOrderedList(scope.node, itemIndex, scope.sharing);
 							return change;
 						},
@@ -171,12 +165,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					path: deps.path,
 					state: deps.state,
 					snapshot: { blockIndex: index, offset: 0 },
-					mutate: (scope) => {
-						if (itemIndex + 1 < scope.children.length) {
-							ensureUnsharedChild(scope.node, itemIndex + 1, scope.sharing);
-						}
-						return performDelete({ children: scope.children }, itemIndex);
-					},
+					mutate: (scope) => performDelete({ children: scope.children }, itemIndex, scope.sharing),
 					op: { kind: 'delete', eventPath: [index, itemIndex] },
 					afterTick: () => {
 						const focusIdx = Math.min(itemIndex, (node.children?.length ?? 1) - 1);

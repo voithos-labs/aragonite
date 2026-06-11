@@ -22,13 +22,13 @@ import {
 	normalizeReplacementTrivia,
 	ensureEditableContainers,
 	ensureUnsharedChild,
-	ensureUnsharedPath,
 	rebuildOwnedContainer,
 	reconcileTaskMetadata,
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations';
-import { findMergeTarget, isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { assertInvariant } from '../invariants/assert';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import type { NestedActionsDeps } from './nested-actions';
 
@@ -102,20 +102,11 @@ export function createNestedBlockEdit(
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
 					mutate: (scope) => {
-						// The merge writes prev's deep-leaf spine (leaf raw + ancestor
-						// raw rebuild) and the trivia-inheriting successor.
-						const mergeTarget = findMergeTarget(scope.children[innerIndex - 1]);
-						if (mergeTarget) {
-							ensureUnsharedPath(
-								{ children: scope.children },
-								[innerIndex - 1, ...mergeTarget.path],
-								scope.sharing
-							);
-							if (innerIndex + 1 < scope.children.length) {
-								ensureUnsharedChild(scope.node, innerIndex + 1, scope.sharing);
-							}
-						}
-						mergeResult = mergeIntoPrevDeepLeaf({ children: scope.children }, innerIndex);
+						mergeResult = mergeIntoPrevDeepLeaf(
+							{ children: scope.children },
+							innerIndex,
+							scope.sharing
+						);
 						return mergeResult?.change ?? { op: 'noop' };
 					},
 					op: {
@@ -142,11 +133,8 @@ export function createNestedBlockEdit(
 					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) => {
-						// deleteNode writes the successor's leadingTrivia.
-						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						return performDelete({ children: scope.children }, innerIndex - 1);
-					},
+					mutate: (scope) =>
+						performDelete({ children: scope.children }, innerIndex - 1, scope.sharing),
 					op: { kind: 'delete', eventPath: [deps.index, innerIndex - 1] },
 					afterTick: () => {
 						state.innerBlockRefs[innerIndex - 1]?.focus(0);
@@ -194,13 +182,8 @@ export function createNestedBlockEdit(
 					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) => {
-						// deleteNode writes the successor's leadingTrivia.
-						if (innerIndex + 2 < scope.children.length) {
-							ensureUnsharedChild(scope.node, innerIndex + 2, scope.sharing);
-						}
-						return performDelete({ children: scope.children }, innerIndex + 1);
-					},
+					mutate: (scope) =>
+						performDelete({ children: scope.children }, innerIndex + 1, scope.sharing),
 					op: { kind: 'delete', eventPath: [deps.index, innerIndex + 1] },
 					afterTick: () => {
 						state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
@@ -223,13 +206,7 @@ export function createNestedBlockEdit(
 				path: deps.path,
 				state,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scope) => {
-					// deleteNode writes the successor's leadingTrivia.
-					if (innerIndex + 1 < scope.children.length) {
-						ensureUnsharedChild(scope.node, innerIndex + 1, scope.sharing);
-					}
-					return performDelete({ children: scope.children }, innerIndex);
-				},
+				mutate: (scope) => performDelete({ children: scope.children }, innerIndex, scope.sharing),
 				op: { kind: 'delete', eventPath: [deps.index, innerIndex] },
 				afterTick: () => {
 					const focusIdx = Math.min(innerIndex, (deps.node.children?.length ?? 1) - 1);
@@ -290,14 +267,22 @@ export function createNestedBlockEdit(
 			);
 			const leafPath = [...deps.path, innerIndex];
 			parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
-				const owned = chain[leafPath.length - 2];
-				if (!owned?.children) return;
-				performUpdate({ children: owned.children }, innerIndex, text);
+				assertInvariant('unshared-spine-depth', () =>
+					chain.length === leafPath.length
+						? null
+						: {
+								code: 'unshared-spine-depth',
+								message: `withUnsharedSpine: chain depth ${chain.length} != leaf path depth ${leafPath.length}`
+							}
+				);
+				const ownedContainer = chain[leafPath.length - 2];
+				if (!ownedContainer?.children) return;
+				performUpdate({ children: ownedContainer.children }, innerIndex, text);
 				// listItem's taskItem metadata is extracted at parse time from the
 				// first stripped line; live typing into the inner paragraph would
 				// otherwise leave metadata frozen while serialized source drifts.
-				if (owned.kind === 'listItem' && innerIndex === 0) {
-					reconcileTaskMetadata(owned);
+				if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
+					reconcileTaskMetadata(ownedContainer);
 				}
 			});
 			parent.containerEdit.nudgeReactivity();

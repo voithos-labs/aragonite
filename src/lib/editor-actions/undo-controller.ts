@@ -383,10 +383,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				owned = chain[chain.length - 1] ?? containerNode;
 				const idsCopy = [...(owned.childIds ?? [])];
 				const refsCopy = [...state.innerBlockRefs];
-				// Fresh working array assigned through the node, then RE-READ: in
-				// the live $state tree the stored array is proxy-wrapped, and every
-				// later splice must go through that wrapper — mutating the raw copy
-				// after observation leaves proxy readers a stale view.
+				// Fresh working array assigned through the node, then re-read —
+				// write-then-re-read contract (tree-operations/unshare.ts header).
 				owned.children = [...(owned.children ?? [])];
 				const children = owned.children!;
 				const change = mutate({ node: owned, children, sharing: deps.sharing });
@@ -428,12 +426,22 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			mutate: () => {
 				const perScope = scopes.map((s) => {
 					const isDoc = (s.node as unknown) === (deps.doc as unknown);
+					if (!isDoc) {
+						// A stale-but-in-range path would unshare and rebuild the wrong spine.
+						assertInvariant('multi-scope-commit-path', () =>
+							nodeAt(deps.doc, s.path) === s.node
+								? null
+								: {
+										code: 'multi-scope-commit-path',
+										message: `commitMultiScope: path [${s.path.join(',')}] does not resolve to scope node (${s.node.kind})`
+									}
+						);
+					}
 					const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 					const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
 					const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 					const refs = [...s.state.innerBlockRefs];
-					// Fresh working array assigned through the node, then RE-READ —
-					// see commitContainerStructural for the $state-wrapper rationale.
+					// Write-then-re-read contract (tree-operations/unshare.ts header).
 					owned.children = [...(owned.children ?? [])];
 					return { target: s, isDoc, chain, owned, children: owned.children!, ids, refs };
 				});

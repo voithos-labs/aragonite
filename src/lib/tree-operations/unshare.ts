@@ -4,8 +4,15 @@
  * shared nodes are still referenced by undo/redo entries, and writing through
  * them corrupts history. Copies are SHALLOW: children/childIds arrays are
  * fresh, but child refs still point at shared subtrees (unshare deeper only
- * where you write). Callers live in editor-actions/ and selection/ — the
- * layers that know paths; tree-operations stays path-free internally.
+ * where you write).
+ *
+ * Write-then-re-read: after assigning a copy (node or children array) into the
+ * live tree, RE-READ it through the tree before any further use. A live $state
+ * tree wraps stored values in proxies, and later writes must go through the
+ * canonical wrapper or proxy readers see a stale view.
+ *
+ * Callers live in editor-actions/ and selection/ — the layers that know paths;
+ * tree-operations stays path-free internally.
  */
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from '../undo/sharing';
@@ -13,6 +20,7 @@ import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: CstNode, sharing: SharingState): CstNode {
@@ -50,9 +58,7 @@ export function ensureUnsharedPath(
 		if (!node) return chain;
 		if (sharing.isShared(node)) {
 			parentChildren[index] = copyNode(node, sharing);
-			// Re-read instead of keeping the raw copy: a live $state tree wraps
-			// stored values in proxies, and later writes must go through the
-			// canonical wrapper or proxy readers see a stale view.
+			// Write-then-re-read (file header).
 			node = parentChildren[index];
 		}
 		chain.push(node);
@@ -61,16 +67,19 @@ export function ensureUnsharedPath(
 	return chain;
 }
 
-/** Unshare one direct child of an already-unshared parent (e.g. renumber targets). */
+/**
+ * Unshare one direct child of an already-unshared parent — a node, or a
+ * caller-owned `{ children }` view (e.g. a commit ceremony's array copy).
+ */
 export function ensureUnsharedChild(
-	parent: CstNode,
+	parent: CstNode | NodeParent,
 	index: number,
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
 	if (!sharing.isShared(child)) return child;
 	parent.children![index] = copyNode(child, sharing);
-	// Re-read: return the canonical ($state-wrapped) reference, not the raw copy.
+	// Write-then-re-read (file header).
 	return parent.children![index];
 }
 
@@ -114,21 +123,22 @@ export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): voi
 /**
  * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
  * innermost-first. Chain-based rather than path-based so it stays correct after
- * mutations shifted sibling indices — node references survive splices.
+ * mutations shifted sibling indices — node references survive splices. One
+ * chain rebuild = one rebuild-depth histogram sample.
  */
 export function rebuildUnsharedChain(chain: CstNode[], sharing: SharingState): void {
 	for (let i = chain.length - 1; i >= 0; i--) {
 		rebuildOwnedContainer(chain[i], sharing);
 	}
+	if (perfEnabled()) recordRebuildDepth(chain.length);
 }
 
 /**
  * Unshare the spine to `path` and rebuild the node at `path` (when it is a
  * container) plus every ancestor, innermost-first. Tolerates paths that ran
- * out of range mid-walk (post-delete rebuild passes), mirroring
- * rebuildAncestryRawForLeaf. Use only when `path` is still valid for the
- * ancestors that matter; prefer rebuildUnsharedChain over a chain captured at
- * unshare time when indices may have shifted.
+ * out of range mid-walk (post-delete rebuild passes). Use only when `path` is
+ * still valid for the ancestors that matter; prefer rebuildUnsharedChain over
+ * a chain captured at unshare time when indices may have shifted.
  */
 export function rebuildUnsharedAncestry(
 	root: NodeParent,
@@ -142,6 +152,7 @@ export function rebuildUnsharedAncestry(
 		if (!node) break;
 		if (sharing.isShared(node)) {
 			parentChildren![index] = copyNode(node, sharing);
+			// Write-then-re-read (file header).
 			node = parentChildren![index];
 		}
 		chain.push(node);
