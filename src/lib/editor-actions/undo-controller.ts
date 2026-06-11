@@ -29,6 +29,7 @@ import {
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { assertCommittedNodes } from '../invariants/install';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { docByteLength, perfEnabled, recordSnapshotClone, setUndoGauge } from '../perf/instruments';
 
 // ── Multi-scope commit types ──────────────────────────────────────────────────
 
@@ -110,6 +111,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
+	function recordSnapshotPerf(): void {
+		if (!perfEnabled()) return;
+		recordSnapshotClone(docByteLength(deps.doc));
+		const undo = deps.undoManager.getStacks().undo;
+		let liveBytes = 0;
+		for (const entry of undo) liveBytes += docByteLength(entry.snapshot);
+		setUndoGauge(liveBytes, undo.length);
+	}
+
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		const selection =
 			readCurrentSelection(deps.selectionState, deps.blockRefs) ??
@@ -119,6 +129,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			blockIds: [...deps.blockIds],
 			selection
 		});
+		recordSnapshotPerf();
 	}
 
 	// Path from the live focused leaf; offset from the caller (pre-edit). The
@@ -137,6 +148,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			blockIds: [...deps.blockIds],
 			selection
 		});
+		recordSnapshotPerf();
 	}
 
 	/**

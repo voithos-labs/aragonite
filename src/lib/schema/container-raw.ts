@@ -9,6 +9,7 @@
 import type { CstNode, Document, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { augmentBlockKind, tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -203,4 +204,5 @@ export function rebuildAncestryRawForLeaf(doc: Document, leafPath: number[]): vo
 	for (let i = ancestors.length - 1; i >= 0; i--) {
 		rebuildContainerRawIfContainer(ancestors[i]);
 	}
+	if (perfEnabled()) recordRebuildDepth(ancestors.length);
 }
