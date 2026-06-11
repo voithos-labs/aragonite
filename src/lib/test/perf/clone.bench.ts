@@ -6,13 +6,12 @@ import { parse } from '../../core/parser';
 import { cloneDocument } from '../../tree-operations/clone';
 import { FIXTURE_SHAPES, generateFixture } from './fixtures/generate';
 
-const SIZES: Array<[label: string, bytes: number, opts: { iterations?: number; time?: number }]> =
-	[
-		['100KB', 100_000, { iterations: 3 }],
-		['1MB', 1_000_000, { iterations: 3 }],
-		// Real time budget so ~400ms clones still collect a usable sample count.
-		['10MB', 10_000_000, { time: 3_000 }]
-	];
+const SIZES: Array<[label: string, bytes: number, opts: { iterations?: number; time?: number }]> = [
+	['100KB', 100_000, { iterations: 3 }],
+	['1MB', 1_000_000, { iterations: 3 }],
+	// Real time budget so ~400ms clones still collect a usable sample count.
+	['10MB', 10_000_000, { time: 3_000 }]
+];
 
 for (const shape of FIXTURE_SHAPES) {
 	describe(`cloneDocument ${shape}`, () => {
