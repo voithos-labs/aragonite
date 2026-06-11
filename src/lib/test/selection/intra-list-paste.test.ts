@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
+import { createSharingState } from '../../undo/sharing';
 import { nodeAt } from '../../tree-operations/node-ops';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { trimTrailingLineEnding } from '../../core/lines';
@@ -24,7 +25,8 @@ describe('intra-list cross-item paste pipeline', () => {
 		const { collapsedCaret } = rangeDelete(
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
-			{ path: [0, 1, 0], offset: 3 }
+			{ path: [0, 1, 0], offset: 3 },
+			createSharingState()
 		);
 		expect(serialize(doc)).toBe('1. \n');
 		expect(collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
@@ -35,7 +37,8 @@ describe('intra-list cross-item paste pipeline', () => {
 		const { collapsedCaret } = rangeDelete(
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
-			{ path: [0, 1, 0], offset: 3 }
+			{ path: [0, 1, 0], offset: 3 },
+			createSharingState()
 		);
 		const pasted = 'HELLO';
 		const targetNode = nodeAt(doc, collapsedCaret.path) as CstNode;

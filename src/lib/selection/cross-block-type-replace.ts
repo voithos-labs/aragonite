@@ -14,7 +14,7 @@ import { performCrossBlockDelete } from './cross-block-ops';
 import { assertCharOffset } from './primitives';
 import { nodeAt } from '../tree-operations/node-ops';
 import { applyCollapsedCaret } from './native-bridge';
-import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { getStateForNode } from '../reactivity/state-registry';
 
 export async function handleCrossBlockTypeReplace(
@@ -54,12 +54,13 @@ export async function handleCrossBlockTypeReplace(
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: 'skip',
-		mutate: () => {
+		mutate: (_scopeViews, sharing) => {
 			const charOffset = assertCharOffset(caret, 'cross-block-type-replace:slice');
-			targetNode.raw =
-				targetNode.raw.slice(0, charOffset) + typed + targetNode.raw.slice(charOffset);
-			ctx.afterRawMutated?.(targetNode);
-			if (caret.path.length >= 2) rebuildAncestryRawForLeaf(doc, caret.path);
+			const chain = ensureUnsharedPath(doc, caret.path, sharing);
+			const owned = chain[chain.length - 1] ?? targetNode;
+			owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
+			ctx.afterRawMutated?.(owned);
+			rebuildUnsharedChain(chain, sharing);
 			return [{ op: 'noop' }];
 		},
 		op: {
@@ -93,17 +94,17 @@ function applyCaretAtPath(
 function resolveTypedCharScope(
 	ctx: CrossBlockDispatchContext,
 	leafPath: number[]
-): { node: CstNode; state: BlockListState } | null {
+): { node: CstNode; state: BlockListState; path: number[] } | null {
 	if (leafPath.length === 1) {
-		const docScope = ctx.controller.getDocScope();
-		return { node: docScope.node, state: docScope.state };
+		return ctx.controller.getDocScope();
 	}
 	const doc = ctx.getDoc();
 	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
-		const ancestor = nodeAt(doc, leafPath.slice(0, depth)) as CstNode | null;
+		const ancestorPath = leafPath.slice(0, depth);
+		const ancestor = nodeAt(doc, ancestorPath) as CstNode | null;
 		if (!ancestor) continue;
 		const state = getStateForNode(ancestor);
-		if (state) return { node: ancestor, state };
+		if (state) return { node: ancestor, state, path: ancestorPath };
 	}
 	return null;
 }

@@ -33,13 +33,13 @@ function makeSetup(childRaws: string[]) {
 	const controller = createUndoController(deps);
 	const containerEditActions = createContainerEditActions(deps, controller);
 
-	const containerState = createBlockListState(() => containerNode);
+	const containerState = createBlockListState(() => deps.doc.children[0]);
 	const bundle = createStandardNestedActions(containerState, {
 		index: 0,
 		get node() {
-			return containerNode;
+			return deps.doc.children[0];
 		},
-		rebuildRaw: vi.fn(),
+		path: [0],
 		stickyColumn: makeStickyColumn(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),

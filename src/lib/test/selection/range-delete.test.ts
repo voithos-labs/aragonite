@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
+import { createSharingState } from '../../undo/sharing';
 
 function run(
 	source: string,
@@ -9,7 +10,7 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end);
+	const result = rangeDelete(doc, start, end, createSharingState());
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

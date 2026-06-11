@@ -12,6 +12,7 @@ import type { SharingState } from '../undo/sharing';
 import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
+import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: CstNode, sharing: SharingState): CstNode {
@@ -42,15 +43,20 @@ export function ensureUnsharedPath(
 	const chain: CstNode[] = [];
 	let parentChildren = root.children;
 	for (const index of path) {
-		const node = parentChildren[index];
+		let node = parentChildren[index];
 		assertInvariant('unshare-path-in-range', () =>
 			node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
 		);
 		if (!node) return chain;
-		const owned = sharing.isShared(node) ? copyNode(node, sharing) : node;
-		parentChildren[index] = owned;
-		chain.push(owned);
-		parentChildren = owned.children ?? [];
+		if (sharing.isShared(node)) {
+			parentChildren[index] = copyNode(node, sharing);
+			// Re-read instead of keeping the raw copy: a live $state tree wraps
+			// stored values in proxies, and later writes must go through the
+			// canonical wrapper or proxy readers see a stale view.
+			node = parentChildren[index];
+		}
+		chain.push(node);
+		parentChildren = node.children ?? [];
 	}
 	return chain;
 }
@@ -63,7 +69,83 @@ export function ensureUnsharedChild(
 ): CstNode {
 	const child = parent.children![index];
 	if (!sharing.isShared(child)) return child;
-	const owned = copyNode(child, sharing);
-	parent.children![index] = owned;
-	return owned;
+	parent.children![index] = copyNode(child, sharing);
+	// Re-read: return the canonical ($state-wrapped) reference, not the raw copy.
+	return parent.children![index];
+}
+
+/**
+ * Standalone copy for a node being MOVED out of a parent the snapshot keeps
+ * (the caller attaches the returned copy; the original stays in the old
+ * parent's shared children array untouched).
+ */
+export function ensureUnsharedNode(node: CstNode, sharing: SharingState): CstNode {
+	return sharing.isShared(node) ? copyNode(node, sharing) : node;
+}
+
+/** Unshare every direct child of an owned parent (e.g. table rows before a whole-table rebuild). */
+export function ensureUnsharedChildren(parent: CstNode, sharing: SharingState): void {
+	const count = parent.children?.length ?? 0;
+	for (let i = 0; i < count; i++) ensureUnsharedChild(parent, i, sharing);
+}
+
+/**
+ * Deep-unshare an owned node's subtree. Intended for small bounded subtrees
+ * (tables: rows + cells) ahead of ops that write at arbitrary depth.
+ */
+export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): void {
+	const count = node.children?.length ?? 0;
+	for (let i = 0; i < count; i++) {
+		ensureUnsharedSubtree(ensureUnsharedChild(node, i, sharing), sharing);
+	}
+}
+
+// ── Sharing-aware raw rebuilds ───────────────────────────────────────────────
+
+/**
+ * Rebuild one owned container's raw. A table rebuild rewrites EVERY row's raw
+ * (canonical padding), so table rows are unshared first.
+ */
+export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): void {
+	if (node.kind === 'table') ensureUnsharedChildren(node, sharing);
+	rebuildContainerRawIfContainer(node);
+}
+
+/**
+ * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
+ * innermost-first. Chain-based rather than path-based so it stays correct after
+ * mutations shifted sibling indices — node references survive splices.
+ */
+export function rebuildUnsharedChain(chain: CstNode[], sharing: SharingState): void {
+	for (let i = chain.length - 1; i >= 0; i--) {
+		rebuildOwnedContainer(chain[i], sharing);
+	}
+}
+
+/**
+ * Unshare the spine to `path` and rebuild the node at `path` (when it is a
+ * container) plus every ancestor, innermost-first. Tolerates paths that ran
+ * out of range mid-walk (post-delete rebuild passes), mirroring
+ * rebuildAncestryRawForLeaf. Use only when `path` is still valid for the
+ * ancestors that matter; prefer rebuildUnsharedChain over a chain captured at
+ * unshare time when indices may have shifted.
+ */
+export function rebuildUnsharedAncestry(
+	root: NodeParent,
+	path: number[],
+	sharing: SharingState
+): void {
+	const chain: CstNode[] = [];
+	let parentChildren: CstNode[] | undefined = root.children;
+	for (const index of path) {
+		let node: CstNode | undefined = parentChildren?.[index];
+		if (!node) break;
+		if (sharing.isShared(node)) {
+			parentChildren![index] = copyNode(node, sharing);
+			node = parentChildren![index];
+		}
+		chain.push(node);
+		parentChildren = node.children;
+	}
+	rebuildUnsharedChain(chain, sharing);
 }

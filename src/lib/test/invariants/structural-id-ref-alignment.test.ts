@@ -149,7 +149,8 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 interface ContainerHarness {
 	doc: ReturnType<typeof makeEditorActionsDeps>['doc'];
-	node: CstNode;
+	/** Live container — commits replace the node object (copy-path-on-write). */
+	node: () => CstNode;
 	state: ReturnType<typeof createBlockListState>;
 	bundle: ReturnType<typeof createStandardNestedActions>;
 }
@@ -157,25 +158,24 @@ interface ContainerHarness {
 // Seed innerBlockRefs to mirror a mounted container: createBlockListState starts
 // refs as an empty $state array (the {#each} fills it on mount, which never runs
 // in node env), so without seeding the ref-alignment check would chase a harness
-// artifact, not a real bug. rebuildRaw runs the real container raw-rebuild so
-// the container's `raw` tracks its mutated children (the production prelude does
-// this after every inner op) — required for the round-trip assertion to be honest.
+// artifact, not a real bug.
 function makeContainer(source: string): ContainerHarness {
-	const node = parse(source).children[0];
-	expect(node.children, 'container has children').toBeTruthy();
+	const initial = parse(source).children[0];
+	expect(initial.children, 'container has children').toBeTruthy();
 
-	const { deps, doc } = makeEditorActionsDeps([node]);
+	const { deps, doc } = makeEditorActionsDeps([initial]);
+	const node = () => doc.children[0];
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
-	const state = createBlockListState(() => node);
-	state.innerBlockRefs = (node.children ?? []).map(() => mockRef());
+	const state = createBlockListState(node);
+	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
 
 	const bundle = createStandardNestedActions(state, {
 		index: 0,
 		get node() {
-			return node;
+			return node();
 		},
-		rebuildRaw: () => rebuildContainerRawIfContainer(node),
+		path: [0],
 		stickyColumn: makeStickyColumn(),
 		parent: {
 			blockEdit: makeStubBlockEdit(),
@@ -188,7 +188,7 @@ function makeContainer(source: string): ContainerHarness {
 }
 
 function assertContainerAligned(h: ContainerHarness) {
-	const n = h.node.children?.length ?? 0;
+	const n = h.node().children?.length ?? 0;
 	expect(h.state.innerBlockIds, 'inner id length').toHaveLength(n);
 	expect(h.state.innerBlockRefs, 'inner ref length').toHaveLength(n);
 	expect(new Set(h.state.innerBlockIds).size, 'inner ids unique').toBe(n);
@@ -209,7 +209,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		await h.bundle.blockEdit.splitBlock(0, 2);
 
 		assertContainerAligned(h);
-		expect(h.node.children).toHaveLength(3);
+		expect(h.node().children).toHaveLength(3);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
 		expect(h.state.innerBlockRefs[0]).toBe(ref0);
 		expect(h.state.innerBlockIds[1]).not.toBe(id0);
@@ -223,7 +223,7 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		await h.bundle.blockEdit.mergeWithNext(0);
 
 		assertContainerAligned(h);
-		expect(h.node.children).toHaveLength(2);
+		expect(h.node().children).toHaveLength(2);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
 		expect(h.state.innerBlockIds[1]).toBe(id2);
 		expect(h.state.innerBlockIds).not.toContain(id1);

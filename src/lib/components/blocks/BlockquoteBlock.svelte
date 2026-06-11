@@ -15,7 +15,6 @@
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { rebuildBlockquoteRaw } from '../../schema/container-raw';
 	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-context';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import {
@@ -44,7 +43,9 @@
 			get node() {
 				return node;
 			},
-			rebuildRaw: () => rebuildBlockquoteRaw(node),
+			get path() {
+				return myPath;
+			},
 			stickyColumn,
 			parent: {
 				blockEdit: parentBlockEdit,

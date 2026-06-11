@@ -13,6 +13,9 @@ import type { SelectionPoint } from '../selection/primitives';
 import { digestDoc } from '../undo/sharing';
 import { readCurrentSelection } from '../selection/native-bridge';
 import { pathsEqual } from '../selection/path-math';
+import { assertInvariant } from '../invariants/assert';
+import { nodeAt } from '../tree-operations/node-ops';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import type {
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
@@ -35,18 +38,24 @@ import { docByteLength, perfEnabled, recordSnapshotClone, setUndoGauge } from '.
 
 /**
  * Order matters for the emitted event path — scopes[0] is the outermost.
+ * `path` is the scope node's doc-absolute path; the primitive unshares each
+ * scope's spine before `mutate` and rebuilds the owned chains after.
  */
 export interface MultiScopeTarget {
 	node: CstNode;
 	state: BlockListState;
+	path: number[];
 }
 
 /**
- * Mutable view of one scope. Return a StructuralChange[] (one per scope,
- * same order); the primitive applies descriptors to ids/refs.
+ * Mutable view of one scope. `node` is the OWNED (unshared) scope node with
+ * `children` attached — mutate through it, never through pre-commit captures.
+ * Return a StructuralChange[] (one per scope, same order); the primitive
+ * applies descriptors to ids/refs.
  */
 export interface MultiScopeMutable {
 	children: CstNode[];
+	node: CstNode;
 }
 
 /**
@@ -266,8 +275,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				op?: OpDescriptor;
 				eventPath: number[];
 				afterTick?: () => void;
-				/** Directly-mutated containers (innermost scopes) for the dev invariant check. */
-				touchedNodes?: CstNode[];
+				/**
+				 * Directly-mutated containers (innermost scopes) for the dev invariant
+				 * check. Thunk: the owned nodes only exist after `mutate` unshares.
+				 */
+				touchedNodes?: () => CstNode[];
 		  };
 
 	async function __commit(args: CommitArgs): Promise<void> {
@@ -299,7 +311,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			args.mutate();
 			args.publish();
 			if (import.meta.env.DEV) {
-				assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes));
+				assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
 			}
 		}
 
@@ -344,25 +356,44 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Container-scoped commit wrapper. Mutation applies to the container's
-	 * children; publish writes `node.children` + the state bundle's ids/refs.
-	 * Ancestry raw rebuild lives inside `mutate` — the caller owns it so the
-	 * atomic publish sees a rebuilt tree.
+	 * Container-scoped commit wrapper. The primitive owns copy-path-on-write:
+	 * it unshares the spine to `path`, hands `mutate` the OWNED container with
+	 * its working children array already attached, then syncs childIds/refs
+	 * from the returned StructuralChange and rebuilds the spine's raws.
+	 * childIds are written on the owned node (NOT through the state bundle —
+	 * the bundle's setter targets the component's still-stale node prop, which
+	 * the snapshot shares).
 	 */
 	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
-		const { containerNode, state, snapshot, mutate, op, afterTick } = args;
+		const { containerNode, path, state, snapshot, mutate, op, afterTick } = args;
+		let owned = containerNode;
 		await __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
-				const childrenCopy = [...(containerNode.children ?? [])];
-				const idsCopy = [...state.innerBlockIds];
+				assertInvariant('container-commit-path', () =>
+					nodeAt(deps.doc, path) === containerNode
+						? null
+						: {
+								code: 'container-commit-path',
+								message: `commitContainerStructural: path [${path.join(',')}] does not resolve to containerNode (${containerNode.kind})`
+							}
+				);
+				const chain = ensureUnsharedPath(deps.doc, path, deps.sharing);
+				owned = chain[chain.length - 1] ?? containerNode;
+				const idsCopy = [...(owned.childIds ?? [])];
 				const refsCopy = [...state.innerBlockRefs];
-				const change = mutate(childrenCopy);
+				// Fresh working array assigned through the node, then RE-READ: in
+				// the live $state tree the stored array is proxy-wrapped, and every
+				// later splice must go through that wrapper — mutating the raw copy
+				// after observation leaves proxy readers a stale view.
+				owned.children = [...(owned.children ?? [])];
+				const children = owned.children!;
+				const change = mutate({ node: owned, children, sharing: deps.sharing });
 				applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
-				containerNode.children = childrenCopy;
-				state.innerBlockIds = idsCopy;
+				owned.childIds = idsCopy;
 				state.innerBlockRefs = refsCopy;
+				rebuildUnsharedChain(chain, deps.sharing);
 			},
 			publish: () => {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
@@ -371,7 +402,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			op: op ? { kind: op.kind, detail: op.detail } : undefined,
 			eventPath: op?.eventPath ?? [],
 			afterTick,
-			touchedNodes: [containerNode]
+			touchedNodes: () => [owned]
 		});
 	}
 
@@ -382,27 +413,36 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * snapshot, per-scope children views, one edit event. Use for operations
 	 * touching ≥2 container nodes (e.g., indent across parent + nested list).
 	 *
-	 * Gotcha: rebuild helpers like `rebuildListRaw` read `node.children`
-	 * directly. If `mutate` calls a rebuild helper before the atomic publish,
-	 * sync `scope.node.children = scopeChildren[i].children` first — otherwise
-	 * the rebuild sees the pre-mutation tree. See `list-context.ts` /
-	 * `nested-actions.ts` for the sync-before-rebuild pattern.
+	 * Copy-path-on-write: each scope's spine is unshared before `mutate`, the
+	 * owned nodes get their working children arrays attached (so rebuild /
+	 * renumber helpers reading node.children see live shape mid-mutate), and
+	 * the owned spine chains are raw-rebuilt afterwards, deepest scope first.
+	 * Mutate through the provided scope views, never pre-commit captures.
 	 */
 	async function commitMultiScope(args: CommitMultiScopeArgs): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick } = args;
+		let ownedNodes: CstNode[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
-				// Per-scope copies — mutate operates on these, never on live state.
-				const perScope = scopes.map((s) => ({
-					target: s,
-					children: [...(s.node.children ?? [])],
-					ids: [...s.state.innerBlockIds],
-					refs: [...s.state.innerBlockRefs]
-				}));
+				const perScope = scopes.map((s) => {
+					const isDoc = (s.node as unknown) === (deps.doc as unknown);
+					const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
+					const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
+					const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
+					const refs = [...s.state.innerBlockRefs];
+					// Fresh working array assigned through the node, then RE-READ —
+					// see commitContainerStructural for the $state-wrapper rationale.
+					owned.children = [...(owned.children ?? [])];
+					return { target: s, isDoc, chain, owned, children: owned.children!, ids, refs };
+				});
+				ownedNodes = perScope.map((p) => p.owned);
 
-				const changes = mutate(perScope.map((p) => ({ children: p.children })));
+				const changes = mutate(
+					perScope.map((p) => ({ children: p.children, node: p.owned })),
+					deps.sharing
+				);
 				if (changes.length !== scopes.length) {
 					throw new Error(
 						`commitMultiScope: mutate returned ${changes.length} changes for ${scopes.length} scopes`
@@ -413,11 +453,22 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
 				}
 
-				// Atomic publish: assign all scopes before Svelte observes a change.
 				for (const p of perScope) {
-					p.target.node.children = p.children;
-					p.target.state.innerBlockIds = p.ids;
+					// Doc-scope ids route through deps setters (top-level ids are
+					// per-snapshot copies); container ids live on the owned node — the
+					// state bundle's setter would write the stale shared node prop.
+					if (p.isDoc) {
+						p.target.state.innerBlockIds = p.ids;
+					} else {
+						p.owned.childIds = p.ids;
+					}
 					p.target.state.innerBlockRefs = p.refs;
+				}
+
+				// Deepest chains first: an inner scope's raw must be current before
+				// an outer chain's rebuild concatenates it.
+				for (const p of [...perScope].sort((a, b) => b.chain.length - a.chain.length)) {
+					rebuildUnsharedChain(p.chain, deps.sharing);
 				}
 			},
 			publish: () => {
@@ -428,9 +479,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			eventPath: op?.eventPath ?? [],
 			afterTick,
 			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
-			touchedNodes: scopes
-				.map((s) => s.node)
-				.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
+			touchedNodes: () => ownedNodes.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
 		});
 	}
 
@@ -445,6 +494,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	function getDocScope(): MultiScopeTarget {
 		return {
 			node: deps.doc as unknown as CstNode,
+			path: [],
 			state: {
 				get innerBlockIds() {
 					return deps.blockIds;
@@ -485,6 +535,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	return {
+		sharing: deps.sharing,
 		pushUndoSnapshot,
 		pushUndoSnapshotDebounced,
 		commitStructural,

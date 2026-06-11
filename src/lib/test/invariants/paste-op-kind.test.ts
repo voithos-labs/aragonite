@@ -64,7 +64,7 @@ describe('G2.9 paste op-kind dual-emit', () => {
 			get node() {
 				return containerNode;
 			},
-			rebuildRaw: vi.fn(),
+			path: [0],
 			stickyColumn: makeStickyColumn(),
 			parent: {
 				blockEdit: makeStubBlockEdit(),

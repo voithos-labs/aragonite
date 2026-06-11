@@ -1,7 +1,10 @@
 /**
  * BlockEditActions factory for container nestedActions bundles. Each method
  * routes mutations through `parent.containerEdit.commitContainer` so the
- * snapshot, op-event, and reactivity ceremony lives in one place.
+ * snapshot, op-event, spine unshare, and reactivity ceremony lives in one
+ * place. Mutate callbacks operate on the OWNED scope the ceremony provides;
+ * pre-existing children an op writes are unshared first, created children
+ * are stamped.
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -18,10 +21,14 @@ import {
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
 	ensureEditableContainers,
-	reconcileTaskMetadata
+	ensureUnsharedChild,
+	ensureUnsharedPath,
+	rebuildOwnedContainer,
+	reconcileTaskMetadata,
+	stampStructuralChange,
+	type StructuralChange
 } from '../tree-operations';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
-import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { findMergeTarget, isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import type { NestedActionsDeps } from './nested-actions';
 
@@ -29,7 +36,7 @@ export function createNestedBlockEdit(
 	state: BlockListState,
 	deps: NestedActionsDeps
 ): BlockEditActions {
-	const { rebuildRaw, parent } = deps;
+	const { parent } = deps;
 
 	const blockEdit: BlockEditActions = {
 		// ── Structural mutations ───────────────────────────────────────────────
@@ -41,13 +48,12 @@ export function createNestedBlockEdit(
 				// that desyncs from reparse.
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (children) => {
-						const change = bumpLeadingTrivia({ children }, innerIndex);
-						deps.node.children = children;
-						rebuildRaw();
-						return change;
+					mutate: (scope) => {
+						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
+						return bumpLeadingTrivia({ children: scope.children }, innerIndex);
 					},
 					op: { kind: 'split', detail: { at: 0 }, eventPath: [deps.index, innerIndex] },
 					afterTick: () => {
@@ -58,13 +64,12 @@ export function createNestedBlockEdit(
 			}
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
+				path: deps.path,
 				state,
 				snapshot: { blockIndex: deps.index, offset },
-				mutate: (children) => {
-					const change = performSplit({ children }, innerIndex, offset);
-					// Sync before rebuildRaw — it reads deps.node.children directly.
-					deps.node.children = children;
-					rebuildRaw();
+				mutate: (scope) => {
+					const change = performSplit({ children: scope.children }, innerIndex, offset);
+					stampStructuralChange(scope.children, change, scope.sharing);
 					return change;
 				},
 				op: { kind: 'split', eventPath: [deps.index, innerIndex] },
@@ -93,13 +98,24 @@ export function createNestedBlockEdit(
 				let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (children) => {
-						mergeResult = mergeIntoPrevDeepLeaf({ children }, innerIndex);
-						// Sync before rebuildRaw — it reads deps.node.children directly.
-						deps.node.children = children;
-						rebuildRaw();
+					mutate: (scope) => {
+						// The merge writes prev's deep-leaf spine (leaf raw + ancestor
+						// raw rebuild) and the trivia-inheriting successor.
+						const mergeTarget = findMergeTarget(scope.children[innerIndex - 1]);
+						if (mergeTarget) {
+							ensureUnsharedPath(
+								{ children: scope.children },
+								[innerIndex - 1, ...mergeTarget.path],
+								scope.sharing
+							);
+							if (innerIndex + 1 < scope.children.length) {
+								ensureUnsharedChild(scope.node, innerIndex + 1, scope.sharing);
+							}
+						}
+						mergeResult = mergeIntoPrevDeepLeaf({ children: scope.children }, innerIndex);
 						return mergeResult?.change ?? { op: 'noop' };
 					},
 					op: {
@@ -123,13 +139,13 @@ export function createNestedBlockEdit(
 			} else if (!isBlockEditable(prevKind)) {
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (children) => {
-						const change = performDelete({ children }, innerIndex - 1);
-						deps.node.children = children;
-						rebuildRaw();
-						return change;
+					mutate: (scope) => {
+						// deleteNode writes the successor's leadingTrivia.
+						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
+						return performDelete({ children: scope.children }, innerIndex - 1);
 					},
 					op: { kind: 'delete', eventPath: [deps.index, innerIndex - 1] },
 					afterTick: () => {
@@ -155,12 +171,12 @@ export function createNestedBlockEdit(
 				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (children) => {
-						const change = performMergeNext({ children }, innerIndex);
-						deps.node.children = children;
-						rebuildRaw();
+					mutate: (scope) => {
+						const change = performMergeNext({ children: scope.children }, innerIndex);
+						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
 					},
 					op: {
@@ -175,13 +191,15 @@ export function createNestedBlockEdit(
 			} else if (!isBlockEditable(nextKind)) {
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (children) => {
-						const change = performDelete({ children }, innerIndex + 1);
-						deps.node.children = children;
-						rebuildRaw();
-						return change;
+					mutate: (scope) => {
+						// deleteNode writes the successor's leadingTrivia.
+						if (innerIndex + 2 < scope.children.length) {
+							ensureUnsharedChild(scope.node, innerIndex + 2, scope.sharing);
+						}
+						return performDelete({ children: scope.children }, innerIndex + 1);
 					},
 					op: { kind: 'delete', eventPath: [deps.index, innerIndex + 1] },
 					afterTick: () => {
@@ -202,13 +220,15 @@ export function createNestedBlockEdit(
 
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
+				path: deps.path,
 				state,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (children) => {
-					const change = performDelete({ children }, innerIndex);
-					deps.node.children = children;
-					rebuildRaw();
-					return change;
+				mutate: (scope) => {
+					// deleteNode writes the successor's leadingTrivia.
+					if (innerIndex + 1 < scope.children.length) {
+						ensureUnsharedChild(scope.node, innerIndex + 1, scope.sharing);
+					}
+					return performDelete({ children: scope.children }, innerIndex);
 				},
 				op: { kind: 'delete', eventPath: [deps.index, innerIndex] },
 				afterTick: () => {
@@ -240,12 +260,12 @@ export function createNestedBlockEdit(
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
+					path: deps.path,
 					state,
 					snapshot: { blockIndex: deps.index, offset: preEditOffset ?? 0 },
-					mutate: (children) => {
-						performUpdate({ children }, innerIndex, text);
-						deps.node.children = children;
-						rebuildRaw();
+					mutate: (scope) => {
+						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
+						performUpdate({ children: scope.children }, innerIndex, text);
 						return { op: 'noop' };
 					},
 					op: {
@@ -268,14 +288,18 @@ export function createNestedBlockEdit(
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
-			performUpdate({ children: deps.node.children }, innerIndex, text);
-			// listItem's taskItem metadata is extracted at parse time from the
-			// first stripped line; live typing into the inner paragraph would
-			// otherwise leave metadata frozen while serialized source drifts.
-			if (deps.node.kind === 'listItem' && innerIndex === 0) {
-				reconcileTaskMetadata(deps.node);
-			}
-			rebuildRaw();
+			const leafPath = [...deps.path, innerIndex];
+			parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
+				const owned = chain[leafPath.length - 2];
+				if (!owned?.children) return;
+				performUpdate({ children: owned.children }, innerIndex, text);
+				// listItem's taskItem metadata is extracted at parse time from the
+				// first stripped line; live typing into the inner paragraph would
+				// otherwise leave metadata frozen while serialized source drifts.
+				if (owned.kind === 'listItem' && innerIndex === 0) {
+					reconcileTaskMetadata(owned);
+				}
+			});
 			parent.containerEdit.nudgeReactivity();
 		},
 
@@ -290,15 +314,15 @@ export function createNestedBlockEdit(
 
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
+				path: deps.path,
 				state,
 				snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
-				mutate: () => {
-					const node = deps.node.children![innerIndex];
+				mutate: (scope) => {
+					const node = ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Metadata feeds raw for list items (taskMarker) — resync child
-					// then container so serialize/reconciliation sees the new source.
-					rebuildContainerRawIfContainer(node);
-					rebuildRaw();
+					// Metadata feeds raw for list items (taskMarker) — resync the
+					// child so the ceremony's ancestry rebuild concatenates fresh raw.
+					rebuildOwnedContainer(node, scope.sharing);
 					return { op: 'noop' };
 				},
 				op: {
@@ -361,33 +385,32 @@ export function createNestedBlockEdit(
 
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,
+				path: deps.path,
 				state,
 				snapshot,
-				mutate: (children) => {
+				mutate: (scope) => {
 					if (replacement.length === 0) {
-						children.splice(innerIndex, 1);
-						deps.node.children = children;
-						rebuildRaw();
+						scope.children.splice(innerIndex, 1);
 						return { op: 'delete', at: innerIndex, count: 1 };
 					}
 					const normalizedReplacement = normalizeReplacementTrivia(
-						children[innerIndex],
+						scope.children[innerIndex],
 						replacement
 					);
 					for (const node of normalizedReplacement) ensureEditableContainers(node);
-					children.splice(innerIndex, 1, ...normalizedReplacement);
-					deps.node.children = children;
-					rebuildRaw();
+					scope.children.splice(innerIndex, 1, ...normalizedReplacement);
 					// First replacement inherits the original block's id + ref;
 					// matches top-level replaceBlock contract so Svelte's keyed
 					// {#each} doesn't remount the leaf and lose IME state.
-					return {
+					const change: StructuralChange = {
 						op: 'replace',
 						at: innerIndex,
 						count: 1,
 						newCount: normalizedReplacement.length,
 						idMap: { 0: 0 }
 					};
+					stampStructuralChange(scope.children, change, scope.sharing);
+					return change;
 				},
 				op: {
 					kind: replacement.length === 0 ? 'delete' : 'replaceBlock',

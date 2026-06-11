@@ -7,10 +7,12 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
+import type { SharingState } from '../../undo/sharing';
 import { cloneNode } from '../clone';
 import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../schema/container-raw';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
+import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
 import { assignIds, generateBlockId } from '../block-id';
 
 /**
@@ -142,7 +144,8 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
-	currentIndex: number
+	currentIndex: number,
+	sharing?: SharingState
 ): { mergePoint: { targetPath: number[]; offset: number } } {
 	// Reads from list.children are allowed during targeting, but the final
 	// splice MUST land in `children`, not `list.children`. See node-ops.ts
@@ -163,6 +166,10 @@ export function mergeListItemIntoPrevious(
 			'mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf'
 		);
 	}
+
+	// Own the deep-leaf spine before any capture — the walk below must see the
+	// owned copies, and the target paragraph's raw is written in place.
+	if (sharing) ensureUnsharedPath({ children: list.children }, targetPath, sharing);
 
 	// Walk down to the listItem containing the target paragraph.
 	let targetItem: CstNode = list;
@@ -198,19 +205,31 @@ export function mergeListItemIntoPrevious(
 	// targetPath is a uniform path of length 2(N+1) where N is target's nesting depth.
 	// Depth-0 target (length 2): no depth-1 container — absorb into targetItem.
 	// Depth-≥1 target (length ≥ 4): promote nested-list items to the depth-1 sibling container.
-	const remainingChildren = currentItem.children.slice(1);
+	// Relocated children are MOVED out of the deleted item into the live tree
+	// and (mostly) get their leadingTrivia written — copy each standalone so
+	// the snapshot's view of the deleted item stays intact.
+	const remainingChildren = currentItem.children
+		.slice(1)
+		.map((c) => (sharing ? ensureUnsharedNode(c, sharing) : c));
 
 	for (const child of remainingChildren) {
 		if (child.kind === 'list' && child.children) {
 			if (targetPath.length >= 4) {
 				const depthOneParent = list.children[targetPath[0]];
 				if (depthOneParent.children) {
-					let depthOneList: CstNode | undefined;
-					for (const c of depthOneParent.children) {
-						if (c.kind === 'list') depthOneList = c;
+					let depthOneIdx = -1;
+					for (let i = 0; i < depthOneParent.children.length; i++) {
+						if (depthOneParent.children[i].kind === 'list') depthOneIdx = i;
 					}
+					const depthOneList =
+						depthOneIdx === -1
+							? undefined
+							: sharing
+								? ensureUnsharedChild(depthOneParent, depthOneIdx, sharing)
+								: depthOneParent.children[depthOneIdx];
 					if (depthOneList && depthOneList.children) {
-						for (const item of child.children) {
+						for (let i = 0; i < child.children.length; i++) {
+							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
 							item.leadingTrivia = '';
 							// discovered-descendant mutation, see node-ops.ts header
 							appendChild(depthOneList, item);
@@ -239,7 +258,7 @@ export function mergeListItemIntoPrevious(
 	rebuildAncestryRaw(list, targetPath);
 
 	if (metadataOf(list, 'list')?.ordered) {
-		renumberOrderedList(list);
+		renumberOrderedList(list, 0, sharing);
 		rebuildListRaw(list);
 	}
 

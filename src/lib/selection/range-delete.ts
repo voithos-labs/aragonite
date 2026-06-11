@@ -7,13 +7,18 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
+import type { SharingState } from '../undo/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, comparePaths, assertCharOffset } from './primitives';
 import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { rebuildAncestryRawForLeaf } from '../schema/container-raw';
+import {
+	ensureUnsharedPath,
+	rebuildUnsharedAncestry,
+	rebuildUnsharedChain
+} from '../tree-operations/unshare';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -26,14 +31,17 @@ export interface RangeDeleteResult {
 /**
  * Delete [start, end] in place, merge at start's position with its
  * container context preserved, cascade-clean empty ancestors, rebuild
- * container raws. Returns the (mutated) doc and the collapsed caret.
- * Caller must pre-normalize the range and ensure neither endpoint lands
- * on a non-focusable block.
+ * container raws. Copy-path-on-write: every spine the op splices or writes
+ * through is unshared up front — BEFORE target identities are captured, so
+ * the identity gate compares post-unshare references. Returns the (mutated)
+ * doc and the collapsed caret. Caller must pre-normalize the range and
+ * ensure neither endpoint lands on a non-focusable block.
  */
 export function rangeDelete(
 	doc: Document,
 	start: SelectionPoint,
-	end: SelectionPoint
+	end: SelectionPoint,
+	sharing: SharingState
 ): RangeDeleteResult {
 	const startBlock = nodeAt(doc, start.path);
 	const endBlock = nodeAt(doc, end.path);
@@ -42,7 +50,7 @@ export function rangeDelete(
 	}
 
 	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
-		return tableAwareRangeDelete(doc, start, end, startBlock as CstNode, endBlock as CstNode);
+		return tableAwareRangeDelete(doc, start, end, sharing);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
@@ -54,8 +62,10 @@ export function rangeDelete(
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
-		(startBlock as CstNode).raw = mergedRaw;
-		rebuildAncestryRawForLeaf(doc, start.path);
+		const chain = ensureUnsharedPath(doc, start.path, sharing);
+		const owned = chain[chain.length - 1] ?? (startBlock as CstNode);
+		owned.raw = mergedRaw;
+		rebuildUnsharedChain(chain, sharing);
 		return {
 			newDoc: doc,
 			collapsedCaret: { path: start.path.slice(), offset: startOffset }
@@ -67,6 +77,7 @@ export function rangeDelete(
 		reparsed.children.length > 0
 			? reparsed.children
 			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
+	for (const node of replacement) sharing.stamp(node);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past end —
 	// filter to paths with subtrees fully inside (start, end). Cascade-cleanup
@@ -76,6 +87,13 @@ export function rangeDelete(
 	);
 	const deletionPaths: number[][] = [...betweenPaths, end.path];
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
+
+	// Unshare every spliced spine before capturing target identities — a copy
+	// made after capture would fail the identity gate and skip the deletion.
+	ensureUnsharedPath(doc, start.path, sharing);
+	for (const path of deletionPaths) {
+		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
+	}
 
 	// Identity-check before splice: a deeper delete + cascade may shift a
 	// survivor into an outer path's slot. Cascade is identity-gated alongside
@@ -94,9 +112,9 @@ export function rangeDelete(
 
 	replaceAtPath(doc, start.path, replacement);
 
-	rebuildAncestryRawForLeaf(doc, start.path);
+	rebuildUnsharedAncestry(doc, start.path, sharing);
 	for (const path of deletionPaths) {
-		rebuildAncestryRawForLeaf(doc, path);
+		rebuildUnsharedAncestry(doc, path, sharing);
 	}
 
 	return {

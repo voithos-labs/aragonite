@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/container-match';
 import { parse } from '../../../core/parser';
+import { createSharingState, type SharingState } from '../../../undo/sharing';
+import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
 import { registerBlockListState } from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
@@ -11,6 +13,7 @@ import type { UndoController } from '../../../editor-actions/deps';
 
 function makeStubController(): UndoController {
 	return {
+		sharing: createSharingState(),
 		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
 		commitStructural: vi.fn(),
@@ -30,9 +33,9 @@ function registerStubState(node: CstNode): void {
 	} as unknown as Parameters<typeof registerBlockListState>[1]);
 }
 
-// A controller whose commitMultiScope runs the mutate against copies of each
-// scope's children — enough of the real commit primitive to exercise the
-// splice + ancestry raw rebuild that the bug corrupts.
+// A controller whose commitMultiScope mirrors the real primitive's owned-scope
+// protocol (attach working children, run mutate, rebuild scope raws) — enough
+// to exercise the splice + ancestry raw rebuild that the bug corrupts.
 function runningController(): UndoController {
 	return {
 		...makeStubController(),
@@ -42,9 +45,16 @@ function runningController(): UndoController {
 				mutate
 			}: {
 				scopes: { node: CstNode }[];
-				mutate: (v: { children: CstNode[] }[]) => unknown;
+				mutate: (v: { children: CstNode[]; node: CstNode }[], sharing: SharingState) => unknown;
 			}) => {
-				mutate(scopes.map((s) => ({ children: [...(s.node.children ?? [])] })));
+				const sharing = createSharingState();
+				const views = scopes.map((s) => {
+					const children = [...(s.node.children ?? [])];
+					s.node.children = children;
+					return { children, node: s.node };
+				});
+				mutate(views, sharing);
+				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
 			}
 		)
 	} as unknown as UndoController;

@@ -5,11 +5,10 @@
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import { unwrapFirstChildFromBlockquote } from '../tree-operations/blockquote';
-import { rebuildBlockquoteRaw, rebuildAncestryRawForLeaf } from '../schema/container-raw';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsBundle } from './nested-actions';
 import type { UndoController } from './deps';
@@ -39,21 +38,14 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					if (node.children.length <= 1) {
 						parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
+						// The deleted child is the LAST one, so deleteNode writes no
+						// successor trivia; the primitive's spine rebuild refreshes
+						// this quote's raw AND its ancestors' (a nested quote's own
+						// rebuild alone would strand an empty `> >` in the outer raw).
 						await deps.controller.commitMultiScope({
-							scopes: [{ node, state }],
+							scopes: [{ node, state, path: deps.path }],
 							snapshot: { blockIndex: index, offset: 0 },
-							mutate: (scopeChildren) => {
-								const change = performDelete(scopeChildren[0], innerIndex);
-								// Sync before rebuild — rebuildBlockquoteRaw reads node.children directly.
-								node.children = scopeChildren[0].children;
-								rebuildBlockquoteRaw(node);
-								// A nested quote's own raw rebuild doesn't reach its ancestors;
-								// without this the outer quote's raw keeps the deleted line's
-								// `> ` continuation and the source strands an empty `> >`.
-								const doc = deps.controller.getDocScope().node as unknown as Document;
-								rebuildAncestryRawForLeaf(doc, deps.path);
-								return [change];
-							},
+							mutate: ([scope]) => [performDelete(scope, innerIndex)],
 							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },

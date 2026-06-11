@@ -17,11 +17,12 @@ import {
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
 	ensureUnsharedPath,
+	rebuildOwnedContainer,
 	buildPastedReplacement,
 	normalizeReplacementTrivia,
+	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { isMergeEligible, isBlockEditable, findMergeTarget } from '../schema/merge-rules';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -29,14 +30,6 @@ export function createBlockEditActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): BlockEditActions {
-	// Nodes a mutate CREATED (named by its insert/replace window) are owned by
-	// the live tree; pre-existing nodes an op WRITES go through ensureUnsharedPath.
-	function stampChanged(children: CstNode[], change: StructuralChange): void {
-		if (change.op !== 'insert' && change.op !== 'replace') return;
-		const count = change.op === 'insert' ? change.count : change.newCount;
-		for (let i = change.at; i < change.at + count; i++) deps.sharing.stamp(children[i]);
-	}
-
 	return {
 		// ── Structural split / merge / delete ─────────────────────────────────
 
@@ -63,7 +56,7 @@ export function createBlockEditActions(
 				snapshot: { blockIndex, offset },
 				mutate: (children) => {
 					const change = performSplit({ children }, blockIndex, offset);
-					stampChanged(children, change);
+					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},
 				op: { kind: 'split', detail: { at: offset } },
@@ -161,7 +154,7 @@ export function createBlockEditActions(
 				snapshot: { blockIndex, offset: CURSOR_END },
 				mutate: (children) => {
 					const change = performMergeNext({ children }, blockIndex);
-					stampChanged(children, change);
+					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},
 				op: { kind: 'merge', detail: { direction: 'next' } },
@@ -239,7 +232,7 @@ export function createBlockEditActions(
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					// Metadata feeds raw for list items (taskMarker) — resync so
 					// serialize/reconciliation sees the new source.
-					rebuildContainerRawIfContainer(node);
+					rebuildOwnedContainer(node, deps.sharing);
 					return { op: 'noop' };
 				},
 				op: { kind: 'metadataUpdate', detail: { fields } }
@@ -289,7 +282,7 @@ export function createBlockEditActions(
 						newCount: newNodes.length,
 						idMap: { 0: 0 }
 					};
-					stampChanged(children, change);
+					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},
 				op: { kind: 'paste', detail: { count: newNodes.length } },
@@ -335,7 +328,7 @@ export function createBlockEditActions(
 						newCount: normalizedReplacement.length,
 						idMap: { 0: 0 }
 					};
-					stampChanged(children, change);
+					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},
 				op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } },

@@ -19,15 +19,18 @@ import {
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	isItemUserEmpty,
-	normalizeReplacementTrivia
+	normalizeReplacementTrivia,
+	ensureUnsharedChild,
+	stampStructuralChange,
+	type StructuralChange
 } from '../tree-operations';
-import { rebuildListRaw } from '../schema/container-raw';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsOverrideFactory } from './nested-actions';
 
 export interface ListOverridesDeps {
 	get index(): number;
 	get node(): CstNode;
+	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentContainerEdit: ContainerEditActions;
@@ -74,13 +77,14 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					if (firstChildEmpty && node.children.length > 1) {
 						await deps.parentContainerEdit.commitContainer({
 							containerNode: node,
+							path: deps.path,
 							state: deps.state,
 							snapshot: { blockIndex: index, offset: 0 },
-							mutate: (children) => {
-								const change = performDelete({ children }, 0);
-								node.children = children;
-								renumberOrderedList(node, 0);
-								rebuildListRaw(node);
+							mutate: (scope) => {
+								// deleteNode writes the successor's leadingTrivia.
+								ensureUnsharedChild(scope.node, 1, scope.sharing);
+								const change = performDelete({ children: scope.children }, 0);
+								renumberOrderedList(scope.node, 0, scope.sharing);
 								return change;
 							},
 							op: { kind: 'delete', eventPath: [index, 0] },
@@ -106,13 +110,15 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				if (isItemUserEmpty(item)) {
 					await deps.parentContainerEdit.commitContainer({
 						containerNode: node,
+						path: deps.path,
 						state: deps.state,
 						snapshot: { blockIndex: index, offset: 0 },
-						mutate: (children) => {
-							const change = performDelete({ children }, itemIndex);
-							node.children = children;
-							renumberOrderedList(node, itemIndex);
-							rebuildListRaw(node);
+						mutate: (scope) => {
+							if (itemIndex + 1 < scope.children.length) {
+								ensureUnsharedChild(scope.node, itemIndex + 1, scope.sharing);
+							}
+							const change = performDelete({ children: scope.children }, itemIndex);
+							renumberOrderedList(scope.node, itemIndex, scope.sharing);
 							return change;
 						},
 						op: { kind: 'delete', eventPath: [index, itemIndex] },
@@ -127,10 +133,16 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				let mergePoint!: { targetPath: number[]; offset: number };
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,
+					path: deps.path,
 					state: deps.state,
 					snapshot: { blockIndex: index, offset: 0 },
-					mutate: (children) => {
-						const result = mergeListItemIntoPrevious(node, children, itemIndex);
+					mutate: (scope) => {
+						const result = mergeListItemIntoPrevious(
+							scope.node,
+							scope.children,
+							itemIndex,
+							scope.sharing
+						);
 						mergePoint = result.mergePoint;
 						return { op: 'delete', at: itemIndex, count: 1 };
 					},
@@ -156,13 +168,14 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				}
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,
+					path: deps.path,
 					state: deps.state,
 					snapshot: { blockIndex: index, offset: 0 },
-					mutate: (children) => {
-						const change = performDelete({ children }, itemIndex);
-						node.children = children;
-						rebuildListRaw(node);
-						return change;
+					mutate: (scope) => {
+						if (itemIndex + 1 < scope.children.length) {
+							ensureUnsharedChild(scope.node, itemIndex + 1, scope.sharing);
+						}
+						return performDelete({ children: scope.children }, itemIndex);
 					},
 					op: { kind: 'delete', eventPath: [index, itemIndex] },
 					afterTick: () => {
@@ -189,29 +202,28 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,
+					path: deps.path,
 					state: deps.state,
 					snapshot,
-					mutate: (children) => {
+					mutate: (scope) => {
 						if (replacement.length === 0) {
-							children.splice(itemIndex, 1);
-							node.children = children;
-							rebuildListRaw(node);
+							scope.children.splice(itemIndex, 1);
 							return { op: 'delete', at: itemIndex, count: 1 };
 						}
 						const normalizedReplacement = normalizeReplacementTrivia(
-							children[itemIndex],
+							scope.children[itemIndex],
 							replacement
 						);
-						children.splice(itemIndex, 1, ...normalizedReplacement);
-						node.children = children;
-						rebuildListRaw(node);
-						return {
+						scope.children.splice(itemIndex, 1, ...normalizedReplacement);
+						const change: StructuralChange = {
 							op: 'replace',
 							at: itemIndex,
 							count: 1,
 							newCount: normalizedReplacement.length,
 							idMap: { 0: 0 }
 						};
+						stampStructuralChange(scope.children, change, scope.sharing);
+						return change;
 					},
 					op: {
 						kind: replacement.length === 0 ? 'delete' : 'replaceBlock',

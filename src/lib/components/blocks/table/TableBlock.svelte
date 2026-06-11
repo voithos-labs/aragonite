@@ -34,7 +34,6 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested-actions';
-	import { rebuildContainerRaw } from '../../../schema/container-raw';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
 
@@ -75,7 +74,9 @@
 		get node() {
 			return node;
 		},
-		rebuildRaw: () => rebuildContainerRaw(node),
+		get path() {
+			return myPath;
+		},
 		stickyColumn: editorStickyColumn,
 		parent: {
 			blockEdit: parentBlockEdit,
