@@ -11,8 +11,8 @@
 import { tick } from 'svelte';
 import type { HistoryActions } from '../action-contracts';
 import type { UndoEntry } from '../undo/types';
-import { digestDoc } from '../undo/sharing';
 import { assertInvariant } from '../invariants/assert';
+import { checkSnapshotIntegrity } from '../invariants/sharing';
 import { applySelectionToDom } from '../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -21,14 +21,7 @@ export function createHistoryActions(
 	controller: UndoController
 ): HistoryActions {
 	async function restore(entry: UndoEntry, op: 'undo' | 'redo'): Promise<void> {
-		assertInvariant('snapshot-integrity', () => {
-			if (entry.integrity === undefined || digestDoc(entry.snapshot) === entry.integrity)
-				return null;
-			return {
-				code: 'snapshot-integrity',
-				message: `${op}: snapshot digest mismatch — a mutation wrote through a shared node`
-			};
-		});
+		assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.setBlockIds(entry.blockIds);

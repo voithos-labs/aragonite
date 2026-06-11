@@ -10,7 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { EditorSelection } from '../editor-keys';
 import type { UndoEntry } from '../undo/types';
 import type { SelectionPoint } from '../selection/primitives';
-import { digestDoc } from '../undo/sharing';
+import { digestDoc } from '../invariants/sharing';
 import { readCurrentSelection } from '../selection/native-bridge';
 import { pathsEqual } from '../selection/path-math';
 import { assertInvariant } from '../invariants/assert';
@@ -30,7 +30,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { assertCommittedNodes } from '../invariants/install';
+import { assertCommittedNodes, assertUndoTopIntegrity } from '../invariants/install';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { docByteLength, perfEnabled, recordSnapshotClone, setUndoGauge } from '../perf/instruments';
 
@@ -313,6 +313,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			if (import.meta.env.DEV) {
 				assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
 			}
+		}
+		if (import.meta.env.DEV) {
+			// G1.9 commit seam: a missed copy-path-on-write in this commit's
+			// mutations corrupts the freshest entry — catch it here, not at
+			// some distant undo.
+			const undoStack = deps.undoManager.getStacks().undo;
+			assertUndoTopIntegrity(undoStack[undoStack.length - 1]);
 		}
 
 		if (args.op) {
