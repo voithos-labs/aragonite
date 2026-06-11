@@ -3,8 +3,9 @@
 Fuzzes the typo / detour / undo interleavings of a full authoring session by
 running one representative note (meeting minutes) through `runSession` across many
 seeds. The seed fully determines every random draw, so each seed is a distinct,
-replayable interleaving. Gated behind `SIM_CAPTURE`; `capture:false` (oracles only,
-no screenshots) keeps it fast. One test per seed so failures isolate and runs
+replayable interleaving. Runs ungated in the default simulation project —
+`capture:false` (oracles only, no screenshots) keeps it fast; only the capture
+suites stay behind `SIM_CAPTURE`. One test per seed so failures isolate and runs
 parallelize.
 
 ## Happy paths

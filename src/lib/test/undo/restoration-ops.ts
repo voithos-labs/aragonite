@@ -1,0 +1,388 @@
+/**
+ * Op vocabulary + driver for the undo-restoration property test. Every op
+ * routes through the REAL action factories (top-level block edit, nested
+ * chains, list/table contexts, cross-block range delete) over the headless
+ * harness — never the commit primitive directly. Headless boundary: table
+ * cell typing drives the row bundle's updateBlockContent (the same entry
+ * TableCellBlock uses); cell-addressed focus and IME paths need a DOM and
+ * stay with the e2e suites.
+ */
+
+import fc from 'fast-check';
+import { parse } from '../../core/parser';
+import type { CstNode } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
+import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { createUndoController } from '../../editor-actions/undo-controller';
+import { createBlockEditActions } from '../../editor-actions/block-edit';
+import { createContainerEditActions } from '../../editor-actions/container-edit';
+import { createHistoryActions } from '../../editor-actions/history';
+import {
+	createStandardNestedActions,
+	type NestedActionsBundle
+} from '../../editor-actions/nested-actions';
+import { createListContext } from '../../editor-actions/list-context';
+import { createTableMutationsContext } from '../../editor-actions/table-context';
+import { performCrossBlockDelete } from '../../selection/cross-block-ops';
+import type { SelectionPoint } from '../../selection/primitives';
+import { registerBlockListState } from '../../reactivity/state-registry';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	makeStickyColumn,
+	makeStubBlockEdit,
+	makeStubFocus
+} from '../harness/editor-actions';
+
+// ── Arbitraries ──────────────────────────────────────────────────────────────
+
+export type Op =
+	| { t: 'typeTop'; i: number; n: number }
+	| { t: 'splitTop'; i: number; off: number }
+	| { t: 'mergeTopNext'; i: number }
+	| { t: 'insertItem'; i: number }
+	| { t: 'splitItem'; i: number; off: number }
+	| { t: 'indent'; i: number }
+	| { t: 'typeItem'; i: number; n: number }
+	| { t: 'toggleTask'; i: number }
+	| { t: 'typeQuote'; i: number; n: number }
+	| { t: 'tableInsertRow'; i: number }
+	| { t: 'tableDeleteRow'; i: number }
+	| { t: 'tableInsertColumn'; i: number }
+	| { t: 'tableDeleteColumn'; i: number }
+	| { t: 'tableCycleAlignment'; i: number }
+	| { t: 'typeCell'; r: number; c: number; n: number }
+	| { t: 'rangeDelete'; a: number; b: number; off: number };
+
+export const arbOp: fc.Arbitrary<Op> = fc.oneof(
+	fc.record({ t: fc.constant('typeTop' as const), i: fc.nat(5), n: fc.nat(2) }),
+	fc.record({ t: fc.constant('splitTop' as const), i: fc.nat(5), off: fc.nat(8) }),
+	fc.record({ t: fc.constant('mergeTopNext' as const), i: fc.nat(5) }),
+	fc.record({ t: fc.constant('insertItem' as const), i: fc.nat(5) }),
+	fc.record({ t: fc.constant('splitItem' as const), i: fc.nat(5), off: fc.nat(6) }),
+	fc.record({ t: fc.constant('indent' as const), i: fc.nat(5) }),
+	fc.record({ t: fc.constant('typeItem' as const), i: fc.nat(5), n: fc.nat(2) }),
+	fc.record({ t: fc.constant('toggleTask' as const), i: fc.nat(5) }),
+	fc.record({ t: fc.constant('typeQuote' as const), i: fc.nat(3), n: fc.nat(2) }),
+	fc.record({ t: fc.constant('tableInsertRow' as const), i: fc.nat(4) }),
+	fc.record({ t: fc.constant('tableDeleteRow' as const), i: fc.nat(4) }),
+	fc.record({ t: fc.constant('tableInsertColumn' as const), i: fc.nat(3) }),
+	fc.record({ t: fc.constant('tableDeleteColumn' as const), i: fc.nat(3) }),
+	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
+	fc.record({ t: fc.constant('typeCell' as const), r: fc.nat(4), c: fc.nat(3), n: fc.nat(2) }),
+	fc.record({ t: fc.constant('rangeDelete' as const), a: fc.nat(5), b: fc.nat(5), off: fc.nat(4) })
+);
+
+export const arbSource = fc.constantFrom(
+	'alpha\n\n- one\n- two\n- three\n\nomega\n',
+	'1. first\n2. second\n3. third\n',
+	'- a\n  - b\n- c\n\npara\n',
+	'lead\n\n> quoted\n\n- x\n- y\n',
+	'intro\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n\n- one\n- two\n'
+);
+
+// ── Harness ──────────────────────────────────────────────────────────────────
+
+export function makeHarness(source: string) {
+	const { deps } = makeEditorActionsDeps(parse(source).children);
+	const controller = createUndoController(deps);
+	return {
+		deps,
+		controller,
+		blockEdit: createBlockEditActions(deps, controller),
+		rootContainerEdit: createContainerEditActions(deps, controller),
+		history: createHistoryActions(deps, controller)
+	};
+}
+
+export type Harness = ReturnType<typeof makeHarness>;
+
+/** Register fresh states for every container in the subtree — the headless
+ *  stand-in for component (re)mounting after identity-changing commits. */
+export function registerSubtreeStates(node: CstNode): void {
+	if (!node.children) return;
+	registerBlockListState(
+		node,
+		makeBlockListState(() => node)
+	);
+	for (const child of node.children) registerSubtreeStates(child);
+}
+
+function nestedBundleAt(h: Harness, index: number): NestedActionsBundle {
+	const state = makeBlockListState(() => h.deps.doc.children[index]);
+	return createStandardNestedActions(state, {
+		index,
+		get node() {
+			return h.deps.doc.children[index];
+		},
+		path: [index],
+		stickyColumn: makeStickyColumn(),
+		parent: {
+			blockEdit: h.blockEdit,
+			focus: makeStubFocus(),
+			containerEdit: h.rootContainerEdit
+		}
+	});
+}
+
+// ── Op runners ───────────────────────────────────────────────────────────────
+
+export async function runOp(h: Harness, op: Op): Promise<void> {
+	for (const child of h.deps.doc.children) registerSubtreeStates(child);
+	switch (op.t) {
+		case 'typeTop':
+		case 'splitTop':
+		case 'mergeTopNext':
+			return runTopOp(h, op);
+		case 'insertItem':
+		case 'splitItem':
+		case 'indent':
+		case 'toggleTask':
+		case 'typeItem':
+			return runListOp(h, op);
+		case 'typeQuote':
+			return runQuoteOp(h, op);
+		case 'tableInsertRow':
+		case 'tableDeleteRow':
+		case 'tableInsertColumn':
+		case 'tableDeleteColumn':
+		case 'tableCycleAlignment':
+		case 'typeCell':
+			return runTableOp(h, op);
+		case 'rangeDelete':
+			return runRangeDelete(h, op);
+	}
+}
+
+async function runTopOp(
+	h: Harness,
+	op: Extract<Op, { t: 'typeTop' | 'splitTop' | 'mergeTopNext' }>
+): Promise<void> {
+	const doc = h.deps.doc;
+	const paragraphs = doc.children
+		.map((c, i) => ({ c, i }))
+		.filter(({ c }) => c.kind === 'paragraph');
+	if (paragraphs.length === 0) return;
+	const { c, i } = paragraphs[op.i % paragraphs.length];
+	if (op.t === 'typeTop') {
+		const text = trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1) + '\n';
+		await h.blockEdit.updateBlockContent(i, text, 0);
+	} else if (op.t === 'splitTop') {
+		await h.blockEdit.splitBlock(i, Math.min(op.off, displayLength(c.raw)));
+	} else {
+		await h.blockEdit.mergeWithNext(i);
+	}
+}
+
+async function runListOp(
+	h: Harness,
+	op: Extract<Op, { t: 'insertItem' | 'splitItem' | 'indent' | 'typeItem' | 'toggleTask' }>
+): Promise<void> {
+	const doc = h.deps.doc;
+	const listIndex = doc.children.findIndex((c) => c.kind === 'list');
+	if (listIndex === -1) return;
+	const list = doc.children[listIndex];
+	if (!list.children || list.children.length === 0) return;
+	const itemIdx = op.i % list.children.length;
+	const item = list.children[itemIdx];
+
+	const listState = makeBlockListState(() => h.deps.doc.children[listIndex]);
+	const listDeps = {
+		index: listIndex,
+		get node() {
+			return h.deps.doc.children[listIndex];
+		},
+		path: [listIndex],
+		stickyColumn: makeStickyColumn(),
+		parent: {
+			blockEdit: h.blockEdit,
+			focus: makeStubFocus(),
+			containerEdit: h.rootContainerEdit
+		}
+	};
+	const bundle = createStandardNestedActions(listState, listDeps);
+	const context = createListContext({
+		get index() {
+			return listIndex;
+		},
+		get node() {
+			return h.deps.doc.children[listIndex];
+		},
+		get path() {
+			return [listIndex];
+		},
+		state: listState,
+		parentBlockEdit: makeStubBlockEdit(),
+		parentFocus: makeStubFocus(),
+		parentListContext: undefined,
+		controller: h.controller
+	});
+
+	if (op.t === 'insertItem') {
+		await context.insertItemAfter(itemIdx);
+	} else if (op.t === 'splitItem') {
+		const leaf = item.children?.[0];
+		if (leaf?.kind !== 'paragraph') return;
+		await context.splitItemAtOffset(itemIdx, 0, Math.min(op.off, displayLength(leaf.raw)));
+	} else if (op.t === 'indent') {
+		if (itemIdx === 0) return;
+		await context.indentItem(itemIdx);
+	} else if (op.t === 'toggleTask') {
+		const checked = item.metadata && 'taskChecked' in item.metadata && item.metadata.taskChecked;
+		await bundle.blockEdit.updateBlockMetadata(itemIdx, {
+			taskItem: true,
+			taskChecked: !checked,
+			taskMarker: checked ? '[ ] ' : '[x] '
+		});
+	} else {
+		const leaf = item.children?.[0];
+		if (leaf?.kind !== 'paragraph') return;
+		const itemState = makeBlockListState(() => h.deps.doc.children[listIndex].children![itemIdx]);
+		const itemBundle = createStandardNestedActions(itemState, {
+			index: itemIdx,
+			get node() {
+				return h.deps.doc.children[listIndex].children![itemIdx];
+			},
+			path: [listIndex, itemIdx],
+			stickyColumn: makeStickyColumn(),
+			parent: bundle
+		});
+		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
+		await itemBundle.blockEdit.updateBlockContent(0, text, 0);
+	}
+}
+
+async function runQuoteOp(h: Harness, op: { i: number; n: number }): Promise<void> {
+	const doc = h.deps.doc;
+	const quoteIndex = doc.children.findIndex((c) => c.kind === 'blockquote');
+	if (quoteIndex === -1) return;
+	const quote = doc.children[quoteIndex];
+	if (!quote.children || quote.children.length === 0) return;
+	const innerIdx = op.i % quote.children.length;
+	const leaf = quote.children[innerIdx];
+	if (leaf.kind !== 'paragraph') return;
+	const bundle = nestedBundleAt(h, quoteIndex);
+	const text = trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1) + '\n';
+	await bundle.blockEdit.updateBlockContent(innerIdx, text, 0);
+}
+
+async function runTableOp(
+	h: Harness,
+	op: Extract<
+		Op,
+		{
+			t:
+				| 'tableInsertRow'
+				| 'tableDeleteRow'
+				| 'tableInsertColumn'
+				| 'tableDeleteColumn'
+				| 'tableCycleAlignment'
+				| 'typeCell';
+		}
+	>
+): Promise<void> {
+	const doc = h.deps.doc;
+	const tableIndex = doc.children.findIndex((c) => c.kind === 'table');
+	if (tableIndex === -1) return;
+	const table = doc.children[tableIndex];
+	const rowCount = table.children?.length ?? 0;
+	const colCount = metadataOf(table, 'table').columnCount;
+	if (rowCount === 0 || colCount === 0) return;
+
+	if (op.t === 'typeCell') {
+		const rowIdx = op.r % rowCount;
+		const row = table.children![rowIdx];
+		if (!row.children || row.children.length === 0) return;
+		const colIdx = op.c % row.children.length;
+		const rowState = makeBlockListState(() => h.deps.doc.children[tableIndex].children![rowIdx]);
+		const rowBundle = createStandardNestedActions(rowState, {
+			index: rowIdx,
+			get node() {
+				return h.deps.doc.children[tableIndex].children![rowIdx];
+			},
+			path: [tableIndex, rowIdx],
+			stickyColumn: makeStickyColumn(),
+			parent: nestedBundleAt(h, tableIndex)
+		});
+		const text = trimTrailingLineEnding(row.children[colIdx].raw) + 'z'.repeat(op.n + 1);
+		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 0);
+		return;
+	}
+
+	const rowsState = makeBlockListState(() => h.deps.doc.children[tableIndex]);
+	const ctx = createTableMutationsContext({
+		get node() {
+			return h.deps.doc.children[tableIndex];
+		},
+		get index() {
+			return tableIndex;
+		},
+		get myPath() {
+			return [tableIndex];
+		},
+		get rowsState() {
+			return rowsState;
+		},
+		get focusedCell() {
+			return null;
+		},
+		parentContainerEdit: h.rootContainerEdit,
+		controller: h.controller,
+		focusCell: () => {}
+	});
+
+	if (op.t === 'tableInsertRow') await ctx.insertRowBelow(op.i % rowCount);
+	else if (op.t === 'tableDeleteRow') await ctx.deleteRow(op.i % rowCount);
+	else if (op.t === 'tableInsertColumn') await ctx.insertColumnRight(op.i % colCount);
+	else if (op.t === 'tableDeleteColumn') await ctx.deleteColumn(op.i % colCount);
+	else await ctx.cycleAlignment(op.i % colCount);
+}
+
+async function runRangeDelete(
+	h: Harness,
+	op: { a: number; b: number; off: number }
+): Promise<void> {
+	const doc = h.deps.doc;
+	const len = doc.children.length;
+	if (len < 2) return;
+	const first = op.a % len;
+	const second = (first + 1 + (op.b % (len - 1))) % len;
+	const [startIdx, endIdx] = first < second ? [first, second] : [second, first];
+
+	const start = leafPoint(doc.children[startIdx], startIdx, 0);
+	const end = leafPoint(doc.children[endIdx], endIdx, op.off);
+	if (!start || !end) return;
+
+	h.deps.selectionState.enterCrossBlock(start, end);
+	await performCrossBlockDelete({
+		selection: h.deps.selectionState,
+		getDoc: () => h.deps.doc,
+		getBlockElByPath: () => null,
+		controller: h.controller,
+		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
+		notifyDocMutated: () => {}
+	});
+}
+
+/**
+ * Synthetic selection endpoint inside `block` (top-level index `i`): prose
+ * blocks anchor directly; list/blockquote endpoints descend to a paragraph
+ * leaf. Tables return null — their endpoints carry cell-coordinate offsets,
+ * a DOM-driven encoding the headless driver does not synthesize.
+ */
+function leafPoint(block: CstNode, i: number, off: number): SelectionPoint | null {
+	if (block.kind === 'paragraph' || block.kind === 'heading') {
+		return { path: [i], offset: Math.min(off, displayLength(block.raw)) };
+	}
+	if (block.kind === 'blockquote') {
+		const leaf = block.children?.[0];
+		if (leaf?.kind !== 'paragraph') return null;
+		return { path: [i, 0], offset: Math.min(off, displayLength(leaf.raw)) };
+	}
+	if (block.kind === 'list') {
+		const leaf = block.children?.[0]?.children?.[0];
+		if (leaf?.kind !== 'paragraph') return null;
+		return { path: [i, 0, 0], offset: Math.min(off, displayLength(leaf.raw)) };
+	}
+	return null;
+}
