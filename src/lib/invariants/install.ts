@@ -9,6 +9,7 @@ import { assertInvariant } from './assert';
 import { checkRegistryCompleteness, checkIsContainerIffRebuildRaw } from './registry';
 import { checkStaleRaw, checkCategoryFields } from './node-shape';
 import { checkContentRange } from './descriptor';
+import { checkSnapshotIntegrity, type SnapshotEntry } from './sharing';
 
 /**
  * Per-commit check for the nodes a commit touched (scoped — never a whole-tree
@@ -22,6 +23,17 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
 	}
+}
+
+/**
+ * G1.9 per-commit seam: the freshest undo entry is the one the commit's
+ * mutations could have corrupted, so its digest is re-verified after each
+ * commit (one digest over top-level rows). Deeper entries stay covered by
+ * the restore-time check in editor-actions/history.ts.
+ */
+export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
+	if (!entry) return;
+	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 }
 
 let didStartupCheck = false;
