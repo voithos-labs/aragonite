@@ -21,7 +21,6 @@ import {
 } from '../tree-operations';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
-import { parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
@@ -262,9 +261,6 @@ export function createBlockEditActions(
 					? normalizeReplacementTrivia(deps.doc.children[blockIndex], replacement)
 					: [];
 			for (const node of normalizedReplacement) ensureEditableContainers(node);
-			if (normalizedReplacement.length > 0) {
-				parseAllInlineContent(normalizedReplacement);
-			}
 
 			const snapshot = options?.skipSnapshot
 				? ('skip' as const)

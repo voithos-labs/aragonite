@@ -10,7 +10,6 @@
 
 import type { CstNode } from '../core/nodes';
 import { trimTrailingLineEnding } from '../core/lines';
-import { parseAllInlineContent } from '../core/inline';
 import { ensureEditableContainers } from './node-ops';
 import { parseFirstBlock } from './parse-block';
 
@@ -72,7 +71,6 @@ export function buildPastedReplacement(
 		newNodes.push(afterNode);
 	}
 
-	parseAllInlineContent(newNodes);
 	return newNodes;
 }
 

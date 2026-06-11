@@ -1,13 +1,13 @@
 /**
  * HistoryActions factory. requestUndo/requestRedo capture current state
- * for the redo swap, replay the entry's snapshot, re-parse inline content,
- * and restore the saved selection.
+ * for the redo swap, replay the entry's snapshot, and restore the saved
+ * selection. Inline caches repopulate via the shell sweep on the emitted
+ * undo/redo event — snapshots are cache-less (cloneDocument drops them).
  */
 
 import { tick } from 'svelte';
 import type { HistoryActions } from '../action-contracts';
 import { applySelectionToDom } from '../selection/native-bridge';
-import { parseAllInlineContent } from '../core/inline';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createHistoryActions(
@@ -22,7 +22,6 @@ export function createHistoryActions(
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;
 			deps.setDoc(entry.snapshot);
-			parseAllInlineContent(deps.doc.children);
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
@@ -34,7 +33,6 @@ export function createHistoryActions(
 			const entry = deps.undoManager.redo(controller.captureCurrentState());
 			if (!entry) return;
 			deps.setDoc(entry.snapshot);
-			parseAllInlineContent(deps.doc.children);
 			deps.setBlockIds(entry.blockIds);
 			await tick();
 			applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);

@@ -23,7 +23,6 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { MultiScopeTarget } from './paste-deps';
 import type { PasteDispatchContext } from './dispatch';
@@ -96,7 +95,6 @@ export async function applyListBreakOut(
 	if (replacement.length === 0) return;
 
 	for (const node of replacement) ensureEditableContainers(node);
-	parseAllInlineContent(replacement);
 
 	const parentScope = resolveParentScope(plan, ctx);
 	if (!parentScope) return;

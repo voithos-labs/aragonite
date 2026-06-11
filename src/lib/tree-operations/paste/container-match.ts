@@ -7,12 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import {
-	isProseKind,
-	parseInline,
-	getContentRange,
-	parseAllInlineContent
-} from '../../core/inline';
+import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import {
@@ -130,7 +125,6 @@ export async function applyContainerMatchingPaste(
 			for (const item of unwrap.items) {
 				if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
 			}
-			parseAllInlineContent(unwrap.items);
 			children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
 			outer.children = children;
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;

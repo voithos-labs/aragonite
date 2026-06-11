@@ -50,8 +50,9 @@ export function countProseNodes(nodes: CstNode[]): number {
 }
 
 /**
- * Refresh `inlineContent` on every prose node in the tree. Used after
- * structural mutations that bypass the per-input reactive pipeline.
+ * Refresh `inlineContent` on every prose node in the tree. The editor shell's
+ * edit-event sweep is the sole production caller — operations rely on it
+ * instead of pre-populating the cache themselves.
  */
 export function parseAllInlineContent(nodes: CstNode[], resolver?: LinkReferenceResolver): void {
 	for (const node of nodes) {
