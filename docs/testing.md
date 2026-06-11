@@ -21,21 +21,22 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                       | Covers                                                       |
-| ---------------------------- | ------------------------------------------------------------ |
-| `test:editor:core`           | Parser, serializer, round-trip invariants                    |
-| `test:editor:tree-ops`       | Tree mutation helpers                                        |
-| `test:editor:editor-actions` | Editor action bundles and commit primitives                  |
-| `test:editor:ambient`        | Ambient-marker DOM and offset translation                    |
-| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement    |
-| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules   |
-| `test:editor:reactivity`     | Block-list state and state registry                          |
-| `test:editor:selection`      | Selection-state logic                                        |
-| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                      |
-| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection     |
-| `test:editor:undo`           | Undo stack and entry management                              |
-| `test:editor:debug`          | Debug engine helpers and operations log                      |
-| `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards |
+| Script                       | Covers                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| `test:editor:core`           | Parser, serializer, round-trip invariants                                                       |
+| `test:editor:tree-ops`       | Tree mutation helpers                                                                           |
+| `test:editor:editor-actions` | Editor action bundles and commit primitives                                                     |
+| `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                       |
+| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                       |
+| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules                                      |
+| `test:editor:reactivity`     | Block-list state and state registry                                                             |
+| `test:editor:selection`      | Selection-state logic                                                                           |
+| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                                                         |
+| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                        |
+| `test:editor:undo`           | Undo stack and entry management                                                                 |
+| `test:editor:debug`          | Debug engine helpers and operations log                                                         |
+| `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards                                    |
+| `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens, instrument behavior |
 
 E2E tests are grouped into Playwright projects:
 
@@ -169,6 +170,40 @@ Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (
 A capture run pairs each checkpoint screenshot with the known source at that moment (in `manifest.json`). What the user _sees_ — heading sizes, dimmed markers, bold/italic, list alignment, resized image width, the correct block kind — isn't easily asserted in code, so a vision-capable agent reviews it: open `manifest.json`, view each PNG alongside its `expectedSource`, and report rendering/structural mismatches by severity. This is **discovery + a periodic quality report, not a CI gate** (agent vision is subjective). Re-run after substantive editor changes. The simulation project pins a tall viewport so a long note stays in frame (the editor scrolls internally, so a short viewport would clip the note's tail).
 
 Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directory per seed). They live **outside** `test-results/` on purpose — Playwright wipes that directory at the start of every run, so captures kept there wouldn't survive the next test invocation the review needs them for.
+
+## Performance Harness
+
+Two layers measure editor performance over shared deterministic fixtures:
+
+| Layer   | Runner                               | Command               | Measures                                                                |
+| ------- | ------------------------------------ | --------------------- | ----------------------------------------------------------------------- |
+| Bench   | Vitest bench (`*.bench.ts`)          | `npm run perf:editor` | Parse / clone / ancestry-rebuild timings → `perf-results/` (gitignored) |
+| Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium    |
+
+`npm run perf` runs both. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/editor/e2e/requirements/perf/typing-latency.md`.
+
+### Fixtures
+
+`src/lib/editor/test/perf/fixtures/generate.ts` builds six seeded shapes at any byte target — flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy. Same (shape, size, seed) always yields identical bytes (golden-pinned), so numbers stay comparable across runs and machines.
+
+### Instruments
+
+`src/lib/editor/perf/instruments.ts` hosts dev-mode counters: snapshot clone bytes, rebuild-depth histogram, parse timing, inline-refresh node counts, and an undo live-byte gauge. Recording is off until explicitly enabled, and the switch only arms under dev/Vitest — production builds pay one boolean check per record site.
+
+On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()` / `.snapshot()`, callable from DevTools or `page.evaluate`.
+
+**Push-sampled gauge.** The undo gauge updates only when a snapshot is pushed — undo, redo, and clear do not refresh it. Read it as "live bytes as of the last push", not a live value.
+
+### Threshold policy
+
+| Kind                         | Examples                                       | Treatment                                                                                                |
+| ---------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Machine-independent counters | Clone byte parity, container-raw amplification | Hard ceilings — fail the commit gate (`test:editor:perf`, part of `npm test`)                            |
+| Time rows                    | Parse/clone ms, keystroke p50/p95              | Report-only — compared against `src/lib/editor/test/perf/baseline.json` (machine metadata + rme/samples) |
+
+Ceiling bumps are deliberate decisions with a changelog note, never reflexive edits.
+
+**Dev-overhead caveat:** both layers run under DEV (Vitest / dev server) with invariant assertions active — every timing number is a conservative upper bound on production, not a production latency.
 
 ## Debug Panel
 
