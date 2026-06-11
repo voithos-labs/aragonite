@@ -45,7 +45,7 @@ Scope note: the e2e rebuild-depth histogram covers structural ops only (routine 
 
 ## Row 3 — undo clone per checkpoint
 
-A checkpoint fires on the first keystroke of each typing batch (500ms debounce) and on every structural op; each deep-clones the document. Baseline rows run under DEV (vitest), which adds the clone-safe-metadata invariant per metadata-bearing node; re-measured with `NODE_ENV=production` + `--mode production` (flips `import.meta.env.DEV` off):
+A checkpoint fires on the first keystroke of each typing batch (250ms debounce) and on every structural op; each deep-clones the document. Baseline rows run under DEV (vitest), which adds the clone-safe-metadata invariant per metadata-bearing node; re-measured with `NODE_ENV=production` + `--mode production` (flips `import.meta.env.DEV` off):
 
 | Fixture                     | DEV mean ms | Production mean ms (±rme, samples) |
 | --------------------------- | ----------- | ---------------------------------- |
