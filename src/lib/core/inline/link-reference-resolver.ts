@@ -25,9 +25,9 @@ export interface LinkReferenceMap {
 	/**
 	 * Stable string snapshot of the LRD set (sorted `label<:>url<:>title`
 	 * join). The block render path folds this into its render-memo key for
-	 * reference-bearing blocks, so an LRD change elsewhere re-renders them. The
-	 * shell's `parseAllInlineContent` sweep still re-parses inline content
-	 * unconditionally on every commit — the signature gates render, not re-parse.
+	 * reference-bearing blocks, so an LRD change elsewhere re-renders them; the
+	 * shell's per-edit inline sweep widens to whole-doc on a signature change
+	 * so cached `inlineContent` re-resolves everywhere.
 	 */
 	readonly signature: string;
 }

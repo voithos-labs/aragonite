@@ -28,9 +28,9 @@ const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 //   many-small-blocks / nested-containers / table-heavy @10MB — load never
 //   completes (renderer cannot materialize that many DOM blocks/cells; lazy
 //   rendering is roadmapped — 0.7 Track C).
-//   reference-heavy @10MB — loads, but one keystroke fails to settle in 60s
-//   (per-edit whole-doc inline sweep over ~65k reference blocks; the dirty-set
-//   scoping item targets exactly this).
+//   reference-heavy @10MB — loads, but one keystroke fails to settle in 60s.
+//   Re-probed after dirty-set scoping of the inline sweep: still fails — the
+//   dominant per-keystroke cost at that scale is outside the sweep.
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {
 	'many-small-blocks': 1_000_000,
 	'nested-containers': 1_000_000,
@@ -41,9 +41,9 @@ const MAX_BYTES: Partial<Record<FixtureShape, number>> = {
 // Shapes whose first block is a container (list, table): focusBlockEnd(0)
 // cannot place a caret inside those, and table-cell edits re-pad the whole
 // table (breaking the +1-length settle). These rows type into an appended
-// plain paragraph instead — the dominant per-keystroke cost (the whole-doc
-// inline sweep) is caret-position-independent, and ancestry-rebuild cost is
-// covered directly by the vitest bench.
+// plain paragraph instead — the dominant per-keystroke costs are whole-doc
+// and caret-position-independent, and ancestry-rebuild cost is covered
+// directly by the vitest bench.
 const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set(['nested-containers', 'table-heavy']);
 const PROSE_TARGET = 'perf cursor target\n';
 

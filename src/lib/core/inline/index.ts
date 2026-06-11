@@ -36,7 +36,7 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
- * Nodes a full inline sweep re-parses. Lives here rather than in
+ * Prose-node count of an inline-sweep target set. Lives here rather than in
  * perf/instruments because isProseKind reads the schema registry and
  * instruments must stay a leaf module.
  */
@@ -50,9 +50,9 @@ export function countProseNodes(nodes: CstNode[]): number {
 }
 
 /**
- * Refresh `inlineContent` on every prose node in the tree. The editor shell's
- * edit-event sweep is the sole production caller — operations rely on it
- * instead of pre-populating the cache themselves.
+ * Refresh `inlineContent` on every prose node under `nodes`. The editor shell
+ * is the sole production caller — operations rely on it instead of
+ * pre-populating the cache themselves.
  */
 export function parseAllInlineContent(nodes: CstNode[], resolver?: LinkReferenceResolver): void {
 	for (const node of nodes) {

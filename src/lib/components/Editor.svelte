@@ -36,6 +36,7 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { countProseNodes, parseAllInlineContent } from '../core/inline';
+	import { collectInlineDirty } from '../core/inline/dirty-set';
 	import { perfEnabled, recordInlineRefresh } from '../perf/instruments';
 	import {
 		buildLinkReferenceMap,
@@ -126,17 +127,19 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// Sole populator of `inlineContent` after structural ops and undo/redo:
-			// every emitted `edit` event (structural commits, the debounced input
-			// flush, undo/redo) refreshes the whole doc with a fresh resolver here.
-			// Operations must NOT pre-populate the cache — any tree they build is
-			// overwritten by this sweep before a consumer can read it (dead work,
-			// deleted in 0.7.7).
+			// Sole populator of `inlineContent`: every emitted `edit` event
+			// (structural commits, the debounced input flush, undo/redo) refreshes
+			// the cache with a fresh resolver here. Operations must NOT pre-populate
+			// — any tree they build is overwritten before a consumer can read it.
+			// The LRD map rebuild stays whole-doc (cheap raw-free walk; incremental
+			// maintenance is roadmapped); the sweep is scoped by collectInlineDirty.
 			const newMap = buildLinkReferenceMap(doc.children);
-			parseAllInlineContent(doc.children, newMap.resolve);
-			if (perfEnabled()) recordInlineRefresh(countProseNodes(doc.children));
+			const dirty = collectInlineDirty(doc, e, newMap.signature !== currentSignature);
+			const targets = dirty === 'all' ? doc.children : dirty;
+			parseAllInlineContent(targets, newMap.resolve);
 			currentResolver = newMap.resolve;
 			currentSignature = newMap.signature;
+			if (perfEnabled()) recordInlineRefresh(countProseNodes(targets));
 		});
 		return () => dispose();
 	});
