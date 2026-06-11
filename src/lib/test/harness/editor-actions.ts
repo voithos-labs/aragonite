@@ -13,6 +13,7 @@ import type { EditorActionsDeps } from '$lib/editor/editor-actions/deps';
 import type { EditorEvents } from '$lib/editor/editor-events';
 import type { BlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
 import { createUndoManager } from '$lib/editor/undo/manager';
+import { createSharingState } from '$lib/editor/undo/sharing';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor/editor-events';
 
@@ -121,6 +122,7 @@ export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarn
 			blockRefs = v;
 		},
 		undoManager: createUndoManager(),
+		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
 		selectionState: createSelectionState(),
 		getBlockElByPath: () => null,

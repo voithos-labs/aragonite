@@ -7,6 +7,7 @@ describe('moveFocus past the last block', () => {
 		const { createUndoController } = await import('$lib/editor/editor-actions/undo-controller');
 		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
 		const { createUndoManager } = await import('$lib/editor/undo/manager');
+		const { createSharingState } = await import('$lib/editor/undo/sharing');
 		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
@@ -15,7 +16,9 @@ describe('moveFocus past the last block', () => {
 
 		const doc: any = {
 			kind: 'document',
-			children: [{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' }]
+			prefix: '',
+			children: [{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' }],
+			suffix: ''
 		};
 		const blockIds = ['id0'];
 		const blockRefs: any[] = [undefined];
@@ -40,6 +43,7 @@ describe('moveFocus past the last block', () => {
 				blockRefs.push(...refs);
 			},
 			undoManager: createUndoManager(),
+			sharing: createSharingState(),
 			stickyColumn: {
 				reset() {},
 				capture() {},

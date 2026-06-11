@@ -32,6 +32,8 @@ export type { CellPos } from './sub-table-copy';
 
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
+export { ensureUnsharedPath, ensureUnsharedChild } from './unshare';
+
 export { buildPastedReplacement } from './paste-replacement';
 
 export { cloneDocument, cloneNode } from './clone';

@@ -6,11 +6,11 @@
 
 import { tick } from 'svelte';
 import type { BlockComponent } from '../block-component';
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { EditorSelection } from '../editor-keys';
 import type { UndoEntry } from '../undo/types';
 import type { SelectionPoint } from '../selection/primitives';
-import { cloneDocument } from '../tree-operations/clone';
+import { digestDoc } from '../undo/sharing';
 import { readCurrentSelection } from '../selection/native-bridge';
 import { pathsEqual } from '../selection/path-math';
 import type {
@@ -111,6 +111,23 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
+	/**
+	 * Snapshots share the live tree's nodes (epoch-marked) instead of deep
+	 * cloning — only the top-level children array is copied. Mutations must
+	 * copy-path-on-write before touching any shared node (tree-operations/
+	 * unshare.ts); the DEV integrity digest catches writes that don't.
+	 */
+	function shareSnapshot(): Pick<UndoEntry, 'snapshot' | 'integrity'> {
+		deps.sharing.markSnapshotTaken();
+		const snapshot: Document = {
+			kind: 'document',
+			prefix: deps.doc.prefix,
+			children: [...deps.doc.children],
+			suffix: deps.doc.suffix
+		};
+		return { snapshot, integrity: import.meta.env.DEV ? digestDoc(snapshot) : undefined };
+	}
+
 	function recordSnapshotPerf(): void {
 		if (!perfEnabled()) return;
 		recordSnapshotClone(docByteLength(deps.doc));
@@ -125,7 +142,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			readCurrentSelection(deps.selectionState, deps.blockRefs) ??
 			collapsedSelectionAt(blockIndex, offset);
 		deps.undoManager.push({
-			snapshot: cloneDocument(deps.doc),
+			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection
 		});
@@ -144,7 +161,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			? collapsedSelectionAtPath(live.anchor.path, offset)
 			: collapsedSelectionAt(blockIndex, offset);
 		deps.undoManager.push({
-			snapshot: cloneDocument(deps.doc),
+			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection
 		});
@@ -451,7 +468,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const selection = readCurrentSelection(deps.selectionState, deps.blockRefs);
 		// Fallback for unfocused-at-capture (headless harness, programmatic capture).
 		return {
-			snapshot: cloneDocument(deps.doc),
+			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection: selection ?? collapsedSelectionAt(0, 0)
 		};
