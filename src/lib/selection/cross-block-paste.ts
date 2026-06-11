@@ -20,7 +20,6 @@ import { pathsEqual } from './path-math';
 import { materializeBlankLines } from '../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../tree-operations';
-import { parseAllInlineContent } from '../core/inline';
 
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
@@ -141,7 +140,6 @@ async function replaceTableWithPaste(
 	if (!tableNode) return;
 	const replacement = normalizeReplacementTrivia(tableNode, blocks);
 	for (const node of replacement) ensureEditableContainers(node);
-	parseAllInlineContent(replacement);
 
 	mutCtx.pushUndoSnapshot();
 	ctx.selection.collapse();

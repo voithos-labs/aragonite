@@ -21,7 +21,6 @@ import {
 	isItemUserEmpty,
 	normalizeReplacementTrivia
 } from '../tree-operations';
-import { parseAllInlineContent } from '../core/inline';
 import { rebuildListRaw } from '../schema/container-raw';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsOverrideFactory } from './nested-actions';
@@ -174,7 +173,6 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 			},
 
 			// U1/U2 typically replace on the list's parent; this list-level path is rare but symmetric.
-			// Normalizes trivia and re-parses inline content so prose replacements keep their inline cache.
 			replaceBlock: async (
 				itemIndex: number,
 				replacement: CstNode[],
@@ -204,7 +202,6 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 							children[itemIndex],
 							replacement
 						);
-						parseAllInlineContent(normalizedReplacement);
 						children.splice(itemIndex, 1, ...normalizedReplacement);
 						node.children = children;
 						rebuildListRaw(node);

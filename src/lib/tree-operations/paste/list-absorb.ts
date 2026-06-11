@@ -31,7 +31,6 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { parseAllInlineContent } from '../../core/inline';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { PasteDispatchContext } from './dispatch';
 
@@ -112,7 +111,6 @@ export async function applyListAbsorb(
 		// splicing them mid-list would mash adjacent items during rebuildListRaw.
 		ensureListItemNewlineTerminated(node);
 	}
-	parseAllInlineContent(replacement);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
