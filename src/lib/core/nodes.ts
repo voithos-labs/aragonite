@@ -192,6 +192,8 @@ export interface CstNode {
 	innerSuffix?: string;
 	/** Per-child IDs for keyed rendering. Cloned with the node so undo restores them alongside `children`. */
 	childIds?: string[];
+	/** Editor-level sharing epoch for structural-sharing undo; not part of round-trip. */
+	ownerEpoch?: number;
 	/** Rendering cache for prose blocks — derived from raw, never re-serialized. */
 	inlineContent?: InlineNode[];
 }
