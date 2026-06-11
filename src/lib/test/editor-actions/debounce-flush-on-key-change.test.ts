@@ -1,0 +1,62 @@
+import { describe, it, expect, vi } from 'vitest';
+import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import type { CstNode } from '$lib/editor/core/nodes';
+import type { EditEvent } from '$lib/editor/editor-events';
+
+function makeNode(kind: string, raw: string): CstNode {
+	return { kind, leadingTrivia: '', raw } as CstNode;
+}
+
+function makeSetup() {
+	const { deps, events } = makeEditorActionsDeps([
+		makeNode('paragraph', 'aaa\n'),
+		makeNode('paragraph', 'bbb\n')
+	]);
+	const controller = createUndoController(deps);
+	const editHandler = vi.fn<(payload: EditEvent) => void>();
+	events.on('edit', editHandler);
+	const inputEvents = () => editHandler.mock.calls.map((c) => c[0]).filter((e) => e.op === 'input');
+	return { controller, editHandler, inputEvents };
+}
+
+// ── Displaced typing batch must flush as one input event on batch-key change ──
+
+describe('debounce flush on batch-key change', () => {
+	it('typing in block 1 mid-batch flushes the displaced block 0 batch as one input event', () => {
+		const { controller, editHandler, inputEvents } = makeSetup();
+
+		// Three keystrokes in block 0 — still buffered, debounce hasn't fired.
+		for (let i = 0; i < 3; i++) controller.pushUndoSnapshotDebounced(0, i);
+		expect(editHandler).not.toHaveBeenCalled();
+
+		// Focus moves to block 1 inside the debounce window. The key change
+		// must flush block 0's batch, not silently drop it — the inline sweep
+		// only refreshes block 0's subtree off this event.
+		controller.pushUndoSnapshotDebounced(1, 0);
+
+		expect(inputEvents()).toHaveLength(1);
+		expect(inputEvents()[0].path).toEqual([0]);
+		expect(inputEvents()[0].detail).toMatchObject({ byteLength: 3 });
+
+		controller.clearDebouncedCheckpoint();
+	});
+
+	it('the new batch flushes separately with its own path and byte count', () => {
+		vi.useFakeTimers();
+		try {
+			const { controller, inputEvents } = makeSetup();
+
+			controller.pushUndoSnapshotDebounced(0, 0);
+			controller.pushUndoSnapshotDebounced(0, 1);
+			controller.pushUndoSnapshotDebounced(1, 0);
+			vi.runAllTimers();
+
+			expect(inputEvents().map((e) => e.path)).toEqual([[0], [1]]);
+			expect(inputEvents()[0].detail).toMatchObject({ byteLength: 2 });
+			expect(inputEvents()[1].detail).toMatchObject({ byteLength: 1 });
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
