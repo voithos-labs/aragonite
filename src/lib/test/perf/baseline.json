@@ -53,5 +53,34 @@
 		"nested-containers-1MB-amplification": 3.55,
 		"table-heavy-100KB-amplification": 1.96,
 		"table-heavy-1MB-amplification": 1.96
+	},
+	"e2e": {
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. 10MB rows: 15 keystrokes; others 30. Capped (no row): many-small-blocks/nested-containers/table-heavy @10MB never finish loading; reference-heavy @10MB loads but one keystroke exceeds 60s (whole-doc inline sweep). nested-containers and table-heavy type into an appended paragraph (first block is a container).",
+		"flat-prose-100KB": { "loadMs": 148.5, "keystrokeP50Ms": 3.5, "keystrokeP95Ms": 8.2 },
+		"flat-prose-1MB": { "loadMs": 1109.5, "keystrokeP50Ms": 24.5, "keystrokeP95Ms": 38 },
+		"flat-prose-10MB": { "loadMs": 28791.1, "keystrokeP50Ms": 1325.5, "keystrokeP95Ms": 1760.1 },
+		"nested-containers-100KB": { "loadMs": 636.9, "keystrokeP50Ms": 56.8, "keystrokeP95Ms": 85.5 },
+		"nested-containers-1MB": { "loadMs": 6928, "keystrokeP50Ms": 1327.9, "keystrokeP95Ms": 1556.3 },
+		"many-small-blocks-100KB": { "loadMs": 520.7, "keystrokeP50Ms": 8.9, "keystrokeP95Ms": 12.6 },
+		"many-small-blocks-1MB": { "loadMs": 12096.2, "keystrokeP50Ms": 103, "keystrokeP95Ms": 119.4 },
+		"single-giant-paragraph-100KB": {
+			"loadMs": 68.9,
+			"keystrokeP50Ms": 19.7,
+			"keystrokeP95Ms": 22.3
+		},
+		"single-giant-paragraph-1MB": {
+			"loadMs": 212.6,
+			"keystrokeP50Ms": 162.9,
+			"keystrokeP95Ms": 178.9
+		},
+		"single-giant-paragraph-10MB": {
+			"loadMs": 1646.5,
+			"keystrokeP50Ms": 2157.3,
+			"keystrokeP95Ms": 2237.5
+		},
+		"reference-heavy-100KB": { "loadMs": 187.7, "keystrokeP50Ms": 4.5, "keystrokeP95Ms": 7.8 },
+		"reference-heavy-1MB": { "loadMs": 2022.1, "keystrokeP50Ms": 40.6, "keystrokeP95Ms": 62.4 },
+		"table-heavy-100KB": { "loadMs": 531, "keystrokeP50Ms": 3, "keystrokeP95Ms": 4.9 },
+		"table-heavy-1MB": { "loadMs": 4606.1, "keystrokeP50Ms": 7.6, "keystrokeP95Ms": 14.1 }
 	}
 }
