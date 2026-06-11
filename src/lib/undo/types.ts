@@ -11,6 +11,8 @@ export interface UndoEntry {
 	blockIds: string[];
 	/** Effective selection at push. See docs/design/editor/editor.md — Undo/Redo. */
 	selection: EditorSelection;
+	/** DEV-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
+	integrity?: number;
 }
 
 export interface UndoManager {

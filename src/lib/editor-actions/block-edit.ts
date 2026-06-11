@@ -16,17 +16,27 @@ import {
 	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
 	ensureEditableContainers,
+	ensureUnsharedPath,
 	buildPastedReplacement,
-	normalizeReplacementTrivia
+	normalizeReplacementTrivia,
+	type StructuralChange
 } from '../tree-operations';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
-import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { isMergeEligible, isBlockEditable, findMergeTarget } from '../schema/merge-rules';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export function createBlockEditActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): BlockEditActions {
+	// Nodes a mutate CREATED (named by its insert/replace window) are owned by
+	// the live tree; pre-existing nodes an op WRITES go through ensureUnsharedPath.
+	function stampChanged(children: CstNode[], change: StructuralChange): void {
+		if (change.op !== 'insert' && change.op !== 'replace') return;
+		const count = change.op === 'insert' ? change.count : change.newCount;
+		for (let i = change.at; i < change.at + count; i++) deps.sharing.stamp(children[i]);
+	}
+
 	return {
 		// ── Structural split / merge / delete ─────────────────────────────────
 
@@ -40,7 +50,10 @@ export function createBlockEditActions(
 				// [empty, empty], which is the intended rapid-Enter behavior.)
 				await controller.commitStructural({
 					snapshot: { blockIndex, offset: 0 },
-					mutate: (children) => bumpLeadingTrivia({ children }, blockIndex),
+					mutate: (children) => {
+						ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
+						return bumpLeadingTrivia({ children }, blockIndex);
+					},
 					op: { kind: 'split', detail: { at: 0 } },
 					afterTick: () => deps.blockRefs[blockIndex]?.focus(0)
 				});
@@ -48,7 +61,11 @@ export function createBlockEditActions(
 			}
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset },
-				mutate: (children) => performSplit({ children }, blockIndex, offset),
+				mutate: (children) => {
+					const change = performSplit({ children }, blockIndex, offset);
+					stampChanged(children, change);
+					return change;
+				},
 				op: { kind: 'split', detail: { at: offset } },
 				afterTick: () => deps.blockRefs[blockIndex + 1]?.focus(0)
 			});
@@ -65,7 +82,11 @@ export function createBlockEditActions(
 				if (!isBlockEditable(prevKind)) {
 					await controller.commitStructural({
 						snapshot: { blockIndex, offset: 0 },
-						mutate: (children) => performDelete({ children }, blockIndex - 1),
+						mutate: (children) => {
+							// deleteNode writes the successor's leadingTrivia.
+							ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
+							return performDelete({ children }, blockIndex - 1);
+						},
 						op: { kind: 'delete' },
 						afterTick: () => deps.blockRefs[blockIndex - 1]?.focus(0)
 					});
@@ -79,6 +100,15 @@ export function createBlockEditActions(
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: 0 },
 				mutate: (children) => {
+					// The merge writes prev's deep-leaf spine (leaf raw + ancestor raw
+					// rebuild) and the trivia-inheriting successor of the deleted node.
+					const mergeTarget = findMergeTarget(children[blockIndex - 1]);
+					if (mergeTarget) {
+						ensureUnsharedPath({ children }, [blockIndex - 1, ...mergeTarget.path], deps.sharing);
+						if (blockIndex + 1 < children.length) {
+							ensureUnsharedPath({ children }, [blockIndex + 1], deps.sharing);
+						}
+					}
 					mergeResult = mergeIntoPrevDeepLeaf({ children }, blockIndex);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
@@ -109,7 +139,13 @@ export function createBlockEditActions(
 				if (!isBlockEditable(nextKind)) {
 					await controller.commitStructural({
 						snapshot: { blockIndex, offset: CURSOR_END },
-						mutate: (children) => performDelete({ children }, blockIndex + 1),
+						mutate: (children) => {
+							// deleteNode writes the successor's leadingTrivia.
+							if (blockIndex + 2 < children.length) {
+								ensureUnsharedPath({ children }, [blockIndex + 2], deps.sharing);
+							}
+							return performDelete({ children }, blockIndex + 1);
+						},
 						op: { kind: 'delete' },
 						afterTick: () => deps.blockRefs[blockIndex]?.focus(CURSOR_END)
 					});
@@ -123,7 +159,11 @@ export function createBlockEditActions(
 
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: CURSOR_END },
-				mutate: (children) => performMergeNext({ children }, blockIndex),
+				mutate: (children) => {
+					const change = performMergeNext({ children }, blockIndex);
+					stampChanged(children, change);
+					return change;
+				},
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				afterTick: () => deps.blockRefs[blockIndex]?.focus(mergeOffset)
 			});
@@ -132,7 +172,13 @@ export function createBlockEditActions(
 		async deleteBlock(blockIndex: number): Promise<void> {
 			await controller.commitStructural({
 				snapshot: { blockIndex, offset: 0 },
-				mutate: (children) => performDelete({ children }, blockIndex),
+				mutate: (children) => {
+					// deleteNode writes the successor's leadingTrivia.
+					if (blockIndex + 1 < children.length) {
+						ensureUnsharedPath({ children }, [blockIndex + 1], deps.sharing);
+					}
+					return performDelete({ children }, blockIndex);
+				},
 				op: { kind: 'delete' },
 				afterTick: () => {
 					const focusIndex = Math.min(blockIndex, deps.doc.children.length - 1);
@@ -153,6 +199,9 @@ export function createBlockEditActions(
 		): Promise<void> {
 			deps.stickyColumn.reset();
 			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
+			// Out-of-ceremony in-place write: copy the node first when a snapshot
+			// shares it (once per keystroke batch — the copy is owned afterwards).
+			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 			const result = performUpdate(deps.doc, blockIndex, text);
 			if (result.kindChanged) {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
@@ -185,8 +234,8 @@ export function createBlockEditActions(
 
 			await controller.commitStructural({
 				snapshot,
-				mutate: () => {
-					const node = deps.doc.children[blockIndex];
+				mutate: (children) => {
+					const [node] = ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					// Metadata feeds raw for list items (taskMarker) — resync so
 					// serialize/reconciliation sees the new source.
@@ -233,13 +282,15 @@ export function createBlockEditActions(
 				mutate: (children) => {
 					children.splice(blockIndex, 1, ...newNodes);
 					// First replacement inherits the original block's id + ref.
-					return {
+					const change: StructuralChange = {
 						op: 'replace',
 						at: blockIndex,
 						count: 1,
 						newCount: newNodes.length,
 						idMap: { 0: 0 }
 					};
+					stampChanged(children, change);
+					return change;
 				},
 				op: { kind: 'paste', detail: { count: newNodes.length } },
 				afterTick: () => {
@@ -277,13 +328,15 @@ export function createBlockEditActions(
 					// First replacement inherits the original block's id + ref so
 					// Svelte's keyed {#each} doesn't destroy+recreate the component
 					// — preserves IME composition state and pending input.
-					return {
+					const change: StructuralChange = {
 						op: 'replace',
 						at: blockIndex,
 						count: 1,
 						newCount: normalizedReplacement.length,
 						idMap: { 0: 0 }
 					};
+					stampChanged(children, change);
+					return change;
 				},
 				op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } },
 				afterTick: () => {

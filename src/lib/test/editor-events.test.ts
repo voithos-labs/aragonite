@@ -84,6 +84,7 @@ describe('createEditorEvents', () => {
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
 		const { createUndoController } = await import('$lib/editor/editor-actions/undo-controller');
 		const { createUndoManager } = await import('$lib/editor/undo/manager');
+		const { createSharingState } = await import('$lib/editor/undo/sharing');
 		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
@@ -94,13 +95,14 @@ describe('createEditorEvents', () => {
 
 		const containerNode: any = {
 			kind: 'list',
+			leadingTrivia: '',
 			raw: '- a\n- b\n',
 			children: [
-				{ kind: 'listItem', raw: '- a\n' },
-				{ kind: 'listItem', raw: '- b\n' }
+				{ kind: 'listItem', leadingTrivia: '', raw: '- a\n' },
+				{ kind: 'listItem', leadingTrivia: '', raw: '- b\n' }
 			]
 		};
-		const doc: any = { kind: 'document', children: [containerNode] };
+		const doc: any = { kind: 'document', prefix: '', children: [containerNode], suffix: '' };
 		const blockIds = ['id0'];
 		const blockRefs: any[] = [undefined];
 
@@ -118,6 +120,7 @@ describe('createEditorEvents', () => {
 			setBlockIds: () => {},
 			setBlockRefs: () => {},
 			undoManager: createUndoManager(),
+			sharing: createSharingState(),
 			stickyColumn: {
 				reset() {},
 				capture() {},

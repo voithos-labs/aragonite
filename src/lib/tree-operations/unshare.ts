@@ -7,8 +7,9 @@
  * where you write). Callers live in editor-actions/ and selection/ — the
  * layers that know paths; tree-operations stays path-free internally.
  */
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { SharingState } from '../undo/sharing';
+import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { cloneMetadata } from './clone';
@@ -27,18 +28,19 @@ function copyNode(node: CstNode, sharing: SharingState): CstNode {
 }
 
 /**
- * Unshare every node along `path` (child indices from doc root), splicing
+ * Unshare every node along `path` (child indices from `root`), splicing
  * copies into their (already-unshared) parents. Returns the node chain,
- * outermost first. doc.children itself is owned by the commit ceremony
- * (copied per commit), so the array splice here is safe.
+ * outermost first. `root` is the live document for out-of-ceremony writes
+ * (routine typing) or a `{ children }` view over a commit ceremony's array
+ * copy — either way the caller owns the array, so the splice is safe.
  */
 export function ensureUnsharedPath(
-	doc: Document,
+	root: NodeParent,
 	path: number[],
 	sharing: SharingState
 ): CstNode[] {
 	const chain: CstNode[] = [];
-	let parentChildren = doc.children;
+	let parentChildren = root.children;
 	for (const index of path) {
 		const node = parentChildren[index];
 		assertInvariant('unshare-path-in-range', () =>

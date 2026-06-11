@@ -15,10 +15,11 @@
  *
  * Scope exception: mutations to other nodes reached by walking the live tree
  * (descendants found during targeting, ancestors during cascade cleanup) remain
- * in-place. The commit primitive's cloneDocument snapshot covers the whole
- * subtree regardless of walk direction. Ops that need to mutate discovered
- * descendants structurally should route through that container's scope via
- * `commitMultiScope` (or `commitContainerStructural` for a single scope).
+ * in-place — but undo snapshots share the live tree, so the caller must put
+ * every such node on an unshared spine first (see tree-operations/unshare.ts).
+ * Ops that need to mutate discovered descendants structurally should route
+ * through that container's scope via `commitMultiScope` (or
+ * `commitContainerStructural` for a single scope).
  */
 
 import type { CstNode, Document } from '../core/nodes';

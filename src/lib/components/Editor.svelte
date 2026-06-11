@@ -43,6 +43,7 @@
 		type LinkReferenceResolver
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
+	import { createSharingState } from '../undo/sharing';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -105,6 +106,7 @@
 	let blockRefs: (BlockComponent | undefined)[] = [];
 	let editorEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
+	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -265,6 +267,7 @@
 			for (let i = 0; i < v.length; i++) blockRefs[i] = v[i];
 		},
 		undoManager,
+		sharing,
 		stickyColumn,
 		selectionState,
 		getBlockElByPath,
