@@ -38,14 +38,13 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					if (node.children.length <= 1) {
 						parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
-						// The deleted child is the LAST one, so deleteNode writes no
-						// successor trivia; the primitive's spine rebuild refreshes
-						// this quote's raw AND its ancestors' (a nested quote's own
-						// rebuild alone would strand an empty `> >` in the outer raw).
+						// The primitive's spine rebuild refreshes this quote's raw AND
+						// its ancestors' (a nested quote's own rebuild alone would
+						// strand an empty `> >` in the outer raw).
 						await deps.controller.commitMultiScope({
 							scopes: [{ node, state, path: deps.path }],
 							snapshot: { blockIndex: index, offset: 0 },
-							mutate: ([scope]) => [performDelete(scope, innerIndex)],
+							mutate: ([scope], sharing) => [performDelete(scope, innerIndex, sharing)],
 							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },
