@@ -18,11 +18,8 @@ import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
-import {
-	rebuildListItemRaw,
-	rebuildListRaw,
-	rebuildAncestryRawForLeaf
-} from '../../schema/container-raw';
+import { rebuildListItemRaw } from '../../schema/container-raw';
+import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList } from '../list/ordered-markers';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import {
@@ -133,31 +130,27 @@ export async function applyListAbsorb(
 	}
 
 	await ctx.controller.commitMultiScope({
-		scopes: [{ node: outer, state: outerState }],
+		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
 		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			const children = scopeChildren[0].children;
-			children.splice(plan.itemIndex, 1, ...replacement);
-			outer.children = children;
+		mutate: ([scopeView], sharing) => {
+			scopeView.children.splice(plan.itemIndex, 1, ...replacement);
 
 			// Renumber only items AFTER the replacement region. Their proxies
 			// already exist (they were in the list before paste), so marker
 			// mutations propagate to the DOM.
 			const afterReplacementIdx = plan.itemIndex + replacement.length;
-			if (outerOrdered && afterReplacementIdx < outer.children.length) {
-				renumberOrderedList(outer, afterReplacementIdx);
+			if (outerOrdered && afterReplacementIdx < scopeView.children.length) {
+				renumberOrderedList(scopeView.node, afterReplacementIdx, sharing);
 			}
-			rebuildListRaw(outer);
-			rebuildAncestryRawForLeaf(ctx.doc, [...plan.listPath, plan.itemIndex]);
 
-			return [
-				{
-					op: 'replace',
-					at: plan.itemIndex,
-					count: 1,
-					newCount: replacement.length
-				}
-			];
+			const change: StructuralChange = {
+				op: 'replace',
+				at: plan.itemIndex,
+				count: 1,
+				newCount: replacement.length
+			};
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'paste',

@@ -14,7 +14,8 @@ import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
-import { rebuildListRaw, rebuildAncestryRawForLeaf } from '../../schema/container-raw';
+import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import { rebuildListRaw } from '../../schema/container-raw';
 import { ensureListItemNewlineTerminated } from '../list/terminator';
 import {
 	assembleListHalf,
@@ -104,21 +105,16 @@ export async function applyListBreakOut(
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
 		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
-		mutate: (scopeChildren) => {
-			const children = scopeChildren[0].children;
-			children.splice(spliceIndex, 1, ...replacement);
-			parentScope.node.children = children;
-			const lastInsertedIdx = spliceIndex + replacement.length - 1;
-			const parentPath = plan.listPath.slice(0, -1);
-			rebuildAncestryRawForLeaf(ctx.doc, [...parentPath, lastInsertedIdx]);
-			return [
-				{
-					op: 'replace',
-					at: spliceIndex,
-					count: 1,
-					newCount: replacement.length
-				}
-			];
+		mutate: ([scopeView], sharing) => {
+			scopeView.children.splice(spliceIndex, 1, ...replacement);
+			const change: StructuralChange = {
+				op: 'replace',
+				at: spliceIndex,
+				count: 1,
+				newCount: replacement.length
+			};
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'paste',
@@ -221,5 +217,5 @@ function resolveParentScope(
 	const parentPath = plan.listPath.slice(0, -1);
 	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
 	if (!parent) return null;
-	return { node: parent, state: expectStateForNode(parent) };
+	return { node: parent, state: expectStateForNode(parent), path: parentPath };
 }

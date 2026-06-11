@@ -142,9 +142,10 @@ describe('createEditorEvents', () => {
 
 		await controller.commitContainerStructural({
 			containerNode,
+			path: [0],
 			state,
 			snapshot: { blockIndex: 0, offset: 0 },
-			mutate: (children) => {
+			mutate: ({ children }) => {
 				children.splice(1, 1);
 				return { op: 'delete', at: 1, count: 1 };
 			},

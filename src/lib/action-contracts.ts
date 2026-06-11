@@ -6,6 +6,7 @@
 
 import type { CstNode } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
+import type { SharingState } from './undo/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 
 // ── Operation vocabulary ───────────────────────────────────────────────────
@@ -114,25 +115,39 @@ export interface ContainerEditActions {
 	 */
 	pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void;
 	/**
-	 * Publish a raw change the caller made outside the commit primitive.
-	 * At the editor root this is a `doc.children = [...doc.children]`
-	 * reactivity nudge; at a nested container it rebuilds this container's
-	 * raw from its children and forwards upward so every ancestor raw
-	 * stays in sync, then the root nudge runs once at the top.
+	 * Publish a raw change the caller made outside the commit primitive — a
+	 * `doc.children = [...doc.children]` reactivity nudge at the editor root,
+	 * forwarded unchanged through nested containers. Raw rebuilds are NOT part
+	 * of the nudge: out-of-ceremony writers rebuild via `withUnsharedSpine`
+	 * (or the sharing-aware rebuild helpers), which operate on owned copies.
 	 */
 	nudgeReactivity(): void;
 	/**
+	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing):
+	 * unshares the spine doc-root → `absPath`, invokes `write` with the owned
+	 * chain (outermost first), then rebuilds the chain's container raws
+	 * innermost-first. Caller still pushes its own checkpoint and nudges.
+	 */
+	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): void;
+	/**
 	 * Preferred entry for structural container mutations. Routes through the
-	 * unified commit primitive: snapshot + publish + edit event + post-tick.
+	 * unified commit primitive: spine unshare + snapshot + publish + edit
+	 * event + post-tick. `mutate` receives the OWNED container with its
+	 * working children attached — mutate through it, never through captures.
 	 */
 	commitContainer(args: {
 		containerNode: CstNode;
+		path: number[];
 		state: {
 			innerBlockIds: string[];
 			innerBlockRefs: (BlockComponent | undefined)[];
 		};
 		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (children: CstNode[]) => StructuralChange;
+		mutate: (scope: {
+			node: CstNode;
+			children: CstNode[];
+			sharing: SharingState;
+		}) => StructuralChange;
 		op?: {
 			kind: string;
 			detail?: Record<string, unknown>;

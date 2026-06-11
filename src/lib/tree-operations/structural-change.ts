@@ -13,6 +13,8 @@
  */
 
 import type { BlockComponent } from '../block-component';
+import type { CstNode } from '../core/nodes';
+import type { SharingState } from '../undo/sharing';
 import { generateBlockId } from './block-id';
 
 export type StructuralChange =
@@ -27,6 +29,21 @@ export type StructuralChange =
 			/** new-item index → old-item index: these new positions inherit old IDs/refs. */
 			idMap?: Record<number, number>;
 	  };
+
+/**
+ * Stamp the nodes a change's insert/replace window CREATED as owned by the
+ * live tree. Pre-existing nodes an op writes go through ensureUnsharedPath
+ * instead (tree-operations/unshare.ts).
+ */
+export function stampStructuralChange(
+	children: CstNode[],
+	change: StructuralChange,
+	sharing: SharingState
+): void {
+	if (change.op !== 'insert' && change.op !== 'replace') return;
+	const count = change.op === 'insert' ? change.count : change.newCount;
+	for (let i = change.at; i < change.at + count; i++) sharing.stamp(children[i]);
+}
 
 /**
  * Re-shape the parallel ids/refs arrays to match the mutated children.

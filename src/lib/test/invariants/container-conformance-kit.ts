@@ -266,7 +266,7 @@ export async function checkStripLocalIndexAddressing(profile: ContainerProfile):
 			get node() {
 				return captured;
 			},
-			rebuildRaw: () => rebuildContainerRawIfContainer(captured),
+			path: containerChain.slice(0, depth + 1),
 			stickyColumn: makeStickyColumn(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? makeStubBlockEdit(),
@@ -291,8 +291,10 @@ export async function checkStripLocalIndexAddressing(profile: ContainerProfile):
 
 	await parentBundle!.blockEdit.deleteBlock(targetChild);
 
-	// (i) content oracle: the addressed local child is the one removed.
-	const remaining = (kindNode.children ?? []).map((c) => c.raw);
+	// (i) content oracle: the addressed local child is the one removed. The
+	// commit replaced the spine's nodes — re-resolve through the live doc.
+	const liveKind = nodeAtPath(doc, containerChain);
+	const remaining = (liveKind.children ?? []).map((c) => c.raw);
 	expect(remaining, `local index ${targetChild} was the child removed`).not.toContain(targetMarker);
 	// (ii) the edit path equals the chain of local indices (+ the targeted child).
 	const editEvent = seen.find((e) => e.op === 'delete');
@@ -355,7 +357,8 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 	// what proves cells are addressed by local col index, not appended at the end.
 	await ctx.insertColumnRight(0);
 
-	for (const row of table.children!) {
+	const liveTable = deps.doc.children[1];
+	for (const row of liveTable.children!) {
 		const cells = row.children!.map((c) => c.raw);
 		expect(cells.length, 'every row gained one cell').toBe(3);
 		expect(cells[0], 'column 0 unchanged').not.toBe('');
@@ -448,6 +451,9 @@ async function checkListIndentOneUndo(): Promise<void> {
 		get node() {
 			return list;
 		},
+		get path() {
+			return [0];
+		},
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),
@@ -460,7 +466,9 @@ async function checkListIndentOneUndo(): Promise<void> {
 	const after = deps.undoManager.getStacks().undo.length;
 
 	expect(after - before, 'list indentItem (multi-scope) pushes exactly ONE undo entry').toBe(1);
-	expect(list.children!.length, 'item 1 was indented out of the outer list').toBe(1);
+	expect(deps.doc.children[0].children!.length, 'item 1 was indented out of the outer list').toBe(
+		1
+	);
 }
 
 async function checkTableColumnOneUndo(): Promise<void> {
@@ -532,7 +540,7 @@ export async function checkFocusBubbleTermination(kind: BlockKind): Promise<void
 			get node() {
 				return outerNode;
 			},
-			rebuildRaw: () => {},
+			path: [3],
 			stickyColumn: makeStickyColumn(),
 			parent: { blockEdit: makeStubBlockEdit(), focus: rootFocus, containerEdit: {} as never }
 		}
@@ -546,7 +554,7 @@ export async function checkFocusBubbleTermination(kind: BlockKind): Promise<void
 			get node() {
 				return innerNode!;
 			},
-			rebuildRaw: () => {},
+			path: [0],
 			stickyColumn: makeStickyColumn(),
 			parent: { blockEdit: makeStubBlockEdit(), focus: outerFocus, containerEdit: {} as never }
 		}

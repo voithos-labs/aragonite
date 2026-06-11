@@ -27,7 +27,8 @@ export interface NestedActionsBundle {
 export interface NestedActionsDeps {
 	index: number;
 	node: CstNode;
-	rebuildRaw: () => void;
+	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
+	path: number[];
 	stickyColumn: StickyColumnState;
 	parent: {
 		blockEdit: BlockEditActions;
@@ -51,10 +52,10 @@ export function createStandardNestedActions(
 	deps: NestedActionsDeps,
 	overrideFactory?: NestedActionsOverrideFactory
 ): NestedActionsBundle {
-	// `index` and `node` are intentionally not destructured: containers expose
-	// both as getters (`get index()`, `get node()`) so closures read live
-	// reactive values. Destructuring would capture stale snapshots after a
-	// parent structural op or undo/redo replacement.
+	// `index`, `node`, and `path` are intentionally not destructured:
+	// containers expose them as getters (`get index()`, `get node()`) so
+	// closures read live reactive values. Destructuring would capture stale
+	// snapshots after a parent structural op or undo/redo replacement.
 	const blockEdit = createNestedBlockEdit(state, deps);
 	const focus = createNestedFocus(state, deps);
 	const containerEdit = createNestedContainerEdit(deps);

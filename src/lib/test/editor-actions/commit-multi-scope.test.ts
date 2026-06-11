@@ -15,16 +15,15 @@ function makeContainerNode(childRaws: string[]): any {
 
 describe('commitMultiScope', () => {
 	it('single-scope insert: updates children, ids, and fires one event', async () => {
-		const containerNode = makeContainerNode(['- a\n', '- b\n']);
-		const state = makeBlockListState(['id-a', 'id-b']);
-		const { deps, events } = makeEditorActionsDeps([containerNode]);
+		const { deps, events } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
 		await controller.commitMultiScope({
-			scopes: [{ node: containerNode, state }],
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
@@ -33,7 +32,7 @@ describe('commitMultiScope', () => {
 			op: { kind: 'appendBlock', eventPath: [0, 2] }
 		});
 
-		expect(containerNode.children).toHaveLength(3);
+		expect(deps.doc.children[0].children).toHaveLength(3);
 		expect(state.innerBlockIds).toHaveLength(3);
 		expect(state.innerBlockIds[2]).toBeTruthy();
 		expect(state.innerBlockIds[2]).not.toBe('id-a');
@@ -44,11 +43,12 @@ describe('commitMultiScope', () => {
 	});
 
 	it('multi-scope: two scopes each get independent descriptors, still ONE snapshot + ONE event', async () => {
-		const nodeA = makeContainerNode(['- a\n', '- b\n', '- c\n']);
-		const nodeB = makeContainerNode(['- x\n', '- y\n']);
-		const stateA = makeBlockListState(['a0', 'a1', 'a2']);
-		const stateB = makeBlockListState(['b0', 'b1']);
-		const { deps, events } = makeEditorActionsDeps([nodeA, nodeB]);
+		const { deps, events } = makeEditorActionsDeps([
+			makeContainerNode(['- a\n', '- b\n', '- c\n']),
+			makeContainerNode(['- x\n', '- y\n'])
+		]);
+		const stateA = makeBlockListState(() => deps.doc.children[0], ['a0', 'a1', 'a2']);
+		const stateB = makeBlockListState(() => deps.doc.children[1], ['b0', 'b1']);
 		const controller = createUndoController(deps);
 
 		const editHandler = vi.fn();
@@ -56,8 +56,8 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [
-				{ node: nodeA, state: stateA },
-				{ node: nodeB, state: stateB }
+				{ node: deps.doc.children[0], state: stateA, path: [0] },
+				{ node: deps.doc.children[1], state: stateB, path: [1] }
 			],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scopeA, scopeB]) => {
@@ -71,28 +71,54 @@ describe('commitMultiScope', () => {
 			op: { kind: 'split', eventPath: [0, 1] }
 		});
 
-		expect(nodeA.children).toHaveLength(4);
+		expect(deps.doc.children[0].children).toHaveLength(4);
 		expect(stateA.innerBlockIds).toHaveLength(4);
-		expect(nodeB.children).toHaveLength(1);
+		expect(deps.doc.children[1].children).toHaveLength(1);
 		expect(stateB.innerBlockIds).toHaveLength(1);
 		expect(stateB.innerBlockIds[0]).toBe('b0');
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
 
+	it('unshares each scope before mutate: the snapshot keeps the pre-commit nodes intact', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
+		const controller = createUndoController(deps);
+		const before = deps.doc.children[0];
+		const beforeChildIds = before.childIds;
+
+		await controller.commitMultiScope({
+			scopes: [{ node: before, state, path: [0] }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scope]) => {
+				scope.children.splice(0, 1);
+				return [{ op: 'delete', at: 0, count: 1 }];
+			}
+		});
+
+		const entry = deps.undoManager.getStacks().undo[0];
+		expect(entry.snapshot.children[0]).toBe(before);
+		expect(before.children).toHaveLength(2);
+		expect(before.childIds).toBe(beforeChildIds);
+		expect(deps.doc.children[0]).not.toBe(before);
+		expect(deps.doc.children[0].children).toHaveLength(1);
+		expect(state.innerBlockIds).toEqual(['id-b']);
+	});
+
 	it('throws when mutate returns wrong number of changes', async () => {
-		const nodeA = makeContainerNode(['- a\n']);
-		const nodeB = makeContainerNode(['- b\n']);
-		const stateA = makeBlockListState(['a0']);
-		const stateB = makeBlockListState(['b0']);
-		const { deps } = makeEditorActionsDeps([nodeA, nodeB]);
+		const { deps } = makeEditorActionsDeps([
+			makeContainerNode(['- a\n']),
+			makeContainerNode(['- b\n'])
+		]);
+		const stateA = makeBlockListState(() => deps.doc.children[0], ['a0']);
+		const stateB = makeBlockListState(() => deps.doc.children[1], ['b0']);
 		const controller = createUndoController(deps);
 
 		await expect(
 			controller.commitMultiScope({
 				scopes: [
-					{ node: nodeA, state: stateA },
-					{ node: nodeB, state: stateB }
+					{ node: deps.doc.children[0], state: stateA, path: [0] },
+					{ node: deps.doc.children[1], state: stateB, path: [1] }
 				],
 				snapshot: { blockIndex: 0, offset: 0 },
 				mutate: () => [{ op: 'noop' }]
@@ -101,16 +127,15 @@ describe('commitMultiScope', () => {
 	});
 
 	it('noop descriptor leaves ids/refs unchanged but still fires event when op supplied', async () => {
-		const containerNode = makeContainerNode(['- a\n']);
-		const state = makeBlockListState(['id-a']);
-		const { deps, events } = makeEditorActionsDeps([containerNode]);
+		const { deps, events } = makeEditorActionsDeps([makeContainerNode(['- a\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a']);
 		const controller = createUndoController(deps);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
 
 		await controller.commitMultiScope({
-			scopes: [{ node: containerNode, state }],
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: () => [{ op: 'noop' }],
 			op: { kind: 'delete', eventPath: [0] }
@@ -121,14 +146,13 @@ describe('commitMultiScope', () => {
 	});
 
 	it('idMap preserved across scope: split-shape replace keeps old id at mapped position', async () => {
-		const containerNode = makeContainerNode(['- a\n']);
 		const originalId = 'original-id';
-		const state = makeBlockListState([originalId]);
-		const { deps } = makeEditorActionsDeps([containerNode]);
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], [originalId]);
 		const controller = createUndoController(deps);
 
 		await controller.commitMultiScope({
-			scopes: [{ node: containerNode, state }],
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { blockIndex: 0, offset: 0 },
 			mutate: ([scope]) => {
 				const original = scope.children[0];

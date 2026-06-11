@@ -35,14 +35,28 @@ export interface CommitStructuralArgs {
 	touchedNodes?: CstNode[];
 }
 
+/**
+ * Owned mutation view handed to a container commit's `mutate`. `node` is the
+ * unshared copy already spliced into the live tree with `children` attached —
+ * never write through references captured before the commit; they may be
+ * stale snapshot-shared originals.
+ */
+export interface ContainerScope {
+	node: CstNode;
+	children: CstNode[];
+	sharing: SharingState;
+}
+
 export interface CommitContainerStructuralArgs {
 	containerNode: CstNode;
+	/** Doc-absolute path of `containerNode` — the spine the primitive unshares + rebuilds. */
+	path: number[];
 	state: {
 		innerBlockIds: string[];
 		innerBlockRefs: (BlockComponent | undefined)[];
 	};
 	snapshot: { blockIndex: number; offset: number } | 'skip';
-	mutate: (children: CstNode[]) => StructuralChange;
+	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
 	afterTick?: () => void;
 }
@@ -50,12 +64,14 @@ export interface CommitContainerStructuralArgs {
 export interface CommitMultiScopeArgs {
 	scopes: MultiScopeTarget[];
 	snapshot: { blockIndex: number; offset: number } | 'skip';
-	mutate: (scopeChildren: MultiScopeMutable[]) => StructuralChange[];
+	mutate: (scopeChildren: MultiScopeMutable[], sharing: SharingState) => StructuralChange[];
 	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
 	afterTick?: () => void;
 }
 
 export interface UndoController {
+	/** Editor's sharing epoch state, exposed for out-of-ceremony copy-path-on-write. */
+	sharing: SharingState;
 	pushUndoSnapshot(blockIndex: number, offset: number): void;
 	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;

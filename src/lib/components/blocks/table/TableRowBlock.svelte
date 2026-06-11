@@ -20,7 +20,6 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested-actions';
-	import { rebuildContainerRaw } from '../../../schema/container-raw';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 
@@ -60,7 +59,9 @@
 		get node() {
 			return node;
 		},
-		rebuildRaw: () => rebuildContainerRaw(node),
+		get path() {
+			return myPath;
+		},
 		stickyColumn,
 		parent: {
 			blockEdit: parentBlockEdit,

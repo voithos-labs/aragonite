@@ -29,12 +29,14 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(item.kind).toBe('listItem');
 		expect(item.children).toHaveLength(3);
 
-		const listState = makeBlockListState(['item-0']);
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveItem = () => deps.doc.children[0].children![0];
+		const listState = makeBlockListState(liveList, ['item-0']);
 		registerBlockListState(list, listState as any);
-		const itemState = makeBlockListState(['para-a', 'para-b', 'para-c']);
+		const itemState = makeBlockListState(liveItem, ['para-a', 'para-b', 'para-c']);
 		registerBlockListState(item, itemState as any);
 
-		const deps = makeDeps([list]);
 		const controller = createUndoController(deps);
 
 		const listContext = createListContext({
@@ -42,7 +44,10 @@ describe('list-context — splitItemAtOffset', () => {
 				return 0;
 			},
 			get node() {
-				return list;
+				return liveList();
+			},
+			get path() {
+				return [0];
 			},
 			state: listState as any,
 			parentBlockEdit: makeStubBlockEdit(),
@@ -55,15 +60,15 @@ describe('list-context — splitItemAtOffset', () => {
 
 		// Post-split invariant: every BlockListState's id array must match the
 		// corresponding node.children length. Drift is the Theme B1 bug.
-		expect(item.children).toHaveLength(1);
+		expect(liveItem().children).toHaveLength(1);
 		expect(itemState.innerBlockIds).toHaveLength(1);
 		expect(itemState.innerBlockIds[0]).toBe('para-a');
 
-		expect(list.children).toHaveLength(2);
+		expect(liveList().children).toHaveLength(2);
 		expect(listState.innerBlockIds).toHaveLength(2);
 		expect(listState.innerBlockIds[0]).toBe('item-0');
 
-		const newItem = list.children![1];
+		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
 		expect(newItem.children).toHaveLength(3);
 	});
@@ -73,12 +78,14 @@ describe('list-context — splitItemAtOffset', () => {
 		const list = doc.children[0];
 		const item = list.children![0];
 
-		const listState = makeBlockListState(['item-0']);
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveItem = () => deps.doc.children[0].children![0];
+		const listState = makeBlockListState(liveList, ['item-0']);
 		registerBlockListState(list, listState as any);
-		const itemState = makeBlockListState(['para-a']);
+		const itemState = makeBlockListState(liveItem, ['para-a']);
 		registerBlockListState(item, itemState as any);
 
-		const deps = makeDeps([list]);
 		const controller = createUndoController(deps);
 
 		const listContext = createListContext({
@@ -86,7 +93,10 @@ describe('list-context — splitItemAtOffset', () => {
 				return 0;
 			},
 			get node() {
-				return list;
+				return liveList();
+			},
+			get path() {
+				return [0];
 			},
 			state: listState as any,
 			parentBlockEdit: makeStubBlockEdit(),
@@ -97,11 +107,11 @@ describe('list-context — splitItemAtOffset', () => {
 
 		await listContext.splitItemAtOffset(0, 0, 3);
 
-		expect(item.children).toHaveLength(1);
+		expect(liveItem().children).toHaveLength(1);
 		expect(itemState.innerBlockIds).toHaveLength(1);
 		expect(itemState.innerBlockIds[0]).toBe('para-a');
 
-		expect(list.children).toHaveLength(2);
+		expect(liveList().children).toHaveLength(2);
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 });

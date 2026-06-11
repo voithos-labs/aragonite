@@ -35,18 +35,22 @@ export function makeStickyColumn(x: number | null = null): StickyColumnState {
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
-// Only the inner-id/ref arrays are observed by container-edit and list-context
-// paths, so the stub omits Svelte $state reactivity and structurally satisfies
-// the interface via plain getters/setters.
-export function makeBlockListState(ids: string[]): BlockListState {
-	let innerBlockIds = [...ids];
-	let innerBlockRefs: (BlockComponent | undefined)[] = ids.map(() => undefined);
+// Mirrors production createBlockListState minus Svelte reactivity: ids are
+// node-backed (read/written through getNode().childIds, so they follow the
+// commit primitives' copy-path-on-write node replacement), refs are local.
+// `getNode` must read the LIVE node (e.g. () => doc.children[0]) — a captured
+// node reference goes stale after the first commit unshares its spine.
+export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
+	const node = getNode();
+	if (ids) node.childIds = [...ids];
+	else if (!node.childIds) node.childIds = (node.children ?? []).map((_, i) => `auto-${i}`);
+	let innerBlockRefs: (BlockComponent | undefined)[] = (node.childIds ?? []).map(() => undefined);
 	return {
 		get innerBlockIds() {
-			return innerBlockIds;
+			return getNode().childIds ?? [];
 		},
 		set innerBlockIds(v: string[]) {
-			innerBlockIds = v;
+			getNode().childIds = v;
 		},
 		get innerBlockRefs() {
 			return innerBlockRefs;
@@ -80,7 +84,8 @@ export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
-		nudgeReactivity: vi.fn()
+		nudgeReactivity: vi.fn(),
+		withUnsharedSpine: vi.fn()
 	};
 }
 
