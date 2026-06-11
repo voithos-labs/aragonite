@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../../core/parser';
-import { collectInlineDirty } from '../../../core/inline/dirty-set';
-import type { EditEvent } from '../../../editor-events';
+import { parse } from '$lib/editor/core/parser';
+import { collectInlineDirty } from '$lib/editor/inline-dirty-set';
+import type { EditEvent } from '$lib/editor/editor-events';
 
 const doc = parse('first\n\n- item one\n- item two\n\nthird\n');
 
@@ -14,7 +14,10 @@ describe('collectInlineDirty', () => {
 
 	it('scopes intra-block ops to the top-level subtree containing the edit', () => {
 		for (const event of subtreeEvents) {
-			expect(collectInlineDirty(doc, event, false)).toEqual([doc.children[1]]);
+			const dirty = collectInlineDirty(doc, event, false);
+			expect(dirty).toEqual([doc.children[1]]);
+			// Identity, not a clone — the sweep must mutate the live tree.
+			expect(dirty[0]).toBe(doc.children[1]);
 		}
 	});
 

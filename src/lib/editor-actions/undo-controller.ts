@@ -152,6 +152,25 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
+	 * Emit the pending typing batch as one input event, then drop the batch
+	 * state. Must run before anything discards or repoints the batch —
+	 * otherwise observers under-count keystrokes and the inline sweep never
+	 * refreshes the batch's subtree with a resolver.
+	 */
+	function flushPendingInputBatch(): void {
+		if (batchByteLength > 0 && batchBlockIndex >= 0) {
+			deps.events.emit('edit', {
+				op: 'input',
+				path: [batchBlockIndex],
+				detail: { byteLength: batchByteLength },
+				timestamp: Date.now()
+			});
+		}
+		batchBlockIndex = -1;
+		batchByteLength = 0;
+	}
+
+	/**
 	 * First keystroke of each batch captures a snapshot; subsequent keystrokes
 	 * reset the debounce.
 	 *
@@ -167,10 +186,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	): void {
 		const key = batchKey ?? blockIndex;
 		if (lastUndoBatchKey !== key || needsUndoCheckpoint) {
+			flushPendingInputBatch();
 			pushUndoSnapshotAt(blockIndex, offset);
 			lastUndoBatchKey = key;
 			batchBlockIndex = blockIndex;
-			batchByteLength = 0;
 			needsUndoCheckpoint = false;
 		}
 		batchByteLength++;
@@ -178,16 +197,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		undoDebounceTimer = setTimeout(() => {
 			needsUndoCheckpoint = true;
 			undoDebounceTimer = null;
-			if (batchByteLength > 0 && batchBlockIndex >= 0) {
-				deps.events.emit('edit', {
-					op: 'input',
-					path: [batchBlockIndex],
-					detail: { byteLength: batchByteLength },
-					timestamp: Date.now()
-				});
-				batchBlockIndex = -1;
-				batchByteLength = 0;
-			}
+			flushPendingInputBatch();
 		}, UNDO_DEBOUNCE_MS);
 	}
 
@@ -248,19 +258,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (undoDebounceTimer) {
 			clearTimeout(undoDebounceTimer);
 			undoDebounceTimer = null;
-			// Flush the pending typing batch as one input event before we drop
-			// the batch state — otherwise observers under-count keystrokes when
-			// a structural commit (split, merge, etc.) follows mid-batch typing.
-			if (batchByteLength > 0 && batchBlockIndex >= 0) {
-				deps.events.emit('edit', {
-					op: 'input',
-					path: [batchBlockIndex],
-					detail: { byteLength: batchByteLength },
-					timestamp: Date.now()
-				});
-			}
-			batchBlockIndex = -1;
-			batchByteLength = 0;
+			flushPendingInputBatch();
 		}
 
 		if (args.snapshot !== 'skip') {

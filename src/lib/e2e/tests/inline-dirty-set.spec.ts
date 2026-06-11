@@ -28,6 +28,7 @@ test.describe('inline dirty-set scoping', () => {
 		);
 
 		const snapshot = await page.evaluate(() => (window as any).__test.perf.snapshot());
+		// Expected 1 refreshed node; 2 allows one extra flush boundary — not all 30.
 		expect(snapshot.inlineRefreshNodeCount).toBeLessThanOrEqual(2);
 	});
 

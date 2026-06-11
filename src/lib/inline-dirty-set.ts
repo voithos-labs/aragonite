@@ -12,8 +12,8 @@
  *   - Structural splices (split/merge/paste/undo/...) are single user
  *     gestures, not sustained costs — whole-doc keeps them simple and safe.
  */
-import type { CstNode, Document } from '../nodes';
-import type { EditEvent } from '../../editor-events';
+import type { CstNode, Document } from './core/nodes';
+import type { EditEvent } from './editor-events';
 
 const SUBTREE_OPS: ReadonlySet<EditEvent['op']> = new Set([
 	'input',

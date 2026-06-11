@@ -36,7 +36,7 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { countProseNodes, parseAllInlineContent } from '../core/inline';
-	import { collectInlineDirty } from '../core/inline/dirty-set';
+	import { collectInlineDirty } from '../inline-dirty-set';
 	import { perfEnabled, recordInlineRefresh } from '../perf/instruments';
 	import {
 		buildLinkReferenceMap,
