@@ -20,6 +20,11 @@
 		registerBlockKind,
 		tryGetBlockKindDescriptor
 	} from '$lib/editor/schema/block-kind-descriptor';
+	import {
+		enablePerfInstruments,
+		resetPerfInstruments,
+		perfSnapshot
+	} from '$lib/editor/perf/instruments';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
@@ -201,6 +206,12 @@
 			roundTripStable: (): boolean => {
 				const src = editor.getSource();
 				return serialize(parse(src)) === src;
+			},
+			// ── Perf instruments surface ──────────────────────────────────────
+			perf: {
+				enable: enablePerfInstruments,
+				reset: resetPerfInstruments,
+				snapshot: perfSnapshot
 			},
 			// ── Debug engine surface ──────────────────────────────────────────
 			dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
