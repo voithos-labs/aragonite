@@ -21,7 +21,7 @@ import { cloneNode } from '../clone';
 import { rebuildListItemRaw } from '../../schema/container-raw';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList } from '../list/ordered-markers';
-import { ensureListItemNewlineTerminated } from '../list/terminator';
+import { spliceTerminatedItems } from '../list/terminator';
 import {
 	buildListItemWithContent,
 	readOrderedSuffix,
@@ -102,12 +102,7 @@ export async function applyListAbsorb(
 	for (const p of pastedItems) replacement.push(p);
 	if (trailingItem) replacement.push(trailingItem);
 
-	for (const node of replacement) {
-		ensureEditableContainers(node);
-		// Pasted items from clipboards without trailing newlines have no-\n raw;
-		// splicing them mid-list would mash adjacent items during rebuildListRaw.
-		ensureListItemNewlineTerminated(node);
-	}
+	for (const node of replacement) ensureEditableContainers(node);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
@@ -134,7 +129,7 @@ export async function applyListAbsorb(
 		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			scopeView.children.splice(plan.itemIndex, 1, ...replacement);
+			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
 
 			// Renumber only items AFTER the replacement region. Their proxies
 			// already exist (they were in the list before paste), so marker
