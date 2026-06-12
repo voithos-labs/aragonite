@@ -1,9 +1,12 @@
 // In-place table CST mutations. Callers own the commit ceremony
 // (commitContainer / commitMultiScope) and rebuildContainerRaw; these helpers
-// touch neither reactivity, undo, nor raw.
+// touch neither reactivity, undo, nor raw. Column mutators emit exactly one
+// StructuralChange per row, in row order — multi-scope callers pair them with
+// their row scopes, and the ceremony arity-checks the pairing.
 
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
+import type { StructuralChange } from './structural-change';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
 
@@ -26,18 +29,21 @@ export function insertEmptyRow(table: CstNode, rowIdx: number, side: 'above' | '
 	table.children!.splice(insertAt, 0, newRow);
 }
 
-export function insertEmptyColumn(table: CstNode, colIdx: number, side: 'left' | 'right'): void {
+export function insertEmptyColumn(
+	table: CstNode,
+	colIdx: number,
+	side: 'left' | 'right'
+): StructuralChange[] {
 	const meta = metadataOf(table, 'table');
 	const insertAt = side === 'left' ? colIdx : colIdx + 1;
+	const changes: StructuralChange[] = [];
 	for (const row of table.children ?? []) {
-		row.children!.splice(insertAt, 0, {
-			kind: 'tableCell',
-			leadingTrivia: '',
-			raw: ''
-		});
+		row.children!.splice(insertAt, 0, { kind: 'tableCell', leadingTrivia: '', raw: '' });
+		changes.push({ op: 'insert', at: insertAt, count: 1 });
 	}
 	meta.alignments.splice(insertAt, 0, 'none');
 	meta.columnCount += 1;
+	return changes;
 }
 
 // Unconditional mutators: they will happily delete the last row/column.
@@ -52,13 +58,16 @@ export function deleteRow(table: CstNode, rowIdx: number): void {
 	}
 }
 
-export function deleteColumn(table: CstNode, colIdx: number): void {
+export function deleteColumn(table: CstNode, colIdx: number): StructuralChange[] {
 	const meta = metadataOf(table, 'table');
+	const changes: StructuralChange[] = [];
 	for (const row of table.children ?? []) {
 		row.children!.splice(colIdx, 1);
+		changes.push({ op: 'delete', at: colIdx, count: 1 });
 	}
 	meta.alignments.splice(colIdx, 1);
 	meta.columnCount -= 1;
+	return changes;
 }
 
 export function cycleAlignment(table: CstNode, colIdx: number): void {
