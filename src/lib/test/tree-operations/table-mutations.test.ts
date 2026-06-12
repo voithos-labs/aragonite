@@ -66,28 +66,31 @@ describe('deleteRow', () => {
 describe('insertEmptyColumn', () => {
 	it('inserts a column to the left and pads alignments with none', () => {
 		const table = parseTable('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		insertEmptyColumn(table, 1, 'left');
+		const changes = insertEmptyColumn(table, 1, 'left');
 		expect((table.metadata as TableMetadata).columnCount).toBe(3);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['none', 'none', 'none']);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', '', 'B']);
 		expect(table.children![1].children!.map((c) => c.raw)).toEqual(['1', '', '2']);
+		expect(changes).toEqual(table.children!.map(() => ({ op: 'insert', at: 1, count: 1 })));
 	});
 
 	it('inserts a column to the right and preserves existing alignments around the gap', () => {
 		const table = parseTable('| A | B |\n| :--- | ---: |\n| 1 | 2 |\n');
-		insertEmptyColumn(table, 1, 'right');
+		const changes = insertEmptyColumn(table, 1, 'right');
 		expect((table.metadata as TableMetadata).alignments).toEqual(['left', 'right', 'none']);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', 'B', '']);
+		expect(changes).toEqual(table.children!.map(() => ({ op: 'insert', at: 2, count: 1 })));
 	});
 });
 
 describe('deleteColumn', () => {
 	it('removes the column from every row and trims its alignment', () => {
 		const table = parseTable('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n');
-		deleteColumn(table, 1);
+		const changes = deleteColumn(table, 1);
 		expect((table.metadata as TableMetadata).columnCount).toBe(2);
 		expect((table.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', 'C']);
+		expect(changes).toEqual(table.children!.map(() => ({ op: 'delete', at: 1, count: 1 })));
 	});
 });
 

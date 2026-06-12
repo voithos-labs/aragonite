@@ -11,6 +11,7 @@ import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
+import { assertInvariant } from '../invariants/assert';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-raw';
 import {
@@ -65,34 +66,39 @@ export function createTableMutationsContext(
 		});
 	}
 
-	async function commitColumnEdit(opts: {
-		mutateInPlace: (table: CstNode) => void;
-		op: { kind: 'tableInsertColumn' | 'tableDeleteColumn'; detail: Record<string, unknown> };
-		rowChange: (at: number) => StructuralChange;
-		rowChangeAt: number;
-		afterTick: () => void;
-	}): Promise<void> {
-		const { node, index, myPath, rowsState, controller } = deps;
-		const rows = node.children ?? [];
-		const scopes: MultiScopeTarget[] = [
+	function columnScopes(): MultiScopeTarget[] {
+		const { node, myPath, rowsState } = deps;
+		return [
 			{ node, state: rowsState, path: [...myPath] },
-			...rows.map((row, i) => ({
+			...(node.children ?? []).map((row, i) => ({
 				node: row,
 				state: expectStateForNode(row),
 				path: [...myPath, i]
 			}))
 		];
+	}
+
+	async function commitColumnEdit(opts: {
+		mutateColumns: (table: CstNode) => StructuralChange[];
+		op: { kind: 'tableInsertColumn' | 'tableDeleteColumn'; detail: Record<string, unknown> };
+		afterTick: () => void;
+	}): Promise<void> {
+		const { index, myPath, controller } = deps;
 		await controller.commitMultiScope({
-			scopes,
+			scopes: columnScopes(),
 			snapshot: { blockIndex: index, offset: 0 },
-			mutate: ([tableScope]) => {
-				// Row scopes already own every row, so the column splices through
-				// the owned table land in owned arrays; raws rebuild on the chains.
-				opts.mutateInPlace(tableScope.node);
-				const rowChanges = (tableScope.node.children ?? []).map(() =>
-					opts.rowChange(opts.rowChangeAt)
+			mutate: ([tableScope, ...rowScopes]) => {
+				// The column splice walks the owned table's rows; this only syncs the
+				// row scopes' ids/refs correctly because each row view IS that child.
+				assertInvariant('column-scope-alignment', () =>
+					rowScopes.every((s, i) => s.node === tableScope.node.children?.[i])
+						? null
+						: {
+								code: 'column-scope-alignment',
+								message: 'commitColumnEdit: row scopes misaligned with owned table children'
+							}
 				);
-				return [{ op: 'noop' }, ...rowChanges];
+				return [{ op: 'noop' }, ...opts.mutateColumns(tableScope.node)];
 			},
 			op: { kind: opts.op.kind, detail: opts.op.detail, eventPath: [...myPath] },
 			afterTick: opts.afterTick
@@ -103,10 +109,8 @@ export function createTableMutationsContext(
 		const { focusCell, focusedCell } = deps;
 		const insertAt = side === 'left' ? colIdx : colIdx + 1;
 		await commitColumnEdit({
-			rowChangeAt: insertAt,
-			mutateInPlace: (table) => insertEmptyColumn(table, colIdx, side),
+			mutateColumns: (table) => insertEmptyColumn(table, colIdx, side),
 			op: { kind: 'tableInsertColumn', detail: { colIdx, side } },
-			rowChange: (at) => ({ op: 'insert', at, count: 1 }),
 			afterTick: () => {
 				const targetRow = focusedCell?.rowIdx ?? 0;
 				focusCell(targetRow, insertAt, 'start');
@@ -154,10 +158,8 @@ export function createTableMutationsContext(
 			const meta = metadataOf(node, 'table');
 			if (meta.columnCount <= 1) return;
 			await commitColumnEdit({
-				rowChangeAt: colIdx,
-				mutateInPlace: (table) => mutDeleteColumn(table, colIdx),
+				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
-				rowChange: (at) => ({ op: 'delete', at, count: 1 }),
 				afterTick: () => {
 					const newColumnCount = metadataOf(node, 'table').columnCount;
 					if (newColumnCount === 0) return;
