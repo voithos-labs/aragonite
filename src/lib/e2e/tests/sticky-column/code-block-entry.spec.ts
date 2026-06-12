@@ -181,14 +181,33 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.waitForRenderFlush();
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Compare landings only when the captures roughly matched (different end
-		// columns otherwise), and carry the capture mismatch into the bound:
-		// focusAtColumn quantizes to character cells, and platform font metrics
-		// let matched-page-X clicks snap a few px apart — the landings can't be
-		// expected to match tighter than the inputs did.
+		// This block has two body lines: entry from above lands on the first,
+		// from below on the last. Across two lines with different content and
+		// highlight spans, nearest-column quantization can legitimately disagree
+		// by up to one character cell, with platform font metrics setting the
+		// phase — so the bound is a measured cell, not the same-line
+		// PIXEL_TOLERANCE the sibling tests use. A sticky regression lands
+		// multiple cells apart and still fails.
+		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
+			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				if (node.textContent && node.textContent.trim().length > 0) {
+					const range = document.createRange();
+					range.setStart(node, 0);
+					range.setEnd(node, 1);
+					return range.getBoundingClientRect().width;
+				}
+			}
+			return 0;
+		});
+		expect(cellWidth).toBeGreaterThan(0);
+
 		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
 		if (captureDelta < 5) {
-			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(PIXEL_TOLERANCE + captureDelta);
+			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
+				cellWidth + PIXEL_TOLERANCE + captureDelta
+			);
 		}
 	});
 });
