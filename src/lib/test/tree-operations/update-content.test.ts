@@ -1,34 +1,49 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { parseAllInlineContent } from '../../core/inline';
+import type { CstNode } from '../../core/nodes';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
+import { replacePreservingFirst } from '../../tree-operations/structural-change';
 
 describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const result = updateNodeContent(doc, 0, 'World\n');
+		const change = updateNodeContent(doc, 0, 'World\n');
 		expect(doc.children[0].raw).toBe('World\n');
-		expect(result.kindChanged).toBe(false);
+		expect(change).toEqual({ op: 'noop' });
 	});
 
-	it('detects block type change from paragraph to heading', () => {
+	it('kind change from paragraph to heading returns a same-slot replace', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const result = updateNodeContent(doc, 0, '## Hello\n');
+		const change = updateNodeContent(doc, 0, '## Hello\n');
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].metadata).toEqual({ level: 2 });
-		expect(result.kindChanged).toBe(true);
-		expect(result.newKind).toBe('heading');
+		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
 	});
 
-	it('detects block type change from heading to paragraph', () => {
+	it('kind change from heading to paragraph returns a same-slot replace', () => {
 		const source = '## Hello\n';
 		const doc = parse(source);
-		const result = updateNodeContent(doc, 0, 'Hello\n');
+		const change = updateNodeContent(doc, 0, 'Hello\n');
 		expect(doc.children[0].kind).toBe('paragraph');
-		expect(result.kindChanged).toBe(true);
-		expect(result.newKind).toBe('paragraph');
+		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
+	});
+
+	it('replace window tracks the block index', () => {
+		const source = 'A\n\nB\n';
+		const doc = parse(source);
+		const change = updateNodeContent(doc, 1, '# B\n');
+		expect(change).toEqual(replacePreservingFirst(1, 1, 1));
+	});
+
+	it('tableCell update writes raw only and returns noop', () => {
+		const cell: CstNode = { kind: 'tableCell', leadingTrivia: '', raw: 'a' };
+		const change = updateNodeContent({ children: [cell] }, 0, 'ab');
+		expect(change).toEqual({ op: 'noop' });
+		expect(cell.raw).toBe('ab');
+		expect(cell.kind).toBe('tableCell');
 	});
 
 	it('preserves leading trivia and ID position', () => {
@@ -42,18 +57,20 @@ describe('updateNodeContent', () => {
 	it('handles empty string content without crashing', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const result = updateNodeContent(doc, 0, '');
+		const change = updateNodeContent(doc, 0, '');
 		expect(doc.children[0].raw).toBe('');
 		expect(doc.children[0].kind).toBe('paragraph');
+		expect(change).toEqual({ op: 'noop' });
 	});
 
 	it('with multi-block content uses only first block kind', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const result = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
+		const change = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
 		expect(doc.children[0].raw).toBe('# Heading\n\nParagraph\n');
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children).toHaveLength(1);
+		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
 	});
 
 	it('clears metadata when block type changes from heading to paragraph', () => {
