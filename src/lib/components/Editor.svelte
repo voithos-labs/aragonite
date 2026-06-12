@@ -28,7 +28,6 @@
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
-	import { installWidgetRangePainter } from '../selection/widget-range-paint';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../tree-operations/block-id';
@@ -50,10 +49,7 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import BlockList from './BlockList.svelte';
-	import ImageProperties from './image/ImageProperties.svelte';
-	import ImageResizeHandles from './image/ImageResizeHandles.svelte';
-	import { createImageEditCommitter } from './image/image-edit-commit';
-	import { imageFieldsFromInline } from './image/image-source-bytes';
+	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import '../schema/container-raw';
 	import './built-in-blocks';
@@ -307,44 +303,6 @@
 		}
 	});
 
-	// ── Image popover ───────────────────────────────────────────────────
-
-	const imageEdit = createImageEditCommitter({
-		getDoc: () => doc,
-		getEditorEl: () => editorEl ?? null,
-		widgetSelection,
-		controller,
-		events
-	});
-
-	let imageOverlayEl: HTMLDivElement | undefined = $state();
-
-	$effect(() => {
-		if (!editorEl) return;
-		const root = editorEl;
-		const handlePointerDown = (e: PointerEvent) => {
-			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
-			widgetSelection.clear();
-		};
-		root.addEventListener('pointerdown', handlePointerDown);
-		return () => root.removeEventListener('pointerdown', handlePointerDown);
-	});
-
-	$effect(() => imageEdit.attachWidgetSelectListener());
-
-	$effect(() => imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null));
-
-	$effect(() => {
-		if (!editorEl) return;
-		installWidgetRangePainter({
-			editorRoot: editorEl,
-			getSelectionIsCustomRendered: () => selectionState.isCustomRendered,
-			getWidgetIsSelected: () => widgetSelection.getSelected() !== null,
-			lifetime: lifetimeController.signal
-		});
-	});
-
 	// Mirror SelectionState.isCrossBlock onto the editor root as
 	// `data-cross-block`. CSS uses this to hide the native caret / native
 	// selection highlight while the overlay paints the cross-block range.
@@ -444,28 +402,15 @@
 		getRef={getBlockRefSlot}
 		parentPath={[]}
 	/>
-	{#if widgetSelection.getSelected()}
-		{@const sel = widgetSelection.getSelected()!}
-		{@const ctx = imageEdit.getSelectedImageFields()}
-		{#if ctx?.widgetEl}
-			<div bind:this={imageOverlayEl} class="md-image-overlay" data-image-overlay>
-				<ImageResizeHandles
-					getWidgetEl={() => imageEdit.getSelectedImageFields()?.widgetEl ?? null}
-					editorContentWidth={imageEdit.getEditorContentWidth()}
-					editorEvents={events}
-					onCommit={imageEdit.commitImageResize}
-				/>
-				{#key `${sel.paragraphPath.join(',')}@${sel.sourceStart}`}
-					<ImageProperties
-						target={sel}
-						fields={imageFieldsFromInline(ctx.image)}
-						onCommit={imageEdit.commitImageEdit}
-						onDismiss={imageEdit.dismissImagePopover}
-					/>
-				{/key}
-			</div>
-		{/if}
-	{/if}
+	<ImageOverlayHost
+		{widgetSelection}
+		{controller}
+		{events}
+		{getDoc}
+		getEditorEl={() => editorEl ?? null}
+		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
+		lifetime={lifetimeController.signal}
+	/>
 </div>
 
 <style>
