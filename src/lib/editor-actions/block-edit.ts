@@ -172,8 +172,8 @@ export function createBlockEditActions(
 			// Out-of-ceremony in-place write: copy the node first when a snapshot
 			// shares it (once per keystroke batch — the copy is owned afterwards).
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			const result = performUpdate(deps.doc, blockIndex, text);
-			if (result.kindChanged) {
+			const change = performUpdate(deps.doc, blockIndex, text);
+			if (change.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				// performUpdate mutated the tree in place; commitStructural swaps the
 				// children array atomically so Svelte remounts at the new kind.
@@ -187,8 +187,8 @@ export function createBlockEditActions(
 					}
 				});
 			}
-			// Non-kindChanged: routine typing. The debounced snapshot above holds
-			// the undo seam; `input` edit events fire at debounce-flush time.
+			// Noop change (kind held): routine typing. The debounced snapshot above
+			// holds the undo seam; `input` edit events fire at debounce-flush time.
 		},
 
 		async updateBlockMetadata(
