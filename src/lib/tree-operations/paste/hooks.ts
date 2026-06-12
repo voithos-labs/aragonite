@@ -5,7 +5,7 @@
  */
 
 import { CURSOR_END } from '../../block-component';
-import type { BlockKind, CstNode } from '../../core/nodes';
+import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import {
@@ -80,6 +80,7 @@ export function defaultStructuralHook(
 // completed before this module's top-level executes. Plugin kinds registering
 // after this point must register their own paste surface.
 for (const kind of getAllRegisteredKinds()) {
+	if (!isBuiltinBlockKind(kind)) continue;
 	if (BESPOKE_SURFACE_KINDS.has(kind)) continue;
 	if (tryGetBlockKindDescriptor(kind)?.supportsInline) {
 		registerPasteSurface({
