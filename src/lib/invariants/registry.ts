@@ -1,7 +1,8 @@
-import type { BlockKind } from '../core/nodes';
+import type { AnyBlockKind, BlockKind } from '../core/nodes';
 import { ALL_BLOCK_KINDS } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { getBlockComponent } from '../schema/block-component-registry';
+import { listRegisteredOpeners } from '../schema/block-openers';
 import type { InvariantViolation } from './assert';
 
 /**
@@ -62,6 +63,38 @@ export function checkIsContainerIffRebuildRaw(
 				detail: { kind, isContainer, hasRebuildRaw }
 			};
 		}
+	}
+	return null;
+}
+
+/**
+ * G1.10 — opener-registry coherence: every registered opener belongs to a
+ * registered kind, and priorities are unique (equal priorities make dispatch
+ * order registration-dependent — a silent round-trip hazard).
+ */
+export function checkOpenerRegistry(
+	entries: { kind: AnyBlockKind; priority: number }[] = listRegisteredOpeners(),
+	hasDescriptor: (kind: AnyBlockKind) => boolean = (kind) =>
+		tryGetBlockKindDescriptor(kind) !== undefined
+): InvariantViolation | null {
+	const seen = new Map<number, AnyBlockKind>();
+	for (const { kind, priority } of entries) {
+		if (!hasDescriptor(kind)) {
+			return {
+				code: 'opener-registry',
+				message: `opener registered for "${kind}" but no descriptor exists`,
+				detail: { kind, missing: 'descriptor' }
+			};
+		}
+		const holder = seen.get(priority);
+		if (holder !== undefined) {
+			return {
+				code: 'opener-registry',
+				message: `kinds "${holder}" and "${kind}" share opener priority ${priority}`,
+				detail: { kinds: [holder, kind], priority }
+			};
+		}
+		seen.set(priority, kind);
 	}
 	return null;
 }

@@ -1,5 +1,5 @@
-// Paragraph-interruption guard lives in parseNextBlock, not here — the rule
-// is dispatch-context-sensitive, not a line-level match.
+// Paragraph-interruption guard is dispatch-context, not a line-level match —
+// it lives with the opener registration, not the matcher.
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
