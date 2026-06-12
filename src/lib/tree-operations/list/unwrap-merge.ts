@@ -13,7 +13,8 @@ import { rebuildListRaw, rebuildListItemRaw, rebuildAncestryRaw } from '../../sc
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
-import { assignIds, generateBlockId } from '../block-id';
+import { freshChildIds } from '../block-id';
+import { pushChild } from '../children';
 
 /**
  * Compute the result of unwrapping a list's first item under Rule U1.
@@ -78,7 +79,7 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 		raw: '',
 		metadata: clonedList.metadata ? { ...clonedList.metadata } : { ordered: parentOrdered },
 		children: remainingItems,
-		childIds: remainingItems.map(() => generateBlockId()),
+		childIds: freshChildIds(remainingItems),
 		innerPrefix: clonedList.innerPrefix ?? '',
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};
@@ -97,19 +98,6 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 
 	liftedBlocks.push(remainingList);
 	return liftedBlocks;
-}
-
-/**
- * Push a child into a container's `children` while keeping `childIds` in
- * lockstep. M1 mutates inner containers directly (not through the outer
- * commit scope), so the parallel id array would otherwise drift below
- * `children.length` and break Svelte's keyed-each rendering.
- */
-function appendChild(container: CstNode, child: CstNode): void {
-	if (!container.children) container.children = [];
-	if (!container.childIds) container.childIds = assignIds(container.children);
-	container.children.push(child);
-	container.childIds.push(generateBlockId());
 }
 
 /**
@@ -165,7 +153,7 @@ function relocateRemainingChildren(
 							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
 							item.leadingTrivia = '';
 							// discovered-descendant mutation, see node-ops.ts header
-							appendChild(depthOneList, item);
+							pushChild(depthOneList, item);
 						}
 						rebuildListRaw(depthOneList);
 						continue;
@@ -173,11 +161,11 @@ function relocateRemainingChildren(
 				}
 			}
 			// discovered-descendant mutation, see node-ops.ts header
-			appendChild(targetItem, child);
+			pushChild(targetItem, child);
 		} else {
 			child.leadingTrivia = '';
 			// discovered-descendant mutation, see node-ops.ts header
-			appendChild(targetItem, child);
+			pushChild(targetItem, child);
 		}
 	}
 }

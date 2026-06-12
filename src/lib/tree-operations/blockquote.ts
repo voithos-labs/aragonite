@@ -1,7 +1,7 @@
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-raw';
-import { generateBlockId } from './block-id';
+import { freshChildIds } from './block-id';
 
 /**
  * Compute the result of unwrapping a blockquote's first child (Rule U2).
@@ -36,7 +36,7 @@ export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
 		raw: '',
 		metadata: blockquote.metadata ? { ...blockquote.metadata } : undefined,
 		children: remainingChildren,
-		childIds: remainingChildren.map(() => generateBlockId()),
+		childIds: freshChildIds(remainingChildren),
 		innerPrefix: blockquote.innerPrefix ?? '',
 		innerSuffix: blockquote.innerSuffix ?? ''
 	};

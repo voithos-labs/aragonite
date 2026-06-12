@@ -9,7 +9,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
-import { generateBlockId } from '../block-id';
+import { freshChildIds } from '../block-id';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ export function assembleListHalf(
 		raw: '',
 		metadata: template.metadata ? { ...template.metadata } : { ordered: false },
 		children: items,
-		childIds: items.map(() => generateBlockId()),
+		childIds: freshChildIds(items),
 		innerPrefix: template.innerPrefix ?? '',
 		innerSuffix: template.innerSuffix ?? ''
 	};
@@ -64,7 +64,7 @@ export function buildListItemWithContent(template: CstNode, children: CstNode[])
 		metadata: template.metadata ? { ...template.metadata } : { marker: '- ' },
 		innerPrefix: template.innerPrefix ?? '',
 		children,
-		childIds: children.map(() => generateBlockId()),
+		childIds: freshChildIds(children),
 		innerSuffix: template.innerSuffix ?? ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
