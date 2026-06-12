@@ -20,10 +20,12 @@ import {
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	isItemUserEmpty,
-	normalizeReplacementTrivia,
-	stampStructuralChange,
-	type StructuralChange
+	normalizeReplacementTrivia
 } from '../tree-operations';
+import {
+	replacePreservingFirst,
+	stampStructuralChange
+} from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsOverrideFactory } from './nested-actions';
 
@@ -204,13 +206,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 							replacement
 						);
 						scope.children.splice(itemIndex, 1, ...normalizedReplacement);
-						const change: StructuralChange = {
-							op: 'replace',
-							at: itemIndex,
-							count: 1,
-							newCount: normalizedReplacement.length,
-							idMap: { 0: 0 }
-						};
+						const change = replacePreservingFirst(itemIndex, 1, normalizedReplacement.length);
 						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
 					},

@@ -31,6 +31,19 @@ export type StructuralChange =
 	  };
 
 /**
+ * Replace [at, at+count) with newCount items where the FIRST new item
+ * inherits the old first item's id + ref — preserving Svelte keyed identity
+ * (cursor, IME composition state) across the swap.
+ */
+export function replacePreservingFirst(
+	at: number,
+	count: number,
+	newCount: number
+): StructuralChange {
+	return { op: 'replace', at, count, newCount, idMap: { 0: 0 } };
+}
+
+/**
  * Stamp the nodes a change's insert/replace window CREATED as owned by the
  * live tree. Pre-existing nodes an op writes go through ensureUnsharedPath
  * instead (tree-operations/unshare.ts).

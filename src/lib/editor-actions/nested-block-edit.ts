@@ -23,10 +23,12 @@ import {
 	ensureEditableContainers,
 	ensureUnsharedChild,
 	rebuildOwnedContainer,
-	reconcileTaskMetadata,
-	stampStructuralChange,
-	type StructuralChange
+	reconcileTaskMetadata
 } from '../tree-operations';
+import {
+	replacePreservingFirst,
+	stampStructuralChange
+} from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { assertInvariant } from '../invariants/assert';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
@@ -383,16 +385,7 @@ export function createNestedBlockEdit(
 					);
 					for (const node of normalizedReplacement) ensureEditableContainers(node);
 					scope.children.splice(innerIndex, 1, ...normalizedReplacement);
-					// First replacement inherits the original block's id + ref;
-					// matches top-level replaceBlock contract so Svelte's keyed
-					// {#each} doesn't remount the leaf and lose IME state.
-					const change: StructuralChange = {
-						op: 'replace',
-						at: innerIndex,
-						count: 1,
-						newCount: normalizedReplacement.length,
-						idMap: { 0: 0 }
-					};
+					const change = replacePreservingFirst(innerIndex, 1, normalizedReplacement.length);
 					stampStructuralChange(scope.children, change, scope.sharing);
 					return change;
 				},
