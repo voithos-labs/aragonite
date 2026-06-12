@@ -246,6 +246,16 @@ $$
 $$
 ```
 
+- **Mermaid Diagrams:** Fenced code blocks with the `mermaid` language identifier render as diagrams.
+
+````markdown
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+```
+````
+
 - **Footnotes:** GitHub supports clickable, numbered references at the bottom of a document.
 
 ```markdown
