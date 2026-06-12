@@ -4,7 +4,7 @@
  */
 
 import type { Component } from 'svelte';
-import type { BlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import type { BlockComponent } from '../block-component';
 
 export interface BlockComponentEntry {
@@ -34,12 +34,12 @@ export function defineBlockComponent<P extends Record<string, unknown>>(
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
 
-const registry = new Map<BlockKind, BlockComponentEntry>();
+const registry = new Map<AnyBlockKind, BlockComponentEntry>();
 
-export function registerBlockComponent(kind: BlockKind, entry: BlockComponentEntry): void {
+export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
 	registry.set(kind, entry);
 }
 
-export function getBlockComponent(kind: BlockKind): BlockComponentEntry | undefined {
+export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {
 	return registry.get(kind);
 }

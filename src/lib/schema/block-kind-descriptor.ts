@@ -1,4 +1,4 @@
-import type { BlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 
 /**
@@ -81,11 +81,11 @@ function tableCellContentRange(node: CstNode): { start: number; end: number } {
 
 // ── Registry ────────────────────────────────────────────────────────────────
 
-const registry = new Map<BlockKind, BlockKindDescriptor>();
+const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-export function registerBlockKind(kind: BlockKind, descriptor: BlockKindDescriptor): void {
+export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
 	registry.set(kind, descriptor);
 }
 
@@ -95,7 +95,7 @@ export function registerBlockKind(kind: BlockKind, descriptor: BlockKindDescript
  * without creating an import cycle. Throws when the kind isn't already
  * registered — no accidental creation via partial data.
  */
-export function augmentBlockKind(kind: BlockKind, fields: Partial<BlockKindDescriptor>): void {
+export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
 	const existing = registry.get(kind);
 	if (!existing) {
 		throw new Error(
@@ -106,7 +106,7 @@ export function augmentBlockKind(kind: BlockKind, fields: Partial<BlockKindDescr
 	registry.set(kind, { ...existing, ...fields });
 }
 
-export function getBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor {
+export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {
 	const d = registry.get(kind);
 	if (!d) {
 		throw new Error(
@@ -117,12 +117,12 @@ export function getBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor {
 	return d;
 }
 
-export function tryGetBlockKindDescriptor(kind: BlockKind): BlockKindDescriptor | undefined {
+export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
 	return registry.get(kind);
 }
 
 /** Every kind currently registered. Caller must not mutate. */
-export function getAllRegisteredKinds(): BlockKind[] {
+export function getAllRegisteredKinds(): AnyBlockKind[] {
 	return Array.from(registry.keys());
 }
 
