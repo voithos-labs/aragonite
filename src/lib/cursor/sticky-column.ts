@@ -16,11 +16,12 @@
  *
  * 2. Consumption (caller-reads-and-passes). When a cross-block focus
  *    transition runs through moveFocus({ stickyColumnFrom }), the focus
- *    dispatcher (editor-actions/focus.ts or editor-actions/focus-dispatch.ts)
- *    reads stickyColumn.get(), null-checks, and either invokes
- *    focusAtColumn(x, from) with the finite x or falls back to
- *    focus(0) / focus(CURSOR_END). Target blocks' focusAtColumn is a pure
- *    receiver — x is always finite; null-handling lives in the dispatcher.
+ *    dispatchers route the landing through consumeStickyLanding
+ *    (editor-actions/focus-landing.ts), which reads stickyColumn.get(),
+ *    null-checks, and either invokes focusAtColumn(x, from) with the finite x
+ *    or falls back to focus(0) / focus(CURSOR_END). Target blocks'
+ *    focusAtColumn is a pure receiver — x is always finite; null-handling
+ *    lives in the landing helper.
  */
 
 export interface StickyColumnState {

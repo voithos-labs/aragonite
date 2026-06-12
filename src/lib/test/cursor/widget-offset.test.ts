@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { findRawOffsetTarget, rawOffsetAtNode } from '../../cursor/widget-offset';
+import {
+	containerRawLength,
+	findRawOffsetTarget,
+	rawOffsetAtNode,
+	rawTextOfNode
+} from '../../cursor/widget-offset';
 
 describe('findRawOffsetTarget — widget boundary placement', () => {
 	let el: HTMLElement;
@@ -113,5 +118,20 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		expect(rawOffsetAtNode(el, trailing, 0)).toBe(10);
 		// Caret in leading sentinel at offset 0 corresponds to raw 0.
 		expect(rawOffsetAtNode(el, leading, 0)).toBe(0);
+	});
+});
+
+describe('malformed widget source range', () => {
+	it('widget missing data-source-end contributes zero length and empty raw text', () => {
+		const el = document.createElement('div');
+		const w = document.createElement('span');
+		w.setAttribute('data-inline-widget', '');
+		w.setAttribute('data-source-start', '0');
+		const text = document.createTextNode('ab');
+		el.append(w, text);
+
+		expect(rawTextOfNode(w, '0123456789')).toBe('');
+		expect(rawTextOfNode(el, '0123456789')).toBe('ab');
+		expect(containerRawLength(el)).toBe(2);
 	});
 });

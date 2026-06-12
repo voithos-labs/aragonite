@@ -11,6 +11,7 @@ import {
 	type StickyColumnDirection
 } from '../block-component';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import { consumeStickyLanding } from './focus-landing';
 
 /**
  * Move focus within a container, or delegate upward when out of range.
@@ -42,44 +43,9 @@ export async function dispatchMoveFocus(
 	const block = refs[innerIndex];
 	if (!block?.focusable) return;
 
-	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
-
-	// Vertical-only skip: blocks that hold only widgets contribute no column
-	// landing, so ArrowUp/Down passes through to the next block in the same
-	// direction. Horizontal moves still stop at the widget edge / select it.
-	if (isStickyMove && block.isVerticallyTransparent?.()) {
-		const direction = position.stickyColumnFrom === 'below' ? -1 : 1;
-		await dispatchMoveFocus(
-			refs,
-			innerIndex + direction,
-			position,
-			stickyColumn,
-			parent,
-			childCount
-		);
-		return;
-	}
-
-	// Horizontal cross-block landing: prefer widget select over a no-op caret
-	// at the widget's edge — gives ArrowLeft a single visible step instead of
-	// "land on edge, press again to select".
-	if (position === 'start' && block.selectEdgeWidget?.('start')) return;
-	if (position === 'end' && block.selectEdgeWidget?.('end')) return;
-
-	if (isStickyMove) {
-		const x = stickyColumn.get();
-		const from = position.stickyColumnFrom;
-		if (x !== null && block.focusAtColumn) {
-			block.focusAtColumn(x, from);
-			return;
-		}
-		block.focus(from === 'above' ? 0 : CURSOR_END);
-		return;
-	}
-
-	if (typeof position === 'number') block.focus(position);
-	else if (position === 'start') block.focus(0);
-	else block.focus(CURSOR_END);
+	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
+		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount)
+	);
 }
 
 export function dispatchFocusByPath(
