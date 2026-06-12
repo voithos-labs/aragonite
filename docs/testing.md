@@ -175,10 +175,10 @@ Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directo
 
 Two layers measure editor performance over shared deterministic fixtures:
 
-| Layer   | Runner                               | Command               | Measures                                                                |
-| ------- | ------------------------------------ | --------------------- | ----------------------------------------------------------------------- |
-| Bench   | Vitest bench (`*.bench.ts`)          | `npm run perf:editor` | Parse / clone / ancestry-rebuild timings → `perf-results/` (gitignored) |
-| Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium    |
+| Layer   | Runner                               | Command               | Measures                                                                                |
+| ------- | ------------------------------------ | --------------------- | --------------------------------------------------------------------------------------- |
+| Bench   | Vitest bench (`*.bench.ts`)          | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/` (gitignored) |
+| Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                    |
 
 `npm run perf` runs both. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/editor/e2e/requirements/perf/typing-latency.md`.
 

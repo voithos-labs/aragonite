@@ -56,6 +56,17 @@ describe('UndoManager', () => {
 		expect(serialize(redone!.snapshot)).toBe('After\n');
 	});
 
+	it('peekUndo returns the top entry without consuming it', () => {
+		const manager = createUndoManager();
+		expect(manager.peekUndo()).toBeNull();
+		manager.push(makeEntry('A\n'));
+		manager.push(makeEntry('B\n'));
+		expect(serialize(manager.peekUndo()!.snapshot)).toBe('B\n');
+		expect(serialize(manager.peekUndo()!.snapshot)).toBe('B\n');
+		manager.undo(CURRENT);
+		expect(serialize(manager.peekUndo()!.snapshot)).toBe('A\n');
+	});
+
 	it('new push after undo clears the redo stack', () => {
 		const manager = createUndoManager();
 		manager.push(makeEntry('A\n'));

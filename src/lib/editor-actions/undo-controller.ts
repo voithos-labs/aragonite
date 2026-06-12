@@ -318,8 +318,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// G1.9 commit seam: a missed copy-path-on-write in this commit's
 			// mutations corrupts the freshest entry — catch it here, not at
 			// some distant undo.
-			const undoStack = deps.undoManager.getStacks().undo;
-			assertUndoTopIntegrity(undoStack[undoStack.length - 1]);
+			assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
 		}
 
 		if (args.op) {
