@@ -145,6 +145,55 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 	}
 }
 
+// ── Shared deletion-path ceremony ───────────────────────────────────────────
+// The cross-block cases interleave replaceAtPath differently (case 1 after
+// deletes, case 2 before — see its ordering comment), so the steps stay
+// separate helpers the cases sequence explicitly.
+
+/** Strictly-between subtree roots, plus endpoint paths the caller marks for removal. */
+function collectDeletionPaths(
+	doc: Document,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	endpointPaths: number[][]
+): number[][] {
+	const between = walkBetween(doc, start.path, end.path).filter((p) =>
+		isPathSubtreeBetween(p, start.path, end.path)
+	);
+	return [...between, ...endpointPaths];
+}
+
+/** Own every deletion path's parent spine before any splice (G1.9). */
+function ownDeletionParents(doc: Document, deletionPaths: number[][], sharing: SharingState): void {
+	for (const path of deletionPaths) {
+		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
+	}
+}
+
+/** Delete in reverse doc order so earlier indices don't shift later targets. */
+function deleteInReverseDocOrder(doc: Document, deletionPaths: number[][]): void {
+	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
+	for (const path of reverseSorted) {
+		deleteAtPath(doc, path);
+	}
+}
+
+function cascadeCleanupAll(doc: Document, deletionPaths: number[][], lcaPath: number[]): void {
+	for (const path of deletionPaths) {
+		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
+	}
+}
+
+function rebuildDeletionAncestries(
+	doc: Document,
+	deletionPaths: number[][],
+	sharing: SharingState
+): void {
+	for (const path of deletionPaths) {
+		rebuildUnsharedAncestry(doc, path, sharing);
+	}
+}
+
 // ── Case 1: prose start, table end ─────────────────────────────────────────
 
 function deleteFromProseIntoTable(
@@ -162,33 +211,22 @@ function deleteFromProseIntoTable(
 
 	const result = deleteCellsAndCollapse(table, 0, end.offset);
 
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
+	const deletionPaths = collectDeletionPaths(
+		doc,
+		start,
+		end,
+		result === 'tableEmpty' ? [end.path] : []
 	);
-	const deletionPaths: number[][] = [...betweenPaths];
-	if (result === 'tableEmpty') deletionPaths.push(end.path);
-
-	for (const path of deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-
+	ownDeletionParents(doc, deletionPaths, sharing);
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
-	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSorted) {
-		deleteAtPath(doc, path);
-	}
 
+	deleteInReverseDocOrder(doc, deletionPaths);
 	replaceAtPath(doc, start.path, truncatedReplacement);
-
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-	}
+	cascadeCleanupAll(doc, deletionPaths, lcaPath);
 
 	if (result === 'tableSurvives') rebuildOwnedContainer(table, sharing);
 	rebuildUnsharedAncestry(doc, start.path, sharing);
-	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
-	}
+	rebuildDeletionAncestries(doc, deletionPaths, sharing);
 	if (result === 'tableSurvives') rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
 
 	return {
@@ -217,31 +255,21 @@ function deleteFromTableIntoProse(
 	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
 	for (const node of tailReplacement) sharing.stamp(node);
 
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
+	const deletionPaths = collectDeletionPaths(
+		doc,
+		start,
+		end,
+		tableResult === 'tableEmpty' ? [start.path] : []
 	);
-	const deletionPaths: number[][] = [...betweenPaths];
-	if (tableResult === 'tableEmpty') deletionPaths.push(start.path);
-
-	for (const path of deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-
+	ownDeletionParents(doc, deletionPaths, sharing);
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	// Replace end first: its path is later in doc order, so deleting strictly-
 	// between doesn't shift it. Then delete strictly-between in reverse, then
 	// optionally start.path.
 	replaceAtPath(doc, end.path, tailReplacement);
-
-	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSorted) {
-		deleteAtPath(doc, path);
-	}
-
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-	}
+	deleteInReverseDocOrder(doc, deletionPaths);
+	cascadeCleanupAll(doc, deletionPaths, lcaPath);
 
 	const tailPath = survivorPath(doc, tailReplacement[0]);
 
@@ -250,9 +278,7 @@ function deleteFromTableIntoProse(
 		rebuildUnsharedAncestry(doc, start.path, sharing);
 	}
 	rebuildUnsharedAncestry(doc, tailPath, sharing);
-	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
-	}
+	rebuildDeletionAncestries(doc, deletionPaths, sharing);
 
 	// Spec § Cross-block delete Case 2: when the table is fully consumed, the
 	// caret lands at the start of the reparsed surviving tail — never the
@@ -301,26 +327,15 @@ function deleteAcrossTwoTables(
 	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
 	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset);
 
-	const betweenPaths = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
-	);
-	const deletionPaths: number[][] = [...betweenPaths];
-	if (startResult === 'tableEmpty') deletionPaths.push(start.path);
-	if (endResult === 'tableEmpty') deletionPaths.push(end.path);
-
-	for (const path of deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-
+	const emptiedEndpoints: number[][] = [];
+	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);
+	if (endResult === 'tableEmpty') emptiedEndpoints.push(end.path);
+	const deletionPaths = collectDeletionPaths(doc, start, end, emptiedEndpoints);
+	ownDeletionParents(doc, deletionPaths, sharing);
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
-	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSorted) {
-		deleteAtPath(doc, path);
-	}
 
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-	}
+	deleteInReverseDocOrder(doc, deletionPaths);
+	cascadeCleanupAll(doc, deletionPaths, lcaPath);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 
@@ -332,9 +347,7 @@ function deleteAcrossTwoTables(
 		rebuildOwnedContainer(endTable, sharing);
 		rebuildUnsharedAncestry(doc, endTablePath, sharing);
 	}
-	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
-	}
+	rebuildDeletionAncestries(doc, deletionPaths, sharing);
 
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {
