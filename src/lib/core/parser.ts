@@ -7,15 +7,9 @@
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
-import { matchFenceOpen, parseFencedCode } from './parsers/fenced-code';
-import { matchHeading } from './parsers/heading';
-import { matchThematicBreak } from './parsers/thematic-break';
-import { matchBlockquote, parseBlockquote } from './parsers/blockquote';
-import { matchListItem, parseList } from './parsers/list';
-import { matchIndentedCode, parseIndentedCode } from './parsers/indented-code';
-import { matchHtmlBlock, parseHtmlBlock } from './parsers/html-block';
-import { parseLinkReferenceDefinition } from './parsers/link-reference';
+import { getOrderedOpeners, type OpenContext } from '../schema/block-openers';
 import { parseParagraph } from './parsers/paragraph';
+import './parsers/built-in-openers';
 
 // ── Public entry point ──────────────────────────────────────────────────
 
@@ -55,6 +49,18 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 		index++;
 	}
 
+	if (index === end) return { prefix, children, suffix: pendingTrivia };
+
+	// Reused across the loop — openers must not retain it.
+	const ctx: OpenContext = {
+		lines,
+		index,
+		end,
+		line: lines[index],
+		leadingTrivia: '',
+		isFirstInWindow: true
+	};
+
 	while (index < end) {
 		const line = lines[index];
 
@@ -64,13 +70,11 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 			continue;
 		}
 
-		const { node, nextIndex } = parseNextBlock(
-			lines,
-			index,
-			end,
-			pendingTrivia,
-			children.length === 0
-		);
+		ctx.index = index;
+		ctx.line = line;
+		ctx.leadingTrivia = pendingTrivia;
+		ctx.isFirstInWindow = children.length === 0;
+		const { node, nextIndex } = parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
 		index = nextIndex;
@@ -81,61 +85,13 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 
 // ── Dispatch ────────────────────────────────────────────────────────────
 
-function parseNextBlock(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	isFirstBlock: boolean = false
-): { node: CstNode; nextIndex: number } {
-	const line = lines[startIndex];
-
-	const fence = matchFenceOpen(line.text);
-	if (fence) {
-		return parseFencedCode(lines, startIndex, endIndex, leadingTrivia, fence);
+function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } {
+	for (const opener of getOrderedOpeners()) {
+		const result = opener.tryOpen(ctx);
+		if (result) return result;
 	}
-
-	const heading = matchHeading(line.text);
-	if (heading) {
-		return {
-			node: { kind: 'heading', leadingTrivia, raw: line.raw, metadata: { level: heading.level } },
-			nextIndex: startIndex + 1
-		};
-	}
-
-	// Setext heading's `---` underline is disambiguated inside parseParagraph.
-	const thematic = matchThematicBreak(line.text);
-	if (thematic) {
-		return {
-			node: { kind: 'thematicBreak', leadingTrivia, raw: line.raw, metadata: { marker: thematic } },
-			nextIndex: startIndex + 1
-		};
-	}
-
-	if (matchBlockquote(line.text)) {
-		return parseBlockquote(lines, startIndex, endIndex, leadingTrivia);
-	}
-
-	const listItem = matchListItem(line.text);
-	if (listItem) {
-		return parseList(lines, startIndex, endIndex, leadingTrivia);
-	}
-
-	// Indented code cannot interrupt a paragraph (GFM §4.4) — a dispatch-time
-	// context check, not a line-level match, so it lives here not in the matcher.
-	if (matchIndentedCode(line.text) && (leadingTrivia.length > 0 || isFirstBlock)) {
-		return parseIndentedCode(lines, startIndex, endIndex, leadingTrivia);
-	}
-
-	if (matchHtmlBlock(line.text) !== null) {
-		return parseHtmlBlock(lines, startIndex, endIndex, leadingTrivia);
-	}
-
-	const linkRef = parseLinkReferenceDefinition(lines, startIndex, endIndex, leadingTrivia);
-	if (linkRef) return linkRef;
-
-	// Paragraph fallback also detects setext headings and tables.
-	return parseParagraph(lines, startIndex, endIndex, leadingTrivia);
+	// Paragraph is the total fallback; it also detects setext headings and tables.
+	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 }
 
 // ── Shared utilities ────────────────────────────────────────────────────
