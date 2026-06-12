@@ -57,6 +57,20 @@ Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root dir
 
 Containers rebuild their `raw` from their inner children after every structural mutation. The `rebuildRaw` callback passed to `createStandardNestedActions` is the kind-specific rebuild helper (`rebuildBlockquoteRaw`, `rebuildListRaw`, etc.).
 
+### The Owned-Scope Contract
+
+Undo snapshots share the live tree's nodes, so a container commit hands its `mutate` an owned `ContainerScope` — the container already copied out of sharing, with its working `children` attached. Write through `scope.node` / `scope.children`, never through references captured before the commit; those may be snapshot-shared originals, and writing through them corrupts undo history (invariant G1.9).
+
+```ts
+// wrong — `node` (the component prop) may still be shared with an undo entry
+mutate: (scope) => deleteNode(node, index, scope.sharing);
+
+// right — the scope view is yours to mutate
+mutate: (scope) => deleteNode(scope.node, index, scope.sharing);
+```
+
+The same rule covers `commitMultiScope`'s per-scope views. Writes outside a commit (e.g. raw sync after routine typing) go through `withUnsharedSpine`.
+
 ### Interactive Ambient Markers
 
 A container's `ambientPrefix` can be inert text (the default) or carry interactive character ranges — clickable regions inside the read-only prefix. See the `AmbientPrefix` contract in `docs/design/editor/editor.md`.
