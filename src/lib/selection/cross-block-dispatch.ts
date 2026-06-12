@@ -77,8 +77,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		getBlockElByPath: ctx.getBlockElByPath,
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
-			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		notifyDocMutated: () => ctx.containerEdit.nudgeReactivity()
+			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0)
 	};
 
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);

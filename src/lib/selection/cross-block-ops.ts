@@ -42,8 +42,6 @@ export interface CrossBlockMutationContext {
 	controller: UndoController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
-	/** Trigger top-level reactivity (sync variant and legacy paths). */
-	notifyDocMutated: () => void;
 }
 
 /**
@@ -106,26 +104,15 @@ export async function performCrossBlockDelete(
 }
 
 /**
- * Synchronous variant for compositionstart — no await, no caret restore.
- * compositionstart handlers cannot await (the IME swallows the composition
- * if we yield), so this stays on the legacy snapshot + mutate + notify path.
- *
- * Known limitation: unlike the commit primitive, this skips StructuralChange
- * id/ref maintenance. After a cross-block composition-delete that leaves
- * surviving blocks, the shell blockIds (and nested childIds) drift from
- * children — the keyed {#each} re-keys survivors, causing component churn and
- * stale refs (no content corruption). Accepted for this rare path; a full fix
- * would sync ids/refs here. See forge-review finding C2.
+ * compositionstart variant — the IME swallows the composition if the handler
+ * yields, so this must not await. The commit ceremony runs snapshot, mutate
+ * (which collapses the selection), publish, and the edit event synchronously,
+ * suspending only at its post-publish `await tick()` — so firing the async
+ * path without awaiting keeps the whole delete inside the no-await window.
+ * Caret restore stays skipped: the IME inserts at the browser's caret.
  */
-export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): SelectionPoint | null {
-	const { start, end } = resolveStartEnd(ctx.selection);
-	if (!start || !end) return null;
-
-	ctx.pushUndoSnapshot();
-	const { collapsedCaret } = rangeDelete(ctx.getDoc(), start, end, ctx.controller.sharing);
-	ctx.selection.collapse();
-	ctx.notifyDocMutated();
-	return collapsedCaret;
+export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
+	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
@@ -327,16 +314,13 @@ async function commitColumnDelete(
 			// Row scopes own every row, so the column splices land in owned
 			// arrays; raws rebuild on the owned chains after mutate.
 			const ownedTable = scopeViews[0].node;
-			mutDeleteColumn(ownedTable, colIdx);
+			const rowChanges = mutDeleteColumn(ownedTable, colIdx);
 
 			const newColumnCount = metadataOf(ownedTable, 'table').columnCount;
 			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();
 
-			const rowChanges = (ownedTable.children ?? []).map(
-				() => ({ op: 'delete', at: colIdx, count: 1 }) satisfies StructuralChange
-			);
 			return [{ op: 'noop' }, ...rowChanges];
 		},
 		op: {
