@@ -28,7 +28,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
-			source: 'test'
+			source: 'paste-dispatch'
 		});
 
 		const ids = harness.getBlockIds();
@@ -50,7 +50,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
-			source: 'test'
+			source: 'paste-dispatch'
 		});
 
 		const ids = harness.getBlockIds();
@@ -73,7 +73,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
-			source: 'test'
+			source: 'paste-dispatch'
 		});
 
 		expect(harness.doc.children).toHaveLength(2);
@@ -98,7 +98,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
-			source: 'test'
+			source: 'paste-dispatch'
 		});
 
 		expect(harness.getBlockIds()[0]).not.toBe(originalId);

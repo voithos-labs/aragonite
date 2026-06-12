@@ -240,7 +240,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, 1)
 					];
 				},
-				op: { kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] },
+				op: {
+					kind: 'split',
+					detail: { at: offset, itemIndex, innerIndex },
+					eventPath: [deps.index]
+				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
 				}

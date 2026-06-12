@@ -5,6 +5,7 @@
  */
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
+import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
@@ -80,7 +81,7 @@ export function createTableMutationsContext(
 
 	async function commitColumnEdit(opts: {
 		mutateColumns: (table: CstNode) => StructuralChange[];
-		op: { kind: 'tableInsertColumn' | 'tableDeleteColumn'; detail: Record<string, unknown> };
+		op: Extract<OpDescriptor, { kind: 'tableInsertColumn' | 'tableDeleteColumn' }>;
 		afterTick: () => void;
 	}): Promise<void> {
 		const { index, myPath, controller } = deps;
@@ -100,7 +101,7 @@ export function createTableMutationsContext(
 				);
 				return [{ op: 'noop' }, ...opts.mutateColumns(tableScope.node)];
 			},
-			op: { kind: opts.op.kind, detail: opts.op.detail, eventPath: [...myPath] },
+			op: { ...opts.op, eventPath: [...myPath] },
 			afterTick: opts.afterTick
 		});
 	}

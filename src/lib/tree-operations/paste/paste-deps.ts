@@ -5,7 +5,8 @@
  * backwards import from `tree-operations/paste/* -> editor-actions/`.
  */
 
-import type { ContainerScope, OperationKind } from '../../action-contracts';
+import type { ContainerScope } from '../../action-contracts';
+import type { ScopedOpDescriptor } from '../../schema/operations';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { SharingState } from '../../undo/sharing';
@@ -30,7 +31,7 @@ export interface CommitMultiScopeArgs<
 	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
 		readonly [K in keyof S]: StructuralChange;
 	};
-	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
+	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 }
 

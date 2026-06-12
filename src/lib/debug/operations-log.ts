@@ -1,6 +1,6 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
-import type { OperationKind } from '../action-contracts';
+import type { OperationKind } from '../schema/operations';
 
 export interface OperationEntry {
 	op: OperationKind;

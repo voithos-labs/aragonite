@@ -25,8 +25,8 @@ import type {
 	EditorActionsDeps,
 	UndoController
 } from './deps';
-import type { OpDescriptor } from '../action-contracts';
-import type { EditEvent } from '../editor-events';
+import type { OpDescriptor } from '../schema/operations';
+import { toEditEvent } from '../editor-events';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
@@ -250,14 +250,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 
 		if (args.op) {
-			// Cast: the centralized emitter sees `kind: OperationKind` and `detail: Record<string, unknown> | undefined`,
-			// which TS can't narrow into the per-arm shapes of EditEvent. Subscribers still get a discriminated union.
-			deps.events.emit('edit', {
-				op: args.op.kind,
-				path: args.eventPath,
-				detail: args.op.detail,
-				timestamp: Date.now()
-			} as EditEvent);
+			deps.events.emit('edit', toEditEvent(args.op, args.eventPath, Date.now()));
 		}
 
 		await tick();
@@ -407,7 +400,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
 				deps.doc.children = [...deps.doc.children];
 			},
-			op: op ? { kind: op.kind, detail: op.detail } : undefined,
+			op,
 			eventPath: op?.eventPath ?? [],
 			afterTick,
 			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
