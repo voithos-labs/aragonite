@@ -7,7 +7,7 @@
  * are stamped.
  */
 
-import type { BlockEditActions } from '../action-contracts';
+import type { BlockEditActions, UndoEntryMode } from '../action-contracts';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -291,7 +291,7 @@ export function createNestedBlockEdit(
 		async updateBlockMetadata(
 			innerIndex: number,
 			metadata: Record<string, unknown>,
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 			const fields = Object.keys(metadata);
@@ -301,7 +301,7 @@ export function createNestedBlockEdit(
 				containerNode: deps.node,
 				path: deps.path,
 				state,
-				snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: deps.index, offset: 0 },
+				snapshot: options?.undoEntry === 'join' ? 'skip' : { blockIndex: deps.index, offset: 0 },
 				mutate: (scope) => {
 					const node = ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
@@ -324,7 +324,7 @@ export function createNestedBlockEdit(
 			offset: number,
 			blocks: CstNode[],
 			preDelete?: { start: number; end: number },
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
@@ -358,15 +358,14 @@ export function createNestedBlockEdit(
 			innerIndex: number,
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number },
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			// skipSnapshot: caller already pushed a snapshot covering the whole
+			// 'join': caller already pushed a snapshot covering the whole
 			// delete-then-paste — skip to avoid duplicating the entry.
-			const snapshot = options?.skipSnapshot
-				? ('skip' as const)
-				: { blockIndex: deps.index, offset: 0 };
+			const snapshot =
+				options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: deps.index, offset: 0 };
 
 			await parent.containerEdit.commitContainer({
 				containerNode: deps.node,

@@ -1,7 +1,7 @@
 /**
- * Undo/snapshot controller. Owns the keystroke-debounce timer and the
- * "needs new checkpoint" flag; exposes snapshot pushers and commit
- * primitives that wrap structural mutations with undo + reactivity ceremony.
+ * Undo/snapshot controller. Exposes snapshot pushers and commit primitives
+ * that wrap structural mutations with undo + reactivity ceremony; the
+ * keystroke-batch lifecycle is delegated to text-batch.ts.
  */
 
 import { tick } from 'svelte';
@@ -16,10 +16,12 @@ import { pathsEqual } from '../selection/path-math';
 import { assertInvariant } from '../invariants/assert';
 import { nodeAt } from '../tree-operations/node-ops';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
+import { createTextBatch } from './text-batch';
 import type {
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
 	CommitStructuralArgs,
+	ContainerScope,
 	EditorActionsDeps,
 	UndoController
 } from './deps';
@@ -46,24 +48,6 @@ export interface MultiScopeTarget {
 	state: BlockListState;
 	path: number[];
 }
-
-/**
- * Mutable view of one scope. `node` is the OWNED (unshared) scope node with
- * `children` attached — mutate through it, never through pre-commit captures.
- * Return a StructuralChange[] (one per scope, same order); the primitive
- * applies descriptors to ids/refs.
- */
-export interface MultiScopeMutable {
-	children: CstNode[];
-	node: CstNode;
-}
-
-/**
- * Keystroke-batch window. 500 ms reverted entire half-words at typical typing
- * speeds; 250 ms roughly matches Obsidian. Word-boundary flushing (like VS Code
- * / Google Docs) is a potential refinement.
- */
-const UNDO_DEBOUNCE_MS = 250;
 
 // ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
 
@@ -94,18 +78,6 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 }
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
-	let undoDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	// Per-leaf identity for batch-break detection. Stable string id (preferred,
-	// supplied for container scopes) or numeric blockIndex (top-level fallback).
-	// Container typing must not key on the outer container's index — sibling
-	// leaves inside one container would share a batch across focus moves.
-	let lastUndoBatchKey: string | number = -1;
-	// When true, the next keystroke captures a "before" snapshot.
-	let needsUndoCheckpoint = true;
-	// Batch tracking for input-event emission on debounce flush.
-	let batchBlockIndex = -1;
-	let batchByteLength = 0;
-
 	// ── Selection helpers ─────────────────────────────────────────────────────
 
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
@@ -177,55 +149,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		recordSnapshotPerf();
 	}
 
-	/**
-	 * Emit the pending typing batch as one input event, then drop the batch
-	 * state. Must run before anything discards or repoints the batch —
-	 * otherwise observers under-count keystrokes and the inline sweep never
-	 * refreshes the batch's subtree with a resolver.
-	 */
-	function flushPendingInputBatch(): void {
-		if (batchByteLength > 0 && batchBlockIndex >= 0) {
+	const textBatch = createTextBatch({
+		pushSnapshot: pushUndoSnapshotAt,
+		emitInput: (blockIndex, byteLength) =>
 			deps.events.emit('edit', {
 				op: 'input',
-				path: [batchBlockIndex],
-				detail: { byteLength: batchByteLength },
+				path: [blockIndex],
+				detail: { byteLength },
 				timestamp: Date.now()
-			});
-		}
-		batchBlockIndex = -1;
-		batchByteLength = 0;
-	}
-
-	/**
-	 * First keystroke of each batch captures a snapshot; subsequent keystrokes
-	 * reset the debounce.
-	 *
-	 * `setTimeout` is intentional despite the editor's "no setTimeout for
-	 * sequencing" rule — this is wall-clock pause detection, not async
-	 * ordering. `await tick()` is microtask-grained and can't express "user
-	 * has stopped typing for ~250ms."
-	 */
-	function pushUndoSnapshotDebounced(
-		blockIndex: number,
-		offset: number,
-		batchKey?: string | number
-	): void {
-		const key = batchKey ?? blockIndex;
-		if (lastUndoBatchKey !== key || needsUndoCheckpoint) {
-			flushPendingInputBatch();
-			pushUndoSnapshotAt(blockIndex, offset);
-			lastUndoBatchKey = key;
-			batchBlockIndex = blockIndex;
-			needsUndoCheckpoint = false;
-		}
-		batchByteLength++;
-		if (undoDebounceTimer) clearTimeout(undoDebounceTimer);
-		undoDebounceTimer = setTimeout(() => {
-			needsUndoCheckpoint = true;
-			undoDebounceTimer = null;
-			flushPendingInputBatch();
-		}, UNDO_DEBOUNCE_MS);
-	}
+			})
+	});
 
 	// ── Internal commit primitive ────────────────────────────────────────────
 	/**
@@ -284,16 +217,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	async function __commit(args: CommitArgs): Promise<void> {
 		deps.stickyColumn.reset();
-		if (undoDebounceTimer) {
-			clearTimeout(undoDebounceTimer);
-			undoDebounceTimer = null;
-			flushPendingInputBatch();
-		}
+		textBatch.interrupt();
 
 		if (args.snapshot !== 'skip') {
 			pushUndoSnapshot(args.snapshot.blockIndex, args.snapshot.offset);
 		}
-		needsUndoCheckpoint = true;
 
 		if (args.kind === 'document') {
 			const childrenCopy = [...deps.doc.children];
@@ -361,56 +289,80 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	/**
-	 * Container-scoped commit wrapper. The primitive owns copy-path-on-write:
-	 * it unshares the spine to `path`, hands `mutate` the OWNED container with
-	 * its working children array already attached, then syncs childIds/refs
-	 * from the returned StructuralChange and rebuilds the spine's raws.
-	 * childIds are written on the owned node (NOT through the state bundle —
-	 * the bundle's setter targets the component's still-stale node prop, which
-	 * the snapshot shares).
-	 */
+	/** Single-scope case of commitMultiScope; kept as a named entry for its callers. */
 	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
 		const { containerNode, path, state, snapshot, mutate, op, afterTick } = args;
-		let owned = containerNode;
-		await __commit({
-			kind: 'container',
+		await commitMultiScope({
+			scopes: [{ node: containerNode, state, path }],
 			snapshot,
-			mutate: () => {
-				assertInvariant('container-commit-path', () =>
-					nodeAt(deps.doc, path) === containerNode
-						? null
-						: {
-								code: 'container-commit-path',
-								message: `commitContainerStructural: path [${path.join(',')}] does not resolve to containerNode (${containerNode.kind})`
-							}
-				);
-				const chain = ensureUnsharedPath(deps.doc, path, deps.sharing);
-				owned = chain[chain.length - 1] ?? containerNode;
-				const idsCopy = [...(owned.childIds ?? [])];
-				const refsCopy = [...state.innerBlockRefs];
-				// Fresh working array assigned through the node, then re-read —
-				// write-then-re-read contract (tree-operations/unshare.ts header).
-				owned.children = [...(owned.children ?? [])];
-				const children = owned.children!;
-				const change = mutate({ node: owned, children, sharing: deps.sharing });
-				applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
-				owned.childIds = idsCopy;
-				state.innerBlockRefs = refsCopy;
-				rebuildUnsharedChain(chain, deps.sharing);
-			},
-			publish: () => {
-				// Nudge top-level reactivity so ancestor-raw mutations propagate.
-				deps.doc.children = [...deps.doc.children];
-			},
-			op: op ? { kind: op.kind, detail: op.detail } : undefined,
-			eventPath: op?.eventPath ?? [],
-			afterTick,
-			touchedNodes: () => [owned]
+			mutate: ([scope]) => [mutate(scope)],
+			op,
+			afterTick
 		});
 	}
 
 	// ── Multi-scope structural commit ────────────────────────────────────────
+
+	interface PreparedScope {
+		target: MultiScopeTarget;
+		isDoc: boolean;
+		chain: CstNode[];
+		owned: CstNode;
+		view: ContainerScope;
+		ids: string[];
+		refs: (BlockComponent | undefined)[];
+	}
+
+	/**
+	 * Resolve one scope into an owned mutation view: verify the path still
+	 * resolves to the scope node, unshare its spine, attach a working children
+	 * array (write-then-re-read contract — tree-operations/unshare.ts header),
+	 * and copy ids/refs for descriptor application.
+	 */
+	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
+		const isDoc = (s.node as unknown) === (deps.doc as unknown);
+		if (!isDoc) {
+			// A stale-but-in-range path would unshare and rebuild the wrong spine.
+			assertInvariant('multi-scope-commit-path', () =>
+				nodeAt(deps.doc, s.path) === s.node
+					? null
+					: {
+							code: 'multi-scope-commit-path',
+							message: `commit: path [${s.path.join(',')}] does not resolve to scope node (${s.node.kind})`
+						}
+			);
+		}
+		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
+		const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
+		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
+		const refs = [...s.state.innerBlockRefs];
+		owned.children = [...(owned.children ?? [])];
+		return {
+			target: s,
+			isDoc,
+			chain,
+			owned,
+			view: { node: owned, children: owned.children!, sharing: deps.sharing },
+			ids,
+			refs
+		};
+	}
+
+	/**
+	 * Apply one scope's StructuralChange to its ids/refs and publish them.
+	 * Doc-scope ids route through deps setters (top-level ids are per-snapshot
+	 * copies); container ids live on the owned node — the state bundle's setter
+	 * would write the stale shared node prop.
+	 */
+	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
+		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
+		if (p.isDoc) {
+			p.target.state.innerBlockIds = p.ids;
+		} else {
+			p.owned.childIds = p.ids;
+		}
+		p.target.state.innerBlockRefs = p.refs;
+	}
 
 	/**
 	 * Atomic structural commit spanning multiple container scopes — one undo
@@ -423,65 +375,31 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * the owned spine chains are raw-rebuilt afterwards, deepest scope first.
 	 * Mutate through the provided scope views, never pre-commit captures.
 	 */
-	async function commitMultiScope(args: CommitMultiScopeArgs): Promise<void> {
+	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
+		args: CommitMultiScopeArgs<S>
+	): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick } = args;
-		let ownedNodes: CstNode[] = [];
+		let prepared: PreparedScope[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
-				const perScope = scopes.map((s) => {
-					const isDoc = (s.node as unknown) === (deps.doc as unknown);
-					if (!isDoc) {
-						// A stale-but-in-range path would unshare and rebuild the wrong spine.
-						assertInvariant('multi-scope-commit-path', () =>
-							nodeAt(deps.doc, s.path) === s.node
-								? null
-								: {
-										code: 'multi-scope-commit-path',
-										message: `commitMultiScope: path [${s.path.join(',')}] does not resolve to scope node (${s.node.kind})`
-									}
-						);
-					}
-					const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
-					const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
-					const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
-					const refs = [...s.state.innerBlockRefs];
-					// Write-then-re-read contract (tree-operations/unshare.ts header).
-					owned.children = [...(owned.children ?? [])];
-					return { target: s, isDoc, chain, owned, children: owned.children!, ids, refs };
-				});
-				ownedNodes = perScope.map((p) => p.owned);
-
-				const changes = mutate(
-					perScope.map((p) => ({ children: p.children, node: p.owned })),
-					deps.sharing
-				);
-				if (changes.length !== scopes.length) {
+				prepared = scopes.map(prepareScopeView);
+				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
+				// Dynamically-built scope arrays degrade to array typing, so the
+				// runtime arity check stays as the backstop behind the tuple types.
+				const changeList: readonly StructuralChange[] = changes;
+				if (changeList.length !== scopes.length) {
 					throw new Error(
-						`commitMultiScope: mutate returned ${changes.length} changes for ${scopes.length} scopes`
+						`commitMultiScope: mutate returned ${changeList.length} changes for ${scopes.length} scopes`
 					);
 				}
-
-				for (let i = 0; i < perScope.length; i++) {
-					applyStructuralChangeToIdsRefs(changes[i], perScope[i].ids, perScope[i].refs);
+				for (let i = 0; i < prepared.length; i++) {
+					publishScopeView(prepared[i], changeList[i]);
 				}
-
-				for (const p of perScope) {
-					// Doc-scope ids route through deps setters (top-level ids are
-					// per-snapshot copies); container ids live on the owned node — the
-					// state bundle's setter would write the stale shared node prop.
-					if (p.isDoc) {
-						p.target.state.innerBlockIds = p.ids;
-					} else {
-						p.owned.childIds = p.ids;
-					}
-					p.target.state.innerBlockRefs = p.refs;
-				}
-
 				// Deepest chains first: an inner scope's raw must be current before
 				// an outer chain's rebuild concatenates it.
-				for (const p of [...perScope].sort((a, b) => b.chain.length - a.chain.length)) {
+				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
 					rebuildUnsharedChain(p.chain, deps.sharing);
 				}
 			},
@@ -493,7 +411,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			eventPath: op?.eventPath ?? [],
 			afterTick,
 			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
-			touchedNodes: () => ownedNodes.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
+			touchedNodes: () =>
+				prepared.map((p) => p.owned).filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
 		});
 	}
 
@@ -538,26 +457,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		};
 	}
 
-	function clearDebouncedCheckpoint(): void {
-		if (undoDebounceTimer) {
-			clearTimeout(undoDebounceTimer);
-			undoDebounceTimer = null;
-		}
-		batchBlockIndex = -1;
-		batchByteLength = 0;
-		needsUndoCheckpoint = true;
-	}
-
 	return {
 		sharing: deps.sharing,
 		pushUndoSnapshot,
-		pushUndoSnapshotDebounced,
+		pushUndoSnapshotDebounced: textBatch.keystroke,
 		commitStructural,
 		commitContainerStructural,
 		commitMultiScope,
 		getDocScope,
 		captureCurrentState,
 		collapsedSelectionAt,
-		clearDebouncedCheckpoint
+		clearDebouncedCheckpoint: textBatch.discard
 	};
 }

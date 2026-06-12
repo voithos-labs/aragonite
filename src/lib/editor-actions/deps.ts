@@ -1,4 +1,4 @@
-import type { OpDescriptor, OperationKind } from '../action-contracts';
+import type { ContainerScope, OpDescriptor, OperationKind } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
@@ -8,8 +8,9 @@ import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../undo/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import type { MultiScopeTarget, MultiScopeMutable } from './undo-controller';
-export type { MultiScopeTarget, MultiScopeMutable };
+import type { MultiScopeTarget } from './undo-controller';
+export type { MultiScopeTarget };
+export type { ContainerScope } from '../action-contracts';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -35,18 +36,6 @@ export interface CommitStructuralArgs {
 	touchedNodes?: CstNode[];
 }
 
-/**
- * Owned mutation view handed to a container commit's `mutate`. `node` is the
- * unshared copy already spliced into the live tree with `children` attached —
- * never write through references captured before the commit; they may be
- * stale snapshot-shared originals.
- */
-export interface ContainerScope {
-	node: CstNode;
-	children: CstNode[];
-	sharing: SharingState;
-}
-
 export interface CommitContainerStructuralArgs {
 	containerNode: CstNode;
 	/** Doc-absolute path of `containerNode` — the spine the primitive unshares + rebuilds. */
@@ -61,10 +50,15 @@ export interface CommitContainerStructuralArgs {
 	afterTick?: () => void;
 }
 
-export interface CommitMultiScopeArgs {
-	scopes: MultiScopeTarget[];
+export interface CommitMultiScopeArgs<
+	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
+> {
+	scopes: S;
 	snapshot: { blockIndex: number; offset: number } | 'skip';
-	mutate: (scopeChildren: MultiScopeMutable[], sharing: SharingState) => StructuralChange[];
+	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
+	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
+		readonly [K in keyof S]: StructuralChange;
+	};
 	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
 	afterTick?: () => void;
 }
@@ -76,7 +70,9 @@ export interface UndoController {
 	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
-	commitMultiScope(args: CommitMultiScopeArgs): Promise<void>;
+	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
+		args: CommitMultiScopeArgs<S>
+	): Promise<void>;
 	/**
 	 * Expose the document root as a MultiScopeTarget so commitMultiScope
 	 * callers can include doc-level splices alongside container scopes

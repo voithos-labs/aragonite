@@ -118,8 +118,8 @@ export async function applyContainerMatchingPaste(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		mutate: ([scopeView], sharing) => {
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		mutate: ([scopeView]) => {
 			for (const item of unwrap.items) {
 				if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
 			}
@@ -130,7 +130,7 @@ export async function applyContainerMatchingPaste(
 				count: 1,
 				newCount: unwrap.items.length
 			};
-			stampStructuralChange(scopeView.children, change, sharing);
+			stampStructuralChange(scopeView.children, change, scopeView.sharing);
 			return [change];
 		},
 		op: {
@@ -176,8 +176,9 @@ async function applyContainerMatchingMerge(
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-			snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-			mutate: (_scopeViews, sharing) => {
+			snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+			mutate: ([scopeView]) => {
+				const sharing = scopeView.sharing;
 				// The merged leaf sits BELOW the scope node — own its full spine.
 				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
@@ -212,8 +213,9 @@ async function applyContainerMatchingMerge(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
-		mutate: ([scopeView], sharing) => {
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		mutate: ([scopeView]) => {
+			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.
 			// lastLeaf lives inside the parsed clipboard items (created, safe).
 			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);

@@ -77,13 +77,13 @@ describe('updateBlockMetadata', () => {
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 	});
 
-	it('skipSnapshot: true — no undo snapshot pushed', async () => {
+	it("undoEntry: 'join' — no undo snapshot pushed", async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
-		await actions.updateBlockMetadata(0, { taskChecked: true }, { skipSnapshot: true });
+		await actions.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 		expect(node.metadata).toEqual({ taskChecked: true });
@@ -233,10 +233,10 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(evt.detail.fields).toEqual(['taskChecked']);
 	});
 
-	it('skipSnapshot: true — commitContainer called with "skip" sentinel (no snapshot pushed)', async () => {
+	it(`undoEntry: 'join' — commitContainer called with "skip" sentinel (no snapshot pushed)`, async () => {
 		const { bundle, deps } = makeContainerSetup(1);
 
-		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true }, { skipSnapshot: true });
+		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
