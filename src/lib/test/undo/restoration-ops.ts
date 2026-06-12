@@ -359,8 +359,7 @@ async function runRangeDelete(
 		getDoc: () => h.deps.doc,
 		getBlockElByPath: () => null,
 		controller: h.controller,
-		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		notifyDocMutated: () => {}
+		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0)
 	});
 }
 
