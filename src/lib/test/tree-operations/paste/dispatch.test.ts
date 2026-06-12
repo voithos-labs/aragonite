@@ -204,10 +204,8 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommitInvocation = targetLeaf.raw;
 				captured.mutate = mutate;
-				mutate(
-					scopes.map((s: { node: CstNode }) => ({ children: [], node: s.node })),
-					createSharingState()
-				);
+				const sharing = createSharingState();
+				mutate(scopes.map((s: { node: CstNode }) => ({ children: [], node: s.node, sharing })));
 			})
 		} as unknown as UndoController;
 
@@ -217,7 +215,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				skipSnapshot: true
+				undoEntry: 'join'
 			}
 		);
 
@@ -246,11 +244,13 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 			...makeStubController(),
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommit = targetLeaf.raw;
+				const sharing = createSharingState();
 				const scopeViews = scopes.map((s: { node: CstNode }) => ({
 					children: [...(s.node.children ?? [])],
-					node: s.node
+					node: s.node,
+					sharing
 				}));
-				mutate(scopeViews, createSharingState());
+				mutate(scopeViews);
 			})
 		} as unknown as UndoController;
 
@@ -260,7 +260,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 				doc,
 				blockEdit: makeStubBlockEdit(),
 				controller,
-				skipSnapshot: true
+				undoEntry: 'join'
 			}
 		);
 
@@ -309,7 +309,7 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
 		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
 			async ({ mutate }) => {
-				mutate([{ children: [...doc.children], node: doc }], createSharingState());
+				mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
 			}
 		);
 

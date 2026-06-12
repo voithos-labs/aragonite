@@ -45,15 +45,15 @@ function runningController(): UndoController {
 				mutate
 			}: {
 				scopes: { node: CstNode }[];
-				mutate: (v: { children: CstNode[]; node: CstNode }[], sharing: SharingState) => unknown;
+				mutate: (v: { children: CstNode[]; node: CstNode; sharing: SharingState }[]) => unknown;
 			}) => {
 				const sharing = createSharingState();
 				const views = scopes.map((s) => {
 					const children = [...(s.node.children ?? [])];
 					s.node.children = children;
-					return { children, node: s.node };
+					return { children, node: s.node, sharing };
 				});
-				mutate(views, sharing);
+				mutate(views);
 				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
 			}
 		)
@@ -70,7 +70,7 @@ describe('container-matching paste — empty-target newline-termination (A1)', (
 
 		await pasteDispatch(
 			{ pastedText: '- x\n- y', targetPath: [0, 0, 0], offset: 0 },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), skipSnapshot: true }
+			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
 		// The bug mashed the un-terminated last pasted item ("- y") into the

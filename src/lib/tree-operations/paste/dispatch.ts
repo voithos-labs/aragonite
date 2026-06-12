@@ -4,12 +4,12 @@
  * Surfaces are stateless data transforms; this module owns parsing,
  * strategy selection, mutation routing, and focus landing.
  *
- * Cross-block inline paste (skipSnapshot) bypasses updateBlockContent and
- * uses DOM-level focus because the originating block's pendingCursorOffset
+ * Cross-block inline paste (undoEntry: 'join') bypasses updateBlockContent
+ * and uses DOM-level focus because the originating block's pendingCursorOffset
  * may address a block about to be unmounted by the range delete.
  */
 
-import type { BlockEditActions } from '../../action-contracts';
+import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
@@ -40,12 +40,12 @@ export interface PasteDispatchInput {
 
 export interface PasteDispatchContext {
 	doc: Document;
-	/** Action bundle for the target's level. Not used in cross-block (skipSnapshot) mode. */
+	/** Action bundle for the target's level. Not used in cross-block (undoEntry: 'join') mode. */
 	blockEdit: BlockEditActions;
 	/** Commit coordinator — required by the multi-scope commit sites inside this module. */
 	controller: PasteCommitCoordinator;
-	/** Skip undo snapshot + updateBlockContent debounce. Cross-block callers push the snapshot themselves. */
-	skipSnapshot?: boolean;
+	/** `'join'`: no snapshot or updateBlockContent debounce here — the cross-block caller owns the undo entry. */
+	undoEntry?: UndoEntryMode;
 }
 
 export interface PasteDispatchResult {
@@ -76,7 +76,7 @@ export async function pasteDispatch(
 		input.targetPath,
 		input.offset,
 		parsed,
-		ctx.skipSnapshot === true
+		ctx.undoEntry === 'join'
 	);
 	if (unwrap) {
 		await applyContainerMatchingPaste(unwrap, ctx);
@@ -141,7 +141,7 @@ export async function pasteDispatch(
 			blockPath: tablePath,
 			replacement,
 			controller: ctx.controller,
-			skipSnapshot: ctx.skipSnapshot === true,
+			undoEntry: ctx.undoEntry ?? 'own',
 			focusReplacementIndex,
 			focusOffset: CURSOR_END,
 			source: 'paste-dispatch-table-cell'

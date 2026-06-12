@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/editor/editor-actions/deps';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
 
 function makeContainerNode(childRaws: string[]): any {
@@ -114,12 +115,15 @@ describe('commitMultiScope', () => {
 		const stateB = makeBlockListState(() => deps.doc.children[1], ['b0']);
 		const controller = createUndoController(deps);
 
+		// Dynamically-typed scopes array: tuple inference degrades to array
+		// typing, so the wrong arity compiles and the runtime backstop throws.
+		const scopes: MultiScopeTarget[] = [
+			{ node: deps.doc.children[0], state: stateA, path: [0] },
+			{ node: deps.doc.children[1], state: stateB, path: [1] }
+		];
 		await expect(
 			controller.commitMultiScope({
-				scopes: [
-					{ node: deps.doc.children[0], state: stateA, path: [0] },
-					{ node: deps.doc.children[1], state: stateB, path: [1] }
-				],
+				scopes,
 				snapshot: { blockIndex: 0, offset: 0 },
 				mutate: () => [{ op: 'noop' }]
 			})
@@ -168,5 +172,30 @@ describe('commitMultiScope', () => {
 		expect(state.innerBlockIds).toHaveLength(2);
 		expect(state.innerBlockIds[0]).toBe(originalId);
 		expect(state.innerBlockIds[1]).not.toBe(originalId);
+	});
+
+	// Compile-pin, enforced by `npm run check` (vitest does not typecheck): if
+	// the tuple-typed mutate contract loosens, the directive turns unused and
+	// check fails.
+	it('tuple contract: literal two-scope commit with one returned change is a type error', () => {
+		const nodeA = makeContainerNode(['- a\n']);
+		const nodeB = makeContainerNode(['- b\n']);
+		const scopeA: MultiScopeTarget = {
+			node: nodeA,
+			state: makeBlockListState(() => nodeA),
+			path: [0]
+		};
+		const scopeB: MultiScopeTarget = {
+			node: nodeB,
+			state: makeBlockListState(() => nodeB),
+			path: [1]
+		};
+		const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
+			scopes: [scopeA, scopeB],
+			snapshot: 'skip',
+			// @ts-expect-error — mutate must return exactly one StructuralChange per scope
+			mutate: () => [{ op: 'noop' }]
+		};
+		void bad;
 	});
 });
