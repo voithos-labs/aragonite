@@ -113,7 +113,7 @@ This means:
 - The editor works with these nodes directly — no wrapping or cloning on load
 - Edits mutate nodes in place
 - Single-block re-parse uses `parse()` on the block's `raw` text, then transfers the result into the existing tree
-- Undo takes deep CST snapshots before mutations
+- Undo snapshots share the live tree's nodes; mutations copy the shared spine before writing (see § Undo/Redo)
 - `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
 ### Metadata-Driven Raw Invariant
@@ -412,7 +412,11 @@ When a cross-block selection is active, Backspace, Delete, and typing all delete
 
 ### Model
 
-Single unified undo stack; browser contenteditable undo is disabled. Each entry captures a full CST document snapshot, the block ID array (for stable keyed rendering), and a uniform `selection` field (an anchor/focus pair using path-based addressing) for cursor and selection restoration. Collapsed, single-block, and cross-block selections all use the same representation. Entries are cloned CST trees — cheap to snapshot. The stack is capped to prevent unbounded growth.
+Single unified undo stack; browser contenteditable undo is disabled. Each entry captures a CST document snapshot, the block ID array (for stable keyed rendering), and a uniform `selection` field (an anchor/focus pair using path-based addressing) for cursor and selection restoration. Collapsed, single-block, and cross-block selections all use the same representation. The stack is capped to prevent unbounded growth.
+
+Snapshots share structure with the live tree: an entry references the live nodes rather than cloning them, and each node carries an editor-level epoch mark recording whether a snapshot still shares it, so pushing an entry costs O(top-level children) — not O(all nodes). The cost moves to mutations as copy-path-on-write: before any in-place write, the spine from the document root to the write target is copied and the copies spliced in, so a shared node is never written through. The commit ceremony owns this protocol — it unshares the written path and hands the mutation an owned view of its scope; mutation code never writes through node references captured before the commit.
+
+**Aliasing contract (bytes-scoped).** A node a snapshot still shares is read-only on its serialized bytes. It may move within the tree (restructuring that rewrites no bytes), and its derived `inlineContent` cache may refresh — the cache is not serialized state; any other write must copy first. This is invariant G1.9 in the catalog (`docs/design/editor/invariants.md`). In DEV, an integrity oracle digests each snapshot when pushed and re-verifies it at every commit and at restore, so a violating write is caught at the commit that made it, not at the undo that exposes it.
 
 ### Snapshot Triggers
 
@@ -434,7 +438,7 @@ Every structural mutation routes through a single internal commit helper. Three 
 - **Container scope** — operations confined to a single container's children array (nested split/merge/delete, nested paste, list item reorder inside one list).
 - **Multi-scope** — operations that touch multiple container states in one logical step (cross-container delete, indent/unindent). One snapshot, one edit event, atomic reactivity publish across all touched scopes.
 
-All three entry points delegate to one internal commit helper that owns the full ceremony: capture pre-mutation snapshot, run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). The op-log is not a ceremony step — it subscribes to the `edit` event downstream (see § Event Seam). Callers pick their scope; they don't assemble the ceremony themselves. The commit primitive is the canonical entry for new structural mutations. An older begin/end bracketing pair survives in three live roles the commit primitive doesn't cover: the debounced text-input snapshot, IME composition entry, and a reactivity-nudge cross-block dispatch uses after direct raw mutation. Naming and scope of those endpoints is a v0.7 cleanup item.
+All three entry points delegate to one internal commit helper that owns the full ceremony: capture pre-mutation snapshot, unshare the written path (copy-path-on-write — the mutation receives an owned view of its scope; see § Undo/Redo), run the mutation on plain-array copies, publish the new children atomically, emit an `edit` event, and `await tick()` before running any caller-supplied post-tick callback (focus landing, cursor placement). The op-log is not a ceremony step — it subscribes to the `edit` event downstream (see § Event Seam). Callers pick their scope; they don't assemble the ceremony themselves. The commit primitive is the canonical entry for new structural mutations. An older begin/end bracketing pair survives in three live roles the commit primitive doesn't cover: the debounced text-input snapshot, IME composition entry, and a reactivity-nudge cross-block dispatch uses after direct raw mutation. Naming and scope of those endpoints is a v0.7 cleanup item.
 
 ### Event Seam
 
@@ -474,7 +478,7 @@ CST nodes need stable IDs for two reasons:
 Assign a unique string ID to each block at parse time. IDs are an editor-level concern (not part of round-trip serialization), held in two places:
 
 - **Top-level**: a parallel `string[]` array on the editor shell, aligned with `doc.children`. Restored as part of every undo entry.
-- **Per-container**: `node.childIds?: string[]` on each container node, lazy-initialized on first mount. Cloned by `cloneNode` so undo's deep clone restores per-container ids alongside `children` — no parallel snapshot to keep in sync.
+- **Per-container**: `node.childIds?: string[]` on each container node, lazy-initialized on first mount. Carried on the node itself, so undo snapshots and copy-on-write spine copies keep per-container ids alongside `children` — no parallel snapshot to keep in sync.
 
 Both arrays are the `{#each}` key source for their respective `BlockList`. They update atomically with every children array mutation:
 
