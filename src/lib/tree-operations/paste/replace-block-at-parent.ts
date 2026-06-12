@@ -8,6 +8,7 @@
  */
 
 import type { UndoEntryMode } from '../../action-contracts';
+import type { OperationDetailMap } from '../../schema/operations';
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
 import { nodeAt } from '../node-ops';
@@ -28,7 +29,7 @@ export interface ReplaceBlockAtParentArgs {
 	/** Index into `replacement` to focus after the commit. */
 	focusReplacementIndex: number;
 	focusOffset: number;
-	source: string;
+	source: Extract<OperationDetailMap['replaceBlock'], { source: unknown }>['source'];
 }
 
 export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<void> {

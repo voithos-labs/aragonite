@@ -1,4 +1,5 @@
-import type { ContainerScope, OpDescriptor, OperationKind } from '../action-contracts';
+import type { ContainerScope } from '../action-contracts';
+import type { OpDescriptor, ScopedOpDescriptor } from '../schema/operations';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
@@ -46,7 +47,7 @@ export interface CommitContainerStructuralArgs {
 	};
 	snapshot: { blockIndex: number; offset: number } | 'skip';
 	mutate: (scope: ContainerScope) => StructuralChange;
-	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
+	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 }
 
@@ -59,7 +60,7 @@ export interface CommitMultiScopeArgs<
 	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
 		readonly [K in keyof S]: StructuralChange;
 	};
-	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
+	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 }
 

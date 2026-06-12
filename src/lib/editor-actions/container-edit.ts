@@ -5,7 +5,7 @@
  * the commit primitive.
  */
 
-import type { ContainerEditActions, OperationKind } from '../action-contracts';
+import type { ContainerEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import type { EditorActionsDeps, UndoController } from './deps';
@@ -48,15 +48,7 @@ export function createContainerEditActions(
 				state,
 				snapshot,
 				mutate,
-				// Public interface widens to `string` for ergonomics; OperationKind
-				// is the internal source of truth.
-				op: op
-					? {
-							kind: op.kind as OperationKind,
-							detail: op.detail,
-							eventPath: op.eventPath
-						}
-					: undefined,
+				op,
 				afterTick
 			});
 		}

@@ -74,7 +74,7 @@ export function createNestedBlockEdit(
 					stampStructuralChange(scope.children, change, scope.sharing);
 					return change;
 				},
-				op: { kind: 'split', eventPath: [deps.index, innerIndex] },
+				op: { kind: 'split', detail: { at: offset }, eventPath: [deps.index, innerIndex] },
 				afterTick: () => {
 					state.innerBlockRefs[innerIndex + 1]?.focus(0);
 				}
@@ -385,10 +385,14 @@ export function createNestedBlockEdit(
 					stampStructuralChange(scope.children, change, scope.sharing);
 					return change;
 				},
-				op: {
-					kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
-					eventPath: [deps.index, innerIndex]
-				},
+				op:
+					replacement.length === 0
+						? { kind: 'delete', eventPath: [deps.index, innerIndex] }
+						: {
+								kind: 'replaceBlock',
+								detail: { count: replacement.length },
+								eventPath: [deps.index, innerIndex]
+							},
 				afterTick: () => {
 					if (focus && replacement.length > 0) {
 						const targetIdx = innerIndex + focus.replacementIndex;

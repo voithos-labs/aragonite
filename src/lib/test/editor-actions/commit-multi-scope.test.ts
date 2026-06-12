@@ -69,7 +69,7 @@ describe('commitMultiScope', () => {
 					{ op: 'delete', at: 1, count: 1 }
 				];
 			},
-			op: { kind: 'split', eventPath: [0, 1] }
+			op: { kind: 'split', detail: { at: 0 }, eventPath: [0, 1] }
 		});
 
 		expect(deps.doc.children[0].children).toHaveLength(4);
