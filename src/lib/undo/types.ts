@@ -17,6 +17,8 @@ export interface UndoEntry {
 
 export interface UndoManager {
 	push(entry: UndoEntry): void;
+	/** Top undo entry without the per-call stack copies of getStacks. */
+	peekUndo(): UndoEntry | null;
 	undo(currentState: UndoEntry): UndoEntry | null;
 	redo(currentState: UndoEntry): UndoEntry | null;
 	clear(): void;

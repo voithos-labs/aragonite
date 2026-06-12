@@ -21,7 +21,10 @@ export function createHistoryActions(
 	controller: UndoController
 ): HistoryActions {
 	async function restore(entry: UndoEntry, op: 'undo' | 'redo'): Promise<void> {
-		assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
+		assertInvariant('snapshot-integrity', () => {
+			const violation = checkSnapshotIntegrity(entry);
+			return violation && { ...violation, message: `${op}: ${violation.message}` };
+		});
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.setBlockIds(entry.blockIds);

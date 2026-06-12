@@ -1,7 +1,7 @@
 {
 	"recorded": "2026-06-10",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows are report-only references, not gates. Counter rows are machine-independent. Time rows transcribed from perf-results/editor-bench.json (npm run perf:editor); counter rows from amplification.test.ts output under vitest run. Clone rows include DEV clone-safe-metadata invariant checks (vitest sets DEV) — upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest.",
+	"note": "Time rows are report-only references, not gates. Counter rows are machine-independent. Time rows transcribed from perf-results/editor-bench.json (npm run perf:editor); counter rows from amplification.test.ts output under vitest run. Clone rows include DEV clone-safe-metadata invariant checks (vitest sets DEV) — upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. Rebuild-depth gauge re-seamed in 0.7.4 (a4fb3e4): it now fires in rebuildUnsharedChain, depth counts the full spine including the leaf (+1 vs the old ancestors-only semantics), and typing samples too — earlier depth histograms are not comparable.",
 	"parse": {
 		"flat-prose-100KB": { "mean-ms": 0.2664, "rme-pct": 0.46, "samples": 1877 },
 		"flat-prose-1MB": { "mean-ms": 2.6469, "rme-pct": 0.78, "samples": 189 },
@@ -23,6 +23,7 @@
 		"table-heavy-10MB": { "mean-ms": 168.9074, "rme-pct": 2.51, "samples": 18 }
 	},
 	"clone": {
+		"note": "Historical reference — cloneDocument left the production snapshot path in 0.7.4 (snapshots share the live tree; see snapshotPush). Rows recorded 2026-06-10.",
 		"flat-prose-100KB": { "mean-ms": 0.1498, "rme-pct": 0.55, "samples": 3338 },
 		"flat-prose-1MB": { "mean-ms": 1.4959, "rme-pct": 0.86, "samples": 335 },
 		"flat-prose-10MB": { "mean-ms": 15.4326, "rme-pct": 0.97, "samples": 195 },
@@ -42,6 +43,24 @@
 		"table-heavy-1MB": { "mean-ms": 22.0247, "rme-pct": 2.2, "samples": 23 },
 		"table-heavy-10MB": { "mean-ms": 243.3659, "rme-pct": 0.86, "samples": 13 }
 	},
+	"snapshotPush": {
+		"note": "Real push path (pushUndoSnapshot over harness deps), recorded 2026-06-11. DEV digest included (vitest sets DEV; ~O(doc bytes), see snapshotDigest) — production pushes skip it. Stack saturates at MAX_UNDO during sampling, so means include the shift-at-cap. A one-off run with DEV stubbed off measured the production push at 0.0031/0.0279/0.4132 ms (nested-containers 100KB/1MB/10MB) and 0.0026/0.0200/0.2821 ms (flat-prose) — O(top-level children), vs 32ms/357ms production cloning pre-0.7.4.",
+		"nested-containers-100KB": { "mean-ms": 0.1508, "rme-pct": 0.68, "samples": 3316 },
+		"nested-containers-1MB": { "mean-ms": 1.5398, "rme-pct": 0.34, "samples": 325 },
+		"nested-containers-10MB": { "mean-ms": 23.7144, "rme-pct": 1.1, "samples": 127 },
+		"flat-prose-100KB": { "mean-ms": 0.156, "rme-pct": 0.34, "samples": 3206 },
+		"flat-prose-1MB": { "mean-ms": 1.5445, "rme-pct": 1.13, "samples": 324 },
+		"flat-prose-10MB": { "mean-ms": 16.6706, "rme-pct": 0.81, "samples": 180 }
+	},
+	"snapshotDigest": {
+		"note": "digestDoc alone — the DEV-only integrity share of the snapshotPush rows.",
+		"nested-containers-100KB": { "mean-ms": 0.1454, "rme-pct": 0.27, "samples": 3440 },
+		"nested-containers-1MB": { "mean-ms": 1.5172, "rme-pct": 0.41, "samples": 330 },
+		"nested-containers-10MB": { "mean-ms": 22.5835, "rme-pct": 1.01, "samples": 133 },
+		"flat-prose-100KB": { "mean-ms": 0.1542, "rme-pct": 0.34, "samples": 3244 },
+		"flat-prose-1MB": { "mean-ms": 1.5284, "rme-pct": 0.56, "samples": 328 },
+		"flat-prose-10MB": { "mean-ms": 15.877, "rme-pct": 0.57, "samples": 189 }
+	},
 	"ancestryRebuild": {
 		"depth-8-many-tiny-lists-1MB": { "mean-ms": 0.0015, "rme-pct": 8.96, "samples": 342180 },
 		"breadth-single-100KB-list": { "mean-ms": 0.1491, "rme-pct": 0.7, "samples": 3354 },
@@ -55,18 +74,18 @@
 		"table-heavy-1MB-amplification": 1.96
 	},
 	"e2e": {
-		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. 10MB rows: 15 keystrokes; others 30. Capped (no row): many-small-blocks/nested-containers/table-heavy @10MB never finish loading; reference-heavy @10MB loads but one keystroke exceeds 60s (re-probed after dirty-set scoping: still fails — dominant cost is outside the inline sweep). nested-containers and table-heavy type into an appended paragraph (first block is a container). nested-containers/many-small-blocks/reference-heavy @1MB re-recorded after dirty-set scoping of the per-edit inline sweep; remaining rows pre-date it.",
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. 10MB rows: 15 keystrokes; others 30. Capped (no row): many-small-blocks/nested-containers/table-heavy @10MB never finish loading; reference-heavy @10MB loads but one keystroke exceeds 60s (re-probed after dirty-set scoping: still fails — dominant cost is outside the inline sweep). nested-containers and table-heavy type into an appended paragraph (first block is a container). nested-containers/many-small-blocks/reference-heavy @1MB re-recorded post-0.7.4 (structural-sharing undo): nested-containers p50 dropped 1160→896ms (the per-checkpoint clone was 38.6ms DEV — the rest of the drop is retention/GC relief), the other two were already clone-cheap and barely moved; remaining rows pre-date both the dirty-set sweep scoping and 0.7.4.",
 		"flat-prose-100KB": { "loadMs": 148.5, "keystrokeP50Ms": 3.5, "keystrokeP95Ms": 8.2 },
 		"flat-prose-1MB": { "loadMs": 1109.5, "keystrokeP50Ms": 24.5, "keystrokeP95Ms": 38 },
 		"flat-prose-10MB": { "loadMs": 28791.1, "keystrokeP50Ms": 1325.5, "keystrokeP95Ms": 1760.1 },
 		"nested-containers-100KB": { "loadMs": 636.9, "keystrokeP50Ms": 56.8, "keystrokeP95Ms": 85.5 },
 		"nested-containers-1MB": {
-			"loadMs": 6989.2,
-			"keystrokeP50Ms": 1160.1,
-			"keystrokeP95Ms": 1399.4
+			"loadMs": 7079.2,
+			"keystrokeP50Ms": 896.1,
+			"keystrokeP95Ms": 1096.8
 		},
 		"many-small-blocks-100KB": { "loadMs": 520.7, "keystrokeP50Ms": 8.9, "keystrokeP95Ms": 12.6 },
-		"many-small-blocks-1MB": { "loadMs": 12269.8, "keystrokeP50Ms": 98.9, "keystrokeP95Ms": 113.2 },
+		"many-small-blocks-1MB": { "loadMs": 12245.8, "keystrokeP50Ms": 98, "keystrokeP95Ms": 115.4 },
 		"single-giant-paragraph-100KB": {
 			"loadMs": 68.9,
 			"keystrokeP50Ms": 19.7,
@@ -83,7 +102,7 @@
 			"keystrokeP95Ms": 2237.5
 		},
 		"reference-heavy-100KB": { "loadMs": 187.7, "keystrokeP50Ms": 4.5, "keystrokeP95Ms": 7.8 },
-		"reference-heavy-1MB": { "loadMs": 2080.5, "keystrokeP50Ms": 40.2, "keystrokeP95Ms": 64.2 },
+		"reference-heavy-1MB": { "loadMs": 2060.2, "keystrokeP50Ms": 39.3, "keystrokeP95Ms": 63.2 },
 		"table-heavy-100KB": { "loadMs": 531, "keystrokeP50Ms": 3, "keystrokeP95Ms": 4.9 },
 		"table-heavy-1MB": { "loadMs": 4606.1, "keystrokeP50Ms": 7.6, "keystrokeP95Ms": 14.1 }
 	}
