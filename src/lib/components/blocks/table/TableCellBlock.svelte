@@ -66,7 +66,7 @@
 	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
-	import { nextCell, prevCell, cellAbove, cellBelow } from './table-navigation';
+	import { cellKeydownPlan } from './cell-keydown-plan';
 	import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 	import {
 		installCellDragListener,
@@ -77,42 +77,6 @@
 	import { createCellRender } from './cell-render';
 
 	type ExitDirection = 'up' | 'down';
-
-	const ctrlOrMeta = (e: KeyboardEvent): boolean => e.ctrlKey || e.metaKey;
-
-	const Q3_SHORTCUTS: Array<{
-		match: (e: KeyboardEvent) => boolean;
-		run: (ctx: TableContext, pos: { rowIdx: number; colIdx: number }) => Promise<void>;
-	}> = [
-		{
-			match: (e) => ctrlOrMeta(e) && e.key === 'Enter' && !e.shiftKey && !e.altKey,
-			run: (ctx, p) => ctx.insertRowBelow(p.rowIdx)
-		},
-		{
-			match: (e) => ctrlOrMeta(e) && e.key === 'Enter' && e.shiftKey && !e.altKey,
-			run: (ctx, p) => ctx.insertRowAbove(p.rowIdx)
-		},
-		{
-			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'ArrowRight',
-			run: (ctx, p) => ctx.insertColumnRight(p.colIdx)
-		},
-		{
-			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'ArrowLeft',
-			run: (ctx, p) => ctx.insertColumnLeft(p.colIdx)
-		},
-		{
-			match: (e) => ctrlOrMeta(e) && e.shiftKey && !e.altKey && e.key === 'Backspace',
-			run: (ctx, p) => ctx.deleteRow(p.rowIdx)
-		},
-		{
-			match: (e) => e.altKey && e.shiftKey && !ctrlOrMeta(e) && e.key === 'Backspace',
-			run: (ctx, p) => ctx.deleteColumn(p.colIdx)
-		},
-		{
-			match: (e) => ctrlOrMeta(e) && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
-			run: (ctx, p) => ctx.cycleAlignment(p.colIdx)
-		}
-	];
 
 	let {
 		node,
@@ -330,151 +294,58 @@
 		if (composing || !el) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;
-		const pos = { rowIdx, colIdx };
-		const textLen = containerRawLength(el);
-		const offset = preEditOffset;
-		const collapsed = !hasSelectionHelper();
+		const plan = cellKeydownPlan(
+			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
+			{
+				rowIdx,
+				colIdx,
+				columnCount,
+				rowCount,
+				offset: preEditOffset,
+				textLen: containerRawLength(el),
+				collapsed: !hasSelectionHelper(),
+				selectAllCount: selection.selectAllCount
+			}
+		);
 
-		if (ctrlOrMeta(e) && e.key === 'a' && !e.shiftKey && !e.altKey) {
-			await handleCellSelectAll(e);
-			return;
-		}
-
-		for (const s of Q3_SHORTCUTS) {
-			if (s.match(e)) {
-				e.preventDefault();
-				await s.run(tableContext, pos);
+		switch (plan.kind) {
+			case 'native':
+				await handleSharedKeydown(e, sharedCtx);
 				return;
-			}
-		}
-
-		if (e.key === 'ArrowLeft' && !e.shiftKey && offset === 0 && collapsed) {
-			e.preventDefault();
-			handleHorizontalMove(prevCell(pos, columnCount), 'end', 'up');
-			return;
-		}
-
-		if (e.key === 'ArrowRight' && !e.shiftKey && offset === textLen && collapsed) {
-			e.preventDefault();
-			const move = nextCell(pos, columnCount, rowCount);
-			if (move.kind === 'cell') {
-				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
-			} else {
-				exitWithStickyX('down');
-			}
-			return;
-		}
-
-		if (e.key === 'ArrowUp' && !e.shiftKey) {
-			e.preventDefault();
-			handleVerticalMove(cellAbove(pos), 'start', 'up');
-			return;
-		}
-
-		if (e.key === 'ArrowDown' && !e.shiftKey) {
-			e.preventDefault();
-			handleVerticalMove(cellBelow(pos, rowCount), 'start', 'down');
-			return;
-		}
-
-		if (e.key === 'Tab' && !e.shiftKey) {
-			e.preventDefault();
-			const move = nextCell(pos, columnCount, rowCount);
-			if (move.kind === 'cell') {
-				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
-			} else {
+			// Cells override the document-level 2-stage Ctrl+A with a 3-stage
+			// table-aware variant; the intra-cell step stays native (no preventDefault).
+			case 'select-all-step':
+				selection.incrementSelectAllCount();
+				if (plan.step === 'native') return;
+				e.preventDefault();
+				if (plan.step === 'table') {
+					const tablePath = myPath.slice(0, -2);
+					selection.enterCrossBlock(
+						{ path: tablePath, offset: 0 },
+						{ path: tablePath, offset: columnCount * rowCount - 1 }
+					);
+				} else {
+					selectWholeDocument(selection, getDoc(), getBlockElByPath);
+				}
+				return;
+			case 'shortcut':
+				e.preventDefault();
+				await tableContext[plan.action](plan.arg);
+				return;
+			case 'focus-cell':
+				e.preventDefault();
+				if (plan.setStickyColumn !== undefined) tableContext.setStickyColumn(plan.setStickyColumn);
+				tableContext.focusCell(plan.rowIdx, plan.colIdx, plan.position);
+				return;
+			case 'insert-row-below':
+				e.preventDefault();
 				await tableContext.insertRowBelow(rowIdx);
-			}
-			return;
+				return;
+			case 'exit':
+				e.preventDefault();
+				exitWithStickyX(plan.direction);
+				return;
 		}
-
-		if (e.key === 'Tab' && e.shiftKey) {
-			e.preventDefault();
-			handleHorizontalMove(prevCell(pos, columnCount), 'end', 'up');
-			return;
-		}
-
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			const move = cellBelow(pos, rowCount);
-			if (move.kind === 'cell') {
-				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
-			} else {
-				await tableContext.insertRowBelow(rowIdx);
-			}
-			return;
-		}
-
-		if (e.key === 'Backspace' && offset === 0 && collapsed) {
-			e.preventDefault();
-			const move = prevCell(pos, columnCount);
-			if (move.kind === 'cell') {
-				tableContext.focusCell(move.rowIdx, move.colIdx, 'end');
-			} else {
-				exitWithStickyX('up');
-			}
-			return;
-		}
-
-		if (e.key === 'Delete' && offset === textLen && collapsed) {
-			e.preventDefault();
-			const move = nextCell(pos, columnCount, rowCount);
-			if (move.kind === 'cell') {
-				tableContext.focusCell(move.rowIdx, move.colIdx, 'start');
-			} else {
-				exitWithStickyX('down');
-			}
-			return;
-		}
-
-		await handleSharedKeydown(e, sharedCtx);
-	}
-
-	// Cells override the document-level 2-stage Ctrl+A with a 3-stage table-aware variant.
-	async function handleCellSelectAll(e: KeyboardEvent): Promise<void> {
-		const count = selection.selectAllCount;
-		if (count === 0) {
-			selection.incrementSelectAllCount();
-			return;
-		}
-		if (count === 1) {
-			e.preventDefault();
-			selection.incrementSelectAllCount();
-			const tablePath = myPath.slice(0, -2);
-			selection.enterCrossBlock(
-				{ path: tablePath, offset: 0 },
-				{ path: tablePath, offset: columnCount * rowCount - 1 }
-			);
-			return;
-		}
-		e.preventDefault();
-		selection.incrementSelectAllCount();
-		selectWholeDocument(selection, getDoc(), getBlockElByPath);
-	}
-
-	function handleHorizontalMove(
-		move: ReturnType<typeof prevCell>,
-		cellPosition: 'start' | 'end',
-		exit: ExitDirection
-	): void {
-		if (move.kind === 'cell') {
-			tableContext.focusCell(move.rowIdx, move.colIdx, cellPosition);
-			return;
-		}
-		exitWithStickyX(exit);
-	}
-
-	function handleVerticalMove(
-		move: ReturnType<typeof cellAbove> | ReturnType<typeof cellBelow>,
-		cellPosition: 'start' | 'end',
-		exit: ExitDirection
-	): void {
-		if (move.kind === 'cell') {
-			tableContext.setStickyColumn(move.colIdx);
-			tableContext.focusCell(move.rowIdx, move.colIdx, cellPosition);
-			return;
-		}
-		exitWithStickyX(exit);
 	}
 
 	function exitWithStickyX(direction: ExitDirection): void {
