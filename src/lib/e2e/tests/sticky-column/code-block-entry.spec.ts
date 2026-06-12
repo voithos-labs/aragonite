@@ -181,9 +181,14 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.waitForRenderFlush();
 		const landBelowX = await editor.getCaretPixelX();
 
-		// Only compare landings when the two captures matched — otherwise different starting columns.
-		if (Math.abs(capturedAboveX - capturedBelowX) < 5) {
-			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(PIXEL_TOLERANCE);
+		// Compare landings only when the captures roughly matched (different end
+		// columns otherwise), and carry the capture mismatch into the bound:
+		// focusAtColumn quantizes to character cells, and platform font metrics
+		// let matched-page-X clicks snap a few px apart — the landings can't be
+		// expected to match tighter than the inputs did.
+		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
+		if (captureDelta < 5) {
+			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(PIXEL_TOLERANCE + captureDelta);
 		}
 	});
 });
