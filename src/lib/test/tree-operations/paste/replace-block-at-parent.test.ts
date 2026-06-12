@@ -25,7 +25,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			blockPath: [0],
 			replacement: [makePara('replaced\n'), makeHeading('# new\n')],
 			controller,
-			skipSnapshot: true,
+			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'test'
@@ -47,7 +47,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			blockPath: [0],
 			replacement: [makeHeading('# new\n'), makePara('after\n')],
 			controller,
-			skipSnapshot: true,
+			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'test'
@@ -70,7 +70,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			blockPath: [1],
 			replacement: [],
 			controller,
-			skipSnapshot: true,
+			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'test'
@@ -95,7 +95,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 			blockPath: [0],
 			replacement: [makePara('plain\n')],
 			controller,
-			skipSnapshot: true,
+			undoEntry: 'join',
 			focusReplacementIndex: 0,
 			focusOffset: 0,
 			source: 'test'

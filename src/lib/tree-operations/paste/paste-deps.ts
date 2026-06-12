@@ -5,7 +5,7 @@
  * backwards import from `tree-operations/paste/* -> editor-actions/`.
  */
 
-import type { OperationKind } from '../../action-contracts';
+import type { ContainerScope, OperationKind } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { SharingState } from '../../undo/sharing';
@@ -21,22 +21,23 @@ export interface MultiScopeTarget {
 	path: number[];
 }
 
-/** Owned scope view — mutate through `node`/`children`, never pre-commit captures. */
-export interface MultiScopeMutable {
-	children: CstNode[];
-	node: CstNode;
-}
-
-export interface CommitMultiScopeArgs {
-	scopes: MultiScopeTarget[];
+export interface CommitMultiScopeArgs<
+	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
+> {
+	scopes: S;
 	snapshot: { blockIndex: number; offset: number } | 'skip';
-	mutate: (scopeChildren: MultiScopeMutable[], sharing: SharingState) => StructuralChange[];
+	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
+	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
+		readonly [K in keyof S]: StructuralChange;
+	};
 	op?: { kind: OperationKind; detail?: Record<string, unknown>; eventPath: number[] };
 	afterTick?: () => void;
 }
 
 export interface PasteCommitCoordinator {
 	sharing: SharingState;
-	commitMultiScope(args: CommitMultiScopeArgs): Promise<void>;
+	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
+		args: CommitMultiScopeArgs<S>
+	): Promise<void>;
 	getDocScope(): MultiScopeTarget;
 }

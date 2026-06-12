@@ -44,7 +44,7 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 						await deps.controller.commitMultiScope({
 							scopes: [{ node, state, path: deps.path }],
 							snapshot: { blockIndex: index, offset: 0 },
-							mutate: ([scope], sharing) => [performDelete(scope, innerIndex, sharing)],
+							mutate: ([scope]) => [performDelete(scope, innerIndex, scope.sharing)],
 							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },

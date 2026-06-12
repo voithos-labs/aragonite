@@ -34,6 +34,14 @@ export interface OpDescriptor {
 	detail?: Record<string, unknown>;
 }
 
+/**
+ * Who owns the undo entry for an operation. `'own'` (the default): the
+ * implementation pushes its own entry. `'join'`: the caller has already
+ * pushed the one entry covering this composite operation — the
+ * implementation must not push another.
+ */
+export type UndoEntryMode = 'own' | 'join';
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {
@@ -63,35 +71,29 @@ export interface BlockEditActions {
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { skipSnapshot?: boolean }
+		options?: { undoEntry?: UndoEntryMode }
 	): void | Promise<void>;
 	/**
 	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste
 	 * selection deletion into the same undo entry as the splice so Ctrl+Z
 	 * undoes the whole paste in one step.
-	 *
-	 * `skipSnapshot`: cross-block paste path coalesces the range-delete and
-	 * splice snapshots. Caller must have pushed exactly one snapshot already.
 	 */
 	insertParsedBlocks(
 		blockIndex: number,
 		offset: number,
 		blocks: CstNode[],
 		preDelete?: { start: number; end: number },
-		options?: { skipSnapshot?: boolean }
+		options?: { undoEntry?: UndoEntryMode }
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
 	 * `replacement.length === 0` is equivalent to deleteBlock.
-	 *
-	 * `skipSnapshot`: when set, implementation must not push its own undo
-	 * entry — the caller has already pushed one for the coalesced operation.
 	 */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
 		focus?: { replacementIndex: number; offset: number },
-		options?: { skipSnapshot?: boolean }
+		options?: { undoEntry?: UndoEntryMode }
 	): void | Promise<void>;
 }
 
@@ -102,6 +104,18 @@ export interface FocusActions {
 export interface HistoryActions {
 	requestUndo(): void | Promise<void>;
 	requestRedo(): void | Promise<void>;
+}
+
+/**
+ * Owned mutation view handed to a container/multi-scope commit's `mutate`.
+ * `node` is the unshared copy already spliced into the live tree with
+ * `children` attached — never write through references captured before the
+ * commit; they may be stale snapshot-shared originals.
+ */
+export interface ContainerScope {
+	node: CstNode;
+	children: CstNode[];
+	sharing: SharingState;
 }
 
 export interface ContainerEditActions {
@@ -143,11 +157,7 @@ export interface ContainerEditActions {
 			innerBlockRefs: (BlockComponent | undefined)[];
 		};
 		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (scope: {
-			node: CstNode;
-			children: CstNode[];
-			sharing: SharingState;
-		}) => StructuralChange;
+		mutate: (scope: ContainerScope) => StructuralChange;
 		op?: {
 			kind: string;
 			detail?: Record<string, unknown>;

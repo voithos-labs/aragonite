@@ -9,7 +9,8 @@ import type {
 	BlockEditActions,
 	ContainerEditActions,
 	FocusActions,
-	ListContext
+	ListContext,
+	UndoEntryMode
 } from '../action-contracts';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
@@ -179,15 +180,14 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				itemIndex: number,
 				replacement: CstNode[],
 				focus?: { replacementIndex: number; offset: number },
-				options?: { skipSnapshot?: boolean }
+				options?: { undoEntry?: UndoEntryMode }
 			): Promise<void> => {
 				const node = deps.node;
 				const index = deps.index;
 				if (!node.children || itemIndex < 0 || itemIndex >= node.children.length) return;
 
-				const snapshot = options?.skipSnapshot
-					? ('skip' as const)
-					: { blockIndex: index, offset: 0 };
+				const snapshot =
+					options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: index, offset: 0 };
 
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,

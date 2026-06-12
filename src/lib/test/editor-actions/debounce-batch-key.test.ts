@@ -60,7 +60,8 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		// Simulate typing 1 char into leaf 0 — first stroke pushes a snapshot.
 		await bundle.blockEdit.updateBlockContent(0, 'hello1\n', 5);
 		// Simulate "focus moved to leaf 1, then typed" — the new leaf's id key
-		// must break the batch even though needsUndoCheckpoint is still false.
+		// must break the batch even though no checkpoint is pending (text-batch
+		// needsCheckpoint still false).
 		await bundle.blockEdit.updateBlockContent(1, 'world1\n', 5);
 
 		// Two snapshots: one before each leaf's typing batch.

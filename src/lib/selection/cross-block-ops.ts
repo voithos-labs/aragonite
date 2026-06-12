@@ -13,6 +13,7 @@
  *     falls through to the pure-top-level path's cell-clear primitive.
  */
 
+import type { UndoEntryMode } from '../action-contracts';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
@@ -50,7 +51,7 @@ export interface CrossBlockMutationContext {
  * controller, collapse, and restore the native caret. Returns the
  * collapsed caret position, or null if the selection wasn't cross-block.
  *
- * `skipSnapshot`: caller already pushed a snapshot covering this delete.
+ * `undoEntry: 'join'`: caller already pushed a snapshot covering this delete.
  * `skipCaretRestore`: caller will install a final caret after further
  * mutations.
  * `tableCoverageDelete`: route intra-table full-table/full-row/full-column
@@ -60,7 +61,7 @@ export interface CrossBlockMutationContext {
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
 	options?: {
-		skipSnapshot?: boolean;
+		undoEntry?: UndoEntryMode;
 		skipCaretRestore?: boolean;
 		tableCoverageDelete?: boolean;
 	}
@@ -146,14 +147,15 @@ async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
 
-	const snapshot = options?.skipSnapshot
-		? ('skip' as const)
-		: { blockIndex: start.path[0], offset: start.offset };
+	const snapshot =
+		options?.undoEntry === 'join'
+			? ('skip' as const)
+			: { blockIndex: start.path[0], offset: start.offset };
 
 	await ctx.controller.commitStructural({
 		snapshot,
@@ -183,7 +185,7 @@ async function maybeCommitTableCoverageDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<{ caret: SelectionPoint | null } | null> {
 	const meta = metadataOf(table, 'table');
@@ -231,11 +233,12 @@ async function maybeCommitTableCoverageDelete(
 async function commitFullTableDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
-	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+	const snapshot =
+		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -260,12 +263,13 @@ async function commitRowDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	rowIdx: number,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
-	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+	const snapshot =
+		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -298,7 +302,7 @@ async function commitColumnDelete(
 	table: CstNode,
 	start: SelectionPoint,
 	colIdx: number,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
@@ -312,7 +316,8 @@ async function commitColumnDelete(
 			path: [tableIdx, i]
 		}))
 	];
-	const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+	const snapshot =
+		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({
@@ -356,7 +361,7 @@ async function commitCrossContainerDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: { skipSnapshot?: boolean } | undefined,
+	options: { undoEntry?: UndoEntryMode } | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const touched = collectTouchedContainers(doc, start.path, end.path);
@@ -381,8 +386,10 @@ async function commitCrossContainerDelete(
 
 	await ctx.controller.commitMultiScope({
 		scopes,
-		snapshot: options?.skipSnapshot ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
-		mutate: (scopeViews, sharing) => {
+		snapshot:
+			options?.undoEntry === 'join' ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
+		mutate: (scopeViews) => {
+			const sharing = scopeViews[0].sharing;
 			// Read lengths BEFORE mutation. Paths go stale as rangeDelete
 			// splices (middle top-level block shifts indices); the owned scope
 			// views stay valid because splices happen in place — rangeDelete's

@@ -7,6 +7,7 @@
  * doc-level table index as a column index inside the row).
  */
 
+import type { UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
 import { nodeAt } from '../node-ops';
@@ -19,7 +20,7 @@ export interface ReplaceBlockAtParentArgs {
 	blockPath: number[];
 	replacement: CstNode[];
 	controller: PasteCommitCoordinator;
-	skipSnapshot: boolean;
+	undoEntry: UndoEntryMode;
 	/** Index into `replacement` to focus after the commit. */
 	focusReplacementIndex: number;
 	focusOffset: number;
@@ -32,7 +33,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		blockPath,
 		replacement,
 		controller,
-		skipSnapshot,
+		undoEntry,
 		focusReplacementIndex,
 		focusOffset,
 		source
@@ -54,8 +55,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	await controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: skipSnapshot ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
-		mutate: ([scopeView], sharing) => {
+		snapshot: undoEntry === 'join' ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
+		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
 			// First replacement inherits the original block's id + ref when the
 			// kind matches, preserving Svelte component identity (IME composition
@@ -68,7 +69,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				newCount: replacement.length,
 				...(sameKindFirst ? { idMap: { 0: 0 } } : {})
 			};
-			stampStructuralChange(scopeView.children, change, sharing);
+			stampStructuralChange(scopeView.children, change, scopeView.sharing);
 			return [change];
 		},
 		op: {

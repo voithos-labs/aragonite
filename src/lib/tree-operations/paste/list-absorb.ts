@@ -131,8 +131,9 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.skipSnapshot ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
-		mutate: ([scopeView], sharing) => {
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
+		mutate: ([scopeView]) => {
+			const sharing = scopeView.sharing;
 			scopeView.children.splice(plan.itemIndex, 1, ...replacement);
 
 			// Renumber only items AFTER the replacement region. Their proxies

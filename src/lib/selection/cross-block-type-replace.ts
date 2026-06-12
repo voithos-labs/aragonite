@@ -43,8 +43,8 @@ export async function handleCrossBlockTypeReplace(
 	// Route the splice through commitMultiScope so the mutation lands inside
 	// the commit primitive: parallel ids/refs reactivity contract honored,
 	// op:'input' event emitted symmetrically with the single-block path
-	// (block-edit.ts updateBlockContent → debounced flush). skipSnapshot keeps
-	// the typed character in the same undo unit as performCrossBlockDelete.
+	// (block-edit.ts updateBlockContent → debounced flush). snapshot: 'skip'
+	// keeps the typed character in the same undo unit as performCrossBlockDelete.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		applyCaretAtPath(ctx, caret);
@@ -54,7 +54,8 @@ export async function handleCrossBlockTypeReplace(
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: 'skip',
-		mutate: (_scopeViews, sharing) => {
+		mutate: ([scopeView]) => {
+			const sharing = scopeView.sharing;
 			const charOffset = assertCharOffset(caret, 'cross-block-type-replace:slice');
 			const chain = ensureUnsharedPath(doc, caret.path, sharing);
 			const owned = chain[chain.length - 1] ?? targetNode;

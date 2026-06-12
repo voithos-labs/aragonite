@@ -4,7 +4,7 @@
  * in one place.
  */
 
-import type { BlockEditActions } from '../action-contracts';
+import type { BlockEditActions, UndoEntryMode } from '../action-contracts';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { trimTrailingLineEnding, displayLength } from '../core/lines';
@@ -192,13 +192,14 @@ export function createBlockEditActions(
 		async updateBlockMetadata(
 			blockIndex: number,
 			metadata: Record<string, unknown>,
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
 
-			const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex, offset: 0 };
+			const snapshot =
+				options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex, offset: 0 };
 
 			await controller.commitStructural({
 				snapshot,
@@ -221,7 +222,7 @@ export function createBlockEditActions(
 			offset: number,
 			blocks: CstNode[],
 			preDelete?: { start: number; end: number },
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (blocks.length === 0) return;
 
@@ -243,7 +244,7 @@ export function createBlockEditActions(
 			const newNodes = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
-			const snapshot = options?.skipSnapshot ? ('skip' as const) : { blockIndex, offset };
+			const snapshot = options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex, offset };
 
 			await controller.commitStructural({
 				snapshot,
@@ -271,7 +272,7 @@ export function createBlockEditActions(
 			blockIndex: number,
 			replacement: CstNode[],
 			focus?: { replacementIndex: number; offset: number },
-			options?: { skipSnapshot?: boolean }
+			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 
@@ -281,9 +282,10 @@ export function createBlockEditActions(
 					: [];
 			for (const node of normalizedReplacement) ensureEditableContainers(node);
 
-			const snapshot = options?.skipSnapshot
-				? ('skip' as const)
-				: { blockIndex, offset: focus?.offset ?? 0 };
+			const snapshot =
+				options?.undoEntry === 'join'
+					? ('skip' as const)
+					: { blockIndex, offset: focus?.offset ?? 0 };
 
 			await controller.commitStructural({
 				snapshot,

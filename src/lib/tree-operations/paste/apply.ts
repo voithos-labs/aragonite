@@ -27,7 +27,7 @@ export function applyInlineResult(
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
 ): void {
-	if (ctx.skipSnapshot) {
+	if (ctx.undoEntry === 'join') {
 		// Out-of-ceremony write — the caller pushed the covering snapshot, so
 		// copy-path-on-write happens here.
 		const chain = ensureUnsharedPath(ctx.doc, targetPath, ctx.controller.sharing);
@@ -58,7 +58,7 @@ export async function applyStructuralResult(
 		blockPath: targetPath,
 		replacement: result.replacement,
 		controller: ctx.controller,
-		skipSnapshot: ctx.skipSnapshot === true,
+		undoEntry: ctx.undoEntry ?? 'own',
 		focusReplacementIndex: result.focusReplacementIndex,
 		focusOffset: result.focusOffset,
 		source: 'paste-dispatch'

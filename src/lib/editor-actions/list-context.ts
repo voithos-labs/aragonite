@@ -73,7 +73,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			await deps.controller.commitMultiScope({
 				scopes,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: ([outerScope, destScope], sharing) => {
+				mutate: ([outerScope, destScope]) => {
+					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
 
 					let destList: CstNode;
@@ -154,7 +155,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			await deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.path }],
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: ([scope], sharing) => {
+				mutate: ([scope]) => {
+					const sharing = scope.sharing;
 					sharing.stamp(newItem!);
 					scope.children.splice(itemIndex + 1, 0, newItem!);
 					renumberOrderedList(scope.node, itemIndex + 1, sharing);
@@ -189,7 +191,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					{ node: item, state: itemState, path: [...deps.path, itemIndex] }
 				],
 				snapshot: { blockIndex: deps.index, offset },
-				mutate: ([outerScope, itemScope], sharing) => {
+				mutate: ([outerScope, itemScope]) => {
+					const sharing = outerScope.sharing;
 					const itemChildren = itemScope.children;
 
 					// Pre-splice length — descriptor must report how many children
@@ -289,9 +292,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			await deps.controller.commitMultiScope({
 				scopes,
 				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scopeViews, sharing) => {
+				mutate: (scopeViews) => {
 					const outerScope = scopeViews[0];
 					const nestedScope = scopeViews[1];
+					const sharing = outerScope.sharing;
 
 					// The promoted item is moved AND written (marker normalization,
 					// renumber) — own it before it leaves the nested list.

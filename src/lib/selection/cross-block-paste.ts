@@ -50,7 +50,7 @@ export async function handleCrossBlockPaste(
 	mutCtx.pushUndoSnapshot();
 
 	const caret = await performCrossBlockDelete(mutCtx, {
-		skipSnapshot: true,
+		undoEntry: 'join',
 		skipCaretRestore: true
 	});
 	if (!caret) return true;
@@ -65,7 +65,7 @@ export async function handleCrossBlockPaste(
 			doc,
 			blockEdit: ctx.blockEdit,
 			controller: ctx.pasteCoordinator,
-			skipSnapshot: true
+			undoEntry: 'join'
 		}
 	);
 
@@ -149,7 +149,7 @@ async function replaceTableWithPaste(
 		blockPath: tablePath,
 		replacement,
 		controller: ctx.pasteCoordinator,
-		skipSnapshot: true,
+		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
 		focusOffset: Number.MAX_SAFE_INTEGER,
 		source: 'cross-block-paste-whole-table'
