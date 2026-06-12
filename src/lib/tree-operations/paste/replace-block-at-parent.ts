@@ -11,7 +11,11 @@ import type { UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
 import { nodeAt } from '../node-ops';
-import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import {
+	replacePreservingFirst,
+	stampStructuralChange,
+	type StructuralChange
+} from '../structural-change';
 import { expectStateForNode } from '../../reactivity/state-registry';
 
 export interface ReplaceBlockAtParentArgs {
@@ -58,17 +62,11 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		snapshot: undoEntry === 'join' ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
-			// First replacement inherits the original block's id + ref when the
-			// kind matches, preserving Svelte component identity (IME composition
-			// state, pending input). Different kinds remount anyway because
-			// BlockHost dispatches by kind.
-			const change: StructuralChange = {
-				op: 'replace',
-				at: blockIdx,
-				count: 1,
-				newCount: replacement.length,
-				...(sameKindFirst ? { idMap: { 0: 0 } } : {})
-			};
+			// Identity preservation only helps when the kind matches — different
+			// kinds remount anyway because BlockHost dispatches by kind.
+			const change: StructuralChange = sameKindFirst
+				? replacePreservingFirst(blockIdx, 1, replacement.length)
+				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
 			return [change];
 		},

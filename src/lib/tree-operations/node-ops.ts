@@ -30,7 +30,7 @@ import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import type { SharingState } from '../undo/sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
-import type { StructuralChange } from './structural-change';
+import { replacePreservingFirst, type StructuralChange } from './structural-change';
 
 // ── Types ──
 
@@ -51,7 +51,7 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 
 /**
  * Split the node at `blockIndex` into two at raw `offset` (display-relative,
- * line-ending preserved). First half inherits the original ID via `idMap`.
+ * line-ending preserved). First half inherits the original ID.
  *
  * Round-trip caveat at `offset === 0` on a non-empty block: the leading half
  * is `'\n'`, which reparses as an empty paragraph and collapses into trivia
@@ -92,7 +92,7 @@ export function splitNode(
 	const secondNode = reparseAsNode(secondRaw, '');
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
-	return { op: 'replace', at: blockIndex, count: 1, newCount: 2, idMap: { 0: 0 } };
+	return replacePreservingFirst(blockIndex, 1, 2);
 }
 
 /**
@@ -106,7 +106,7 @@ export function bumpLeadingTrivia(parent: NodeParent, blockIndex: number): Struc
 	const node = parent.children[blockIndex];
 	const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
 	node.leadingTrivia = (node.leadingTrivia ?? '') + lineEnding;
-	return { op: 'replace', at: blockIndex, count: 1, newCount: 1, idMap: { 0: 0 } };
+	return replacePreservingFirst(blockIndex, 1, 1);
 }
 
 // ── Merge ──
@@ -124,7 +124,7 @@ export function mergeWithPrevious(parent: NodeParent, blockIndex: number): Struc
 	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
 	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
-	return { op: 'replace', at: blockIndex - 1, count: 2, newCount: 1, idMap: { 0: 0 } };
+	return replacePreservingFirst(blockIndex - 1, 2, 1);
 }
 
 /**
@@ -202,7 +202,7 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 	const mergedRaw = trimTrailingLineEnding(curr.raw) + next.raw;
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 	parent.children.splice(blockIndex, 2, mergedNode);
-	return { op: 'replace', at: blockIndex, count: 2, newCount: 1, idMap: { 0: 0 } };
+	return replacePreservingFirst(blockIndex, 2, 1);
 }
 
 // ── Delete ──

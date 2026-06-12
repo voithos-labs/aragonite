@@ -127,6 +127,62 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 }
 
 /**
+ * Relocate the merged-away item's remaining children by "preserve absolute
+ * indent": nested-list items promote to the depth-1 sibling container when
+ * the merge target sits deeper (targetPath length ≥ 4); everything else
+ * absorbs into the target item. Children are MOVED into the live tree and
+ * unshared individually so the snapshot's view of the deleted item stays
+ * intact (G1.9).
+ */
+function relocateRemainingChildren(
+	list: CstNode,
+	targetPath: number[],
+	targetItem: CstNode,
+	currentItem: CstNode,
+	sharing?: SharingState
+): void {
+	const remainingChildren = currentItem
+		.children!.slice(1)
+		.map((c) => (sharing ? ensureUnsharedNode(c, sharing) : c));
+
+	for (const child of remainingChildren) {
+		if (child.kind === 'list' && child.children) {
+			if (targetPath.length >= 4) {
+				const depthOneParent = list.children![targetPath[0]];
+				if (depthOneParent.children) {
+					let depthOneIdx = -1;
+					for (let i = 0; i < depthOneParent.children.length; i++) {
+						if (depthOneParent.children[i].kind === 'list') depthOneIdx = i;
+					}
+					const depthOneList =
+						depthOneIdx === -1
+							? undefined
+							: sharing
+								? ensureUnsharedChild(depthOneParent, depthOneIdx, sharing)
+								: depthOneParent.children[depthOneIdx];
+					if (depthOneList && depthOneList.children) {
+						for (let i = 0; i < child.children.length; i++) {
+							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
+							item.leadingTrivia = '';
+							// discovered-descendant mutation, see node-ops.ts header
+							appendChild(depthOneList, item);
+						}
+						rebuildListRaw(depthOneList);
+						continue;
+					}
+				}
+			}
+			// discovered-descendant mutation, see node-ops.ts header
+			appendChild(targetItem, child);
+		} else {
+			child.leadingTrivia = '';
+			// discovered-descendant mutation, see node-ops.ts header
+			appendChild(targetItem, child);
+		}
+	}
+}
+
+/**
  * Merge the list item at `currentIndex` into the deepest text-bearing leaf
  * reachable by walking the preceding item's subtree last-child-first.
  * Mutates `list` in place.
@@ -201,52 +257,7 @@ export function mergeListItemIntoPrevious(
 	const lineEnding = (targetParagraph.raw ?? '').endsWith('\r\n') ? '\r\n' : '\n';
 	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
 
-	// Relocate remaining children by "preserve absolute indent":
-	// targetPath is a uniform path of length 2(N+1) where N is target's nesting depth.
-	// Depth-0 target (length 2): no depth-1 container — absorb into targetItem.
-	// Depth-≥1 target (length ≥ 4): promote nested-list items to the depth-1 sibling container.
-	// Relocated children are MOVED out of the deleted item into the live tree
-	// and (mostly) get their leadingTrivia written — copy each standalone so
-	// the snapshot's view of the deleted item stays intact.
-	const remainingChildren = currentItem.children
-		.slice(1)
-		.map((c) => (sharing ? ensureUnsharedNode(c, sharing) : c));
-
-	for (const child of remainingChildren) {
-		if (child.kind === 'list' && child.children) {
-			if (targetPath.length >= 4) {
-				const depthOneParent = list.children[targetPath[0]];
-				if (depthOneParent.children) {
-					let depthOneIdx = -1;
-					for (let i = 0; i < depthOneParent.children.length; i++) {
-						if (depthOneParent.children[i].kind === 'list') depthOneIdx = i;
-					}
-					const depthOneList =
-						depthOneIdx === -1
-							? undefined
-							: sharing
-								? ensureUnsharedChild(depthOneParent, depthOneIdx, sharing)
-								: depthOneParent.children[depthOneIdx];
-					if (depthOneList && depthOneList.children) {
-						for (let i = 0; i < child.children.length; i++) {
-							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
-							item.leadingTrivia = '';
-							// discovered-descendant mutation, see node-ops.ts header
-							appendChild(depthOneList, item);
-						}
-						rebuildListRaw(depthOneList);
-						continue;
-					}
-				}
-			}
-			// discovered-descendant mutation, see node-ops.ts header
-			appendChild(targetItem, child);
-		} else {
-			child.leadingTrivia = '';
-			// discovered-descendant mutation, see node-ops.ts header
-			appendChild(targetItem, child);
-		}
-	}
+	relocateRemainingChildren(list, targetPath, targetItem, currentItem, sharing);
 
 	children.splice(currentIndex, 1);
 
