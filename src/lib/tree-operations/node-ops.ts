@@ -235,12 +235,12 @@ export function deleteNode(
 
 // ── Update Content ──
 
-/** Update raw and re-parse; returns whether the block's kind changed. */
+/** Update raw and re-parse. Kind changes return replacePreservingFirst (same slot, id kept); otherwise noop. */
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
 	newText: string
-): { kindChanged: boolean; newKind?: string } {
+): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
@@ -249,7 +249,7 @@ export function updateNodeContent(
 	// so cells just carry their inner text.
 	if (oldKind === 'tableCell') {
 		node.raw = newText;
-		return { kindChanged: false };
+		return { op: 'noop' };
 	}
 
 	const reparsed = reparseAsNode(newText, node.leadingTrivia);
@@ -265,11 +265,7 @@ export function updateNodeContent(
 	// so a paragraph that just gained trailing text would otherwise still look image-only.
 	node.inlineContent = isProseKind(node.kind) ? reparsed.inlineContent : undefined;
 
-	const kindChanged = node.kind !== oldKind;
-	return {
-		kindChanged,
-		newKind: kindChanged ? node.kind : undefined
-	};
+	return node.kind !== oldKind ? replacePreservingFirst(blockIndex, 1, 1) : { op: 'noop' };
 }
 
 // ── Reparse helper (private) ──

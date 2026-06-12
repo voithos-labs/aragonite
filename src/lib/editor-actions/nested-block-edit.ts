@@ -226,16 +226,13 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			// Preview on shallow-cloned children to pick between structural
-			// (kind-changing) commit and routine typing path. Live tree is not
-			// mutated here — the chosen branch runs the real mutation below.
-			const preview = performUpdate(
-				{ children: deps.node.children.map((c) => ({ ...c })) },
-				innerIndex,
-				text
-			);
+			// Preview on a shallow clone of the target child — the only node
+			// performUpdate reads — to pick between structural (kind-changing)
+			// commit and routine typing path. Live tree is not mutated here —
+			// the chosen branch runs the real mutation below.
+			const preview = performUpdate({ children: [{ ...deps.node.children[innerIndex] }] }, 0, text);
 
-			if (preview.kindChanged) {
+			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
@@ -244,8 +241,7 @@ export function createNestedBlockEdit(
 					snapshot: { blockIndex: deps.index, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						performUpdate({ children: scope.children }, innerIndex, text);
-						return { op: 'noop' };
+						return performUpdate({ children: scope.children }, innerIndex, text);
 					},
 					op: {
 						kind: 'updateContent',
