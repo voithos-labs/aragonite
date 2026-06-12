@@ -69,34 +69,35 @@ export async function handleCrossBlockPaste(
 		}
 	);
 
-	// Place the caret via DOM rather than pendingCursor — the originating
-	// block may have been removed by the cross-block delete, leaving a
-	// pendingCursor write addressed to an unmounted component.
-	if (result.inlineCaretOffset !== undefined) {
-		await ctx.afterReactivity();
-		const inlineEl = ctx.getBlockElByPath(caret.path);
-		if (inlineEl) {
-			applyCollapsedCaret(inlineEl, {
-				path: caret.path,
-				offset: result.inlineCaretOffset
-			});
-			inlineEl.focus();
-		}
-		return true;
-	}
+	await landCaretAfterPaste(ctx, caret.path, result.inlineCaretOffset);
+	return true;
+}
 
-	// Structural paste: pasteDispatch's internal afterTick focuses the last
-	// spliced block via its parent state. If cascade cleanup destroyed that
-	// parent state, the focus silently no-ops. Detect by checking whether
-	// focus landed in the editor; if not, DOM-focus caret.path (post-paste)
-	// as a fallback so the user isn't left without a caret.
+/**
+ * Land the caret after a cross-block paste commit. Inline pastes place the
+ * caret via DOM (pendingCursor may address a block the range delete
+ * unmounted); structural pastes rely on pasteDispatch's internal focus and
+ * only DOM-focus the caret block if focus escaped the editor (cascade
+ * cleanup can destroy the parent state the internal focus targets).
+ */
+async function landCaretAfterPaste(
+	ctx: CrossBlockDispatchContext,
+	caretPath: number[],
+	inlineCaretOffset: number | undefined
+): Promise<void> {
 	await ctx.afterReactivity();
+	if (inlineCaretOffset !== undefined) {
+		const el = ctx.getBlockElByPath(caretPath);
+		if (el) {
+			applyCollapsedCaret(el, { path: caretPath, offset: inlineCaretOffset });
+			el.focus();
+		}
+		return;
+	}
 	const editorRoot = ctx.getEditorRoot();
 	if (editorRoot && !editorRoot.contains(document.activeElement)) {
-		const fallbackEl = ctx.getBlockElByPath(caret.path);
-		fallbackEl?.focus();
+		ctx.getBlockElByPath(caretPath)?.focus();
 	}
-	return true;
 }
 
 // ── Whole-table paste ──────────────────────────────────────────────────────
