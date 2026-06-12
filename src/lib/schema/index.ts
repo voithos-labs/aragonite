@@ -13,3 +13,4 @@ export * from './container-raw';
 export * from './merge-rules';
 export * from './block-component-registry';
 export * from './operations';
+export * from './plugin-kind';

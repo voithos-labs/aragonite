@@ -47,6 +47,20 @@ export const BLOCK_KIND_TABLE: Record<BlockKind, true> = {
 
 export const ALL_BLOCK_KINDS = Object.keys(BLOCK_KIND_TABLE) as BlockKind[];
 
+declare const PluginKindBrand: unique symbol;
+/**
+ * A plugin-declared block kind. Runtime value is a plain string; the brand
+ * keeps `BlockKind` switches exhaustive over built-ins while letting the
+ * schema registries key plugin kinds. Create via `declarePluginKind`.
+ */
+export type PluginBlockKind = string & { readonly [PluginKindBrand]: true };
+
+export type AnyBlockKind = BlockKind | PluginBlockKind;
+
+export function isBuiltinBlockKind(kind: AnyBlockKind): kind is BlockKind {
+	return kind in BLOCK_KIND_TABLE;
+}
+
 // ── Metadata ────────────────────────────────────────────────────────────────
 
 export interface HeadingMetadata {

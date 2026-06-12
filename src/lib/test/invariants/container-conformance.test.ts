@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { isBuiltinBlockKind } from '$lib/editor/core/nodes';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
@@ -16,9 +17,11 @@ import {
 } from './container-conformance-kit';
 
 // Registry-derived: every kind whose descriptor declares it a container.
-const registeredContainerKinds = getAllRegisteredKinds().filter(
-	(k) => getBlockKindDescriptor(k).isContainer
-);
+// Built-ins only — `CstNode.kind` is `BlockKind`, so plugin kinds can't appear
+// in trees and the kit's parse-based fixtures can't exercise them.
+const registeredContainerKinds = getAllRegisteredKinds()
+	.filter(isBuiltinBlockKind)
+	.filter((k) => getBlockKindDescriptor(k).isContainer);
 
 // ── Completeness: the auto-coverage mechanism ───────────────────────────────────
 // A registered container with no profile FAILS here, so a 1.2 plugin container
