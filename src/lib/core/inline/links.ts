@@ -10,15 +10,13 @@ import type { InlineNode } from '../nodes';
 import { parseImageDimensions } from './image-dimensions';
 import { parseInline } from './index';
 import { normalizeLinkLabel, type LinkReferenceResolver } from './link-reference-resolver';
-
-type Range = { start: number; end: number };
-
-function isContainedInAny(inner: Range, outers: Range[]): boolean {
-	for (const outer of outers) {
-		if (inner.start >= outer.start && inner.end <= outer.end) return true;
-	}
-	return false;
-}
+import {
+	forEachGap,
+	isContainedInAny,
+	occupiedEndAt,
+	occupiedRangesFrom,
+	type Range
+} from './ranges';
 
 // ── GFM §6.9 shared helpers ─────────────────────────────────────────────────
 
@@ -97,9 +95,7 @@ export function scanLinksAndAutolinks(
 	occupied: InlineNode[],
 	resolver?: LinkReferenceResolver
 ): InlineNode[] {
-	const occupiedRanges: Range[] = occupied
-		.filter((n) => n.kind !== 'text')
-		.map((n) => ({ start: n.start, end: n.end }));
+	const occupiedRanges = occupiedRangesFrom(occupied);
 
 	// Pass 1: links and images may span occupied ranges (entity in link text,
 	// escape inside alt, etc.). Bracket pairing skips over occupied content so
@@ -123,12 +119,7 @@ export function scanLinksAndAutolinks(
 	);
 
 	const autolinks: InlineNode[] = [];
-	let pos = start;
-	for (const range of closedRanges) {
-		scanRegionForAutolinks(raw, pos, range.start, autolinks);
-		pos = range.end;
-	}
-	scanRegionForAutolinks(raw, pos, end, autolinks);
+	forEachGap(closedRanges, start, end, (s, e) => scanRegionForAutolinks(raw, s, e, autolinks));
 
 	const found: InlineNode[] = [...linksAndImages, ...autolinks];
 	if (found.length === 0) return occupied;
@@ -311,16 +302,6 @@ function scanLinksAndImages(
 	}
 
 	return out;
-}
-
-/** End of the occupied range covering `pos`, or null if `pos` is free. */
-function occupiedEndAt(occupied: Range[], pos: number): number | null {
-	for (const range of occupied) {
-		if (pos >= range.end) continue;
-		if (pos < range.start) return null;
-		return range.end;
-	}
-	return null;
 }
 
 function findMatchingBracket(
