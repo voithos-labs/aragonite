@@ -419,30 +419,33 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Doc scope adapter ────────────────────────────────────────────────────
 
 	/**
-	 * Expose the document root as a MultiScopeTarget so cross-scope ops with
-	 * an LCA at doc level can include it. The synthetic BlockListState forwards
-	 * ids/refs through deps setters so publish-time assignments reach the
-	 * Svelte $state proxies.
+	 * The document root standing in as a scope: forwards top-level ids/refs
+	 * through deps setters so publish-time assignments reach the Svelte $state
+	 * proxies. The indirection is the adaptation, not a Middle-Man.
 	 */
-	function getDocScope(): MultiScopeTarget {
+	function createDocScopeAdapter(): BlockListState {
 		return {
-			node: deps.doc as unknown as CstNode,
-			path: [],
-			state: {
-				get innerBlockIds() {
-					return deps.blockIds;
-				},
-				set innerBlockIds(v: string[]) {
-					deps.setBlockIds(v);
-				},
-				get innerBlockRefs() {
-					return deps.blockRefs;
-				},
-				set innerBlockRefs(v: (BlockComponent | undefined)[]) {
-					deps.setBlockRefs(v);
-				}
+			get innerBlockIds() {
+				return deps.blockIds;
+			},
+			set innerBlockIds(v: string[]) {
+				deps.setBlockIds(v);
+			},
+			get innerBlockRefs() {
+				return deps.blockRefs;
+			},
+			set innerBlockRefs(v: (BlockComponent | undefined)[]) {
+				deps.setBlockRefs(v);
 			}
 		};
+	}
+
+	/**
+	 * Expose the document root as a MultiScopeTarget so cross-scope ops with
+	 * an LCA at doc level can include it.
+	 */
+	function getDocScope(): MultiScopeTarget {
+		return { node: deps.doc as unknown as CstNode, path: [], state: createDocScopeAdapter() };
 	}
 
 	// ── State capture / checkpoint control ──────────────────────────────────
