@@ -139,10 +139,8 @@ export function rawTextOfNode(domNode: Node, raw: string): string {
 	if (domNode.nodeType === Node.ELEMENT_NODE) {
 		const el = domNode as Element;
 		if (el.matches?.(WIDGET_SELECTOR)) {
-			const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
-			const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
-			if (Number.isNaN(start) || Number.isNaN(end)) return '';
-			return raw.slice(start, end);
+			const range = readWidgetSourceRange(el);
+			return range ? raw.slice(range.start, range.end) : '';
 		}
 		let out = '';
 		for (const child of Array.from(el.childNodes)) out += rawTextOfNode(child, raw);
@@ -186,8 +184,14 @@ export function createRangeAtRawOffsets(
 }
 
 function widgetRawLength(el: Element): number {
+	const range = readWidgetSourceRange(el);
+	return range ? Math.max(0, range.end - range.start) : 0;
+}
+
+/** Widget raw byte range from data-source-* attributes; null when malformed. */
+function readWidgetSourceRange(el: Element): { start: number; end: number } | null {
 	const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
 	const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
-	if (Number.isNaN(start) || Number.isNaN(end)) return 0;
-	return Math.max(0, end - start);
+	if (Number.isNaN(start) || Number.isNaN(end)) return null;
+	return { start, end };
 }
