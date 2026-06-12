@@ -15,7 +15,7 @@ import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { ensureListItemNewlineTerminated } from '../list/terminator';
+import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 
 interface ContainerUnwrap {
@@ -120,10 +120,7 @@ export async function applyContainerMatchingPaste(
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
 		mutate: ([scopeView]) => {
-			for (const item of unwrap.items) {
-				if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
-			}
-			scopeView.children.splice(unwrap.spliceIndex, 1, ...unwrap.items);
+			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: unwrap.spliceIndex,
@@ -243,7 +240,7 @@ async function applyContainerMatchingMerge(
 				at: unwrap.spliceIndex + 1,
 				count: remainingItems.length
 			};
-			scopeView.children.splice(unwrap.spliceIndex + 1, 0, ...remainingItems);
+			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex + 1, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
 			return [change];
 		},

@@ -22,3 +22,25 @@ export function ensureListItemNewlineTerminated(item: CstNode): void {
 	if (!last.raw.endsWith('\n')) last.raw += '\n';
 	rebuildListItemRaw(item);
 }
+
+/** Normalize every pasted listItem in `items` (non-listItems pass through). */
+export function newlineTerminateListItems(items: CstNode[]): void {
+	for (const item of items) {
+		if (item.kind === 'listItem') ensureListItemNewlineTerminated(item);
+	}
+}
+
+/**
+ * THE way pasted items enter a list's children mid-array: termination is
+ * welded to the splice so a new paste path can't forget it and reintroduce
+ * raw-mashing during the container's rebuild.
+ */
+export function spliceTerminatedItems(
+	children: CstNode[],
+	at: number,
+	removeCount: number,
+	items: CstNode[]
+): void {
+	newlineTerminateListItems(items);
+	children.splice(at, removeCount, ...items);
+}

@@ -16,7 +16,7 @@ import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { rebuildListRaw } from '../../schema/container-raw';
-import { ensureListItemNewlineTerminated } from '../list/terminator';
+import { newlineTerminateListItems } from '../list/terminator';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
@@ -185,11 +185,10 @@ export function buildListBreakOutReplacement(
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
-		// Clipboards without a trailing newline leave the last pasted item's
-		// raw un-terminated; when concatenated with the next block, the two
-		// mash (e.g. "3. Ordered" + "- third" → "3. Ordered- third").
+		// No children-array splice here — the cloned list itself is the unit;
+		// normalize its items so its rebuilt raw can't mash into the next block.
 		if (cloned.kind === 'list' && cloned.children) {
-			for (const item of cloned.children) ensureListItemNewlineTerminated(item);
+			newlineTerminateListItems(cloned.children);
 			rebuildListRaw(cloned);
 		}
 		replacement.push(cloned);
