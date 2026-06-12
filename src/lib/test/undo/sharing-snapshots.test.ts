@@ -74,7 +74,7 @@ describe('structural-sharing snapshots', () => {
 		await history.requestUndo();
 		expect(devWarn).toHaveBeenCalledWith(
 			'snapshot-integrity',
-			expect.stringContaining('digest mismatch'),
+			expect.stringContaining('undo: snapshot digest mismatch'),
 			'snapshot-integrity'
 		);
 	});

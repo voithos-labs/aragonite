@@ -1,6 +1,8 @@
-// cloneDocument is the per-commit undo-snapshot path — its cost scales with doc size.
-// Vitest sets DEV, so cloneNode runs the clone-safe-metadata invariant per
-// metadata-bearing node — these numbers are upper bounds vs production.
+// Historical reference — cloneDocument left the production snapshot path in
+// 0.7.4 (snapshots share the live tree; see snapshot-push.bench.ts). Kept to
+// track deep-clone cost should a path need it again. Vitest sets DEV, so
+// cloneNode runs the clone-safe-metadata invariant per metadata-bearing node —
+// these numbers are upper bounds vs production.
 import { bench, describe } from 'vitest';
 import { parse } from '../../core/parser';
 import { cloneDocument } from '../../tree-operations/clone';

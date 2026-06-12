@@ -14,6 +14,10 @@ export function createUndoManager(): UndoManager {
 			redoStack.length = 0;
 		},
 
+		peekUndo(): UndoEntry | null {
+			return undoStack[undoStack.length - 1] ?? null;
+		},
+
 		undo(currentState: UndoEntry): UndoEntry | null {
 			const entry = undoStack.pop();
 			if (!entry) return null;
