@@ -9,6 +9,7 @@
  */
 
 export * from './block-kind-descriptor';
+export * from './block-openers';
 export * from './container-raw';
 export * from './merge-rules';
 export * from './block-component-registry';

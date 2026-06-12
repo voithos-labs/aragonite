@@ -6,7 +6,11 @@
 
 import type { CstNode } from '../core/nodes';
 import { assertInvariant } from './assert';
-import { checkRegistryCompleteness, checkIsContainerIffRebuildRaw } from './registry';
+import {
+	checkRegistryCompleteness,
+	checkIsContainerIffRebuildRaw,
+	checkOpenerRegistry
+} from './registry';
 import { checkStaleRaw, checkCategoryFields } from './node-shape';
 import { checkContentRange } from './descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './sharing';
@@ -44,4 +48,5 @@ export function runStartupInvariantChecks(): void {
 	didStartupCheck = true;
 	assertInvariant('registry-completeness', checkRegistryCompleteness);
 	assertInvariant('container-rebuild-pairing', checkIsContainerIffRebuildRaw);
+	assertInvariant('opener-registry', checkOpenerRegistry);
 }

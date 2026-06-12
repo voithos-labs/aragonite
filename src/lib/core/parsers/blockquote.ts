@@ -8,7 +8,7 @@
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { startsNewBlock } from './paragraph';
+import { lineInterruptsParagraph } from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
@@ -25,7 +25,7 @@ function stripBlockquotePrefix(text: string): string {
  */
 function wouldKeepParagraphOpen(strippedText: string): boolean {
 	if (isBlankLine(strippedText)) return false;
-	if (startsNewBlock(strippedText)) return false;
+	if (lineInterruptsParagraph(strippedText)) return false;
 	if (matchBlockquote(strippedText)) return false;
 	return true;
 }
