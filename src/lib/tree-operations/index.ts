@@ -48,6 +48,3 @@ export { buildPastedReplacement } from './paste-replacement';
 export { cloneDocument, cloneNode } from './clone';
 
 export { generateBlockId, assignIds } from './block-id';
-
-export type { StructuralChange } from './structural-change';
-export { stampStructuralChange } from './structural-change';

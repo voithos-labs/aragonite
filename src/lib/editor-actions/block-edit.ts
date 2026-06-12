@@ -19,10 +19,12 @@ import {
 	ensureUnsharedPath,
 	rebuildOwnedContainer,
 	buildPastedReplacement,
-	normalizeReplacementTrivia,
-	stampStructuralChange,
-	type StructuralChange
+	normalizeReplacementTrivia
 } from '../tree-operations';
+import {
+	replacePreservingFirst,
+	stampStructuralChange
+} from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -250,14 +252,7 @@ export function createBlockEditActions(
 				snapshot,
 				mutate: (children) => {
 					children.splice(blockIndex, 1, ...newNodes);
-					// First replacement inherits the original block's id + ref.
-					const change: StructuralChange = {
-						op: 'replace',
-						at: blockIndex,
-						count: 1,
-						newCount: newNodes.length,
-						idMap: { 0: 0 }
-					};
+					const change = replacePreservingFirst(blockIndex, 1, newNodes.length);
 					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},
@@ -295,16 +290,7 @@ export function createBlockEditActions(
 						return { op: 'delete', at: blockIndex, count: 1 };
 					}
 					children.splice(blockIndex, 1, ...normalizedReplacement);
-					// First replacement inherits the original block's id + ref so
-					// Svelte's keyed {#each} doesn't destroy+recreate the component
-					// — preserves IME composition state and pending input.
-					const change: StructuralChange = {
-						op: 'replace',
-						at: blockIndex,
-						count: 1,
-						newCount: normalizedReplacement.length,
-						idMap: { 0: 0 }
-					};
+					const change = replacePreservingFirst(blockIndex, 1, normalizedReplacement.length);
 					stampStructuralChange(children, change, deps.sharing);
 					return change;
 				},

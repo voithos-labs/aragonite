@@ -10,8 +10,11 @@ import { FOCUS_LAST_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
-import type { StructuralChange } from '../tree-operations/structural-change';
-import { stampStructuralChange } from '../tree-operations/structural-change';
+import {
+	replacePreservingFirst,
+	stampStructuralChange,
+	type StructuralChange
+} from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-raw';
@@ -231,16 +234,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
 
 					// Net scope-1 change: [innerIndex .. preSpliceLen) replaced by
-					// the single first-half leaf. idMap preserves the split leaf's id.
+					// the single first-half leaf.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						{
-							op: 'replace',
-							at: innerIndex,
-							count: preSpliceLen - innerIndex,
-							newCount: 1,
-							idMap: { 0: 0 }
-						} as StructuralChange
+						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, 1)
 					];
 				},
 				op: { kind: 'split', detail: { itemIndex, innerIndex, offset }, eventPath: [deps.index] },
