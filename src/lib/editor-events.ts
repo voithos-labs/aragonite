@@ -9,41 +9,24 @@
  */
 
 import type { EditorSelection } from './selection/primitives';
+import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 
-export type EditEvent =
-	| { op: 'split'; path: number[]; detail: { at: number }; timestamp: number }
-	| {
-			op: 'merge';
-			path: number[];
-			detail: { direction: 'prev' | 'next' };
-			timestamp: number;
-	  }
-	| { op: 'delete'; path: number[]; detail?: {}; timestamp: number }
-	| { op: 'paste'; path: number[]; detail: { count: number }; timestamp: number }
-	| { op: 'replaceBlock'; path: number[]; detail: { count: number }; timestamp: number }
-	| { op: 'updateContent'; path: number[]; detail: { length: number }; timestamp: number }
-	| { op: 'input'; path: number[]; detail: { byteLength: number }; timestamp: number }
-	| { op: 'appendBlock'; path: number[]; detail?: {}; timestamp: number }
-	| { op: 'metadataUpdate'; path: number[]; detail: { fields: string[] }; timestamp: number }
-	| { op: 'undo'; path: number[]; detail?: {}; timestamp: number }
-	| { op: 'redo'; path: number[]; detail?: {}; timestamp: number }
-	| {
-			op: 'tableInsertRow';
-			path: number[];
-			detail: { rowIdx: number; side: 'above' | 'below' };
-			timestamp: number;
-	  }
-	| { op: 'tableDeleteRow'; path: number[]; detail: { rowIdx: number }; timestamp: number }
-	| {
-			op: 'tableInsertColumn';
-			path: number[];
-			detail: { colIdx: number; side: 'left' | 'right' };
-			timestamp: number;
-	  }
-	| { op: 'tableDeleteColumn'; path: number[]; detail: { colIdx: number }; timestamp: number }
-	| { op: 'tableCycleAlignment'; path: number[]; detail: { colIdx: number }; timestamp: number };
+/** Derived per-arm from OperationDetailMap — see schema/operations.ts. */
+export type EditEvent = {
+	[K in OperationKind]: undefined extends OperationDetailMap[K]
+		? { op: K; path: number[]; detail?: OperationDetailMap[K]; timestamp: number }
+		: { op: K; path: number[]; detail: OperationDetailMap[K]; timestamp: number };
+}[OperationKind];
+
+/**
+ * OpDescriptor → EditEvent. The cast is sound by construction: both types
+ * derive from OperationDetailMap, TS just can't narrow the correlated union.
+ */
+export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number): EditEvent {
+	return { op: op.kind, path, detail: op.detail, timestamp } as EditEvent;
+}
 
 export type SelectionChangeEvent = EditorSelection | null;
 

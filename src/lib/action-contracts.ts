@@ -8,31 +8,7 @@ import type { CstNode } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './undo/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
-
-// ── Operation vocabulary ───────────────────────────────────────────────────
-
-export type OperationKind =
-	| 'split'
-	| 'merge'
-	| 'delete'
-	| 'input'
-	| 'updateContent'
-	| 'replaceBlock'
-	| 'paste'
-	| 'appendBlock'
-	| 'metadataUpdate'
-	| 'undo'
-	| 'redo'
-	| 'tableInsertRow'
-	| 'tableDeleteRow'
-	| 'tableInsertColumn'
-	| 'tableDeleteColumn'
-	| 'tableCycleAlignment';
-
-export interface OpDescriptor {
-	kind: OperationKind;
-	detail?: Record<string, unknown>;
-}
+import type { ScopedOpDescriptor } from './schema/operations';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the
@@ -158,11 +134,7 @@ export interface ContainerEditActions {
 		};
 		snapshot: { blockIndex: number; offset: number } | 'skip';
 		mutate: (scope: ContainerScope) => StructuralChange;
-		op?: {
-			kind: string;
-			detail?: Record<string, unknown>;
-			eventPath: number[];
-		};
+		op?: ScopedOpDescriptor;
 		afterTick?: () => void;
 	}): Promise<void>;
 }

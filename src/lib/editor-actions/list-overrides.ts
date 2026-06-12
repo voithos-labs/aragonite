@@ -210,11 +210,14 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
 					},
-					op: {
-						kind: replacement.length === 0 ? 'delete' : 'replaceBlock',
-						detail: { count: replacement.length },
-						eventPath: [index, itemIndex]
-					},
+					op:
+						replacement.length === 0
+							? { kind: 'delete', eventPath: [index, itemIndex] }
+							: {
+									kind: 'replaceBlock',
+									detail: { count: replacement.length },
+									eventPath: [index, itemIndex]
+								},
 					afterTick: () => {
 						if (focus && replacement.length > 0) {
 							const targetIdx = itemIndex + focus.replacementIndex;

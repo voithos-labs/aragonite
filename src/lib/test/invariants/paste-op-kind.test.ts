@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
@@ -23,8 +23,8 @@ function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;
 }
 
-function editKinds(handler: ReturnType<typeof vi.fn>): string[] {
-	return handler.mock.calls.map((c) => (c[0] as EditEvent).op);
+function editKinds(handler: Mock<(e: EditEvent) => void>): string[] {
+	return handler.mock.calls.map(([event]) => event.op);
 }
 
 describe('G2.9 paste op-kind dual-emit', () => {
@@ -33,7 +33,7 @@ describe('G2.9 paste op-kind dual-emit', () => {
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 
-		const onEdit = vi.fn();
+		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
 		await actions.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')]);
@@ -73,7 +73,7 @@ describe('G2.9 paste op-kind dual-emit', () => {
 			}
 		});
 
-		const onEdit = vi.fn();
+		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
 		await bundle.blockEdit.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')]);

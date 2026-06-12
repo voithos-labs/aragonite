@@ -42,13 +42,7 @@ export function createNestedContainerEdit(deps: NestedActionsDeps): ContainerEdi
 			// the inner mutation, not the ancestry.
 			const remappedSnapshot =
 				snapshot === 'skip' ? snapshot : { blockIndex: deps.index, offset: snapshot.offset };
-			const remappedOp = op
-				? {
-						kind: op.kind,
-						detail: op.detail,
-						eventPath: [deps.index, ...op.eventPath]
-					}
-				: undefined;
+			const remappedOp = op ? { ...op, eventPath: [deps.index, ...op.eventPath] } : undefined;
 			return parent.containerEdit.commitContainer({
 				containerNode,
 				path,
