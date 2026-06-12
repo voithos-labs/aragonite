@@ -2,6 +2,11 @@
 
 Quick reference for the GitHub Flavored Markdown syntax Limestone's CST editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is delivered as plugins on top of the v1.2 plugin API.
 
+<!-- Examples demonstrating alternative syntaxes use `text` fences on purpose:
+     prettier formats `markdown`-tagged fences as markdown and normalizes away
+     the very variants being shown (emphasis markers, ***/___ breaks, setext
+     underlines, trailing-space hard breaks). Do not retag them. -->
+
 ### 1. Standard Markdown Essentials (Included in GFM)
 
 These are the core CommonMark features that GFM fully supports and builds upon.
@@ -26,10 +31,10 @@ This is a second paragraph.
 
 **Emphasis:**
 
-```markdown
-_Italic_ or _Italic_
-**Bold** or **Bold**
-**_Bold and Italic_**
+```text
+*Italic* or _Italic_
+**Bold** or __Bold__
+***Bold and Italic***
 ```
 
 **Lists:**
@@ -73,6 +78,8 @@ function helloWorld() {
 ```
 ````
 
+Tilde fences (`~~~`) are equivalent — useful when the snippet itself contains backticks.
+
 **Reference-Style Links and Images:**
 
 ```markdown
@@ -81,6 +88,14 @@ Here is a [link to Google][google-ref] and another to [GitHub][github-ref].
 [google-ref]: https://google.com 'Google Search'
 [github-ref]: https://github.com
 ```
+
+**Autolinks (Angle Brackets):**
+
+```markdown
+Visit <https://example.com> or write to <mailto:user@example.com>.
+```
+
+Per CommonMark §6.8, an absolute URI in angle brackets becomes a link without `[text](url)` syntax. (GFM's bare-URL autolinks — no brackets — are the Section 2 extension; non-http schemes in angle form are a roadmapped polish item.)
 
 **Hard Line Breaks:**
 
@@ -91,11 +106,10 @@ This is line two directly below it.
 
 **Thematic Breaks (Horizontal Rules):**
 
-```markdown
+```text
 ---
----
-
----
+***
+___
 ```
 
 **Indented Code Blocks:**
@@ -137,22 +151,23 @@ These two lines
 become one paragraph.
 ```
 
-A "hard line break" forces a visible `<br>`. There are two ways:
+A "hard line break" forces a visible `<br>`. There are two ways — a trailing backslash, or two trailing spaces:
 
-```markdown
+```text
 Trailing backslash:\
-Next line.
-
-Two trailing spaces:
 Next line.
 ```
 
+The two-trailing-spaces variant works identically but cannot be shown faithfully here: formatters (including this repo's) strip trailing whitespace — which is exactly why the visible backslash form is preferred.
+
 **Setext Headings:**
 
-```markdown
-# Heading Level 1
+```text
+Heading Level 1
+===============
 
-## Heading Level 2
+Heading Level 2
+---------------
 ```
 
 **Escaping Characters:**
