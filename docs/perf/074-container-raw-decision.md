@@ -1,6 +1,6 @@
 # 0.7.4 — Container-Raw Decision Memo
 
-**Status: decided 2026-06-11 — structural-sharing undo (recommendation accepted); implementation pending.** The revisit ladder for the materialized-raw axis (lazy raw, then fully derived) is recorded in `docs/roadmap.md` § 0.7.4.
+**Status: decided 2026-06-11 — structural-sharing undo (recommendation accepted); shipped as 0.7.4 (see `docs/changelog.md`).** The revisit ladder for the materialized-raw axis (lazy raw, then fully derived) is recorded in `docs/roadmap.md` § 0.8 (first measurement item).
 
 Numbers come from the 0.7.7 harness baseline (`src/lib/editor/test/perf/baseline.json`, AMD Ryzen 7 7700, Node 24) plus one-off measurements run for this memo (scratch benches, deleted after recording; same machine). Bench rows are mean ms ± relative margin of error (sample count).
 
