@@ -1,4 +1,5 @@
-import type { Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import { spliceChildren } from './children';
 import { nodeAt } from './node-ops';
 
 /**
@@ -26,7 +27,7 @@ export function cascadeCleanupEmptyAncestors(
 		if (!parent || !('children' in parent) || !parent.children) break;
 		const idx = currentPath[currentPath.length - 1];
 		// discovered-ancestor mutation, see node-ops.ts header
-		parent.children.splice(idx, 1);
+		spliceChildren(parent as CstNode, idx, 1);
 		currentPath = parentPath;
 	}
 }
