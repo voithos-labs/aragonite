@@ -145,6 +145,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
+		history,
 		pasteCoordinator,
 		getCursorOffset: () => cursor.getRaw(),
 		afterReactivity: () => tick(),

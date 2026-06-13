@@ -6,7 +6,10 @@
 
 import type { CrossBlockMutationContext } from './cross-block-ops';
 import type { CrossBlockDispatchContext } from './cross-block-dispatch';
+import type { CstNode, Document } from '../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
+import { eventToChord } from '../schema/keybindings';
+import { dispatchKeyCommand } from '../schema/commands';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -75,17 +78,26 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Delete-then-redispatch: Enter, Shift+Enter, Tab, Ctrl+B, Ctrl+I, Ctrl+0..6
-	// are transformative operations the block-level handler resolves at the
-	// collapsed caret. Without this, the originating block's onKeyDown runs
-	// the op on a stale single-block raw while the cross-block selection
-	// visually persists. Delete the range first, then re-dispatch the same
-	// key to the newly-focused block so its handler resolves normally.
-	if (isDeleteThenRedispatchKey(e)) {
+	// Enter, Shift+Enter, Tab, Ctrl+B, Ctrl+I, Ctrl+0..6 are transformative
+	// operations the block-level handler resolves at the collapsed caret. Run
+	// them on the merged block after the delete, not on the originating block's
+	// stale single-block raw while the cross-block selection visually persists.
+	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
+		// Capture the collapse target BEFORE deleting: a cross-block delete collapses
+		// "start wins", so the merged block lands at the normalized start path.
+		const collapsePath = (selection.start ?? selection.focus)?.path ?? myPath;
 		await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
-		redispatchKeyToActiveElement(e);
+		const target = ctx.getBlockComponentByPath(collapsePath);
+		const chord = eventToChord(e);
+		if (target?.runCommand && chord) {
+			dispatchKeyCommand(
+				chord,
+				{ kind: kindOfPath(collapsePath, doc), runCommand: target.runCommand },
+				{ history: ctx.history }
+			);
+		}
 		return true;
 	}
 
@@ -171,9 +183,10 @@ function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent)
 /**
  * Keys whose behavior is owned by the block-level handler at the caret and
  * which must run at a collapsed caret, not while a cross-block selection
- * visually persists over stale block indices.
+ * visually persists over stale block indices. After the range delete, these
+ * dispatch through the merged block's command registry.
  */
-function isDeleteThenRedispatchKey(e: KeyboardEvent): boolean {
+function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if (
@@ -187,26 +200,14 @@ function isDeleteThenRedispatchKey(e: KeyboardEvent): boolean {
 	return false;
 }
 
-/**
- * Re-fire the keydown at the post-delete active element. The collapsed caret
- * restore focuses the merge target synchronously, so document.activeElement
- * points at the block whose onKeyDown should handle the key.
- */
-function redispatchKeyToActiveElement(e: KeyboardEvent): void {
-	const active = document.activeElement;
-	if (!(active instanceof HTMLElement)) return;
-	active.dispatchEvent(
-		new KeyboardEvent('keydown', {
-			key: e.key,
-			code: e.code,
-			shiftKey: e.shiftKey,
-			ctrlKey: e.ctrlKey,
-			metaKey: e.metaKey,
-			altKey: e.altKey,
-			bubbles: true,
-			cancelable: true
-		})
-	);
+function kindOfPath(path: number[], doc: Document): CstNode['kind'] {
+	let node: CstNode = doc as unknown as CstNode;
+	for (const i of path) {
+		const child = node.children?.[i];
+		if (!child) break;
+		node = child;
+	}
+	return node.kind;
 }
 
 /**
