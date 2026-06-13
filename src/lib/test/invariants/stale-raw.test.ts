@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// Side-effect import: populates rebuildRaw on container descriptors.
-import '../../schema/container-raw';
 import { checkStaleRaw } from '../../invariants/node-shape';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';

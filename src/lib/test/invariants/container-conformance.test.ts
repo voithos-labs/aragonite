@@ -4,7 +4,6 @@ import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
 } from '$lib/editor/schema/block-kind-descriptor';
-import '$lib/editor/schema/container-raw'; // load the rebuildRaw augments before deriving containers
 import {
 	CONTAINER_PROFILES,
 	checkStripLocalIndexAddressing,

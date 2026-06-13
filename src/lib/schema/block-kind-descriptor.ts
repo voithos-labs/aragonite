@@ -1,5 +1,12 @@
 import { metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
+import {
+	rebuildBlockquoteRaw,
+	rebuildListItemRaw,
+	rebuildListRaw,
+	rebuildTableRaw,
+	rebuildTableRowRaw
+} from './container-rebuilders';
 
 /**
  * A block's merge role classifies its behavior for Backspace-merge purposes.
@@ -52,9 +59,9 @@ export interface BlockKindDescriptor {
 	 */
 	getContentRange?: (node: CstNode) => { start: number; end: number };
 	/**
-	 * Recompute `raw` from children + container metadata. Container kinds supply
-	 * this; leaves omit it. Patched in from `schema/container-raw.ts` at that
-	 * file's module load to keep the descriptor cycle-free.
+	 * Recompute `raw` from children + container metadata. Container kinds
+	 * declare this at registration (implementations in
+	 * `schema/container-rebuilders.ts`); leaves omit it.
 	 */
 	rebuildRaw?: (node: CstNode) => void;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
@@ -111,10 +118,10 @@ export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescr
 }
 
 /**
- * Merge fields into an existing registration. Used by sibling modules
- * (e.g. container-raw.ts) to patch in behavior that can't live in this file
- * without creating an import cycle. Throws when the kind isn't already
- * registered — no accidental creation via partial data.
+ * Merge fields into an existing registration. Used by top-of-DAG wire-up
+ * (components/built-in-blocks.ts) to patch in behavior that can't live in
+ * this file without importing downstream layers. Throws when the kind isn't
+ * already registered — no accidental creation via partial data.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
 	const existing = registry.get(kind);
@@ -204,6 +211,7 @@ registerBlockKind('table', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'grid',
+	rebuildRaw: rebuildTableRaw,
 	supportsInline: false
 });
 registerBlockKind('tableRow', {
@@ -211,6 +219,7 @@ registerBlockKind('tableRow', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'grid',
+	rebuildRaw: rebuildTableRowRaw,
 	supportsInline: false
 });
 registerBlockKind('tableCell', {
@@ -232,6 +241,7 @@ registerBlockKind('blockquote', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'strip',
+	rebuildRaw: rebuildBlockquoteRaw,
 	supportsInline: false,
 	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false }
 });
@@ -240,6 +250,7 @@ registerBlockKind('list', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'strip',
+	rebuildRaw: rebuildListRaw,
 	supportsInline: false,
 	containerPaste: {
 		matchesAncestor: (top, ancestor) =>
@@ -253,5 +264,6 @@ registerBlockKind('listItem', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'strip',
+	rebuildRaw: rebuildListItemRaw,
 	supportsInline: false
 });

@@ -51,7 +51,6 @@
 	import BlockList from './BlockList.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
-	import '../schema/container-raw';
 	import './built-in-blocks';
 
 	bootstrapCodeLanguages();

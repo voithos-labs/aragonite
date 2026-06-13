@@ -14,7 +14,7 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { assertInvariant } from '../invariants/assert';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
-import { rebuildTableRowRaw } from '../schema/container-raw';
+import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import {
 	insertEmptyRow,
 	insertEmptyColumn,

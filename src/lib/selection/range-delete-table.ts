@@ -21,7 +21,7 @@ import {
 	rebuildOwnedContainer,
 	rebuildUnsharedAncestry
 } from '../tree-operations/unshare';
-import { rebuildTableRowRaw } from '../schema/container-raw';
+import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

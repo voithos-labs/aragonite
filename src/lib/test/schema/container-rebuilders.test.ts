@@ -3,7 +3,7 @@ import {
 	rebuildBlockquoteRaw,
 	rebuildListItemRaw,
 	rebuildListRaw
-} from '../../schema/container-raw';
+} from '../../schema/container-rebuilders';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';

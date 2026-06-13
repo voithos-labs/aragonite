@@ -42,7 +42,7 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 
 let didStartupCheck = false;
 
-/** Registry-wide checks, run once after built-in registration + container-raw augmentation. */
+/** Registry-wide checks, run once after built-in registration. */
 export function runStartupInvariantChecks(): void {
 	if (didStartupCheck) return;
 	didStartupCheck = true;

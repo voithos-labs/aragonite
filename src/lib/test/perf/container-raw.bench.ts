@@ -5,7 +5,7 @@
 import { bench, describe } from 'vitest';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
-import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
+import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { generateFixture } from './fixtures/generate';
 
 function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
