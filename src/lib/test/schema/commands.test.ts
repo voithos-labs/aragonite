@@ -97,6 +97,15 @@ describe('fencedCode keymap', () => {
 	});
 });
 
+describe('listItem keymap', () => {
+	// Tab/Shift+Tab indent/unindent the item; ListItemBlock's bubble handler
+	// dispatches these after the inner paragraph's block.insertTab declines.
+	it('resolves Tab/Shift+Tab to indent/unindent', () => {
+		expect(resolveBinding('Tab', 'listItem')?.command).toBe('list.indent');
+		expect(resolveBinding('Shift+Tab', 'listItem')?.command).toBe('list.unindent');
+	});
+});
+
 describe('text-editable keymap breadth', () => {
 	// The same transformative chords must resolve for prose AND the raw-editable
 	// fallback kinds — TextEditableBlock renders both, and its keydown applied

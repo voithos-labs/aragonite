@@ -329,5 +329,9 @@ registerBlockKind('listItem', {
 	isContainer: true,
 	containerContract: 'strip',
 	rebuildRaw: rebuildListItemRaw,
-	supportsInline: false
+	supportsInline: false,
+	keymap: [
+		{ chord: 'Tab', command: 'list.indent' },
+		{ chord: 'Shift+Tab', command: 'list.unindent' }
+	]
 });

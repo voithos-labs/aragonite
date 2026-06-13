@@ -4,6 +4,7 @@
 		BlockEditActions,
 		ContainerEditActions,
 		FocusActions,
+		HistoryActions,
 		ListContext
 	} from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
@@ -12,6 +13,7 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		FOCUS_KEY,
+		HISTORY_KEY,
 		LIST_CONTEXT_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY
@@ -29,6 +31,8 @@
 	import { buildTaskItemAmbient } from './list/task-checkbox';
 	import BlockList from '../BlockList.svelte';
 	import { publishRefSlot } from '../../reactivity/publish-ref.svelte';
+	import { eventToChord } from '../../schema/keybindings';
+	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
 
 	let {
 		node,
@@ -49,6 +53,7 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const historyActions = getContext<HistoryActions>(HISTORY_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
@@ -162,14 +167,36 @@
 		return publishRefSlot(index, containerApi, setRef, getRef);
 	});
 
+	// ── Commands ────────────────────────────────────────────────────────
+
+	// Not on the BlockComponent surface (the published ref is containerApi, not
+	// this instance); the bubble handler below closes over it directly and is
+	// its only caller.
+	function runCommand(id: CommandId): boolean {
+		switch (id) {
+			case 'list.indent':
+				listContext.indentItem(index);
+				return true;
+			case 'list.unindent':
+				listContext.unindentItem(index);
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab
+	// declines (without preventDefault) when a listContext is present. The guard
+	// catches chords the contenteditable already handled — including Mod+Z/Y,
+	// which routing now resolves against GLOBAL_KEYMAP but never fires here.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
-		if (e.key === 'Tab' && !e.shiftKey) {
+		const chord = eventToChord(e);
+		if (
+			chord &&
+			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history: historyActions })
+		) {
 			e.preventDefault();
-			listContext.indentItem(index);
-		} else if (e.key === 'Tab' && e.shiftKey) {
-			e.preventDefault();
-			listContext.unindentItem(index);
 		}
 	}
 </script>
