@@ -78,6 +78,7 @@ function makeHandlers(
 		containerEdit: env.containerEdit,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
+		history: { requestUndo() {}, requestRedo() {} },
 		pasteCoordinator: createPasteCoordinator(env.controller),
 		getCursorOffset,
 		afterReactivity: async () => {},

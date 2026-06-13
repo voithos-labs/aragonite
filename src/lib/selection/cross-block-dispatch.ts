@@ -8,7 +8,7 @@
  * passthroughs to their dedicated modules.
  */
 
-import type { BlockEditActions, ContainerEditActions } from '../action-contracts';
+import type { BlockEditActions, ContainerEditActions, HistoryActions } from '../action-contracts';
 import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { SelectionState } from './selection-state.svelte';
 import type { CstNode } from '../core/nodes';
@@ -40,6 +40,7 @@ export interface CrossBlockDispatchContext {
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
+	history: HistoryActions;
 	pasteCoordinator: PasteCommitCoordinator;
 
 	getCursorOffset: () => number | null;
