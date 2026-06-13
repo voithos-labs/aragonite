@@ -3,7 +3,7 @@ import { checkKeymapCoherence } from '$lib/editor/invariants/registry';
 import '$lib/editor/schema/block-kind-descriptor';
 
 describe('G1.11 keymap coherence', () => {
-	it('passes over the real registries (no kind declares a keymap yet)', () => {
+	it('passes over the real registries (the declared keymaps are coherent)', () => {
 		expect(checkKeymapCoherence()).toBeNull();
 	});
 	it('flags a keymap binding to an unknown command', () => {
