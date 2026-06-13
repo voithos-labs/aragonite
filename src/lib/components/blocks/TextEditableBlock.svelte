@@ -75,6 +75,8 @@
 	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 	import { buildImageSourceBytes, type ImageFields } from '../image/image-source-bytes';
+	import { eventToChord } from '../../schema/keybindings';
+	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
 
 	let {
 		node,
@@ -316,6 +318,50 @@
 		return true;
 	}
 
+	export function runCommand(id: CommandId, arg?: number): boolean {
+		switch (id) {
+			case 'block.split':
+				blockEdit.splitBlock(index, preEditOffset);
+				return true;
+			case 'block.hardBreak': {
+				const { newRaw, caretOffset } = insertHardBreak(node.raw, preEditOffset);
+				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+				pendingCursorOffset = caretOffset;
+				return true;
+			}
+			case 'block.insertTab': {
+				// Inside a list item Tab is the list's indent — decline so it bubbles.
+				if (listContext) return false;
+				const { newRaw, caretOffset } = insertLiteralTab(node.raw, preEditOffset);
+				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+				pendingCursorOffset = caretOffset;
+				return true;
+			}
+			case 'block.mergePrev':
+				if (preEditOffset !== 0 || hasSelectionHelper()) return false;
+				blockEdit.mergeWithPrevious(index);
+				return true;
+			case 'block.mergeNext':
+				if (preEditOffset !== getDisplayText().length || hasSelectionHelper()) return false;
+				blockEdit.mergeWithNext(index);
+				return true;
+			case 'format.toggleStrong':
+				toggleFormat('strong');
+				return true;
+			case 'format.toggleEmphasis':
+				toggleFormat('emphasis');
+				return true;
+			case 'heading.cycle': {
+				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, preEditOffset);
+				blockEdit.updateBlockContent(index, newRaw, preEditOffset, caretOffset);
+				pendingCursorOffset = caretOffset;
+				return true;
+			}
+			default:
+				return false;
+		}
+	}
+
 	void ({
 		editable,
 		focusable,
@@ -323,7 +369,8 @@
 		getCursorOffset,
 		focusAtColumn,
 		isVerticallyTransparent,
-		selectEdgeWidget
+		selectEdgeWidget,
+		runCommand
 	} satisfies BlockComponent);
 
 	// ── Content sync ──────────────────────────────────────────────────────
@@ -611,52 +658,6 @@
 			return;
 		}
 
-		if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-			e.preventDefault();
-			toggleFormat('strong');
-			return;
-		}
-
-		if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-			e.preventDefault();
-			toggleFormat('emphasis');
-			return;
-		}
-
-		// Ctrl+0..6: replace any existing `#` prefix so repeated shortcuts cycle heading levels.
-		if ((e.ctrlKey || e.metaKey) && /^[0-6]$/.test(e.key) && !e.shiftKey && !e.altKey) {
-			e.preventDefault();
-			const { newRaw, caretOffset } = cycleHeading(node.raw, parseInt(e.key, 10), preEditOffset);
-			blockEdit.updateBlockContent(index, newRaw, preEditOffset, caretOffset);
-			pendingCursorOffset = caretOffset;
-			return;
-		}
-
-		// Shift+Enter — GFM hard line break (trailing backslash before the newline).
-		if (e.key === 'Enter' && e.shiftKey) {
-			e.preventDefault();
-			const { newRaw, caretOffset } = insertHardBreak(node.raw, preEditOffset);
-			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
-			pendingCursorOffset = caretOffset;
-			return;
-		}
-
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			blockEdit.splitBlock(index, preEditOffset);
-			return;
-		}
-
-		// Insert a literal tab; the browser default would move focus out of the editor.
-		// Skipped inside a list item — ListItemBlock owns Tab there.
-		if (e.key === 'Tab' && !e.shiftKey && !listContext) {
-			e.preventDefault();
-			const { newRaw, caretOffset } = insertLiteralTab(node.raw, preEditOffset);
-			blockEdit.updateBlockContent(index, newRaw, preEditOffset);
-			pendingCursorOffset = caretOffset;
-			return;
-		}
-
 		// Selections whose DOM range extends into the contenteditable="false"
 		// ambient span block native Backspace/Delete silently — the browser
 		// refuses to modify any range overlapping non-editable content, and
@@ -687,21 +688,10 @@
 			}
 		}
 
-		if (e.key === 'Backspace') {
-			if (preEditOffset === 0 && !hasSelectionHelper()) {
-				e.preventDefault();
-				blockEdit.mergeWithPrevious(index);
-				return;
-			}
-		}
-
-		if (e.key === 'Delete') {
-			const rawLen = getDisplayText().length;
-			if (preEditOffset === rawLen && !hasSelectionHelper()) {
-				e.preventDefault();
-				blockEdit.mergeWithNext(index);
-				return;
-			}
+		const chord = eventToChord(e);
+		if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
+			e.preventDefault();
+			return;
 		}
 	}
 
