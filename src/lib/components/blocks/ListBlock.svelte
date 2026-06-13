@@ -38,7 +38,7 @@
 
 	const state = createBlockListState(() => node);
 
-	// Read parent context before the setContext below shadows it; captured for the override factory.
+	// Read parent context before the setContext below shadows it.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
 	const bundle = createStandardNestedActions(
@@ -54,6 +54,7 @@
 				return myPath;
 			},
 			stickyColumn,
+			parentListContext,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -72,9 +73,7 @@
 			},
 			state,
 			parentBlockEdit,
-			parentContainerEdit,
-			parentFocus,
-			parentListContext
+			parentContainerEdit
 		})
 	);
 

@@ -30,9 +30,11 @@ import {
 	stampStructuralChange
 } from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { assertInvariant } from '../invariants/assert';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import type { NestedActionsDeps } from './nested-actions';
+import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from './unwrap-strategies';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -84,12 +86,25 @@ export function createNestedBlockEdit(
 		async mergeWithPrevious(innerIndex: number): Promise<void> {
 			if (!deps.node.children) return;
 
-			// innerIndex === 0: delegate upward. Unwrap-style containers
-			// (BlockquoteBlock U2, ListBlock U1/M1) override this whole method.
-			// Await so caller continuations (focus placement) run after the
-			// upward chain settles.
+			const unwrapRole = tryGetBlockKindDescriptor(deps.node.kind)?.unwrapRole;
+
 			if (innerIndex <= 0) {
+				if (unwrapRole) {
+					await firstChildUnwrapStrategies[unwrapRole.firstChildBackspace]({ deps, state });
+					return;
+				}
+				// Undeclared containers delegate upward (listItem children land here).
+				// Await so caller continuations (focus placement) run after the
+				// upward chain settles.
 				await parent.blockEdit.mergeWithPrevious(deps.index);
+				return;
+			}
+
+			if (unwrapRole && unwrapRole.middleChildBackspace !== 'default-merge') {
+				await middleChildUnwrapStrategies[unwrapRole.middleChildBackspace](
+					{ deps, state },
+					innerIndex
+				);
 				return;
 			}
 

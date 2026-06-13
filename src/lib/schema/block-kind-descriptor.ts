@@ -17,6 +17,17 @@ import {
  */
 export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'not-mergeable';
 
+/**
+ * Backspace-at-start behavior for a container's children. Strategy
+ * implementations live in editor-actions/unwrap-strategies.ts; the nested
+ * blockEdit dispatcher selects by these names. Absent = default (first child
+ * delegates upward; middle children follow merge-rules).
+ */
+export interface UnwrapRole {
+	firstChildBackspace: 'lift-first-child' | 'list-item-cascade';
+	middleChildBackspace: 'default-merge' | 'list-item-cascade';
+}
+
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -50,6 +61,8 @@ export interface BlockKindDescriptor {
 		 */
 		siblingAbsorb: boolean;
 	};
+	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
+	unwrapRole?: UnwrapRole;
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
@@ -243,7 +256,8 @@ registerBlockKind('blockquote', {
 	containerContract: 'strip',
 	rebuildRaw: rebuildBlockquoteRaw,
 	supportsInline: false,
-	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false }
+	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
+	unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 });
 registerBlockKind('list', {
 	mergeRole: 'container',
@@ -257,6 +271,10 @@ registerBlockKind('list', {
 			(metadataOf(top, 'list')?.ordered ?? false) ===
 			(metadataOf(ancestor, 'list')?.ordered ?? false),
 		siblingAbsorb: true
+	},
+	unwrapRole: {
+		firstChildBackspace: 'list-item-cascade',
+		middleChildBackspace: 'list-item-cascade'
 	}
 });
 registerBlockKind('listItem', {
