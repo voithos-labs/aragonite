@@ -118,6 +118,16 @@ describe('listItem keymap', () => {
 	});
 });
 
+describe('tableCell keymap', () => {
+	// Enter/Tab/Shift+Tab resolve to cell commands so IMPL-7's cross-block
+	// dispatch can route a post-delete chord to a focused cell's runCommand.
+	it('resolves Enter/Tab/Shift+Tab to cell commands', () => {
+		expect(resolveBinding('Enter', 'tableCell')?.command).toBe('cell.enter');
+		expect(resolveBinding('Tab', 'tableCell')?.command).toBe('cell.tab');
+		expect(resolveBinding('Shift+Tab', 'tableCell')?.command).toBe('cell.shiftTab');
+	});
+});
+
 describe('text-editable keymap breadth', () => {
 	// The same transformative chords must resolve for prose AND the raw-editable
 	// fallback kinds — TextEditableBlock renders both, and its keydown applied
