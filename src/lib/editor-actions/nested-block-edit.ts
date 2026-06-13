@@ -1,89 +1,45 @@
 /**
- * BlockEditActions factory for container nestedActions bundles. Each method
- * routes mutations through `parent.containerEdit.commitContainer` so the
- * snapshot, op-event, spine unshare, and reactivity ceremony lives in one
- * place. Mutate callbacks operate on the OWNED scope the ceremony provides;
- * pre-existing children an op writes are unshared first, created children
- * are stamped.
+ * Container BlockEditActions factory. Interior split/merge/delete/replace/
+ * metadata route through the shared `block-edit-core` against a container
+ * `CommitScope`; this wrapper adds the container-only concerns the core can't
+ * own: the `if (!deps.node.children) return` guards, boundary delegation
+ * (edge merges/deletes hand UP to `parent.blockEdit`), the unwrap dispatch
+ * (first/middle-child backspace strategies), `insertParsedBlocks` (routes
+ * through `replaceBlock` — G2.9 dual-emit), and `updateBlockContent`.
  */
 
-import type { BlockEditActions, UndoEntryMode } from '../action-contracts';
-import { CURSOR_END } from '../block-component';
-import type { CstNode } from '../core/nodes';
+import type { BlockEditActions } from '../action-contracts';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import {
-	splitNode as performSplit,
-	bumpLeadingTrivia,
-	mergeIntoPrevDeepLeaf,
-	mergeWithNext as performMergeNext,
-	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
-	buildPastedReplacement,
-	normalizeReplacementTrivia,
-	ensureEditableContainers,
 	ensureUnsharedChild,
-	rebuildOwnedContainer,
-	reconcileTaskMetadata
+	reconcileTaskMetadata,
+	foldPasteReplacement
 } from '../tree-operations';
-import {
-	replacePreservingFirst,
-	stampStructuralChange
-} from '../tree-operations/structural-change';
-import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { assertInvariant } from '../invariants/assert';
-import { displayLength, trimTrailingLineEnding } from '../core/lines';
+import { CURSOR_END } from '../block-component';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from './unwrap-strategies';
+import { createContainerScope } from './block-edit-scope';
+import { createBlockEditCore } from './block-edit-core';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
 	deps: NestedActionsDeps
 ): BlockEditActions {
 	const { parent } = deps;
+	const scope = createContainerScope(state, deps);
+	const core = createBlockEditCore(scope);
 
 	const blockEdit: BlockEditActions = {
-		// ── Structural mutations ───────────────────────────────────────────────
-		async splitBlock(innerIndex: number, offset: number): Promise<void> {
+		// ── Structural mutations (interior → core, edges → parent) ─────────────
+		async splitBlock(innerIndex, offset) {
 			if (!deps.node.children) return;
-			if (offset === 0 && displayLength(deps.node.children[innerIndex].raw) > 0) {
-				// See block-edit.ts:splitBlock — performSplit at offset 0 of a
-				// non-empty block would synthesize an empty leading paragraph
-				// that desyncs from reparse.
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) => {
-						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						return bumpLeadingTrivia({ children: scope.children }, innerIndex);
-					},
-					op: { kind: 'split', detail: { at: 0 }, eventPath: [deps.index, innerIndex] },
-					afterTick: () => {
-						state.innerBlockRefs[innerIndex]?.focus(0);
-					}
-				});
-				return;
-			}
-			await parent.containerEdit.commitContainer({
-				containerNode: deps.node,
-				path: deps.path,
-				state,
-				snapshot: { blockIndex: deps.index, offset },
-				mutate: (scope) => {
-					const change = performSplit({ children: scope.children }, innerIndex, offset);
-					stampStructuralChange(scope.children, change, scope.sharing);
-					return change;
-				},
-				op: { kind: 'split', detail: { at: offset }, eventPath: [deps.index, innerIndex] },
-				afterTick: () => {
-					state.innerBlockRefs[innerIndex + 1]?.focus(0);
-				}
-			});
+			await core.split(innerIndex, offset);
 		},
 
-		async mergeWithPrevious(innerIndex: number): Promise<void> {
+		async mergeWithPrevious(innerIndex) {
 			if (!deps.node.children) return;
 
 			const unwrapRole = tryGetBlockKindDescriptor(deps.node.kind)?.unwrapRole;
@@ -108,131 +64,55 @@ export function createNestedBlockEdit(
 				return;
 			}
 
-			const prevKind = deps.node.children[innerIndex - 1].kind;
-			const currKind = deps.node.children[innerIndex].kind;
-
-			if (isMergeEligible(prevKind, currKind)) {
-				let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) => {
-						mergeResult = mergeIntoPrevDeepLeaf(
-							{ children: scope.children },
-							innerIndex,
-							scope.sharing
-						);
-						return mergeResult?.change ?? { op: 'noop' };
-					},
-					op: {
-						kind: 'merge',
-						detail: { direction: 'prev' },
-						eventPath: [deps.index, innerIndex]
-					},
-					afterTick: () => {
-						if (!mergeResult) {
-							state.innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
-							return;
-						}
-						const ref = state.innerBlockRefs[innerIndex - 1];
-						if (mergeResult.targetPath.length === 0) {
-							ref?.focus(mergeResult.joinOffset);
-						} else {
-							ref?.focusByPath?.(mergeResult.targetPath, mergeResult.joinOffset);
-						}
-					}
-				});
-			} else if (!isBlockEditable(prevKind)) {
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) =>
-						performDelete({ children: scope.children }, innerIndex - 1, scope.sharing),
-					op: { kind: 'delete', eventPath: [deps.index, innerIndex - 1] },
-					afterTick: () => {
-						state.innerBlockRefs[innerIndex - 1]?.focus(0);
-					}
-				});
-			} else {
-				state.innerBlockRefs[innerIndex - 1]?.focus(CURSOR_END);
-			}
+			await core.mergeWithPreviousInterior(innerIndex);
 		},
 
-		async mergeWithNext(innerIndex: number): Promise<void> {
+		async mergeWithNext(innerIndex) {
 			if (!deps.node.children) return;
 
 			if (innerIndex >= deps.node.children.length - 1) {
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
-			const currKind = deps.node.children[innerIndex].kind;
-			const nextKind = deps.node.children[innerIndex + 1].kind;
-
-			if (isMergeEligible(currKind, nextKind)) {
-				const mergeOffset = displayLength(deps.node.children[innerIndex].raw);
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) => {
-						const change = performMergeNext({ children: scope.children }, innerIndex);
-						stampStructuralChange(scope.children, change, scope.sharing);
-						return change;
-					},
-					op: {
-						kind: 'merge',
-						detail: { direction: 'next' },
-						eventPath: [deps.index, innerIndex]
-					},
-					afterTick: () => {
-						state.innerBlockRefs[innerIndex]?.focus(mergeOffset);
-					}
-				});
-			} else if (!isBlockEditable(nextKind)) {
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { blockIndex: deps.index, offset: 0 },
-					mutate: (scope) =>
-						performDelete({ children: scope.children }, innerIndex + 1, scope.sharing),
-					op: { kind: 'delete', eventPath: [deps.index, innerIndex + 1] },
-					afterTick: () => {
-						state.innerBlockRefs[innerIndex]?.focus(CURSOR_END);
-					}
-				});
-			} else {
-				state.innerBlockRefs[innerIndex + 1]?.focus(0);
-			}
+			await core.mergeWithNextInterior(innerIndex);
 		},
 
-		async deleteBlock(innerIndex: number): Promise<void> {
+		async deleteBlock(innerIndex) {
 			if (!deps.node.children) return;
 
 			if (deps.node.children.length <= 1) {
 				return parent.blockEdit.deleteBlock(deps.index);
 			}
 
-			await parent.containerEdit.commitContainer({
-				containerNode: deps.node,
-				path: deps.path,
-				state,
-				snapshot: { blockIndex: deps.index, offset: 0 },
-				mutate: (scope) => performDelete({ children: scope.children }, innerIndex, scope.sharing),
-				op: { kind: 'delete', eventPath: [deps.index, innerIndex] },
-				afterTick: () => {
-					const focusIdx = Math.min(innerIndex, (deps.node.children?.length ?? 1) - 1);
-					state.innerBlockRefs[focusIdx]?.focus(0);
-				}
-			});
+			await core.deleteInterior(innerIndex);
 		},
 
-		// ── In-place leaf edits ────────────────────────────────────────────────
+		updateBlockMetadata: (innerIndex, metadata, options) =>
+			core.updateBlockMetadata(innerIndex, metadata, options),
+
+		replaceBlock: (innerIndex, replacement, focus, options) =>
+			core.replaceBlock(innerIndex, replacement, focus, options),
+
+		// ── Paste (container routes through replaceBlock — G2.9 dual-emit) ─────
+		async insertParsedBlocks(innerIndex, offset, blocks, preDelete, options) {
+			if (!deps.node.children || blocks.length === 0) return;
+			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
+
+			const replacement = foldPasteReplacement(
+				deps.node.children[innerIndex],
+				offset,
+				blocks,
+				preDelete
+			);
+			await core.replaceBlock(
+				innerIndex,
+				replacement,
+				{ replacementIndex: replacement.length - 1, offset: CURSOR_END },
+				options
+			);
+		},
+
+		// ── In-place leaf edits (per-level; unification deferred) ──────────────
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,
@@ -299,122 +179,6 @@ export function createNestedBlockEdit(
 				}
 			});
 			parent.containerEdit.nudgeReactivity();
-		},
-
-		async updateBlockMetadata(
-			innerIndex: number,
-			metadata: Record<string, unknown>,
-			options?: { undoEntry?: UndoEntryMode }
-		): Promise<void> {
-			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
-			const fields = Object.keys(metadata);
-			if (fields.length === 0) return;
-
-			await parent.containerEdit.commitContainer({
-				containerNode: deps.node,
-				path: deps.path,
-				state,
-				snapshot: options?.undoEntry === 'join' ? 'skip' : { blockIndex: deps.index, offset: 0 },
-				mutate: (scope) => {
-					const node = ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Metadata feeds raw for list items (taskMarker) — resync the
-					// child so the ceremony's ancestry rebuild concatenates fresh raw.
-					rebuildOwnedContainer(node, scope.sharing);
-					return { op: 'noop' };
-				},
-				op: {
-					kind: 'metadataUpdate',
-					detail: { fields },
-					eventPath: [deps.index, innerIndex]
-				}
-			});
-		},
-
-		// ── Composition ────────────────────────────────────────────────────────
-		async insertParsedBlocks(
-			innerIndex: number,
-			offset: number,
-			blocks: CstNode[],
-			preDelete?: { start: number; end: number },
-			options?: { undoEntry?: UndoEntryMode }
-		): Promise<void> {
-			if (!deps.node.children || blocks.length === 0) return;
-			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
-
-			// Fold preDelete into a synthesized leaf so one replaceBlock call
-			// covers both delete and paste as a single undo entry.
-			const currentNode = deps.node.children[innerIndex];
-			let synthLeaf = currentNode;
-			let effectiveOffset = offset;
-			if (preDelete && preDelete.start < preDelete.end) {
-				const display = trimTrailingLineEnding(currentNode.raw);
-				const lineEnd = currentNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
-				const effectiveRaw =
-					display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnd;
-				synthLeaf = { ...currentNode, raw: effectiveRaw };
-				effectiveOffset = preDelete.start;
-			}
-			const replacement = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
-			await blockEdit.replaceBlock(
-				innerIndex,
-				replacement,
-				{
-					replacementIndex: replacement.length - 1,
-					offset: CURSOR_END
-				},
-				options
-			);
-		},
-
-		async replaceBlock(
-			innerIndex: number,
-			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number },
-			options?: { undoEntry?: UndoEntryMode }
-		): Promise<void> {
-			if (!deps.node.children || innerIndex < 0 || innerIndex >= deps.node.children.length) return;
-
-			// 'join': caller already pushed a snapshot covering the whole
-			// delete-then-paste — skip to avoid duplicating the entry.
-			const snapshot =
-				options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: deps.index, offset: 0 };
-
-			await parent.containerEdit.commitContainer({
-				containerNode: deps.node,
-				path: deps.path,
-				state,
-				snapshot,
-				mutate: (scope) => {
-					if (replacement.length === 0) {
-						scope.children.splice(innerIndex, 1);
-						return { op: 'delete', at: innerIndex, count: 1 };
-					}
-					const normalizedReplacement = normalizeReplacementTrivia(
-						scope.children[innerIndex],
-						replacement
-					);
-					for (const node of normalizedReplacement) ensureEditableContainers(node);
-					scope.children.splice(innerIndex, 1, ...normalizedReplacement);
-					const change = replacePreservingFirst(innerIndex, 1, normalizedReplacement.length);
-					stampStructuralChange(scope.children, change, scope.sharing);
-					return change;
-				},
-				op:
-					replacement.length === 0
-						? { kind: 'delete', eventPath: [deps.index, innerIndex] }
-						: {
-								kind: 'replaceBlock',
-								detail: { count: replacement.length },
-								eventPath: [deps.index, innerIndex]
-							},
-				afterTick: () => {
-					if (focus && replacement.length > 0) {
-						const targetIdx = innerIndex + focus.replacementIndex;
-						state.innerBlockRefs[targetIdx]?.focus(focus.offset);
-					}
-				}
-			});
 		}
 	};
 
