@@ -127,6 +127,29 @@ function tableCellContentRange(node: CstNode): { start: number; end: number } {
 	return { start: 0, end: displayLength(node.raw) };
 }
 
+// ── Keymaps ───────────────────────────────────────────────────────────────
+
+// Shared by every kind TextEditableBlock renders — prose (paragraph/heading/
+// setextHeading) and the raw-editable fallback (indentedCode/htmlBlock/
+// linkReferenceDefinition/unrecognized) — so transformative chords behave
+// identically across them. The component's runCommand implements each command.
+const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
+	{ chord: 'Enter', command: 'block.split' },
+	{ chord: 'Shift+Enter', command: 'block.hardBreak' },
+	{ chord: 'Tab', command: 'block.insertTab' },
+	{ chord: 'Backspace', command: 'block.mergePrev' },
+	{ chord: 'Delete', command: 'block.mergeNext' },
+	{ chord: 'Mod+B', command: 'format.toggleStrong' },
+	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
+	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
+	{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 },
+	{ chord: 'Mod+3', command: 'heading.cycle', arg: 3 },
+	{ chord: 'Mod+4', command: 'heading.cycle', arg: 4 },
+	{ chord: 'Mod+5', command: 'heading.cycle', arg: 5 },
+	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
+];
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
@@ -180,21 +203,24 @@ registerBlockKind('paragraph', {
 	mergeRole: 'prose',
 	editable: true,
 	isContainer: false,
-	supportsInline: true
+	supportsInline: true,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('heading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
 	isContainer: false,
 	supportsInline: true,
-	getContentRange: headingContentRange
+	getContentRange: headingContentRange,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('setextHeading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
 	isContainer: false,
 	supportsInline: true,
-	getContentRange: setextHeadingContentRange
+	getContentRange: setextHeadingContentRange,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('fencedCode', {
 	mergeRole: 'not-mergeable',
@@ -212,19 +238,22 @@ registerBlockKind('indentedCode', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('htmlBlock', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('linkReferenceDefinition', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('table', {
 	mergeRole: 'not-mergeable',
@@ -254,7 +283,8 @@ registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',
 	editable: true,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('blockquote', {
 	mergeRole: 'container',
