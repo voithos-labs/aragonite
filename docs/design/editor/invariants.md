@@ -71,6 +71,7 @@ All landed. Source-scan tests live under `test/invariants/lint/`.
 | G4.2 | No `.inlineContent` read in the render path                                                                                  | L       | `lint/render-inlinecontent.test.ts`                                   |
 | G4.3 | Container-author conformance kit + declaration sanity (unwrapRole strategies resolve, containerPaste shape, rebuildRaw runs) | harness | `container-conformance.test.ts` (kit: `container-conformance-kit.ts`) |
 | G4.4 | No timing hacks for sequencing (timing primitives allowlisted)                                                               | L       | `lint/timing-hacks.test.ts`                                           |
+| G4.5 | No synthetic `KeyboardEvent` in editor runtime source (cross-block redispatch hack retired)                                  | L       | `lint/no-synthetic-keyboard-event.test.ts`                            |
 
 G4.4 allowlist (the only sanctioned timing primitives — anything else trips the scan): rAF throttles in `selection/autoscroll.ts` (frame-paced autoscroll), `selection/drag-pointer.ts` and `components/blocks/table/cell-pointer.ts` (pointermove coalescing during drag); plus the `setTimeout` wall-clock undo debounce in `editor-actions/undo-controller.ts` (a tick-grained microtask can't express a "user stopped typing" pause).
 
