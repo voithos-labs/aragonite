@@ -324,6 +324,7 @@
 				blockEdit.splitBlock(index, preEditOffset);
 				return true;
 			case 'block.hardBreak': {
+				// GFM hard line break — trailing backslash before the newline.
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, preEditOffset);
 				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
 				pendingCursorOffset = caretOffset;
@@ -332,6 +333,7 @@
 			case 'block.insertTab': {
 				// Inside a list item Tab is the list's indent — decline so it bubbles.
 				if (listContext) return false;
+				// Insert a literal tab; the browser default would move focus out of the editor.
 				const { newRaw, caretOffset } = insertLiteralTab(node.raw, preEditOffset);
 				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
 				pendingCursorOffset = caretOffset;
@@ -352,6 +354,7 @@
 				toggleFormat('emphasis');
 				return true;
 			case 'heading.cycle': {
+				// Replace any existing `#` prefix so repeated shortcuts cycle heading levels.
 				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, preEditOffset);
 				blockEdit.updateBlockContent(index, newRaw, preEditOffset, caretOffset);
 				pendingCursorOffset = caretOffset;
