@@ -12,6 +12,7 @@ import {
 	reversedAncestryLeavesRootStale,
 	checkOneUndoPerMultiScope,
 	checkFocusBubbleTermination,
+	checkDeclarationSanity,
 	assertExemptionDocumented
 } from './container-conformance-kit';
 
@@ -90,5 +91,11 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 			return;
 		}
 		await checkFocusBubbleTermination(kind);
+	});
+
+	// Applies to every container kind — conditional internally on what the
+	// descriptor declares, so no coverage cell.
+	it('(e) declaration sanity (unwrapRole / containerPaste / rebuildRaw)', () => {
+		checkDeclarationSanity(kind, profile);
 	});
 });

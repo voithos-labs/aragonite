@@ -15,7 +15,7 @@
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-context';
+	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-overrides';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import {
 		createStandardNestedActions,

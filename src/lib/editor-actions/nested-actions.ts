@@ -7,7 +7,12 @@
  */
 
 import { setContext } from 'svelte';
-import type { BlockEditActions, ContainerEditActions, FocusActions } from '../action-contracts';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions,
+	ListContext
+} from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../editor-keys';
 import { assertInvariant } from '../invariants/assert';
@@ -30,6 +35,8 @@ export interface NestedActionsDeps {
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
+	/** Enclosing list's context, when this container is a list nested in one — consumed by the list-item-cascade unwrap strategy. */
+	parentListContext?: ListContext;
 	parent: {
 		blockEdit: BlockEditActions;
 		focus: FocusActions;
