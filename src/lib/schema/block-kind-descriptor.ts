@@ -1,4 +1,4 @@
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import { metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 
 /**
@@ -22,6 +22,27 @@ export interface BlockKindDescriptor {
 	 * and the container is exempt from the stale-raw check (table/tableRow).
 	 */
 	containerContract?: 'strip' | 'grid';
+	/**
+	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
+	 * block is this kind merges into a same-kind ancestor instead of nesting
+	 * as a sub-container. Absent = always nest (default structural path).
+	 */
+	containerPaste?: {
+		/**
+		 * Confirms the merge against the candidate ancestor (e.g. equal list
+		 * ordered flags). The container-match path resolves a same-kind ancestor
+		 * before consulting this; the absorb/break-out path passes the nearest
+		 * list ancestor (list-shaped apply — see `siblingAbsorb`).
+		 */
+		matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
+		/**
+		 * Non-empty single-block targets: splice clipboard items as siblings in
+		 * the enclosing container when it matches, split it when it doesn't.
+		 * The apply path is list-shaped today (marker normalize + renumber) —
+		 * only list declares it.
+		 */
+		siblingAbsorb: boolean;
+	};
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
@@ -211,14 +232,21 @@ registerBlockKind('blockquote', {
 	editable: true,
 	isContainer: true,
 	containerContract: 'strip',
-	supportsInline: false
+	supportsInline: false,
+	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false }
 });
 registerBlockKind('list', {
 	mergeRole: 'container',
 	editable: true,
 	isContainer: true,
 	containerContract: 'strip',
-	supportsInline: false
+	supportsInline: false,
+	containerPaste: {
+		matchesAncestor: (top, ancestor) =>
+			(metadataOf(top, 'list')?.ordered ?? false) ===
+			(metadataOf(ancestor, 'list')?.ordered ?? false),
+		siblingAbsorb: true
+	}
 });
 registerBlockKind('listItem', {
 	mergeRole: 'container',

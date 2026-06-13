@@ -3,8 +3,7 @@ import type { CstNode } from '../../../core/nodes';
 import {
 	escapeUnescapedPipes,
 	normalizeWhitespace,
-	tableCellInlinePaste,
-	tableCellStructuralPaste
+	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
 
 function makeCell(raw: string): CstNode {
@@ -68,13 +67,5 @@ describe('tableCellInlinePaste', () => {
 		const result = tableCellInlinePaste(cell, 5, 'X', { start: 1, end: 4 });
 		expect(result.newRaw).toBe('aXef');
 		expect(result.caretOffset).toBe(2);
-	});
-});
-
-describe('tableCellStructuralPaste', () => {
-	it('returns the empty-replacement sentinel that signals break-and-splice', () => {
-		const cell = makeCell('hello');
-		const result = tableCellStructuralPaste(cell, 0, []);
-		expect(result.replacement).toEqual([]);
 	});
 });

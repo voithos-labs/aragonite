@@ -1,4 +1,6 @@
-import type { BlockKind, CstNode } from '../core/nodes';
+import type { UndoEntryMode } from '../action-contracts';
+import type { BlockKind, CstNode, Document } from '../core/nodes';
+import type { PasteCommitCoordinator } from './paste/paste-deps';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,15 @@ export interface StructuralPasteResult {
 	replacement: CstNode[];
 	focusReplacementIndex: number;
 	focusOffset: number;
+}
+
+export interface ScopedStructuralPasteInput {
+	doc: Document;
+	targetPath: number[];
+	/** Pasted blocks, blank-line-materialized. */
+	blocks: CstNode[];
+	controller: PasteCommitCoordinator;
+	undoEntry: UndoEntryMode;
 }
 
 export interface PasteSurface {
@@ -38,6 +49,13 @@ export interface PasteSurface {
 		blocks: CstNode[],
 		preDelete?: PasteRange
 	): StructuralPasteResult;
+	/**
+	 * Structural paste whose splice scope is an ancestor (e.g. tableCell slices
+	 * its table at the row and splices at the table's parent). The hook owns the
+	 * whole mutation — dispatch routes here instead of `onStructuralPaste` and
+	 * does nothing afterward.
+	 */
+	onScopedStructuralPaste?(input: ScopedStructuralPasteInput): Promise<void>;
 }
 
 // ── Registry ───────────────────────────────────────────────────────────────

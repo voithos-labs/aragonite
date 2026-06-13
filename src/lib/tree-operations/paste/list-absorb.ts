@@ -18,6 +18,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildListItemRaw } from '../../schema/container-raw';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList } from '../list/ordered-markers';
@@ -43,8 +44,8 @@ export interface ListAbsorb {
 /**
  * Detect whether to absorb a same-type list paste into the enclosing list.
  * Returns a plan or null. Preconditions:
- *  - clipboard is a single `list` top-block
- *  - clipboard's ordered flag matches the nearest list ancestor's
+ *  - clipboard is a single top block declaring `containerPaste.siblingAbsorb`
+ *  - its `matchesAncestor` predicate accepts the nearest list ancestor
  *  - target is a direct leaf of the listItem (simple shape)
  *
  * Mismatched-type pastes fall through to `findListBreakOut`.
@@ -57,14 +58,13 @@ export function findListAbsorb(
 ): ListAbsorb | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	if (topBlock.kind !== 'list') return null;
+	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
 	if (!enclosing) return null;
 
-	const listOrdered = metadataOf(enclosing.list, 'list')?.ordered ?? false;
-	const pastedOrdered = metadataOf(topBlock, 'list')?.ordered ?? false;
-	if (listOrdered !== pastedOrdered) return null;
+	if (!containerPaste.matchesAncestor(topBlock, enclosing.list)) return null;
 
 	return {
 		listPath: enclosing.listPath,
