@@ -1,5 +1,6 @@
 import { metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
+import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
 	rebuildListItemRaw,
@@ -63,6 +64,12 @@ export interface BlockKindDescriptor {
 	};
 	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
 	unwrapRole?: UnwrapRole;
+	/**
+	 * Declarative chord -> command map for this kind. Consulted by
+	 * dispatchKeyCommand before the editor-global table, so a kind can shadow a
+	 * global binding. Absent = only global bindings apply.
+	 */
+	keymap?: KeyBinding[];
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
