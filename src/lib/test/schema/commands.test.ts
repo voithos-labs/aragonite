@@ -71,8 +71,29 @@ describe('resolveBinding order', () => {
 		} finally {
 			registerBlockKind('paragraph', real);
 		}
-		// fencedCode declares no keymap → falls through to the global table
+		// fencedCode doesn't bind Mod+Z → falls through to the global table
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
+	});
+});
+
+describe('fencedCode keymap', () => {
+	// CodeBlock's transformative keydown branches each map to a code-specific
+	// command; Backspace/Delete are fence-exit / pair-delete, not block merges,
+	// so they get their own ids rather than reusing block.mergePrev/mergeNext.
+	const FENCED_CODE_BINDINGS = [
+		['Enter', 'code.newline'],
+		['Tab', 'code.indent'],
+		['Shift+Tab', 'code.dedent'],
+		['Backspace', 'code.backspace'],
+		['Delete', 'code.delete'],
+		['Mod+B', 'format.toggleStrong'],
+		['Mod+I', 'format.toggleEmphasis']
+	] as const;
+
+	it('resolves each transformative chord to its command', () => {
+		for (const [chord, command] of FENCED_CODE_BINDINGS) {
+			expect(resolveBinding(chord, 'fencedCode')?.command).toBe(command);
+		}
 	});
 });
 

@@ -226,7 +226,16 @@ registerBlockKind('fencedCode', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: [
+		{ chord: 'Enter', command: 'code.newline' },
+		{ chord: 'Tab', command: 'code.indent' },
+		{ chord: 'Shift+Tab', command: 'code.dedent' },
+		{ chord: 'Backspace', command: 'code.backspace' },
+		{ chord: 'Delete', command: 'code.delete' },
+		{ chord: 'Mod+B', command: 'format.toggleStrong' },
+		{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
+	]
 });
 registerBlockKind('thematicBreak', {
 	mergeRole: 'not-mergeable',

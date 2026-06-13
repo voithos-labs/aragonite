@@ -61,6 +61,8 @@
 	import { metadataOf } from '../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
 	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+	import { eventToChord } from '../../schema/keybindings';
+	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -165,8 +167,6 @@
 		if (!el) return [];
 		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
 	}
-
-	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
 
 	// ── Render pipeline ───────────────────────────────────────────────────────
 
@@ -290,102 +290,123 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// Swallow bold/italic shortcuts so the browser doesn't toggle them on the contenteditable.
-		if (
-			(e.ctrlKey || e.metaKey) &&
-			(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
-		) {
+		const chord = eventToChord(e);
+		if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
 			e.preventDefault();
-			return;
-		}
-
-		if (e.key === 'Backspace' && !hasSelectionHelper()) {
-			const offset = getCursorOffsetHelper(el) ?? 0;
-			// offset===0 is the universal contract; offset===bodyStart catches the
-			// fence-boundary case (Home from the body lands there, and native
-			// Backspace would delete the opener's terminating `\n`).
-			if (
-				offset === 0 ||
-				classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
-			) {
-				e.preventDefault();
-				focusActions.moveFocus(index - 1, 'end');
-				return;
-			}
-
-			// Pair-delete: remove both halves so the auto-closed companion isn't stranded.
-			const text = getDisplayText();
-			if (isBetweenEmptyPair(text, offset)) {
-				e.preventDefault();
-				const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-				pendingCursorOffset = offset - 1;
-				return;
-			}
-		}
-
-		if (e.key === 'Delete' && !hasSelectionHelper()) {
-			const offset = getCursorOffsetHelper(el) ?? 0;
-			if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
-				e.preventDefault();
-				// Don't fall through to moveFocus's past-end behavior (which would
-				// append a new paragraph). Delete at the closer boundary is a
-				// focus-only move when a next block exists; a true no-op otherwise.
-				if (index + 1 < getDoc().children.length) {
-					focusActions.moveFocus(index + 1, 'start');
-				}
-				return;
-			}
-		}
-
-		// Handle Enter manually: the browser's insertParagraph adds <div>/<br> elements
-		// that don't affect textContent, so the CST never sees the edit.
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			const offset = getCursorOffsetHelper(el) ?? 0;
-			const text = getDisplayText();
-			const meta = metadataOf(node, 'fencedCode');
-
-			const exit = computeFenceExit({ text, offset, meta });
-			if (exit.kind !== 'none') {
-				if (exit.kind === 'exitWithEdit') {
-					blockEdit.updateBlockContent(index, exit.newText + '\n', preEditOffset);
-				}
-				focusActions.moveFocus(index + 1, 'start');
-				return;
-			}
-
-			// Electric indent: between an empty bracket pair, expand into three lines
-			// with an extra indent on the middle line. Quote pairs stay inline.
-			if (isBetweenEmptyBracketPair(text, offset)) {
-				const indent = getLineLeadingWhitespace(text, offset);
-				const inner = indent + ELECTRIC_INDENT_UNIT;
-				const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
-				blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
-				pendingCursorOffset = offset + 1 + inner.length;
-				return;
-			}
-
-			const enter = computeCodeEnter({
-				display: text,
-				selection: { start: offset, end: offset },
-				mode: 'normal'
-			});
-			blockEdit.updateBlockContent(index, enter.newText + '\n', preEditOffset);
-			pendingCursorOffset = enter.newCursor;
-			return;
-		}
-
-		if (e.key === 'Tab') {
-			e.preventDefault();
-			if (e.shiftKey) {
-				dedentSelection();
-			} else {
-				indentSelection();
-			}
 			return;
 		}
 	}
+
+	// ── Commands ────────────────────────────────────────────────────────
+
+	export function runCommand(id: CommandId): boolean {
+		switch (id) {
+			case 'format.toggleStrong':
+			case 'format.toggleEmphasis':
+				return true; // code blocks don't format-toggle; swallow to stop the browser default
+			case 'code.newline':
+				return codeNewline();
+			case 'code.indent':
+				indentSelection();
+				return true;
+			case 'code.dedent':
+				dedentSelection();
+				return true;
+			case 'code.backspace':
+				return codeBackspace();
+			case 'code.delete':
+				return codeDelete();
+			default:
+				return false;
+		}
+	}
+
+	function codeBackspace(): boolean {
+		if (!el || hasSelectionHelper()) return false;
+		const offset = getCursorOffsetHelper(el) ?? 0;
+		// offset===0 is the universal contract; offset===bodyStart catches the
+		// fence-boundary case (Home from the body lands there, and native
+		// Backspace would delete the opener's terminating `\n`).
+		if (
+			offset === 0 ||
+			classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
+		) {
+			focusActions.moveFocus(index - 1, 'end');
+			return true;
+		}
+
+		// Pair-delete: remove both halves so the auto-closed companion isn't stranded.
+		const text = getDisplayText();
+		if (isBetweenEmptyPair(text, offset)) {
+			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
+			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			pendingCursorOffset = offset - 1;
+			return true;
+		}
+		return false;
+	}
+
+	function codeDelete(): boolean {
+		if (!el || hasSelectionHelper()) return false;
+		const offset = getCursorOffsetHelper(el) ?? 0;
+		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
+			// Don't fall through to moveFocus's past-end behavior (which would
+			// append a new paragraph). Delete at the closer boundary is a
+			// focus-only move when a next block exists; a true no-op otherwise.
+			if (index + 1 < getDoc().children.length) {
+				focusActions.moveFocus(index + 1, 'start');
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// The browser's insertParagraph adds <div>/<br> elements that don't affect
+	// textContent, so the CST never sees the edit — handle Enter via the CST path.
+	function codeNewline(): boolean {
+		if (!el) return false;
+		const offset = getCursorOffsetHelper(el) ?? 0;
+		const text = getDisplayText();
+		const meta = metadataOf(node, 'fencedCode');
+
+		const exit = computeFenceExit({ text, offset, meta });
+		if (exit.kind !== 'none') {
+			if (exit.kind === 'exitWithEdit') {
+				blockEdit.updateBlockContent(index, exit.newText + '\n', preEditOffset);
+			}
+			focusActions.moveFocus(index + 1, 'start');
+			return true;
+		}
+
+		// Electric indent: between an empty bracket pair, expand into three lines
+		// with an extra indent on the middle line. Quote pairs stay inline.
+		if (isBetweenEmptyBracketPair(text, offset)) {
+			const indent = getLineLeadingWhitespace(text, offset);
+			const inner = indent + ELECTRIC_INDENT_UNIT;
+			const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
+			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			pendingCursorOffset = offset + 1 + inner.length;
+			return true;
+		}
+
+		const enter = computeCodeEnter({
+			display: text,
+			selection: { start: offset, end: offset },
+			mode: 'normal'
+		});
+		blockEdit.updateBlockContent(index, enter.newText + '\n', preEditOffset);
+		pendingCursorOffset = enter.newCursor;
+		return true;
+	}
+
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		focusAtColumn,
+		runCommand
+	} satisfies BlockComponent);
 
 	function currentRange(): { start: number; end: number } {
 		if (!el) return { start: 0, end: 0 };
