@@ -28,7 +28,7 @@ Unit tests can be scoped to a single concept area:
 | `test:editor:editor-actions` | Editor action bundles and commit primitives                                                     |
 | `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                       |
 | `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                       |
-| `test:editor:schema`         | Block-kind descriptors, container raw rebuild, merge rules                                      |
+| `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules              |
 | `test:editor:reactivity`     | Block-list state and state registry                                                             |
 | `test:editor:selection`      | Selection-state logic                                                                           |
 | `test:editor:blocks`         | Per-block unit tests (code block, etc.)                                                         |
