@@ -26,6 +26,8 @@ export const BLOCK_COMMAND_IDS = [
 	'code.newline',
 	'code.indent',
 	'code.dedent',
+	'code.backspace',
+	'code.delete',
 	'list.indent',
 	'list.unindent',
 	'cell.enter',
