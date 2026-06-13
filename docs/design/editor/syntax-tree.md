@@ -117,14 +117,17 @@ Phase 3 (ownership flip to tree-as-truth) was evaluated and rejected — Phase 2
 
 ### Algorithm
 
-Single-pass, line-oriented scanner. Takes a source string, splits into lines, matches each against block openers in priority order:
+Single-pass, line-oriented scanner. Takes a source string, splits into lines, matches each against registered block openers in priority order — kinds declare `{priority, tryOpen, interruptsParagraph}` on the schema's opener registry, and the paragraph-interrupt continuation scan derives from the same declarations. The built-in priorities encode:
 
 1. Fenced code → consume until matching close fence or EOF
 2. ATX heading
-3. Thematic break (only after a blank line, to avoid ambiguity with setext underlines)
+3. Thematic break (a `---` after paragraph text is consumed as a setext underline first)
 4. Blockquote → recursive parse of stripped inner content
 5. List item → recursive parse of stripped inner content
-6. Fallback → start a paragraph, consume continuation lines
+6. Indented code (declines unless preceded by a blank line or at window start — cannot interrupt a paragraph)
+7. HTML block
+8. Link reference definition
+9. Unregistered fallback → start a paragraph, consume continuation lines (also detects setext headings and tables)
 
 Blank lines between blocks become `leadingTrivia` on the next block. Leading/trailing document whitespace becomes `Document.prefix`/`suffix`.
 
@@ -179,4 +182,4 @@ All GFM block types are implemented and have their own node kinds:
 
 ### Custom Extensions
 
-New block types are additive — a kind string, optional metadata, and a parser matcher. A future or plugin-authored syntax can land as `unrecognized` and graduate to its own kind once a matcher exists. The tree is agnostic to kind strings.
+New block types are additive — a kind string, optional metadata, and a registered block opener. A future or plugin-authored syntax can land as `unrecognized` and graduate to its own kind once an opener is registered. The tree is agnostic to kind strings.

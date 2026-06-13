@@ -98,7 +98,8 @@ This rendering mode maps to the CST phases:
 
 Cross-cutting block-kind metadata lives in `src/lib/editor/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither (otherwise the layer DAG cycles).
 
-- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, and optional per-kind hooks (e.g. content range, raw rebuild, foreign-drag hit-test, image-widget opt-out). New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
+- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, container paste-merge declaration (`containerPaste`), and optional per-kind hooks (e.g. content range, raw rebuild, foreign-drag hit-test, image-widget opt-out). New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
+- **Block-opener registry** — sibling registry (`schema/block-openers.ts`): kinds the block parser dispatches declare `{priority, tryOpen, interruptsParagraph}`; the parser's dispatch order and the paragraph-interrupt scan both derive from these declarations. Built-in opener implementations live in `core/parsers/` and register at parser load.
 - **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds. Built-in component registrations live in `components/built-in-blocks.ts` (top-of-DAG wire-up, imported once at editor mount).
 - **Merge rules** — eligibility predicates for backspace merge: `isMergeEligible`, `isBlockEditable`, `findMergeTarget`, walker for the deepest mergeable leaf, and merge-role lookup.
 - **Container raw rebuild** — per-kind raw rebuild plus ancestry dispatch (`rebuildContainerRaw`, `rebuildAncestryRaw`).
@@ -394,11 +395,12 @@ Always intercepted. If there is a selection (single or cross-block), delete the 
 
 Paste routes through a single dispatcher (`tree-operations/paste/dispatch.ts`) that consults strategies in priority order:
 
-1. **Container-matching unwrap** — when the clipboard's top block is a list/blockquote of kind K and an ancestor is also K (matching ordered flag), splice items into the matching ancestor instead of nesting a sub-container. Empty target → splice replaces it; non-empty target in cross-block context → merge first item into target leaf, splice remaining items as siblings.
-2. **List absorb** — when the clipboard top block is a list whose ordered flag matches the nearest list ancestor and container-match declined (single-block non-empty target), splice pasted items as siblings in the enclosing list, renumber from 1, and normalize markers to parent style. Final markers are computed before splice (Svelte 5 reactivity invariant).
-3. **List break-out** — when the clipboard top block is a list whose ordered flag does NOT match the nearest list ancestor, split the enclosing list at the target item and splice the pasted list block between the halves at the list's parent level.
-4. **Default structural** — leading slice + pasted blocks + trailing slice replacement.
-5. **Default inline** — single-paragraph clipboard takes the inline raw-splice path.
+1. **Container-matching unwrap** — when the clipboard's top block declares `containerPaste` and a same-kind ancestor passes its `matchesAncestor` predicate (list: matching ordered flag; blockquote: any), splice items into the matching ancestor instead of nesting a sub-container. Empty target → splice replaces it; non-empty target in cross-block context → merge first item into target leaf, splice remaining items as siblings.
+2. **Sibling absorb** — for clipboard-top kinds declaring `siblingAbsorb` (list) whose `matchesAncestor` accepts the nearest list ancestor, when container-match declined (single-block non-empty target): splice pasted items as siblings in the enclosing list, renumber from 1, and normalize markers to parent style. Final markers are computed before splice (Svelte 5 reactivity invariant).
+3. **Break-out** — same gate with `matchesAncestor` rejecting (mismatched ordered flag): split the enclosing list at the target item and splice the pasted list block between the halves at the list's parent level.
+4. **Scoped structural** — a target surface may declare `onScopedStructuralPaste`, owning the whole mutation at an ancestor scope (tableCell slices its table at the row and splices at the table's parent).
+5. **Default structural** — leading slice + pasted blocks + trailing slice replacement.
+6. **Default inline** — single-paragraph clipboard takes the inline raw-splice path.
 
 Pasted listItems are normalized to be `\n`-terminated before splice; clipboards without a trailing newline otherwise mash adjacent items during ancestry raw rebuild.
 
