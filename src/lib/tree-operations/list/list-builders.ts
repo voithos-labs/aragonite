@@ -6,7 +6,7 @@
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-raw';
+import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
 import { freshChildIds } from '../block-id';

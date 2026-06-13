@@ -1,6 +1,6 @@
 import type { CstNode } from '../core/nodes';
 import { cloneNode } from './clone';
-import { rebuildBlockquoteRaw } from '../schema/container-raw';
+import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { freshChildIds } from './block-id';
 
 /**

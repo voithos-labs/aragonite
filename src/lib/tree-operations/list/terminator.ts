@@ -10,7 +10,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { rebuildListItemRaw } from '../../schema/container-raw';
+import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 
 export function ensureListItemNewlineTerminated(item: CstNode): void {
 	if (item.raw.endsWith('\n')) return;

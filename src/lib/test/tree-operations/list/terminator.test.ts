@@ -5,7 +5,7 @@ import {
 	ensureListItemNewlineTerminated,
 	spliceTerminatedItems
 } from '$lib/editor/tree-operations/list/terminator';
-import { rebuildListRaw } from '$lib/editor/schema/container-raw';
+import { rebuildListRaw } from '$lib/editor/schema/container-rebuilders';
 import type { CstNode } from '$lib/editor/core/nodes';
 
 describe('ensureListItemNewlineTerminated', () => {

@@ -15,7 +15,7 @@ import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { rebuildListRaw } from '../../schema/container-raw';
+import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
 import {
 	assembleListHalf,

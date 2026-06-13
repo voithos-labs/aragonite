@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// Side-effect import: populates rebuildRaw on container descriptors (G1.3).
-import '../../schema/container-raw';
 import { ALL_BLOCK_KINDS, type BlockKind } from '../../core/nodes';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
@@ -81,7 +79,7 @@ describe('checkIsContainerIffRebuildRaw (G1.3)', () => {
 		expect(violation?.detail).toMatchObject({ kind: 'paragraph', isContainer: false });
 	});
 
-	it('passes over the real registries after container-raw augmentation', () => {
+	it('passes over the real registries', () => {
 		expect(checkIsContainerIffRebuildRaw()).toBeNull();
 	});
 });

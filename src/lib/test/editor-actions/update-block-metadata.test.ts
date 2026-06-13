@@ -5,7 +5,7 @@ import { createContainerEditActions } from '$lib/editor/editor-actions/container
 import { createHistoryActions } from '$lib/editor/editor-actions/history';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { rebuildListRaw } from '$lib/editor/schema/container-raw';
+import { rebuildListRaw } from '$lib/editor/schema/container-rebuilders';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,

@@ -1,10 +1,9 @@
 /**
  * Registers the built-in block openers. Lives beside the matcher
  * implementations (schema/block-kind-descriptor.ts cannot import them —
- * parsers/* import parser.ts, which reads the opener registry; same
- * patch-in precedent as schema/container-raw.ts). Imported for side
- * effect by core/parser.ts, so every parse() entry point sees the
- * built-ins registered.
+ * parsers/* import parser.ts, which reads the opener registry, so the
+ * import would cycle). Imported for side effect by core/parser.ts, so
+ * every parse() entry point sees the built-ins registered.
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';
