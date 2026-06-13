@@ -434,6 +434,8 @@ Undo restores the previous snapshot, pushes the current state onto the redo stac
 
 ### Commit Primitive
 
+The top-level and container `BlockEditActions` factories share one `block-edit-core` through a `CommitScope` adapter, so the structural-edit ladder (split / merge / delete / replaceBlock / metadata) is single-sourced; the factories differ only in scope wiring and container-only concerns (boundary delegation, unwrap dispatch). `insertParsedBlocks` and `updateBlockContent` stay per-factory — the former because top-level and container emit different paste events, the latter because their kind-change undo-batching is load-bearing and divergent.
+
 Every structural mutation routes through a single internal commit helper. Three entry points cover the three scopes:
 
 - **Top-level scope** — operations on the document's children array (split, merge, delete, paste, replaceBlock, kind-change republish).
