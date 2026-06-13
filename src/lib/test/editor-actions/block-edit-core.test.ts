@@ -16,7 +16,6 @@ function stubScope(children: CstNode[], collapseEmptyReplaceToDelete = true) {
 	const scope: CommitScope = {
 		children: () => children,
 		refAt: () => undefined,
-		batchKey: (i) => i,
 		collapseEmptyReplaceToDelete,
 		async commit(args) {
 			commits.push(args);

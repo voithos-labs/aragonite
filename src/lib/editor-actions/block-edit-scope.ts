@@ -37,7 +37,6 @@ export interface ScopeCommitArgs {
 export interface CommitScope {
 	children(): CstNode[];
 	refAt(i: number): BlockComponent | undefined;
-	batchKey(i: number): string | number;
 	/** Empty replaceBlock emits `delete` (container) vs `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	commit(args: ScopeCommitArgs): Promise<void>;
@@ -52,7 +51,6 @@ export function createTopLevelScope(
 	return {
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
-		batchKey: (i) => i,
 		collapseEmptyReplaceToDelete: false,
 		commit({ snapshot, op, mutate, afterTick }): Promise<void> {
 			return controller.commitStructural({
@@ -77,7 +75,6 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 	return {
 		children: () => deps.node.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
-		batchKey: (i) => state.innerBlockIds[i],
 		collapseEmptyReplaceToDelete: true,
 		commit({ snapshot, eventTarget, op, mutate, afterTick }): Promise<void> {
 			return deps.parent.containerEdit.commitContainer({
