@@ -26,8 +26,6 @@ export type BlockCommandId =
 	| 'code.newline'
 	| 'code.indent'
 	| 'code.dedent'
-	| 'code.exitPrev'
-	| 'code.exitNext'
 	| 'list.indent'
 	| 'list.unindent'
 	| 'cell.enter'

@@ -20,6 +20,7 @@ describe('global command registry', () => {
 	});
 	it('global keymap binds undo/redo chords', () => {
 		expect(GLOBAL_KEYMAP.find((b) => b.chord === 'Mod+Z')?.command).toBe('history.undo');
+		expect(GLOBAL_KEYMAP.find((b) => b.chord === 'Mod+Y')?.command).toBe('history.redo');
 		expect(GLOBAL_KEYMAP.find((b) => b.chord === 'Mod+Shift+Z')?.command).toBe('history.redo');
 	});
 });
@@ -36,6 +37,25 @@ describe('dispatchKeyCommand', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Q', { kind: 'paragraph', runCommand }, ctx)).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
+	});
+	it('routes a block-local chord to runCommand, forwarding the binding arg', () => {
+		const real = tryGetBlockKindDescriptor('paragraph')!;
+		const runCommand = vi.fn(() => true);
+		try {
+			registerBlockKind('paragraph', {
+				...real,
+				keymap: [
+					{ chord: 'Mod+B', command: 'format.toggleStrong' },
+					{ chord: 'Mod+3', command: 'heading.cycle', arg: 3 }
+				]
+			});
+			expect(dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
+			expect(runCommand).toHaveBeenCalledWith('format.toggleStrong', undefined);
+			expect(dispatchKeyCommand('Mod+3', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
+			expect(runCommand).toHaveBeenLastCalledWith('heading.cycle', 3);
+		} finally {
+			registerBlockKind('paragraph', real);
+		}
 	});
 });
 
