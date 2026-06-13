@@ -113,6 +113,14 @@ export interface BlockComponent {
 	 * lands on the image directly.
 	 */
 	selectEdgeWidget?(side: 'start' | 'end'): boolean;
+	/**
+	 * Run a named block-local command (split, indent, format, …) resolved from
+	 * a keybinding. `arg` carries the binding's static argument (e.g. heading
+	 * level). Returns true when the command acted; false lets the caller fall
+	 * through to remaining inline keydown branches. Block components that
+	 * declare a keymap implement this; others omit it.
+	 */
+	runCommand?(id: import('./schema/commands').CommandId, arg?: number): boolean;
 	readonly editable: boolean;
 	readonly focusable: boolean;
 }
