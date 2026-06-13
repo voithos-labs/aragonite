@@ -98,7 +98,7 @@ This rendering mode maps to the CST phases:
 
 Cross-cutting block-kind metadata lives in `src/lib/editor/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither (otherwise the layer DAG cycles).
 
-- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, container paste-merge declaration (`containerPaste`), and optional per-kind hooks (e.g. content range, raw rebuild, foreign-drag hit-test, image-widget opt-out). New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
+- **Block-kind descriptor** — per-kind data: merge role, editable flag, container flag, inline-support flag, container paste-merge declaration (`containerPaste`), unwrap strategies (`unwrapRole`), raw rebuild (declared at registration; implementations in `schema/container-rebuilders.ts`), and optional per-kind hooks (e.g. content range, foreign-drag hit-test, image-widget opt-out). New kinds register with `registerBlockKind` (built-ins at module load; plugin kinds follow the same shape).
 - **Block-opener registry** — sibling registry (`schema/block-openers.ts`): kinds the block parser dispatches declare `{priority, tryOpen, interruptsParagraph}`; the parser's dispatch order and the paragraph-interrupt scan both derive from these declarations. Built-in opener implementations live in `core/parsers/` and register at parser load.
 - **Component registry** — runtime `BlockKind → component` map. `BlockHost` looks up by kind. The component type declares `BlockComponent` as its exposed interface so `bind:this` typing holds. Built-in component registrations live in `components/built-in-blocks.ts` (top-of-DAG wire-up, imported once at editor mount).
 - **Merge rules** — eligibility predicates for backspace merge: `isMergeEligible`, `isBlockEditable`, `findMergeTarget`, walker for the deepest mergeable leaf, and merge-role lookup.
@@ -229,7 +229,7 @@ Backspace at offset 0 of a container's first child triggers an unwrap operation:
 - **List, non-empty non-first item (Rule M1)**: the item merges into the "deepest visible text above" via rule B; remaining children are placed by preserve-absolute-indent. Ordered markers renumber.
 - **List, nested first item (any list that has a parent list)**: the item is promoted to the parent list level (Shift+Tab equivalent).
 
-No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation.
+No auto-merge with the block above the container occurs — each Backspace press performs exactly one operation. Dispatch is declaration-driven: each container's `unwrapRole` selects its first-child and middle-child strategies; undeclared containers delegate upward.
 
 **Delete** — remove the node from the children array.
 
