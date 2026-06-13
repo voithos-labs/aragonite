@@ -3,6 +3,7 @@ import {
 	getCommand,
 	GLOBAL_KEYMAP,
 	resolveBinding,
+	resolveKindBinding,
 	dispatchKeyCommand
 } from '$lib/editor/schema/commands';
 import {
@@ -73,6 +74,17 @@ describe('resolveBinding order', () => {
 		}
 		// fencedCode doesn't bind Mod+Z → falls through to the global table
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
+	});
+});
+
+describe('resolveKindBinding (no global fallthrough)', () => {
+	// Container bubble handlers use kind-only resolution so they never re-handle
+	// global commands the focused leaf already owns — the double-undo regression.
+	it('resolves a kind binding but never a global one', () => {
+		expect(resolveKindBinding('Enter', 'paragraph')?.command).toBe('block.split');
+		expect(resolveKindBinding('Tab', 'listItem')?.command).toBe('list.indent');
+		expect(resolveKindBinding('Mod+Z', 'paragraph')).toBeNull();
+		expect(resolveKindBinding('Mod+Z', 'listItem')).toBeNull();
 	});
 });
 

@@ -4,7 +4,6 @@
 		BlockEditActions,
 		ContainerEditActions,
 		FocusActions,
-		HistoryActions,
 		ListContext
 	} from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
@@ -13,7 +12,6 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		FOCUS_KEY,
-		HISTORY_KEY,
 		LIST_CONTEXT_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY
@@ -32,7 +30,7 @@
 	import BlockList from '../BlockList.svelte';
 	import { publishRefSlot } from '../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+	import { resolveKindBinding, type CommandId } from '../../schema/commands';
 
 	let {
 		node,
@@ -53,7 +51,6 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const historyActions = getContext<HistoryActions>(HISTORY_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
@@ -186,16 +183,17 @@
 	}
 
 	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab
-	// declines (without preventDefault) when a listContext is present. The guard
-	// catches chords the contenteditable already handled — including Mod+Z/Y,
-	// which routing now resolves against GLOBAL_KEYMAP but never fires here.
+	// declines (without preventDefault) when a listContext is present. Resolve
+	// ONLY this kind's keymap — never the global table: undo/redo belong to the
+	// focused contenteditable, whose async keydown handler preventDefaults after
+	// an await, so the event bubbles here with defaultPrevented still false. A
+	// global fallthrough would re-fire undo/redo a second time.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
-		if (
-			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history: historyActions })
-		) {
+		if (!chord) return;
+		const binding = resolveKindBinding(chord, node.kind);
+		if (binding && runCommand(binding.command)) {
 			e.preventDefault();
 		}
 	}

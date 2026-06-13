@@ -74,12 +74,25 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Shift+Z', command: 'history.redo' }
 ];
 
+/**
+ * Per-kind keymap ONLY — no global fallthrough. Container bubble handlers use
+ * this: global commands (undo/redo) belong to the focused leaf, and a leaf's
+ * async keydown handler preventDefaults only AFTER an await, so a bubbling event
+ * reaches a container handler with `defaultPrevented` still false. Falling
+ * through to the global table there would fire undo/redo a second time.
+ */
+export function resolveKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
+	const keymap = tryGetBlockKindDescriptor(kind)?.keymap;
+	return keymap?.find((b) => normalizeChord(b.chord) === chord) ?? null;
+}
+
 /** Per-kind keymap first, then the editor-global table. Returns the matched binding. */
 export function resolveBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
-	const keymap = tryGetBlockKindDescriptor(kind)?.keymap;
-	const fromKind = keymap?.find((b) => normalizeChord(b.chord) === chord);
-	if (fromKind) return fromKind;
-	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? null;
+	return (
+		resolveKindBinding(chord, kind) ??
+		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
+		null
+	);
 }
 
 /** Resolve the chord and run the command. Returns true when handled. */
