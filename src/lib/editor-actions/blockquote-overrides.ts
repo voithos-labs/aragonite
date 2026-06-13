@@ -1,19 +1,19 @@
 /**
- * Override factory for BlockquoteBlock — Enter-on-empty-last-child exit plus
- * the Rule U2 unwrap. Returns the override map consumed by
- * `createStandardNestedActions`.
+ * Override factory for BlockquoteBlock — the Enter-on-empty-last-child exit.
+ * Returns the override map consumed by `createStandardNestedActions`.
+ * Backspace unwrap (U2) is declaration-driven — the blockquote's `unwrapRole`
+ * selects strategies in `unwrap-strategies.ts`.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
-import { unwrapFirstChildFromBlockquote } from '../tree-operations/blockquote';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsBundle } from './nested-actions';
 import type { UndoController } from './deps';
 
-export interface BlockquoteContextDeps {
+export interface BlockquoteOverridesDeps {
 	get index(): number;
 	get node(): CstNode;
 	get path(): number[];
@@ -23,7 +23,7 @@ export interface BlockquoteContextDeps {
 	controller: UndoController;
 }
 
-export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
+export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 	return (defaults: NestedActionsBundle) => ({
 		blockEdit: {
 			// Enter on an empty trailing paragraph exits the blockquote instead of
@@ -58,23 +58,6 @@ export function createBlockquoteOverrides(deps: BlockquoteContextDeps) {
 					return;
 				}
 				return defaults.blockEdit.splitBlock(innerIndex, offset);
-			},
-
-			// Rule U2: Backspace at first child lifts it out. Without this override,
-			// the default would delegate upward and merge the whole blockquote.
-			mergeWithPrevious: async (innerIndex: number): Promise<void> => {
-				const { node, index, parentBlockEdit } = deps;
-				if (!node.children) return;
-				if (innerIndex <= 0) {
-					const replacement = unwrapFirstChildFromBlockquote(node);
-					if (replacement.length === 0) return;
-					await parentBlockEdit.replaceBlock(index, replacement, {
-						replacementIndex: 0,
-						offset: 0
-					});
-					return;
-				}
-				return defaults.blockEdit.mergeWithPrevious(innerIndex);
 			}
 		}
 	});

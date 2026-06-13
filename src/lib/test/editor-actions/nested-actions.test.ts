@@ -9,9 +9,12 @@ import {
 	makeStubFocus
 } from '../harness/editor-actions';
 
+// listItem: the container WITHOUT an unwrapRole — kinds that declare one
+// (blockquote/list) dispatch mergeWithPrevious(0) to an unwrap strategy
+// instead of delegating upward.
 function makeNode(children: CstNode[]): CstNode {
 	return {
-		kind: 'blockquote',
+		kind: 'listItem',
 		leadingTrivia: '',
 		raw: '',
 		children,

@@ -5,7 +5,7 @@
  * registers: the completeness meta-test in `container-conformance.test.ts` fails
  * if a registered container kind has no profile here.
  *
- * The four per-container invariants:
+ * The per-container invariants:
  *   (a) local-index addressing  — children are addressed by their LOCAL index at
  *       each nesting level (the op mutates the right child and emits a path of
  *       local indices, not a global offset).
@@ -15,6 +15,10 @@
  *       pushes exactly one undo snapshot.
  *   (d) focus-bubble termination at root — a boundary focus event bubbles up
  *       through nesting and terminates at the root (no loop / escape).
+ *   (e) declaration sanity — the descriptor's declared behaviors hold: a
+ *       declared unwrapRole names implemented strategies, a declared
+ *       containerPaste is shaped as the paste path consumes it, and rebuildRaw
+ *       runs non-throwing over a parsed fixture.
  *
  * Strip vs grid. Strip containers (blockquote/list/listItem) decompose as
  * outer-syntax-around-children, so their `rebuildRaw` reads only their own
@@ -32,8 +36,9 @@
  * primitive directly, which would pass vacuously for a container that bypasses
  * it. Two node-env boundaries the kit deliberately does not cross: (1) the kit
  * mounts the DEFAULT nested-action bundle, not the per-kind `overrideFactory`
- * the real components supply (blockquote's U2 unwrap, list's exit) — those
- * overrides need the components, so they're out of scope here; (2) grid focus
+ * the real components supply (blockquote's Enter-exit, list's item-level
+ * no-ops/delete/replace) — those overrides need the components, so they're out
+ * of scope here; (2) grid focus
  * bubbling and a mounted-component focus walk would need the Svelte components
  * under jsdom. Both are recorded as boundaries with what WOULD be required.
  */
@@ -50,7 +55,12 @@ import {
 import { createNestedFocus } from '$lib/editor/editor-actions/nested-focus';
 import { createTableMutationsContext } from '$lib/editor/editor-actions/table-context';
 import { createListContext } from '$lib/editor/editor-actions/list-context';
+import {
+	firstChildUnwrapStrategies,
+	middleChildUnwrapStrategies
+} from '$lib/editor/editor-actions/unwrap-strategies';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import { getBlockKindDescriptor } from '$lib/editor/schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '$lib/editor/schema/container-raw';
 import { rebuildUnsharedAncestry } from '$lib/editor/tree-operations/unshare';
 import { createSharingState } from '$lib/editor/undo/sharing';
@@ -592,6 +602,52 @@ function findFirstOfKind(root: Document | CstNode, kind: BlockKind): CstNode | n
 		if (found) return found;
 	}
 	return null;
+}
+
+// ── (e) declaration sanity (unwrapRole / containerPaste / rebuildRaw) ─────────────
+
+/**
+ * Hold the kind to its schema declarations: a declared `unwrapRole` must name
+ * strategies the registries implement (the nested dispatcher indexes them
+ * unguarded), a declared `containerPaste` must be shaped as the paste path
+ * consumes it, and `rebuildRaw` must run non-throwing over a parsed fixture
+ * (G1.3 owns the isContainer-iff-rebuildRaw presence rule).
+ */
+export function checkDeclarationSanity(kind: BlockKind, profile: ContainerProfile): void {
+	const descriptor = getBlockKindDescriptor(kind);
+
+	const role = descriptor.unwrapRole;
+	if (role) {
+		expect(
+			firstChildUnwrapStrategies[role.firstChildBackspace],
+			`${kind} first-child unwrap strategy "${role.firstChildBackspace}" is implemented`
+		).toBeTypeOf('function');
+		if (role.middleChildBackspace !== 'default-merge') {
+			expect(
+				middleChildUnwrapStrategies[role.middleChildBackspace],
+				`${kind} middle-child unwrap strategy "${role.middleChildBackspace}" is implemented`
+			).toBeTypeOf('function');
+		}
+	}
+
+	if (descriptor.containerPaste) {
+		expect(
+			descriptor.containerPaste.matchesAncestor,
+			`${kind} containerPaste.matchesAncestor is callable`
+		).toBeTypeOf('function');
+		expect(
+			descriptor.containerPaste.siblingAbsorb,
+			`${kind} containerPaste.siblingAbsorb is boolean`
+		).toBeTypeOf('boolean');
+	}
+
+	expect(descriptor.rebuildRaw, `${kind} declares rebuildRaw`).toBeTypeOf('function');
+	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
+	expect(node, `deepNesting fixture contains a "${kind}" node`).toBeTruthy();
+	expect(
+		() => descriptor.rebuildRaw!(node!),
+		`${kind} rebuildRaw runs over a parsed fixture`
+	).not.toThrow();
 }
 
 // ── Coverage assertion (visible exemptions) ───────────────────────────────────────

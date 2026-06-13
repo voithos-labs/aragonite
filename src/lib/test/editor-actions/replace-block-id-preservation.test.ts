@@ -221,9 +221,7 @@ function makeListSetup() {
 			path: [0],
 			state: listState,
 			parentBlockEdit: makeStubBlockEdit(),
-			parentContainerEdit: containerEdit,
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined
+			parentContainerEdit: containerEdit
 		})
 	);
 

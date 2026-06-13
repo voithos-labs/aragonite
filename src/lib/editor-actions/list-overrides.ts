@@ -1,27 +1,14 @@
 /**
  * Override factory for ListBlock — list-wrapper-level structural overrides
- * that ListBlock layers over the standard nested actions bundle: U1 unwrap,
- * M1 merge into deepest leaf, empty-item delete, last-item forward-merge
- * delegation, and item replace.
+ * that ListBlock layers over the standard nested actions bundle: item-level
+ * no-ops, last-item forward-merge delegation, item delete, and item replace.
+ * Backspace unwrap (U1/M1) is declaration-driven — the list's `unwrapRole`
+ * selects strategies in `unwrap-strategies.ts`.
  */
 
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	FocusActions,
-	ListContext,
-	UndoEntryMode
-} from '../action-contracts';
-import { CURSOR_END } from '../block-component';
+import type { BlockEditActions, ContainerEditActions, UndoEntryMode } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
-import {
-	deleteNode as performDelete,
-	unwrapFirstItemFromList,
-	mergeListItemIntoPrevious,
-	renumberOrderedList,
-	isItemUserEmpty,
-	normalizeReplacementTrivia
-} from '../tree-operations';
+import { deleteNode as performDelete, normalizeReplacementTrivia } from '../tree-operations';
 import {
 	replacePreservingFirst,
 	stampStructuralChange
@@ -36,8 +23,6 @@ export interface ListOverridesDeps {
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentContainerEdit: ContainerEditActions;
-	parentFocus: FocusActions;
-	parentListContext: ListContext | undefined;
 }
 
 export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverrideFactory {
@@ -55,104 +40,6 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				if (itemIndex >= node.children.length - 1) {
 					await deps.parentBlockEdit.mergeWithNext(deps.index);
 				}
-			},
-
-			// Core list Backspace behavior: U1 unwrap / M1 merge / empty-item delete.
-			mergeWithPrevious: async (itemIndex: number): Promise<void> => {
-				const node = deps.node;
-				const index = deps.index;
-				if (!node.children) return;
-
-				if (itemIndex <= 0) {
-					if (deps.parentListContext) {
-						await deps.parentListContext.promoteNestedItem(
-							deps.parentListContext.getContainingItemIndex(),
-							node,
-							0
-						);
-						return;
-					}
-
-					const item = node.children[0];
-					const firstChildEmpty = isItemUserEmpty(item);
-
-					if (firstChildEmpty && node.children.length > 1) {
-						await deps.parentContainerEdit.commitContainer({
-							containerNode: node,
-							path: deps.path,
-							state: deps.state,
-							snapshot: { blockIndex: index, offset: 0 },
-							mutate: (scope) => {
-								const change = performDelete({ children: scope.children }, 0, scope.sharing);
-								renumberOrderedList(scope.node, 0, scope.sharing);
-								return change;
-							},
-							op: { kind: 'delete', eventPath: [index, 0] },
-							afterTick: () => {
-								deps.state.innerBlockRefs[0]?.focus(0);
-							}
-						});
-					} else if (firstChildEmpty && node.children.length === 1) {
-						await deps.parentBlockEdit.deleteBlock(index);
-						deps.parentFocus.moveFocus(index - 1, 'end');
-					} else {
-						const replacement = unwrapFirstItemFromList(node);
-						if (replacement.length === 0) return;
-						await deps.parentBlockEdit.replaceBlock(index, replacement, {
-							replacementIndex: 0,
-							offset: 0
-						});
-					}
-					return;
-				}
-
-				const item = node.children[itemIndex];
-				if (isItemUserEmpty(item)) {
-					await deps.parentContainerEdit.commitContainer({
-						containerNode: node,
-						path: deps.path,
-						state: deps.state,
-						snapshot: { blockIndex: index, offset: 0 },
-						mutate: (scope) => {
-							const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
-							renumberOrderedList(scope.node, itemIndex, scope.sharing);
-							return change;
-						},
-						op: { kind: 'delete', eventPath: [index, itemIndex] },
-						afterTick: () => {
-							deps.state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
-						}
-					});
-					return;
-				}
-
-				// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
-				let mergePoint!: { targetPath: number[]; offset: number };
-				await deps.parentContainerEdit.commitContainer({
-					containerNode: node,
-					path: deps.path,
-					state: deps.state,
-					snapshot: { blockIndex: index, offset: 0 },
-					mutate: (scope) => {
-						const result = mergeListItemIntoPrevious(
-							scope.node,
-							scope.children,
-							itemIndex,
-							scope.sharing
-						);
-						mergePoint = result.mergePoint;
-						return { op: 'delete', at: itemIndex, count: 1 };
-					},
-					op: {
-						kind: 'merge',
-						detail: { direction: 'prev' },
-						eventPath: [index, itemIndex]
-					},
-					afterTick: () => {
-						const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-						deps.state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
-					}
-				});
 			},
 
 			deleteBlock: async (itemIndex: number): Promise<void> => {
