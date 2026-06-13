@@ -1,15 +1,16 @@
 /**
- * Container-matching unwrap: when the clipboard is a list/blockquote of kind
- * K and an ancestor is also K (with matching ordered flag), splice items into
- * the matching ancestor instead of nesting a sub-container.
+ * Container-matching unwrap: when the clipboard's top block is a container
+ * kind declaring `containerPaste` and a same-kind ancestor passes its
+ * `matchesAncestor` predicate, splice items into that ancestor instead of
+ * nesting a sub-container.
  */
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { metadataOf } from '../../core/nodes';
 import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
@@ -50,7 +51,8 @@ export function findContainerMatchingUnwrap(
 ): ContainerUnwrap | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	if (topBlock.kind !== 'list' && topBlock.kind !== 'blockquote') return null;
+	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	if (!containerPaste) return null;
 	if (!topBlock.children || topBlock.children.length === 0) return null;
 
 	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
@@ -58,12 +60,7 @@ export function findContainerMatchingUnwrap(
 		const ancestor = nodeAt(doc, ancestorPath) as CstNode | null;
 		if (!ancestor) break;
 		if (ancestor.kind !== topBlock.kind) continue;
-
-		if (topBlock.kind === 'list') {
-			const ancOrd = metadataOf(ancestor, 'list')?.ordered;
-			const topOrd = metadataOf(topBlock, 'list')?.ordered;
-			if (ancOrd !== topOrd) continue;
-		}
+		if (!containerPaste.matchesAncestor(topBlock, ancestor)) continue;
 
 		const spliceIndex = targetPath[depth];
 		const targetChild = ancestor.children?.[spliceIndex];
