@@ -75,3 +75,29 @@ describe('resolveBinding order', () => {
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
 	});
 });
+
+describe('text-editable keymap breadth', () => {
+	// The same transformative chords must resolve for prose AND the raw-editable
+	// fallback kinds — TextEditableBlock renders both, and its keydown applied
+	// these uniformly before the command-registry migration.
+	const TEXT_EDITABLE_KINDS = [
+		'paragraph',
+		'heading',
+		'setextHeading',
+		'indentedCode',
+		'htmlBlock',
+		'linkReferenceDefinition',
+		'unrecognized'
+	] as const;
+
+	it('covers prose AND raw-editable kinds', () => {
+		for (const kind of TEXT_EDITABLE_KINDS) {
+			expect(resolveBinding('Enter', kind)?.command).toBe('block.split');
+			expect(resolveBinding('Backspace', kind)?.command).toBe('block.mergePrev');
+		}
+		expect(resolveBinding('Mod+3', 'paragraph')).toMatchObject({
+			command: 'heading.cycle',
+			arg: 3
+		});
+	});
+});
