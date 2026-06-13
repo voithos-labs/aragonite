@@ -144,6 +144,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
+		history,
 		pasteCoordinator,
 		getCursorOffset: () => cursor.getRaw(),
 		afterReactivity: () => tick(),
@@ -319,14 +320,17 @@
 	}
 
 	export function runCommand(id: CommandId, arg?: number): boolean {
+		// Read the caret live: cross-block dispatch calls runCommand without an
+		// onKeyDown to refresh preEditOffset, so it would be stale here.
+		const offset = cursor.getRaw() ?? 0;
 		switch (id) {
 			case 'block.split':
-				blockEdit.splitBlock(index, preEditOffset);
+				blockEdit.splitBlock(index, offset);
 				return true;
 			case 'block.hardBreak': {
 				// GFM hard line break — trailing backslash before the newline.
-				const { newRaw, caretOffset } = insertHardBreak(node.raw, preEditOffset);
-				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
+				blockEdit.updateBlockContent(index, newRaw, offset);
 				pendingCursorOffset = caretOffset;
 				return true;
 			}
@@ -334,17 +338,17 @@
 				// Inside a list item Tab is the list's indent — decline so it bubbles.
 				if (listContext) return false;
 				// Insert a literal tab; the browser default would move focus out of the editor.
-				const { newRaw, caretOffset } = insertLiteralTab(node.raw, preEditOffset);
-				blockEdit.updateBlockContent(index, newRaw, preEditOffset);
+				const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
+				blockEdit.updateBlockContent(index, newRaw, offset);
 				pendingCursorOffset = caretOffset;
 				return true;
 			}
 			case 'block.mergePrev':
-				if (preEditOffset !== 0 || hasSelectionHelper()) return false;
+				if (offset !== 0 || hasSelectionHelper()) return false;
 				blockEdit.mergeWithPrevious(index);
 				return true;
 			case 'block.mergeNext':
-				if (preEditOffset !== getDisplayText().length || hasSelectionHelper()) return false;
+				if (offset !== getDisplayText().length || hasSelectionHelper()) return false;
 				blockEdit.mergeWithNext(index);
 				return true;
 			case 'format.toggleStrong':
@@ -355,8 +359,8 @@
 				return true;
 			case 'heading.cycle': {
 				// Replace any existing `#` prefix so repeated shortcuts cycle heading levels.
-				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, preEditOffset);
-				blockEdit.updateBlockContent(index, newRaw, preEditOffset, caretOffset);
+				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, offset);
+				blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
 				pendingCursorOffset = caretOffset;
 				return true;
 			}

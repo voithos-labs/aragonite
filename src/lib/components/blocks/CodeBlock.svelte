@@ -102,6 +102,7 @@
 		containerEdit,
 		blockEdit,
 		controller,
+		history,
 		pasteCoordinator,
 		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
 		afterReactivity: () => tick(),
@@ -365,6 +366,8 @@
 	// textContent, so the CST never sees the edit — handle Enter via the CST path.
 	function codeNewline(): boolean {
 		if (!el) return false;
+		// Read the caret live: cross-block dispatch calls runCommand without an
+		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
 		const offset = getCursorOffsetHelper(el) ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
@@ -372,7 +375,7 @@
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind !== 'none') {
 			if (exit.kind === 'exitWithEdit') {
-				blockEdit.updateBlockContent(index, exit.newText + '\n', preEditOffset);
+				blockEdit.updateBlockContent(index, exit.newText + '\n', offset);
 			}
 			focusActions.moveFocus(index + 1, 'start');
 			return true;
@@ -384,7 +387,7 @@
 			const indent = getLineLeadingWhitespace(text, offset);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
 			const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
-			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			blockEdit.updateBlockContent(index, newText + '\n', offset);
 			pendingCursorOffset = offset + 1 + inner.length;
 			return true;
 		}
@@ -394,7 +397,7 @@
 			selection: { start: offset, end: offset },
 			mode: 'normal'
 		});
-		blockEdit.updateBlockContent(index, enter.newText + '\n', preEditOffset);
+		blockEdit.updateBlockContent(index, enter.newText + '\n', offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
 	}
