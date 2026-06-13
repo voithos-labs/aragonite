@@ -17,7 +17,7 @@ import {
 } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
-import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-raw';
+import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-rebuilders';
 import {
 	renumberOrderedList,
 	normalizeItemMarkerToList

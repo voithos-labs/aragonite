@@ -44,8 +44,8 @@ export function checkRegistryCompleteness(
 
 /**
  * G1.3 — a kind is a container iff its descriptor supplies `rebuildRaw`.
- * Checked after container-raw augmentation has run. Reports the first kind
- * where `isContainer` and `rebuildRaw`-presence disagree.
+ * rebuildRaw is declared at registration. Reports the first kind where
+ * `isContainer` and `rebuildRaw`-presence disagree.
  */
 export function checkIsContainerIffRebuildRaw(
 	kinds: BlockKind[] = ALL_BLOCK_KINDS,

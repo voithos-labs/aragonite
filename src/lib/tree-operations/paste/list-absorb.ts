@@ -19,7 +19,7 @@ import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { rebuildListItemRaw } from '../../schema/container-raw';
+import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
