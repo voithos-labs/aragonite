@@ -286,7 +286,12 @@ registerBlockKind('tableCell', {
 	isContainer: false,
 	supportsInline: true,
 	getContentRange: tableCellContentRange,
-	renderImagesAsWidgets: false
+	renderImagesAsWidgets: false,
+	keymap: [
+		{ chord: 'Enter', command: 'cell.enter' },
+		{ chord: 'Tab', command: 'cell.tab' },
+		{ chord: 'Shift+Tab', command: 'cell.shiftTab' }
+	]
 });
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',
