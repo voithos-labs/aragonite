@@ -13,24 +13,27 @@ import type { AnyBlockKind } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 
-export type GlobalCommandId = 'history.undo' | 'history.redo';
-export type BlockCommandId =
-	| 'block.split'
-	| 'block.hardBreak'
-	| 'block.insertTab'
-	| 'block.mergePrev'
-	| 'block.mergeNext'
-	| 'format.toggleStrong'
-	| 'format.toggleEmphasis'
-	| 'heading.cycle'
-	| 'code.newline'
-	| 'code.indent'
-	| 'code.dedent'
-	| 'list.indent'
-	| 'list.unindent'
-	| 'cell.enter'
-	| 'cell.tab'
-	| 'cell.shiftTab';
+export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
+export const BLOCK_COMMAND_IDS = [
+	'block.split',
+	'block.hardBreak',
+	'block.insertTab',
+	'block.mergePrev',
+	'block.mergeNext',
+	'format.toggleStrong',
+	'format.toggleEmphasis',
+	'heading.cycle',
+	'code.newline',
+	'code.indent',
+	'code.dedent',
+	'list.indent',
+	'list.unindent',
+	'cell.enter',
+	'cell.tab',
+	'cell.shiftTab'
+] as const;
+export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
+export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */

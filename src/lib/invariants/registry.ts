@@ -3,6 +3,8 @@ import { ALL_BLOCK_KINDS } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { getBlockComponent } from '../schema/block-component-registry';
 import { listRegisteredOpeners } from '../schema/block-openers';
+import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '../schema/commands';
+import { normalizeChord, type KeyBinding } from '../schema/keybindings';
 import type { InvariantViolation } from './assert';
 
 /**
@@ -95,6 +97,44 @@ export function checkOpenerRegistry(
 			};
 		}
 		seen.set(priority, kind);
+	}
+	return null;
+}
+
+/**
+ * G1.11 — keymap coherence: every keymap binding names a known command, and a
+ * kind's chords are unique after normalization (duplicates make dispatch order
+ * declaration-dependent). Chords are scoped per kind — two kinds may bind the
+ * same chord to different commands. Reports the first offending binding.
+ */
+export function checkKeymapCoherence(
+	entries: { kind: AnyBlockKind; keymap?: KeyBinding[] }[] = ALL_BLOCK_KINDS.map((kind) => ({
+		kind,
+		keymap: tryGetBlockKindDescriptor(kind)?.keymap
+	}))
+): InvariantViolation | null {
+	const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
+	for (const { kind, keymap } of entries) {
+		if (!keymap) continue;
+		const seenChords = new Set<string>();
+		for (const binding of keymap) {
+			if (!knownCommands.has(binding.command)) {
+				return {
+					code: 'keymap-coherence',
+					message: `kind "${kind}" binds chord "${binding.chord}" to unknown command "${binding.command}"`,
+					detail: { kind, chord: binding.chord, command: binding.command }
+				};
+			}
+			const chord = normalizeChord(binding.chord);
+			if (seenChords.has(chord)) {
+				return {
+					code: 'keymap-coherence',
+					message: `kind "${kind}" binds chord "${chord}" more than once`,
+					detail: { kind, chord }
+				};
+			}
+			seenChords.add(chord);
+		}
 	}
 	return null;
 }
