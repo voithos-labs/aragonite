@@ -8,6 +8,7 @@
 		TableContext
 	} from '../../../action-contracts';
 	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
+	import type { CommandId } from '../../../schema/commands';
 	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_COMPONENT_LOOKUP_KEY,
@@ -66,7 +67,7 @@
 	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
-	import { cellKeydownPlan } from './cell-keydown-plan';
+	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
 	import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 	import {
 		installCellDragListener,
@@ -208,6 +209,35 @@
 		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
 	}
 
+	// Cross-block dispatch entry (IMPL-7): a post-delete Enter/Tab routed to this
+	// focused cell. There's no live event, so the 'native'/'select-all-step' plans
+	// (which extend or delegate an event) are declined; the action plans run.
+	export function runCommand(id: CommandId): boolean {
+		if (!el) return false;
+		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return false;
+		const plan = cellKeydownPlan(
+			{
+				key: id === 'cell.enter' ? 'Enter' : 'Tab',
+				ctrlOrMeta: false,
+				shiftKey: id === 'cell.shiftTab',
+				altKey: false
+			},
+			{
+				rowIdx,
+				colIdx,
+				columnCount,
+				rowCount,
+				offset: cursor.getRaw() ?? 0,
+				textLen: containerRawLength(el),
+				collapsed: !hasSelectionHelper(),
+				selectAllCount: selection.selectAllCount
+			}
+		);
+		if (plan.kind === 'native' || plan.kind === 'select-all-step') return false;
+		void applyCellPlan(plan);
+		return true;
+	}
+
 	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
 
 	$effect(() => {
@@ -220,7 +250,8 @@
 			focusAtColumn,
 			getSelectedText,
 			setSelection,
-			measurePartialRects
+			measurePartialRects,
+			runCommand
 		};
 		return publishRefSlot(index, self, setRef, getRef);
 	});
@@ -328,21 +359,28 @@
 					selectWholeDocument(selection, getDoc(), getBlockElByPath);
 				}
 				return;
-			case 'shortcut':
+			default:
 				e.preventDefault();
+				await applyCellPlan(plan);
+				return;
+		}
+	}
+
+	// The action plans (no live event needed). Shared by onKeyDown's default arm
+	// and runCommand's cross-block dispatch; the caller preventDefaults.
+	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
+		switch (plan.kind) {
+			case 'shortcut':
 				await tableContext[plan.action](plan.arg);
 				return;
 			case 'focus-cell':
-				e.preventDefault();
 				if (plan.setStickyColumn !== undefined) tableContext.setStickyColumn(plan.setStickyColumn);
 				tableContext.focusCell(plan.rowIdx, plan.colIdx, plan.position);
 				return;
 			case 'insert-row-below':
-				e.preventDefault();
 				await tableContext.insertRowBelow(rowIdx);
 				return;
 			case 'exit':
-				e.preventDefault();
 				exitWithStickyX(plan.direction);
 				return;
 		}
