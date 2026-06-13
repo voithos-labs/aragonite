@@ -9,7 +9,8 @@ import { assertInvariant } from './assert';
 import {
 	checkRegistryCompleteness,
 	checkIsContainerIffRebuildRaw,
-	checkOpenerRegistry
+	checkOpenerRegistry,
+	checkKeymapCoherence
 } from './registry';
 import { checkStaleRaw, checkCategoryFields } from './node-shape';
 import { checkContentRange } from './descriptor';
@@ -49,4 +50,5 @@ export function runStartupInvariantChecks(): void {
 	assertInvariant('registry-completeness', checkRegistryCompleteness);
 	assertInvariant('container-rebuild-pairing', checkIsContainerIffRebuildRaw);
 	assertInvariant('opener-registry', checkOpenerRegistry);
+	assertInvariant('keymap-coherence', checkKeymapCoherence);
 }
