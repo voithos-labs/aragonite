@@ -1,8 +1,9 @@
 /**
  * Single entry point for paste. Parses the clipboard, picks inline vs
  * structural, looks up the target's PasteSurface, and routes the mutation.
- * Surfaces are stateless data transforms; this module owns parsing,
- * strategy selection, mutation routing, and focus landing.
+ * Inline/structural surfaces are stateless data transforms whose results
+ * this module applies; scoped-structural surfaces own their whole mutation,
+ * including focus.
  *
  * Cross-block inline paste (undoEntry: 'join') bypasses updateBlockContent
  * and uses DOM-level focus because the originating block's pendingCursorOffset
@@ -10,7 +11,6 @@
  */
 
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
-import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { nodeAt } from '../node-ops';
@@ -21,9 +21,7 @@ import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
-import { replaceBlockAtParent } from './replace-block-at-parent';
 import { materializeBlankLines, pickPasteStrategy } from './strategy';
-import { sliceTableAtRow } from './table-slice';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -83,14 +81,13 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	// Paste-into-list family (same-type absorb + mismatched break-out). Runs
-	// after container-match, which handles empty-target and cross-block flatten;
-	// these two cover single-block non-empty targets.
-	//
-	//   - Absorb (types match): splice items as siblings in the enclosing list,
-	//     renumber from 1. Matches Obsidian / Google Docs convention.
-	//   - Break-out (types mismatch): split the enclosing list at the target,
-	//     splice the pasted list at the parent level, preserving its type.
+	// Container paste-merge family, gated by the clipboard-top kind's
+	// `containerPaste` declaration. Container-match (above) handles empty-target
+	// and cross-block flatten; absorb and break-out cover single-block non-empty
+	// targets — absorb splices clipboard items as siblings when `matchesAncestor`
+	// accepts the enclosing container (Obsidian / Google Docs convention),
+	// break-out splits it at the target and splices at the parent level when
+	// the match fails.
 	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, input.offset);
 	if (absorb) {
 		await applyListAbsorb(absorb, parsed.children[0], ctx);
@@ -112,39 +109,21 @@ export async function pasteDispatch(
 	}
 	const clipboardStrategy = pickPasteStrategy(parsed);
 
-	// Surfaces that omit `onStructuralPaste` (e.g. code blocks) force all
+	// Surfaces that omit both structural hooks (e.g. code blocks) force all
 	// paste into the inline hook so markdown stays verbatim.
-	const surfaceForcesInline = surface !== undefined && surface.onStructuralPaste === undefined;
+	const surfaceForcesInline =
+		surface !== undefined &&
+		surface.onStructuralPaste === undefined &&
+		surface.onScopedStructuralPaste === undefined;
 	const strategy: PasteStrategy = surfaceForcesInline ? 'inline' : clipboardStrategy;
 
-	// Structural paste into a table cell breaks the table at the cell's row and
-	// splices pasted blocks between the halves. The cell's blockEdit is the
-	// row-level nested bundle (its replaceBlock(i) targets the row's cells), so
-	// we route through replaceBlockAtParent to splice at the table's parent
-	// directly — bypassing the wrong-scope blockEdit.
-	if (strategy === 'structural' && targetNode.kind === 'tableCell') {
-		const tablePath = input.targetPath.slice(0, -2);
-		const rowIdx = input.targetPath[input.targetPath.length - 2];
-		const table = nodeAt(ctx.doc, tablePath) as CstNode | null;
-		if (!table || table.kind !== 'table') return {};
-
-		const blocks = materializeBlankLines(parsed.children);
-		const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
-		const replacement: CstNode[] = [];
-		if (firstHalf) replacement.push(firstHalf);
-		replacement.push(...blocks);
-		if (secondHalf) replacement.push(secondHalf);
-
-		const focusReplacementIndex = firstHalf ? 1 : 0;
-		await replaceBlockAtParent({
+	if (strategy === 'structural' && surface?.onScopedStructuralPaste) {
+		await surface.onScopedStructuralPaste({
 			doc: ctx.doc,
-			blockPath: tablePath,
-			replacement,
+			targetPath: input.targetPath,
+			blocks: materializeBlankLines(parsed.children),
 			controller: ctx.controller,
-			undoEntry: ctx.undoEntry ?? 'own',
-			focusReplacementIndex,
-			focusOffset: CURSOR_END,
-			source: 'paste-dispatch-table-cell'
+			undoEntry: ctx.undoEntry ?? 'own'
 		});
 		return {};
 	}

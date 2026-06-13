@@ -1,16 +1,18 @@
 /**
- * Inline + structural paste hooks for tableCell, exposed as a PasteSurface that
- * the editor mount registers (see built-in-blocks.ts). The structural hook is a
- * sentinel — see its body.
+ * Inline + scoped-structural paste hooks for tableCell, exposed as a
+ * PasteSurface that the editor mount registers (see built-in-blocks.ts).
  */
 
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
+import { nodeAt } from '../../../tree-operations/node-ops';
+import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
+import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
 	PasteRange,
 	PasteSurface,
-	StructuralPasteResult
+	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -56,28 +58,39 @@ export function tableCellInlinePaste(
 	};
 }
 
-export function tableCellStructuralPaste(
-	_node: CstNode,
-	_offset: number,
-	_blocks: CstNode[],
-	_preDelete?: PasteRange
-): StructuralPasteResult {
-	// Empty replacement signals to dispatch.ts that this paste must take the
-	// table-break-and-splice path; the sentinel keeps PasteSurface contract
-	// uniform without piling kind checks into the call site.
-	return {
-		replacement: [],
-		focusReplacementIndex: 0,
-		focusOffset: CURSOR_END
-	};
-}
-
-// onStructuralPaste is never invoked — pasteDispatch intercepts tableCell +
-// structural before reaching the surface hook. It's present (rather than
-// omitted) so surfaceForcesInline stays false, letting structural clipboards
-// reach the break-and-splice branch instead of being forced through inline.
 export const tableCellPasteSurface: PasteSurface = {
 	kind: 'tableCell',
 	onInlinePaste: tableCellInlinePaste,
-	onStructuralPaste: tableCellStructuralPaste
+	onScopedStructuralPaste: tableCellScopedStructuralPaste
 };
+
+// ── Internal ───────────────────────────────────────────────────────────────
+
+// Structural paste into a cell breaks the table at the cell's row and splices
+// the pasted blocks between the halves. The cell's blockEdit is the row-level
+// nested bundle (its replaceBlock(i) targets the row's cells), so the splice
+// routes through replaceBlockAtParent at the table's parent directly.
+async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput): Promise<void> {
+	const tablePath = input.targetPath.slice(0, -2);
+	const rowIdx = input.targetPath[input.targetPath.length - 2];
+	const table = nodeAt(input.doc, tablePath) as CstNode | null;
+	// Malformed path: swallow the paste.
+	if (!table || table.kind !== 'table') return;
+
+	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
+	const replacement: CstNode[] = [];
+	if (firstHalf) replacement.push(firstHalf);
+	replacement.push(...input.blocks);
+	if (secondHalf) replacement.push(secondHalf);
+
+	await replaceBlockAtParent({
+		doc: input.doc,
+		blockPath: tablePath,
+		replacement,
+		controller: input.controller,
+		undoEntry: input.undoEntry,
+		focusReplacementIndex: firstHalf ? 1 : 0,
+		focusOffset: CURSOR_END,
+		source: 'paste-dispatch-table-cell'
+	});
+}

@@ -11,10 +11,10 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildListRaw } from '../../schema/container-raw';
 import { newlineTerminateListItems } from '../list/terminator';
 import {
@@ -43,8 +43,9 @@ export interface ListBreakOut {
 
 /**
  * Detect whether to break out of an enclosing list for this paste. Returns
- * a plan only when the clipboard's top-list ordered flag differs from the
- * nearest list ancestor's — same-type pastes are handled by `list-absorb`
+ * a plan only when the clipboard's top block declares
+ * `containerPaste.siblingAbsorb` but its `matchesAncestor` predicate rejects
+ * the nearest list ancestor — matching pastes are handled by `list-absorb`
  * and must not also trigger here. Target must be a direct leaf of the
  * listItem (simple shape); deeper targets fall through.
  */
@@ -56,14 +57,13 @@ export function findListBreakOut(
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
 	const topBlock = parsed.children[0];
-	if (topBlock.kind !== 'list') return null;
+	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
 	if (!enclosing) return null;
 
-	const listOrdered = metadataOf(enclosing.list, 'list')?.ordered ?? false;
-	const pastedOrdered = metadataOf(topBlock, 'list')?.ordered ?? false;
-	if (listOrdered === pastedOrdered) return null;
+	if (containerPaste.matchesAncestor(topBlock, enclosing.list)) return null;
 
 	return {
 		listPath: enclosing.listPath,

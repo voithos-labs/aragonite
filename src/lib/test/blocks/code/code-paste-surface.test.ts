@@ -25,8 +25,9 @@ describe('code-paste-surface', () => {
 		expect(codePasteSurface.onInlinePaste).toBeDefined();
 	});
 
-	it('omits onStructuralPaste — code always treats paste as literal text', () => {
+	it('omits both structural hooks — code always treats paste as literal text', () => {
 		expect(codePasteSurface.onStructuralPaste).toBeUndefined();
+		expect(codePasteSurface.onScopedStructuralPaste).toBeUndefined();
 	});
 
 	it('onInlinePaste splices text without fence bump when paste contains no fence run', () => {
