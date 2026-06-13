@@ -43,7 +43,7 @@ export {
 	rebuildUnsharedAncestry
 } from './unshare';
 
-export { buildPastedReplacement } from './paste-replacement';
+export { buildPastedReplacement, foldPasteReplacement } from './paste-replacement';
 
 export { cloneDocument, cloneNode } from './clone';
 

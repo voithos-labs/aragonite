@@ -10,11 +10,10 @@
 import type { BlockEditActions, UndoEntryMode } from '../action-contracts';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { trimTrailingLineEnding } from '../core/lines';
 import {
 	updateNodeContent as performUpdate,
 	ensureUnsharedPath,
-	buildPastedReplacement
+	foldPasteReplacement
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -97,22 +96,15 @@ export function createBlockEditActions(
 		): Promise<void> {
 			if (blocks.length === 0) return;
 
-			const currentNode = deps.doc.children[blockIndex];
-
-			// Compute replacement outside the commit against the post-preDelete raw —
-			// a failing buildPastedReplacement won't corrupt the document. Raw
-			// mutation lives inside `mutate` so the snapshot captures pre-paste state,
-			// giving Ctrl+Z one-step undo for the whole paste.
-			let effectiveRaw = currentNode.raw;
-			let effectiveOffset = offset;
-			if (preDelete && preDelete.start < preDelete.end) {
-				const display = trimTrailingLineEnding(currentNode.raw);
-				const lineEnd = currentNode.raw.endsWith('\r\n') ? '\r\n' : '\n';
-				effectiveRaw = display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnd;
-				effectiveOffset = preDelete.start;
-			}
-			const synthLeaf: CstNode = { ...currentNode, raw: effectiveRaw };
-			const newNodes = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
+			// Build the replacement outside the commit so a failing fold can't
+			// corrupt the document; the splice lives inside `mutate` so the
+			// snapshot captures pre-paste state for one-step Ctrl+Z undo.
+			const newNodes = foldPasteReplacement(
+				deps.doc.children[blockIndex],
+				offset,
+				blocks,
+				preDelete
+			);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
 			await scope.commit({
