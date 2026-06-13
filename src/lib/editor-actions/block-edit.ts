@@ -1,165 +1,60 @@
 /**
- * BlockEditActions factory. Each method routes its mutation through
- * `controller.commitStructural` so the undo + reactivity ceremony lives
- * in one place.
+ * Top-level BlockEditActions factory. Structural split/merge/delete/replace/
+ * metadata route through the shared `block-edit-core` against a top-level
+ * `CommitScope`; this factory adds the edge guards (sticky-column reset,
+ * first/last-block bounds) and keeps the two per-level bodies the core can't
+ * share: `insertParsedBlocks` (top-level emits a `paste` op, the container
+ * routes through `replaceBlock` — G2.9 dual-emit) and `updateBlockContent`.
  */
 
 import type { BlockEditActions, UndoEntryMode } from '../action-contracts';
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { trimTrailingLineEnding, displayLength } from '../core/lines';
+import { trimTrailingLineEnding } from '../core/lines';
 import {
-	splitNode as performSplit,
-	bumpLeadingTrivia,
-	mergeWithNext as performMergeNext,
-	mergeIntoPrevDeepLeaf,
-	deleteNode as performDelete,
 	updateNodeContent as performUpdate,
-	ensureEditableContainers,
 	ensureUnsharedPath,
-	rebuildOwnedContainer,
-	buildPastedReplacement,
-	normalizeReplacementTrivia
+	buildPastedReplacement
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
 	stampStructuralChange
 } from '../tree-operations/structural-change';
-import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import type { EditorActionsDeps, UndoController } from './deps';
+import { createTopLevelScope } from './block-edit-scope';
+import { createBlockEditCore } from './block-edit-core';
 
 export function createBlockEditActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): BlockEditActions {
+	const scope = createTopLevelScope(deps, controller);
+	const core = createBlockEditCore(scope);
+
 	return {
-		// ── Structural split / merge / delete ─────────────────────────────────
+		// ── Structural split / merge / delete (shared core) ───────────────────
 
-		async splitBlock(blockIndex: number, offset: number): Promise<void> {
-			if (offset === 0 && displayLength(deps.doc.children[blockIndex].raw) > 0) {
-				// performSplit at offset 0 of a non-empty block would synthesize
-				// an empty leading paragraph whose '\n' raw collapses into trivia
-				// on reparse — the live tree desyncs from serialize(parse(source)).
-				// Bump the block's own leadingTrivia instead so the round-trip
-				// holds. (Empty blocks fall through: their splitNode result is
-				// [empty, empty], which is the intended rapid-Enter behavior.)
-				await controller.commitStructural({
-					snapshot: { blockIndex, offset: 0 },
-					mutate: (children) => {
-						ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
-						return bumpLeadingTrivia({ children }, blockIndex);
-					},
-					op: { kind: 'split', detail: { at: 0 } },
-					afterTick: () => deps.blockRefs[blockIndex]?.focus(0)
-				});
-				return;
-			}
-			await controller.commitStructural({
-				snapshot: { blockIndex, offset },
-				mutate: (children) => {
-					const change = performSplit({ children }, blockIndex, offset);
-					stampStructuralChange(children, change, deps.sharing);
-					return change;
-				},
-				op: { kind: 'split', detail: { at: offset } },
-				afterTick: () => deps.blockRefs[blockIndex + 1]?.focus(0)
-			});
-		},
+		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),
 
-		async mergeWithPrevious(blockIndex: number): Promise<void> {
+		async mergeWithPrevious(blockIndex) {
 			deps.stickyColumn.reset();
 			if (blockIndex <= 0) return;
-
-			const prevKind = deps.doc.children[blockIndex - 1].kind;
-			const currKind = deps.doc.children[blockIndex].kind;
-
-			if (!isMergeEligible(prevKind, currKind)) {
-				if (!isBlockEditable(prevKind)) {
-					await controller.commitStructural({
-						snapshot: { blockIndex, offset: 0 },
-						mutate: (children) => performDelete({ children }, blockIndex - 1, deps.sharing),
-						op: { kind: 'delete' },
-						afterTick: () => deps.blockRefs[blockIndex - 1]?.focus(0)
-					});
-				} else {
-					deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
-				}
-				return;
-			}
-
-			let mergeResult: ReturnType<typeof mergeIntoPrevDeepLeaf> = null;
-			await controller.commitStructural({
-				snapshot: { blockIndex, offset: 0 },
-				mutate: (children) => {
-					mergeResult = mergeIntoPrevDeepLeaf({ children }, blockIndex, deps.sharing);
-					return mergeResult?.change ?? { op: 'noop' };
-				},
-				op: { kind: 'merge', detail: { direction: 'prev' } },
-				afterTick: () => {
-					if (!mergeResult) {
-						deps.blockRefs[blockIndex - 1]?.focus(CURSOR_END);
-						return;
-					}
-					const ref = deps.blockRefs[blockIndex - 1];
-					if (mergeResult.targetPath.length === 0) {
-						ref?.focus(mergeResult.joinOffset);
-					} else {
-						ref?.focusByPath?.(mergeResult.targetPath, mergeResult.joinOffset);
-					}
-				}
-			});
+			await core.mergeWithPreviousInterior(blockIndex);
 		},
 
-		async mergeWithNext(blockIndex: number): Promise<void> {
+		async mergeWithNext(blockIndex) {
 			deps.stickyColumn.reset();
 			if (blockIndex >= deps.doc.children.length - 1) return;
-
-			const currKind = deps.doc.children[blockIndex].kind;
-			const nextKind = deps.doc.children[blockIndex + 1].kind;
-
-			if (!isMergeEligible(currKind, nextKind)) {
-				if (!isBlockEditable(nextKind)) {
-					await controller.commitStructural({
-						snapshot: { blockIndex, offset: CURSOR_END },
-						mutate: (children) => performDelete({ children }, blockIndex + 1, deps.sharing),
-						op: { kind: 'delete' },
-						afterTick: () => deps.blockRefs[blockIndex]?.focus(CURSOR_END)
-					});
-				} else {
-					deps.blockRefs[blockIndex + 1]?.focus(0);
-				}
-				return;
-			}
-
-			const mergeOffset = displayLength(deps.doc.children[blockIndex].raw);
-
-			await controller.commitStructural({
-				snapshot: { blockIndex, offset: CURSOR_END },
-				mutate: (children) => {
-					const change = performMergeNext({ children }, blockIndex);
-					stampStructuralChange(children, change, deps.sharing);
-					return change;
-				},
-				op: { kind: 'merge', detail: { direction: 'next' } },
-				afterTick: () => deps.blockRefs[blockIndex]?.focus(mergeOffset)
-			});
+			await core.mergeWithNextInterior(blockIndex);
 		},
 
-		async deleteBlock(blockIndex: number): Promise<void> {
-			await controller.commitStructural({
-				snapshot: { blockIndex, offset: 0 },
-				mutate: (children) => performDelete({ children }, blockIndex, deps.sharing),
-				op: { kind: 'delete' },
-				afterTick: () => {
-					const focusIndex = Math.min(blockIndex, deps.doc.children.length - 1);
-					if (focusIndex >= 0) {
-						deps.blockRefs[focusIndex]?.focus(0);
-					}
-				}
-			});
-		},
+		deleteBlock: (blockIndex) => core.deleteInterior(blockIndex),
+		updateBlockMetadata: (blockIndex, metadata, options) =>
+			core.updateBlockMetadata(blockIndex, metadata, options),
+		replaceBlock: (blockIndex, replacement, focus, options) =>
+			core.replaceBlock(blockIndex, replacement, focus, options),
 
-		// ── Content update ────────────────────────────────────────────────────
+		// ── Content update (per-level, unification deferred) ──────────────────
 
 		async updateBlockContent(
 			blockIndex: number,
@@ -191,33 +86,7 @@ export function createBlockEditActions(
 			// holds the undo seam; `input` edit events fire at debounce-flush time.
 		},
 
-		async updateBlockMetadata(
-			blockIndex: number,
-			metadata: Record<string, unknown>,
-			options?: { undoEntry?: UndoEntryMode }
-		): Promise<void> {
-			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
-			const fields = Object.keys(metadata);
-			if (fields.length === 0) return;
-
-			const snapshot =
-				options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex, offset: 0 };
-
-			await controller.commitStructural({
-				snapshot,
-				mutate: (children) => {
-					const [node] = ensureUnsharedPath({ children }, [blockIndex], deps.sharing);
-					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Metadata feeds raw for list items (taskMarker) — resync so
-					// serialize/reconciliation sees the new source.
-					rebuildOwnedContainer(node, deps.sharing);
-					return { op: 'noop' };
-				},
-				op: { kind: 'metadataUpdate', detail: { fields } }
-			});
-		},
-
-		// ── Paste / replace ───────────────────────────────────────────────────
+		// ── Paste (top-level emits `paste`; container routes via replaceBlock) ─
 
 		async insertParsedBlocks(
 			blockIndex: number,
@@ -230,8 +99,8 @@ export function createBlockEditActions(
 
 			const currentNode = deps.doc.children[blockIndex];
 
-			// Compute replacement outside commitStructural against the post-preDelete
-			// raw — a failing buildPastedReplacement won't corrupt the document. Raw
+			// Compute replacement outside the commit against the post-preDelete raw —
+			// a failing buildPastedReplacement won't corrupt the document. Raw
 			// mutation lives inside `mutate` so the snapshot captures pre-paste state,
 			// giving Ctrl+Z one-step undo for the whole paste.
 			let effectiveRaw = currentNode.raw;
@@ -246,60 +115,18 @@ export function createBlockEditActions(
 			const newNodes = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 			const lastIndex = blockIndex + newNodes.length - 1;
 
-			const snapshot = options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex, offset };
-
-			await controller.commitStructural({
-				snapshot,
-				mutate: (children) => {
-					children.splice(blockIndex, 1, ...newNodes);
-					const change = replacePreservingFirst(blockIndex, 1, newNodes.length);
-					stampStructuralChange(children, change, deps.sharing);
-					return change;
-				},
+			await scope.commit({
+				snapshot: options?.undoEntry === 'join' ? 'skip' : { index: blockIndex, offset },
+				eventTarget: blockIndex,
 				op: { kind: 'paste', detail: { count: newNodes.length } },
-				afterTick: () => {
-					deps.blockRefs[lastIndex]?.focus(CURSOR_END);
-				}
-			});
-		},
-
-		async replaceBlock(
-			blockIndex: number,
-			replacement: CstNode[],
-			focus?: { replacementIndex: number; offset: number },
-			options?: { undoEntry?: UndoEntryMode }
-		): Promise<void> {
-			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
-
-			const normalizedReplacement =
-				replacement.length > 0
-					? normalizeReplacementTrivia(deps.doc.children[blockIndex], replacement)
-					: [];
-			for (const node of normalizedReplacement) ensureEditableContainers(node);
-
-			const snapshot =
-				options?.undoEntry === 'join'
-					? ('skip' as const)
-					: { blockIndex, offset: focus?.offset ?? 0 };
-
-			await controller.commitStructural({
-				snapshot,
-				mutate: (children) => {
-					if (normalizedReplacement.length === 0) {
-						children.splice(blockIndex, 1);
-						return { op: 'delete', at: blockIndex, count: 1 };
-					}
-					children.splice(blockIndex, 1, ...normalizedReplacement);
-					const change = replacePreservingFirst(blockIndex, 1, normalizedReplacement.length);
-					stampStructuralChange(children, change, deps.sharing);
+				mutate: (view) => {
+					view.children.splice(blockIndex, 1, ...newNodes);
+					const change = replacePreservingFirst(blockIndex, 1, newNodes.length);
+					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},
-				op: { kind: 'replaceBlock', detail: { count: normalizedReplacement.length } },
 				afterTick: () => {
-					if (focus && normalizedReplacement.length > 0) {
-						const targetIndex = blockIndex + focus.replacementIndex;
-						deps.blockRefs[targetIndex]?.focus(focus.offset);
-					}
+					scope.refAt(lastIndex)?.focus(CURSOR_END);
 				}
 			});
 		}
