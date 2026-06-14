@@ -77,6 +77,10 @@ All landed. Source-scan tests live under `test/invariants/lint/`.
 
 G4.4 allowlist (the only sanctioned timing primitives — anything else trips the scan): rAF throttles in `selection/autoscroll.ts` (frame-paced autoscroll), `selection/drag-pointer.ts` and `components/blocks/table/cell-pointer.ts` (pointermove coalescing during drag); plus the `setTimeout` wall-clock undo debounce in `editor-actions/undo-controller.ts` (a tick-grained microtask can't express a "user stopped typing" pause).
 
+## Accessibility (WCAG 2.1 AA — axe ratchet)
+
+Target: WCAG 2.1 AA, enforced by an `@axe-core/playwright` baseline-ratchet gate (`test:e2e:a11y`, part of `npm test`). axe runs over `.editor` across representative states (default content, active cross-block selection, failed-block fallback, blocked-scheme link) and fails on any violation whose rule id is not in the committed allowlist (`src/lib/editor/e2e/a11y/axe-baseline.json`). That allowlist is the executable, milestone-tied log of deferred AA work (contrast → CSS-ownership migration; per-block accessible names + the focusable thematic-break separator → 1.1) and only shrinks. The cross-block selection — overlay-painted with native selection suppressed, so otherwise invisible to assistive tech — is exposed through a visually-hidden `aria-live` region fed by the pure `createSelectionDescription` builder.
+
 ## Foundation (Phase 1, landed)
 
 - `BLOCK_KIND_TABLE` / `ALL_BLOCK_KINDS` — union-derived kind manifest (`core/nodes.ts`).
