@@ -76,6 +76,8 @@
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
+	const activateLink = (url: string, event: MouseEvent) =>
+		onLinkActivate ? onLinkActivate(url, event) : window.open(url, '_blank', 'noopener,noreferrer');
 
 	// ── State ───────────────────────────────────────────────────────────
 
@@ -180,7 +182,7 @@
 			if (!href) return;
 			if (e.ctrlKey || e.metaKey) {
 				e.preventDefault();
-				window.open(href, '_blank', 'noopener,noreferrer');
+				activateLink(href, e);
 			} else {
 				// Plain click inside contenteditable — prevent the browser's default
 				// link navigation. Cursor placement comes from mousedown, unaffected.
