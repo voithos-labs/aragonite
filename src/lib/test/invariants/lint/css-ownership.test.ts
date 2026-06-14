@@ -69,3 +69,22 @@ describe('G4.6 CSS ownership — app.css holds no editor-owned rules', () => {
 		});
 	}
 });
+
+// ── G4.6b: every host-token read carries a fallback ──────────────────────────
+// Host tokens (--color-*, --radius-*) are consumer-provided; a read without a
+// fallback renders nothing in an extracted editor. Editor-owned token reads are
+// exempt (editor-theme.css declares them).
+const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
+
+describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
+	it('no host-token var() read is missing a fallback', () => {
+		const files = [
+			...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
+			{ rel: 'styles/editor.css', text: readEditorCss('styles/editor.css') }
+		];
+		const offenders = files.filter((f) => HOST_READ_NO_FALLBACK.test(f.text)).map((f) => f.rel);
+		expect(offenders, `host-token reads missing a fallback in: ${offenders.join(', ')}`).toEqual(
+			[]
+		);
+	});
+});
