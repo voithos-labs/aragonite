@@ -45,7 +45,7 @@
 
 	$effect(() => {
 		if (typeof window === 'undefined' || !editor) return;
-		const log = editor.getOperationsLog?.();
+		const log = editor.__test.getOperationsLog?.();
 		if (!log) return;
 		const unsub = log.subscribe(() => {
 			panelTick += 1;
@@ -160,7 +160,7 @@
 
 		(window as any).__test = {
 			getSource: () => editor.getSource(),
-			getDocument: () => editor.getDocument(),
+			getDocument: () => editor.__test.getDocument(),
 			setSource: (md: string) => {
 				source = md;
 			},
@@ -186,7 +186,7 @@
 						supportsInline: false
 					});
 				}
-				const doc = editor.getDocument();
+				const doc = editor.__test.getDocument();
 				const node = doc.children[index] as CstNode | undefined;
 				if (!node) return;
 				node.kind = kind;
@@ -211,7 +211,7 @@
 						>[1]['component']
 					});
 				}
-				const doc = editor.getDocument();
+				const doc = editor.__test.getDocument();
 				const node = doc.children[index] as CstNode | undefined;
 				if (!node) return;
 				node.kind = kind;
@@ -257,8 +257,8 @@
 				const inline = parseInline(node.raw, range.start, range.end);
 				return dumpInlineTree(inline);
 			},
-			dumpUndoStack: (n = 10) => dumpUndoStack(editor.getUndoStack(), n),
-			dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.getOperationsLog(), n),
+			dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
+			dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 			// ── Edit-event counting probe ─────────────────────────────────────
 			/**
 			 * Begin accumulating structural edit events (op !== 'input').
@@ -325,7 +325,7 @@
 			 * regression tests that check which id survives a cross-scope delete.
 			 */
 			getListItemIds: (blockIndex: number): string[] => {
-				const doc = editor.getDocument();
+				const doc = editor.__test.getDocument();
 				const node = doc.children[blockIndex] as CstNode | undefined;
 				if (!node) return [];
 				const state = getStateForNode(node);
@@ -345,7 +345,7 @@
 				cursorOffset: number | null;
 				cursorPosition: { path: number[]; offset: number } | null;
 			} => {
-				const block = editor.getBlockComponent(path);
+				const block = editor.__test.getBlockComponent(path);
 				if (!block) return { exists: false, cursorOffset: null, cursorPosition: null };
 				const cursorOffset = block.getCursorOffset();
 				const cursorPosition = block.getCursorPosition?.() ?? null;
@@ -366,7 +366,7 @@
 				idsLen: number;
 				refsLen: number;
 			}> => {
-				const doc = editor.getDocument();
+				const doc = editor.__test.getDocument();
 				const violations: Array<{
 					path: number[];
 					kind: string;
@@ -411,7 +411,7 @@
 		}}
 		getUndoStack={() => {
 			void panelTick;
-			const stack = editor?.getUndoStack?.();
+			const stack = editor?.__test?.getUndoStack?.();
 			return stack ? dumpUndoStack(stack) : '(editor not ready)';
 		}}
 		getInlineTree={() => {
@@ -432,7 +432,7 @@
 			return dumpInlineTree(inline);
 		}}
 		getOpsLog={() => {
-			const log = editor?.getOperationsLog?.();
+			const log = editor?.__test?.getOperationsLog?.();
 			return log ? dumpOperationsLog(log) : '';
 		}}
 		opsLogTick={panelTick}
