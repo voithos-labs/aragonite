@@ -134,4 +134,35 @@ describe('UndoManager', () => {
 		const undone3 = manager.undo(makeEntry('A\n'));
 		expect(serialize(undone3!.snapshot)).toBe('\n');
 	});
+
+	it('restoreStacks restores both stacks to a captured snapshot', () => {
+		const manager = createUndoManager();
+		manager.push(makeEntry('A\n'));
+		manager.undo(CURRENT); // undo=[], redo=[CURRENT]
+		manager.push(makeEntry('B\n')); // push clears redo → undo=[B], redo=[]
+		const saved = manager.getStacks(); // { undo:[B], redo:[] }
+		manager.push(makeEntry('C\n')); // undo=[B,C], redo=[]
+		manager.restoreStacks(saved); // back to undo=[B], redo=[]
+		expect(serialize(manager.peekUndo()!.snapshot)).toBe('B\n');
+		expect(manager.canRedo).toBe(false);
+		manager.undo(CURRENT); // pops B
+		expect(manager.canUndo).toBe(false);
+	});
+
+	it('restoreStacks recovers an entry evicted by an at-cap push', () => {
+		const manager = createUndoManager();
+		const CAP = 200;
+		for (let i = 0; i < CAP; i++) manager.push(makeEntry(`e${i}\n`)); // full at cap
+		const saved = manager.getStacks(); // undo holds e0..e199
+		manager.push(makeEntry('overflow\n')); // evicts e0
+		manager.restoreStacks(saved); // restores e0..e199
+		let current = CURRENT;
+		let last: UndoEntry | null = null;
+		for (let i = 0; i < CAP; i++) {
+			last = manager.undo(current);
+			current = last!;
+		}
+		expect(serialize(last!.snapshot)).toBe('e0\n');
+		expect(manager.canUndo).toBe(false);
+	});
 });
