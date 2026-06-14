@@ -378,10 +378,6 @@
 		return events;
 	}
 
-	export function getOperationsLog() {
-		return operationsLog;
-	}
-
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
 		blockRefs[i] = r;
 	}
@@ -389,25 +385,25 @@
 		return blockRefs[i];
 	}
 
-	export function getUndoStack() {
+	// ── Test-only surface ───────────────────────────────────────────────
+
+	function getOperationsLog() {
+		return operationsLog;
+	}
+
+	function getUndoStack() {
 		return undoManager.getStacks();
 	}
 
 	/**
-	 * Return the live CST Document. Intended for test harnesses that need to
-	 * walk the actual mutated tree (not a re-parse of the serialized source).
-	 * Callers must treat the returned object as read-only — mutating it
-	 * bypasses the undo pipeline.
+	 * Return the live CST Document. Callers must treat the returned object as
+	 * read-only — mutating it bypasses the undo pipeline.
 	 */
-	export function getDocument() {
+	function getDocument() {
 		return doc;
 	}
 
-	/**
-	 * Test-only path → BlockComponent lookup, parallel to the internal
-	 * `BLOCK_COMPONENT_LOOKUP_KEY` context.
-	 */
-	export function getBlockComponent(path: number[]): BlockComponent | null {
+	function getBlockComponent(path: number[]): BlockComponent | null {
 		if (path.length === 0) return null;
 		const [first, ...rest] = path;
 		const ref = blockRefs[first];
@@ -415,6 +411,8 @@
 		if (rest.length === 0) return ref;
 		return ref.getBlockComponentByPath?.(rest) ?? null;
 	}
+
+	export const __test = { getDocument, getBlockComponent, getUndoStack, getOperationsLog };
 </script>
 
 <div class="editor" bind:this={editorEl} role="group" aria-label="Markdown editor">
