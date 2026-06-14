@@ -41,6 +41,13 @@ export function createUndoManager(): UndoManager {
 			return { undo: [...undoStack], redo: [...redoStack] };
 		},
 
+		restoreStacks(stacks: { undo: UndoEntry[]; redo: UndoEntry[] }): void {
+			undoStack.length = 0;
+			undoStack.push(...stacks.undo);
+			redoStack.length = 0;
+			redoStack.push(...stacks.redo);
+		},
+
 		get canUndo(): boolean {
 			return undoStack.length > 0;
 		},
