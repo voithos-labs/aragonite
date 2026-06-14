@@ -166,4 +166,29 @@ describe('inline-render — href + autolink anchor', () => {
 		expect(a?.getAttribute('href')).toBe('mailto:foo@bar.com');
 		expect(a?.textContent).toBe('foo@bar.com');
 	});
+
+	it('blocked-scheme link renders an inert span, not an anchor', () => {
+		const raw = '[x](javascript:alert(1))';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		expect(frag.querySelector('a')).toBeNull();
+		const span = frag.querySelector('span.md-link-blocked');
+		expect(span).not.toBeNull();
+		expect(span?.textContent).toBe('x');
+	});
+
+	it('blocked data: href is inert', () => {
+		const raw = '[x](data:text/html,<script>)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		expect(frag.querySelector('a')).toBeNull();
+		expect(frag.querySelector('span.md-link-blocked')).not.toBeNull();
+	});
+
+	it('resolveLinkUrl rewrites the href before rendering', () => {
+		const raw = '[x](/note)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw, { resolveLinkUrl: (u) => `https://host${u}` });
+		expect(frag.querySelector('a')?.getAttribute('href')).toBe('https://host/note');
+	});
 });

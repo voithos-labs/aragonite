@@ -6,12 +6,15 @@
 
 import type { InlineNode } from './nodes';
 import { buildLiveHtmlWidget, isLiveHtmlTag } from './inline/raw-html-widget';
+import { isAllowedHrefScheme } from './url-policy';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
 export interface RenderInlineOptions {
 	renderImagesAsWidgets?: boolean;
 	resolveImageUrl?: (rawUrl: string) => string;
+	/** Render-time href rewrite for links/autolinks (default identity). */
+	resolveLinkUrl?: (rawUrl: string) => string;
 	paragraphPath?: number[];
 	/**
 	 * Builds the atomic image-widget DOM. Injected by the component layer so
@@ -150,12 +153,17 @@ export function renderInlineNodes(
 					const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
 					frag.appendChild(markerSpan(openMarker));
-					const anchor = document.createElement('a');
-					anchor.className = 'md-link-content';
-					if (node.url !== undefined) anchor.setAttribute('href', node.url);
-					if (node.title !== undefined) anchor.setAttribute('title', node.title);
-					anchor.appendChild(renderInlineNodes(children, raw, opts));
-					frag.appendChild(anchor);
+					const resolvedHref =
+						node.url !== undefined ? (opts.resolveLinkUrl ?? ((u) => u))(node.url) : undefined;
+					const hrefOk = resolvedHref !== undefined && isAllowedHrefScheme(resolvedHref);
+					const linkEl = document.createElement(hrefOk ? 'a' : 'span');
+					linkEl.className = hrefOk ? 'md-link-content' : 'md-link-content md-link-blocked';
+					if (hrefOk) {
+						linkEl.setAttribute('href', resolvedHref!);
+						if (node.title !== undefined) linkEl.setAttribute('title', node.title);
+					}
+					linkEl.appendChild(renderInlineNodes(children, raw, opts));
+					frag.appendChild(linkEl);
 					if (closingTextBracket) {
 						frag.appendChild(markerSpan(closingTextBracket));
 					}
@@ -200,11 +208,14 @@ export function renderInlineNodes(
 			}
 
 			case 'autolink': {
-				const anchor = document.createElement('a');
-				anchor.className = 'md-autolink';
-				if (node.url !== undefined) anchor.setAttribute('href', node.url);
-				anchor.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(anchor);
+				const resolved =
+					node.url !== undefined ? (opts.resolveLinkUrl ?? ((u) => u))(node.url) : undefined;
+				const ok = resolved !== undefined && isAllowedHrefScheme(resolved);
+				const el = document.createElement(ok ? 'a' : 'span');
+				el.className = ok ? 'md-autolink' : 'md-autolink md-link-blocked';
+				if (ok) el.setAttribute('href', resolved!);
+				el.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(el);
 				break;
 			}
 
