@@ -9,6 +9,7 @@
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
 		DOC_KEY,
+		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
@@ -288,6 +289,7 @@
 	setContext(SELECTION_KEY, selectionState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
+	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(BLOCK_COMPONENT_LOOKUP_KEY, getBlockComponentByPath);
 	setContext(DOC_KEY, getDoc);
