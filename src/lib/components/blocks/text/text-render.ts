@@ -8,11 +8,11 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
-import type { ResolveImageUrl } from '../../../editor-keys';
+import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
-import { renderInlineNodes } from '../../../core/inline-render';
+import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -24,6 +24,8 @@ export interface TextRenderDeps {
 	get ambientPrefixText(): string;
 	getDisplayText: () => string;
 	resolveImageUrl: ResolveImageUrl;
+	resolveLinkUrl: ResolveLinkUrl;
+	get imageLoadPolicy(): ImageLoadPolicy;
 	get myPath(): number[];
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
@@ -69,6 +71,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: descriptor.renderImagesAsWidgets ?? true,
 				resolveImageUrl: deps.resolveImageUrl,
+				resolveLinkUrl: deps.resolveLinkUrl,
+				imageLoadPolicy: deps.imageLoadPolicy,
 				paragraphPath: deps.myPath,
 				buildImageWidget
 			})

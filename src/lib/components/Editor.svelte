@@ -14,9 +14,11 @@
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		RESOLVE_IMAGE_URL_KEY,
+		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
@@ -24,7 +26,8 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorSelection,
-		type ResolveImageUrl
+		type ResolveImageUrl,
+		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
@@ -59,13 +62,20 @@
 
 	let {
 		source = '',
-		resolveImageUrl
+		resolveImageUrl,
+		resolveLinkUrl,
+		imageLoadPolicy = 'auto',
+		onLinkActivate
 	}: {
 		source?: string;
 		resolveImageUrl?: (rawUrl: string) => string;
+		resolveLinkUrl?: (rawUrl: string) => string;
+		imageLoadPolicy?: import('../core/inline-render').ImageLoadPolicy;
+		onLinkActivate?: (url: string, event: MouseEvent) => void;
 	} = $props();
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
+	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
 
 	// ── State ───────────────────────────────────────────────────────────
 
@@ -289,6 +299,8 @@
 	setContext(SELECTION_KEY, selectionState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
+	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
+	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(BLOCK_COMPONENT_LOOKUP_KEY, getBlockComponentByPath);
