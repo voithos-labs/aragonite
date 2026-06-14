@@ -32,6 +32,8 @@ Seams: commit primitive = `invariants/install.ts` `assertCommittedNodes`, invoke
 
 G1.9's copy-path-on-write writes follow the `$state` canonical-reference discipline — after splicing a copy into the live tree, re-read it through the tree before further use; `tree-operations/unshare.ts`'s header owns the full statement.
 
+**Commit-rollback contract (0.7.10.1).** Where G1.9 guards against a mutation corrupting a _shared_ snapshot, this guards against a _dangling_ one: a commit mutation that throws must leave the undo/redo stacks byte-identical to their pre-commit state and must not publish a partial tree. `__commit` captures both stacks before the snapshot push and, on throw, restores them via `UndoManager.restoreStacks` (a wholesale restore that also recovers an entry the push evicted at `MAX_UNDO`), emits `error{origin:'commit'}` on the event seam, then re-throws in DEV / swallows in production — the tree stays intact because mutations run on copies published only on success. Covered by `test/editor-actions/commit-rollback.test.ts`.
+
 ## Group 2 — Property/regression-tested (P·N)
 
 Test files under `test/invariants/` (arbitraries in `test/invariants/arbitraries/`).
