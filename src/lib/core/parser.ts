@@ -33,8 +33,8 @@ interface ParseBlocksResult {
 }
 
 /**
- * Stable seam: 0.8.1's block-incremental parsing re-parses ranges through
- * this window. Contract (pinned by test/core/parse-blocks-window.test.ts):
+ * Stable seam for block-incremental parsing: re-parses ranges through this
+ * window. Contract (pinned by test/core/parse-blocks-window.test.ts):
  * a [start, end) window aligned to block starts parses identically to a
  * full parse of the window's text.
  */

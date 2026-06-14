@@ -76,7 +76,7 @@ All landed. Source-scan tests live under `test/invariants/lint/`.
 | G4.5 | No synthetic `KeyboardEvent` in editor runtime source (cross-block redispatch hack retired)                                                                      | L       | `lint/no-synthetic-keyboard-event.test.ts`                            |
 | G4.6 | CSS ownership: `app.css` holds no editor rules/tokens; every editor-owned token read is declared in `editor-theme.css`; every host-token read carries a fallback | L       | `lint/css-ownership.test.ts`                                          |
 
-G4.4 allowlist (the only sanctioned timing primitives — anything else trips the scan): rAF throttles in `selection/autoscroll.ts` (frame-paced autoscroll), `selection/drag-pointer.ts` and `components/blocks/table/cell-pointer.ts` (pointermove coalescing during drag); plus the `setTimeout` wall-clock undo debounce in `editor-actions/undo-controller.ts` (a tick-grained microtask can't express a "user stopped typing" pause).
+G4.4 allowlist (the only sanctioned timing primitives — anything else trips the scan): rAF throttles in `selection/autoscroll.ts` (frame-paced autoscroll), `selection/drag-pointer.ts` and `components/blocks/table/cell-pointer.ts` (pointermove coalescing during drag); plus the `setTimeout` wall-clock undo debounce in `editor-actions/text-batch.ts` (a tick-grained microtask can't express a "user stopped typing" pause).
 
 ## Accessibility (WCAG 2.1 AA — axe ratchet)
 

@@ -2,8 +2,7 @@
  * Link reference definition parser. CommonMark §4.7 — `[label]: url "title"`,
  * with URL and optional title allowed on continuation lines.
  *
- * Footnote labels (`[^...]:`) are excluded; they parse as paragraph for now
- * and become first-class blocks at the footnote milestone.
+ * Footnote labels (`[^...]:`) are excluded — they parse as paragraphs.
  */
 
 import type { CstNode } from '../nodes';

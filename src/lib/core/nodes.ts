@@ -127,9 +127,8 @@ export type BlockMetadata =
 	| ListItemMetadata;
 
 /**
- * Maps each metadata-carrying BlockKind to its metadata interface. The five
- * kinds with no metadata (paragraph, indentedCode, htmlBlock, tableCell,
- * unrecognized) are intentionally absent — `metadataOf` rejects them.
+ * Maps each metadata-carrying BlockKind to its metadata interface. Kinds with
+ * no metadata are intentionally absent — `metadataOf` rejects them.
  */
 export interface BlockMetadataByKind {
 	heading: HeadingMetadata;

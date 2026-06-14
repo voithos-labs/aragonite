@@ -6,8 +6,7 @@
  * Qualified: drag autoscroll (`selection/drag-pointer.ts`) walks its own
  * ancestors and counts only `auto`/`scroll`, not `hidden`. So a `hidden`-overflow
  * container is honored here (overlay re-measures against it) but ignored by drag
- * autoscroll. The divergence is deliberate-by-default, not unified — revisit if a
- * `hidden`-overflow scroll container ever needs drag autoscroll.
+ * autoscroll. The divergence is deliberate.
  */
 
 const SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);

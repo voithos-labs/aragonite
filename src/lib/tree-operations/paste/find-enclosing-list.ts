@@ -1,8 +1,3 @@
-/**
- * Walk up from a target path to the nearest enclosing list ancestor. Used by
- * the paste-finder predicates to decide where pasted list content should land.
- */
-
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt } from '../node-ops';
 
