@@ -50,10 +50,10 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		const frag = renderInlineNodes(
 			nodes,
 			raw,
-			withWidget({ resolveImageUrl: (u) => `resolved://${u}` })
+			withWidget({ resolveImageUrl: () => 'https://cdn.example.com/resolved.png' })
 		);
 		const img = frag.querySelector('img');
-		expect(img?.getAttribute('src')).toBe('resolved://https://example.com/cat.png');
+		expect(img?.getAttribute('src')).toBe('https://cdn.example.com/resolved.png');
 	});
 
 	it('falls back to raw URL when resolveImageUrl throws', () => {
@@ -137,5 +137,30 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		const img = widget.querySelector('img') as HTMLImageElement;
 		img.dispatchEvent(new Event('error'));
 		expect(widget.classList.contains('md-image-broken')).toBe(true);
+	});
+
+	it('blocks a javascript: image src (no src set, widget marked blocked)', () => {
+		const raw = '![x](javascript:alert(1))';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw, withWidget());
+		const img = frag.querySelector('img');
+		expect(img?.getAttribute('src')).toBeNull();
+		expect(frag.querySelector('.md-image-blocked')).not.toBeNull();
+	});
+
+	it('allows a data:image src', () => {
+		const raw = '![x](data:image/png;base64,AAAA)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw, withWidget());
+		expect(frag.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
+	});
+
+	it('imageLoadPolicy "placeholder" defers loading (no src, placeholder class)', () => {
+		const raw = '![x](https://example.com/a.png)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw, withWidget({ imageLoadPolicy: 'placeholder' }));
+		const img = frag.querySelector('img');
+		expect(img?.getAttribute('src')).toBeNull();
+		expect(frag.querySelector('.md-image-placeholder')).not.toBeNull();
 	});
 });

@@ -10,12 +10,16 @@ import { isAllowedHrefScheme } from './url-policy';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
+export type ImageLoadPolicy = 'auto' | 'placeholder';
+
 export interface RenderInlineOptions {
 	renderImagesAsWidgets?: boolean;
 	resolveImageUrl?: (rawUrl: string) => string;
 	/** Render-time href rewrite for links/autolinks (default identity). */
 	resolveLinkUrl?: (rawUrl: string) => string;
 	paragraphPath?: number[];
+	/** Whether remote images auto-load (default) or defer to a placeholder. */
+	imageLoadPolicy?: ImageLoadPolicy;
 	/**
 	 * Builds the atomic image-widget DOM. Injected by the component layer so
 	 * `core/` owns no image-widget specifics; absent → images render alt-only.
@@ -23,7 +27,11 @@ export interface RenderInlineOptions {
 	buildImageWidget?: (
 		node: InlineNode,
 		raw: string,
-		opts: { resolveImageUrl: (rawUrl: string) => string; paragraphPath: number[] }
+		opts: {
+			resolveImageUrl: (rawUrl: string) => string;
+			paragraphPath: number[];
+			imageLoadPolicy: ImageLoadPolicy;
+		}
 	) => Node;
 }
 
@@ -193,7 +201,8 @@ export function renderInlineNodes(
 					frag.appendChild(
 						opts.buildImageWidget(node, raw, {
 							resolveImageUrl: resolveUrl,
-							paragraphPath: opts.paragraphPath ?? []
+							paragraphPath: opts.paragraphPath ?? [],
+							imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
 						})
 					);
 				} else {
