@@ -219,34 +219,52 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
 
+		// Capture before the push so a throwing mutation can roll both stacks
+		// back. Wholesale restore (not a pop) because push may evict the oldest
+		// at cap.
+		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
 		if (args.snapshot !== 'skip') {
 			pushUndoSnapshot(args.snapshot.blockIndex, args.snapshot.offset);
 		}
 
-		if (args.kind === 'document') {
-			const childrenCopy = [...deps.doc.children];
-			const idsCopy = [...deps.blockIds];
-			const refsCopy = [...deps.blockRefs];
+		try {
+			if (args.kind === 'document') {
+				const childrenCopy = [...deps.doc.children];
+				const idsCopy = [...deps.blockIds];
+				const refsCopy = [...deps.blockRefs];
 
-			const change = args.mutate(childrenCopy);
-			applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
+				const change = args.mutate(childrenCopy);
+				applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 
-			args.publish(childrenCopy, idsCopy, refsCopy);
-			if (import.meta.env.DEV) {
-				assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+				args.publish(childrenCopy, idsCopy, refsCopy);
+				if (import.meta.env.DEV) {
+					assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+				}
+			} else {
+				args.mutate();
+				args.publish();
+				if (import.meta.env.DEV) {
+					assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
+				}
 			}
-		} else {
-			args.mutate();
-			args.publish();
 			if (import.meta.env.DEV) {
-				assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
+				// G1.9 commit seam: a missed copy-path-on-write in this commit's
+				// mutations corrupts the freshest entry — catch it here, not at
+				// some distant undo. assertInvariant routes to devWarn (never
+				// throws), so this won't enter the catch.
+				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
 			}
-		}
-		if (import.meta.env.DEV) {
-			// G1.9 commit seam: a missed copy-path-on-write in this commit's
-			// mutations corrupts the freshest entry — catch it here, not at
-			// some distant undo.
-			assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
+		} catch (err) {
+			if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+			deps.events.emit('error', {
+				origin: 'commit',
+				error: err,
+				context: { op: args.op?.kind, path: args.eventPath }
+			});
+			// Loud for developers; production swallows so a single failed mutation
+			// doesn't kill the editor (the tree was never published).
+			if (import.meta.env.DEV) throw err;
+			return;
 		}
 
 		if (args.op) {
