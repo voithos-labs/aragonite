@@ -23,10 +23,12 @@
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
 		PASTE_COORDINATOR_KEY,
 		RESOLVE_IMAGE_URL_KEY,
+		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
@@ -35,6 +37,7 @@
 		type DocumentGetter,
 		type LinkReferenceResolverRef,
 		type ResolveImageUrl,
+		type ResolveLinkUrl,
 		type WidgetSelectionState
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
@@ -113,6 +116,9 @@
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
+	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
+	const imageLoadPolicy =
+		getContext<() => import('../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
@@ -225,6 +231,10 @@
 		},
 		getDisplayText: () => getDisplayText(),
 		resolveImageUrl,
+		resolveLinkUrl,
+		get imageLoadPolicy() {
+			return imageLoadPolicy();
+		},
 		get myPath() {
 			return myPath;
 		},
