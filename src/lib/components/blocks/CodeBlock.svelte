@@ -529,7 +529,7 @@
 		font-size: 0.9em;
 		line-height: 1.5;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-ui-muted, rgba(128, 128, 128, 0.25));
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
 		color: inherit;
 		white-space: pre;
@@ -541,7 +541,7 @@
 	}
 
 	.code-block:focus {
-		border-color: var(--color-accent, #4a9eff);
+		border-color: var(--color-accent, #567b67);
 	}
 
 	.code-block :global(.md-marker) {
@@ -549,7 +549,7 @@
 	}
 
 	.code-block :global(.md-marker.md-lang) {
-		color: var(--color-accent, #4a9eff);
+		color: var(--color-accent, #567b67);
 		opacity: 0.7;
 	}
 </style>

@@ -196,7 +196,7 @@
 		position: absolute;
 		width: 8px;
 		height: 8px;
-		background: var(--color-accent, #4a9eff);
+		background: var(--color-accent, #567b67);
 		border: 1px solid #fff;
 		z-index: 10;
 		cursor: ew-resize;

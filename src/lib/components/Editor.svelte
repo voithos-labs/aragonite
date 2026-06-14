@@ -442,15 +442,15 @@
 		width: 100%;
 		flex: 1;
 		padding: 1rem;
-		font-family: var(--font-editor, system-ui, sans-serif);
+		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 1rem;
 		line-height: 1.6;
-		color: var(--color-text-primary);
+		color: var(--color-text-primary, #ffffff);
 		min-height: 200px;
 		overflow-y: auto;
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #444) transparent;
-		border: 1px solid var(--color-ui-muted, #333);
+		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
 		/* Containing block for the image overlay portal. */
 		position: relative;
@@ -465,12 +465,12 @@
 	}
 
 	.editor::-webkit-scrollbar-thumb {
-		background: var(--color-ui-muted, #444);
+		background: var(--color-ui-muted, #a4a4a4);
 		border-radius: 3px;
 	}
 
 	.editor::-webkit-scrollbar-thumb:hover {
-		background: var(--color-ui-dulled, #666);
+		background: var(--color-ui-dulled, #afb1b3);
 	}
 
 	.editor-sr-live {

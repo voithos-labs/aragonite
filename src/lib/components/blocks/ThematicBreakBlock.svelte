@@ -97,14 +97,14 @@
 	}
 
 	.thematic-break-block:focus {
-		outline: 2px solid var(--color-accent, #4a9eff);
+		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: 2px;
 		border-radius: 2px;
 	}
 
 	hr {
 		border: none;
-		border-top: 2px solid var(--color-ui-muted, #444);
+		border-top: 2px solid var(--color-ui-muted, #a4a4a4);
 		margin: 0;
 	}
 </style>

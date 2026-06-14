@@ -582,10 +582,10 @@
 		min-height: 1.4em;
 		white-space: pre-wrap;
 		word-wrap: break-word;
-		border: 1px solid var(--color-ui-muted, rgba(128, 128, 128, 0.3));
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 	}
 	.table-cell:focus {
-		outline: 2px solid var(--color-accent, #4a9eff);
+		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: -2px;
 	}
 </style>

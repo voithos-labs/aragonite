@@ -82,7 +82,7 @@
 
 /* Uniform selection color: single-block (native) matches cross-block (overlay) */
 :where(.editor) ::selection {
-	background: rgba(100, 150, 255, 0.3);
+	background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 }
 
 /* Cross-block selection mode. When data-cross-block is set on the editor
@@ -156,7 +156,7 @@
 		   not, so trailing text wraps to the next line. */
 	min-width: 100px;
 	min-height: 60px;
-	border: 1px dashed var(--color-ui-muted, #888);
+	border: 1px dashed var(--color-ui-muted, #a4a4a4);
 	background: var(--color-bg-muted, #2a2a2a);
 	padding: 8px;
 	color: var(--color-text-muted, #aaa);
@@ -177,7 +177,7 @@
 	content: '';
 	position: absolute;
 	inset: 0;
-	background-color: rgba(100, 150, 255, 0.3);
+	background-color: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 	border-radius: 2px;
 	pointer-events: none;
 }
@@ -254,7 +254,7 @@
    dimmed monospace gives them a code-ish feel without becoming code spans. */
 :where(.editor) .md-raw-html {
 	color: var(--md-raw-html-color, rgba(120, 120, 120, 0.85));
-	font-family: var(--font-editor, 'Cascadia Code', 'Consolas', monospace);
+	font-family: var(--font-editor, ui-monospace, monospace);
 	font-size: 0.92em;
 }
 
