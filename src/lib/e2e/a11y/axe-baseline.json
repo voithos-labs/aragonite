@@ -1,0 +1,20 @@
+{
+	"$comment": "Known-violations allowlist for the axe baseline-ratchet gate (rule-id level). Each entry is deferred AA work with a milestone, not an accepted defect — the list only shrinks. The gate fails on any violation whose rule id is NOT here. See docs/superpowers/specs/2026-06-14-0.7.10-editor-boundary-hardening-design.md.",
+	"allow": [
+		{
+			"id": "color-contrast",
+			"reason": "Dimmed inline markers, code-block syntax tokens, and link colors are consumer-theme-owned; the editor does not own its CSS vars yet, so contrast can't be fixed here.",
+			"milestone": "0.7 Track B — CSS-ownership migration"
+		},
+		{
+			"id": "aria-input-field-name",
+			"reason": "Editable blocks (role=textbox: paragraphs, headings, code) have no accessible name. The per-block naming model is a consequence of the editor-root a11y-structure decision and is best settled against the integrated surface where focus/navigation semantics are real.",
+			"milestone": "1.1 shell integration"
+		},
+		{
+			"id": "aria-required-attr",
+			"reason": "The thematic break uses a focusable role=separator, which axe treats as a slider-style separator requiring aria-valuenow/min/max. The focusable-separator semantics need rework (likely a different role or a non-focusable treatment).",
+			"milestone": "1.1 shell integration"
+		}
+	]
+}
