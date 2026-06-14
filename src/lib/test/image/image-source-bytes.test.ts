@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildImageSourceBytes } from '../../components/image/image-source-bytes';
+import { parseInline } from '../../core/inline';
 
 describe('buildImageSourceBytes', () => {
 	it('basic image with alt + url', () => {
@@ -42,6 +43,30 @@ describe('buildImageSourceBytes', () => {
 	it('escapes embedded double quotes in title', () => {
 		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', title: 'A "quoted" cat' })).toBe(
 			'![cat](cat.png "A \\"quoted\\" cat")'
+		);
+	});
+});
+
+describe('buildImageSourceBytes — output re-parses as an image', () => {
+	const parsesToOneImage = (built: string): boolean => {
+		const nodes = parseInline(built, 0, built.length);
+		return nodes.length === 1 && nodes[0].kind === 'image';
+	};
+
+	it.each([
+		['close bracket in alt', { alt: 'a]b', url: 'u' }],
+		['open bracket in alt', { alt: 'a[b', url: 'u' }],
+		['backslash in alt', { alt: 'a\\b', url: 'u' }],
+		['space in url (local path)', { alt: 'a', url: 'C:/My Photos/x.png' }],
+		['close paren in url', { alt: 'a', url: 'http://x/(y)' }],
+		['single quote in url', { alt: 'a', url: "http://x/'y" }]
+	])('%s survives the scanner instead of degrading to text', (_label, fields) => {
+		expect(parsesToOneImage(buildImageSourceBytes(fields))).toBe(true);
+	});
+
+	it('URL encoding is idempotent (no double-encode on rebuild)', () => {
+		expect(buildImageSourceBytes({ alt: 'a', url: 'x%20y' })).toBe(
+			buildImageSourceBytes({ alt: 'a', url: 'x y' })
 		);
 	});
 });
