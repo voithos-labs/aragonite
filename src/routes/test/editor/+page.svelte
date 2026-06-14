@@ -20,12 +20,14 @@
 		registerBlockKind,
 		tryGetBlockKindDescriptor
 	} from '$lib/editor/schema/block-kind-descriptor';
+	import { registerBlockComponent } from '$lib/editor/schema/block-component-registry';
 	import {
 		enablePerfInstruments,
 		resetPerfInstruments,
 		perfSnapshot
 	} from '$lib/editor/perf/instruments';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
 	let editor: ReturnType<typeof Editor>;
@@ -150,6 +152,9 @@
 		return '#' + node.nodeType;
 	}
 
+	let capturedErrorOrigins: string[] = [];
+	let disposeErrorCapture: (() => void) | undefined;
+
 	$effect(() => {
 		if (typeof window === 'undefined' || !editor) return;
 
@@ -179,6 +184,31 @@
 						editable: true,
 						isContainer: false,
 						supportsInline: false
+					});
+				}
+				const doc = editor.getDocument();
+				const node = doc.children[index] as CstNode | undefined;
+				if (!node) return;
+				node.kind = kind;
+				doc.children = [...doc.children];
+			},
+			// Force a top-level block to a kind whose component throws during
+			// render, exercising BlockHost's <svelte:boundary> failed-snippet path.
+			makeBlockThrowOnRender: (index: number): void => {
+				const kind = 'throwTest' as BlockKind;
+				if (!tryGetBlockKindDescriptor(kind)) {
+					registerBlockKind(kind, {
+						mergeRole: 'not-mergeable',
+						editable: false,
+						isContainer: false,
+						supportsInline: false
+					});
+					// A throwing stub isn't a full BlockComponent, but it throws before
+					// any method is read.
+					registerBlockComponent(kind, {
+						component: ThrowOnRenderBlock as unknown as Parameters<
+							typeof registerBlockComponent
+						>[1]['component']
 					});
 				}
 				const doc = editor.getDocument();
@@ -274,6 +304,20 @@
 				(window as any).__test._editOpCaptureDispose = null;
 				return (window as any).__test._editOps ?? [];
 			},
+			// ── Error-event capture probe ─────────────────────────────────────
+			/**
+			 * Accumulate `error`-event origins until `getCapturedErrors()` reads
+			 * them. Subscribes to the same EditorEvents instance BlockHost emits
+			 * to, so a caught render failure surfaces here. One session at a time.
+			 */
+			startErrorCapture: (): void => {
+				capturedErrorOrigins = [];
+				disposeErrorCapture?.();
+				disposeErrorCapture = editor.getEvents().on('error', (e) => {
+					capturedErrorOrigins.push(e.origin);
+				});
+			},
+			getCapturedErrors: (): string[] => capturedErrorOrigins,
 			// ── List item id probe ────────────────────────────────────────────
 			/**
 			 * Return the innerBlockIds array for the first list node found at
