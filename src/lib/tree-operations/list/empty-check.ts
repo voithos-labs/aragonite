@@ -1,9 +1,3 @@
-/**
- * Predicate for whether a list item is "user-empty" — every leaf descendant's
- * raw is blank — used by list-item Backspace and list-exit flows to distinguish
- * a shallow empty-first-paragraph from a genuinely empty item.
- */
-
 import type { CstNode } from '../../core/nodes';
 
 /**
