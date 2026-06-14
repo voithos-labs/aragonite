@@ -29,6 +29,9 @@ export type { WidgetSelectionState };
 export const RESOLVE_IMAGE_URL_KEY = Symbol('resolve-image-url');
 export type ResolveImageUrl = (rawUrl: string) => string;
 
+/** Internal — editor event seam handed to BlockHost's error boundary. Not a plugin extension point. */
+export const EDITOR_EVENTS_KEY = Symbol('editor-events');
+
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**
