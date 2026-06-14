@@ -447,10 +447,11 @@ All three entry points delegate to one internal commit helper that owns the full
 
 ### Event Seam
 
-The editor exposes an observer-pattern event surface at `editor.events`. Two channels:
+The editor exposes an observer-pattern event surface at `editor.events`. Three channels:
 
 - **`edit`** — fires after every commit. Payload is the `EditEvent` discriminated union (`editor-events.ts`), keyed by `op` over the `OperationKind` enum: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`.
 - **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.
+- **`error`** — fires on a failure the editor contains rather than propagates, as an `EditorError` discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently dropped), a `render` throw (caught by the per-`BlockHost` `<svelte:boundary>`, which degrades that block to a recoverable fallback while its siblings survive), or a `commit` throw (the commit ceremony rolls the undo/redo stacks back to their pre-commit state before reporting). One seam for a consumer to surface or log every contained failure.
 
 Events fire synchronously from their emission sites. Handlers must not mutate the document; reentrant edits are not supported. Subscribe via `on(name, cb)`, which returns a disposer.
 
