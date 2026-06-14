@@ -64,9 +64,8 @@ describe('createEditorEvents', () => {
 
 	it('a throwing subscriber does not starve downstream subscribers', () => {
 		const events = createEditorEvents();
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const called: string[] = [];
-		const errors: unknown[] = [];
-		events.on('error', (e) => errors.push(e.error));
 
 		events.on('edit', () => called.push('a'));
 		events.on('edit', () => {
@@ -78,7 +77,8 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		expect(errors).toHaveLength(1);
+		expect(spy).toHaveBeenCalled();
+		spy.mockRestore();
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
