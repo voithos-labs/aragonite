@@ -4,10 +4,25 @@
  * or outside the range); otherwise wraps the selection.
  */
 
+import { parseInline } from '../../../core/inline';
+
 export interface ToggleInlineFormatResult {
 	newDisplay: string;
 	newSelStart: number;
 	newSelEnd: number;
+}
+
+// True only when the slice is exactly one emphasis/strong span of `format`
+// covering its whole length — so the strip branch can't orphan markers on a
+// multi-span selection like `**a** **b**`.
+function isSingleSpanOf(slice: string, format: 'strong' | 'emphasis'): boolean {
+	const nodes = parseInline(slice, 0, slice.length);
+	return (
+		nodes.length === 1 &&
+		nodes[0].kind === format &&
+		nodes[0].start === 0 &&
+		nodes[0].end === slice.length
+	);
 }
 
 export function toggleInlineFormat(
@@ -24,7 +39,8 @@ export function toggleInlineFormat(
 	const selfWrapped =
 		selectedSlice.startsWith(markers) &&
 		selectedSlice.endsWith(markers) &&
-		selectedSlice.length > mLen * 2;
+		selectedSlice.length > mLen * 2 &&
+		isSingleSpanOf(selectedSlice, format);
 	if (selfWrapped) {
 		const unwrapped = selectedSlice.slice(mLen, -mLen);
 		return {
