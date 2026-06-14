@@ -65,7 +65,8 @@ describe('createEditorEvents', () => {
 	it('a throwing subscriber does not starve downstream subscribers', () => {
 		const events = createEditorEvents();
 		const called: string[] = [];
-		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const errors: unknown[] = [];
+		events.on('error', (e) => errors.push(e.error));
 
 		events.on('edit', () => called.push('a'));
 		events.on('edit', () => {
@@ -77,8 +78,7 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		expect(consoleError).toHaveBeenCalledTimes(1);
-		consoleError.mockRestore();
+		expect(errors).toHaveLength(1);
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
@@ -153,5 +153,34 @@ describe('createEditorEvents', () => {
 		});
 
 		expect(editCount).toBe(1);
+	});
+});
+
+describe('editor-events — error channel', () => {
+	it('routes a throwing edit-subscriber to the error channel as origin "subscriber"', () => {
+		const events = createEditorEvents();
+		const errors: { origin: string }[] = [];
+		events.on('error', (e) => errors.push({ origin: e.origin }));
+		events.on('edit', () => {
+			throw new Error('subscriber boom');
+		});
+		events.emit('edit', {
+			op: 'delete',
+			path: [0],
+			timestamp: 0
+		} as Parameters<typeof events.emit<'edit'>>[1]);
+		expect(errors).toHaveLength(1);
+		expect(errors[0].origin).toBe('subscriber');
+	});
+
+	it('does not recurse when an error-subscriber itself throws (falls back to console.error)', () => {
+		const events = createEditorEvents();
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		events.on('error', () => {
+			throw new Error('error-handler boom');
+		});
+		expect(() => events.emit('error', { origin: 'render', error: new Error('x') })).not.toThrow();
+		expect(spy).toHaveBeenCalled();
+		spy.mockRestore();
 	});
 });

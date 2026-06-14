@@ -30,11 +30,19 @@ export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number)
 
 export type SelectionChangeEvent = EditorSelection | null;
 
+export interface EditorError {
+	origin: 'subscriber' | 'render' | 'commit';
+	error: unknown;
+	/** Origin-specific context: block path for render, op kind + event path for commit. */
+	context?: { path?: number[]; op?: OperationKind };
+}
+
 // ── Map of event name → handler payload ─────────────────────────────────
 
 export interface EditorEventMap {
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
+	error: EditorError;
 }
 
 export interface EditorEvents {
@@ -77,7 +85,14 @@ export function createEditorEvents(): EditorEvents {
 			try {
 				(handler as (p: EditorEventMap[K]) => void)(payload);
 			} catch (err) {
-				console.error('[EditorEvents] subscriber threw while handling event:', err);
+				// Recursion guard: an error-channel subscriber that throws must NOT
+				// re-emit (it would loop) — log and move on. Any other channel's
+				// throw is surfaced on the error channel.
+				if (event === 'error') {
+					console.error('[EditorEvents] error-channel subscriber threw:', err);
+				} else {
+					emit('error', { origin: 'subscriber', error: err });
+				}
 			}
 		}
 	}
