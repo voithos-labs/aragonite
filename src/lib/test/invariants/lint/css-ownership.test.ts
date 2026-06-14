@@ -31,7 +31,11 @@ describe('G4.6 CSS ownership — editor-theme.css declares every editor-owned to
 	it('every owned token read has a declaration', () => {
 		const theme = readEditorFile('styles/editor-theme.css').text;
 		const haystack =
-			stripComments(collectEditorSources().map((f) => f.code).join('\n')) +
+			stripComments(
+				collectEditorSources()
+					.map((f) => f.code)
+					.join('\n')
+			) +
 			'\n' +
 			readEditorCss('styles/editor.css');
 
@@ -44,4 +48,24 @@ describe('G4.6 CSS ownership — editor-theme.css declares every editor-owned to
 			`tokens read but not declared in editor-theme.css: ${missing.join(', ')}`
 		).toEqual([]);
 	});
+});
+
+// ── G4.6a: app.css owns no editor rules or tokens ────────────────────────────
+const EDITOR_MARKERS: RegExp[] = [
+	/--syntax-[a-z]/,
+	/--code-tok-[a-z]/,
+	/--font-editor\b/,
+	/\.code-tok-/,
+	/\.md-[a-z]/,
+	/\[data-cross-block\]/,
+	/\.editor\b/
+];
+
+describe('G4.6 CSS ownership — app.css holds no editor-owned rules', () => {
+	const appCss = stripComments(readRepo('src/app.css'));
+	for (const re of EDITOR_MARKERS) {
+		it(`app.css contains no ${re}`, () => {
+			expect(appCss).not.toMatch(re);
+		});
+	}
 });

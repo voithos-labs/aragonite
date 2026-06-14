@@ -1,0 +1,266 @@
+/**
+ * Editor structural styles. Painting rules for editor DOM built imperatively by
+ * the renderers (code tokens, inline markers, image/widget chrome, selection
+ * mode) — the part that can't live in component <style> blocks. Auto-imported by
+ * Editor.svelte so it travels with the component.
+ *
+ * Every rule is wrapped in :where(.editor): zero added specificity (so the
+ * cascade against component <style> blocks is unchanged) and full namespacing
+ * (so nothing leaks into a consumer's page). Editor-owned token VALUES live in
+ * editor-theme.css; host --color-* tokens are read with fallbacks here, never
+ * declared.
+ */
+
+/* Code block token styling. Classes applied by code-renderer.ts; unknown
+ * classes fall through to --code-tok-unknown (inherit) so the textContent
+ * invariant is preserved without forcing a color choice.
+ */
+:where(.editor) .code-tok-keyword {
+	color: var(--code-tok-keyword);
+	font-weight: 600;
+}
+:where(.editor) .code-tok-string {
+	color: var(--code-tok-string);
+}
+:where(.editor) .code-tok-number {
+	color: var(--code-tok-number);
+}
+:where(.editor) .code-tok-literal {
+	color: var(--code-tok-literal);
+}
+:where(.editor) .code-tok-comment {
+	color: var(--code-tok-comment);
+	font-style: italic;
+}
+:where(.editor) .code-tok-type {
+	color: var(--code-tok-type);
+}
+:where(.editor) .code-tok-function {
+	color: var(--code-tok-function);
+}
+:where(.editor) .code-tok-variable {
+	color: var(--code-tok-variable);
+}
+:where(.editor) .code-tok-operator {
+	color: var(--code-tok-operator);
+}
+:where(.editor) .code-tok-punctuation {
+	color: var(--code-tok-punctuation);
+}
+:where(.editor) .code-tok-meta {
+	color: var(--code-tok-meta);
+}
+:where(.editor) .code-tok-attr {
+	color: var(--code-tok-attr);
+}
+:where(.editor) .code-tok-regexp {
+	color: var(--code-tok-regexp);
+}
+:where(.editor) .code-tok-symbol {
+	color: var(--code-tok-symbol);
+}
+:where(.editor) .code-tok-subst {
+	color: var(--code-tok-subst);
+}
+:where(.editor) .code-tok-added {
+	color: var(--code-tok-added);
+}
+:where(.editor) .code-tok-removed {
+	color: var(--code-tok-removed);
+}
+:where(.editor) .code-tok-heading {
+	color: var(--code-tok-heading);
+	font-weight: 600;
+}
+:where(.editor) .code-tok-link {
+	color: var(--code-tok-link);
+	text-decoration: underline;
+}
+:where(.editor) .code-tok-unknown {
+	color: var(--code-tok-unknown);
+}
+
+/* Uniform selection color: single-block (native) matches cross-block (overlay) */
+:where(.editor) ::selection {
+	background: rgba(100, 150, 255, 0.3);
+}
+
+/* Cross-block selection mode. When data-cross-block is set on the editor
+   root, the browser's native ::selection painting is suppressed so it
+   doesn't double up with SelectionOverlay's custom highlights. The caret
+   is also hidden inside blocks while in cross-block mode so a second
+   focus marker doesn't float over the overlay. */
+:where(.editor)[data-cross-block] ::selection {
+	background: transparent;
+}
+
+:where(.editor)[data-cross-block] [contenteditable] {
+	caret-color: transparent;
+}
+
+:where(.editor) .md-image-widget {
+	display: block;
+	/* Shrink-wrap so the widget matches the image, not its line-box. */
+	width: fit-content;
+	margin: 0.5em 0;
+	user-select: none;
+}
+
+/* Positioning context for the ::after selection tint and ::before snap caret. */
+:where(.editor) [data-inline-widget] {
+	position: relative;
+}
+
+:where(.editor) .md-image-widget img {
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
+/* Image-bearing list-item / blockquote paragraph: place the ambient marker at
+   the image's bottom-left (Obsidian-style). Using `display: flex` here breaks
+   caret placement past contenteditable=false widgets — the browser can't
+   anchor the cursor in flex empty space — so we keep block layout and pull
+   the marker out of flow with absolute positioning. The `[contenteditable="false"]`
+   qualifier matches only the structurally-injected ambient prefix (per
+   `buildAmbientSpan`), not inline-rendered `.md-marker` spans (hard-break `\`,
+   emphasis `*`, link `[]()`, escape) which must stay in normal flow. */
+:where(.editor)
+	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
+		> .md-image-widget
+	) {
+	position: relative;
+	text-indent: 0 !important;
+}
+
+:where(.editor)
+	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
+		> .md-image-widget
+	)
+	> .md-marker[contenteditable='false'] {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+}
+
+/* Image-only paragraph drops the trailing empty line-box the contenteditable
+   would keep after a block-level child — otherwise every image-only item carries
+   ~25px of dead vertical space below the image. */
+:where(.editor) .text-editable-block.paragraph-block:has(> .md-image-widget:last-child) {
+	min-height: 0;
+}
+
+:where(.editor) .md-image-broken {
+	/* Inherits display:block from .md-image-widget; the design rule is that
+		   image widgets always force a visual line break before/after, broken or
+		   not, so trailing text wraps to the next line. */
+	min-width: 100px;
+	min-height: 60px;
+	border: 1px dashed var(--color-ui-muted, #888);
+	background: var(--color-bg-muted, #2a2a2a);
+	padding: 8px;
+	color: var(--color-text-muted, #aaa);
+	font-style: italic;
+}
+
+:where(.editor) .md-image-broken img {
+	display: none;
+}
+
+:where(.editor) .md-image-broken::before {
+	content: '⚠ image failed to load';
+}
+
+/* Tint paints over the widget via ::after — `background-color` on the span
+   itself is hidden by the opaque <img> child (display:block, max-width:100%). */
+:where(.editor) [data-inline-widget].md-widget-selected::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-color: rgba(100, 150, 255, 0.3);
+	border-radius: 2px;
+	pointer-events: none;
+}
+
+/* Synthetic caret on the snap-target edge — Chromium doesn't reliably render
+   the live caret adjacent to a contenteditable=false neighbor. */
+:where(.editor) [data-inline-widget].md-snap-after::before,
+:where(.editor) [data-inline-widget].md-snap-before::before {
+	content: '';
+	position: absolute;
+	top: 4px;
+	bottom: 4px;
+	width: 1.5px;
+	background-color: var(--color-text-primary, currentColor);
+	animation: md-snap-caret-blink 1s step-end infinite;
+	pointer-events: none;
+}
+
+:where(.editor) [data-inline-widget].md-snap-after::before {
+	right: -2px;
+}
+
+:where(.editor) [data-inline-widget].md-snap-before::before {
+	left: -2px;
+}
+
+@keyframes md-snap-caret-blink {
+	50% {
+		opacity: 0;
+	}
+}
+
+/* Top, left, width, height set inline by syncOverlayToWidget. */
+:where(.editor) .md-image-overlay {
+	position: absolute;
+	pointer-events: none;
+	z-index: 10;
+}
+
+:where(.editor) .md-image-overlay > * {
+	pointer-events: auto;
+}
+
+/* Reference-link trailing markers (`[label]` / `[]`) — dimmer than the
+   structural-content `[text]` / `(url)` markers so the label reads as metadata. */
+:where(.editor) .md-ref-label {
+	color: var(--md-ref-label-color, rgba(128, 128, 128, 0.45));
+	font-style: italic;
+}
+
+/* Unresolved reference — visible feedback that the label didn't resolve. */
+:where(.editor) .md-unresolved-ref {
+	color: var(--md-unresolved-color, #c0392b);
+	border-bottom: 1px dashed currentColor;
+	text-decoration: none;
+}
+
+/* Image-variant unresolved refs get a subtle background to set them apart from
+   link-variant ones at a glance. */
+:where(.editor) .md-unresolved-ref-image {
+	background: rgba(192, 57, 43, 0.08);
+	padding: 0 2px;
+	border-radius: 2px;
+}
+
+/* linkReferenceDefinition blocks — render as metadata: smaller, italic, faded. */
+:where(.editor) .block-host[data-block-kind='linkReferenceDefinition'] {
+	opacity: 0.75;
+	font-size: 0.9em;
+	font-style: italic;
+}
+
+/* Inline raw HTML tags rendered as styled-literal source text. Slightly
+   dimmed monospace gives them a code-ish feel without becoming code spans. */
+:where(.editor) .md-raw-html {
+	color: var(--md-raw-html-color, rgba(120, 120, 120, 0.85));
+	font-family: var(--font-editor, 'Cascadia Code', 'Consolas', monospace);
+	font-size: 0.92em;
+}
+
+/* <br> widget shell — no visual chrome; the inner <br> produces the line
+   break. The shell exists for cursor / widget-offset participation via the
+   [data-inline-widget] generic marker. */
+:where(.editor) .md-br-widget {
+	/* Reserved for future selected-state styling — today no chrome. */
+}
