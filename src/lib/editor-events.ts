@@ -85,13 +85,15 @@ export function createEditorEvents(): EditorEvents {
 			try {
 				(handler as (p: EditorEventMap[K]) => void)(payload);
 			} catch (err) {
-				// Recursion guard: an error-channel subscriber that throws must NOT
-				// re-emit (it would loop) — log and move on. Any other channel's
-				// throw is surfaced on the error channel.
+				// Recursion guard + never-silently-drop: an error-channel subscriber
+				// that throws logs (no re-emit, would loop); a non-error throw routes
+				// to the error channel when someone listens, else falls back to log.
 				if (event === 'error') {
 					console.error('[EditorEvents] error-channel subscriber threw:', err);
-				} else {
+				} else if (handlers.error?.size) {
 					emit('error', { origin: 'subscriber', error: err });
+				} else {
+					console.error('[EditorEvents] subscriber threw (no error handler):', err);
 				}
 			}
 		}
