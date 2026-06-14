@@ -25,7 +25,6 @@ const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
 /**
  * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
  *
- * Always strips: ? ! . , : * _ ~
  * Conditional ): only when there are more `)` than `(` in [urlStart, end).
  * Conditional ;: only when the part before is NOT shaped like an HTML entity
  * (a `;` preceded by `&` followed by alphanumerics / `#` and digits/hex back to `&`).
