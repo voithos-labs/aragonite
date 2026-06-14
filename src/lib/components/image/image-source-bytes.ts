@@ -26,9 +26,9 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 
 export function buildImageSourceBytes(fields: ImageFields): string {
 	const dimSuffix = buildDimSuffix(fields.width, fields.height);
-	const altSegment = fields.alt + dimSuffix;
+	const altSegment = escapeAlt(fields.alt) + dimSuffix;
 	const titleSegment = fields.title !== undefined ? ` "${escapeTitle(fields.title)}"` : '';
-	return `![${altSegment}](${fields.url}${titleSegment})`;
+	return `![${altSegment}](${encodeDestination(fields.url)}${titleSegment})`;
 }
 
 function buildDimSuffix(width: number | undefined, height: number | undefined): string {
@@ -39,4 +39,22 @@ function buildDimSuffix(width: number | undefined, height: number | undefined): 
 
 function escapeTitle(title: string): string {
 	return title.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// Alt sits inside `[...]`; an unescaped bracket closes the scan early and the
+// image degrades to literal text on the next parse. Backslash-escape so the
+// inline escape pass restores the literal characters.
+function escapeAlt(alt: string): string {
+	return alt.replace(/[[\]\\]/g, '\\$&');
+}
+
+// The destination scanner ends the URL at space/tab/`)`/`"`/`'` and has no
+// angle-bracket form, so a local path with spaces would otherwise truncate.
+// Percent-encode those bytes; idempotent since an encoded URL has no literal
+// stop-char left.
+function encodeDestination(url: string): string {
+	return url.replace(
+		/[ \t)"']/g,
+		(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
+	);
 }

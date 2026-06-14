@@ -23,6 +23,13 @@ describe('url-policy — href allowlist', () => {
 		expect(isAllowedHrefScheme('java\nscript:alert(1)')).toBe(false);
 		expect(isAllowedHrefScheme('  javascript:alert(1)')).toBe(false);
 	});
+
+	it('strips a leading C0 control before scheme detection', () => {
+		const c0 = (code: number) => String.fromCharCode(code) + 'javascript:alert(1)';
+		expect(isAllowedHrefScheme(c0(1))).toBe(false);
+		expect(isAllowedHrefScheme(c0(0x1f))).toBe(false);
+		expect(isAllowedImageSrcScheme(c0(1))).toBe(false);
+	});
 });
 
 describe('url-policy — image src allowlist', () => {

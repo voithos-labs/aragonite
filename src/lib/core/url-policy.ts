@@ -7,11 +7,16 @@
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
 const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data']);
 
-// Browsers ignore tab/newline/CR inside a URL when resolving its scheme, so
-// `java\tscript:` runs. Strip those before scheme detection to match.
+// Match the WHATWG URL parser's pre-scheme normalization: it strips ASCII
+// tab/newline anywhere and leading C0-control-or-space before resolving the
+// scheme. `java\tscript:` and a leading-control `javascript:` both run in the
+// browser, so normalize the same way here or the allowlist is trivially
+// bypassed by prefixing a control byte.
 function schemeOf(url: string): string | null {
-	const cleaned = url.replace(/[\t\n\r]/g, '').trim();
-	const match = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(cleaned);
+	const stripped = url.replace(/[\t\n\r]/g, '');
+	let i = 0;
+	while (i < stripped.length && stripped.charCodeAt(i) <= 0x20) i++;
+	const match = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(stripped.slice(i));
 	return match ? match[1].toLowerCase() : null;
 }
 

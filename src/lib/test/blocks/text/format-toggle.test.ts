@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/editor/components/blocks/text/format-toggle';
+import { parseInline } from '$lib/editor/core/inline';
+import type { InlineNode } from '$lib/editor/core/nodes';
+
+const leafText = (nodes: InlineNode[]): string =>
+	nodes.map((n) => (n.children ? leafText(n.children) : (n.text ?? ''))).join('');
 
 describe('toggleInlineFormat', () => {
 	it('wraps a bare selection with the marker pair', () => {
@@ -35,5 +40,13 @@ describe('toggleInlineFormat', () => {
 		expect(r.newDisplay).toBe('****word**');
 		expect(r.newSelStart).toBe(2);
 		expect(r.newSelEnd).toBe(10);
+	});
+
+	it('does not orphan markers on a multi-span selection (regression)', () => {
+		const r = toggleInlineFormat('**a** **b**', { start: 0, end: 11 }, 'strong');
+		// the old strip-the-outer-pair path produced the orphaned `a** **b`
+		expect(r.newDisplay).not.toBe('a** **b');
+		const parsed = parseInline(r.newDisplay, 0, r.newDisplay.length);
+		expect(leafText(parsed)).toBe('a b');
 	});
 });
