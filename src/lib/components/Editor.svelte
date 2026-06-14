@@ -32,6 +32,7 @@
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createSelectionState } from '../selection/selection-state.svelte';
+	import { createSelectionDescription } from '../selection/selection-description';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../tree-operations/block-id';
@@ -129,6 +130,12 @@
 			selectionState.clear();
 		}
 	});
+
+	let selectionDescription = $derived(
+		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
+			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
+			: ''
+	);
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
@@ -409,7 +416,7 @@
 	}
 </script>
 
-<div class="editor" bind:this={editorEl}>
+<div class="editor" bind:this={editorEl} role="group" aria-label="Markdown editor">
 	<BlockList
 		children={doc.children}
 		{blockIds}
@@ -426,6 +433,7 @@
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		lifetime={lifetimeController.signal}
 	/>
+	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 </div>
 
 <style>
@@ -462,5 +470,17 @@
 
 	.editor::-webkit-scrollbar-thumb:hover {
 		background: var(--color-ui-dulled, #666);
+	}
+
+	.editor-sr-live {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>
