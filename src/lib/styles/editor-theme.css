@@ -1,0 +1,90 @@
+/**
+ * Editor default theme — editor-owned token values. Declared at :root so they
+ * form an override-friendly contract and serve every consumer (including the
+ * out-of-.editor CodeMirror placeholder). The editor never declares the host
+ * --color-* / --radius-* tokens; those come from the consumer, read with
+ * fallbacks in editor.css. Light palette keys on :root[data-theme-type='light']
+ * exactly as the host app toggles it.
+ *
+ * Consumers: import this file for the default look, or replace it wholesale to
+ * retheme. Override any token at :root or a narrower scope.
+ */
+
+:root {
+	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+
+	/* Markdown syntax highlighting (dark defaults) */
+	--syntax-heading: #a6e22e;
+	--syntax-emphasis: #66d9ef;
+	--syntax-link: #ae81ff;
+	--syntax-url: #d33682;
+	--syntax-quote: #f92672;
+	--syntax-code: #a6e22e;
+	--syntax-comment: #75715e;
+	--syntax-list: #66d9ef;
+	--syntax-separator: #a6e22e;
+	--syntax-task: #66d9ef;
+	--syntax-task-done: #4a7078;
+
+	/* Code block syntax highlighting — monokai-inspired palette */
+	--code-tok-keyword: #f92672;
+	--code-tok-string: #e6db74;
+	--code-tok-number: #ae81ff;
+	--code-tok-literal: #ae81ff;
+	--code-tok-comment: #75715e;
+	--code-tok-type: #66d9ef;
+	--code-tok-function: #a6e22e;
+	--code-tok-variable: inherit;
+	--code-tok-operator: #f92672;
+	--code-tok-punctuation: inherit;
+	--code-tok-meta: #fd971f;
+	--code-tok-attr: #a6e22e;
+	--code-tok-regexp: #e6db74;
+	--code-tok-symbol: #ae81ff;
+	--code-tok-subst: inherit;
+	--code-tok-added: #a6e22e;
+	--code-tok-removed: #f92672;
+	--code-tok-heading: #66d9ef;
+	--code-tok-link: #66d9ef;
+	--code-tok-unknown: inherit;
+
+	/* Presentational tokens (mode-independent). Previously inline-only fallbacks. */
+	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
+	--md-ref-label-color: rgba(128, 128, 128, 0.45);
+	--md-unresolved-color: #c0392b;
+	--md-raw-html-color: rgba(120, 120, 120, 0.85);
+	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
+}
+
+:root[data-theme-type='light'] {
+	/* Markdown syntax highlighting (light) */
+	--syntax-heading: #3f6e1a;
+	--syntax-emphasis: #0369a1;
+	--syntax-link: #6d28d9;
+	--syntax-url: #be185d;
+	--syntax-quote: #b91c1c;
+	--syntax-code: #166534;
+	--syntax-comment: #64748b;
+	--syntax-list: #0369a1;
+	--syntax-separator: #3f6e1a;
+	--syntax-task: #0369a1;
+	--syntax-task-done: #7c8791;
+
+	/* Code block syntax highlighting — GitHub Light-inspired palette */
+	--code-tok-keyword: #cf222e;
+	--code-tok-string: #0a3069;
+	--code-tok-number: #0550ae;
+	--code-tok-literal: #0550ae;
+	--code-tok-comment: #6e7781;
+	--code-tok-type: #953800;
+	--code-tok-function: #8250df;
+	--code-tok-operator: #cf222e;
+	--code-tok-meta: #953800;
+	--code-tok-attr: #116329;
+	--code-tok-regexp: #116329;
+	--code-tok-symbol: #0550ae;
+	--code-tok-added: #116329;
+	--code-tok-removed: #cf222e;
+	--code-tok-heading: #0550ae;
+	--code-tok-link: #0550ae;
+}
