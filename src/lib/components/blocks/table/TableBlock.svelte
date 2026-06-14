@@ -338,7 +338,7 @@
 		overflow-x: auto;
 		/* Modern standard — Edge/Chrome 121+ and Firefox honor these. */
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #444) transparent;
+		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
 	}
 	/* Webkit fallback for older Chromium. */
 	.table-block::-webkit-scrollbar {
@@ -348,10 +348,10 @@
 		background: transparent;
 	}
 	.table-block::-webkit-scrollbar-thumb {
-		background: var(--color-ui-muted, #444);
+		background: var(--color-ui-muted, #a4a4a4);
 		border-radius: 3px;
 	}
 	.table-block::-webkit-scrollbar-thumb:hover {
-		background: var(--color-ui-dulled, #666);
+		background: var(--color-ui-dulled, #afb1b3);
 	}
 </style>

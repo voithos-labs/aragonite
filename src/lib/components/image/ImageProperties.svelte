@@ -108,7 +108,7 @@
 		top: calc(100% + 4px);
 		left: 0;
 		background: var(--color-bg-elevated, #2a2a2a);
-		border: 1px solid var(--color-ui-muted, #444);
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
 		padding: 8px;
 		display: grid;
@@ -124,9 +124,9 @@
 		gap: 8px;
 	}
 	input {
-		background: var(--color-bg, #1a1a1a);
+		background: var(--color-bg, #2d3033);
 		color: var(--color-text, #eee);
-		border: 1px solid var(--color-ui-muted, #444);
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		padding: 4px 6px;
 		border-radius: 3px;
 		font-family: inherit;

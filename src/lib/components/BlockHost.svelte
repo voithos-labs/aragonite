@@ -100,7 +100,7 @@
 	}
 
 	.failed-block {
-		border: 1px dashed var(--color-ui-muted, #888);
+		border: 1px dashed var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
 		padding: 0.25rem 0.5rem;
 		opacity: 0.8;
@@ -108,7 +108,7 @@
 	.failed-block-notice {
 		display: block;
 		font-size: 0.85em;
-		color: var(--color-text-secondary, #c00);
+		color: var(--color-text-secondary, #e6e5e5);
 	}
 	.failed-block-raw {
 		margin: 0.25rem 0 0;

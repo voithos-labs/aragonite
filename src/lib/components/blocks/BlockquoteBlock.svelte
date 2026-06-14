@@ -106,7 +106,7 @@
 
 <style>
 	.blockquote-block {
-		border-left: 3px solid var(--color-ui-muted, #555);
+		border-left: 3px solid var(--color-ui-muted, #a4a4a4);
 		padding-left: 16px;
 		margin: 4px 0;
 	}

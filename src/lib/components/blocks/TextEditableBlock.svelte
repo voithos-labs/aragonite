@@ -873,7 +873,7 @@
 
 	.text-editable-block.paragraph-block:empty::before {
 		content: 'Start typing...';
-		color: var(--color-ui-dulled, #666);
+		color: var(--color-ui-dulled, #afb1b3);
 		pointer-events: none;
 	}
 
@@ -925,7 +925,7 @@
 	}
 
 	.text-editable-block :global(.md-autolink) {
-		color: var(--color-accent, #4a9eff);
+		color: var(--color-accent, #567b67);
 		text-decoration: underline;
 	}
 </style>
