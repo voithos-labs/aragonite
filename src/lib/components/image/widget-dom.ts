@@ -3,6 +3,8 @@
 // `textContent === ambientPrefix + raw` still holds.
 
 import type { InlineNode } from '../../core/nodes';
+import type { ImageLoadPolicy } from '../../core/inline-render';
+import { isAllowedImageSrcScheme } from '../../core/url-policy';
 
 // Resolved URLs that have failed to load this session. Inline rebuild on every
 // keystroke creates a fresh <img>; without this cache the new widget renders
@@ -14,6 +16,7 @@ const knownBrokenUrls = new Set<string>();
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	paragraphPath: number[];
+	imageLoadPolicy?: ImageLoadPolicy;
 }
 
 export function buildImageWidget(
@@ -51,11 +54,21 @@ export function buildImageWidget(
 	const img = document.createElement('img');
 	img.alt = node.alt ?? '';
 	const resolvedUrl = safeResolve(opts.resolveImageUrl, node.url ?? '');
-	img.src = resolvedUrl;
+	const policy = opts.imageLoadPolicy ?? 'auto';
+	if (!isAllowedImageSrcScheme(resolvedUrl)) {
+		widget.classList.add('md-image-blocked');
+	} else if (policy === 'placeholder') {
+		widget.classList.add('md-image-placeholder');
+	} else {
+		img.src = resolvedUrl;
+	}
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
-	if (knownBrokenUrls.has(resolvedUrl) || (img.complete && img.naturalWidth === 0 && resolvedUrl)) {
+	// Only an image we actually loaded can be broken. A blocked/placeholder
+	// widget leaves src unset, and an unset <img> reports complete && naturalWidth
+	// === 0 in a real browser — without this guard those would render as broken.
+	if (img.src && (knownBrokenUrls.has(resolvedUrl) || (img.complete && img.naturalWidth === 0))) {
 		widget.classList.add('md-image-broken');
 	}
 	img.addEventListener('error', () => {
