@@ -2,6 +2,9 @@
  * Svelte context-key symbols shared across the editor tree, plus the
  * value-shape types for the keys that have a stable contract (lookup
  * helpers — action interfaces are typed at the getContext site).
+ *
+ * Internal: these symbols are editor-internal wiring, not a plugin extension
+ * point. The supported extension surface is the 1.2 plugin API.
  */
 
 import type { Document } from './core/nodes';

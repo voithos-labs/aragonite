@@ -1,7 +1,35 @@
+// Public, supported surface of the editor module. Adding an export here is
+// non-breaking; removing one is breaking — keep this minimal and grow on demand.
+// Anything not re-exported here is internal and may change without notice.
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+export { default as Editor } from './components/Editor.svelte';
+
+import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type { ImageLoadPolicy } from './core/inline-render';
+
+export interface EditorProps {
+	source?: string;
+	resolveImageUrl?: ResolveImageUrl;
+	resolveLinkUrl?: ResolveLinkUrl;
+	imageLoadPolicy?: ImageLoadPolicy;
+	onLinkActivate?: (url: string, event: MouseEvent) => void;
+}
+
+export type { BlockComponent } from './block-component';
+export type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+export type { ImageLoadPolicy } from './core/inline-render';
+
+// ── CST utilities ────────────────────────────────────────────────────────────
+
 export { parse } from './core/parser';
 export { serialize } from './core/serializer';
 export { parseInline, getContentRange, isProseKind } from './core/inline';
 export type { ContentRange } from './core/inline';
+
+// ── Node & inline types ──────────────────────────────────────────────────────
+
 export type {
 	BlockKind,
 	LeafBlockKind,
@@ -22,18 +50,7 @@ export type {
 	InlineNode
 } from './core/nodes';
 
-// ── Editor runtime ──────────────────────────────────────────────────────────
-
-export type { ListContext } from './action-contracts';
-export type { BlockComponent } from './block-component';
-export { LIST_CONTEXT_KEY } from './editor-keys';
-export { cloneDocument } from './tree-operations/clone';
-export { assignIds, generateBlockId } from './tree-operations/block-id';
-export { splitNode, mergeWithPrevious, deleteNode, updateNodeContent } from './tree-operations';
-export { createUndoManager } from './undo/manager';
-export type { UndoEntry, UndoManager } from './undo/types';
-
-// ── Events surface ─────────────────────────────────────────────────────────
+// ── Events ───────────────────────────────────────────────────────────────────
 
 export type {
 	EditorEvents,
