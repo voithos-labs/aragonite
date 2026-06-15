@@ -23,8 +23,6 @@ contributes zero `textContent` but several raw bytes.
 - image in a cell stays alt-text: `![a](u)` renders the alt text `a`, no `<img>` / widget
 - empty cell renders without leftover markup and stays focusable
 - a cell with only a `<br>` widget renders the widget and nothing else
-- round-trip safety: a table whose cells contain emphasis / links / `<br>` serializes
-  back to the original source byte-for-byte (rendering changes display only, never raw)
 
 ## User interactions
 

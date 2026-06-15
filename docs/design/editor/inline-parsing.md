@@ -47,8 +47,9 @@ There is no function that maps an inline offset into the container's `raw`, beca
 2. **Backslash escapes** — neutralize the next ASCII-punctuation character so it cannot start markup
 3. **Character references** — recognize named, decimal, and hex HTML entities; source remains intact
 4. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
-5. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
-6. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
+5. **Raw HTML** — claim inline HTML tags as literal ranges; runs after links so autolinks win for `<url>`/`<email>`, and before emphasis so `*`/`_` inside tag attributes cannot pair as delimiters
+6. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
+7. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
 
 Stage order is load-bearing. Code spans claim ranges first so escapes and entities stay inert inside them; escapes and entities run before emphasis so a neutralized `*` or `_` cannot pair as a delimiter.
 
