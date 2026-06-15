@@ -52,7 +52,7 @@ Two distinct costs, not one:
 
 1. **Steady-state per-keystroke (the dominant cost): framework reactive-flush proportional to mounted components.** Each keystroke re-renders only the edited block (axisP/R), runs one parse, one inline refresh, one snapshot, no ancestry rebuild — every instrumented editor seam is ~1 unit — yet costs ~606ms script (894ms total task, layout negligible) at nested 1MB. It scales **linearly with mounted block count** (axisS: ~5µs/block flat; ~18µs/block nested, because container components are heavier). The cost is Svelte's per-update reactive flush / keyed-`{#each}` reconciliation traversing all ~50k mounted components — **there is no editor-logic hotspot to patch.** Prod is 375ms (~40% of the dev number is DEV asserts + Svelte dev-mode).
 
-2. **One-time first-edit full-document re-render (a ~1.1s hitch): a false global dependency.** The first edit after load re-renders every block once (axisM: 21,980 distinct blocks across all 7,327 top-level subtrees); subsequent edits don't (axisP). Something makes the first commit invalidate a document-level reactive dependency every block reads. Independent of cost #1, and a one-time hitch rather than per-keystroke.
+2. **One-time first-edit full-document re-render (a ~1.1s hitch): a false global dependency.** The first edit after load re-renders every block once (axisM: 21,980 distinct blocks across all 7,327 top-level subtrees); subsequent edits don't (axisP). The first commit invalidated a document-level reactive dependency every block reads — the `$state`-held LRD resolver, reassigned a fresh identity on every edit. Independent of cost #1, and a one-time hitch rather than per-keystroke. **Now fixed** — see the cost-#2 item under Ratified next-batch decision.
 
 ### Ratified next-batch decision (corrected)
 
@@ -60,7 +60,7 @@ Two distinct costs, not one:
 
 Supporting work, ordered:
 
-1. **Reactivity fix for the one-time first-edit full re-render (cost #2)** — locate and break the false document-level dependency that makes the first commit invalidate all blocks. Independent of VR; fixes the ~1.1s first-keystroke hitch. This is where "finer-grained reactivity" genuinely applies — to the _one-time_ invalidation, not the steady-state cost.
+1. **Reactivity fix for the one-time first-edit full re-render (cost #2)** — **DONE.** The false dependency was the document-level LRD resolver, held in `$state` and reassigned a fresh closure identity inside the `edit` subscriber on _every_ edit; every block read it during its initial render (the ungated `parseInline(..., linkResolver)` in `text-render.ts`/`cell-render.ts`), so the first edit invalidated all of them at once. Fix: reassign the resolver only when the LRD signature actually changes, and gate the render path's resolver read on the block containing a bracket — so a genuine LRD edit re-renders only reference-bearing blocks, not the document. axisT re-run confirms first-edit renders dropped from **21,980 → 2** at nested 1MB. Guarded by `block-render-scoping.spec.ts`. Independent of VR; this is where "finer-grained reactivity" genuinely applied — to the _one-time_ invalidation, not the steady-state cost.
 2. **Reduce per-mounted-component flush weight** — nested container components cost ~3.6× a flat paragraph per flush; lighter effects/`$derived` shave the constant. Secondary (doesn't change the scaling).
 3. **Intra-block sub-block levers (Axis 5)** — for pathological single-long-paragraph docs only.
 4. **Deprioritized:** incremental parsing (0.8.1) and lazy `inlineContent` (0.8.5) — neither reduces mounted components.
@@ -79,4 +79,4 @@ Supporting work, ordered:
 
 - **Prod is dev-instrument-blind.** Instruments don't arm in prod, so the prod 375ms confirms surviving CPU but the per-keystroke seam/render breakdown is dev-only. The flat-count scaling (axisS) and seam-minimality (axisR) are the load-bearing evidence and are dev — re-confirm on the CI runner once provisioned.
 - **Single captures.** Reproducibility-within-rme is a controller re-run before the CI target is set.
-- **The false-global-dependency's exact source is not yet located** — that is the first task of the cost-#2 reactivity fix.
+- **The false-global-dependency's source — located and fixed** (the per-edit reassignment of the `$state`-held LRD resolver, read by every block at mount). See the cost-#2 item in the synthesis; axisT now records 2 first-edit renders, not ~21,980.

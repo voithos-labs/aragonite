@@ -152,11 +152,18 @@
 			// The LRD map rebuild stays whole-doc (cheap raw-free walk; incremental
 			// maintenance is roadmapped); the sweep is scoped by collectInlineDirty.
 			const newMap = buildLinkReferenceMap(doc.children);
-			const dirty = collectInlineDirty(doc, e, newMap.signature !== currentSignature);
+			const signatureChanged = newMap.signature !== currentSignature;
+			const dirty = collectInlineDirty(doc, e, signatureChanged);
 			const targets = dirty === 'all' ? doc.children : dirty;
 			parseAllInlineContent(targets, newMap.resolve);
-			currentResolver = newMap.resolve;
-			currentSignature = newMap.signature;
+			// Reassign only on a real LRD change. Routine typing leaves the
+			// resolver set identical, so handing out a fresh closure identity here
+			// would invalidate every block that read the resolver at mount — a
+			// one-time whole-document re-render on the first edit.
+			if (signatureChanged) {
+				currentResolver = newMap.resolve;
+				currentSignature = newMap.signature;
+			}
 			if (perfEnabled()) recordInlineRefresh(countProseNodes(targets));
 		});
 		return () => dispose();
