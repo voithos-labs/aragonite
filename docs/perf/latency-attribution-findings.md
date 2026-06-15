@@ -34,11 +34,11 @@ All captures: dev server, DEV asserts active, `--workers=1`, 20 keystrokes each 
 
 ## Synthesis
 
-**Typing one character into a 1MB nested-containers doc re-renders ~1100 prose blocks** (22018 over 20 keystrokes), and the cost is **scripting — ~635ms/keystroke (dev)** — not layout (17ms) and **not** the span-rebuild itself (3ms/keystroke). CDP attributes **~652ms/keystroke of CPU (script + layout) = 71% of the 913ms harness**; the remaining ~260ms is harness/settle/typeSlowly overhead (Axis 4, amplified by the slow editor) plus the commit's post-tick. The majority of the headline is attributed.
+**Typing one character into a 1MB nested-containers doc re-renders ~1100 prose blocks** (22018 over 20 keystrokes), and the cost is **scripting — ~635ms/keystroke (dev)** — not layout (17ms) and **not** the span-rebuild itself (3ms/keystroke). CDP attributes **~652ms/keystroke of CPU (script + layout)** — ≈71% of the 913ms harness, comparing mean CPU (CDP total ÷ 20) against the p50 harness latency, so read it as order-of-magnitude attribution, not an exact fraction; the remainder is harness/settle/typeSlowly overhead (Axis 4, amplified by the slow editor) plus the commit's post-tick. The majority of the headline is attributed.
 
-The edit changed exactly one top-level paragraph, so those ~1100 nested blocks' content did not change — their re-render is **redundant**. The flat-block fixtures (Axes 1/3/4) stayed at `blockRenderCount=2` precisely because they have no nested `BlockList` to cascade into; the over-invalidation is **specific to the top-level publish (`doc.children = [...]`) cascading through nested container subtrees**. The span-rebuild is cheap; the ~632ms is the Svelte reactivity machinery (component effect re-runs, `$derived` recompute, SelectionOverlay, `publishRefSlot`, plus DEV asserts) multiplied across ~1100 re-renders. Prod halves it (913→375ms; DEV asserts + Svelte dev-mode shed) but the ~1100 re-renders persist in prod — they are not a DEV artifact.
+The edit changed exactly one top-level paragraph, so those ~1100 nested blocks' content did not change — their re-render is **redundant**. The flat-block fixtures (Axes 1/3/4) stayed at `blockRenderCount=2` precisely because they have no nested `BlockList`. The most likely mechanism is the top-level publish (`doc.children = [...]`) cascading through nested container subtrees — but **this mechanism is inferred from the count + script-dominance, not directly measured**: `recordBlockRender` counts renders, not their block identity, so cross-block cascade vs same-block thrash vs a false document-level dependency are not yet distinguished (see Measurement caveats). The span-rebuild is cheap; the ~632ms is Svelte reactivity machinery (effect re-runs, `$derived` recompute, SelectionOverlay, `publishRefSlot`, plus DEV asserts) across those re-renders. Prod halves the CPU (913→375ms; DEV asserts + Svelte dev-mode shed); the prod render _count_ was not measured (instruments don't arm in prod), but the surviving 375ms CPU shows the cost is not a DEV artifact.
 
-This is **Axis 1a (redundant re-render) manifesting at the container level**, not flat-block fan-out (1b) and not intra-block (Axis 5). Per the spec decision tree, 1a → a finer-grained reactivity fix, a patch — not virtual rendering, not incremental parsing, not lazy `inlineContent` (none of those touch a re-render cascade).
+The cost **class** — scripting that recomputes output for ~1100 blocks whose `raw` did not change — routes to a **finer-grained reactivity fix under every interpretation the data permits**, because the script-vs-layout split (635ms vs 17ms) excludes the layout-bound per-visible-block work that would route to virtual rendering (Axis 1b) or render-path surgery (Axis 3). The spine is settled by the _measured_ split even though the precise mechanism is not. Incremental parsing and lazy `inlineContent` are excluded a priori — neither touches a re-render.
 
 ### Adversarial refute
 
@@ -50,6 +50,8 @@ This is **Axis 1a (redundant re-render) manifesting at the container level**, no
 
 **Spine: a finer-grained reactivity fix that stops the top-level publish from re-rendering untouched nested-container subtrees** (target: cut ~1100 redundant re-renders/keystroke toward ~1). This is the dominant keystroke cost and the highest-leverage, lowest-architecture lever.
 
+**Gating first task of the fix batch (before any patch):** extend the render instrument to record _which_ blocks re-render (path/identity, not just a count) and re-run the nested capture, to confirm the mechanism — cross-block cascade vs same-block thrash vs a false document-level dependency. The patch's shape depends on which; today's data establishes the cost class and the spine, not the mechanism.
+
 Ordered supporting work:
 
 1. **Virtual rendering (0.8.6) stays unconditional but second** — even with the cascade fixed, all blocks remain mounted, so the 10MB mount/render wall persists; VR is still required for the scale gate. The attribution demotes it from "0.8 main act" to "after the reactivity fix" for the _keystroke_ axis, while it remains the owner of the _mount/scale_ axis.
@@ -59,3 +61,10 @@ Ordered supporting work:
 **Lazy-raw ladder (0.7.4): retire from this batch's concern.** The headline cost is reactivity re-render, not container-raw rebuild (measured ~2ms). The giant-single-container raw-churn question stays render-wall-gated and is not implicated here.
 
 **CI thresholds (companion `perf-gate-ci-spec.md`):** set against **prod** numbers (375ms floor today), with the post-fix target driven by the re-render reduction.
+
+### Measurement caveats
+
+- **Mechanism inferred, not measured.** `recordBlockRender` counts renders, not block identity; confirming the cascade mechanism is the fix batch's gating first task.
+- **Prod render count not measured.** Instruments don't arm in prod, so prod confirms the surviving _CPU_ (375ms), not the prod re-render _count_.
+- **Single captures.** Each axis is one run; the spec's reproducible-within-rme criterion is a controller re-run before the fix batch sets a CI target.
+- **71% mixes mean CPU over p50 latency** — order-of-magnitude attribution, not an exact fraction.
