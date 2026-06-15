@@ -1,6 +1,6 @@
 # 0.8 Latency Attribution — Findings
 
-Machine: dev workstation (see `src/lib/editor/test/perf/baseline.json` machine stamp). Raw artifacts: `perf-results/` (gitignored). Each axis carries its confirm/falsify result. Method/harness: `src/lib/editor/e2e/tests/perf/attribution.perf.spec.ts` (the reproducible captures); parked CI gate: `docs/perf/perf-gate-ci-spec.md`.
+Machine: dev workstation (see `src/lib/editor/test/perf/baseline.json` machine stamp). Raw artifacts: `perf-results/` (gitignored). Each axis carries its confirm/falsify result. Method/harness: `src/lib/editor/e2e/tests/perf/attribution.perf.spec.ts` (the reproducible captures); regression gate: `npm run perf:check` (`src/lib/editor/e2e/tests/perf/perf-gate.perf.spec.ts`).
 
 ## Step zero — prod vs dev (nested-containers 1MB)
 
@@ -18,7 +18,7 @@ Prod build = `vite build` + `vite preview` (SPA, port 1421); dev = `npm run dev`
 **Decision gate:** prod p50 = **375 ms**, ~23× the 16 ms frame budget and far above the ~100 ms proceed threshold → **PROCEED to axis attribution (Task 6).** The editor cost is real. Two carries into Task 6 / synthesis:
 
 1. ~58% of the headline dev number is artifact — Task 6's instrument-based axis captures run under DEV (instruments don't arm in prod), so they attribute the **dev composition**; read the **prod 375 ms as the real floor** any optimization must beat.
-2. CI thresholds (companion `perf-gate-ci-spec.md`) should be set against prod-equivalent numbers, not the inflated dev number.
+2. The shippability claim (the 1.0 scale gate) should be judged against prod-equivalent numbers, not the inflated dev number; the dev-to-dev `perf:check` regression gate is a separate, dev-baselined tool.
 
 ## Axis attribution
 
@@ -67,7 +67,7 @@ Supporting work, ordered:
 
 **Lazy-raw ladder (0.7.4): retire from this concern** — the cost is framework flush, not container-raw rebuild.
 
-**CI thresholds (companion `perf-gate-ci-spec.md`):** set against **prod** (375ms floor today); the post-VR target is O(viewport) keystroke latency.
+**Regression gate (`npm run perf:check`):** gates dev-to-dev keystroke p50 against `baseline.json` — the dev machine is the pinned hardware (same-machine run-to-run spread ~3–4%), so an absolute baseline + `max(10%, 5ms)` tolerance catches regressions with no CI runner. The **prod** floor (375ms today) stays the shippability reference for the 1.0 scale claim, measured separately via `perf:e2e:prod` — not conflated with the dev regression gate. The post-VR target is O(viewport) keystroke latency.
 
 ### Adversarial refute (corrected)
 
