@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
-import { FIXTURE_SHAPES, generateFixture } from './generate';
+import { FIXTURE_SHAPES, generateFixture, generateUniformBlocks } from './generate';
 
 describe('fixture generators', () => {
 	for (const shape of FIXTURE_SHAPES) {
@@ -115,5 +115,23 @@ describe('fixture generators', () => {
 
 			"
 		`);
+	});
+});
+
+describe('generateUniformBlocks', () => {
+	it('produces exactly blockCount paragraphs', () => {
+		expect(parse(generateUniformBlocks(50, 4)).children).toHaveLength(50);
+	});
+
+	it('is deterministic for the same args', () => {
+		expect(generateUniformBlocks(20, 6)).toBe(generateUniformBlocks(20, 6));
+	});
+
+	it('content size scales with wordsPerBlock at fixed block count', () => {
+		const small = generateUniformBlocks(10, 2);
+		const large = generateUniformBlocks(10, 40);
+		expect(parse(small).children).toHaveLength(10);
+		expect(parse(large).children).toHaveLength(10);
+		expect(large.length).toBeGreaterThan(small.length * 5);
 	});
 });
