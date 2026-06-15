@@ -1,5 +1,6 @@
 import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
+import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
 import type { InvariantViolation } from './assert';
 
@@ -56,12 +57,19 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 // ── G1.1: container raw not stale ─────────────────────────────────────────────
 
 /**
- * G1.1 — a strip container's `raw` agrees with its `children`: `strip(raw) ===
- * serialize(children)`. Checked semantically by re-parsing `node.raw` and
- * structurally comparing the result's children to `node.children` — a faithful
- * node re-parses to the same children; a drifted one does not. This is
- * canonicalization-proof, unlike comparing against a `rebuildRaw` that
- * re-derives the `> ` prefix / strips indentation the parser preserved.
+ * G1.1 — a strip container's `raw` agrees with its `children`:
+ * `strip(raw) === serialize(children)`. Computed canonicalization-proof by
+ * re-parsing `node.raw`: the correspondent's stripped-inner bytes ARE
+ * `strip(node.raw)` (the parser's own output satisfies the invariant), so
+ * byte-comparing them against `node`'s stripped-inner is exactly the invariant —
+ * without re-deriving the `> ` prefix / indentation a `rebuildRaw` would
+ * canonicalize.
+ *
+ * Byte-level by design: it tolerates the editor's empty-paragraph placeholders
+ * (an empty editable container holds a blank paragraph so it has a focusable
+ * leaf; the parser emits the same bytes as `innerSuffix`/trivia) while still
+ * firing on genuine drift. Recurses into strip-container descendants so one
+ * check on a touched container validates its whole subtree.
  *
  * Strip containers only; grid containers (table/tableRow) and leaves are exempt.
  */
@@ -74,31 +82,55 @@ export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 	const correspondent =
 		top?.kind === node.kind ? top : top?.children?.find((c) => c.kind === node.kind);
 
-	if (!structurallyEqualChildren(correspondent?.children, node.children)) {
+	if (!rawFaithful(correspondent, node)) {
 		return {
 			code: 'stale-container-raw',
+			// `raw` is carried so a violation caught in CI (the simulation oracle) is
+			// self-diagnosing without re-instrumenting; clamped so a large container
+			// can't flood the console.
 			message: `${node.kind} raw is stale relative to its children`,
-			detail: { kind: node.kind }
+			detail: { kind: node.kind, raw: clampForDetail(node.raw) }
 		};
 	}
 	return null;
 }
 
-/** Recursively equal on `kind`, `leadingTrivia`, and `raw` (raw is the source of truth). */
-function structurallyEqualChildren(
-	a: readonly CstNode[] | undefined,
-	b: readonly CstNode[] | undefined
-): boolean {
-	const left = a ?? [];
-	const right = b ?? [];
-	if (left.length !== right.length) return false;
-	for (let i = 0; i < left.length; i++) {
-		if (left[i].kind !== right[i].kind) return false;
-		if (left[i].leadingTrivia !== right[i].leadingTrivia) return false;
-		if (left[i].raw !== right[i].raw) return false;
-		if (!structurallyEqualChildren(left[i].children, right[i].children)) return false;
+const MAX_RAW_IN_DETAIL = 200;
+
+function clampForDetail(raw: string): string {
+	return raw.length > MAX_RAW_IN_DETAIL ? raw.slice(0, MAX_RAW_IN_DETAIL) + '…' : raw;
+}
+
+/**
+ * `strip(node.raw) === serialize(node.children)` at this level, then recurse for
+ * nested coverage. `strippedInner(reparsed)` is `strip(node.raw)`;
+ * `strippedInner(node)` is `serialize(node.children)`. Byte equality tolerates
+ * the placeholder-vs-`innerSuffix` blank representation; recursing into
+ * strip-container children catches drift the parent-level byte concat can't see
+ * (children's raws match, but a child's own raw↔children may still diverge).
+ */
+function rawFaithful(reparsed: CstNode | undefined, node: CstNode): boolean {
+	if (!reparsed) return false;
+	if (strippedInner(reparsed) !== strippedInner(node)) return false;
+
+	const reparsedContainers = stripContainerChildren(reparsed);
+	const actualContainers = stripContainerChildren(node);
+	if (reparsedContainers.length !== actualContainers.length) return false;
+	for (let i = 0; i < reparsedContainers.length; i++) {
+		if (!rawFaithful(reparsedContainers[i], actualContainers[i])) return false;
 	}
 	return true;
+}
+
+/** Stripped inner content: `innerPrefix + serialize(children) + innerSuffix`. */
+function strippedInner(node: CstNode): string {
+	return (node.innerPrefix ?? '') + concatChildren(node.children ?? []) + (node.innerSuffix ?? '');
+}
+
+function stripContainerChildren(node: CstNode): CstNode[] {
+	return (node.children ?? []).filter(
+		(c) => getBlockKindDescriptor(c.kind).containerContract === 'strip'
+	);
 }
 
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
