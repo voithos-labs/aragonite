@@ -9,8 +9,8 @@ import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../undo/epoch-tracker';
 import type { EditorEvents } from '../editor-events';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import type { MultiScopeTarget } from './undo-controller';
-export type { MultiScopeTarget };
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '../action-contracts';
+export type { CommitMultiScopeArgs, MultiScopeTarget } from '../action-contracts';
 export type { ContainerScope } from '../action-contracts';
 
 export interface EditorActionsDeps {
@@ -47,19 +47,6 @@ export interface CommitContainerStructuralArgs {
 	};
 	snapshot: { blockIndex: number; offset: number } | 'skip';
 	mutate: (scope: ContainerScope) => StructuralChange;
-	op?: ScopedOpDescriptor;
-	afterTick?: () => void;
-}
-
-export interface CommitMultiScopeArgs<
-	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
-> {
-	scopes: S;
-	snapshot: { blockIndex: number; offset: number } | 'skip';
-	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
-	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
-		readonly [K in keyof S]: StructuralChange;
-	};
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 }

@@ -14,10 +14,9 @@ import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
-import { getStateForNode } from '../../reactivity/state-registry';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
+import type { MultiScopeTarget } from './paste-deps';
 
 interface ContainerUnwrap {
 	outerPath: number[];
@@ -105,7 +104,7 @@ export async function applyContainerMatchingPaste(
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, unwrap.outerPath) as CstNode | null;
 	if (!outer) return;
-	const outerState = getStateForNode(outer);
+	const outerState = ctx.controller.resolveState(outer);
 	if (!outerState) return;
 
 	if (unwrap.merge) {
@@ -149,7 +148,7 @@ async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
 	merge: NonNullable<ContainerUnwrap['merge']>,
 	outer: CstNode,
-	outerState: BlockListState,
+	outerState: MultiScopeTarget['state'],
 	ctx: PasteDispatchContext
 ): Promise<void> {
 	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;

@@ -24,7 +24,6 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { expectStateForNode } from '../../reactivity/state-registry';
 import type { MultiScopeTarget } from './paste-deps';
 import type { PasteDispatchContext } from './dispatch';
 
@@ -216,5 +215,5 @@ function resolveParentScope(
 	const parentPath = plan.listPath.slice(0, -1);
 	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
 	if (!parent) return null;
-	return { node: parent, state: expectStateForNode(parent), path: parentPath };
+	return { node: parent, state: ctx.controller.expectState(parent), path: parentPath };
 }

@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { replaceBlockAtParent } from '$lib/editor/tree-operations/paste/replace-block-at-parent';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
 import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
 import { parse } from '$lib/editor/core/parser';
 import type { CstNode } from '$lib/editor/core/nodes';
@@ -17,7 +18,7 @@ function makeHeading(raw: string): CstNode {
 describe('replaceBlockAtParent — id preservation', () => {
 	it('same-kind first replacement inherits the original block id', async () => {
 		const harness = makeEditorActionsDeps([makePara('original\n')]);
-		const controller = createUndoController(harness.deps);
+		const controller = createPasteCoordinator(createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({
@@ -39,7 +40,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 
 	it('different-kind first replacement gets a fresh id', async () => {
 		const harness = makeEditorActionsDeps([makePara('original\n')]);
-		const controller = createUndoController(harness.deps);
+		const controller = createPasteCoordinator(createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({
@@ -62,7 +63,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 
 	it('empty replacement removes the block', async () => {
 		const harness = makeEditorActionsDeps([makePara('a\n'), makePara('b\n'), makePara('c\n')]);
-		const controller = createUndoController(harness.deps);
+		const controller = createPasteCoordinator(createUndoController(harness.deps));
 		const idsBefore = [...harness.getBlockIds()];
 
 		await replaceBlockAtParent({
@@ -87,7 +88,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 		// Sanity guard: even with a heading already at the path, a paragraph
 		// replacement must not be mistaken for same-kind.
 		const harness = makeEditorActionsDeps([parse('# heading\n').children[0]]);
-		const controller = createUndoController(harness.deps);
+		const controller = createPasteCoordinator(createUndoController(harness.deps));
 		const originalId = harness.getBlockIds()[0];
 
 		await replaceBlockAtParent({

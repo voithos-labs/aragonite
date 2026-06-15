@@ -19,12 +19,12 @@ import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/uns
 import { createTextBatch } from './text-batch';
 import type {
 	CommitContainerStructuralArgs,
-	CommitMultiScopeArgs,
 	CommitStructuralArgs,
 	ContainerScope,
 	EditorActionsDeps,
 	UndoController
 } from './deps';
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
 import { toEditEvent } from '../editor-events';
 import {
@@ -35,19 +35,6 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { assertCommittedNodes, assertUndoTopIntegrity } from '../invariants/install';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { docByteLength, perfEnabled, recordSnapshotClone, setUndoGauge } from '../perf/instruments';
-
-// ── Multi-scope commit types ──────────────────────────────────────────────────
-
-/**
- * Order matters for the emitted event path — scopes[0] is the outermost.
- * `path` is the scope node's doc-absolute path; the primitive unshares each
- * scope's spine before `mutate` and rebuilds the owned chains after.
- */
-export interface MultiScopeTarget {
-	node: CstNode;
-	state: BlockListState;
-	path: number[];
-}
 
 // ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
 
