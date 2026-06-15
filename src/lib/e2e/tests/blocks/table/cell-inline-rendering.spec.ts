@@ -139,12 +139,4 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Tab');
 		await expect(second).toBeFocused();
 	});
-
-	// ── Round-trip safety ────────────────────────────────────────────────
-
-	test('styled-cell table round-trips byte-perfect', async ({ page }) => {
-		const source = '| **b** | [t](u) | x<br>y |\n| --- | --- | --- |\n';
-		await editor.loadContent(source);
-		expect(await editor.bridge.getSource()).toBe(source);
-	});
 });

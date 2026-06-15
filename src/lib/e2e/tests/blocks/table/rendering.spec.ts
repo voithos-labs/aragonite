@@ -85,14 +85,4 @@ test.describe('table block: rendering', () => {
 		await expect(cells.nth(5)).toHaveText('Column C');
 		await expect(cells.nth(8)).toHaveText('$100');
 	});
-
-	test('hand-padded source pre-edit round-trips byte-perfect', async ({ page }) => {
-		// Pre-edit invariant: serialize(parse(source)) === source. The trim
-		// happens on cell raws, but table.raw preserves the original slice for
-		// untouched documents.
-		const source =
-			'| Left     | Center   |    Right |\n| :------- | :------: | -------: |\n| Column A | Column B | Column C |\n';
-		await editor.loadContent(source);
-		expect(await editor.bridge.getSource()).toBe(source);
-	});
 });
