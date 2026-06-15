@@ -218,3 +218,166 @@ test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 			(metric(after, 'RecalcStyleDuration') - metric(before, 'RecalcStyleDuration')) * 1000
 	});
 });
+
+// ── Axis M: which blocks re-render (mechanism confirmation) ──────────────────
+
+test('axisM: which blocks re-render on one keystroke (nested 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
+	await loadAndFocusLast(page, editor, src);
+	const editedIndex = await page.evaluate(
+		() => (window as any).__test.getDocument().children.length - 1
+	);
+	const base = await page.evaluate(docLengthInPage);
+	await page.evaluate(() => {
+		(window as any).__test.perf.enable();
+		(window as any).__test.perf.reset();
+	});
+	await editor.typeSlowly('x');
+	await settle(page, base + 1);
+	const paths: string[] = await page.evaluate(
+		() => (window as any).__test.perf.snapshot().blockRenderPaths
+	);
+
+	const topLevel = new Map<string, number>();
+	const depth = new Map<number, number>();
+	for (const p of paths) {
+		const segs = p.split(',');
+		topLevel.set(segs[0], (topLevel.get(segs[0]) ?? 0) + 1);
+		depth.set(segs.length, (depth.get(segs.length) ?? 0) + 1);
+	}
+	write('axisM-which-blocks', {
+		editedIndex,
+		total: paths.length,
+		distinct: new Set(paths).size,
+		editedBlockRenders: paths.filter((p) => p === String(editedIndex)).length,
+		distinctTopLevelSubtrees: topLevel.size,
+		depthHistogram: Object.fromEntries([...depth].sort((a, b) => a[0] - b[0])),
+		topRenderers: [...topLevel].sort((a, b) => b[1] - a[1]).slice(0, 5)
+	});
+	expect(paths.length).toBeGreaterThan(0);
+});
+
+// ── Axis P: per-keystroke render + latency distribution ─────────────────────
+
+test('axisP: per-keystroke distribution (nested 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
+	await loadAndFocusLast(page, editor, src);
+	let base = await page.evaluate(docLengthInPage);
+	await page.evaluate(() => (window as any).__test.perf.enable());
+	const rows: object[] = [];
+	for (let i = 0; i < 6; i++) {
+		await page.evaluate(() => (window as any).__test.perf.reset());
+		const t0 = performance.now();
+		await editor.typeSlowly('x');
+		await settle(page, base + 1);
+		const harnessMs = performance.now() - t0;
+		base += 1;
+		const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
+		rows.push({
+			renders: snap.blockRenderCount,
+			inPageMs: snap.keystrokeInPageMs[0] ?? null,
+			harnessMs: Math.round(harnessMs)
+		});
+	}
+	write('axisP-per-keystroke', { rows });
+	expect(rows.length).toBe(6);
+});
+
+// ── Axis Q: steady-state CDP breakdown (post-warmup) ────────────────────────
+
+test('axisQ: steady-state CDP breakdown (nested 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
+	await loadAndFocusLast(page, editor, src);
+	let base = await page.evaluate(docLengthInPage);
+	// Warm up past the one-time full-document re-render.
+	await editor.typeSlowly('x');
+	await settle(page, base + 1);
+	base += 1;
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Performance.enable');
+	const metric = (m: any, n: string): number =>
+		m.metrics.find((x: any) => x.name === n)?.value ?? 0;
+	const before: any = await cdp.send('Performance.getMetrics');
+	const harness: number[] = [];
+	const N = 15;
+	for (let i = 1; i <= N; i++) {
+		const t0 = performance.now();
+		await editor.typeSlowly('x');
+		await settle(page, base + i);
+		harness.push(performance.now() - t0);
+	}
+	const after: any = await cdp.send('Performance.getMetrics');
+	const per = (n: string) => ((metric(after, n) - metric(before, n)) * 1000) / N;
+	write('axisQ-steadystate-cdp', {
+		keystrokes: N,
+		harnessP50Ms: p50(harness),
+		taskMsPerKey: per('TaskDuration'),
+		scriptMsPerKey: per('ScriptDuration'),
+		layoutMsPerKey: per('LayoutDuration'),
+		recalcStyleMsPerKey: per('RecalcStyleDuration')
+	});
+	expect(harness.length).toBe(N);
+});
+
+// ── Axis R: steady-state existing-instrument breakdown ──────────────────────
+
+test('axisR: steady-state instrument breakdown (nested 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
+	await loadAndFocusLast(page, editor, src);
+	let base = await page.evaluate(docLengthInPage);
+	await page.evaluate(() => (window as any).__test.perf.enable());
+	await editor.typeSlowly('x'); // warm up past the one-time full re-render
+	await settle(page, base + 1);
+	base += 1;
+	const rows: object[] = [];
+	for (let i = 0; i < 4; i++) {
+		await page.evaluate(() => (window as any).__test.perf.reset());
+		await editor.typeSlowly('x');
+		await settle(page, base + 1);
+		base += 1;
+		const s = await page.evaluate(() => (window as any).__test.perf.snapshot());
+		rows.push({
+			renders: s.blockRenderCount,
+			parseCount: s.parseCount,
+			parseMs: Math.round(s.parseMsTotal),
+			parseBlockCount: s.parseBlockCount,
+			inlineRefreshCount: s.inlineRefreshCount,
+			inlineRefreshNodeCount: s.inlineRefreshNodeCount,
+			snapshotCount: s.snapshotCount,
+			rebuildDepths: s.rebuildDepths
+		});
+	}
+	write('axisR-instruments', { rows });
+	expect(rows.length).toBe(4);
+});
+
+// ── Axis S: steady-state latency vs flat (non-nested) block count ────────────
+
+test('axisS: steady-state latency vs flat block count', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const rows: object[] = [];
+	for (const blockCount of [1000, 10000, 30000]) {
+		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
+		await loadAndFocusLast(page, editor, src);
+		let base = await page.evaluate(docLengthInPage);
+		await editor.typeSlowly('x'); // warm up
+		await settle(page, base + 1);
+		base += 1;
+		const harness: number[] = [];
+		const N = 10;
+		for (let i = 1; i <= N; i++) {
+			const t0 = performance.now();
+			await editor.typeSlowly('x');
+			await settle(page, base + i);
+			harness.push(performance.now() - t0);
+		}
+		base += N;
+		rows.push({ blockCount, p50Ms: Math.round(p50(harness)) });
+	}
+	write('axisS-flatcount', { rows });
+	expect(rows.length).toBe(3);
+});

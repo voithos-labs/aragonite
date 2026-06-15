@@ -24,6 +24,7 @@ export interface PerfSnapshot {
 	blockRenderCount: number;
 	blockRenderMsTotal: number;
 	keystrokeInPageMs: number[];
+	blockRenderPaths: string[];
 }
 
 let enabled = false;
@@ -44,7 +45,8 @@ function emptySnapshot(): PerfSnapshot {
 		undoEntryCount: 0,
 		blockRenderCount: 0,
 		blockRenderMsTotal: 0,
-		keystrokeInPageMs: []
+		keystrokeInPageMs: [],
+		blockRenderPaths: []
 	};
 }
 
@@ -73,7 +75,8 @@ export function perfSnapshot(): PerfSnapshot {
 	return {
 		...counters,
 		rebuildDepths: { ...counters.rebuildDepths },
-		keystrokeInPageMs: [...counters.keystrokeInPageMs]
+		keystrokeInPageMs: [...counters.keystrokeInPageMs],
+		blockRenderPaths: [...counters.blockRenderPaths]
 	};
 }
 
@@ -109,10 +112,11 @@ export function setUndoGauge(liveBytes: number, entryCount: number): void {
 	counters.undoEntryCount = entryCount;
 }
 
-export function recordBlockRender(ms: number): void {
+export function recordBlockRender(ms: number, path?: number[]): void {
 	if (!enabled) return;
 	counters.blockRenderCount++;
 	counters.blockRenderMsTotal += ms;
+	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
 export function markKeystrokeStart(): void {
