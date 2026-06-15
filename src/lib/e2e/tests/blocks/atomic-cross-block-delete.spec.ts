@@ -7,9 +7,8 @@ const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
 
 // Captures console errors, page errors, and invariant warnings, attributed to a
 // window the caller opens with `clear()` immediately before the gesture. The test
-// page bootstraps with a benign `listItem` registry-completeness warning and a
-// load-time 404; whole-session collectors trip on those. Clearing before the op
-// keeps full teeth for anything the destructive op itself emits.
+// page emits a benign load-time 404 a whole-session collector would trip on;
+// clearing before the op keeps full teeth for anything the destructive op emits.
 function opWindowErrors(page: Page): { clear: () => void; collected: () => string[] } {
 	let errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));

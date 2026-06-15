@@ -14,10 +14,18 @@ import type { InvariantViolation } from './assert';
  */
 
 /**
- * G1.2 — every BlockKind resolves to both a descriptor and a component.
- * Returns the first gap. NOTE: over the real registries this currently fires
- * on `listItem` (no registered component — items render inside their parent
- * list); Task 2 adds the BlockHost fallback that makes that gap benign.
+ * `listItem` is the one BlockKind with no component-registry entry by design:
+ * items render inside their parent `ListBlock`, never via a `BlockHost` kind
+ * lookup, so `getBlockComponent('listItem')` is intentionally undefined (the
+ * `BlockHost` visible-raw fallback covers any stray lookup). `tableRow`/`tableCell`
+ * are registered (raw-block fallbacks), so `listItem` is the sole exemption —
+ * exempting it keeps the bootstrap invariant channel free of a benign warning.
+ */
+const NO_STANDALONE_COMPONENT: ReadonlySet<BlockKind> = new Set(['listItem']);
+
+/**
+ * G1.2 — every BlockKind resolves to a descriptor, and to a component unless it
+ * renders inside a parent (see `NO_STANDALONE_COMPONENT`). Returns the first gap.
  */
 export function checkRegistryCompleteness(
 	kinds: BlockKind[] = ALL_BLOCK_KINDS,
@@ -33,7 +41,7 @@ export function checkRegistryCompleteness(
 				detail: { kind, missing: 'descriptor' }
 			};
 		}
-		if (!hasComponent(kind)) {
+		if (!NO_STANDALONE_COMPONENT.has(kind) && !hasComponent(kind)) {
 			return {
 				code: 'registry-incomplete',
 				message: `kind "${kind}" has no registered component`,
