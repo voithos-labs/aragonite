@@ -28,6 +28,22 @@ export function generateFixture(shape: FixtureShape, targetBytes: number, seed =
 	return chunks.join('');
 }
 
+/**
+ * `blockCount` plain paragraphs of `wordsPerBlock` words each. Varying
+ * blockCount at fixed wordsPerBlock isolates mounted-block count; varying
+ * wordsPerBlock at fixed blockCount isolates per-block content size.
+ */
+export function generateUniformBlocks(
+	blockCount: number,
+	wordsPerBlock: number,
+	seed = 42
+): string {
+	const rand = mulberry32(seed);
+	const out: string[] = [];
+	for (let i = 0; i < blockCount; i++) out.push(words(rand, wordsPerBlock));
+	return out.join('\n\n') + '\n';
+}
+
 function mulberry32(seed: number): () => number {
 	let a = seed >>> 0;
 	return () => {
