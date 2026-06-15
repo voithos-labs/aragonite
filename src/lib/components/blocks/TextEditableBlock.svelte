@@ -53,15 +53,8 @@
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
 	import { createTextClipboard } from './text/text-clipboard';
 	import { createTextRender } from './text/text-render';
-	import { caretIsInTextContent } from './text/click-snap-guard';
-	import {
-		widgetAtCursor,
-		findWidgetNodeByStart,
-		findFirstEdgeWidget,
-		findLastEdgeWidget,
-		rawHasNoTextBefore,
-		rawHasNoTextAfter
-	} from './text/widget-adjacency';
+	import { findFirstEdgeWidget, findLastEdgeWidget } from './text/widget-adjacency';
+	import { createWidgetInteraction } from './text/widget-interaction';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
 		handleSharedKeydown,
@@ -77,7 +70,6 @@
 	} from '../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
-	import { buildImageSourceBytes, type ImageFields } from '../image/image-source-bytes';
 	import { eventToChord } from '../../schema/keybindings';
 	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
 
@@ -193,6 +185,31 @@
 		}
 	});
 
+	const widgetInteraction = createWidgetInteraction({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get myPath() {
+			return myPath;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
+		cursor,
+		widgetSelection,
+		blockEdit,
+		focusActions,
+		getSnapTarget: () => lastSnapTargetOffset,
+		setSnapTarget: (offset) => {
+			lastSnapTargetOffset = offset;
+		},
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		}
+	});
+
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => el ?? null,
 		getCursorOffset: () => cursor.getRaw(),
@@ -294,17 +311,8 @@
 		);
 	}
 
-	// True when the block's only inline content is image widgets — vertical
-	// arrow traversal skips it because the widgets carry no column meaning.
 	export function isVerticallyTransparent(): boolean {
-		const inlines = node.inlineContent ?? [];
-		if (inlines.length === 0) return false;
-		for (const inline of inlines) {
-			if (isLiveWidgetInline(inline, node.raw)) continue;
-			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
-			return false;
-		}
-		return true;
+		return widgetInteraction.isVerticallyTransparent();
 	}
 
 	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
@@ -502,169 +510,16 @@
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
-		const selectedWidget = widgetSelection.getSelected();
-		if (selectedWidget !== null) {
-			const widget = findWidgetNodeByStart(
-				selectedWidget.sourceStart,
-				node.inlineContent,
-				node.raw
-			);
-			const widgetIsHere =
-				widget !== null && widgetSelection.isSelected(myPath, selectedWidget.sourceStart);
-			if (widgetIsHere) {
-				// Shift+Arrow runs before plain Arrow — `e.key === 'ArrowRight'` matches
-				// both, so the shift check has to win or resize never fires.
-				if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-					e.preventDefault();
-					const inline = (node.inlineContent ?? []).find(
-						(n) => n.kind === 'image' && n.start === widget.start
-					);
-					if (!inline || inline.kind !== 'image') return;
-
-					const KEYBOARD_STEP = 20;
-					const KEYBOARD_MIN_WIDTH = 32;
-					const FALLBACK_DEFAULT_WIDTH = 400;
-
-					const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
-					const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
-					const newWidth = Math.max(KEYBOARD_MIN_WIDTH, currentWidth + delta);
-
-					const newFields: ImageFields = {
-						alt: inline.alt ?? '',
-						url: inline.url ?? '',
-						...(inline.title !== undefined ? { title: inline.title } : {}),
-						width: newWidth,
-						...(inline.height !== undefined
-							? { height: Math.round((newWidth / currentWidth) * inline.height) }
-							: {})
-					};
-					const newBytes = buildImageSourceBytes(newFields);
-					const newRaw = node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						selectedWidget.preSelectOffset,
-						widget.start + newBytes.length
-					);
-					return;
-				}
-				if (e.key === 'ArrowLeft') {
-					e.preventDefault();
-					if (rawHasNoTextBefore(node.raw, widget.start)) {
-						widgetSelection.clear();
-						await focusActions.moveFocus(index - 1, 'end');
-					} else {
-						cursor.setRaw(widget.start);
-						widgetSelection.clear();
-					}
-					return;
-				}
-				if (e.key === 'ArrowRight') {
-					e.preventDefault();
-					if (rawHasNoTextAfter(node.raw, widget.end)) {
-						widgetSelection.clear();
-						await focusActions.moveFocus(index + 1, 'start');
-					} else {
-						cursor.setRaw(widget.end);
-						widgetSelection.clear();
-					}
-					return;
-				}
-				if (e.key === 'Backspace' || e.key === 'Delete') {
-					e.preventDefault();
-					const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-					// Undo anchor at the pre-select caret position, not the far
-					// widget boundary — Ctrl+Z restores the caret where the
-					// user actually was when selection took over.
-					blockEdit.updateBlockContent(index, newRaw, selectedWidget.preSelectOffset, widget.start);
-					widgetSelection.clear();
-					return;
-				}
-				if (e.key === 'Escape') {
-					e.preventDefault();
-					cursor.setRaw(widget.end);
-					widgetSelection.clear();
-					return;
-				}
-				if (isTypingKey(e)) {
-					e.preventDefault();
-					const typed = e.key;
-					const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-					blockEdit.updateBlockContent(
-						index,
-						newRaw,
-						selectedWidget.preSelectOffset,
-						widget.start + typed.length
-					);
-					widgetSelection.clear();
-					return;
-				}
-				return;
-			}
-		}
+		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
 
 		// Shift+Arrow into a widget snaps focus to the far boundary atomically.
 		// Native default with user-select:none on the widget collapses the
 		// selection instead of stepping past it.
-		if (e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && el) {
-			const widgetExt = widgetExtensionTarget(e.key);
-			if (widgetExt !== null) {
-				e.preventDefault();
-				extendSelectionToRaw(widgetExt);
-				return;
-			}
-		}
+		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// `caretInTextNode` is the load-bearing gate: Chromium inserts into
-		// a text node natively, but drops printable keys at element-level
-		// positions adjacent to a contenteditable=false widget.
-		const effectiveOffset = cursor.getRaw();
-		const caretInTextNode = (() => {
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0) return false;
-			return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
-		})();
-
-		if (effectiveOffset !== null) {
-			const widgetAt = widgetAtCursor(effectiveOffset, node.inlineContent, node.raw);
-			if (widgetAt) {
-				if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
-					e.preventDefault();
-					lastSnapTargetOffset = null;
-					widgetSelection.select({
-						paragraphPath: myPath,
-						sourceStart: widgetAt.start,
-						preSelectOffset: widgetAt.end
-					});
-					return;
-				}
-				if (!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
-					e.preventDefault();
-					lastSnapTargetOffset = null;
-					widgetSelection.select({
-						paragraphPath: myPath,
-						sourceStart: widgetAt.start,
-						preSelectOffset: widgetAt.start
-					});
-					return;
-				}
-				if (!caretInTextNode && isTypingKey(e)) {
-					e.preventDefault();
-					lastSnapTargetOffset = null;
-					const typed = e.key;
-					const newRaw =
-						node.raw.slice(0, effectiveOffset) + typed + node.raw.slice(effectiveOffset);
-					const postEdit = effectiveOffset + typed.length;
-					blockEdit.updateBlockContent(index, newRaw, effectiveOffset, postEdit);
-					// pendingCursorOffset re-anchors the caret after the rerender —
-					// without it, the next keystroke teleports to div offset 0.
-					pendingCursorOffset = postEdit;
-					return;
-				}
-			}
-		}
+		if (widgetInteraction.handleWidgetAtCursorKeydown(e, cursor.getRaw())) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
@@ -725,7 +580,6 @@
 	// (no text-node anchor); capture click X in pointerdown and snap to the
 	// nearest widget edge in onClick.
 	let lastClickClientX: number | null = null;
-	let lastClickClientY: number | null = null;
 	// Survives the click→keydown gap when Chromium clears the caret at
 	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
@@ -733,7 +587,6 @@
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 		lastClickClientX = e.clientX;
-		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
 	}
 
@@ -745,78 +598,8 @@
 	function onClick(): void {
 		const x = lastClickClientX;
 		lastClickClientX = null;
-		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		snapClickToWidgetEdge(x);
-	}
-
-	function snapClickToWidgetEdge(clickX: number | null): void {
-		lastSnapTargetOffset = null;
-		if (!el || clickX === null) return;
-		// Don't override a click that landed in a real text node — native
-		// caret renders there and a synthetic overlay would compete.
-		if (caretIsInTextContent(el, window.getSelection())) return;
-		for (const inline of node.inlineContent ?? []) {
-			if (!isLiveWidgetInline(inline, node.raw)) continue;
-			const widget = el.querySelector(
-				`[data-inline-widget][data-source-start="${inline.start}"]`
-			) as HTMLElement | null;
-			if (!widget) continue;
-			const rect = widget.getBoundingClientRect();
-			if (clickX > rect.right) {
-				el.focus();
-				cursor.setRaw(inline.end);
-				// `setRaw`'s walker may have landed the caret in a trailing
-				// text node — in that case native renders, no synthetic needed.
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					lastSnapTargetOffset = inline.end;
-				}
-				return;
-			}
-			if (clickX < rect.left) {
-				el.focus();
-				cursor.setRaw(inline.start);
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					lastSnapTargetOffset = inline.start;
-				}
-				return;
-			}
-		}
-	}
-
-	// ── Widget adjacency ───────────────────────────────────────────────
-
-	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
-		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		const focus = Math.max(0, content - ambientLength);
-		for (const inline of node.inlineContent ?? []) {
-			if (inline.kind !== 'image') continue;
-			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
-				return inline.end;
-			}
-			if (key === 'ArrowLeft' && focus > inline.start && focus <= inline.end) {
-				return inline.start;
-			}
-		}
-		return null;
-	}
-
-	function extendSelectionToRaw(rawOffset: number): void {
-		if (!el) return;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return;
-		const target = ambientLength + rawOffset;
-		const range = createRangeAtRawOffsets(el, target, target);
-		if (!range) return;
-		sel.extend(range.endContainer, range.endOffset);
-	}
-
-	function isTypingKey(e: KeyboardEvent): boolean {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false;
-		return e.key.length === 1;
+		widgetInteraction.snapClickToWidgetEdge(x);
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
