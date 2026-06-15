@@ -8,6 +8,12 @@ function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
 }
 
+function inlineWithRefs(content: string, refs: string) {
+	const doc = parse(content + '\n\n' + refs);
+	const map = buildLinkReferenceMap(doc.children);
+	return parseInline(content, 0, content.length, map.resolve);
+}
+
 describe('parseInline — autolinks (Stage 3)', () => {
 	it('angle-bracket autolink', () => {
 		const nodes = inlineOf('Visit <https://example.com> now');
@@ -415,12 +421,6 @@ describe('autolink stage interactions', () => {
 });
 
 describe('reference-style link resolution (CommonMark §6.3)', () => {
-	function inlineWithRefs(content: string, refs: string) {
-		const doc = parse(content + '\n\n' + refs);
-		const map = buildLinkReferenceMap(doc.children);
-		return parseInline(content, 0, content.length, map.resolve);
-	}
-
 	it('full reference: [text][label] resolves with url', () => {
 		const nodes = inlineWithRefs('Click [here][go] now', '[go]: https://example.com');
 		const links = nodes.filter((n) => n.kind === 'link');
@@ -504,12 +504,6 @@ describe('reference-style link resolution (CommonMark §6.3)', () => {
 });
 
 describe('reference-style image resolution (CommonMark §6.3)', () => {
-	function inlineWithRefs(content: string, refs: string) {
-		const doc = parse(content + '\n\n' + refs);
-		const map = buildLinkReferenceMap(doc.children);
-		return parseInline(content, 0, content.length, map.resolve);
-	}
-
 	it('full reference image: ![alt][label] resolves', () => {
 		const nodes = inlineWithRefs('See ![pic][img] here', '[img]: /img.png');
 		const images = nodes.filter((n) => n.kind === 'image');
@@ -578,12 +572,6 @@ describe('reference-style image resolution (CommonMark §6.3)', () => {
 });
 
 describe('unresolvedReference emission (CommonMark §6.3 deviation)', () => {
-	function inlineWithRefs(content: string, refs: string) {
-		const doc = parse(content + '\n\n' + refs);
-		const map = buildLinkReferenceMap(doc.children);
-		return parseInline(content, 0, content.length, map.resolve);
-	}
-
 	it('full reference link with no matching LRD emits unresolvedReference (refKind=link)', () => {
 		const nodes = inlineWithRefs('[text][missing]', '[other]: https://example.com');
 		const unresolved = nodes.filter((n) => n.kind === 'unresolvedReference');
