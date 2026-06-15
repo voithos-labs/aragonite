@@ -1,24 +1,45 @@
 import type { Page } from '@playwright/test';
 
 export interface ErrorCollector {
-	assertNone(): void;
+	/**
+	 * Subscribe to the editor's structured `error` event seam. Call once at
+	 * session start, before any gesture. Async because it reaches into the page.
+	 */
+	start(): Promise<void>;
+	/** Throw if any channel recorded a failure since `start`. */
+	assertNone(): Promise<void>;
 }
 
 /**
  * No global console/pageerror gate exists in the harness, so a long session
- * owns its own. Attach at session start (before any gesture) so nothing fires
- * unobserved; `assertNone` is called at checkpoints and at the end.
+ * owns its own. It watches three channels the session must stay clean on:
+ * console errors + pageerrors; `[invariant:…]`-marked dev warnings (the
+ * commit/bootstrap invariant seam — otherwise a `console.warn` the harness
+ * would ignore); and the editor's structured `error` event (caught render /
+ * commit / subscriber failures the editor contains rather than throws).
+ * Attach before any gesture, then `await start()`; `assertNone` runs at
+ * checkpoints and at the end.
  */
 export function attachErrorCollector(page: Page): ErrorCollector {
 	const errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 	page.on('console', (m) => {
-		if (m.type() === 'error') errors.push(`console.error: ${m.text()}`);
+		const type = m.type();
+		if (type === 'error') errors.push(`console.error: ${m.text()}`);
+		else if (type === 'warning' && m.text().includes('[invariant:'))
+			errors.push(`invariant violation: ${m.text()}`);
 	});
 	return {
-		assertNone() {
-			if (errors.length) {
-				throw new Error(`Console/page errors during session:\n${errors.join('\n')}`);
+		async start() {
+			await page.evaluate(() => (window as any).__test.startErrorCapture());
+		},
+		async assertNone() {
+			const origins: string[] = await page.evaluate(() =>
+				(window as any).__test.getCapturedErrors()
+			);
+			const all = [...errors, ...origins.map((o) => `editor error event: origin=${o}`)];
+			if (all.length) {
+				throw new Error(`Console/page/editor errors during session:\n${all.join('\n')}`);
 			}
 		}
 	};
