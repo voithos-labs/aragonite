@@ -36,16 +36,24 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		if (!el) return;
 		const node = deps.node;
 
-		// Read the signature before the early-return so the caller's $effect
-		// registers a dependency on it. Gate on '[' — every reference form needs
-		// a bracket; a false positive merely re-parses to identical output.
-		const sig = node.raw.includes('[') ? (deps.linkRef?.signature ?? '') : '';
+		// A cell resolves through an LRD only if it contains a bracket. Gate both
+		// the signature dependency and the resolver read on it, so a bracketless
+		// cell never subscribes to the resolver and an LRD change can't re-render
+		// every cell in the document. A false positive merely re-parses to
+		// identical output.
+		const hasRef = node.raw.includes('[');
+		const sig = hasRef ? (deps.linkRef?.signature ?? '') : '';
 		const renderKey = `${node.raw}\0${sig}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
 		const range = getContentRange(node);
-		const content = parseInline(node.raw, range.start, range.end, deps.linkRef?.current);
+		const content = parseInline(
+			node.raw,
+			range.start,
+			range.end,
+			hasRef ? deps.linkRef?.current : undefined
+		);
 		el.replaceChildren(
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true

@@ -381,3 +381,37 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	write('axisS-flatcount', { rows });
 	expect(rows.length).toBe(3);
 });
+
+// ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
+// Cost #2 (the one-time first-edit full-document re-render) is now fixed — the
+// LRD resolver is reassigned only on a real signature change, so the first edit
+// no longer re-renders every block. This capture confirms that: renders is now
+// bounded, not ~22k. Steady-state cost #1 (mounted-component flush) is unchanged
+// and remains the VR (0.8.6) target.
+
+test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
+	await loadAndFocusLast(page, editor, src);
+	const base = await page.evaluate(docLengthInPage);
+	await page.evaluate(() => {
+		(window as any).__test.perf.enable();
+		(window as any).__test.perf.reset();
+	});
+	await editor.typeSlowly('x'); // the FIRST edit after load
+	await settle(page, base + 1);
+	const s = await page.evaluate(() => (window as any).__test.perf.snapshot());
+	write('axisT-first-edit', {
+		renders: s.blockRenderCount,
+		parseCount: s.parseCount,
+		parseBlockCount: s.parseBlockCount,
+		inlineRefreshCount: s.inlineRefreshCount,
+		inlineRefreshNodeCount: s.inlineRefreshNodeCount,
+		snapshotCount: s.snapshotCount,
+		rebuildDepths: s.rebuildDepths
+	});
+	// Pre-fix this was ~21,980 (the whole document). Post-fix the first edit
+	// re-renders only the edited block; the generous bound still catches any
+	// regression back toward a document-wide fan-out.
+	expect(s.blockRenderCount).toBeLessThanOrEqual(50);
+});
