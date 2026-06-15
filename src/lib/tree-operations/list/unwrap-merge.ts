@@ -258,7 +258,10 @@ export function mergeListItemIntoPrevious(
 	rebuildAncestryRaw(list, targetPath);
 
 	if (metadataOf(list, 'list')?.ordered) {
-		renumberOrderedList(list, 0, sharing);
+		// M1 only ever removes a non-first item, so children[0] keeps the
+		// list's original base — renumber from 1 to continue from it rather
+		// than resetting the sequence to 1 (fromIndex=0).
+		renumberOrderedList(list, 1, sharing);
 		rebuildListRaw(list);
 	}
 
