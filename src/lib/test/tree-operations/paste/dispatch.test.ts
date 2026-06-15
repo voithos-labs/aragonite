@@ -13,11 +13,16 @@ import {
 } from '../../../tree-operations/paste-surfaces';
 import { parse } from '../../../core/parser';
 import { createSharingState } from '../../../undo/epoch-tracker';
-import { registerBlockListState } from '../../../reactivity/state-registry';
+import {
+	expectStateForNode,
+	getStateForNode,
+	registerBlockListState
+} from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
 import type { BlockComponent } from '../../../block-component';
 import type { UndoController } from '../../../editor-actions/deps';
+import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 
 function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -113,7 +118,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 	};
 }
 
-function makeStubController(): UndoController {
+function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
 		pushUndoSnapshot: vi.fn(),
@@ -124,8 +129,10 @@ function makeStubController(): UndoController {
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
 		collapsedSelectionAt: vi.fn(),
-		clearDebouncedCheckpoint: vi.fn()
-	} as unknown as UndoController;
+		clearDebouncedCheckpoint: vi.fn(),
+		resolveState: getStateForNode,
+		expectState: expectStateForNode
+	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
 describe('paste-dispatch opaque-fallback warning', () => {
@@ -207,7 +214,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 				const sharing = createSharingState();
 				mutate(scopes.map((s: { node: CstNode }) => ({ children: [], node: s.node, sharing })));
 			})
-		} as unknown as UndoController;
+		} as unknown as PasteCommitCoordinator;
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },
@@ -252,7 +259,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 				}));
 				mutate(scopeViews);
 			})
-		} as unknown as UndoController;
+		} as unknown as PasteCommitCoordinator;
 
 		await pasteDispatch(
 			{ pastedText, targetPath: [0, 0, 0], offset: 'one'.length },

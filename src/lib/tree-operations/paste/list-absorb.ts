@@ -30,7 +30,6 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { expectStateForNode } from '../../reactivity/state-registry';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -87,7 +86,7 @@ export async function applyListAbsorb(
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!outer?.children) return;
-	const outerState = expectStateForNode(outer);
+	const outerState = ctx.controller.expectState(outer);
 
 	const item = outer.children[plan.itemIndex];
 	if (!item?.children) return;

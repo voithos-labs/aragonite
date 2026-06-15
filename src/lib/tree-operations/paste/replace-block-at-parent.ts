@@ -17,7 +17,6 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../structural-change';
-import { expectStateForNode } from '../../reactivity/state-registry';
 
 export interface ReplaceBlockAtParentArgs {
 	doc: Document;
@@ -52,7 +51,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	const scope: MultiScopeTarget = isTopLevel
 		? controller.getDocScope()
-		: { node: parentNode!, state: expectStateForNode(parentNode!), path: parentPath };
+		: { node: parentNode!, state: controller.expectState(parentNode!), path: parentPath };
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
