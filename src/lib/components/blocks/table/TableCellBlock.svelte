@@ -37,10 +37,7 @@
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { TableAlignment } from '../../../core/nodes';
-	import { metadataOf } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
-	import { nodeAt } from '../../../tree-operations/node-ops';
-	import { pathsEqual } from '../../../selection/path-math';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import {
@@ -70,7 +67,7 @@
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
-	import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
+	import { intraTableRectPayload } from './cell-clipboard';
 	import {
 		installCellDragListener,
 		handleCellShiftClick,
@@ -473,31 +470,9 @@
 		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor);
 	}
 
-	function intraTableRectPayload(): string | null {
-		const sel = selection;
-		const isIntraTableMultiCell =
-			sel.isCustomRendered &&
-			sel.anchor &&
-			sel.focus &&
-			pathsEqual(sel.anchor.path, sel.focus.path);
-		if (!isIntraTableMultiCell || !sel.anchor || !sel.focus) return null;
-		const tableNode = nodeAt(getDoc(), sel.anchor.path);
-		if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return null;
-		const colCount = metadataOf(tableNode, 'table').columnCount;
-		const a = {
-			rowIdx: Math.floor(sel.anchor.offset / colCount),
-			colIdx: sel.anchor.offset % colCount
-		};
-		const b = {
-			rowIdx: Math.floor(sel.focus.offset / colCount),
-			colIdx: sel.focus.offset % colCount
-		};
-		return copyRectangleAsSubTable(tableNode, a, b);
-	}
-
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
-		const rectPayload = intraTableRectPayload();
+		const rectPayload = intraTableRectPayload({ selection, getDoc });
 		if (rectPayload !== null) {
 			e.preventDefault();
 			e.clipboardData?.setData('text/plain', rectPayload);
@@ -515,7 +490,7 @@
 		// delete through the cross-block path *without* tableCoverageDelete so
 		// the cells are cleared in place (Backspace's structural delete is the
 		// only path that opts into row/column/table removal).
-		const rectPayload = intraTableRectPayload();
+		const rectPayload = intraTableRectPayload({ selection, getDoc });
 		if (rectPayload !== null) {
 			e.clipboardData?.setData('text/plain', rectPayload);
 			await crossBlock.performCrossBlockDeleteFromEvent();
