@@ -8,7 +8,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import { assignIds, generateBlockId } from './block-id';
+import { assignIds, generateBlockId } from '../block-id';
 
 export function pushChild(container: CstNode, child: CstNode): void {
 	if (!container.children) container.children = [];

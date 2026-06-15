@@ -9,7 +9,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
-import { freshChildIds } from '../block-id';
+import { freshChildIds } from '../../block-id';
 
 // ── List / item construction ─────────────────────────────────────────────────
 

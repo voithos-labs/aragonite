@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { assignIds } from '../../tree-operations/block-id';
+import { assignIds } from '../../block-id';
 import { createUndoManager } from '../../undo/manager';
 import type { UndoEntry } from '../../undo/types';
 

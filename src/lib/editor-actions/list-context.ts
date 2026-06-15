@@ -25,7 +25,7 @@ import {
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
-import { freshChildIds, generateBlockId } from '../tree-operations/block-id';
+import { freshChildIds, generateBlockId } from '../block-id';
 
 export interface ListContextDeps {
 	get index(): number;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { assignIds, generateBlockId } from '../../tree-operations/block-id';
+import { parse } from '../core/parser';
+import { assignIds, generateBlockId } from '../block-id';
 
 describe('assignIds', () => {
 	it('returns an array of unique IDs matching children length', () => {
