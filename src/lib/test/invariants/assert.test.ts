@@ -11,16 +11,18 @@ describe('assertInvariant — dev-runtime channel', () => {
 	});
 	afterEach(() => vi.unstubAllEnvs());
 
-	it('routes a violation to devWarn (non-crashing)', () => {
+	// The tag is namespaced `invariant:<tag>` so the e2e simulation's error
+	// collector can match violations via the `[invariant:` console marker.
+	it('routes a violation to devWarn under the invariant namespace (non-crashing)', () => {
 		const violation: InvariantViolation = { code: 'stale-raw', message: 'raw drifted' };
 		expect(() => assertInvariant('test', () => violation)).not.toThrow();
 		expect(devWarn).toHaveBeenCalledTimes(1);
-		expect(devWarn).toHaveBeenCalledWith('test', 'raw drifted', 'stale-raw');
+		expect(devWarn).toHaveBeenCalledWith('invariant:test', 'raw drifted', 'stale-raw');
 	});
 
 	it('passes violation.detail through when present', () => {
 		assertInvariant('test', () => ({ code: 'x', message: 'm', detail: { n: 1 } }));
-		expect(devWarn).toHaveBeenCalledWith('test', 'm', { n: 1 });
+		expect(devWarn).toHaveBeenCalledWith('invariant:test', 'm', { n: 1 });
 	});
 
 	it('stays silent when the predicate returns null', () => {

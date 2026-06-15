@@ -73,7 +73,7 @@ describe('structural-sharing snapshots', () => {
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();
 		expect(devWarn).toHaveBeenCalledWith(
-			'snapshot-integrity',
+			'invariant:snapshot-integrity',
 			expect.stringContaining('undo: snapshot digest mismatch'),
 			'snapshot-integrity'
 		);

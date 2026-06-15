@@ -17,6 +17,8 @@ export function assertInvariant(tag: string, check: () => InvariantViolation | n
 	if (!import.meta.env.DEV) return;
 	const violation = check();
 	if (violation) {
-		devWarn(tag, violation.message, violation.detail ?? violation.code);
+		// `invariant:` namespaces the console marker so the e2e simulation's error
+		// collector catches violations without tripping on benign dev warnings.
+		devWarn(`invariant:${tag}`, violation.message, violation.detail ?? violation.code);
 	}
 }
