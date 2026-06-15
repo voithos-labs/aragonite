@@ -21,10 +21,14 @@ export interface PerfSnapshot {
 	inlineRefreshNodeCount: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
+	blockRenderCount: number;
+	blockRenderMsTotal: number;
+	keystrokeInPageMs: number[];
 }
 
 let enabled = false;
 let counters = emptySnapshot();
+let keystrokeStart: number | null = null;
 
 function emptySnapshot(): PerfSnapshot {
 	return {
@@ -37,7 +41,10 @@ function emptySnapshot(): PerfSnapshot {
 		inlineRefreshCount: 0,
 		inlineRefreshNodeCount: 0,
 		undoLiveBytes: 0,
-		undoEntryCount: 0
+		undoEntryCount: 0,
+		blockRenderCount: 0,
+		blockRenderMsTotal: 0,
+		keystrokeInPageMs: []
 	};
 }
 
@@ -55,6 +62,7 @@ export function disablePerfInstruments(): void {
 
 export function resetPerfInstruments(): void {
 	counters = emptySnapshot();
+	keystrokeStart = null;
 }
 
 export function perfEnabled(): boolean {
@@ -62,7 +70,11 @@ export function perfEnabled(): boolean {
 }
 
 export function perfSnapshot(): PerfSnapshot {
-	return { ...counters, rebuildDepths: { ...counters.rebuildDepths } };
+	return {
+		...counters,
+		rebuildDepths: { ...counters.rebuildDepths },
+		keystrokeInPageMs: [...counters.keystrokeInPageMs]
+	};
 }
 
 // ── Recorders ───────────────────────────────────────────────────────────────
@@ -95,6 +107,23 @@ export function setUndoGauge(liveBytes: number, entryCount: number): void {
 	if (!enabled) return;
 	counters.undoLiveBytes = liveBytes;
 	counters.undoEntryCount = entryCount;
+}
+
+export function recordBlockRender(ms: number): void {
+	if (!enabled) return;
+	counters.blockRenderCount++;
+	counters.blockRenderMsTotal += ms;
+}
+
+export function markKeystrokeStart(): void {
+	if (!enabled) return;
+	keystrokeStart = performance.now();
+}
+
+export function markKeystrokeSettle(): void {
+	if (!enabled || keystrokeStart === null) return;
+	counters.keystrokeInPageMs.push(performance.now() - keystrokeStart);
+	keystrokeStart = null;
 }
 
 /**
