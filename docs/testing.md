@@ -180,8 +180,9 @@ Two layers measure editor performance over shared deterministic fixtures:
 | ------- | ------------------------------------ | --------------------- | --------------------------------------------------------------------------------------- |
 | Bench   | Vitest bench (`*.bench.ts`)          | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/` (gitignored) |
 | Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                    |
+| Gate    | Playwright `e2e-perf` (`PERF_GATE`)  | `npm run perf:check`  | Keystroke p50 of the renderable 1MB rows vs baseline+tolerance — fails on regression    |
 
-`npm run perf` runs both. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/editor/e2e/requirements/perf/typing-latency.md`.
+`npm run perf` runs the first two. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/editor/e2e/requirements/perf/typing-latency.md`.
 
 ### Fixtures
 
@@ -197,12 +198,15 @@ On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()`
 
 ### Threshold policy
 
-| Kind                         | Examples                                       | Treatment                                                                                                |
-| ---------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Machine-independent counters | Clone byte parity, container-raw amplification | Hard ceilings — fail the commit gate (`test:editor:perf`, part of `npm test`)                            |
-| Time rows                    | Parse/clone ms, keystroke p50/p95              | Report-only — compared against `src/lib/editor/test/perf/baseline.json` (machine metadata + rme/samples) |
+| Kind                         | Examples                                       | Treatment                                                                                            |
+| ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Machine-independent counters | Clone byte parity, container-raw amplification | Hard ceilings — fail the commit gate (`test:editor:perf`, part of `npm test`)                        |
+| Keystroke p50 (≤1MB rows)    | nested / flat / reference / table 1MB          | Gated by `npm run perf:check` — deliberate, not in `npm test`; fails past baseline + `max(10%, 5ms)` |
+| Other time rows              | Parse/clone bench ms, p95, 10MB rows           | Report-only vs `src/lib/editor/test/perf/baseline.json` (machine metadata + rme/samples)             |
 
-Ceiling bumps are deliberate decisions with a changelog note, never reflexive edits.
+Ceiling and baseline bumps are deliberate decisions with a changelog note, never reflexive edits.
+
+**`perf:check` scope.** The dev machine is the pinned hardware — same-machine run-to-run p50 spread is a few percent, so an absolute baseline + tolerance catches regressions without a CI runner; re-bless the baseline after a Chromium/OS/toolchain bump moves the floor. It gates **steady-state** p50: a one-slow-keystroke regression (e.g. a first-edit full re-render) barely moves a 30-sample median, so that class is guarded separately by the `block-render-scoping` count assertion inside the fast `npm test` gate. p95 is reported, not gated — it catches single GC-pause keystrokes and is noisier.
 
 **Dev-overhead caveat:** both layers run under DEV (Vitest / dev server) with invariant assertions active — every timing number is a conservative upper bound on production, not a production latency.
 
