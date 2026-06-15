@@ -7,8 +7,11 @@ import {
 	disablePerfInstruments,
 	docByteLength,
 	enablePerfInstruments,
+	markKeystrokeSettle,
+	markKeystrokeStart,
 	perfEnabled,
 	perfSnapshot,
+	recordBlockRender,
 	recordInlineRefresh,
 	recordParse,
 	recordRebuildDepth,
@@ -27,7 +30,10 @@ const EMPTY: PerfSnapshot = {
 	inlineRefreshCount: 0,
 	inlineRefreshNodeCount: 0,
 	undoLiveBytes: 0,
-	undoEntryCount: 0
+	undoEntryCount: 0,
+	blockRenderCount: 0,
+	blockRenderMsTotal: 0,
+	keystrokeInPageMs: []
 };
 
 function recordOneOfEach(): void {
@@ -36,6 +42,9 @@ function recordOneOfEach(): void {
 	recordParse(1.5, 10);
 	recordInlineRefresh(5);
 	setUndoGauge(1000, 2);
+	recordBlockRender(2);
+	markKeystrokeStart();
+	markKeystrokeSettle();
 }
 
 beforeEach(() => {
@@ -99,6 +108,34 @@ describe('perf instruments', () => {
 	it('docByteLength equals serialized length', () => {
 		const src = '# h\n\n> quote\n\n- a\n- b\n';
 		expect(docByteLength(parse(src))).toBe(src.length);
+	});
+
+	it('records block renders while enabled', () => {
+		enablePerfInstruments();
+		recordBlockRender(2.5);
+		recordBlockRender(1.5);
+		const s = perfSnapshot();
+		expect(s.blockRenderCount).toBe(2);
+		expect(s.blockRenderMsTotal).toBeCloseTo(4);
+	});
+
+	it('records one in-page keystroke sample per start/settle pair', () => {
+		enablePerfInstruments();
+		markKeystrokeStart();
+		markKeystrokeSettle();
+		markKeystrokeSettle(); // no pending start → ignored
+		const s = perfSnapshot();
+		expect(s.keystrokeInPageMs).toHaveLength(1);
+		expect(s.keystrokeInPageMs[0]).toBeGreaterThanOrEqual(0);
+	});
+
+	it('keystroke samples array is an independent copy', () => {
+		enablePerfInstruments();
+		markKeystrokeStart();
+		markKeystrokeSettle();
+		const first = perfSnapshot();
+		first.keystrokeInPageMs.push(999);
+		expect(perfSnapshot().keystrokeInPageMs).toHaveLength(1);
 	});
 });
 
