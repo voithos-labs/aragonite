@@ -1,6 +1,6 @@
 # 0.8 Perf-Gate CI — Spec
 
-**Status: drafted 2026-06-15 — PARKED, gated on pinned-runner provisioning (user-assisted). Companion to the diagnosis spec (`docs/perf/latency-attribution-spec.md`).**
+**Status: drafted 2026-06-15 — PARKED, gated on pinned-runner provisioning (user-assisted). Companion to the diagnosis (`docs/perf/latency-attribution-findings.md`).**
 
 Split from the diagnosis on purpose: the diagnosis is local and unblocks the next-batch decision now; this is infrastructure with a hardware dependency. CI only bites once you are optimizing (the batch _after_ the diagnosis), so it must not stall the diagnosis. Pick this up once a runner exists.
 
@@ -40,4 +40,4 @@ Resolve this before implementation. The rest of the design is runner-agnostic.
 
 ## Relationship to the diagnosis
 
-The diagnosis (`latency-attribution-spec.md`) picks _what_ to optimize; this gate measures _whether_ the optimization worked and _when it is done_. They are independent to build and converge at the first optimization batch.
+The diagnosis (`latency-attribution-findings.md`) picks _what_ to optimize; this gate measures _whether_ the optimization worked and _when it is done_. They are independent to build and converge at the first optimization batch.

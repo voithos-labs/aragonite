@@ -1,6 +1,6 @@
 # 0.8 Latency Attribution — Findings
 
-Machine: dev workstation (see `src/lib/editor/test/perf/baseline.json` machine stamp). Raw artifacts: `perf-results/` (gitignored). Each axis carries its confirm/falsify result. Spec: `docs/perf/latency-attribution-spec.md`; plan: `docs/perf/latency-attribution-plan.md`.
+Machine: dev workstation (see `src/lib/editor/test/perf/baseline.json` machine stamp). Raw artifacts: `perf-results/` (gitignored). Each axis carries its confirm/falsify result. Method/harness: `src/lib/editor/e2e/tests/perf/attribution.perf.spec.ts` (the reproducible captures); parked CI gate: `docs/perf/perf-gate-ci-spec.md`.
 
 ## Step zero — prod vs dev (nested-containers 1MB)
 
