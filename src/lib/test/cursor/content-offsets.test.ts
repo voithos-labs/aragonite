@@ -8,9 +8,9 @@ import {
 	getCursorOffset,
 	getSelectionOffsets,
 	hasSelection
-} from '../../cursor/cursor-utils';
+} from '../../cursor/content-offsets';
 
-describe('cursor-utils', () => {
+describe('content-offsets', () => {
 	let container: HTMLElement;
 
 	beforeEach(() => {

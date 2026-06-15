@@ -1,15 +1,15 @@
 /**
  * Keydown + compositionstart half of the cross-block dispatcher.
- * See cross-block-dispatch.ts for the composer that wires this together
+ * See dispatch.ts for the composer that wires this together
  * with the pointer half.
  */
 
-import type { CrossBlockMutationContext } from './cross-block-ops';
-import type { CrossBlockDispatchContext } from './cross-block-dispatch';
-import type { CstNode, Document } from '../core/nodes';
-import { performCrossBlockDelete, performCrossBlockDeleteSync } from './cross-block-ops';
-import { eventToChord } from '../schema/keybindings';
-import { dispatchKeyCommand } from '../schema/commands';
+import type { CrossBlockMutationContext } from './ops';
+import type { CrossBlockDispatchContext } from './dispatch';
+import type { CstNode, Document } from '../../core/nodes';
+import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
+import { eventToChord } from '../../schema/keybindings';
+import { dispatchKeyCommand } from '../../schema/commands';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
@@ -17,9 +17,9 @@ import {
 	extendFocusToDocEdge,
 	selectWholeDocument,
 	scrollFocusBlockIntoView
-} from './keyboard-extend';
-import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
-import { createRangeFromOffsets } from '../cursor/cursor-utils';
+} from '../keyboard-extend';
+import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
+import { createRangeFromOffsets } from '../../cursor/content-offsets';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

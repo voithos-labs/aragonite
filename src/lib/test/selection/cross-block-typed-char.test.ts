@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block-dispatch';
+import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block/dispatch';
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
 import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo/manager';
-import { createSharingState } from '$lib/editor/undo/sharing';
+import { createSharingState } from '$lib/editor/undo/epoch-tracker';
 import { createEditorEvents } from '$lib/editor/editor-events';
 import { parse } from '$lib/editor/core/parser';
 import { mockRef, makeStickyColumn } from '$lib/editor/test/harness/editor-actions';

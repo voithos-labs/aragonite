@@ -48,7 +48,7 @@
 		type LinkReferenceResolver
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
-	import { createSharingState } from '../undo/sharing';
+	import { createSharingState } from '../undo/epoch-tracker';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions } from '../editor-actions';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';

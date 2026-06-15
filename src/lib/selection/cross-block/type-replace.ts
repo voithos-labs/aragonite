@@ -6,16 +6,16 @@
  * single-block update path (ids/refs reactivity, op:'input' emission).
  */
 
-import type { CstNode } from '../core/nodes';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import type { CrossBlockDispatchContext } from './cross-block-dispatch';
-import type { CrossBlockMutationContext } from './cross-block-ops';
-import { performCrossBlockDelete } from './cross-block-ops';
-import { assertCharOffset } from './primitives';
-import { nodeAt } from '../tree-operations/node-ops';
-import { applyCollapsedCaret } from './native-bridge';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
-import { getStateForNode } from '../reactivity/state-registry';
+import type { CstNode } from '../../core/nodes';
+import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { CrossBlockDispatchContext } from './dispatch';
+import type { CrossBlockMutationContext } from './ops';
+import { performCrossBlockDelete } from './ops';
+import { assertCharOffset } from '../primitives';
+import { nodeAt } from '../../tree-operations/node-ops';
+import { applyCollapsedCaret } from '../native-bridge';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { getStateForNode } from '../../reactivity/state-registry';
 
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,

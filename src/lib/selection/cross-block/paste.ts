@@ -4,22 +4,22 @@
  * DOM (the originating block may have been removed, invalidating pendingCursor).
  */
 
-import type { CrossBlockDispatchContext } from './cross-block-dispatch';
-import type { CrossBlockMutationContext } from './cross-block-ops';
-import type { CstNode, Document } from '../core/nodes';
-import { metadataOf } from '../core/nodes';
-import type { SelectionState } from './selection-state.svelte';
-import { normalizeLineEndings } from '../core/lines';
-import { performCrossBlockDelete } from './cross-block-ops';
-import { assertCharOffset } from './primitives';
-import { applyCollapsedCaret } from './native-bridge';
-import { pasteDispatch } from '../tree-operations/paste/dispatch';
-import { parse } from '../core/parser';
-import { nodeAt } from '../tree-operations/node-ops';
-import { pathsEqual } from './path-math';
-import { materializeBlankLines } from '../tree-operations/paste/strategy';
-import { replaceBlockAtParent } from '../tree-operations/paste/replace-block-at-parent';
-import { ensureEditableContainers, normalizeReplacementTrivia } from '../tree-operations';
+import type { CrossBlockDispatchContext } from './dispatch';
+import type { CrossBlockMutationContext } from './ops';
+import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
+import type { SelectionState } from '../selection-state.svelte';
+import { normalizeLineEndings } from '../../core/lines';
+import { performCrossBlockDelete } from './ops';
+import { assertCharOffset } from '../primitives';
+import { applyCollapsedCaret } from '../native-bridge';
+import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+import { parse } from '../../core/parser';
+import { nodeAt } from '../../tree-operations/node-ops';
+import { pathsEqual } from '../path-math';
+import { materializeBlankLines } from '../../tree-operations/paste/strategy';
+import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
+import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
 
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,

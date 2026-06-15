@@ -5,10 +5,10 @@
  * their own fall-through (e.g. table cells fall through to native copy).
  */
 
-import type { DocumentGetter } from '../editor-keys';
-import type { CrossBlockHandlers } from './cross-block-dispatch';
-import type { SelectionState } from './selection-state.svelte';
-import { collectCrossBlockText } from './clipboard-text';
+import type { DocumentGetter } from '../../editor-keys';
+import type { CrossBlockHandlers } from './dispatch';
+import type { SelectionState } from '../selection-state.svelte';
+import { collectCrossBlockText } from '../clipboard-text';
 
 export interface CrossBlockClipboardDeps {
 	selection: SelectionState;

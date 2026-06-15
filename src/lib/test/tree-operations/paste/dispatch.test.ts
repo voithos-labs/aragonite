@@ -12,7 +12,7 @@ import {
 	registerPasteSurface
 } from '../../../tree-operations/paste-surfaces';
 import { parse } from '../../../core/parser';
-import { createSharingState } from '../../../undo/sharing';
+import { createSharingState } from '../../../undo/epoch-tracker';
 import { registerBlockListState } from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';

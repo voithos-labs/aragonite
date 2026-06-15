@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { rebuildUnsharedAncestry } from '../tree-operations/unshare';
-import { createSharingState } from '../undo/sharing';
+import { createSharingState } from '../undo/epoch-tracker';
 
 describe('round-trip — task items', () => {
 	it('fresh parse + serialize preserves canonical lowercase [x]', () => {

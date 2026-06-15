@@ -9,7 +9,7 @@ import type { ContainerScope } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
-import type { SharingState } from '../../undo/sharing';
+import type { SharingState } from '../../undo/epoch-tracker';
 import type { StructuralChange } from '../structural-change';
 
 export interface MultiScopeTarget {

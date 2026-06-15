@@ -14,7 +14,7 @@ import {
 } from './registry';
 import { checkStaleRaw, checkCategoryFields } from './node-shape';
 import { checkContentRange } from './descriptor';
-import { checkSnapshotIntegrity, type SnapshotEntry } from './sharing';
+import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
  * Per-commit check for the nodes a commit touched (scoped — never a whole-tree

@@ -13,25 +13,25 @@
  *     falls through to the pure-top-level path's cell-clear primitive.
  */
 
-import type { UndoEntryMode } from '../action-contracts';
-import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
-import { metadataOf } from '../core/nodes';
-import type { MultiScopeTarget, UndoController } from '../editor-actions/deps';
-import { applyCollapsedCaret } from './native-bridge';
-import { rangeDelete } from './range-delete';
-import type { StructuralChange } from '../tree-operations/structural-change';
-import { deleteNode, nodeAt } from '../tree-operations/node-ops';
-import { pathHasPrefix, pathsEqual } from './path-math';
-import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { classifyTableSelectionCoverage } from './range-delete-table';
+import type { UndoEntryMode } from '../../action-contracts';
+import type { SelectionState } from '../selection-state.svelte';
+import type { SelectionPoint } from '../primitives';
+import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf } from '../../core/nodes';
+import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
+import { applyCollapsedCaret } from '../native-bridge';
+import { rangeDelete } from '../range-delete';
+import type { StructuralChange } from '../../tree-operations/structural-change';
+import { deleteNode, nodeAt } from '../../tree-operations/node-ops';
+import { pathHasPrefix, pathsEqual } from '../path-math';
+import { expectStateForNode, getStateForNode } from '../../reactivity/state-registry';
+import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import { classifyTableSelectionCoverage } from '../range-delete-table';
 import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn
-} from '../tree-operations/table-mutations';
-import { ensureUnsharedChildren } from '../tree-operations/unshare';
+} from '../../tree-operations/table-mutations';
+import { ensureUnsharedChildren } from '../../tree-operations/unshare';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

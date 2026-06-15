@@ -8,13 +8,13 @@ import type { BlockEditActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
 import type { DocumentGetter, WidgetSelectionState } from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
-import type { CrossBlockHandlers } from '../../../selection/cross-block-dispatch';
+import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
 import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
-import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block-clipboard';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block/clipboard';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
 export interface TextClipboardDeps {

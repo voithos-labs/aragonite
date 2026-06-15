@@ -10,7 +10,7 @@ import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../edi
 import type { StickyColumnState } from '../cursor/sticky-column';
 import { classifyStickyKey } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';
-import type { CrossBlockHandlers } from './cross-block-dispatch';
+import type { CrossBlockHandlers } from './cross-block/dispatch';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
