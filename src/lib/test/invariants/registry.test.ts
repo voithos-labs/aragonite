@@ -49,7 +49,8 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 
 	// Every union member has a real descriptor — catches "added a kind, forgot
 	// to register it". Component lookup is stubbed because components don't load
-	// in the unit-test context (the real-registry gap is a Task 2 bootstrap concern).
+	// in the unit-test context; the one real component gap (`listItem`) is exempt
+	// by design and verified below.
 	it('passes over real descriptors for all kinds', () => {
 		expect(
 			checkRegistryCompleteness(
@@ -58,6 +59,27 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 				() => true
 			)
 		).toBeNull();
+	});
+
+	it('exempts listItem from the component check (renders inside its parent list)', () => {
+		// listItem has no component-registry entry by design — the check must not
+		// fire even when hasComponent reports it missing.
+		expect(
+			checkRegistryCompleteness(
+				['list', 'listItem'],
+				() => true,
+				(k) => k !== 'listItem'
+			)
+		).toBeNull();
+	});
+
+	it('keeps the exemption narrow — a non-exempt missing component still fires', () => {
+		const violation = checkRegistryCompleteness(
+			['listItem', 'list'],
+			() => true,
+			(k) => k !== 'list'
+		);
+		expect(violation?.detail).toEqual({ kind: 'list', missing: 'component' });
 	});
 });
 
