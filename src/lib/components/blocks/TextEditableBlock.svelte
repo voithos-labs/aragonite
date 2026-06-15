@@ -72,6 +72,12 @@
 	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 	import { eventToChord } from '../../schema/keybindings';
 	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+	import {
+		perfEnabled,
+		recordBlockRender,
+		markKeystrokeStart,
+		markKeystrokeSettle
+	} from '../../perf/instruments';
 
 	let {
 		node,
@@ -411,12 +417,15 @@
 			);
 		}
 
+		const t0 = perfEnabled() ? performance.now() : 0;
 		textRender.render({ forceRebuild: pendingCursorOffset !== null });
+		if (perfEnabled()) recordBlockRender(performance.now() - t0);
 
 		if (pendingCursorOffset !== null) {
 			cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
+		markKeystrokeSettle();
 	});
 
 	// Asymmetric clearer: when the cursor moves to a position different from
@@ -466,6 +475,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onInput(): void {
+		markKeystrokeStart();
 		stickyColumn.reset();
 		lastSnapTargetOffset = null;
 		if (composing || !el) return;
