@@ -33,7 +33,8 @@ const EMPTY: PerfSnapshot = {
 	undoEntryCount: 0,
 	blockRenderCount: 0,
 	blockRenderMsTotal: 0,
-	keystrokeInPageMs: []
+	keystrokeInPageMs: [],
+	blockRenderPaths: []
 };
 
 function recordOneOfEach(): void {
@@ -117,6 +118,16 @@ describe('perf instruments', () => {
 		const s = perfSnapshot();
 		expect(s.blockRenderCount).toBe(2);
 		expect(s.blockRenderMsTotal).toBeCloseTo(4);
+	});
+
+	it('records the block path when one is supplied', () => {
+		enablePerfInstruments();
+		recordBlockRender(1, [0, 2]);
+		recordBlockRender(1, [0, 2]);
+		recordBlockRender(1); // no path → counted but not pathed
+		const s = perfSnapshot();
+		expect(s.blockRenderCount).toBe(3);
+		expect(s.blockRenderPaths).toEqual(['0,2', '0,2']);
 	});
 
 	it('records one in-page keystroke sample per start/settle pair', () => {
