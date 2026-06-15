@@ -122,6 +122,27 @@ describe('mergeListItemIntoPrevious', () => {
 		expect(mergePoint.offset).toBe('First'.length);
 	});
 
+	it('ordered list: non-1 base is preserved across the merge', () => {
+		const list = parseList('3. First\n4. Second\n5. Third\n');
+
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+
+		expect(list.children?.length).toBe(2);
+		const markers = list.children!.map((i) => (i.metadata as { marker: string }).marker);
+		expect(markers[0]).toMatch(/^3\./);
+		expect(markers[1]).toMatch(/^4\./);
+	});
+
+	it('ordered list: non-1 base survives a 2-into-1 collapse', () => {
+		const list = parseList('3. First\n4. Second\n');
+
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+
+		expect(list.children?.length).toBe(1);
+		const soleMarker = (list.children?.[0].metadata as { marker: string }).marker;
+		expect(soleMarker).toMatch(/^3\./);
+	});
+
 	it("itemIndex = 0 is rejected (caller's responsibility to handle)", () => {
 		const list = parseList('- A\n- B\n');
 
