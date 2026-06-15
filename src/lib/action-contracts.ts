@@ -6,7 +6,7 @@
 
 import type { CstNode } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
-import type { SharingState } from './undo/sharing';
+import type { SharingState } from './undo/epoch-tracker';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
 

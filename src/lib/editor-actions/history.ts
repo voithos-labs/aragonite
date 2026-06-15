@@ -12,7 +12,7 @@ import { tick } from 'svelte';
 import type { HistoryActions } from '../action-contracts';
 import type { UndoEntry } from '../undo/types';
 import { assertInvariant } from '../invariants/assert';
-import { checkSnapshotIntegrity } from '../invariants/sharing';
+import { checkSnapshotIntegrity } from '../invariants/snapshot-integrity';
 import { applySelectionToDom } from '../selection/native-bridge';
 import type { EditorActionsDeps, UndoController } from './deps';
 

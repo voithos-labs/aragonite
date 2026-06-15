@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { checkSnapshotIntegrity } from '../../invariants/sharing';
+import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { createUndoController } from '../../editor-actions/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createListContext } from '../../editor-actions/list-context';

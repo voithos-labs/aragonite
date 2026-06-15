@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { parse } from '../../core/parser';
-import { createSharingState } from '../../undo/sharing';
+import { createSharingState } from '../../undo/epoch-tracker';
 
 it('nodes without ownerEpoch are shared once any snapshot exists', () => {
 	const sharing = createSharingState();

@@ -11,7 +11,7 @@
 import { bench, describe } from 'vitest';
 import { parse } from '../../core/parser';
 import { createUndoController } from '../../editor-actions/undo-controller';
-import { digestDoc } from '../../invariants/sharing';
+import { digestDoc } from '../../invariants/snapshot-integrity';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { generateFixture, type FixtureShape } from './fixtures/generate';
 

@@ -10,7 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { EditorSelection } from '../editor-keys';
 import type { UndoEntry } from '../undo/types';
 import type { SelectionPoint } from '../selection/primitives';
-import { digestDoc } from '../invariants/sharing';
+import { digestDoc } from '../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../selection/native-bridge';
 import { pathsEqual } from '../selection/path-math';
 import { assertInvariant } from '../invariants/assert';

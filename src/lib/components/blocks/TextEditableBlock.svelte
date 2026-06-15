@@ -47,7 +47,7 @@
 	import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
 	import { isLiveWidgetInline } from '../../core/inline/raw-html-widget';
 	import { trimTrailingLineEnding } from '../../core/lines';
-	import { hasSelection as hasSelectionHelper } from '../../cursor/cursor-utils';
+	import { hasSelection as hasSelectionHelper } from '../../cursor/content-offsets';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from './text/format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
@@ -69,7 +69,7 @@
 		type SharedKeydownContext
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
+	import { createCrossBlockHandlers } from '../../selection/cross-block/dispatch';
 	import {
 		rawOffsetAtNode,
 		rawTextOfNode,

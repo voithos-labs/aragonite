@@ -63,7 +63,7 @@ import { createBlockListState } from '$lib/editor/reactivity/block-list-state.sv
 import { getBlockKindDescriptor } from '$lib/editor/schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '$lib/editor/schema/container-raw';
 import { rebuildUnsharedAncestry } from '$lib/editor/tree-operations/unshare';
-import { createSharingState } from '$lib/editor/undo/sharing';
+import { createSharingState } from '$lib/editor/undo/epoch-tracker';
 import {
 	mockRef,
 	makeStickyColumn,

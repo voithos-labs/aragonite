@@ -1,16 +1,16 @@
 /**
  * Pointer half of the cross-block dispatcher: shift-click extension and
- * pointer-drag entry. See cross-block-dispatch.ts for the composer that
+ * pointer-drag entry. See dispatch.ts for the composer that
  * wires this together with the keydown half.
  */
 
-import type { CrossBlockDispatchContext } from './cross-block-dispatch';
-import type { SelectionState } from './selection-state.svelte';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import { handleShiftClick } from './keyboard-extend';
-import { findBlockPathForElement } from './path-lookup';
-import { clearNativeSelection, offsetFromViewportPoint } from './native-bridge';
-import { installDragListener } from './drag-pointer';
+import type { CrossBlockDispatchContext } from './dispatch';
+import type { SelectionState } from '../selection-state.svelte';
+import type { StickyColumnState } from '../../cursor/sticky-column';
+import { handleShiftClick } from '../keyboard-extend';
+import { findBlockPathForElement } from '../path-lookup';
+import { clearNativeSelection, offsetFromViewportPoint } from '../native-bridge';
+import { installDragListener } from '../drag-pointer';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

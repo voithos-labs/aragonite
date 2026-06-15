@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { createSharingState } from '../../undo/sharing';
+import { createSharingState } from '../../undo/epoch-tracker';
 
 function run(
 	source: string,

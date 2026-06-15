@@ -15,7 +15,7 @@
  * tree-operations stays path-free internally.
  */
 import type { CstNode } from '../core/nodes';
-import type { SharingState } from '../undo/sharing';
+import type { SharingState } from '../undo/epoch-tracker';
 import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';

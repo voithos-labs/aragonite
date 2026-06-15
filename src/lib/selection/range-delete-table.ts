@@ -7,7 +7,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
-import type { SharingState } from '../undo/sharing';
+import type { SharingState } from '../undo/epoch-tracker';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
 import { walkBetween, comparePaths, assertCharOffset } from './primitives';

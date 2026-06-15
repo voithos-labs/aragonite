@@ -42,7 +42,7 @@
 	import { nodeAt } from '../../../tree-operations/node-ops';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-	import { hasSelection as hasSelectionHelper } from '../../../cursor/cursor-utils';
+	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import {
 		rawOffsetAtNode,
 		rawTextOfNode,
@@ -61,12 +61,12 @@
 		type SharedKeydownContext
 	} from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
-	import { createCrossBlockHandlers } from '../../../selection/cross-block-dispatch';
+	import { createCrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 	import {
 		writeCrossBlockCopy,
 		writeCrossBlockCut
-	} from '../../../selection/cross-block-clipboard';
-	import { resetForPointerDown } from '../../../selection/cross-block-pointer';
+	} from '../../../selection/cross-block/clipboard';
+	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';

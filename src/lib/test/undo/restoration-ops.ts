@@ -23,7 +23,7 @@ import {
 } from '../../editor-actions/nested-actions';
 import { createListContext } from '../../editor-actions/list-context';
 import { createTableMutationsContext } from '../../editor-actions/table-context';
-import { performCrossBlockDelete } from '../../selection/cross-block-ops';
+import { performCrossBlockDelete } from '../../selection/cross-block/ops';
 import type { SelectionPoint } from '../../selection/primitives';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import {
