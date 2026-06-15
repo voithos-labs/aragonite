@@ -7,7 +7,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import type { SharingState } from '../../undo/sharing';
+import type { SharingState } from '../../undo/epoch-tracker';
 import { cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';

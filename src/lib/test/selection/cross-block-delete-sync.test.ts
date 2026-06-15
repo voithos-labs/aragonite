@@ -4,7 +4,7 @@ import { tick } from 'svelte';
 import {
 	performCrossBlockDeleteSync,
 	type CrossBlockMutationContext
-} from '$lib/editor/selection/cross-block-ops';
+} from '$lib/editor/selection/cross-block/ops';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
 import { createHistoryActions } from '$lib/editor/editor-actions/history';
 import { parse } from '$lib/editor/core/parser';

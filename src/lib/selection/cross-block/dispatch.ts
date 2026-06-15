@@ -3,24 +3,28 @@
  * Factory returns handler functions each block component calls at the top
  * of its own event handlers; single-block handling stays in each component.
  *
- * This file is the composer: keydown lives in cross-block-keydown.ts,
- * pointer in cross-block-pointer.ts, and paste / type-replace are tiny
+ * This file is the composer: keydown lives in keydown.ts,
+ * pointer in pointer.ts, and paste / type-replace are tiny
  * passthroughs to their dedicated modules.
  */
 
-import type { BlockEditActions, ContainerEditActions, HistoryActions } from '../action-contracts';
-import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
-import type { SelectionState } from './selection-state.svelte';
-import type { CstNode } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { CrossBlockMutationContext } from './cross-block-ops';
-import type { UndoController } from '../editor-actions/deps';
-import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
-import { performCrossBlockDelete } from './cross-block-ops';
-import { handleCrossBlockPaste } from './cross-block-paste';
-import { handleCrossBlockTypeReplace } from './cross-block-type-replace';
-import { createCrossBlockKeydown } from './cross-block-keydown';
-import { createCrossBlockPointer } from './cross-block-pointer';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	HistoryActions
+} from '../../action-contracts';
+import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { SelectionState } from '../selection-state.svelte';
+import type { CstNode } from '../../core/nodes';
+import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { CrossBlockMutationContext } from './ops';
+import type { UndoController } from '../../editor-actions/deps';
+import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import { performCrossBlockDelete } from './ops';
+import { handleCrossBlockPaste } from './paste';
+import { handleCrossBlockTypeReplace } from './type-replace';
+import { createCrossBlockKeydown } from './keydown';
+import { createCrossBlockPointer } from './pointer';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

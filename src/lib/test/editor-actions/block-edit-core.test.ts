@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createBlockEditCore } from '$lib/editor/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor/editor-actions/block-edit-scope';
-import { createSharingState } from '$lib/editor/undo/sharing';
+import { createSharingState } from '$lib/editor/undo/epoch-tracker';
 import type { CstNode } from '$lib/editor/core/nodes';
 import { parse } from '$lib/editor/core/parser';
 

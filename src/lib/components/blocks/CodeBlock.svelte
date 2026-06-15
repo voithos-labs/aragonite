@@ -36,7 +36,7 @@
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
-	} from '../../cursor/cursor-utils';
+	} from '../../cursor/content-offsets';
 	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 	import {
@@ -45,8 +45,8 @@
 		type SharedKeydownContext
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createCrossBlockHandlers } from '../../selection/cross-block-dispatch';
-	import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block-clipboard';
+	import { createCrossBlockHandlers } from '../../selection/cross-block/dispatch';
+	import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 	import { renderCodeBlock } from './code/code-renderer';
 	import {
 		getLineLeadingWhitespace,
