@@ -1,11 +1,8 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
-import {
-	FIXTURE_SHAPES,
-	generateFixture,
-	type FixtureShape
-} from '../../../test/perf/fixtures/generate';
+import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';
+import { measureTypingLatency } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -38,45 +35,6 @@ const MAX_BYTES: Partial<Record<FixtureShape, number>> = {
 	'table-heavy': 1_000_000
 };
 
-// Shapes whose first block is a container (list, table): focusBlockEnd(0)
-// cannot place a caret inside those, and table-cell edits re-pad the whole
-// table (breaking the +1-length settle). These rows type into an appended
-// plain paragraph instead — the dominant per-keystroke costs are whole-doc
-// and caret-position-independent, and ancestry-rebuild cost is covered
-// directly by the vitest bench.
-const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set(['nested-containers', 'table-heavy']);
-const PROSE_TARGET = 'perf cursor target\n';
-
-const LOAD_TIMEOUT_MS = 480_000;
-const KEYSTROKE_TIMEOUT_MS = 60_000;
-
-// ── Settle predicate ────────────────────────────────────────────────────────
-
-// O(top-level children) CST length probe. getSource() serializes the whole
-// doc per poll, which at 10MB would dwarf the latency being measured; summing
-// raw lengths observes the same commit without building the string.
-function docLengthInPage(): number {
-	const doc = (window as any).__test.getDocument();
-	let length = doc.prefix.length + doc.suffix.length;
-	for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
-	return length;
-}
-
-async function waitForDocLength(page: Page, min: number, timeout: number): Promise<void> {
-	await page.waitForFunction(
-		({ fnSrc, min }) => (new Function(`return (${fnSrc})();`)() as number) >= min,
-		{ fnSrc: docLengthInPage.toString(), min },
-		{ timeout, polling: 16 }
-	);
-}
-
-// ── Reporting ───────────────────────────────────────────────────────────────
-
-function percentileMs(samples: number[], p: number): number {
-	const sorted = [...samples].sort((a, b) => a - b);
-	return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
-}
-
 function round(ms: number): number {
 	return Math.round(ms * 10) / 10;
 }
@@ -96,44 +54,17 @@ test.describe('typing latency', () => {
 			if (bytes > (MAX_BYTES[shape] ?? Infinity)) continue;
 			test(`${shape} ${sizeLabel}`, async ({ page }) => {
 				const editor = new EditorPage(page);
-				await editor.goto();
-				const needsTarget = NEEDS_PROSE_TARGET.has(shape);
-				const fixture = generateFixture(shape, bytes) + (needsTarget ? '\n' + PROSE_TARGET : '');
-
-				const loadStart = performance.now();
-				await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
-				// serialize() may trim trailing whitespace, so settle on the
-				// trimmed length; the pre-load doc is orders of magnitude smaller.
-				await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
-				await editor.waitForRenderFlush();
-				const loadMs = performance.now() - loadStart;
-
-				// CST index, not getDomBlockCount(): the chained block locator
-				// evaluates per top-level host and takes minutes at thousands of
-				// hosts; the appended target is by construction the last child.
-				const targetBlock = needsTarget
-					? await page.evaluate(() => (window as any).__test.getDocument().children.length - 1)
-					: 0;
-				await editor.focusBlockEnd(targetBlock);
-				const baseLength = await page.evaluate(docLengthInPage);
-				const samples: number[] = [];
-				for (let i = 1; i <= keystrokes; i++) {
-					const keyStart = performance.now();
-					await editor.typeSlowly('x');
-					await waitForDocLength(page, baseLength + i, KEYSTROKE_TIMEOUT_MS);
-					samples.push(performance.now() - keyStart);
-				}
-
+				const m = await measureTypingLatency(page, editor, shape, bytes, keystrokes);
 				writeResult(shape, sizeLabel, {
 					shape,
 					bytes,
-					loadMs: round(loadMs),
+					loadMs: round(m.loadMs),
 					keystrokes,
-					keystrokeP50Ms: round(percentileMs(samples, 50)),
-					keystrokeP95Ms: round(percentileMs(samples, 95)),
+					keystrokeP50Ms: round(m.p50Ms),
+					keystrokeP95Ms: round(m.p95Ms),
 					note: DEV_CAVEAT
 				});
-				expect(samples).toHaveLength(keystrokes);
+				expect(m.samples).toHaveLength(keystrokes);
 			});
 		}
 	}
