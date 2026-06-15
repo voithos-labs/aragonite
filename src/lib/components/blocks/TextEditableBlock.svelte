@@ -419,7 +419,7 @@
 
 		const t0 = perfEnabled() ? performance.now() : 0;
 		textRender.render({ forceRebuild: pendingCursorOffset !== null });
-		if (perfEnabled()) recordBlockRender(performance.now() - t0);
+		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {
 			cursor.setRaw(pendingCursorOffset);
