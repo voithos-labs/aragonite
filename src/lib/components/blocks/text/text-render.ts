@@ -90,20 +90,25 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
-		// Reading the signature here (before the early-return) registers the
-		// render $effect's dependency on it, so an LRD change elsewhere
-		// re-renders this block. Gated on a literal `[` because every reference
-		// form needs a bracket — bracketless blocks can't resolve through an
-		// LRD, so folding the signature in for them would re-render the whole
-		// document on every LRD edit for no visible change.
-		const refKeyPart = node.raw.includes('[') ? deps.linkSignature : '';
+		// A block can only resolve through an LRD if it contains a bracket. Gate
+		// both the signature dependency and the resolver read on it: a bracketless
+		// block reads neither, so an LRD change never invalidates it. Without this,
+		// every block subscribes to the resolver and one LRD edit re-renders the
+		// whole document.
+		const hasRef = node.raw.includes('[');
+		const refKeyPart = hasRef ? deps.linkSignature : '';
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
 			const range = getContentRange(node);
-			const content = parseInline(node.raw, range.start, range.end, deps.linkResolver);
+			const content = parseInline(
+				node.raw,
+				range.start,
+				range.end,
+				hasRef ? deps.linkResolver : undefined
+			);
 			el.replaceChildren(buildInlineDOM(content));
 			lastRenderedKey = renderKey;
 		} else {
