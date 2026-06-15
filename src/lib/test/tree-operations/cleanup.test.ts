@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { assignIds } from '../../tree-operations/block-id';
+import { assignIds } from '../../block-id';
 import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';
 import type { CstNode, Document } from '../../core/nodes';
 

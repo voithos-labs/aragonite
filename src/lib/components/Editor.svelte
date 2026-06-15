@@ -36,7 +36,7 @@
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
-	import { assignIds } from '../tree-operations/block-id';
+	import { assignIds } from '../block-id';
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
