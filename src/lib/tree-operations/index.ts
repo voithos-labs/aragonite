@@ -47,4 +47,4 @@ export { buildPastedReplacement, foldPasteReplacement } from './paste-replacemen
 
 export { cloneDocument, cloneNode } from './clone';
 
-export { generateBlockId, assignIds } from './block-id';
+export { generateBlockId, assignIds } from '../block-id';

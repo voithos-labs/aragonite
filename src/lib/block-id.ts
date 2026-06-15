@@ -1,4 +1,4 @@
-import type { CstNode } from '../core/nodes';
+import type { CstNode } from './core/nodes';
 
 export function generateBlockId(): string {
 	return crypto.randomUUID();

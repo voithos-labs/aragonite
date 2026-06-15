@@ -15,7 +15,7 @@
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from '../undo/epoch-tracker';
-import { generateBlockId } from './block-id';
+import { generateBlockId } from '../block-id';
 
 export type StructuralChange =
 	| { op: 'noop' }

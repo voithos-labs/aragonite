@@ -14,7 +14,7 @@ import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebui
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
-import { freshChildIds } from '../block-id';
+import { freshChildIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**

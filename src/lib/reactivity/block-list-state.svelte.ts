@@ -10,7 +10,7 @@
 import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { assignIds } from '../tree-operations/block-id';
+import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
 
 export interface BlockListState {

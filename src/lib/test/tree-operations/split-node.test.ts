@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode, bumpLeadingTrivia } from '../../tree-operations';
-import { generateBlockId } from '../../tree-operations/block-id';
+import { generateBlockId } from '../../block-id';
 
 function applyReplace(
 	ids: string[],
