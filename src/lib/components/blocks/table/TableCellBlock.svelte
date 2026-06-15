@@ -8,7 +8,9 @@
 		TableContext
 	} from '../../../action-contracts';
 	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
-	import type { CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { eventToChord } from '../../../schema/keybindings';
+	import { toggleInlineFormat } from '../text/format-toggle';
 	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_COMPONENT_LOOKUP_KEY,
@@ -210,11 +212,23 @@
 		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
 	}
 
+	function toggleFormat(format: 'strong' | 'emphasis'): boolean {
+		if (!el) return false;
+		const offsets = cursor.getRawSelection();
+		if (!offsets) return false;
+		const result = toggleInlineFormat(readCellText(), offsets, format);
+		blockEdit.updateBlockContent(index, result.newDisplay, preEditOffset, result.newSelStart);
+		tick().then(() => setSelection(result.newSelStart, result.newSelEnd));
+		return true;
+	}
+
 	// Cross-block dispatch entry (IMPL-7): a post-delete Enter/Tab routed to this
 	// focused cell. There's no live event, so the 'native'/'select-all-step' plans
 	// (which extend or delegate an event) are declined; the action plans run.
 	export function runCommand(id: CommandId): boolean {
 		if (!el) return false;
+		if (id === 'format.toggleStrong') return toggleFormat('strong');
+		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return false;
 		const plan = cellKeydownPlan(
 			{
@@ -341,9 +355,18 @@
 		);
 
 		switch (plan.kind) {
-			case 'native':
-				await handleSharedKeydown(e, sharedCtx);
+			case 'native': {
+				if (await handleSharedKeydown(e, sharedCtx)) return;
+				// Cells route navigation through cellKeydownPlan, but inline-format
+				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
+				// other editable surface.
+				const chord = eventToChord(e);
+				if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
+					e.preventDefault();
+					return;
+				}
 				return;
+			}
 			// Cells override the document-level 2-stage Ctrl+A with a 3-stage
 			// table-aware variant; the intra-cell step stays native (no preventDefault).
 			case 'select-all-step':

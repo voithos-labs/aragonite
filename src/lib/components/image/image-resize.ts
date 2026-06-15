@@ -25,7 +25,9 @@ export function resolveAspectLockedHeight(
 	newWidth: number,
 	naturalWidth: number,
 	naturalHeight: number
-): number {
-	if (naturalWidth === 0) return naturalHeight;
+): number | undefined {
+	// A not-yet-loaded image reports naturalWidth 0 — there's no ratio to apply,
+	// so leave the height unset (the `|N` form) instead of committing `|Nx0`.
+	if (naturalWidth === 0) return undefined;
 	return Math.round((newWidth / naturalWidth) * naturalHeight);
 }
