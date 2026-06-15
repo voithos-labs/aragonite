@@ -69,7 +69,7 @@ export async function assertEndState(ctx: SimContext, canonicalTarget: string): 
 // ── Structural / consistency oracles ────────────────────────────────────────
 
 export async function assertNoErrors(ctx: SimContext): Promise<void> {
-	ctx.errors.assertNone();
+	await ctx.errors.assertNone();
 }
 
 export async function assertNestedStateConsistent(ctx: SimContext): Promise<void> {

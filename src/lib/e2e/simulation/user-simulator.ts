@@ -35,6 +35,7 @@ const EMPTY_BASELINE = '\n';
  */
 export async function runSession(page: Page, editor: EditorPage, opts: SessionOpts): Promise<void> {
 	const errors = attachErrorCollector(page);
+	await errors.start();
 
 	await editor.loadContent(opts.note.expectedMarkdown);
 	const canonical = await editor.bridge.getSource();
