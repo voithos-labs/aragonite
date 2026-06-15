@@ -94,6 +94,35 @@ export interface ContainerScope {
 	sharing: SharingState;
 }
 
+// ── Multi-scope commit ──────────────────────────────────────────────────────
+// Single-sourced here (the contracts leaf) so the commit/undo layer
+// (editor-actions) and the paste layer (tree-operations/paste) share one
+// definition instead of each redeclaring it.
+
+export interface MultiScopeTarget {
+	node: CstNode;
+	state: {
+		innerBlockIds: string[];
+		innerBlockRefs: (BlockComponent | undefined)[];
+	};
+	/** Doc-absolute path of `node`; the commit primitive unshares its spine. */
+	path: number[];
+}
+
+export interface CommitMultiScopeArgs<
+	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
+> {
+	/** `scopes[0]` is the outermost — it drives the emitted event path. */
+	scopes: S;
+	snapshot: { blockIndex: number; offset: number } | 'skip';
+	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
+	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
+		readonly [K in keyof S]: StructuralChange;
+	};
+	op?: ScopedOpDescriptor;
+	afterTick?: () => void;
+}
+
 export interface ContainerEditActions {
 	/**
 	 * Push a debounced undo snapshot for routine text input. `batchKey`

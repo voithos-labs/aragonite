@@ -5,13 +5,18 @@ import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/cont
 import { parse } from '../../../core/parser';
 import { createSharingState, type SharingState } from '../../../undo/epoch-tracker';
 import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
-import { registerBlockListState } from '../../../reactivity/state-registry';
+import {
+	expectStateForNode,
+	getStateForNode,
+	registerBlockListState
+} from '../../../reactivity/state-registry';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { BlockComponent } from '../../../block-component';
 import type { UndoController } from '../../../editor-actions/deps';
+import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 
-function makeStubController(): UndoController {
+function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
 		pushUndoSnapshot: vi.fn(),
@@ -22,8 +27,10 @@ function makeStubController(): UndoController {
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
 		collapsedSelectionAt: vi.fn(),
-		clearDebouncedCheckpoint: vi.fn()
-	} as unknown as UndoController;
+		clearDebouncedCheckpoint: vi.fn(),
+		resolveState: getStateForNode,
+		expectState: expectStateForNode
+	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
 function registerStubState(node: CstNode): void {
@@ -36,7 +43,7 @@ function registerStubState(node: CstNode): void {
 // A controller whose commitMultiScope mirrors the real primitive's owned-scope
 // protocol (attach working children, run mutate, rebuild scope raws) — enough
 // to exercise the splice + ancestry raw rebuild that the bug corrupts.
-function runningController(): UndoController {
+function runningController(): UndoController & PasteCommitCoordinator {
 	return {
 		...makeStubController(),
 		commitMultiScope: vi.fn(
@@ -57,7 +64,7 @@ function runningController(): UndoController {
 				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
 			}
 		)
-	} as unknown as UndoController;
+	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
 describe('container-matching paste — empty-target newline-termination (A1)', () => {
