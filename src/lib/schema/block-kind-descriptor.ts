@@ -290,7 +290,9 @@ registerBlockKind('tableCell', {
 	keymap: [
 		{ chord: 'Enter', command: 'cell.enter' },
 		{ chord: 'Tab', command: 'cell.tab' },
-		{ chord: 'Shift+Tab', command: 'cell.shiftTab' }
+		{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
+		{ chord: 'Mod+B', command: 'format.toggleStrong' },
+		{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
 	]
 });
 registerBlockKind('unrecognized', {

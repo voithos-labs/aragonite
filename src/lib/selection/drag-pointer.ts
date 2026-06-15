@@ -112,7 +112,17 @@ export function installDragListener(
 		}
 	});
 
+	function flushPendingMove(): void {
+		// A release landing before the coalescing rAF runs would otherwise drop
+		// the final move, leaving isCrossBlock false on a fast flick or a
+		// pointercancel (touch / Tauri WebView2).
+		if (rafId !== null && pendingMove) {
+			processMove(pendingMove.clientX, pendingMove.clientY);
+		}
+	}
+
 	function onPointerUp(): void {
+		flushPendingMove();
 		dispose();
 		if (ctx.selection.isCrossBlock) {
 			parkCaretInFocusBlock(ctx);
@@ -123,6 +133,7 @@ export function installDragListener(
 	// instead of pointerup when the OS reclaims the pointer; without this
 	// listener pointermove + raf would leak until editor unmount.
 	function onPointerCancel(): void {
+		flushPendingMove();
 		dispose();
 		if (ctx.selection.isCrossBlock) {
 			parkCaretInFocusBlock(ctx);

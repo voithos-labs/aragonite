@@ -25,6 +25,7 @@ import { renumberOrderedList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
 import {
 	buildListItemWithContent,
+	orderedBaseOf,
 	readOrderedSuffix,
 	splitLeafForPaste
 } from '../list/list-builders';
@@ -118,7 +119,7 @@ export async function applyListAbsorb(
 			const item = replacement[i];
 			const meta = metadataOf(item, 'listItem');
 			if (meta) {
-				meta.marker = String(plan.itemIndex + 1 + i) + suffix;
+				meta.marker = String(orderedBaseOf(outer.children[0]) + plan.itemIndex + i) + suffix;
 				rebuildListItemRaw(item);
 			}
 		}

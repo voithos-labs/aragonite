@@ -189,4 +189,26 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		expect(src).toMatch(/^2\. only$/m);
 		expect(src).toMatch(/^3\. beta$/m);
 	});
+
+	// Regression: a list that doesn't start at 1 must keep counting from its own
+	// base — the absorb path hardcoded base 1, so pasting into `3. 4. 5.` restarted
+	// the region at the item index and produced duplicate markers (3,4,3,4,5).
+	test('ordered paste into a non-1-based list preserves the start number', async () => {
+		await editor.loadContent('3. a\n4. b\n5. c\n');
+		await editor.page.evaluate(() => navigator.clipboard.writeText('1. x\n2. y\n'));
+
+		await editor.focusBlockAtPath([0, 2, 0], 'c'.length);
+		await editor.page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceMatches(/^7\. y$/m);
+
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
+		expect(src).toMatch(/^3\. a$/m);
+		expect(src).toMatch(/^4\. b$/m);
+		expect(src).toMatch(/^5\. c$/m);
+		expect(src).toMatch(/^6\. x$/m);
+		expect(src).toMatch(/^7\. y$/m);
+		// Buggy state renumbered c→3, duplicating the leading 3 and 4.
+		expect(src).not.toMatch(/^3\. c$/m);
+		expect((src.match(/^3\. /gm) ?? []).length).toBe(1);
+	});
 });

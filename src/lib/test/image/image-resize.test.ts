@@ -47,7 +47,7 @@ describe('resolveAspectLockedHeight', () => {
 	it('rounds to integer', () => {
 		expect(resolveAspectLockedHeight(401, 800, 600)).toBe(301);
 	});
-	it('returns naturalHeight when naturalWidth is 0', () => {
-		expect(resolveAspectLockedHeight(400, 0, 600)).toBe(600);
+	it('returns undefined when naturalWidth is 0 (not-yet-loaded image, avoids |Nx0)', () => {
+		expect(resolveAspectLockedHeight(400, 0, 600)).toBeUndefined();
 	});
 });
