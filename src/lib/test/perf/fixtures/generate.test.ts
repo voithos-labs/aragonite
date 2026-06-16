@@ -118,6 +118,34 @@ describe('fixture generators', () => {
 	});
 });
 
+describe('giant-single-container fixtures', () => {
+	it('giant-single-list is ONE list of many items', () => {
+		const md = generateFixture('giant-single-list', 200_000);
+		const lines = md.split('\n').filter((l) => l.trim().length > 0);
+		expect(lines.length).toBeGreaterThan(1000);
+		expect(lines.every((l) => l.startsWith('- '))).toBe(true);
+		expect(md).not.toContain('\n\n'); // no block separators -> single list node
+	});
+
+	it('giant-single-blockquote is ONE blockquote of many paragraphs', () => {
+		const md = generateFixture('giant-single-blockquote', 200_000);
+		const lines = md.split('\n').filter((l) => l.trim().length > 0);
+		expect(lines.length).toBeGreaterThan(1000);
+		expect(lines.every((l) => l.startsWith('>'))).toBe(true);
+	});
+
+	it('is deterministic for a fixed seed', () => {
+		expect(generateFixture('giant-single-list', 50_000, 7)).toBe(
+			generateFixture('giant-single-list', 50_000, 7)
+		);
+	});
+
+	it('each giant fixture is a single top-level block', () => {
+		expect(parse(generateFixture('giant-single-list', 100_000)).children.length).toBe(1);
+		expect(parse(generateFixture('giant-single-blockquote', 100_000)).children.length).toBe(1);
+	});
+});
+
 describe('generateUniformBlocks', () => {
 	it('produces exactly blockCount paragraphs', () => {
 		expect(parse(generateUniformBlocks(50, 4)).children).toHaveLength(50);

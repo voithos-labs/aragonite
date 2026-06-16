@@ -11,7 +11,9 @@ export const FIXTURE_SHAPES = [
 	'many-small-blocks',
 	'single-giant-paragraph',
 	'reference-heavy',
-	'table-heavy'
+	'table-heavy',
+	'giant-single-list',
+	'giant-single-blockquote'
 ] as const;
 export type FixtureShape = (typeof FIXTURE_SHAPES)[number];
 
@@ -108,5 +110,13 @@ const BUILDERS: Record<FixtureShape, (rand: () => number, i: number) => string> 
 		let t = row() + '| --- | --- | --- |\n';
 		for (let r = 0; r < 10; r++) t += row();
 		return t + '\n';
-	}
+	},
+
+	// One tight-list item per chunk, no blank line between -> a single `list` node
+	// with thousands of `listItem` children.
+	'giant-single-list': (rand) => `- ${words(rand, 6)}\n`,
+
+	// One quoted paragraph per chunk; the bare `>` lazy-continuation line keeps
+	// them inside ONE `blockquote` node with many paragraph children.
+	'giant-single-blockquote': (rand) => `> ${words(rand, 8)}\n>\n`
 };
