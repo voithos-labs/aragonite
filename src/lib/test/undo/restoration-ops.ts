@@ -358,6 +358,7 @@ async function runRangeDelete(
 		selection: h.deps.selectionState,
 		getDoc: () => h.deps.doc,
 		getBlockElByPath: () => null,
+		revealPath: h.deps.revealPath,
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0)
 	});

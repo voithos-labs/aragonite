@@ -44,16 +44,20 @@ export function enterCrossBlockFromKeyboard(
 
 /**
  * Collapse to start/end, restore a native caret, exit cross-block mode.
+ * `revealPath` mounts the collapse target when it's off-window before the
+ * caret is placed.
  */
-export function collapseCrossBlock(
+export async function collapseCrossBlock(
 	selection: SelectionState,
 	to: 'start' | 'end',
-	getBlockElByPath: (path: number[]) => HTMLElement | null
-): void {
+	getBlockElByPath: (path: number[]) => HTMLElement | null,
+	revealPath: (path: number[]) => Promise<unknown>
+): Promise<void> {
 	const target = to === 'start' ? selection.start : selection.end;
 	if (!target) return;
 	selection.collapse();
 	clearNativeSelection();
+	await revealPath(target.path);
 	const blockEl = getBlockElByPath(target.path);
 	if (blockEl) {
 		applyCollapsedCaret(blockEl, target);
