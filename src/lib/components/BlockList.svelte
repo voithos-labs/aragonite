@@ -2,6 +2,7 @@
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
 	import type { CstNode } from '../core/nodes';
 	import type { WindowResult } from '../reactivity/block-window.svelte';
+	import { sliceWindow } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
 
 	// setRef/getRef are owner-supplied callbacks. A bind:blockRefs $bindable
@@ -25,8 +26,9 @@
 	} = $props();
 
 	let active = $derived(win?.active ?? false);
-	let start = $derived(active ? win!.start : 0);
-	let end = $derived(active ? win!.end : children.length);
+	let bounds = $derived(sliceWindow(children.length, win));
+	let start = $derived(bounds.start);
+	let end = $derived(bounds.end);
 	let slice = $derived(children.slice(start, end));
 </script>
 
