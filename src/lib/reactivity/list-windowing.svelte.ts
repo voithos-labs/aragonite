@@ -146,7 +146,6 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const scrollEl = deps.getScrollEl();
 			const listEl = deps.getListEl();
 			if (!scrollEl || !listEl) return;
-			void heightVersion;
 			const listTop =
 				listEl.getBoundingClientRect().top -
 				scrollEl.getBoundingClientRect().top +
