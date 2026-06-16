@@ -1,6 +1,7 @@
 import { type Page, type Locator } from '@playwright/test';
 import { primaryModifier } from './platform';
 import { EditorBridge } from './editor-bridge';
+import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -35,6 +36,45 @@ export class EditorPage {
 			{ timeout: 2000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
+	}
+
+	/**
+	 * Load a multi-MB generated fixture for virtual-rendering tests. `loadContent`
+	 * polls a full-document serialize with a 2s timeout, which times out at MB
+	 * scale; this settles on a cheap in-page doc-length probe (Σ leadingTrivia +
+	 * raw, plus prefix/suffix) with a long timeout instead. Returns the doc's
+	 * top-level block count. The fixture is set via `setSource` (state setup, not
+	 * a simulated edit) — windowing activates when the estimated height clears the
+	 * editor's watermark.
+	 */
+	async loadLargeFixture(shape: FixtureShape, bytes: number): Promise<number> {
+		const fixture = generateFixture(shape, bytes);
+		await this.page.evaluate((c) => (window as any).__test.setSource(c), fixture);
+		const minLength = fixture.replace(/\s+$/, '').length;
+		await this.page.waitForFunction(
+			(min) => {
+				const doc = (window as any).__test.getDocument();
+				let length = doc.prefix.length + doc.suffix.length;
+				for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
+				return length >= min;
+			},
+			minLength,
+			{ timeout: 90_000, polling: 50 }
+		);
+		await this.waitForRenderFlush();
+		return this.page.evaluate(() => (window as any).__test.getDocument().children.length);
+	}
+
+	/** Scroll the editor's internal scroll container to an absolute offset and let
+	 *  the window re-slice. The editor scrolls internally, not the page, so
+	 *  `page.mouse.wheel` would miss it; a direct scrollTop write fires the passive
+	 *  scroll listener the window subscribes to. */
+	async scrollEditorTo(scrollTop: number): Promise<void> {
+		await this.page.evaluate((top) => {
+			const el = document.querySelector('.editor') as HTMLElement | null;
+			if (el) el.scrollTop = top;
+		}, scrollTop);
+		await this.waitForRenderFlush();
 	}
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
