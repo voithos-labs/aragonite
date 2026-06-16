@@ -9,6 +9,7 @@ const base = {
 	viewportHeight: 500, // 10 blocks visible
 	overscan: 2,
 	pinnedIndex: null as number | null,
+	pinExtensionCap: 100,
 	active: true,
 	activateAbovePx: 1000, // hysteresis watermarks
 	deactivateBelowPx: 800
@@ -34,28 +35,42 @@ describe('computeWindow', () => {
 		expect(bottom.bottomSpacerPx).toBe(0);
 	});
 
-	it('extends the slice to include an out-of-window pinned index', () => {
-		const w = computeWindow(model(), { ...base, scrollTop: 1000, pinnedIndex: 0 });
-		expect(w.pinnedOutside).toBe(true);
-		expect(w.pinnedIndex).toBe(0);
-		// window slice is unchanged; the pin renders absolutely at its offset.
-		expect(w.start).toBe(18);
+	it('extends the contiguous range to include a near off-window pinned index', () => {
+		// scrollTop 1000 -> base window start 18, end 32.
+		const below = computeWindow(model(), { ...base, scrollTop: 1000, pinnedIndex: 15 });
+		expect(below.start).toBe(15); // 3 above start, within cap -> extended
+		expect(below.end).toBe(32);
+
+		const above = computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 20 });
+		// scrollTop 0 -> window start 0, end 12; pin 20 is below end, 9 within cap.
+		expect(above.start).toBe(0);
+		expect(above.end).toBe(21);
 	});
 
-	it('reports the pinned block pixel offset when the pin is outside the window', () => {
-		const above = computeWindow(model(), { ...base, scrollTop: 2000, pinnedIndex: 0 });
-		expect(above.pinnedOutside).toBe(true);
-		expect(above.pinnedOffsetPx).toBe(0); // offsetOf(0)
-		const below = computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 90 });
-		expect(below.pinnedOutside).toBe(true);
-		expect(below.pinnedOffsetPx).toBe(90 * 50); // offsetOf(90)
+	it('does not extend the range for a pinned index beyond the cap', () => {
+		const below = computeWindow(model(), {
+			...base,
+			scrollTop: 2000,
+			pinnedIndex: 0,
+			pinExtensionCap: 10
+		});
+		// scrollTop 2000 -> start 38; pin 0 is 38 above, beyond cap 10 -> no extension.
+		expect(below.start).toBe(38);
+
+		const above = computeWindow(model(), {
+			...base,
+			scrollTop: 0,
+			pinnedIndex: 20,
+			pinExtensionCap: 5
+		});
+		// pin 20 is 9 below end 12, beyond cap 5 -> no extension.
+		expect(above.end).toBe(12);
 	});
 
-	it('reports a null pinned offset when the pin is inside the window or absent', () => {
-		expect(computeWindow(model(), { ...base, scrollTop: 0 }).pinnedOffsetPx).toBeNull();
-		expect(
-			computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 2 }).pinnedOffsetPx
-		).toBeNull();
+	it('does not change the range when the pinned index is already inside the window', () => {
+		const w = computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 5 });
+		expect(w.start).toBe(0);
+		expect(w.end).toBe(12);
 	});
 
 	it('deactivates when content height drops below the low watermark', () => {
