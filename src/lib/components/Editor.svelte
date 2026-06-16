@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, tick, untrack } from 'svelte';
+	import { setContext } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -15,9 +15,11 @@
 		EDITOR_ROOT_KEY,
 		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
+		HEIGHT_ORACLE_KEY,
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
+		PARENT_SCOPE_SINK_KEY,
 		PASTE_COORDINATOR_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
 		RESOLVE_IMAGE_URL_KEY,
@@ -29,15 +31,13 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorSelection,
-		type RecordBlockHeight,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createHeightOracle } from '../cursor/height-oracle';
-	import { HeightModel } from '../cursor/height-model';
-	import { createBlockWindow } from '../reactivity/block-window.svelte';
+	import { createListWindowing } from '../reactivity/list-windowing.svelte';
 	import { whenRefMounted } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
@@ -276,19 +276,16 @@
 	// ── Action Bundles ──────────────────────────────────────────────────
 
 	// Hoisted so the deps literal below can reference it before the VR state it
-	// reads (heightModel/editorEl/blockWindow) is declared; the body runs only at
-	// call time, post-init.
+	// reads (editorEl/topWindowing) is declared; the body runs only at call time,
+	// post-init.
 	async function revealPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const top = path[0];
-		// Only enter the scroll-and-await loop for an in-model, unmounted block: an
-		// out-of-range index (transient model/doc size lag) has no valid offset to
-		// scroll to, so the loop could never mount it — fall through and return what's
-		// there rather than hang.
-		if (top < heightModel.size && !blockRefs[top]) {
-			if (editorEl) editorEl.scrollTop = heightModel.offsetOf(top);
-			blockWindow.syncScrollTop();
-			await tick();
+		// Only scroll-and-await for an in-doc, unmounted block: an out-of-doc index
+		// (transient size lag) can never mount, so the loop would hang — fall through
+		// and return what's there. An already-mounted block needs no scroll.
+		if (top < doc.children.length && !blockRefs[top]) {
+			await topWindowing.revealChild(top);
 			// A nested block mounting at the same local index can wake the wait while
 			// blockRefs[top] is still empty; re-wait until the real top-level mount lands.
 			while (!blockRefs[top]) await whenRefMounted(top, () => !!blockRefs[top]);
@@ -404,44 +401,16 @@
 		avgCharWidth: 8,
 		blockChrome: 16
 	});
+	setContext(HEIGHT_ORACLE_KEY, heightOracle);
 
-	// O(n) cheap raw-length reads (materialized container raw → no subtree walk).
-	// Rebuilt on structural change and once the scroll container's real width is
-	// known — never per keystroke (see the untrack effect).
-	function buildHeightModel(): HeightModel {
-		const width = editorEl?.clientWidth || 800;
-		return new HeightModel(
-			doc.children.map((node, i) => heightOracle.height(blockIds[i], node, width))
-		);
-	}
-
-	// HeightModel is a plain class, not a $state proxy, so an in-place setHeight is
-	// invisible to the window derived; heightVersion is the reactive trigger.
-	// svelte-ignore state_referenced_locally
-	let heightModel = $state<HeightModel>(buildHeightModel());
-	let heightVersion = $state(0);
-
-	// buildHeightModel reads node.raw via the oracle, so it must run inside untrack —
-	// otherwise this effect subscribes to every block's raw and rebuilds the whole
-	// model on every keystroke. Its only dependencies are children count + editorEl.
-	$effect(() => {
-		void doc.children.length;
-		void editorEl;
-		untrack(() => {
-			heightModel = buildHeightModel();
-			heightVersion++;
-		});
-	});
-
-	// The focused block's top-level index is pinned inside the window so a scroll
-	// that pushes the caret off-screen never tears down native focus/IME.
+	// The focused block's full path drives each windowing scope's per-level pin, so
+	// a scroll that pushes the caret off-screen never tears down native focus/IME.
 	//
 	// Plain `let`, not $state: focusout fires synchronously while Svelte tears
 	// down a focused block's DOM during a structural commit, so writing it from
 	// the handler would trip state_unsafe_mutation. The window derived still
-	// re-slices on scroll and after every commit (heightVersion), and a focus
-	// change can't drop a mounted block, so the pin needn't be reactive.
-	let focusedTopLevelIndex: number | null = null;
+	// re-slices on scroll and after every commit, and a focus change can't drop a
+	// mounted block, so the pin needn't be reactive.
 	let focusedPath: number[] | null = null;
 	$effect(() => {
 		if (!editorEl) return;
@@ -450,23 +419,19 @@
 			const host = (e.target as Element | null)?.closest('[data-block-path]');
 			if (!host || !root.contains(host)) {
 				focusedPath = null;
-				focusedTopLevelIndex = null;
 				return;
 			}
 			try {
 				const path = JSON.parse(host.getAttribute('data-block-path')!) as number[];
 				focusedPath = Array.isArray(path) && path.length > 0 ? path : null;
-				focusedTopLevelIndex = focusedPath ? focusedPath[0] : null;
 			} catch {
 				focusedPath = null;
-				focusedTopLevelIndex = null;
 			}
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return; // moving between blocks — keep the pin
 			focusedPath = null;
-			focusedTopLevelIndex = null;
 		};
 		root.addEventListener('focusin', onFocusIn);
 		root.addEventListener('focusout', onFocusOut);
@@ -477,35 +442,29 @@
 	});
 	setContext(FOCUSED_PATH_KEY, () => focusedPath);
 
-	const blockWindow = createBlockWindow({
-		getModel: () => {
-			void heightVersion;
-			return heightModel;
-		},
+	const topWindowing = createListWindowing({
+		oracle: heightOracle,
+		getChildren: () => doc.children,
+		getChildIds: () => blockIds,
+		// The list content origin is the inner .block-list wrapper, not editorEl: it
+		// scrolls with content, so its top maps root scrollTop into local coordinates.
+		// Feeding editorEl (== scrollEl) would collapse localScrollTop to a constant 0.
+		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null,
 		getScrollEl: () => editorEl ?? null,
-		getLocalScrollTop: () => editorEl?.scrollTop ?? 0,
-		getViewportHeight: () => editorEl?.clientHeight ?? 0,
-		getPinnedIndex: () => focusedTopLevelIndex,
+		getFocusPath: () => focusedPath,
+		getParentPath: () => [],
 		overscan: 4,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
 		deactivateBelowPx: 3000
 	});
 
-	// Measured heights flow up from BlockHost: into the oracle (future rebuilds use
-	// them) and, for a top-level block, into the live model.
-	const recordBlockHeight: RecordBlockHeight = (path, id, height) => {
-		heightOracle.recordMeasured(id, height);
-		if (
-			path.length === 1 &&
-			path[0] < heightModel.size &&
-			heightModel.heightOf(path[0]) !== height
-		) {
-			heightModel.setHeight(path[0], height);
-			heightVersion++;
-		}
-	};
-	setContext(RECORD_BLOCK_HEIGHT_KEY, recordBlockHeight);
+	// Leaf channel: a top-level block (path.length === 1) measures into the top model.
+	setContext(RECORD_BLOCK_HEIGHT_KEY, (path: number[], id: string, h: number) => {
+		if (path.length === 1) topWindowing.recordMeasuredChild(path[0], id, h);
+	});
+	// Subtotal channel: direct child containers report their box subtotal up by index.
+	setContext(PARENT_SCOPE_SINK_KEY, { setChildSubtotal: topWindowing.setChildSubtotal });
 
 	// ── Public API ──────────────────────────────────────────────────────
 
@@ -572,7 +531,7 @@
 		setRef={setBlockRefSlot}
 		getRef={getBlockRefSlot}
 		parentPath={[]}
-		window={blockWindow.result}
+		window={topWindowing.window}
 	/>
 	<ImageOverlayHost
 		{widgetSelection}
