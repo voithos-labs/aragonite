@@ -116,6 +116,32 @@ describe('fixture generators', () => {
 			"
 		`);
 	});
+
+	it('giant-single-list: exact output pinned', () => {
+		expect(generateFixture('giant-single-list', 200, 7)).toMatchInlineSnapshot(`
+			"- alpha alpha papa lima india golf
+			- hotel delta india lima echo charlie
+			- mike india delta foxtrot echo india
+			- echo papa delta oscar delta charlie
+			- charlie echo india mike bravo oscar
+			- india juliet kilo papa juliet oscar
+			"
+		`);
+	});
+
+	it('giant-single-blockquote: exact output pinned', () => {
+		expect(generateFixture('giant-single-blockquote', 200, 7)).toMatchInlineSnapshot(`
+			"> alpha alpha papa lima india golf hotel delta
+			>
+			> india lima echo charlie mike india delta foxtrot
+			>
+			> echo india echo papa delta oscar delta charlie
+			>
+			> charlie echo india mike bravo oscar india juliet
+			>
+			"
+		`);
+	});
 });
 
 describe('giant-single-container fixtures', () => {
@@ -132,12 +158,6 @@ describe('giant-single-container fixtures', () => {
 		const lines = md.split('\n').filter((l) => l.trim().length > 0);
 		expect(lines.length).toBeGreaterThan(1000);
 		expect(lines.every((l) => l.startsWith('>'))).toBe(true);
-	});
-
-	it('is deterministic for a fixed seed', () => {
-		expect(generateFixture('giant-single-list', 50_000, 7)).toBe(
-			generateFixture('giant-single-list', 50_000, 7)
-		);
 	});
 
 	it('each giant fixture is a single top-level block', () => {
