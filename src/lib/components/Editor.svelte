@@ -280,7 +280,11 @@
 	async function revealPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const top = path[0];
-		if (!blockRefs[top]) {
+		// Only enter the scroll-and-await loop for an in-model, unmounted block: an
+		// out-of-range index (transient model/doc size lag) has no valid offset to
+		// scroll to, so the loop could never mount it — fall through and return what's
+		// there rather than hang.
+		if (top < heightModel.size && !blockRefs[top]) {
 			if (editorEl) editorEl.scrollTop = heightModel.offsetOf(top);
 			blockWindow.syncScrollTop();
 			await tick();
