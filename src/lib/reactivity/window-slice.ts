@@ -3,8 +3,8 @@
  * `children.slice(start, end)` and MUST key/index each rendered child by its
  * ABSOLUTE index `start + localIndex` — never the local loop index. Leaking the
  * local index corrupts paths and structural ops invisibly (spec: "the single
- * most dangerous implementation detail"). BlockList and ListBlock both route
- * their bounds through here so that contract lives in exactly one place.
+ * most dangerous implementation detail"). Every windowed consumer derives its
+ * bounds here so that contract lives in exactly one place.
  */
 import type { WindowResult } from './block-window.svelte';
 
