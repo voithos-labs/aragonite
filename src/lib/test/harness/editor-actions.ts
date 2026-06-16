@@ -131,6 +131,15 @@ export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarn
 		stickyColumn: makeStickyColumn(),
 		selectionState: createSelectionState(),
 		getBlockElByPath: () => null,
+		// No render window in unit tests: every block is "mounted", so reveal is the
+		// production fast path — resolve from the live ref slots, descend if nested.
+		revealPath: async (path: number[]) => {
+			if (path.length === 0) return null;
+			const ref = blockRefs[path[0]];
+			if (!ref) return null;
+			if (path.length === 1) return ref;
+			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
+		},
 		events
 	};
 	return {

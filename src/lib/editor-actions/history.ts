@@ -29,6 +29,9 @@ export function createHistoryActions(
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.setBlockIds(entry.blockIds);
 		await tick();
+		// Mount the focus block if it scrolled out of the window; applySelectionToDom
+		// still does the placement via getBlockElByPath, which now resolves.
+		await deps.revealPath(entry.selection.focus.path);
 		applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, untrack } from 'svelte';
+	import { setContext, tick, untrack } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -37,6 +37,7 @@
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HeightModel } from '../cursor/height-model';
 	import { createBlockWindow } from '../reactivity/block-window.svelte';
+	import { whenRefMounted } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
@@ -273,6 +274,26 @@
 
 	// ── Action Bundles ──────────────────────────────────────────────────
 
+	// Hoisted so the deps literal below can reference it before the VR state it
+	// reads (heightModel/editorEl/blockWindow) is declared; the body runs only at
+	// call time, post-init.
+	async function revealPath(path: number[]): Promise<BlockComponent | null> {
+		if (path.length === 0) return null;
+		const top = path[0];
+		if (!blockRefs[top]) {
+			if (editorEl) editorEl.scrollTop = heightModel.offsetOf(top);
+			blockWindow.syncScrollTop();
+			await tick();
+			// A nested block mounting at the same local index can wake the wait while
+			// blockRefs[top] is still empty; re-wait until the real top-level mount lands.
+			while (!blockRefs[top]) await whenRefMounted(top, () => !!blockRefs[top]);
+		}
+		const ref = blockRefs[top];
+		if (!ref) return null;
+		if (path.length === 1) return ref;
+		return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
+	}
+
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions({
 		get doc() {
 			return doc;
@@ -299,6 +320,7 @@
 		stickyColumn,
 		selectionState,
 		getBlockElByPath,
+		revealPath,
 		events
 	});
 
