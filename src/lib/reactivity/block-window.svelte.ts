@@ -1,10 +1,10 @@
 /**
  * Window math for virtual rendering. `computeWindow` is pure: given a height
- * model and the scroll viewport, it returns the [start, end) slice to mount,
- * the spacer heights that preserve native scroll geometry, the pinned-index
- * carry, and the next activation state (with hysteresis so a list at the
- * threshold doesn't thrash). The reactive `createBlockWindow` wrapper wires
- * live getters + a scroll listener to this.
+ * model and the scroll viewport, it returns the [start, end) slice to mount —
+ * extended to keep a pinned caret block contiguous — the spacer heights that
+ * preserve native scroll geometry, and the next activation state (with
+ * hysteresis so a list at the threshold doesn't thrash). The reactive
+ * `createBlockWindow` wrapper wires live getters + a scroll listener to this.
  */
 import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
@@ -14,6 +14,7 @@ export interface WindowInputs {
 	viewportHeight: number;
 	overscan: number; // blocks to mount above and below the visible range
 	pinnedIndex: number | null; // focused/caret block to keep mounted
+	pinExtensionCap: number; // max blocks to extend the range by to keep the pin mounted
 	active: boolean; // current activation (for hysteresis)
 	activateAbovePx: number; // high watermark — activate when total exceeds it
 	deactivateBelowPx: number; // low watermark — deactivate when total drops below it
@@ -25,9 +26,6 @@ export interface WindowResult {
 	end: number; // exclusive
 	topSpacerPx: number;
 	bottomSpacerPx: number;
-	pinnedIndex: number | null;
-	pinnedOutside: boolean; // pin sits outside [start, end) -> absolutely-positioned render
-	pinnedOffsetPx: number | null; // pixel offset of the pin when outside the window; null otherwise
 }
 
 export function computeWindow(model: HeightModel, input: WindowInputs): WindowResult {
@@ -38,37 +36,33 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	const active = input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx;
 
 	if (!active || n === 0) {
-		return {
-			active: false,
-			start: 0,
-			end: n,
-			topSpacerPx: 0,
-			bottomSpacerPx: 0,
-			pinnedIndex: input.pinnedIndex,
-			pinnedOutside: false,
-			pinnedOffsetPx: null
-		};
+		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0 };
 	}
 
 	const firstVisible = model.indexAtOffset(input.scrollTop);
-	// Viewport bottom edge is half-open: the block whose top sits exactly at it shows
-	// zero pixels, so probe one pixel inside to avoid mounting an off-screen block.
+	// The viewport is half-open [scrollTop, scrollTop+viewportHeight); probe the
+	// last on-screen pixel so a block whose top sits exactly on the bottom edge
+	// isn't counted visible.
 	const lastVisible = model.indexAtOffset(input.scrollTop + input.viewportHeight - 1);
-	const start = Math.max(0, firstVisible - input.overscan);
-	const end = Math.min(n, lastVisible + 1 + input.overscan);
+	let start = Math.max(0, firstVisible - input.overscan);
+	let end = Math.min(n, lastVisible + 1 + input.overscan);
 
-	const pinnedOutside =
-		input.pinnedIndex !== null && (input.pinnedIndex < start || input.pinnedIndex >= end);
+	// Keep the focused/caret block mounted by extending the CONTIGUOUS range to
+	// include it (so Svelte preserves its DOM node and native focus/IME survive a
+	// scroll) — but only within a bounded distance, so a caret parked far away
+	// before a large scroll doesn't mount thousands. Beyond the cap it blurs (rare).
+	const pin = input.pinnedIndex;
+	if (pin !== null && pin >= 0 && pin < n) {
+		if (pin < start && start - pin <= input.pinExtensionCap) start = pin;
+		else if (pin >= end && pin + 1 - end <= input.pinExtensionCap) end = pin + 1;
+	}
 
 	return {
 		active: true,
 		start,
 		end,
 		topSpacerPx: model.offsetOf(start),
-		bottomSpacerPx: total - model.offsetOf(end),
-		pinnedIndex: input.pinnedIndex,
-		pinnedOutside,
-		pinnedOffsetPx: pinnedOutside ? model.offsetOf(input.pinnedIndex as number) : null
+		bottomSpacerPx: total - model.offsetOf(end)
 	};
 }
 
@@ -80,6 +74,7 @@ export interface BlockWindowDeps {
 	getViewportHeight: () => number;
 	getPinnedIndex: () => number | null;
 	overscan: number;
+	pinExtensionCap: number;
 	activateAbovePx: number;
 	deactivateBelowPx: number;
 }
@@ -113,6 +108,7 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			viewportHeight: deps.getViewportHeight(),
 			overscan: deps.overscan,
 			pinnedIndex: deps.getPinnedIndex(),
+			pinExtensionCap: deps.pinExtensionCap,
 			active,
 			activateAbovePx: deps.activateAbovePx,
 			deactivateBelowPx: deps.deactivateBelowPx
