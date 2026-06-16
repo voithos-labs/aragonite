@@ -50,6 +50,7 @@ function makeEnv(source: string) {
 		stickyColumn,
 		selectionState,
 		getBlockElByPath: () => null,
+		revealPath: async (path: number[]) => (path.length === 1 ? (blockRefs[path[0]] ?? null) : null),
 		events
 	};
 	const controller = createUndoController(deps);

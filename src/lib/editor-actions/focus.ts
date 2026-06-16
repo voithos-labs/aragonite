@@ -36,7 +36,7 @@ export function createFocusActions(
 				});
 				return;
 			}
-			const block = deps.blockRefs[blockIndex];
+			const block = await deps.revealPath([blockIndex]);
 			if (!block?.focusable) return;
 
 			await consumeStickyLanding(block, blockIndex, position, deps.stickyColumn, (i) =>
