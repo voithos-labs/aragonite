@@ -3,9 +3,10 @@
  * model and the scroll viewport, it returns the [start, end) slice to mount,
  * the spacer heights that preserve native scroll geometry, the pinned-index
  * carry, and the next activation state (with hysteresis so a list at the
- * threshold doesn't thrash). The reactive `createBlockWindow` wrapper (a later
- * task) wires live getters + a scroll listener to this.
+ * threshold doesn't thrash). The reactive `createBlockWindow` wrapper wires
+ * live getters + a scroll listener to this.
  */
+import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
 
 export interface WindowInputs {
@@ -65,5 +66,83 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 		bottomSpacerPx: total - model.offsetOf(end),
 		pinnedIndex: input.pinnedIndex,
 		pinnedOutside
+	};
+}
+
+export interface BlockWindowDeps {
+	getModel: () => HeightModel;
+	getScrollEl: () => HTMLElement | null;
+	/** Map the scroll element's scrollTop into this list's own coordinate range. Identity for the top level. */
+	getLocalScrollTop: () => number;
+	getViewportHeight: () => number;
+	getPinnedIndex: () => number | null;
+	overscan: number;
+	activateAbovePx: number;
+	deactivateBelowPx: number;
+}
+
+export interface BlockWindow {
+	readonly result: WindowResult;
+	/** Anchor-correct around a model mutation: capture anchor top, run mutate, restore scrollTop by the delta. */
+	withAnchorCorrection(anchorIndex: number, mutate: () => void): void;
+	dispose(): void;
+}
+
+export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
+	let active = $state(false);
+	let scrollTop = $state(0);
+
+	const onScroll = () => {
+		scrollTop = deps.getLocalScrollTop();
+	};
+
+	$effect(() => {
+		const el = deps.getScrollEl();
+		if (!el) return;
+		scrollTop = deps.getLocalScrollTop();
+		el.addEventListener('scroll', onScroll, { passive: true });
+		return () => el.removeEventListener('scroll', onScroll);
+	});
+
+	const result = $derived.by(() => {
+		return computeWindow(deps.getModel(), {
+			scrollTop,
+			viewportHeight: deps.getViewportHeight(),
+			overscan: deps.overscan,
+			pinnedIndex: deps.getPinnedIndex(),
+			active,
+			activateAbovePx: deps.activateAbovePx,
+			deactivateBelowPx: deps.deactivateBelowPx
+		});
+	});
+
+	// Track activation across recomputes (hysteresis state lives here).
+	// `result` reads `active` and this effect writes it — write inside `untrack`
+	// and only on a real change so the effect doesn't register `active` as its
+	// own dependency and re-fire on its own write. It converges: once `active`
+	// equals `result.active`, the guard writes nothing.
+	$effect(() => {
+		const next = result.active;
+		untrack(() => {
+			if (active !== next) active = next;
+		});
+	});
+
+	return {
+		get result() {
+			return result;
+		},
+		withAnchorCorrection(anchorIndex, mutate) {
+			const el = deps.getScrollEl();
+			const model = deps.getModel();
+			const before = model.offsetOf(anchorIndex);
+			mutate();
+			const after = deps.getModel().offsetOf(anchorIndex);
+			if (el) el.scrollTop += after - before;
+		},
+		dispose() {
+			const el = deps.getScrollEl();
+			if (el) el.removeEventListener('scroll', onScroll);
+		}
 	};
 }
