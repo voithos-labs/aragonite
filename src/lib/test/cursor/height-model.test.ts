@@ -36,4 +36,31 @@ describe('HeightModel', () => {
 		expect(m.total()).toBe(0);
 		expect(m.indexAtOffset(50)).toBe(0);
 	});
+
+	// The lower-bound seed `1 << floor(log2(count))` is only correct when it
+	// degrades for non-power-of-two counts — exercise count 5 and 7 directly.
+	it('locates offsets on non-power-of-two counts', () => {
+		const five = new HeightModel([10, 20, 30, 40, 50]); // tops 0,10,30,60,100; total 150
+		expect(five.indexAtOffset(0)).toBe(0);
+		expect(five.indexAtOffset(29)).toBe(1);
+		expect(five.indexAtOffset(30)).toBe(2); // exact boundary
+		expect(five.indexAtOffset(99)).toBe(3);
+		expect(five.indexAtOffset(100)).toBe(4); // exact boundary
+		expect(five.indexAtOffset(150)).toBe(4); // == total clamps to last
+		expect(five.indexAtOffset(99999)).toBe(4);
+
+		const seven = new HeightModel([1, 1, 1, 1, 1, 1, 1]); // tops 0..6; total 7
+		expect(seven.indexAtOffset(0)).toBe(0);
+		expect(seven.indexAtOffset(3)).toBe(3);
+		expect(seven.indexAtOffset(6)).toBe(6);
+		expect(seven.indexAtOffset(7)).toBe(6); // == total clamps to last
+	});
+
+	// Zero-height entries make consecutive tops tie; pin that the search lands on
+	// the last tied index so a future refactor can't silently flip the contract.
+	it('lands on the last index when zero-height entries tie offsets', () => {
+		const m = new HeightModel([5, 0, 0, 0]); // tops 0,5,5,5; total 5
+		expect(m.indexAtOffset(4)).toBe(0); // before the first boundary
+		expect(m.indexAtOffset(5)).toBe(3); // offsetOf(1..3) all == 5; last wins
+	});
 });
