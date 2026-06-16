@@ -77,6 +77,12 @@ export type RecordBlockHeight = (path: number[], id: string, height: number) => 
 export const FOCUSED_PATH_KEY = Symbol('focused-path');
 export type FocusedPathGetter = () => number[] | null;
 
+/** @internal Per-kind height oracle (Editor-constructed); read by nested windowing scopes. */
+export const HEIGHT_ORACLE_KEY = Symbol('height-oracle');
+/** @internal A scope's setChildSubtotal — a child container reports its own box subtotal up by index. */
+export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
+export type ParentScopeSink = { setChildSubtotal: (index: number, total: number) => void };
+
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
  *  commit without invalidating descendants' getContext bindings. `signature`
