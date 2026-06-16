@@ -27,6 +27,7 @@
 		<BlockHost
 			{node}
 			index={i}
+			id={blockIds[i]}
 			{parentPath}
 			ambientPrefix={i === 0 ? ambientPrefixForFirst : ''}
 			{setRef}
