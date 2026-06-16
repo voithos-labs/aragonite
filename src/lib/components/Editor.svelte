@@ -13,6 +13,7 @@
 		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
+		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
@@ -441,25 +442,30 @@
 	// re-slices on scroll and after every commit (heightVersion), and a focus
 	// change can't drop a mounted block, so the pin needn't be reactive.
 	let focusedTopLevelIndex: number | null = null;
+	let focusedPath: number[] | null = null;
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
 		const onFocusIn = (e: FocusEvent) => {
 			const host = (e.target as Element | null)?.closest('[data-block-path]');
 			if (!host || !root.contains(host)) {
+				focusedPath = null;
 				focusedTopLevelIndex = null;
 				return;
 			}
 			try {
 				const path = JSON.parse(host.getAttribute('data-block-path')!) as number[];
-				focusedTopLevelIndex = Array.isArray(path) && path.length > 0 ? path[0] : null;
+				focusedPath = Array.isArray(path) && path.length > 0 ? path : null;
+				focusedTopLevelIndex = focusedPath ? focusedPath[0] : null;
 			} catch {
+				focusedPath = null;
 				focusedTopLevelIndex = null;
 			}
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return; // moving between blocks — keep the pin
+			focusedPath = null;
 			focusedTopLevelIndex = null;
 		};
 		root.addEventListener('focusin', onFocusIn);
@@ -469,6 +475,7 @@
 			root.removeEventListener('focusout', onFocusOut);
 		};
 	});
+	setContext(FOCUSED_PATH_KEY, () => focusedPath);
 
 	const blockWindow = createBlockWindow({
 		getModel: () => {

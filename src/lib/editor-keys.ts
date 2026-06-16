@@ -73,6 +73,10 @@ export type DocumentGetter = () => Document;
 export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
 export type RecordBlockHeight = (path: number[], id: string, height: number) => void;
 
+/** @internal Live getter for the focused block's full path; drives per-level VR pins. */
+export const FOCUSED_PATH_KEY = Symbol('focused-path');
+export type FocusedPathGetter = () => number[] | null;
+
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
  *  commit without invalidating descendants' getContext bindings. `signature`
