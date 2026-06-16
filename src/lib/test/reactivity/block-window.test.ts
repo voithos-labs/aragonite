@@ -38,8 +38,24 @@ describe('computeWindow', () => {
 		const w = computeWindow(model(), { ...base, scrollTop: 1000, pinnedIndex: 0 });
 		expect(w.pinnedOutside).toBe(true);
 		expect(w.pinnedIndex).toBe(0);
-		// window slice is unchanged; the pin renders via a split spacer (later task).
+		// window slice is unchanged; the pin renders absolutely at its offset.
 		expect(w.start).toBe(18);
+	});
+
+	it('reports the pinned block pixel offset when the pin is outside the window', () => {
+		const above = computeWindow(model(), { ...base, scrollTop: 2000, pinnedIndex: 0 });
+		expect(above.pinnedOutside).toBe(true);
+		expect(above.pinnedOffsetPx).toBe(0); // offsetOf(0)
+		const below = computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 90 });
+		expect(below.pinnedOutside).toBe(true);
+		expect(below.pinnedOffsetPx).toBe(90 * 50); // offsetOf(90)
+	});
+
+	it('reports a null pinned offset when the pin is inside the window or absent', () => {
+		expect(computeWindow(model(), { ...base, scrollTop: 0 }).pinnedOffsetPx).toBeNull();
+		expect(
+			computeWindow(model(), { ...base, scrollTop: 0, pinnedIndex: 2 }).pinnedOffsetPx
+		).toBeNull();
 	});
 
 	it('deactivates when content height drops below the low watermark', () => {
