@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext } from 'svelte';
+	import { setContext, untrack } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -18,6 +18,7 @@
 		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
+		RECORD_BLOCK_HEIGHT_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
@@ -27,11 +28,15 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorSelection,
+		type RecordBlockHeight,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
+	import { createHeightOracle } from '../cursor/height-oracle';
+	import { HeightModel } from '../cursor/height-model';
+	import { createBlockWindow } from '../reactivity/block-window.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
@@ -364,6 +369,105 @@
 		return () => document.removeEventListener('selectionchange', handler);
 	});
 
+	// ── Virtual rendering (top-level windowing) ──────────────────────────
+
+	const heightOracle = createHeightOracle({
+		lineHeight: 24,
+		codeLineHeight: 20,
+		avgCharWidth: 8,
+		blockChrome: 16
+	});
+
+	// O(n) cheap raw-length reads (materialized container raw → no subtree walk).
+	// Rebuilt on structural change and once the scroll container's real width is
+	// known — never per keystroke (see the untrack effect).
+	function buildHeightModel(): HeightModel {
+		const width = editorEl?.clientWidth || 800;
+		return new HeightModel(
+			doc.children.map((node, i) => heightOracle.height(blockIds[i], node, width))
+		);
+	}
+
+	// HeightModel is a plain class, not a $state proxy, so an in-place setHeight is
+	// invisible to the window derived; heightVersion is the reactive trigger.
+	// svelte-ignore state_referenced_locally
+	let heightModel = $state<HeightModel>(buildHeightModel());
+	let heightVersion = $state(0);
+
+	// buildHeightModel reads node.raw via the oracle, so it must run inside untrack —
+	// otherwise this effect subscribes to every block's raw and rebuilds the whole
+	// model on every keystroke. Its only dependencies are children count + editorEl.
+	$effect(() => {
+		void doc.children.length;
+		void editorEl;
+		untrack(() => {
+			heightModel = buildHeightModel();
+			heightVersion++;
+		});
+	});
+
+	// The focused block's top-level index is pinned inside the window so a scroll
+	// that pushes the caret off-screen never tears down native focus/IME.
+	let focusedTopLevelIndex = $state<number | null>(null);
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const onFocusIn = (e: FocusEvent) => {
+			const host = (e.target as Element | null)?.closest('[data-block-path]');
+			if (!host || !root.contains(host)) {
+				focusedTopLevelIndex = null;
+				return;
+			}
+			try {
+				const path = JSON.parse(host.getAttribute('data-block-path')!) as number[];
+				focusedTopLevelIndex = Array.isArray(path) && path.length > 0 ? path[0] : null;
+			} catch {
+				focusedTopLevelIndex = null;
+			}
+		};
+		const onFocusOut = (e: FocusEvent) => {
+			const next = e.relatedTarget as Node | null;
+			if (next && root.contains(next)) return; // moving between blocks — keep the pin
+			focusedTopLevelIndex = null;
+		};
+		root.addEventListener('focusin', onFocusIn);
+		root.addEventListener('focusout', onFocusOut);
+		return () => {
+			root.removeEventListener('focusin', onFocusIn);
+			root.removeEventListener('focusout', onFocusOut);
+		};
+	});
+
+	const blockWindow = createBlockWindow({
+		getModel: () => {
+			void heightVersion;
+			return heightModel;
+		},
+		getScrollEl: () => editorEl ?? null,
+		getLocalScrollTop: () => editorEl?.scrollTop ?? 0,
+		getViewportHeight: () => editorEl?.clientHeight ?? 0,
+		getPinnedIndex: () => focusedTopLevelIndex,
+		overscan: 4,
+		pinExtensionCap: 100,
+		activateAbovePx: 4000,
+		deactivateBelowPx: 3000
+	});
+
+	// Measured heights flow up from BlockHost: into the oracle (future rebuilds use
+	// them) and, for a top-level block, into the live model.
+	const recordBlockHeight: RecordBlockHeight = (path, id, height) => {
+		heightOracle.recordMeasured(id, height);
+		if (
+			path.length === 1 &&
+			path[0] < heightModel.size &&
+			heightModel.heightOf(path[0]) !== height
+		) {
+			heightModel.setHeight(path[0], height);
+			heightVersion++;
+		}
+	};
+	setContext(RECORD_BLOCK_HEIGHT_KEY, recordBlockHeight);
+
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
@@ -429,6 +533,7 @@
 		setRef={setBlockRefSlot}
 		getRef={getBlockRefSlot}
 		parentPath={[]}
+		window={blockWindow.result}
 	/>
 	<ImageOverlayHost
 		{widgetSelection}
