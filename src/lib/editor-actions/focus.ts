@@ -14,6 +14,7 @@ export function createFocusActions(
 	controller: UndoController
 ): FocusActions {
 	return {
+		revealPath: deps.revealPath,
 		async moveFocus(blockIndex: number, position: FocusPosition): Promise<void> {
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {

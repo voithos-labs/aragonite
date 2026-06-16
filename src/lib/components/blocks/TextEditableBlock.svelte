@@ -142,6 +142,7 @@
 		getDoc,
 		getBlockElByPath,
 		getBlockComponentByPath,
+		revealPath: focusActions.revealPath,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,

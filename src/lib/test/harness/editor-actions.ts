@@ -76,8 +76,10 @@ export function makeStubBlockEdit(): BlockEditActions {
 	};
 }
 
+// revealPath resolves null: these focus-bundle consumers assert on moveFocus,
+// not on the resolved component, and don't model render-window mounting.
 export function makeStubFocus(): FocusActions {
-	return { moveFocus: vi.fn() };
+	return { moveFocus: vi.fn(), revealPath: async () => null };
 }
 
 export function makeStubContainerEdit(): ContainerEditActions {

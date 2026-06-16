@@ -16,6 +16,7 @@ import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
+import type { BlockComponent } from '../../block-component';
 import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
 import { applyCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
@@ -32,6 +33,7 @@ export interface CrossBlockMutationContext {
 	selection: SelectionState;
 	getDoc: () => Document;
 	getBlockElByPath: (path: number[]) => HTMLElement | null;
+	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	controller: UndoController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
@@ -74,6 +76,15 @@ export async function performCrossBlockDelete(
 				}
 			}
 		: undefined;
+
+	// The collapse is start-wins: the merged block lands at start.path[0], which
+	// the delete leaves in place (blocks above it don't move). Mount it now, while
+	// caretRestore (running in the commit's non-awaited afterTick) still needs a
+	// live element. Gated on caretRestore so the IME path (skipCaretRestore) never
+	// yields before its synchronous commit — see performCrossBlockDeleteSync.
+	if (caretRestore) {
+		await ctx.revealPath(start.path);
+	}
 
 	if (options?.tableCoverageDelete && isPureTopLevel && pathsEqual(start.path, end.path)) {
 		const block = nodeAt(doc, start.path);

@@ -13,6 +13,10 @@ import type { NestedActionsDeps } from './nested-actions';
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
 	const { stickyColumn, parent } = deps;
 	return {
+		// Bubble to the parent: only top-level blocks window in/out, and the root
+		// FocusActions owns the reveal. Nested children live inside an already-
+		// mounted top-level block.
+		revealPath: parent.focus.revealPath,
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
 			// node.children.length is authoritative: refs.length lags after
 			// structural ops because bind:this fires asynchronously.
