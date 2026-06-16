@@ -53,4 +53,14 @@ describe('computeWindow', () => {
 		expect(computeWindow(mid, { ...base, active: false }).active).toBe(false);
 		expect(computeWindow(mid, { ...base, active: true }).active).toBe(true);
 	});
+
+	// Guards the under-mount direction of the half-open boundary: a block whose
+	// range straddles the bottom edge must stay mounted (no visible gap). The
+	// aligned-scrollTop cases above can't catch a regression here.
+	it('mounts a block straddling the half-open bottom edge', () => {
+		// viewport [1010, 1510); block 30 = [1500, 1550) is partially visible.
+		const w = computeWindow(model(), { ...base, scrollTop: 1010 });
+		expect(w.start).toBeLessThanOrEqual(30);
+		expect(w.end).toBeGreaterThan(30);
+	});
 });
