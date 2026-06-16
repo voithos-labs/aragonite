@@ -25,6 +25,10 @@ export interface EditorActionsDeps {
 	stickyColumn: StickyColumnState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
+	/** Scroll an off-window top-level block into the render window and await its
+	 *  mount, then return its component (null if unreachable). Already-mounted
+	 *  targets return synchronously without scrolling. */
+	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
 }
 

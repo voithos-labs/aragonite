@@ -83,6 +83,10 @@ export interface BlockWindow {
 	readonly result: WindowResult;
 	/** Anchor-correct around a model mutation: capture anchor top, run mutate, restore scrollTop by the delta. */
 	withAnchorCorrection(anchorIndex: number, mutate: () => void): void;
+	/** Push the scroll element's current scrollTop into the window state now. A
+	 *  programmatic scrollTop write doesn't fire a `scroll` event, so the passive
+	 *  listener wouldn't update the derived in time for a deterministic reveal. */
+	syncScrollTop(): void;
 	dispose(): void;
 }
 
@@ -138,6 +142,9 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			mutate();
 			const after = deps.getModel().offsetOf(anchorIndex);
 			if (el) el.scrollTop += after - before;
+		},
+		syncScrollTop() {
+			scrollTop = deps.getLocalScrollTop();
 		},
 		dispose() {
 			const el = deps.getScrollEl();
