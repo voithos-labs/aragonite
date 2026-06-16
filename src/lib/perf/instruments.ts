@@ -25,6 +25,7 @@ export interface PerfSnapshot {
 	blockRenderMsTotal: number;
 	keystrokeInPageMs: number[];
 	blockRenderPaths: string[];
+	mountedBlockCount: number;
 }
 
 let enabled = false;
@@ -46,7 +47,8 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderCount: 0,
 		blockRenderMsTotal: 0,
 		keystrokeInPageMs: [],
-		blockRenderPaths: []
+		blockRenderPaths: [],
+		mountedBlockCount: 0
 	};
 }
 
@@ -117,6 +119,16 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	counters.blockRenderCount++;
 	counters.blockRenderMsTotal += ms;
 	if (path) counters.blockRenderPaths.push(path.join(','));
+}
+
+export function incMountedBlocks(): void {
+	if (!enabled) return;
+	counters.mountedBlockCount++;
+}
+
+export function decMountedBlocks(): void {
+	if (!enabled) return;
+	counters.mountedBlockCount--;
 }
 
 export function markKeystrokeStart(): void {
