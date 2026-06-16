@@ -34,7 +34,8 @@ const EMPTY: PerfSnapshot = {
 	blockRenderCount: 0,
 	blockRenderMsTotal: 0,
 	keystrokeInPageMs: [],
-	blockRenderPaths: []
+	blockRenderPaths: [],
+	mountedBlockCount: 0
 };
 
 function recordOneOfEach(): void {
