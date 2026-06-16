@@ -408,7 +408,13 @@
 
 	// The focused block's top-level index is pinned inside the window so a scroll
 	// that pushes the caret off-screen never tears down native focus/IME.
-	let focusedTopLevelIndex = $state<number | null>(null);
+	//
+	// Plain `let`, not $state: focusout fires synchronously while Svelte tears
+	// down a focused block's DOM during a structural commit, so writing it from
+	// the handler would trip state_unsafe_mutation. The window derived still
+	// re-slices on scroll and after every commit (heightVersion), and a focus
+	// change can't drop a mounted block, so the pin needn't be reactive.
+	let focusedTopLevelIndex: number | null = null;
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
