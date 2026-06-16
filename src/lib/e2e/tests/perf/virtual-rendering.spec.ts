@@ -42,6 +42,7 @@ function capturePageErrors(page: Page): string[] {
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
 
@@ -70,6 +71,9 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	// Cross-check the gauge against the live census; they should agree within the
 	// 1-block baseline the balance was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
+	// Heaviest windowed reconcile path — a render-phase throw (e.g. a
+	// state_unsafe_mutation) must fail the test, not pass silently green.
+	expect(pageErrors).toEqual([]);
 });
 
 test('Ctrl+Shift+End reveals and edits the off-window last block', async ({ page }) => {
@@ -195,10 +199,12 @@ test('scrolling to a mid offset does not make the top visible block vanish', asy
 });
 
 test('a small document renders fully with no windowing', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
 	await editor.loadContent('# Hi\n\nWorld.\n');
 
 	expect(await spacerCount(page)).toBe(0);
 	expect(await editor.getDomBlockCount()).toBe(await editor.bridge.getBlockCount());
+	expect(pageErrors).toEqual([]);
 });
