@@ -13,6 +13,7 @@ import type {
 	ContainerEditActions,
 	HistoryActions
 } from '../../action-contracts';
+import type { BlockComponent } from '../../block-component';
 import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CstNode } from '../../core/nodes';
@@ -37,6 +38,7 @@ export interface CrossBlockDispatchContext {
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponentByPath: BlockComponentLookup;
+	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
 	getEditorLifetime: () => AbortSignal | null;
@@ -80,6 +82,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		selection: ctx.selection,
 		getDoc: ctx.getDoc,
 		getBlockElByPath: ctx.getBlockElByPath,
+		revealPath: ctx.revealPath,
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0)

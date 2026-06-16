@@ -73,6 +73,7 @@ function makeHandlers(
 		getDoc: () => env.doc,
 		getBlockElByPath: () => null,
 		getBlockComponentByPath: () => null,
+		revealPath: env.deps.revealPath,
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,

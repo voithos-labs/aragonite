@@ -75,6 +75,8 @@ export interface BlockEditActions {
 
 export interface FocusActions {
 	moveFocus(blockIndex: number, position: FocusPosition): void | Promise<void>;
+	/** Mount an off-window top-level block before placing a caret in it; see EditorActionsDeps.revealPath. */
+	revealPath(path: number[]): Promise<BlockComponent | null>;
 }
 
 export interface HistoryActions {

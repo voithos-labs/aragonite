@@ -72,7 +72,7 @@ import {
 	makeEditorActionsDeps
 } from '$lib/editor/test/harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '$lib/editor/core/nodes';
-import type { ContainerEditActions, FocusActions } from '$lib/editor/action-contracts';
+import type { ContainerEditActions } from '$lib/editor/action-contracts';
 import type { EditEvent } from '$lib/editor/editor-events';
 
 // ── Capability map ────────────────────────────────────────────────────────────
@@ -538,7 +538,7 @@ export async function checkFocusBubbleTermination(kind: BlockKind): Promise<void
 	expect(innerNode, `focus source contains a "${kind}" node`).toBeTruthy();
 	expect(innerNode!.children?.length, `"${kind}" node has children`).toBeGreaterThan(0);
 
-	const rootFocus: FocusActions = { moveFocus: vi.fn() };
+	const rootFocus = makeStubFocus();
 
 	// Outer strip container at its own top edge: receiving moveFocus(-1) it must
 	// delegate to root, not re-enter the inner chain.

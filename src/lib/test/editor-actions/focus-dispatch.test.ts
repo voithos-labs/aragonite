@@ -4,13 +4,12 @@ import {
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
 } from '../../editor-actions/focus-dispatch';
-import type { FocusActions } from '../../action-contracts';
 import { CURSOR_END } from '../../block-component';
-import { mockRef, makeStickyColumn } from '../harness/editor-actions';
+import { mockRef, makeStickyColumn, makeStubFocus } from '../harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {
-		const parentFocus: FocusActions = { moveFocus: vi.fn() };
+		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([mockRef({ focus: vi.fn() })], -1, 'end', makeStickyColumn(), {
 			focus: parentFocus,
 			index: 5
@@ -19,7 +18,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	it('delegates upward when innerIndex >= refs.length', async () => {
-		const parentFocus: FocusActions = { moveFocus: vi.fn() };
+		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([mockRef({ focus: vi.fn() })], 1, 'start', makeStickyColumn(), {
 			focus: parentFocus,
 			index: 5
@@ -30,7 +29,7 @@ describe('dispatchMoveFocus', () => {
 	it('routes numeric position to child.focus(offset)', async () => {
 		const child = mockRef({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, 3, makeStickyColumn(), {
-			focus: { moveFocus: vi.fn() },
+			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focus).toHaveBeenCalledWith(3);
@@ -39,7 +38,7 @@ describe('dispatchMoveFocus', () => {
 	it("routes 'end' position to child.focus(CURSOR_END)", async () => {
 		const child = mockRef({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, 'end', makeStickyColumn(), {
-			focus: { moveFocus: vi.fn() },
+			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
@@ -48,7 +47,7 @@ describe('dispatchMoveFocus', () => {
 	it('sticky-column variant uses focusAtColumn when sticky X is set', async () => {
 		const child = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(42), {
-			focus: { moveFocus: vi.fn() },
+			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focusAtColumn).toHaveBeenCalledWith(42, 'above');
@@ -58,7 +57,7 @@ describe('dispatchMoveFocus', () => {
 	it('sticky-column variant falls back to focus(0) when from=above and no sticky X', async () => {
 		const child = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(null), {
-			focus: { moveFocus: vi.fn() },
+			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focusAtColumn).not.toHaveBeenCalled();
@@ -68,7 +67,7 @@ describe('dispatchMoveFocus', () => {
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
 		const child = mockRef({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'below' }, makeStickyColumn(42), {
-			focus: { moveFocus: vi.fn() },
+			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
@@ -76,7 +75,7 @@ describe('dispatchMoveFocus', () => {
 
 	it('skips non-focusable blocks without delegating upward', async () => {
 		const child = mockRef({ focus: vi.fn(), focusable: false });
-		const parentFocus: FocusActions = { moveFocus: vi.fn() };
+		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([child], 0, 'start', makeStickyColumn(), {
 			focus: parentFocus,
 			index: 0
@@ -90,7 +89,7 @@ describe('dispatchMoveFocus', () => {
 	it('non-focusable at target + focusable sibling: current dispatcher no-ops on the target', async () => {
 		const nonFocusable = mockRef({ focus: vi.fn(), focusable: false });
 		const focusable = mockRef({ focus: vi.fn(), focusable: true });
-		const parentFocus: FocusActions = { moveFocus: vi.fn() };
+		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([nonFocusable, focusable], 0, 'start', makeStickyColumn(), {
 			focus: parentFocus,
 			index: 0

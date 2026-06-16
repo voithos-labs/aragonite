@@ -89,7 +89,9 @@ async function handleCrossBlockActive(
 		const collapsePath = (selection.start ?? selection.focus)?.path ?? myPath;
 		await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
-		const target = ctx.getBlockComponentByPath(collapsePath);
+		// Reveal mounts the merged block when it's off-window, so the command
+		// (Enter/Tab/Ctrl+B…) dispatches into a live component.
+		const target = await ctx.revealPath(collapsePath);
 		const chord = eventToChord(e);
 		if (target?.runCommand && chord) {
 			dispatchKeyCommand(
@@ -132,18 +134,18 @@ async function handleCrossBlockActive(
 
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		collapseCrossBlock(selection, 'start', getBlockElByPath);
+		await collapseCrossBlock(selection, 'start', getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
-		collapseCrossBlock(selection, 'start', getBlockElByPath);
+		await collapseCrossBlock(selection, 'start', getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
 		e.preventDefault();
-		collapseCrossBlock(selection, 'end', getBlockElByPath);
+		await collapseCrossBlock(selection, 'end', getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 
