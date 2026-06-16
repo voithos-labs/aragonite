@@ -7,13 +7,16 @@
 	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
 	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 	import { getBlockComponent } from '../schema/block-component-registry';
-	import { EDITOR_EVENTS_KEY } from '../editor-keys';
+	import { EDITOR_EVENTS_KEY, HEIGHT_ORACLE_KEY } from '../editor-keys';
+	import type { HeightOracle } from '../cursor/height-oracle';
+	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
 	let {
 		node,
 		index,
+		id,
 		parentPath = [],
 		ambientPrefix = '',
 		setRef,
@@ -21,6 +24,7 @@
 	}: {
 		node: CstNode;
 		index: number;
+		id: string;
 		parentPath?: number[];
 		ambientPrefix?: AmbientPrefix;
 		setRef?: (i: number, r: BlockComponent | undefined) => void;
@@ -47,6 +51,25 @@
 	$effect(() => {
 		if (!setRef || !getRef) return;
 		return publishRefSlot(index, ref, setRef, getRef);
+	});
+
+	const heightOracle = getContext<HeightOracle | undefined>(HEIGHT_ORACLE_KEY);
+
+	$effect(() => {
+		if (perfEnabled()) incMountedBlocks();
+		return () => {
+			if (perfEnabled()) decMountedBlocks();
+		};
+	});
+
+	// Keyed by stable id so structural shifts and undo keep the measurement.
+	// Re-runs on raw change since height grows with content; jsdom reports 0,
+	// so the guard skips recording until a real browser layout exists.
+	$effect(() => {
+		void node.raw;
+		if (!heightOracle || !hostEl) return;
+		const h = hostEl.getBoundingClientRect().height;
+		if (h > 0) heightOracle.recordMeasured(id, h);
 	});
 </script>
 
