@@ -14,10 +14,14 @@ const KEYSTROKE_TIMEOUT_MS = 60_000;
 
 // Shapes whose first block is a container (list, table): focusBlockEnd(0)
 // cannot place a caret inside those, and table-cell edits re-pad the whole
-// table (breaking the +1-length settle). These rows type into an appended
-// plain paragraph instead — the dominant per-keystroke costs are whole-doc and
-// caret-position-independent.
+// table (breaking the +1-length settle). These rows PREPEND a plain paragraph
+// so the caret target is block 0. Under windowing the per-keystroke cost is
+// O(mounted), so the target must be a mounted in-window block — block 0 is
+// always mounted at load (scrollTop=0); an appended last block would be
+// off-window and have no DOM host to type into.
 const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set(['nested-containers', 'table-heavy']);
+// The trailing '\n' plus the '\n' separator yields a blank line after the
+// paragraph, so it parses as a standalone block 0 ahead of the container.
 const PROSE_TARGET = 'perf cursor target\n';
 
 export interface LatencyMeasurement {
@@ -63,8 +67,9 @@ export async function measureTypingLatency(
 	keystrokes: number
 ): Promise<LatencyMeasurement> {
 	await editor.goto();
-	const needsTarget = NEEDS_PROSE_TARGET.has(shape);
-	const fixture = generateFixture(shape, bytes) + (needsTarget ? '\n' + PROSE_TARGET : '');
+	const fixture = NEEDS_PROSE_TARGET.has(shape)
+		? PROSE_TARGET + '\n' + generateFixture(shape, bytes)
+		: generateFixture(shape, bytes);
 
 	const loadStart = performance.now();
 	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
@@ -74,13 +79,16 @@ export async function measureTypingLatency(
 	await editor.waitForRenderFlush();
 	const loadMs = performance.now() - loadStart;
 
-	// CST index, not getDomBlockCount(): the chained block locator evaluates per
-	// top-level host and takes minutes at thousands of hosts; the appended target
-	// is by construction the last child.
-	const targetBlock = needsTarget
-		? await page.evaluate(() => (window as any).__test.getDocument().children.length - 1)
-		: 0;
+	const targetBlock = 0;
 	await editor.focusBlockEnd(targetBlock);
+	const mounted = await page.evaluate(
+		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
+		targetBlock
+	);
+	if (!mounted)
+		throw new Error(
+			`perf target block ${targetBlock} is not mounted — windowing left it off-window`
+		);
 	const baseLength = await page.evaluate(docLengthInPage);
 
 	const samples: number[] = [];

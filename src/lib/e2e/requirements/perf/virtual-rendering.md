@@ -9,6 +9,7 @@ renders every block with no spacers — windowing stays inactive.
 ## Happy paths
 
 - Bounded mounted set on a multi-thousand-block doc: the CST has many thousands of top-level blocks, but the live DOM mounts only a small bounded window (≪ the block count), and the load completes (render-wall proof).
+- Mounted set is size-independent: loading the same shape at two windowing-active sizes mounts a similarly small window for each; the larger doc has many more CST blocks but not more mounted blocks — the bound is O(viewport), not O(doc).
 - Small document stays inactive: a short doc renders every block, with no `.vr-spacer` elements and a DOM top-level count equal to the full block count.
 
 ## Edge cases
