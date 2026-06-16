@@ -26,7 +26,8 @@ export interface WindowResult {
 	topSpacerPx: number;
 	bottomSpacerPx: number;
 	pinnedIndex: number | null;
-	pinnedOutside: boolean; // pin sits outside [start, end) -> split-spacer render
+	pinnedOutside: boolean; // pin sits outside [start, end) -> absolutely-positioned render
+	pinnedOffsetPx: number | null; // pixel offset of the pin when outside the window; null otherwise
 }
 
 export function computeWindow(model: HeightModel, input: WindowInputs): WindowResult {
@@ -44,7 +45,8 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 			topSpacerPx: 0,
 			bottomSpacerPx: 0,
 			pinnedIndex: input.pinnedIndex,
-			pinnedOutside: false
+			pinnedOutside: false,
+			pinnedOffsetPx: null
 		};
 	}
 
@@ -65,7 +67,8 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 		topSpacerPx: model.offsetOf(start),
 		bottomSpacerPx: total - model.offsetOf(end),
 		pinnedIndex: input.pinnedIndex,
-		pinnedOutside
+		pinnedOutside,
+		pinnedOffsetPx: pinnedOutside ? model.offsetOf(input.pinnedIndex as number) : null
 	};
 }
 
