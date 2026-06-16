@@ -76,6 +76,38 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(pageErrors).toEqual([]);
 });
 
+test('mounted set stays bounded as document size grows (O(viewport), not O(doc))', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// `many-small-blocks` is flat, so the top-level DOM census IS the mounted
+	// window — no perf-gauge reset dance needed between loads. Two modest sizes
+	// that both clearly activate windowing.
+	const cstSmall = await editor.loadLargeFixture('many-small-blocks', 500_000);
+	const mountedSmall = await editor.getDomBlockCount();
+	const cstBig = await editor.loadLargeFixture('many-small-blocks', 1_500_000);
+	const mountedBig = await editor.getDomBlockCount();
+
+	console.log(
+		`VR size-independence ${JSON.stringify({ cstSmall, mountedSmall, cstBig, mountedBig })}`
+	);
+
+	// The bigger doc must have far more CST blocks — otherwise "size-independent"
+	// is vacuous (two similar docs would also mount similarly).
+	expect(cstBig).toBeGreaterThan(cstSmall * 2);
+
+	// Both windows are small in absolute terms AND nearly equal: a regression
+	// where mounting scaled with doc size (bigger doc → more mounted) fails here.
+	expect(mountedSmall).toBeLessThan(60);
+	expect(mountedBig).toBeLessThan(60);
+	expect(Math.abs(mountedBig - mountedSmall)).toBeLessThanOrEqual(10);
+
+	expect(pageErrors).toEqual([]);
+});
+
 test('Ctrl+Shift+End reveals and edits the off-window last block', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
