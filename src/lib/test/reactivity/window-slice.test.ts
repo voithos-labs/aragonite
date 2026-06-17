@@ -24,4 +24,11 @@ describe('sliceWindow', () => {
 		expect(sliceWindow(5, active(2, 99))).toEqual({ start: 2, end: 5 });
 		expect(sliceWindow(3, active(10, 20))).toEqual({ start: 3, end: 3 });
 	});
+
+	// VR-14: an inverted window (end < start) — from a stale derive — must collapse to
+	// an empty slice, never a negative-length one. The clamp-to-childCount cases above
+	// all have start <= end, so only this case exercises the Math.max(start, end) guard.
+	it('collapses an inverted window to an empty slice at start', () => {
+		expect(sliceWindow(100, active(30, 10))).toEqual({ start: 30, end: 30 });
+	});
 });

@@ -399,7 +399,8 @@
 		lineHeight: 24,
 		codeLineHeight: 20,
 		avgCharWidth: 8,
-		blockChrome: 16
+		blockChrome: 16,
+		imageBlockMinHeight: 200
 	});
 	setContext(HEIGHT_ORACLE_KEY, heightOracle);
 

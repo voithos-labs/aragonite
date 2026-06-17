@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import type { CstNode } from '../../core/nodes';
 
-const opts = { lineHeight: 24, codeLineHeight: 20, avgCharWidth: 8, blockChrome: 16 };
+const opts = {
+	lineHeight: 24,
+	codeLineHeight: 20,
+	avgCharWidth: 8,
+	blockChrome: 16,
+	imageBlockMinHeight: 200
+};
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -76,6 +82,34 @@ describe('createHeightOracle', () => {
 		const hr: CstNode = { kind: 'thematicBreak', leadingTrivia: '', raw: '---\n' };
 		expect(o.estimate(hr, 800)).toBe(24 + 16);
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
+	});
+
+	// A rendered image is far taller than its `![alt](url)` source, so the char-based
+	// estimate would seed an image-only paragraph at ~1 line and a screenful of images
+	// undercounts to near-zero. The floor keeps the estimate honest enough for
+	// activation/spacers. Without it the estimate collapses to one line + chrome.
+	it('floors an image-bearing paragraph at imageBlockMinHeight', () => {
+		const o = createHeightOracle(opts);
+		const img: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![A photo|400](pic.png)' };
+		const oneLine = 24 + 16;
+		expect(o.estimate(img, 800)).toBe(200); // floored, not the ~40px char estimate
+		expect(o.estimate(img, 800)).toBeGreaterThan(oneLine);
+	});
+
+	it('keeps the prose estimate when an image paragraph already exceeds the floor', () => {
+		const o = createHeightOracle(opts);
+		// Long caption around the image wraps to > 200px on its own; floor doesn't apply.
+		const wide: CstNode = {
+			kind: 'paragraph',
+			leadingTrivia: '',
+			raw: '![x](pic.png) ' + 'word '.repeat(300)
+		};
+		expect(o.estimate(wide, 800)).toBeGreaterThan(200);
+	});
+
+	it('does not floor a plain paragraph without an image', () => {
+		const o = createHeightOracle(opts);
+		expect(o.estimate(para('hello'), 800)).toBe(24 + 16); // unfloored short prose
 	});
 
 	it('clear() empties the measured cache', () => {
