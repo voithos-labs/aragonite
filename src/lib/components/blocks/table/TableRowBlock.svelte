@@ -118,6 +118,15 @@
 		cellRef?.focus(rest.length === 0 ? offset : 0);
 	}
 
+	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
+		if (path.length === 0) return null;
+		const [colIdx, ...rest] = path;
+		const cellRef = cellsState.innerBlockRefs[colIdx];
+		if (!cellRef) return null;
+		if (rest.length === 0) return cellRef;
+		return cellRef.getBlockComponentByPath?.(rest) ?? null;
+	}
+
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
 		for (let colIdx = 0; colIdx < cellsState.innerBlockRefs.length; colIdx++) {
 			const cellRef = cellsState.innerBlockRefs[colIdx];
@@ -133,7 +142,8 @@
 		focus,
 		getCursorOffset,
 		getCursorPosition,
-		focusByPath
+		focusByPath,
+		getBlockComponentByPath
 	} satisfies BlockComponent);
 
 	$effect(() => {
@@ -144,7 +154,8 @@
 			focus,
 			getCursorOffset,
 			getCursorPosition,
-			focusByPath
+			focusByPath,
+			getBlockComponentByPath
 		};
 		return publishRefSlot(index, self, setRef, getRef);
 	});

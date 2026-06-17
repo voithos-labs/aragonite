@@ -38,6 +38,7 @@
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { createListWindowing } from '../../../reactivity/list-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
+	import { whenRefMounted } from '../../../reactivity/publish-ref.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -248,6 +249,32 @@
 		rowRefAt(rowIdx)?.focusByPath?.([colIdx, ...rest], offset);
 	}
 
+	export function getBlockComponentByPath(path: number[]): BlockComponent | null {
+		if (path.length === 0) return null;
+		const [rowIdx, ...rest] = path;
+		const rowRef = rowsState.innerBlockRefs[rowIdx];
+		if (!rowRef) return null;
+		if (rest.length === 0) return rowRef;
+		return rowRef.getBlockComponentByPath?.(rest) ?? null;
+	}
+
+	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
+		if (path.length === 0) return null;
+		const [rowIdx, ...rest] = path;
+		if (rowIdx < rowCount && !rowsState.innerBlockRefs[rowIdx]) {
+			await windowing.revealChild(rowIdx);
+			while (!rowsState.innerBlockRefs[rowIdx]) {
+				await whenRefMounted(rowIdx, () => !!rowsState.innerBlockRefs[rowIdx]);
+			}
+		}
+		const rowRef = rowsState.innerBlockRefs[rowIdx];
+		if (!rowRef) return null;
+		if (rest.length === 0) return rowRef;
+		return rowRef.revealByPath
+			? await rowRef.revealByPath(rest)
+			: (rowRef.getBlockComponentByPath?.(rest) ?? null);
+	}
+
 	// See `focus()` — 2D surface, no shallow offset. Cursor location comes
 	// from `getCursorPosition` below, which selection consumers prefer.
 	export function getCursorOffset(): number | null {
@@ -324,6 +351,8 @@
 		focus,
 		focusAtColumn,
 		focusByPath,
+		getBlockComponentByPath,
+		revealByPath,
 		getCursorOffset,
 		getCursorPosition,
 		measurePartialRects
