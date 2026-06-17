@@ -166,6 +166,30 @@ describe('giant-single-container fixtures', () => {
 	});
 });
 
+describe('giant-single-table fixture', () => {
+	it('giant-single-table is ONE table of many rows', () => {
+		const md = generateFixture('giant-single-table', 200_000);
+		const lines = md.split('\n').filter((l) => l.trim().length > 0);
+		// Every line is a table row ("| ... |"); no blank-line separators that would
+		// split the table into multiple top-level blocks.
+		expect(lines.length).toBeGreaterThan(1000);
+		expect(lines.every((l) => l.startsWith('|'))).toBe(true);
+		expect(md).not.toContain('\n\n'); // no block separators -> single table node
+	});
+
+	it('is deterministic for a fixed seed', () => {
+		expect(generateFixture('giant-single-table', 50_000, 7)).toBe(
+			generateFixture('giant-single-table', 50_000, 7)
+		);
+	});
+
+	it('parses to a single top-level table block', () => {
+		const doc = parse(generateFixture('giant-single-table', 100_000));
+		expect(doc.children.length).toBe(1);
+		expect(doc.children[0].kind).toBe('table');
+	});
+});
+
 describe('generateUniformBlocks', () => {
 	it('produces exactly blockCount paragraphs', () => {
 		expect(parse(generateUniformBlocks(50, 4)).children).toHaveLength(50);
