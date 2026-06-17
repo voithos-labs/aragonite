@@ -229,6 +229,19 @@ export class EditorPage {
 		await this.getBlock(index).click();
 	}
 
+	/**
+	 * Real mouse click at a raw-semantic offset inside a nested block. `clickBlock`
+	 * addresses top-level blocks only; this resolves any `data-block-path` (including
+	 * comma-paths) to a pixel point and clicks it, landing a real caret there. Use
+	 * for nested targets a top-level click can't reach.
+	 */
+	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
+		const point = await this.pointForOffset(path, offset);
+		if (!point) throw new Error('clickBlockAtPath: could not resolve point');
+		await this.page.mouse.click(point.x, point.y);
+		await this.waitForRenderFlush();
+	}
+
 	async typeText(text: string) {
 		await this.page.keyboard.insertText(text);
 	}
