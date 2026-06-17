@@ -20,19 +20,27 @@ const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 	['10MB', 10_000_000, 15]
 ];
 
-// Rows above a shape's cap are not generated; omissions are recorded in
-// baseline.json and the requirements file. Probed 2026-06-10:
-//   many-small-blocks / nested-containers / table-heavy @10MB — load never
-//   completes (renderer cannot materialize that many DOM blocks/cells; lazy
-//   rendering is roadmapped — 0.7 Track C).
-//   reference-heavy @10MB — loads, but one keystroke fails to settle in 60s.
-//   Re-probed after dirty-set scoping of the inline sweep: still fails — the
-//   dominant per-keystroke cost at that scale is outside the sweep.
+// Rows above a shape's cap are not generated; omissions are recorded in the
+// requirements file. 0.8.6 virtual rendering un-capped the MULTI-block shapes
+// whose 10MB blocker was mounting every block: many-small-blocks +
+// nested-containers (Phase 2 top-level windowing) and table-heavy (Phase 2 — many
+// small tables stay below the watermark) now load and settle a keystroke at 10MB
+// (verified PERF=1).
+//   The single-giant-CONTAINER shapes stay capped: VR bounds their RENDERING
+//   (proven at 2MB in virtual-rendering.spec.ts), but their 10MB LOAD does not
+//   complete in 60s — the one-time parse + inline-content build for a single
+//   container with hundreds of thousands of children is O(doc), which VR (a
+//   rendering optimization) does not address. All three fail identically,
+//   including the list/blockquote shapes that touch no table code, so it is the
+//   single-giant-container load axis (incremental parsing 0.8.1 / lazy
+//   inlineContent 0.8.5), not a windowing bug.
+//   reference-heavy stays capped: its 10MB keystroke is bounded by reference/LRD
+//   resolution over the whole document, not mounted-component count (0.8.4).
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {
-	'many-small-blocks': 1_000_000,
-	'nested-containers': 1_000_000,
 	'reference-heavy': 1_000_000,
-	'table-heavy': 1_000_000
+	'giant-single-list': 1_000_000,
+	'giant-single-blockquote': 1_000_000,
+	'giant-single-table': 1_000_000
 };
 
 function round(ms: number): number {
