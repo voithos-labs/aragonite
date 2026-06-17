@@ -21,6 +21,51 @@ export function publishRefSlot<T>(
 	};
 }
 
+// ── Windowed reveal-and-wait ─────────────────────────────────────────────────
+
+export interface RevealChildOptions {
+	/** This scope's child count; an index at or past it can never mount (size lag). */
+	readonly childCount: number;
+	/** Read the ref slot at `index` — truthy means a ref is published there. */
+	readonly getRef: (index: number) => unknown;
+	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
+	readonly revealChild: (index: number) => Promise<void>;
+	/**
+	 * Clear the slot at `index`. Required when `isStale` can report true: a slot
+	 * holding a detached off-window ref must be dropped so the mount-wait below
+	 * resolves on the FRESH child, not the stale one.
+	 */
+	readonly dropRef?: (index: number) => void;
+	/**
+	 * True when the published ref at `index` is stale (its child scrolled off-window
+	 * and the windowed each-block's conditional cleanup left a detached ref). Slot
+	 * truthiness alone is a cache, not a mount oracle — a scope that can leave stale
+	 * slots passes this so reveal isn't skipped on the detached ref. Omitted by scopes
+	 * whose cleanup always clears the slot on unmount (the slot already goes undefined).
+	 */
+	readonly isStale?: (index: number) => boolean;
+}
+
+/**
+ * Bring child `index` into its window before a caller reads its ref: drop a stale
+ * off-window ref, scroll it in via `revealChild`, and await its mount. The
+ * bare-index mount waiter can wake on a same-index mount at another nesting level,
+ * so re-check this scope's own slot until its child is actually present. An adjacent
+ * (already-mounted, non-stale) child returns with no scroll. Shared by the canonical
+ * container reveal and TableBlock's hand-rolled one so the "is this slot a live
+ * mount" gate lives in one place.
+ */
+export async function revealChildOrWait(index: number, opts: RevealChildOptions): Promise<void> {
+	const stale = opts.isStale?.(index) ?? false;
+	if (index < opts.childCount && (stale || !opts.getRef(index))) {
+		if (stale) opts.dropRef?.(index);
+		await opts.revealChild(index);
+		while (!opts.getRef(index)) {
+			await whenRefMounted(index, () => !!opts.getRef(index));
+		}
+	}
+}
+
 // ── Mount-await registry ─────────────────────────────────────────────────────
 
 const mountWaiters = new Map<number, Array<() => void>>();
