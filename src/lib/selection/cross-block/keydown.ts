@@ -257,8 +257,12 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 	const deepPath = focus && cellEndpointDeepPath(ctx.getDoc(), focus);
 	if (deepPath) {
 		const cellRef = await ctx.revealPath(deepPath);
-		cellRef?.focus(0);
-		return;
+		// A null ref means the cell never mounted; fall through to scroll the
+		// (mounted) table so a failed reveal still keeps the endpoint in view.
+		if (cellRef) {
+			cellRef.focus(0);
+			return;
+		}
 	}
 	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 }

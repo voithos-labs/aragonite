@@ -3,6 +3,14 @@ import { EditorPage } from '../../../editor-page';
 
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
+// Multi-character, distinctive cells on purpose: the buggy fall-through path
+// places the caret at the row-major linear index read as a CHARACTER offset into
+// the table's concatenated text. With single-char cells those two coincide, so a
+// regression would still land in the right cell — only multi-char cells separate
+// the linear index from the char offset and make the bug observable.
+const TABLE_MULTICHAR =
+	'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n';
+
 async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
 	const from = page.locator('[role="cell"]').nth(fromIdx);
 	const to = page.locator('[role="cell"]').nth(toIdx);
@@ -170,5 +178,29 @@ test.describe('table block: selection', () => {
 		expect(sel!.anchor.offset).toBe(2);
 		expect(sel!.focus.offset).toBe(6);
 		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
+
+	test('Ctrl+Shift+End collapse-to-end lands the caret in the small table last cell', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_MULTICHAR);
+		// The windowing-gate safety story only covered the giant (windowed) table;
+		// this is the same collapse path on an unwindowed grid, where the cell-
+		// coordinate branch corrects a pre-existing meaningless-offset caret bug.
+		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
+
+		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.keyboard.press('Control+Shift+End');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowRight'); // collapse to the end (last cell)
+		// The collapse is async; settle before typing so the marker is a plain caret
+		// insert, not a type-replace over the still-active cross-block range.
+		await editor.waitForCrossBlock(false);
+		await editor.typeText('END_MARK');
+		await editor.bridge.waitForSourceContains('END_MARK');
+
+		const cells = page.locator('[role="cell"]');
+		expect(await cells.last().textContent()).toContain('END_MARK');
+		expect(await cells.nth(4).textContent()).not.toContain('END_MARK');
 	});
 });

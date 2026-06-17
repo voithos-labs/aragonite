@@ -13,3 +13,4 @@
 - Drag inside a single cell does not enter cross-block selection and paints no overlay.
 - Drag from cell A to cell B then back to cell A leaves cross-block selection off.
 - Rectangular intra-table drag (path-equal anchor/focus on the table) paints the overlay across the bounding rectangle.
+- Ctrl+Shift+End from a body cell of a small (unwindowed) table, then collapse-to-end (ArrowRight): the caret lands in the last cell, not at a stray linear offset on the grid.
