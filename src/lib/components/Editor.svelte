@@ -293,7 +293,9 @@
 		const ref = blockRefs[top];
 		if (!ref) return null;
 		if (path.length === 1) return ref;
-		return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
+		return ref.revealByPath
+			? await ref.revealByPath(path.slice(1))
+			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions({

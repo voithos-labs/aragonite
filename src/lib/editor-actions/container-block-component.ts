@@ -11,10 +11,13 @@ import {
 	dispatchFocusAtColumn,
 	dispatchGetBlockComponentByPath
 } from './focus-dispatch';
+import { whenRefMounted } from '../reactivity/publish-ref.svelte';
 
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	readonly nodeChildrenLength: number;
+	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
+	readonly revealChild?: (index: number) => Promise<void>;
 }
 
 export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): BlockComponent {
@@ -56,6 +59,24 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		},
 		getBlockComponentByPath(path: number[]): BlockComponent | null {
 			return dispatchGetBlockComponentByPath(deps.innerBlockRefs, path);
+		},
+		async revealByPath(path: number[]): Promise<BlockComponent | null> {
+			if (path.length === 0) return null;
+			const [head, ...rest] = path;
+			if (deps.revealChild && !deps.innerBlockRefs[head]) {
+				await deps.revealChild(head);
+				// The bare-index mountWaiter can wake on a same-index mount elsewhere;
+				// re-check this scope's own refs until its child is actually present.
+				while (!deps.innerBlockRefs[head]) {
+					await whenRefMounted(head, () => !!deps.innerBlockRefs[head]);
+				}
+			}
+			const ref = deps.innerBlockRefs[head];
+			if (!ref) return null;
+			if (rest.length === 0) return ref;
+			return ref.revealByPath
+				? ref.revealByPath(rest)
+				: (ref.getBlockComponentByPath?.(rest) ?? null);
 		},
 		focusAtColumn(x: number, from: StickyColumnDirection) {
 			if (deps.nodeChildrenLength === 0) return;

@@ -84,6 +84,13 @@ export interface BlockComponent {
 	 */
 	getBlockComponentByPath?(path: number[]): BlockComponent | null;
 	/**
+	 * Async sibling of getBlockComponentByPath: at each nested level, scroll the
+	 * child into its window and await its mount before recursing, so an off-window
+	 * target resolves instead of returning null. Adjacent (already-mounted) targets
+	 * resolve via the fast path with no scroll.
+	 */
+	revealByPath?(path: number[]): Promise<BlockComponent | null>;
+	/**
 	 * Deep cursor position for nested-block surfaces (e.g., table cells).
 	 * Returns the path from this block to the leaf containing the cursor,
 	 * plus the within-leaf offset. When implemented, Editor.svelte's
