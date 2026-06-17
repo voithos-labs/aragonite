@@ -67,9 +67,12 @@
 
 	// VR contexts read BEFORE the shadowing setContexts below, so they resolve to
 	// the parent scope's values; the oracle/root/focus drive this item's child window.
+	// parentSink is the parent ListBlock's item-indexed sink — this item's box
+	// subtotal reports up by its (now list-aligned) index.
 	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
+	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
@@ -81,6 +84,7 @@
 
 	const listState = createBlockListState(() => node);
 
+	let boxEl: HTMLElement | undefined = $state();
 	let contentEl: HTMLElement | undefined = $state();
 
 	$effect(() => {
@@ -166,21 +170,19 @@
 
 	// ── Virtual rendering (nested windowing) ────────────────────────────
 
-	// No reportSelfHeight yet: a list item's inherited sink belongs to the surrounding
-	// container (the document model at the top level), keyed by THAT container's child
-	// indices — not by list items. Reporting an item's box at its intra-list index
-	// collides with the BlockHost leaf channel for the whole ListBlock, two writers
-	// thrashing one slot into an update-depth loop. The item reports up once ListBlock
-	// provides an item-indexed sink (Task 8).
 	const windowing = createListWindowing({
 		oracle: heightOracle,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		// .block-list is a direct child of .list-item-content, reached through contentEl.
 		getListEl: () => contentEl?.querySelector(':scope > .block-list') ?? null,
+		// An item is NOT wrapped in a BlockHost; its own .list-item-block box is what the
+		// parent ListBlock's item-indexed sink expects (no competing leaf channel).
+		getOwnEl: () => boxEl ?? null,
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getParentPath: () => myPath,
+		reportSelfHeight: (h) => parentSink?.setChildSubtotal(index, h),
 		overscan: 4,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
@@ -258,7 +260,7 @@
 	}
 </script>
 
-<div class="list-item-block" data-task-checked={taskCheckedAttr}>
+<div class="list-item-block" data-task-checked={taskCheckedAttr} bind:this={boxEl}>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="list-item-content" onkeydown={handleKeydown} bind:this={contentEl}>
 		<BlockList
