@@ -337,6 +337,14 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
+		// Cross-block dispatch must precede cellKeydownPlan: the plan claims keys like
+		// ArrowLeft@0 / ArrowUp / ArrowDown and preventDefaults without reaching the
+		// cross-block handler, so an active selection would survive and the next
+		// keystroke would range-replace the whole table. Gated on isCrossBlock so the
+		// common cell path and the 3-stage Ctrl+A (stages 1-2 run not-cross-block) are
+		// untouched.
+		if (selection.isCrossBlock && (await crossBlock.handleKeyDown(e))) return;
+
 		preEditOffset = cursor.getRaw() ?? 0;
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
