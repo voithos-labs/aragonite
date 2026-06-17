@@ -19,17 +19,25 @@
 		CONTROLLER_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
+		FOCUSED_PATH_KEY,
+		HEIGHT_ORACLE_KEY,
+		PARENT_SCOPE_SINK_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
-		TABLE_CONTEXT_KEY
+		TABLE_CONTEXT_KEY,
+		type FocusedPathGetter,
+		type ParentScopeSink
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import type { UndoController } from '../../../editor-actions/deps';
+	import type { HeightOracle } from '../../../cursor/height-oracle';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import { createListWindowing } from '../../../reactivity/list-windowing.svelte';
+	import { sliceWindow } from '../../../reactivity/window-slice';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -54,6 +62,12 @@
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+
+	// VR contexts read BEFORE the shadowing setContext below, so they resolve to
+	// the parent scope's values; the oracle/root/focus drive this table's row window.
+	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
+	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
+	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -86,6 +100,37 @@
 	});
 
 	setNestedActionsContexts(bundle);
+
+	// ── Virtual rendering (row windowing) ───────────────────────────────
+
+	const windowing = createListWindowing({
+		oracle: heightOracle,
+		getChildren: () => node.children ?? [],
+		getChildIds: () => rowsState.innerBlockIds,
+		// The .table-block grid IS the content origin (holds spacers + rows).
+		getListEl: () => tableEl ?? null,
+		// The table is itself a BlockHost block; match the leaf channel the parent
+		// measured for it, so the subtotal we report up doesn't fight that slot.
+		getOwnEl: () => tableEl?.closest('.block-host') ?? null,
+		getScrollEl: () => getEditorRoot?.() ?? null,
+		getFocusPath: () => getFocusPath?.() ?? null,
+		getParentPath: () => myPath,
+		reportSelfHeight: (h) => parentSink?.setChildSubtotal(index, h),
+		overscan: 4,
+		pinExtensionCap: 100,
+		activateAbovePx: 4000,
+		deactivateBelowPx: 3000
+	});
+
+	// Row-indexed sink for THIS table's TableRowBlock children. Rows aren't
+	// BlockHosts and have no leaf channel, so this is their only path into the
+	// model (no RECORD_BLOCK_HEIGHT_KEY shadow — same as ListBlock).
+	setContext(PARENT_SCOPE_SINK_KEY, {
+		setChildSubtotal: windowing.setChildSubtotal
+	} satisfies ParentScopeSink);
+
+	let win = $derived(windowing.window);
+	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
 	function rowRefAt(rowIdx: number): BlockComponent | undefined {
 		return rowsState.innerBlockRefs[rowIdx];
@@ -315,19 +360,40 @@
 	role="table"
 	style:grid-template-columns={`repeat(${columnCount}, minmax(80px, max-content))`}
 >
-	{#each node.children ?? [] as rowNode, rowIdx (rowsState.innerBlockIds[rowIdx])}
-		<TableRowBlock
-			node={rowNode}
-			index={rowIdx}
-			{rowIdx}
-			{columnCount}
-			{rowCount}
-			alignments={meta?.alignments ?? []}
-			myPath={[...myPath, rowIdx]}
-			setRef={setRowRef}
-			getRef={getRowRef}
-		/>
-	{/each}
+	{#if win.active}
+		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
+		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
+		     index (bounds.start + localIndex), never the local loop index. -->
+		{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
+			{@const rowIdx = bounds.start + localIndex}
+			<TableRowBlock
+				node={rowNode}
+				index={rowIdx}
+				{rowIdx}
+				{columnCount}
+				{rowCount}
+				alignments={meta?.alignments ?? []}
+				myPath={[...myPath, rowIdx]}
+				setRef={setRowRef}
+				getRef={getRowRef}
+			/>
+		{/each}
+		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
+	{:else}
+		{#each node.children ?? [] as rowNode, rowIdx (rowsState.innerBlockIds[rowIdx])}
+			<TableRowBlock
+				node={rowNode}
+				index={rowIdx}
+				{rowIdx}
+				{columnCount}
+				{rowCount}
+				alignments={meta?.alignments ?? []}
+				myPath={[...myPath, rowIdx]}
+				setRef={setRowRef}
+				getRef={getRowRef}
+			/>
+		{/each}
+	{/if}
 </div>
 
 <style>
@@ -339,6 +405,10 @@
 		/* Modern standard — Edge/Chrome 121+ and Firefox honor these. */
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
+	}
+	/* Spacers are direct grid children; span all columns to reserve a full row band. */
+	.vr-spacer {
+		grid-column: 1 / -1;
 	}
 	/* Webkit fallback for older Chromium. */
 	.table-block::-webkit-scrollbar {

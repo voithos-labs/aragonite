@@ -35,3 +35,7 @@ renders every block with no spacers — windowing stays inactive.
 - Nested anchor stability: scrolling mid-way into a giant blockquote does not make the top in-view nested block teleport as its heights measure in; the block stays present with only bounded drift.
 - List-rebuild height persistence: in a windowed non-uniform list (some items wrap to many lines), scrolling so off-window items measure in and then making a structural edit that changes the item count (Enter at an item end → +1 item) does not collapse the content height or teleport the viewport. List items aren't `BlockHost`s, so their measured box reaches the parent model only via the child-subtotal channel; that channel must persist the box to the oracle by id, or the ListBlock rebuild reseeds every surviving item from estimate and the viewport jumps. Asserted on `.editor` scrollHeight stability and the top in-view nested host's offset.
 - Normal-size containers: a small list/blockquote renders with NO spacers (windowing inactive). [covered by the existing small-doc test]
+
+## Table-row windowing (Phase 4)
+
+- Giant single table (2MB, one `table` node): the mounted ROW set is bounded (≪ the row count), with `.vr-spacer`s present inside the `.table-block` grid; the grid still lays out (full-width rows, intact columns); no page errors.
