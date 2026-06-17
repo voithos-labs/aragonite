@@ -132,11 +132,17 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				heightVersion++;
 			}
 		},
-		// Propagated child-container subtotal: model slot ONLY, by index. No oracle
-		// write (the child container's own BlockHost owns that entry under its id), no
-		// anchor — so a deep leaf measurement updates each ancestor's slot without
-		// cascading scrollTop corrections up the chain.
+		// Propagated child-container subtotal: model slot + oracle, by this child's id.
+		// List items aren't BlockHosts and have no other oracle writer, so without this
+		// write a parent rebuild (buildModel re-seeds every slot from oracle.height,
+		// falling back to estimate) discards their measured heights and the viewport
+		// jumps. For hosted children the write is idempotent — their own BlockHost already
+		// records the same box under the same id. No anchor correction either way, so a
+		// deep leaf measurement updates each ancestor's slot without cascading scrollTop
+		// fixes up the chain.
 		setChildSubtotal(index, total) {
+			const id = deps.getChildIds()[index];
+			if (id !== undefined) deps.oracle.recordMeasured(id, total);
 			if (index < model.size && model.heightOf(index) !== total) {
 				model.setHeight(index, total);
 				heightVersion++;
