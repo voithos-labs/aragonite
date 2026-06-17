@@ -127,6 +127,42 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('[role="cell"]')).toHaveCount(0);
 	});
 
+	test('emptying a single-table doc leaves one editable block the user can type into', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_3x3);
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
+
+		const childCount = await page.evaluate(
+			() => (window as any).__test.getDocument().children.length as number
+		);
+		expect(childCount).toBeGreaterThanOrEqual(1);
+
+		await page.keyboard.type('typed after empty');
+		await editor.bridge.waitForSourceContains('typed after empty');
+	});
+
+	test('emptying a single-table doc keeps the delete in one undo entry', async ({ page }) => {
+		await editor.loadContent(TABLE_3x3);
+		await page.locator('[role="cell"]').nth(4).click();
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| --- | --- | --- |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			TABLE_3x3.replace(/\s+$/, '')
+		);
+	});
+
 	test('drag-select an entire row + Backspace deletes that row', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		const [fromBox, toBox] = await boxesOf(
