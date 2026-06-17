@@ -16,7 +16,8 @@ import {
 	extendFocusToPreviousBlock,
 	extendFocusToDocEdge,
 	selectWholeDocument,
-	scrollFocusBlockIntoView
+	scrollFocusBlockIntoView,
+	cellEndpointDeepPath
 } from '../keyboard-extend';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
@@ -112,7 +113,7 @@ async function handleCrossBlockActive(
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
 		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, ctx.getBlockComponentByPath);
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
+		await revealActiveEndpoint(ctx);
 		return true;
 	}
 	if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
@@ -128,24 +129,24 @@ async function handleCrossBlockActive(
 			side,
 			ctx.getBlockComponentByPath
 		);
-		scrollFocusBlockIntoView(selection, getBlockElByPath);
+		await revealActiveEndpoint(ctx);
 		return true;
 	}
 
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'start', getBlockElByPath, ctx.revealPath);
+		await collapseCrossBlock(selection, 'start', doc, getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'start', getBlockElByPath, ctx.revealPath);
+		await collapseCrossBlock(selection, 'start', doc, getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'end', getBlockElByPath, ctx.revealPath);
+		await collapseCrossBlock(selection, 'end', doc, getBlockElByPath, ctx.revealPath);
 		return true;
 	}
 
@@ -158,7 +159,10 @@ async function handleCrossBlockActive(
 	return false;
 }
 
-function handleCrossBlockEntry(ctx: CrossBlockDispatchContext, e: KeyboardEvent): boolean {
+async function handleCrossBlockEntry(
+	ctx: CrossBlockDispatchContext,
+	e: KeyboardEvent
+): Promise<boolean> {
 	const el = ctx.getEl();
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
@@ -238,11 +242,32 @@ function selectFirstPressContent(el: HTMLElement): void {
 	sel?.addRange(range);
 }
 
-function handleDocEdgeExtend(
+/**
+ * Bring the active (focus-side) endpoint into view after an extend. A
+ * cell-coordinate focus addresses the table block at a linear cell index, so
+ * scrollFocusBlockIntoView only reaches the (mounted) table — reveal the deep
+ * cell path instead to mount the off-window row. Revealing scrolls the anchor
+ * cell off-window and drops native focus to <body>, so park the dispatch caret
+ * in the revealed cell to keep the next keystroke routed (the pinned-caret
+ * rule). Start, not end: an end caret in the last cell makes ArrowRight read as
+ * an exit-the-table move rather than a collapse.
+ */
+async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
+	const focus = ctx.selection.focus;
+	const deepPath = focus && cellEndpointDeepPath(ctx.getDoc(), focus);
+	if (deepPath) {
+		const cellRef = await ctx.revealPath(deepPath);
+		cellRef?.focus(0);
+		return;
+	}
+	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+}
+
+async function handleDocEdgeExtend(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent,
 	direction: 'start' | 'end'
-): boolean {
+): Promise<boolean> {
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
@@ -254,7 +279,7 @@ function handleDocEdgeExtend(
 		direction,
 		ctx.getBlockComponentByPath
 	);
-	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+	await revealActiveEndpoint(ctx);
 	return true;
 }
 

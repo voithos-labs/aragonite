@@ -544,12 +544,10 @@ test('reveals an off-window table cell by scroll and edits it (phase 4)', async 
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-table', 2_000_000);
 
-	// Scroll-reveal route, not the cross-block keyboard route. Ctrl+Shift+End inside
-	// a table cell produces an IN-TABLE cell-range selection (focus = the last cell
-	// linearly) that neither scrolls nor mounts the off-window focus cell — a table
-	// cell-selection scroll-into-view gap, outside this file's scope (see report).
-	// This proves the same correctness property — scroll windows in a far row, an
-	// edit lands there — via the path that actually works for tables today.
+	// Scroll-reveal route. The keyboard route (Ctrl+Shift+End → collapse) is
+	// covered by the two cross-block tests above; this one proves the same
+	// correctness property — scroll windows in a far row, an edit lands there —
+	// via the pointer path.
 
 	// Snapshot the initial window's far edge: every asserted target row must be
 	// beyond it, so the test can only pass if the scroll mounted a genuinely
@@ -598,6 +596,126 @@ test('reveals an off-window table cell by scroll and edits it (phase 4)', async 
 		)
 	).toContain('CELL_VR_MARKER');
 	expect((await editor.bridge.getSource()).includes('CELL_VR_MARKER')).toBe(true);
+	expect(pageErrors).toEqual([]);
+});
+
+test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (phase 4)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	const lastRow = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length - 1
+	);
+
+	// Precondition: windowed AND the last row genuinely off-window, or the
+	// reveal assertion below is vacuous.
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	expect(
+		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBeNull();
+
+	// Real click into the first mounted cell, then Ctrl+Shift+End. The focus
+	// normalizes to a cell-coordinate endpoint at the table block; without Fix A
+	// the extend scrolls the table top and never mounts the off-window last row.
+	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.keyboard.press('Control+Shift+End');
+	await editor.waitForCrossBlock(true);
+
+	// [data-cross-block] attaches at enterCrossBlock, BEFORE the awaited reveal —
+	// wait for the row mount itself, not the cross-block flag.
+	await page.waitForFunction(
+		(r) => !!document.querySelector(`[data-table-row-idx="${r}"]`),
+		lastRow,
+		{ timeout: 10_000, polling: 16 }
+	);
+	expect(
+		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).not.toBeNull();
+	expect(pageErrors).toEqual([]);
+});
+
+test('collapsing a Ctrl+Shift+End table selection lands the caret in the revealed cell (phase 4)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	const lastRow = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length - 1
+	);
+
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	expect(
+		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBeNull();
+
+	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.keyboard.press('Control+Shift+End');
+	await editor.waitForCrossBlock(true);
+	await page.keyboard.press('ArrowRight'); // collapse to the revealed end
+	await editor.typeText('TABLE_END_MARKER');
+	await editor.bridge.waitForSourceContains('TABLE_END_MARKER', 10_000);
+
+	// Without Fix B the caret lands in the table grid at a meaningless linear
+	// offset, so the marker misses the last row's last cell.
+	expect(
+		await page.evaluate(
+			(r) => document.querySelector(`[data-table-row-idx="${r}"]`)?.textContent ?? '',
+			lastRow
+		)
+	).toContain('TABLE_END_MARKER');
+	expect(pageErrors).toEqual([]);
+});
+
+test('collapsing a Ctrl+Shift+End table selection to start lands the caret in the anchor cell (phase 4)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	const lastRow = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length - 1
+	);
+
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	expect(
+		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBeNull();
+
+	// Mirror of the collapse-to-end case: ArrowLeft collapses to the START (the
+	// anchor = row 0), which the extend scrolled off-window. The collapse must
+	// reveal and re-focus the anchor cell at offset 0, not leave the caret in the
+	// off-window last cell.
+	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
+	await page.keyboard.press('Control+Shift+End');
+	await editor.waitForCrossBlock(true);
+	await page.keyboard.press('ArrowLeft'); // collapse to the start (row 0)
+	await editor.typeText('TABLE_START_MARKER');
+	await editor.bridge.waitForSourceContains('TABLE_START_MARKER', 10_000);
+
+	// The marker must land on the FIRST source line (row 0, the anchor) — not the
+	// last row, where the off-window focus cell sat. The collapse re-windows so
+	// row 0 may not be the DOM-mounted slice; assert via the source line index.
+	const markerLine = await page.evaluate(() =>
+		((window as any).__test.getSource() as string)
+			.split('\n')
+			.findIndex((l) => l.includes('TABLE_START_MARKER'))
+	);
+	expect(markerLine).toBe(0);
 	expect(pageErrors).toEqual([]);
 });
 
