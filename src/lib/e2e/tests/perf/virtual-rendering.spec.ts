@@ -300,3 +300,80 @@ test('giant single list windows its items (phase 3)', async ({ page }) => {
 
 	expect(pageErrors).toEqual([]);
 });
+
+test('reveals a deep off-window nested item and lands the caret there', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-list', 2_000_000);
+
+	// The deep last leaf lives at [0, lastItem, 0] (list → last item → its paragraph).
+	const lastItem = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length - 1
+	);
+
+	// Precondition: the list is windowed AND the deep last leaf is genuinely
+	// unmounted, so the marker-at-end assertion can only pass if reveal scrolls and
+	// mounts it. Without this the test is vacuous.
+	expect(await spacerCount(page)).toBeGreaterThan(0);
+	const deepHostPath = JSON.stringify([0, lastItem, 0]);
+	expect(
+		await page.evaluate((p) => document.querySelector(`[data-block-path='${p}']`), deepHostPath)
+	).toBeNull();
+
+	// Real click into the first item's mounted content leaf [0,0,0]. focusBlockStart(0)
+	// would target the list CONTAINER ([0] = the non-focusable .list-block div), so its
+	// programmatic focus()+range never routes the Ctrl+Shift+End keydown. The deep last
+	// leaf is off-window, so it routes through revealPath's async nested descent.
+	await editor.clickBlockAtPath([0, 0, 0], 0);
+	await page.keyboard.press('Control+Shift+End');
+	await editor.waitForCrossBlock(true);
+	await page.keyboard.press('ArrowRight'); // collapse the range to the revealed end
+	await editor.typeText('DEEP_VR_MARKER');
+	await editor.bridge.waitForSourceContains('DEEP_VR_MARKER', 10_000);
+
+	const source = await editor.bridge.getSource();
+	expect(source.trimEnd().endsWith('DEEP_VR_MARKER')).toBe(true); // landed in the LAST item, not item 0
+	expect(pageErrors).toEqual([]);
+});
+
+test('nested: scrolling mid into a giant blockquote does not teleport the top nested block', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-blockquote', 2_000_000);
+
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	await editor.scrollEditorTo(Math.round(scrollHeight / 2));
+
+	// The NESTED host (path carries a comma) at the top of the viewport, and its
+	// in-viewport offset. Inverts the top-level anchor test's :not([*=","]) filter.
+	const topNested = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > top + 1)
+				return { path: host.getAttribute('data-block-path'), top: rect.top };
+		}
+		return null;
+	});
+	expect(topNested).not.toBeNull();
+
+	await editor.waitForRenderFlush();
+
+	const after = await page.evaluate((path) => {
+		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
+		return host ? host.getBoundingClientRect().top : null;
+	}, topNested!.path);
+	expect(after).not.toBeNull();
+	// Phase-3 ships estimate-based spacers at depth, so allow generous drift — the
+	// asserted invariant is non-disappearance, not pixel-perfect anchoring.
+	expect(Math.abs(after! - topNested!.top)).toBeLessThan(250);
+	expect(pageErrors).toEqual([]);
+});

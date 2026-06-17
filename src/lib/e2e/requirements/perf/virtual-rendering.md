@@ -26,3 +26,11 @@ renders every block with no spacers — windowing stays inactive.
 ## Error cases
 
 - No page errors (e.g. `state_unsafe_mutation`) surface during the off-window reveal, scroll, or undo paths.
+
+## Recursive container windowing (Phase 3)
+
+- Giant single blockquote (2MB, one `blockquote` node): mounted set bounded, nested spacers present. [covered]
+- Giant single list (2MB, one `list` node): mounted set bounded, spacers inside `.list-block`. [covered]
+- Reveal a deep off-window nested target: on a giant list, the deeply nested last leaf is unmounted at load; clicking the first item then Ctrl+Shift+End extends the cross-block selection to that leaf, and typing a marker lands it at the end of the source — `revealByPath` scrolled and mounted the off-window item.
+- Nested anchor stability: scrolling mid-way into a giant blockquote does not make the top in-view nested block teleport as its heights measure in; the block stays present with only bounded drift.
+- Normal-size containers: a small list/blockquote renders with NO spacers (windowing inactive). [covered by the existing small-doc test]
