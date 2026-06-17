@@ -11,16 +11,27 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_ROOT_KEY,
+		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
+		HEIGHT_ORACLE_KEY,
 		LIST_CONTEXT_KEY,
+		PARENT_SCOPE_SINK_KEY,
+		RECORD_BLOCK_HEIGHT_KEY,
 		SELECTION_KEY,
-		STICKY_COLUMN_KEY
+		STICKY_COLUMN_KEY,
+		type FocusedPathGetter,
+		type ParentScopeSink,
+		type RecordBlockHeight
 	} from '../../editor-keys';
 	import { metadataOf } from '../../core/nodes';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
+	import type { HeightOracle } from '../../cursor/height-oracle';
 	import { displayLength } from '../../core/lines';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
+	import { createListWindowing } from '../../reactivity/list-windowing.svelte';
+	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../perf/instruments';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -54,6 +65,12 @@
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 
+	// VR contexts read BEFORE the shadowing setContexts below, so they resolve to
+	// the parent scope's values; the oracle/root/focus drive this item's child window.
+	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
+
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
 	const wrappedListContext: ListContext = {
@@ -62,7 +79,16 @@
 	};
 	setContext(LIST_CONTEXT_KEY, wrappedListContext);
 
-	const state = createBlockListState(() => node);
+	const listState = createBlockListState(() => node);
+
+	let contentEl: HTMLElement | undefined = $state();
+
+	$effect(() => {
+		if (perfEnabled()) incMountedBlocks();
+		return () => {
+			if (perfEnabled()) decMountedBlocks();
+		};
+	});
 
 	function toggleTask(): void {
 		const meta = metadataOf(node, 'listItem');
@@ -87,7 +113,7 @@
 	});
 
 	const bundle = createStandardNestedActions(
-		state,
+		listState,
 		{
 			get index() {
 				return index;
@@ -138,11 +164,44 @@
 
 	setNestedActionsContexts(bundle);
 
+	// ── Virtual rendering (nested windowing) ────────────────────────────
+
+	// No reportSelfHeight yet: a list item's inherited sink belongs to the surrounding
+	// container (the document model at the top level), keyed by THAT container's child
+	// indices — not by list items. Reporting an item's box at its intra-list index
+	// collides with the BlockHost leaf channel for the whole ListBlock, two writers
+	// thrashing one slot into an update-depth loop. The item reports up once ListBlock
+	// provides an item-indexed sink (Task 8).
+	const windowing = createListWindowing({
+		oracle: heightOracle,
+		getChildren: () => node.children ?? [],
+		getChildIds: () => listState.innerBlockIds,
+		// .block-list is a direct child of .list-item-content, reached through contentEl.
+		getListEl: () => contentEl?.querySelector(':scope > .block-list') ?? null,
+		getScrollEl: () => getEditorRoot?.() ?? null,
+		getFocusPath: () => getFocusPath?.() ?? null,
+		getParentPath: () => myPath,
+		overscan: 4,
+		pinExtensionCap: 100,
+		activateAbovePx: 4000,
+		deactivateBelowPx: 3000
+	});
+
+	// Leaf channel: a DIRECT child (path one deeper than mine) measures into MY model.
+	setContext(RECORD_BLOCK_HEIGHT_KEY, ((path, id, h) => {
+		if (path.length === myPath.length + 1)
+			windowing.recordMeasuredChild(path[myPath.length], id, h);
+	}) satisfies RecordBlockHeight);
+	// Subtotal channel: MY direct child containers report their box subtotal up by index.
+	setContext(PARENT_SCOPE_SINK_KEY, {
+		setChildSubtotal: windowing.setChildSubtotal
+	} satisfies ParentScopeSink);
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
-			return state.innerBlockRefs;
+			return listState.innerBlockRefs;
 		},
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
@@ -201,13 +260,14 @@
 
 <div class="list-item-block" data-task-checked={taskCheckedAttr}>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="list-item-content" onkeydown={handleKeydown}>
+	<div class="list-item-content" onkeydown={handleKeydown} bind:this={contentEl}>
 		<BlockList
 			children={node.children ?? []}
-			blockIds={state.innerBlockIds}
-			setRef={(i, r) => (state.innerBlockRefs[i] = r)}
-			getRef={(i) => state.innerBlockRefs[i]}
+			blockIds={listState.innerBlockIds}
+			setRef={(i, r) => (listState.innerBlockRefs[i] = r)}
+			getRef={(i) => listState.innerBlockRefs[i]}
 			parentPath={myPath}
+			window={windowing.window}
 			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}
 		/>
 	</div>
