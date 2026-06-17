@@ -263,10 +263,13 @@
 		const [rowIdx, ...rest] = path;
 		// A row scrolled off-window leaves a stale (detached) ref in its slot — the
 		// windowed each-block's cleanup is conditional and doesn't always clear it.
-		// Gate on the live window bounds, not ref truthiness, and drop the stale ref
-		// so the mount-wait below resolves on the FRESH row, not the detached one.
-		if (rowIdx < rowCount && (rowIdx < bounds.start || rowIdx >= bounds.end)) {
-			rowsState.innerBlockRefs[rowIdx] = undefined;
+		// Ref truthiness is a cache, not a mount oracle: gate the scroll on the live
+		// window bounds too, and drop the stale ref so the mount-wait below resolves
+		// on the FRESH row, not the detached one. The `!ref` arm preserves the
+		// original wait for an in-window row whose ref hasn't published yet.
+		const offWindow = rowIdx < bounds.start || rowIdx >= bounds.end;
+		if (rowIdx < rowCount && (offWindow || !rowsState.innerBlockRefs[rowIdx])) {
+			if (offWindow) rowsState.innerBlockRefs[rowIdx] = undefined;
 			await windowing.revealChild(rowIdx);
 			while (!rowsState.innerBlockRefs[rowIdx]) {
 				await whenRefMounted(rowIdx, () => !!rowsState.innerBlockRefs[rowIdx]);
