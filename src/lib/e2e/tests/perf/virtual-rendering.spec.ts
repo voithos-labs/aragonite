@@ -509,7 +509,241 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 		await page.evaluate(() => document.querySelectorAll('[data-table-row-idx]').length)
 	).toBeLessThan(120);
 
+	// Grid still lays out: a mounted row's cells form ONE horizontal band (shared
+	// top) spanning the table width. Deleting the spacers' `grid-column: 1 / -1`
+	// shifts the cells one grid track, splitting a row across two row bands — the
+	// shared-top assertion (not a width check, which survives the shift) catches it.
+	const band = await page.evaluate(() => {
+		const table = document.querySelector('.table-block') as HTMLElement;
+		const row = document.querySelector('[data-table-row-idx]') as HTMLElement | null;
+		const cells = Array.from(row?.querySelectorAll(':scope > .table-cell') ?? []) as HTMLElement[];
+		if (cells.length < 2) return null;
+		const tops = cells.map((c) => c.getBoundingClientRect().top);
+		const tableRect = table.getBoundingClientRect();
+		const lefts = cells.map((c) => c.getBoundingClientRect().left);
+		const rights = cells.map((c) => c.getBoundingClientRect().right);
+		return {
+			topSpread: Math.max(...tops) - Math.min(...tops),
+			leftGap: Math.min(...lefts) - tableRect.left,
+			rightGap: tableRect.right - Math.max(...rights)
+		};
+	});
+	expect(band).not.toBeNull();
+	expect(band!.topSpread).toBeLessThan(4);
+	expect(band!.leftGap).toBeLessThan(4);
+	expect(band!.rightGap).toBeLessThan(4);
+
 	// A render-phase throw (e.g. state_unsafe_mutation / effect_update_depth_exceeded)
 	// must fail the test, not pass silently green.
+	expect(pageErrors).toEqual([]);
+});
+
+test('reveals an off-window table cell by scroll and edits it (phase 4)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	// Scroll-reveal route, not the cross-block keyboard route. Ctrl+Shift+End inside
+	// a table cell produces an IN-TABLE cell-range selection (focus = the last cell
+	// linearly) that neither scrolls nor mounts the off-window focus cell — a table
+	// cell-selection scroll-into-view gap, outside this file's scope (see report).
+	// This proves the same correctness property — scroll windows in a far row, an
+	// edit lands there — via the path that actually works for tables today.
+
+	// Snapshot the initial window's far edge: every asserted target row must be
+	// beyond it, so the test can only pass if the scroll mounted a genuinely
+	// off-window row.
+	const initialMaxRow = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('[data-table-row-idx]')).reduce(
+			(max, el) => Math.max(max, Number(el.getAttribute('data-table-row-idx'))),
+			-1
+		)
+	);
+
+	// Precondition: windowed AND a far row genuinely unmounted at load, or the
+	// assertions below are vacuous.
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	await editor.scrollEditorTo(Math.round(scrollHeight * 0.9));
+
+	// A far row, well past the initial window, that the scroll mounted. Click its
+	// first cell, type a marker, and assert both the row idx is off-window and the
+	// marker reached the source.
+	const target = await page.evaluate((initialMax) => {
+		const rows = Array.from(document.querySelectorAll('[data-table-row-idx]')) as HTMLElement[];
+		const far = rows
+			.map((r) => Number(r.getAttribute('data-table-row-idx')))
+			.filter((idx) => idx > initialMax + 10)
+			.sort((a, b) => a - b);
+		return far[Math.floor(far.length / 2)] ?? null;
+	}, initialMaxRow);
+	expect(target).not.toBeNull();
+	expect(target!).toBeGreaterThan(initialMaxRow + 10);
+
+	await page.locator(`[data-table-row-idx="${target}"] [role="cell"]`).first().click();
+	await editor.typeText('CELL_VR_MARKER');
+	await editor.bridge.waitForSourceContains('CELL_VR_MARKER', 10_000);
+
+	// The marker landed in the far (originally off-window) row's mounted cell, not
+	// at the top — scroll-windowing mounted it and the edit reached it.
+	expect(
+		await page.evaluate(
+			(t) => document.querySelector(`[data-table-row-idx="${t}"]`)?.textContent ?? '',
+			target
+		)
+	).toContain('CELL_VR_MARKER');
+	expect((await editor.bridge.getSource()).includes('CELL_VR_MARKER')).toBe(true);
+	expect(pageErrors).toEqual([]);
+});
+
+test('structural edit in a windowed non-uniform table keeps the viewport stable', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// Non-uniform on purpose: every 8th body row is tall (multi-line cells via <br>),
+	// the rest one line. A uniform table can't catch the bug — every slot's estimate
+	// already equals its measured height, so a rebuild's reseed is a no-op. ~600 rows
+	// clear the 4000px activation watermark with room to spare.
+	const header = '| a | b | c |\n| --- | --- | --- |\n';
+	const body =
+		Array.from({ length: 600 }, (_, i) =>
+			i % 8 === 0 ? `| ${'x<br>'.repeat(8)}x | y | z |` : `| p | q | r |`
+		).join('\n') + '\n';
+	await editor.loadContent(header + body);
+
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	const rowCount = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length
+	);
+
+	// Progressive scroll 0 -> middle, ~0.6 viewport per step, flushing between, so the
+	// window passes over (mounts + measures) the tall rows. Rows reach the model only
+	// via setChildSubtotal, and only when mounted; a direct jump leaves above-window
+	// rows at estimate and the rebuild would change nothing there.
+	const viewport = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).clientHeight
+	);
+	const target = await page.evaluate(() =>
+		Math.round((document.querySelector('.editor') as HTMLElement).scrollHeight / 2)
+	);
+	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
+		await editor.scrollEditorTo(top);
+	}
+	await editor.scrollEditorTo(target);
+	await editor.waitForRenderFlush();
+
+	// Reference: the topmost visible row's cell (by row-idx + top — a display:contents
+	// row has no box, so track a CELL). Edit a row LOWER in the viewport so the inserted
+	// sibling lands below the reference and the reference's row-idx stays stable.
+	const view = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const bottom = editorEl.getBoundingClientRect().bottom;
+		const rows = Array.from(document.querySelectorAll('[data-table-row-idx]')) as HTMLElement[];
+		const visible = rows
+			.map((r) => {
+				const rect = (
+					r.querySelector(':scope > .table-cell') as HTMLElement | null
+				)?.getBoundingClientRect();
+				return {
+					idx: r.getAttribute('data-table-row-idx')!,
+					top: rect?.top ?? null,
+					bottom: rect?.bottom ?? null
+				};
+			})
+			.filter((r) => r.top !== null && r.bottom! > top + 1 && r.top! < bottom);
+		return { reference: visible[0], editIdx: visible[Math.min(3, visible.length - 1)]?.idx };
+	});
+	expect(view.reference).toBeTruthy();
+	expect(view.editIdx).toBeTruthy();
+
+	const scrollHeightBefore = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+
+	// Real structural edit: click the lower visible cell, Ctrl+Enter inserts a row
+	// below it (+1 to the table's child count), triggering the TableBlock rebuild.
+	// Verify the count actually changed — an edit that didn't rebuild proves nothing.
+	await page.locator(`[data-table-row-idx="${view.editIdx}"] [role="cell"]`).first().click();
+	await page.keyboard.press('Control+Enter');
+	await page.waitForFunction(
+		(n) => (window as any).__test.getDocument().children[0].children.length === n,
+		rowCount + 1,
+		{ timeout: 5000, polling: 16 }
+	);
+	await editor.waitForRenderFlush();
+
+	// Primary signal: scrollHeight stability. Without the oracle-persisting subtotal
+	// write, the rebuild reseeds every above-window row from estimate, collapsing the
+	// spacer-backed content height by thousands of px; one added row moves it only by
+	// one row's height.
+	const scrollHeightAfter = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	expect(Math.abs(scrollHeightAfter - scrollHeightBefore)).toBeLessThan(500);
+
+	// Corroborating signal: the reference row (above the edit) must not teleport.
+	const referenceAfter = await page.evaluate((idx) => {
+		const cell = document
+			.querySelector(`[data-table-row-idx="${idx}"]`)
+			?.querySelector(':scope > .table-cell') as HTMLElement | null;
+		return cell ? cell.getBoundingClientRect().top : null;
+	}, view.reference.idx);
+	expect(referenceAfter).not.toBeNull();
+	expect(Math.abs(referenceAfter! - view.reference.top!)).toBeLessThan(250);
+	expect(pageErrors).toEqual([]);
+});
+
+test('scrolling mid into a giant table does not teleport the top visible row', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	await editor.scrollEditorTo(Math.round(scrollHeight / 2));
+
+	// The row at the top of the viewport, tracked via a CELL's top (display:contents
+	// row has no box). Identify the row by data-table-row-idx and read its first cell.
+	const topRow = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const rows = Array.from(document.querySelectorAll('[data-table-row-idx]')) as HTMLElement[];
+		for (const row of rows) {
+			const cell = row.querySelector(':scope > .table-cell') as HTMLElement | null;
+			if (!cell) continue;
+			const rect = cell.getBoundingClientRect();
+			if (rect.bottom > top + 1)
+				return { idx: row.getAttribute('data-table-row-idx'), top: rect.top };
+		}
+		return null;
+	});
+	expect(topRow).not.toBeNull();
+
+	await editor.waitForRenderFlush();
+
+	// The same row must still be present and not have teleported. Estimate-based spacers
+	// allow bounded drift; the invariant is non-disappearance, not pixel-perfect anchoring.
+	// A systematic mis-measure (every row under-measured) blows past this bound.
+	const after = await page.evaluate((idx) => {
+		const cell = document
+			.querySelector(`[data-table-row-idx="${idx}"]`)
+			?.querySelector(':scope > .table-cell') as HTMLElement | null;
+		return cell ? cell.getBoundingClientRect().top : null;
+	}, topRow!.idx);
+	expect(after).not.toBeNull();
+	expect(Math.abs(after! - topRow!.top)).toBeLessThan(250);
 	expect(pageErrors).toEqual([]);
 });
