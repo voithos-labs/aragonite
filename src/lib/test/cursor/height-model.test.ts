@@ -63,4 +63,29 @@ describe('HeightModel', () => {
 		expect(m.indexAtOffset(4)).toBe(0); // before the first boundary
 		expect(m.indexAtOffset(5)).toBe(3); // offsetOf(1..3) all == 5; last wins
 	});
+
+	// VR-9: out-of-range writes/reads must not poison the Fenwick tree. setHeight at
+	// i === count used to record heights[count] (read back stale) with no tree update;
+	// offsetOf(i > count) reads past the tree array and returns NaN, which then
+	// propagates into every spacer. A negative index makes bump's `p += p & -p` stall
+	// at p = 0 forever.
+	it('ignores a setHeight at or past the count instead of recording a stale height', () => {
+		const m = new HeightModel([10, 20, 30]); // count 3
+		m.setHeight(3, 50); // i === count
+		expect(m.heightOf(3)).toBe(0); // unguarded: returns 50
+		expect(m.total()).toBe(60); // tree untouched
+	});
+
+	it('ignores a negative setHeight index instead of looping forever', () => {
+		const m = new HeightModel([10, 20, 30]);
+		m.setHeight(-1, 50); // unguarded: bump(-1) never terminates
+		expect(m.total()).toBe(60);
+	});
+
+	it('clamps offsetOf past the count to total instead of returning NaN', () => {
+		const m = new HeightModel([10, 20, 30]); // total 60
+		expect(m.offsetOf(3)).toBe(60); // offsetOf(count) == total, still valid
+		expect(m.offsetOf(4)).toBe(60); // unguarded: NaN
+		expect(Number.isFinite(m.offsetOf(99))).toBe(true);
+	});
 });

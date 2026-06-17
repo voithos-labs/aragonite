@@ -27,7 +27,9 @@ export class HeightModel {
 
 	/** Pixel offset of the top of index `i` (sum of heights[0..i)); `offsetOf(count)` == total. */
 	offsetOf(i: number): number {
-		return this.prefix(i);
+		// prefix(i) for i > count reads past the Fenwick array → NaN, which then
+		// propagates into every spacer. Clamp to the valid [0, count] range.
+		return this.prefix(Math.max(0, Math.min(i, this.count)));
 	}
 
 	/** Current height stored for index `i`. */
@@ -35,8 +37,11 @@ export class HeightModel {
 		return this.heights[i] ?? 0;
 	}
 
-	/** Set index `i` to `height` in O(log n). No-op when unchanged. */
+	/** Set index `i` to `height` in O(log n). No-op when unchanged or out of range. */
 	setHeight(i: number, height: number): void {
+		// Out of range writes corrupt the model: i >= count poisons heights[] read-back
+		// with no tree update, and i < 0 makes bump's `p += p & -p` stall at p=0 forever.
+		if (i < 0 || i >= this.count) return;
 		const delta = height - this.heights[i];
 		if (delta === 0) return;
 		this.heights[i] = height;
