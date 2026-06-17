@@ -203,4 +203,66 @@ test.describe('table block: selection', () => {
 		expect(await cells.last().textContent()).toContain('END_MARK');
 		expect(await cells.nth(4).textContent()).not.toContain('END_MARK');
 	});
+
+	// Regression: TableCellBlock ran cellKeydownPlan BEFORE cross-block dispatch,
+	// so a plan-claimed key (ArrowLeft@0, ArrowUp/Down) never collapsed an active
+	// cross-block selection. The next keystroke then range-replaced the whole
+	// table body. ArrowRight "lucked out" (offset-gated, declined by the plan at a
+	// non-end caret); ArrowLeft and ArrowDown are claimed and wiped.
+	test('Ctrl+Shift+End then ArrowLeft collapses to start without wiping the table body', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_MULTICHAR);
+		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
+
+		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.keyboard.press('Control+Shift+End');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowLeft'); // collapse to the start (anchor cell)
+		await editor.waitForCrossBlock(false);
+		await editor.typeText('LEFT_MARK');
+		await editor.bridge.waitForSourceContains('LEFT_MARK');
+
+		const source = await editor.bridge.getSource();
+		expect(source, `middle row wiped:\n${source}`).toContain('| eee |');
+		const cells = page.locator('[role="cell"]');
+		expect(await cells.nth(3).textContent()).toContain('LEFT_MARK');
+	});
+
+	test('Ctrl+Shift+End then ArrowDown collapses to end without wiping the table body', async ({
+		page
+	}) => {
+		await editor.loadContent(TABLE_MULTICHAR);
+		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
+
+		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
+		await page.keyboard.press('Control+Shift+End');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('ArrowDown'); // collapse to the end (last cell)
+		await editor.waitForCrossBlock(false);
+		await editor.typeText('DOWN_MARK');
+		await editor.bridge.waitForSourceContains('DOWN_MARK');
+
+		const source = await editor.bridge.getSource();
+		expect(source, `middle row wiped:\n${source}`).toContain('| eee |');
+		const cells = page.locator('[role="cell"]');
+		expect(await cells.last().textContent()).toContain('DOWN_MARK');
+	});
+
+	// The 3-stage Ctrl+A (cell -> table -> document) must survive the cross-block-
+	// first dispatch: stage 2 sets isCrossBlock, so the new gate routes stage 3
+	// into the cross-block Ctrl+A handler. End state must still be whole-document.
+	test('three Ctrl+A presses in a cell select the whole document', async ({ page }) => {
+		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
+
+		await page.locator('[role="cell"]').nth(3).click();
+		await page.keyboard.press('Control+a'); // stage 1: cell
+		await page.keyboard.press('Control+a'); // stage 2: table (enters cross-block)
+		await page.keyboard.press('Control+a'); // stage 3: whole document
+		await editor.waitForCrossBlock(true);
+
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel!.anchor.path[0]).toBe(0);
+		expect(sel!.focus.path[0]).toBe(2); // last top-level block (paragraph "After.")
+	});
 });
