@@ -10,6 +10,7 @@ import { tick, untrack } from 'svelte';
 import { HeightModel } from '../cursor/height-model';
 import type { HeightOracle } from '../cursor/height-oracle';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
+import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import type { CstNode } from '../core/nodes';
 
 export interface ListWindowingDeps {
@@ -47,7 +48,7 @@ export interface ListWindowing {
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	function buildModel(): HeightModel {
-		const width = deps.getScrollEl()?.clientWidth || 800;
+		const width = estimateWidth(deps.getListEl(), deps.getScrollEl());
 		const children = deps.getChildren();
 		const ids = deps.getChildIds();
 		return new HeightModel(children.map((n, i) => deps.oracle.height(ids[i], n, width)));
@@ -81,6 +82,25 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return Math.max(0, scrollEl.scrollTop - offsetWithinContent);
 	}
 
+	// Window each scope against its OWN slice of the viewport, not the full editor
+	// height — otherwise N stacked active scopes each mount a full viewport's worth
+	// of blocks (O(viewport × scopes)). Falls back to the full height when either
+	// element is unmounted (windowing it as the whole viewport is the safe default).
+	function viewportHeight(): number {
+		const scrollEl = deps.getScrollEl();
+		const listEl = deps.getListEl();
+		if (!scrollEl) return 0;
+		if (!listEl) return scrollEl.clientHeight;
+		const scrollRect = scrollEl.getBoundingClientRect();
+		const listRect = listEl.getBoundingClientRect();
+		return effectiveViewportHeight(
+			scrollRect.top,
+			scrollEl.clientHeight,
+			listRect.top,
+			listRect.height
+		);
+	}
+
 	// This scope's pin: the focused path's index AT this scope's depth, iff the
 	// focus path descends through this scope; else null.
 	function pinnedIndex(): number | null {
@@ -98,7 +118,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		},
 		getScrollEl: deps.getScrollEl,
 		getLocalScrollTop: localScrollTop,
-		getViewportHeight: () => deps.getScrollEl()?.clientHeight ?? 0,
+		getViewportHeight: viewportHeight,
 		getPinnedIndex: pinnedIndex,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,

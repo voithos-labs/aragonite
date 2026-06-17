@@ -7,11 +7,16 @@
  */
 import type { BlockKind, CstNode } from '../core/nodes';
 
+// Inline image syntax `![alt](url)` — the form that embeds a sized, rendered
+// image whose height the char-based estimate badly undercounts.
+const IMAGE_RAW = /!\[[^\]]*\]\(/;
+
 export interface HeightOracleOptions {
 	lineHeight: number; // px per wrapped prose line
 	codeLineHeight: number; // px per code source line
 	avgCharWidth: number; // px, for chars-per-line from width
 	blockChrome: number; // px of margin/padding per block
+	imageBlockMinHeight: number; // px floor for an image-bearing paragraph (raw chars badly undercount a rendered image)
 }
 
 export interface HeightOracle {
@@ -53,8 +58,14 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			case 'table':
 			case 'tableRow':
 				return sourceLines(raw) * opts.lineHeight + opts.blockChrome;
-			default:
-				return wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;
+			default: {
+				const prose = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;
+				// A rendered image dwarfs its `![alt](url)` source — the char-based estimate
+				// would seed a tall block at ~1 line, so a screenful of images undercounts to
+				// near-zero and activation/spacers under-mount. Floor it (reading raw only —
+				// never inlineContent in an estimate path).
+				return IMAGE_RAW.test(raw) ? Math.max(prose, opts.imageBlockMinHeight) : prose;
+			}
 		}
 	}
 
