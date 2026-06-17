@@ -50,7 +50,9 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getParentPath: opts.getParentPath,
-		reportSelfHeight: parentSink ? (h) => parentSink.setChildSubtotal(opts.getIndex(), h) : undefined,
+		reportSelfHeight: parentSink
+			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
+			: undefined,
 		overscan: 4,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
