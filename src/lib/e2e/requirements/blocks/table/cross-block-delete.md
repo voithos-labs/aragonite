@@ -24,7 +24,10 @@ End-to-end coverage for cross-block range-delete through tables (rangeDelete tab
 
 Intra-table Backspace dispatches by what the selection covers:
 
-- Whole-table coverage (every cell selected, e.g. Ctrl+A 2nd press): delete the table block.
+- Whole-table coverage (every cell selected, e.g. Ctrl+A 2nd press): delete the table block. When
+  the table is the document's only block, an empty paragraph replaces it in the same undo entry so
+  the document keeps ≥1 editable block, the caret lands in it (offset 0), and a single Ctrl+Z
+  restores the original table.
 - Whole-row coverage (every cell of one row, no cells from other rows): delete the row. No-op
   when only the header row would survive (≥1 body row required), mirroring Ctrl+Shift+Backspace.
   Deleting the header row promotes the next row to header.

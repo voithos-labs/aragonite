@@ -55,6 +55,28 @@ test.describe('select-all clipboard round-trip', () => {
 		expect(source).not.toContain('gamma');
 	});
 
+	test('emptying a prose doc via select-all + Backspace leaves a typeable block', async ({
+		page
+	}) => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		await editor.focusBlockStart(0);
+
+		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains('alpha');
+
+		const childCount = await page.evaluate(
+			() => (window as any).__test.getDocument().children.length as number
+		);
+		expect(childCount).toBeGreaterThanOrEqual(1);
+
+		await editor.page.keyboard.type('fresh start');
+		await editor.bridge.waitForSourceContains('fresh start');
+	});
+
 	test('Ctrl+A from inside a list item escalates to whole document on second press', async () => {
 		await editor.loadContent('Before\n\n- Hello\n\nAfter\n');
 

@@ -89,17 +89,31 @@ async function commitFullTableDelete(
 		snapshot,
 		mutate: (children) => {
 			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
-			const survivorCount = children.length;
-			const survivorIdx = Math.min(tableIdx, Math.max(0, survivorCount - 1));
-			collapsedCaret =
-				survivorCount > 0 ? { path: [survivorIdx], offset: 0 } : { path: [0], offset: 0 };
 			ctx.selection.collapse();
+			// A sole-table doc empties to zero blocks, which leaves no editable
+			// block and strands the caret on <body>. Materialize an empty
+			// paragraph in the same commit so the descriptor mints its id and the
+			// undo entry restores the table in one step.
+			if (children.length === 0) {
+				const filler = makeEmptyParagraph();
+				ctx.controller.sharing.stamp(filler);
+				children.push(filler);
+				collapsedCaret = { path: [0], offset: 0 };
+				return { op: 'replace', at: 0, count: 1, newCount: 1 };
+			}
+			const survivorIdx = Math.min(tableIdx, children.length - 1);
+			collapsedCaret = { path: [survivorIdx], offset: 0 };
 			return change;
 		},
 		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' } },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
+}
+
+// Mirrors initDocument's empty-doc backstop and rangeDelete's reparse fallback.
+function makeEmptyParagraph(): CstNode {
+	return { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 }
 
 async function commitRowDelete(
