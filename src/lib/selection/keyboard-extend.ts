@@ -8,6 +8,8 @@ import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { BlockComponentLookup } from '../editor-keys';
+import type { BlockComponent } from '../block-component';
+import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
@@ -45,18 +47,29 @@ export function enterCrossBlockFromKeyboard(
 /**
  * Collapse to start/end, restore a native caret, exit cross-block mode.
  * `revealPath` mounts the collapse target when it's off-window before the
- * caret is placed.
+ * caret is placed. A cell-coordinate target's offset is a linear cell index,
+ * not a char offset, so the caret lands at the cell's edge via the cell ref
+ * (the table grid has no meaningful caret position at that offset).
  */
 export async function collapseCrossBlock(
 	selection: SelectionState,
 	to: 'start' | 'end',
+	doc: Document,
 	getBlockElByPath: (path: number[]) => HTMLElement | null,
-	revealPath: (path: number[]) => Promise<unknown>
+	revealPath: (path: number[]) => Promise<BlockComponent | null>
 ): Promise<void> {
 	const target = to === 'start' ? selection.start : selection.end;
 	if (!target) return;
 	selection.collapse();
 	clearNativeSelection();
+
+	const deepPath = cellEndpointDeepPath(doc, target);
+	if (deepPath) {
+		const cellRef = await revealPath(deepPath);
+		cellRef?.focus(to === 'end' ? CURSOR_END : 0);
+		return;
+	}
+
 	await revealPath(target.path);
 	const blockEl = getBlockElByPath(target.path);
 	if (blockEl) {
@@ -359,4 +372,18 @@ function normalizeTableEndpoint(doc: Document, path: number[], offset: number): 
 		}
 	}
 	return { path: path.slice(), offset };
+}
+
+/**
+ * Inverse of {@link normalizeTableEndpoint}: expand a cell-coordinate endpoint
+ * back to its deep `[tableIdx, row, col]` leaf path so reveal/caret placement can
+ * reach the off-window cell. Null for non-cell-coordinate points (the path is
+ * already the leaf).
+ */
+export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
+	if (!point.cellCoordinate) return null;
+	const node = nodeAt(doc, point.path);
+	if (!node || !('kind' in node) || node.kind !== 'table') return null;
+	const colCount = metadataOf(node, 'table').columnCount;
+	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
 }
