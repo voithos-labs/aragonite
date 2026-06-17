@@ -20,6 +20,13 @@ function spacerCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('.vr-spacer').length);
 }
 
+// Total mounted BlockHosts, INCLUDING nested (comma-path) hosts. getDomBlockCount
+// counts top-level hosts only, so for a single giant container it would read ~1
+// whether or not the container windows — useless as a windowing assertion.
+function allHostCount(page: Page): Promise<number> {
+	return page.evaluate(() => document.querySelectorAll('[data-block-path]').length);
+}
+
 function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
 	return page.evaluate(
 		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
@@ -238,5 +245,33 @@ test('a small document renders fully with no windowing', async ({ page }) => {
 
 	expect(await spacerCount(page)).toBe(0);
 	expect(await editor.getDomBlockCount()).toBe(await editor.bridge.getBlockCount());
+	expect(pageErrors).toEqual([]);
+});
+
+test('giant single blockquote windows its children (phase 3 spike)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-blockquote', 2_000_000);
+
+	// ONE top-level blockquote with thousands of paragraph children — without the
+	// child count the < 150 mounted bound below proves nothing.
+	expect(await cstBlockCount(page)).toBe(1);
+	expect(
+		await page.evaluate(() => (window as any).__test.getDocument().children[0].children.length)
+	).toBeGreaterThan(2000);
+
+	// Spacers inside the blockquote (the top scope has one child, so it emits none —
+	// every spacer comes from the nested scope).
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
+	// paragraph count. getDomBlockCount excludes nested hosts, so census all paths.
+	expect(await allHostCount(page)).toBeLessThan(150);
+
+	// A render-phase throw (e.g. state_unsafe_mutation in the windowed reconcile)
+	// must fail, not pass green.
 	expect(pageErrors).toEqual([]);
 });
