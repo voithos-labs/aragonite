@@ -486,3 +486,30 @@ test('nested: scrolling mid into a giant blockquote does not teleport the top ne
 	expect(Math.abs(after! - topNested!.top)).toBeLessThan(250);
 	expect(pageErrors).toEqual([]);
 });
+
+test('giant single table windows its rows (phase 4)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+
+	// ONE top-level table with thousands of rows — without the row count the
+	// bound below proves nothing.
+	const doc = await page.evaluate(() => (window as any).__test.getDocument());
+	expect(doc.children.length).toBe(1);
+	expect(doc.children[0].children.length).toBeGreaterThan(2000);
+
+	// Spacers INSIDE the table grid (the top scope has one child, so it emits none).
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	// Mounted rows bounded to viewport + overscan + pin, NOT the row count.
+	expect(
+		await page.evaluate(() => document.querySelectorAll('[data-table-row-idx]').length)
+	).toBeLessThan(120);
+
+	// A render-phase throw (e.g. state_unsafe_mutation / effect_update_depth_exceeded)
+	// must fail the test, not pass silently green.
+	expect(pageErrors).toEqual([]);
+});
