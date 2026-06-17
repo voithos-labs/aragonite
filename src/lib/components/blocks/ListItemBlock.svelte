@@ -11,26 +11,17 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
-		EDITOR_ROOT_KEY,
-		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
-		HEIGHT_ORACLE_KEY,
 		LIST_CONTEXT_KEY,
-		PARENT_SCOPE_SINK_KEY,
-		RECORD_BLOCK_HEIGHT_KEY,
 		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		type FocusedPathGetter,
-		type ParentScopeSink,
-		type RecordBlockHeight
+		STICKY_COLUMN_KEY
 	} from '../../editor-keys';
 	import { metadataOf } from '../../core/nodes';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import type { HeightOracle } from '../../cursor/height-oracle';
 	import { displayLength } from '../../core/lines';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-	import { createListWindowing } from '../../reactivity/list-windowing.svelte';
+	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../perf/instruments';
 	import {
 		createStandardNestedActions,
@@ -64,15 +55,6 @@
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
-
-	// VR contexts read BEFORE the shadowing setContexts below, so they resolve to
-	// the parent scope's values; the oracle/root/focus drive this item's child window.
-	// parentSink is the parent ListBlock's item-indexed sink — this item's box
-	// subtotal reports up by its (now list-aligned) index.
-	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
-	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
@@ -170,8 +152,9 @@
 
 	// ── Virtual rendering (nested windowing) ────────────────────────────
 
-	const windowing = createListWindowing({
-		oracle: heightOracle,
+	const windowing = useContainerWindowing({
+		getIndex: () => index,
+		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		// .block-list is a direct child of .list-item-content, reached through contentEl.
@@ -179,25 +162,8 @@
 		// An item is NOT wrapped in a BlockHost; its own .list-item-block box is what the
 		// parent ListBlock's item-indexed sink expects (no competing leaf channel).
 		getOwnEl: () => boxEl ?? null,
-		getScrollEl: () => getEditorRoot?.() ?? null,
-		getFocusPath: () => getFocusPath?.() ?? null,
-		getParentPath: () => myPath,
-		reportSelfHeight: (h) => parentSink?.setChildSubtotal(index, h),
-		overscan: 4,
-		pinExtensionCap: 100,
-		activateAbovePx: 4000,
-		deactivateBelowPx: 3000
+		provideLeafChannel: true
 	});
-
-	// Leaf channel: a DIRECT child (path one deeper than mine) measures into MY model.
-	setContext(RECORD_BLOCK_HEIGHT_KEY, ((path, id, h) => {
-		if (path.length === myPath.length + 1)
-			windowing.recordMeasuredChild(path[myPath.length], id, h);
-	}) satisfies RecordBlockHeight);
-	// Subtotal channel: MY direct child containers report their box subtotal up by index.
-	setContext(PARENT_SCOPE_SINK_KEY, {
-		setChildSubtotal: windowing.setChildSubtotal
-	} satisfies ParentScopeSink);
 
 	// ── BlockComponent interface ────────────────────────────────────────
 

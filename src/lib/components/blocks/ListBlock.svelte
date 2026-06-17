@@ -12,23 +12,16 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
-		EDITOR_ROOT_KEY,
-		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
-		HEIGHT_ORACLE_KEY,
 		LIST_CONTEXT_KEY,
-		PARENT_SCOPE_SINK_KEY,
-		STICKY_COLUMN_KEY,
-		type FocusedPathGetter,
-		type ParentScopeSink
+		STICKY_COLUMN_KEY
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import type { HeightOracle } from '../../cursor/height-oracle';
 	import { createListContext } from '../../editor-actions/list-context';
 	import { createListOverrides } from '../../editor-actions/list-overrides';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-	import { createListWindowing } from '../../reactivity/list-windowing.svelte';
+	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../reactivity/window-slice';
 	import {
 		createStandardNestedActions,
@@ -44,14 +37,6 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-
-	// VR contexts read BEFORE the shadowing setContext below, so they resolve to
-	// the parent scope's values. parentSink receives this list's own box subtotal;
-	// the oracle/root/focus drive its item window.
-	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
-	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	const listState = createBlockListState(() => node);
 
@@ -119,8 +104,9 @@
 
 	// ── Virtual rendering (item windowing) ──────────────────────────────
 
-	const windowing = createListWindowing({
-		oracle: heightOracle,
+	const windowing = useContainerWindowing({
+		getIndex: () => index,
+		getParentPath: () => myPath,
 		getChildren: () => node.children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		// The .list-block IS the content origin — it holds the spacers and items.
@@ -128,22 +114,8 @@
 		// A list is itself a BlockHost block; match the leaf channel the parent
 		// measured for it, so the subtotal we report up doesn't fight that slot.
 		getOwnEl: () => boxEl?.closest('.block-host') ?? null,
-		getScrollEl: () => getEditorRoot?.() ?? null,
-		getFocusPath: () => getFocusPath?.() ?? null,
-		getParentPath: () => myPath,
-		reportSelfHeight: (h) => parentSink?.setChildSubtotal(index, h),
-		overscan: 4,
-		pinExtensionCap: 100,
-		activateAbovePx: 4000,
-		deactivateBelowPx: 3000
+		provideLeafChannel: false
 	});
-
-	// Item-indexed sink for THIS list's ListItemBlock children. A list has no direct
-	// BlockHost children (an item's content hosts land in that item's own scope), so
-	// no RECORD_BLOCK_HEIGHT_KEY shadow — the inherited RECORD no-ops on the deep path.
-	setContext(PARENT_SCOPE_SINK_KEY, {
-		setChildSubtotal: windowing.setChildSubtotal
-	} satisfies ParentScopeSink);
 
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
