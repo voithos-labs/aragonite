@@ -215,7 +215,4 @@
 		padding-left: 0;
 		list-style: none;
 	}
-	.vr-spacer {
-		flex: 0 0 auto;
-	}
 </style>
