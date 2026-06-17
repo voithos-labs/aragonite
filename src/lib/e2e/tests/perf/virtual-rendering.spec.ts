@@ -699,24 +699,37 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 		)
 	).toBeNull();
 
-	// ArrowLeft collapses the cross-block selection to its start. waitForCrossBlock(false)
+	// ArrowLeft collapses the cross-block selection to its start (the row-0 anchor
+	// cell, off-window after Ctrl+Shift+End scrolled to the bottom). waitForCrossBlock(false)
 	// before typing: the collapse is async, so typing immediately would race the
-	// still-active selection into a destructive type-replace (the very bug this guards).
+	// still-active selection into a destructive type-replace.
 	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
 	await page.keyboard.press('Control+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowLeft'); // collapse to the start
 	await editor.waitForCrossBlock(false);
+
+	// The collapse must REVEAL and focus the off-window anchor cell, not leave the
+	// caret stranded in the off-window focus cell (the bug: revealByPath gated on a
+	// stale ref slot and skipped mounting row 0). Assert the active cell is row 0.
+	expect(
+		await page.evaluate(() =>
+			document.activeElement?.closest('[data-table-row-idx]')?.getAttribute('data-table-row-idx')
+		)
+	).toBe('0');
+
 	await editor.typeText('TABLE_START_MARKER');
 	await editor.bridge.waitForSourceContains('TABLE_START_MARKER', 10_000);
 
+	// The marker lands in row 0's first cell — proving the caret reached the anchor,
+	// not the focus cell. (A wrong-cell caret puts the marker in the last row.)
+	expect(
+		await page.evaluate(() => document.querySelector('[data-table-row-idx="0"]')?.textContent ?? '')
+	).toContain('TABLE_START_MARKER');
+
 	// The body must SURVIVE the collapse. A destructive range-replace (the pre-fix
 	// behavior) wiped the table to a handful of rows. Assert via the CST row count,
-	// which is windowing-independent — only the mounted DOM slice changes. (This test
-	// once asserted the marker on source line 0, which a wipe ALSO satisfied via the
-	// start-wins collapse — vacuous. The marker's landing cell is left unasserted: under
-	// windowing the collapse-to-start caret lands in the off-window focus cell, a
-	// separate pre-existing VR defect tracked apart from this data-loss fix.)
+	// which is windowing-independent — only the mounted DOM slice changes.
 	const rowCountAfter = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length
 	);

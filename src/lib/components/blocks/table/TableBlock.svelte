@@ -261,7 +261,12 @@
 	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const [rowIdx, ...rest] = path;
-		if (rowIdx < rowCount && !rowsState.innerBlockRefs[rowIdx]) {
+		// A row scrolled off-window leaves a stale (detached) ref in its slot — the
+		// windowed each-block's cleanup is conditional and doesn't always clear it.
+		// Gate on the live window bounds, not ref truthiness, and drop the stale ref
+		// so the mount-wait below resolves on the FRESH row, not the detached one.
+		if (rowIdx < rowCount && (rowIdx < bounds.start || rowIdx >= bounds.end)) {
+			rowsState.innerBlockRefs[rowIdx] = undefined;
 			await windowing.revealChild(rowIdx);
 			while (!rowsState.innerBlockRefs[rowIdx]) {
 				await whenRefMounted(rowIdx, () => !!rowsState.innerBlockRefs[rowIdx]);
