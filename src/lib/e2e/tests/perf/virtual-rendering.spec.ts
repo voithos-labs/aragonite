@@ -275,3 +275,28 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 	// must fail, not pass green.
 	expect(pageErrors).toEqual([]);
 });
+
+test('giant single list windows its items (phase 3)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('giant-single-list', 2_000_000);
+
+	// ONE top-level list with thousands of items — without the child count the
+	// < 200 mounted bound below proves nothing.
+	const doc = await page.evaluate(() => (window as any).__test.getDocument());
+	expect(doc.children.length).toBe(1);
+	expect(doc.children[0].children.length).toBeGreaterThan(2000);
+
+	// Windowed INSIDE the list itself — spacers come from the .list-block scope
+	// (the top scope has one child, so it emits none).
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
+	// item count.
+	expect(await allHostCount(page)).toBeLessThan(200);
+
+	expect(pageErrors).toEqual([]);
+});
