@@ -337,6 +337,115 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 	expect(pageErrors).toEqual([]);
 });
 
+test('structural edit in a windowed non-uniform list keeps the viewport stable', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// Non-uniform on purpose: every 8th item wraps to many lines, the rest are one
+	// line. A uniform fixture can't catch the bug — every slot's estimate already
+	// equals its measured height, so a rebuild's reseed is a no-op. ~600 items clear
+	// the 4000px activation watermark with room to spare.
+	const md =
+		Array.from({ length: 600 }, (_, i) => `- ${'word '.repeat(i % 8 === 0 ? 60 : 4).trim()}`).join(
+			'\n'
+		) + '\n';
+	await editor.loadContent(md);
+
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+	const itemCount = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length
+	);
+
+	// Progressive scroll 0 → middle, ~0.6 viewport per step, flushing between. This
+	// MOUNTS and measures every item the window passes over — list items reach the
+	// model only via setChildSubtotal, and only when mounted. A direct jump leaves
+	// the above-window items at estimate in BOTH branches, so the rebuild would
+	// change nothing there and the test couldn't tell Fix 1 apart. Measuring them
+	// in first is what makes the rebuild's reseed observable.
+	const viewport = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).clientHeight
+	);
+	const target = await page.evaluate(() =>
+		Math.round((document.querySelector('.editor') as HTMLElement).scrollHeight / 2)
+	);
+	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
+		await editor.scrollEditorTo(top);
+	}
+	await editor.scrollEditorTo(target);
+	await editor.waitForRenderFlush();
+
+	// Reference: the topmost in-view nested CONTENT host (list items aren't
+	// data-block-path; their paragraph is, at [0, k, 0]). Edit a host LOWER in the
+	// viewport so the inserted sibling lands below the reference and its path stays
+	// stable — re-querying the same path after an edit above it would read a
+	// different item.
+	const inView = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const bottom = editorEl.getBoundingClientRect().bottom;
+		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
+		const visible = hosts
+			.map((h) => ({
+				path: h.getAttribute('data-block-path')!,
+				top: h.getBoundingClientRect().top
+			}))
+			.filter((h) => {
+				const el = document.querySelector(`[data-block-path='${h.path}']`) as HTMLElement;
+				const rect = el.getBoundingClientRect();
+				return rect.bottom > top + 1 && rect.top < bottom;
+			});
+		return { reference: visible[0], editTarget: visible[Math.min(3, visible.length - 1)] };
+	});
+	expect(inView.reference).toBeTruthy();
+	expect(inView.editTarget).toBeTruthy();
+
+	const scrollHeightBefore = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+
+	// Real structural edit: click into a visible item's content and press Enter at
+	// its end to split off a NEW sibling item (+1 to the list's child count), which
+	// triggers the ListBlock rebuild. Verify the count actually changed — a split
+	// that only touched inner content wouldn't rebuild and would prove nothing.
+	const editPath = JSON.parse(inView.editTarget.path) as number[];
+	const editLen = await page.evaluate((p) => {
+		const el = document.querySelector(`[data-block-path='${JSON.stringify(p)}']`) as HTMLElement;
+		return el?.textContent?.length ?? 0;
+	}, editPath);
+	await editor.clickBlockAtPath(editPath, editLen);
+	await page.keyboard.press('Enter');
+	// Windowing mounts only a slice, so the DOM .list-item-block count isn't the
+	// full item count — poll the CST list's child count instead.
+	await page.waitForFunction(
+		(n) => (window as any).__test.getDocument().children[0].children.length === n,
+		itemCount + 1,
+		{ timeout: 5000, polling: 16 }
+	);
+	await editor.waitForRenderFlush();
+
+	// Primary signal: scrollHeight stability. Without Fix 1 the rebuild reseeds every
+	// above-window item from estimate, collapsing the spacer-backed content height by
+	// thousands of px; the single added item moves it only by one item's height.
+	const scrollHeightAfter = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	expect(Math.abs(scrollHeightAfter - scrollHeightBefore)).toBeLessThan(500);
+
+	// Corroborating signal: the reference host (above the edit) must not teleport.
+	const referenceAfter = await page.evaluate((path) => {
+		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
+		return host ? host.getBoundingClientRect().top : null;
+	}, inView.reference.path);
+	expect(referenceAfter).not.toBeNull();
+	expect(Math.abs(referenceAfter! - inView.reference.top)).toBeLessThan(250);
+	expect(pageErrors).toEqual([]);
+});
+
 test('nested: scrolling mid into a giant blockquote does not teleport the top nested block', async ({
 	page
 }) => {
