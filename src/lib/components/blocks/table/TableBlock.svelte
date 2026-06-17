@@ -38,7 +38,7 @@
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { createListWindowing } from '../../../reactivity/list-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { whenRefMounted } from '../../../reactivity/publish-ref.svelte';
+	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -261,20 +261,18 @@
 	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const [rowIdx, ...rest] = path;
-		// A row scrolled off-window leaves a stale (detached) ref in its slot — the
-		// windowed each-block's cleanup is conditional and doesn't always clear it.
-		// Ref truthiness is a cache, not a mount oracle: gate the scroll on the live
-		// window bounds too, and drop the stale ref so the mount-wait below resolves
-		// on the FRESH row, not the detached one. The `!ref` arm preserves the
-		// original wait for an in-window row whose ref hasn't published yet.
-		const offWindow = rowIdx < bounds.start || rowIdx >= bounds.end;
-		if (rowIdx < rowCount && (offWindow || !rowsState.innerBlockRefs[rowIdx])) {
-			if (offWindow) rowsState.innerBlockRefs[rowIdx] = undefined;
-			await windowing.revealChild(rowIdx);
-			while (!rowsState.innerBlockRefs[rowIdx]) {
-				await whenRefMounted(rowIdx, () => !!rowsState.innerBlockRefs[rowIdx]);
-			}
-		}
+		// A row scrolled off-window leaves a stale (detached) ref in this scope's slot —
+		// the windowed each-block's cleanup is conditional and doesn't always clear it.
+		// isStale gates the scroll on the live window bounds (truthiness alone is a cache,
+		// not a mount oracle) and dropRef clears the detached ref so the mount-wait
+		// resolves on the FRESH row.
+		await revealChildOrWait(rowIdx, {
+			childCount: rowCount,
+			getRef: (i) => rowsState.innerBlockRefs[i],
+			dropRef: (i) => (rowsState.innerBlockRefs[i] = undefined),
+			revealChild: windowing.revealChild,
+			isStale: (i) => i < bounds.start || i >= bounds.end
+		});
 		const rowRef = rowsState.innerBlockRefs[rowIdx];
 		if (!rowRef) return null;
 		if (rest.length === 0) return rowRef;

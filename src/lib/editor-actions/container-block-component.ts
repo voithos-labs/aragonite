@@ -11,7 +11,7 @@ import {
 	dispatchFocusAtColumn,
 	dispatchGetBlockComponentByPath
 } from './focus-dispatch';
-import { whenRefMounted } from '../reactivity/publish-ref.svelte';
+import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
@@ -63,13 +63,16 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		async revealByPath(path: number[]): Promise<BlockComponent | null> {
 			if (path.length === 0) return null;
 			const [head, ...rest] = path;
-			if (deps.revealChild && head < deps.nodeChildrenLength && !deps.innerBlockRefs[head]) {
-				await deps.revealChild(head);
-				// The bare-index mountWaiter can wake on a same-index mount elsewhere;
-				// re-check this scope's own refs until its child is actually present.
-				while (!deps.innerBlockRefs[head]) {
-					await whenRefMounted(head, () => !!deps.innerBlockRefs[head]);
-				}
+			// No isStale: a windowed each keyed by absolute index clears its slot on
+			// unmount, so an off-window child's slot is already undefined here — the
+			// !getRef gate fires and revealChild runs. TableBlock passes isStale
+			// because its slots can hold a detached ref off-window (see its revealByPath).
+			if (deps.revealChild) {
+				await revealChildOrWait(head, {
+					childCount: deps.nodeChildrenLength,
+					getRef: (i) => deps.innerBlockRefs[i],
+					revealChild: deps.revealChild
+				});
 			}
 			const ref = deps.innerBlockRefs[head];
 			if (!ref) return null;
