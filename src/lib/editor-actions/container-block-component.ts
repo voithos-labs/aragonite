@@ -63,7 +63,7 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		async revealByPath(path: number[]): Promise<BlockComponent | null> {
 			if (path.length === 0) return null;
 			const [head, ...rest] = path;
-			if (deps.revealChild && !deps.innerBlockRefs[head]) {
+			if (deps.revealChild && head < deps.nodeChildrenLength && !deps.innerBlockRefs[head]) {
 				await deps.revealChild(head);
 				// The bare-index mountWaiter can wake on a same-index mount elsewhere;
 				// re-check this scope's own refs until its child is actually present.
