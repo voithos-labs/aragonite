@@ -12,15 +12,24 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
+		EDITOR_ROOT_KEY,
+		FOCUSED_PATH_KEY,
 		FOCUS_KEY,
+		HEIGHT_ORACLE_KEY,
 		LIST_CONTEXT_KEY,
-		STICKY_COLUMN_KEY
+		PARENT_SCOPE_SINK_KEY,
+		STICKY_COLUMN_KEY,
+		type FocusedPathGetter,
+		type ParentScopeSink
 	} from '../../editor-keys';
 	import type { UndoController } from '../../editor-actions/deps';
 	import type { StickyColumnState } from '../../cursor/sticky-column';
+	import type { HeightOracle } from '../../cursor/height-oracle';
 	import { createListContext } from '../../editor-actions/list-context';
 	import { createListOverrides } from '../../editor-actions/list-overrides';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
+	import { createListWindowing } from '../../reactivity/list-windowing.svelte';
+	import { sliceWindow } from '../../reactivity/window-slice';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -36,13 +45,23 @@
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
-	const state = createBlockListState(() => node);
+	// VR contexts read BEFORE the shadowing setContext below, so they resolve to
+	// the parent scope's values. parentSink receives this list's own box subtotal;
+	// the oracle/root/focus drive its item window.
+	const heightOracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const getFocusPath = getContext<FocusedPathGetter>(FOCUSED_PATH_KEY);
+	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
+
+	const listState = createBlockListState(() => node);
+
+	let boxEl: HTMLElement | undefined = $state();
 
 	// Read parent context before the setContext below shadows it.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
 	const bundle = createStandardNestedActions(
-		state,
+		listState,
 		{
 			get index() {
 				return index;
@@ -71,7 +90,7 @@
 			get path() {
 				return myPath;
 			},
-			state,
+			state: listState,
 			parentBlockEdit,
 			parentContainerEdit
 		})
@@ -89,7 +108,7 @@
 		get path() {
 			return myPath;
 		},
-		state,
+		state: listState,
 		parentBlockEdit,
 		parentFocus,
 		parentListContext,
@@ -98,11 +117,42 @@
 
 	setContext(LIST_CONTEXT_KEY, listContext);
 
+	// ── Virtual rendering (item windowing) ──────────────────────────────
+
+	const windowing = createListWindowing({
+		oracle: heightOracle,
+		getChildren: () => node.children ?? [],
+		getChildIds: () => listState.innerBlockIds,
+		// The .list-block IS the content origin — it holds the spacers and items.
+		getListEl: () => boxEl ?? null,
+		// A list is itself a BlockHost block; match the leaf channel the parent
+		// measured for it, so the subtotal we report up doesn't fight that slot.
+		getOwnEl: () => boxEl?.closest('.block-host') ?? null,
+		getScrollEl: () => getEditorRoot?.() ?? null,
+		getFocusPath: () => getFocusPath?.() ?? null,
+		getParentPath: () => myPath,
+		reportSelfHeight: (h) => parentSink?.setChildSubtotal(index, h),
+		overscan: 4,
+		pinExtensionCap: 100,
+		activateAbovePx: 4000,
+		deactivateBelowPx: 3000
+	});
+
+	// Item-indexed sink for THIS list's ListItemBlock children. A list has no direct
+	// BlockHost children (an item's content hosts land in that item's own scope), so
+	// no RECORD_BLOCK_HEIGHT_KEY shadow — the inherited RECORD no-ops on the deep path.
+	setContext(PARENT_SCOPE_SINK_KEY, {
+		setChildSubtotal: windowing.setChildSubtotal
+	} satisfies ParentScopeSink);
+
+	let win = $derived(windowing.window);
+	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
-			return state.innerBlockRefs;
+			return listState.innerBlockRefs;
 		},
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
@@ -120,23 +170,41 @@
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
 
 	function setItemRef(i: number, r: BlockComponent | undefined): void {
-		state.innerBlockRefs[i] = r;
+		listState.innerBlockRefs[i] = r;
 	}
 	function getItemRef(i: number): BlockComponent | undefined {
-		return state.innerBlockRefs[i];
+		return listState.innerBlockRefs[i];
 	}
 </script>
 
-<div class="list-block">
-	{#each node.children ?? [] as item, i (state.innerBlockIds[i])}
-		<ListItemBlock
-			node={item}
-			index={i}
-			myPath={[...myPath, i]}
-			setRef={setItemRef}
-			getRef={getItemRef}
-		/>
-	{/each}
+<div class="list-block" bind:this={boxEl}>
+	{#if win.active}
+		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
+		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key are the absolute item index
+		     (bounds.start + localIndex), never the local loop index — paths and
+		     structural ops key off it. -->
+		{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
+			{@const absoluteIndex = bounds.start + localIndex}
+			<ListItemBlock
+				node={item}
+				index={absoluteIndex}
+				myPath={[...myPath, absoluteIndex]}
+				setRef={setItemRef}
+				getRef={getItemRef}
+			/>
+		{/each}
+		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
+	{:else}
+		{#each node.children ?? [] as item, i (listState.innerBlockIds[i])}
+			<ListItemBlock
+				node={item}
+				index={i}
+				myPath={[...myPath, i]}
+				setRef={setItemRef}
+				getRef={getItemRef}
+			/>
+		{/each}
+	{/if}
 </div>
 
 <style>
@@ -144,5 +212,8 @@
 		margin: 4px 0;
 		padding-left: 0;
 		list-style: none;
+	}
+	.vr-spacer {
+		flex: 0 0 auto;
 	}
 </style>
