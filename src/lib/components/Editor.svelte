@@ -19,9 +19,7 @@
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
-		PARENT_SCOPE_SINK_KEY,
 		PASTE_COORDINATOR_KEY,
-		RECORD_BLOCK_HEIGHT_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
@@ -37,7 +35,7 @@
 	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createHeightOracle } from '../cursor/height-oracle';
-	import { createListWindowing } from '../reactivity/list-windowing.svelte';
+	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { whenRefMounted } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
@@ -444,29 +442,18 @@
 	});
 	setContext(FOCUSED_PATH_KEY, () => focusedPath);
 
-	const topWindowing = createListWindowing({
-		oracle: heightOracle,
+	// The root sources HEIGHT_ORACLE/FOCUSED_PATH/EDITOR_ROOT above; the hook reads
+	// them back via getContext. getListEl is the inner .block-list wrapper, not
+	// editorEl (== scrollEl): it scrolls with content, so its top maps root
+	// scrollTop into local coordinates — feeding editorEl collapses it to 0.
+	const topWindowing = useContainerWindowing({
+		getIndex: () => 0, // ignored — root has no parent sink (reportSelfHeight is undefined)
+		getParentPath: () => [],
 		getChildren: () => doc.children,
 		getChildIds: () => blockIds,
-		// The list content origin is the inner .block-list wrapper, not editorEl: it
-		// scrolls with content, so its top maps root scrollTop into local coordinates.
-		// Feeding editorEl (== scrollEl) would collapse localScrollTop to a constant 0.
 		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null,
-		getScrollEl: () => editorEl ?? null,
-		getFocusPath: () => focusedPath,
-		getParentPath: () => [],
-		overscan: 4,
-		pinExtensionCap: 100,
-		activateAbovePx: 4000,
-		deactivateBelowPx: 3000
+		provideLeafChannel: true
 	});
-
-	// Leaf channel: a top-level block (path.length === 1) measures into the top model.
-	setContext(RECORD_BLOCK_HEIGHT_KEY, (path: number[], id: string, h: number) => {
-		if (path.length === 1) topWindowing.recordMeasuredChild(path[0], id, h);
-	});
-	// Subtotal channel: direct child containers report their box subtotal up by index.
-	setContext(PARENT_SCOPE_SINK_KEY, { setChildSubtotal: topWindowing.setChildSubtotal });
 
 	// ── Public API ──────────────────────────────────────────────────────
 
