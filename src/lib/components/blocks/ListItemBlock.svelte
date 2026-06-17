@@ -207,7 +207,8 @@
 		},
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
-		}
+		},
+		revealChild: windowing.revealChild
 	});
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
@@ -219,6 +220,7 @@
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
 	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
+	export const revealByPath = containerApi.revealByPath!;
 
 	$effect(() => {
 		if (!setRef || !getRef) return;
