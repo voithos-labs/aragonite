@@ -11,11 +11,14 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		FOCUS_KEY,
-		STICKY_COLUMN_KEY
+		PARENT_SCOPE_SINK_KEY,
+		STICKY_COLUMN_KEY,
+		type ParentScopeSink
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -50,9 +53,33 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
-	const state = createBlockListState(() => node);
+	const cellsState = createBlockListState(() => node);
 
-	const bundle = createStandardNestedActions(state, {
+	let rowEl: HTMLElement | undefined = $state();
+	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
+
+	// Rows aren't BlockHosts, so count this row in the mount gauge directly
+	// (mirrors ListItemBlock) — otherwise a windowed giant table reads as ~0
+	// mounted blocks.
+	$effect(() => {
+		if (perfEnabled()) incMountedBlocks();
+		return () => {
+			if (perfEnabled()) decMountedBlocks();
+		};
+	});
+
+	// A `display: contents` row has no box, so measure a cell: every cell stretches
+	// to the grid row track (no grid gap), so a cell's border-box height is the row
+	// height. `void node.raw` re-measures when this row's cell content changes.
+	$effect(() => {
+		void node.raw;
+		if (!parentSink || !rowEl) return;
+		const cell = rowEl.querySelector(':scope > .table-cell') as HTMLElement | null;
+		const h = cell?.getBoundingClientRect().height ?? 0;
+		if (h > 0) parentSink.setChildSubtotal(index, h);
+	});
+
+	const bundle = createStandardNestedActions(cellsState, {
 		get index() {
 			return index;
 		},
@@ -78,7 +105,7 @@
 	export const focusable = true;
 
 	export function focus(_offset: number): void {
-		state.innerBlockRefs[0]?.focus(0);
+		cellsState.innerBlockRefs[0]?.focus(0);
 	}
 
 	export function getCursorOffset(): number | null {
@@ -87,13 +114,13 @@
 
 	export function focusByPath(path: number[], offset: number): void {
 		const [colIdx, ...rest] = path;
-		const cellRef = state.innerBlockRefs[colIdx];
+		const cellRef = cellsState.innerBlockRefs[colIdx];
 		cellRef?.focus(rest.length === 0 ? offset : 0);
 	}
 
 	export function getCursorPosition(): { path: number[]; offset: number } | null {
-		for (let colIdx = 0; colIdx < state.innerBlockRefs.length; colIdx++) {
-			const cellRef = state.innerBlockRefs[colIdx];
+		for (let colIdx = 0; colIdx < cellsState.innerBlockRefs.length; colIdx++) {
+			const cellRef = cellsState.innerBlockRefs[colIdx];
 			const offset = cellRef?.getCursorOffset();
 			if (offset !== null && offset !== undefined) return { path: [colIdx], offset };
 		}
@@ -123,15 +150,15 @@
 	});
 
 	function setCellRef(i: number, r: BlockComponent | undefined): void {
-		state.innerBlockRefs[i] = r;
+		cellsState.innerBlockRefs[i] = r;
 	}
 	function getCellRef(i: number): BlockComponent | undefined {
-		return state.innerBlockRefs[i];
+		return cellsState.innerBlockRefs[i];
 	}
 </script>
 
-<div class="table-row" role="row" data-table-row-idx={rowIdx}>
-	{#each node.children ?? [] as cellNode, colIdx (state.innerBlockIds[colIdx])}
+<div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
+	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
 			index={colIdx}
