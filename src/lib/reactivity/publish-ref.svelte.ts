@@ -44,23 +44,53 @@ export interface RevealChildOptions {
 	 * whose cleanup always clears the slot on unmount (the slot already goes undefined).
 	 */
 	readonly isStale?: (index: number) => boolean;
+	/**
+	 * True iff `index` is inside the scope's CURRENT mounted window `[start, end)`,
+	 * read AFTER `revealChild` resolved. The termination guarantee (VR-5): the
+	 * mount-wait below is woken only by a same-index mount, so if a stale model let
+	 * `revealChild`'s one scroll miss — the target still outside the recomputed
+	 * window — no mount will ever fire and the loop would hang forever. With this the
+	 * caller proves membership before waiting and degrades to null (operate on path
+	 * state, skip DOM placement) instead. Omit only for non-windowing callers.
+	 */
+	readonly isInWindow?: (index: number) => boolean;
 }
 
 /**
+ * The bare-index mount waiter can wake on a same-index mount at another nesting
+ * level (the registry is keyed by local index, shared across scopes), so a reveal
+ * re-checks and re-waits. Cap the re-waits so a pathological wake storm can't spin
+ * unboundedly even though each genuine wake makes progress — distinct from the
+ * never-mounts hang, which the `isInWindow` membership check below short-circuits
+ * before this loop is ever entered.
+ */
+const MAX_MOUNT_REWAITS = 64;
+
+/**
  * Bring child `index` into its window before a caller reads its ref: drop a stale
- * off-window ref, scroll it in via `revealChild`, and await its mount. The
- * bare-index mount waiter can wake on a same-index mount at another nesting level,
- * so re-check this scope's own slot until its child is actually present. An adjacent
+ * off-window ref, scroll it in via `revealChild`, and await its mount. An adjacent
  * (already-mounted, non-stale) child returns with no scroll. Shared by the canonical
  * container reveal and TableBlock's hand-rolled one so the "is this slot a live
  * mount" gate lives in one place.
+ *
+ * Termination (VR-5): the mount-wait is woken ONLY by a same-index mount, so a
+ * scroll that missed (a stale model at call time left the target outside the
+ * recomputed window) would wait forever. After the scroll, prove the target is in
+ * the recomputed window; if it provably isn't, the awaited mount can never come —
+ * return so the caller degrades (operate on path state, skip DOM placement) instead
+ * of hanging. The per-wake cap covers spurious cross-level wakes.
  */
 export async function revealChildOrWait(index: number, opts: RevealChildOptions): Promise<void> {
 	const stale = opts.isStale?.(index) ?? false;
 	if (index < opts.childCount && (stale || !opts.getRef(index))) {
 		if (stale) opts.dropRef?.(index);
 		await opts.revealChild(index);
-		while (!opts.getRef(index)) {
+		// Already present (a same-flush mount), or membership is unknowable (a
+		// non-windowing caller omits isInWindow) → fall through to the bounded wait.
+		// Provably outside the recomputed window → the mount can't fire; degrade now.
+		if (!opts.getRef(index) && opts.isInWindow?.(index) === false) return;
+		let rewaits = 0;
+		while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
 			await whenRefMounted(index, () => !!opts.getRef(index));
 		}
 	}
