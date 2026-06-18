@@ -40,20 +40,21 @@ Unit tests can be scoped to a single concept area:
 
 E2E tests are grouped into Playwright projects:
 
-| Script                       | Covers                                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `test:e2e:top`               | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers                                             |
-| `test:e2e:blocks`            | All per-block specs under `tests/blocks/`                                                                                 |
-| `test:e2e:blocks:list`       | List block specs only                                                                                                     |
-| `test:e2e:blocks:code`       | Code block specs only                                                                                                     |
-| `test:e2e:blocks:image`      | Image block specs only                                                                                                    |
-| `test:e2e:blocks:table`      | Table block specs only                                                                                                    |
-| `test:e2e:blocks:blockquote` | Blockquote block specs only                                                                                               |
-| `test:e2e:clipboard`         | Cut / copy / paste (excludes exploration)                                                                                 |
-| `test:e2e:exploration`       | Clipboard exploration / manual-verification scenarios                                                                     |
-| `test:e2e:selection`         | Cross-block selection behavior                                                                                            |
-| `test:e2e:sticky-column`     | Vertical cursor column tracking across block transitions                                                                  |
-| `test:e2e:a11y`              | axe baseline-ratchet over `.editor` — fails on any violation outside the committed (fails-closed, only-shrinks) allowlist |
+| Script                       | Covers                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test:e2e:top`               | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers                                                                                                                                             |
+| `test:e2e:blocks`            | All per-block specs under `tests/blocks/`                                                                                                                                                                                 |
+| `test:e2e:blocks:list`       | List block specs only                                                                                                                                                                                                     |
+| `test:e2e:blocks:code`       | Code block specs only                                                                                                                                                                                                     |
+| `test:e2e:blocks:image`      | Image block specs only                                                                                                                                                                                                    |
+| `test:e2e:blocks:table`      | Table block specs only                                                                                                                                                                                                    |
+| `test:e2e:blocks:blockquote` | Blockquote block specs only                                                                                                                                                                                               |
+| `test:e2e:clipboard`         | Cut / copy / paste (excludes exploration)                                                                                                                                                                                 |
+| `test:e2e:exploration`       | Clipboard exploration / manual-verification scenarios                                                                                                                                                                     |
+| `test:e2e:selection`         | Cross-block selection behavior                                                                                                                                                                                            |
+| `test:e2e:sticky-column`     | Vertical cursor column tracking across block transitions                                                                                                                                                                  |
+| `test:e2e:a11y`              | axe baseline-ratchet over `.editor` — fails on any violation outside the committed (fails-closed, only-shrinks) allowlist                                                                                                 |
+| `test:e2e:vr`                | Virtual-rendering correctness on large fixtures — windowing, reveal, and table-row windowing, with the mounted-count ceiling plus the layouts-per-mount and anchor-compensation guards; runs in `npm test` (no PERF gate) |
 
 ## Unit Tests (Vitest)
 
