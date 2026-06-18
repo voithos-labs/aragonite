@@ -69,9 +69,18 @@ export type BlockComponentLookup = (path: number[]) => BlockComponent | null;
 export const DOC_KEY = Symbol('editor-doc');
 export type DocumentGetter = () => Document;
 
-/** @internal Reports a block's measured (post-layout) height for virtual rendering; provided by Editor. */
+/**
+ * @internal A hosted block enrolls itself in its scope's batched measure pass.
+ * `register` returns an unregister fn (or a no-op when the path isn't a direct child
+ * of the scope's depth — nested hosts route to their own scope's channel); `readHeight`
+ * is called inside the scope's read-all-then-write batch, never inline. `measureNow`
+ * re-measures just this block after an edit (one block, not the thrash path).
+ */
 export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
-export type RecordBlockHeight = (path: number[], id: string, height: number) => void;
+export type BlockMeasureChannel = {
+	register: (path: number[], index: number, id: string, readHeight: () => number) => () => void;
+	measureNow: (id: string) => void;
+};
 
 /** @internal Live getter for the focused block's full path; drives per-level VR pins. */
 export const FOCUSED_PATH_KEY = Symbol('focused-path');
@@ -79,9 +88,23 @@ export type FocusedPathGetter = () => number[] | null;
 
 /** @internal Per-kind height oracle (Editor-constructed); read by nested windowing scopes. */
 export const HEIGHT_ORACLE_KEY = Symbol('height-oracle');
-/** @internal A scope's setChildSubtotal — a child container reports its own box subtotal up by index. */
+/**
+ * @internal A child reports up to its parent scope. A nested CONTAINER pushes its own
+ * box subtotal by index (`setChildSubtotal`). A `display:contents` ROW (no box of its
+ * own) instead enrolls in the scope's batched measure pass via `registerRow` — its
+ * `readHeight` reads a cell, `applyHeight` is `setChildSubtotal` — so a windowed table
+ * measures its rows read-all-then-write like every other scope.
+ */
 export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
-export type ParentScopeSink = { setChildSubtotal: (index: number, total: number) => void };
+export type ParentScopeSink = {
+	setChildSubtotal: (index: number, total: number) => void;
+	registerRow: (
+		id: string,
+		readHeight: () => number,
+		applyHeight: (h: number) => void
+	) => () => void;
+	measureRowNow: (id: string) => void;
+};
 
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
