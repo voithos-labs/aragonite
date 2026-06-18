@@ -91,7 +91,7 @@ export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): bo
 	if ((el.textContent ?? '').length === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
-	let cursorTop = getRangeTop(cursorRange);
+	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null && cursorRange.collapsed) {
 		if (fallbackOffset === 0) return true;
@@ -129,7 +129,7 @@ export function isAtLastVisualLine(
 	if (textLen === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
-	let cursorTop = getRangeTop(cursorRange);
+	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null && cursorRange.collapsed) {
 		if (fallbackOffset === textLen) return true;

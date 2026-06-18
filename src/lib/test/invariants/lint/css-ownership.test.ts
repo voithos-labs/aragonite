@@ -88,3 +88,27 @@ describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
 		);
 	});
 });
+
+// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
+// Without these, a regex that silently stops matching would let every guard
+// above pass on an empty match set.
+
+describe('G4.6 CSS ownership — matcher non-vacuity', () => {
+	it('OWNED_READ matches a synthetic owned-token read and the completeness check flags it missing', () => {
+		const owned = [...'var(--syntax-keyword)'.matchAll(new RegExp(OWNED_READ.source, 'g'))].map(
+			(m) => m[1]
+		);
+		expect(owned).toEqual(['--syntax-keyword']);
+
+		const token = owned[0];
+		const declared = `${token}: #c678dd;`;
+		const undeclared = '--syntax-string: #98c379;';
+		expect(new RegExp(`${token}\\s*:`).test(declared)).toBe(true);
+		expect(new RegExp(`${token}\\s*:`).test(undeclared)).toBe(false);
+	});
+
+	it('HOST_READ_NO_FALLBACK flags a bare host read but accepts one with a fallback', () => {
+		expect(HOST_READ_NO_FALLBACK.test('var(--color-bg)')).toBe(true);
+		expect(HOST_READ_NO_FALLBACK.test('var(--color-bg, #fff)')).toBe(false);
+	});
+});
