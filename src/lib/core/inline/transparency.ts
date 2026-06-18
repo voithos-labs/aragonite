@@ -14,6 +14,11 @@
  * `unresolvedReference`). A missing cache reads as not-transparent, matching the
  * component's `length === 0 → false` so an unparsed block degrades to "land on
  * it" rather than skipping it.
+ *
+ * Forward-coupling: this off-window correctness depends on the eager whole-tree
+ * sweep. If 0.8.5 makes `inlineContent` lazy / window-scoped, off-window leaves
+ * lose their cache and degrade to not-transparent — reinstating VR-6. That work
+ * must keep transparency answerable for off-window nodes.
  */
 
 import type { CstNode } from '../nodes';

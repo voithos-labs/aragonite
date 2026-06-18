@@ -4,7 +4,6 @@
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
 	import {
-		BLOCK_COMPONENT_LOOKUP_KEY,
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
@@ -26,14 +25,12 @@
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
 		WIDTH_VERSION_KEY,
-		type BlockComponentLookup,
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorSelection,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
-	import { dispatchGetBlockComponentByPath } from '../editor-actions/focus-dispatch';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
@@ -269,9 +266,6 @@
 		return (cells[colIdx] as HTMLElement | undefined) ?? null;
 	};
 
-	const getBlockComponentByPath: BlockComponentLookup = (path) =>
-		dispatchGetBlockComponentByPath(blockRefs, path);
-
 	// ── Action Bundles ──────────────────────────────────────────────────
 
 	// Hoisted so the deps literal below can reference it before the VR state it
@@ -351,7 +345,6 @@
 	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
-	setContext(BLOCK_COMPONENT_LOOKUP_KEY, getBlockComponentByPath);
 	setContext(DOC_KEY, getDoc);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
