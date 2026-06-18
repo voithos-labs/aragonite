@@ -48,6 +48,92 @@ function capturePageErrors(page: Page): string[] {
 	return errors;
 }
 
+// Drive a fast fling — ~1 viewport per animation frame — inside ONE in-page rAF
+// loop, counting every `.block-host` that mounts via a MutationObserver. A real
+// rAF loop is load-bearing: per-step `scrollEditorTo` (double-rAF between writes)
+// mounts only a handful of blocks per frame, which inflates layouts/mount and
+// flakes; one viewport per frame mounts a windowful at once so gross mounts far
+// exceed the frame count. Returns the gross mount tally to pair with the CDP
+// layout delta bracketed around it.
+async function flingAndCountMounts(page: Page, frames: number): Promise<number> {
+	return page.evaluate((frames) => {
+		const el = document.querySelector('.editor') as HTMLElement;
+		const step = el.clientHeight; // ~1 viewport per frame
+		let mounts = 0;
+		const observer = new MutationObserver((records) => {
+			for (const record of records) {
+				for (const added of record.addedNodes) {
+					if (added instanceof HTMLElement) {
+						if (added.classList.contains('block-host')) mounts++;
+						mounts += added.querySelectorAll('.block-host').length;
+					}
+				}
+			}
+		});
+		observer.observe(el, { childList: true, subtree: true });
+		return new Promise<number>((resolve) => {
+			let frame = 0;
+			function tick() {
+				if (frame++ >= frames) {
+					observer.disconnect();
+					resolve(mounts);
+					return;
+				}
+				el.scrollTop += step;
+				requestAnimationFrame(tick);
+			}
+			requestAnimationFrame(tick);
+		});
+	}, frames);
+}
+
+// VR-4 regression guard. The per-block measure-then-mutate path (BlockHost's edit
+// `$effect` calling `measureNow`, TableRowBlock's `measureRowNow`) must not run on
+// mount: on a fling many blocks mount in one frame, and a per-block
+// `getBoundingClientRect` read interleaved with the prior block's model write forces
+// one synchronous reflow PER mounted block. The scope's batched read-all-then-write
+// pass owns mount measurement instead, so a windowful costs one reflow, not N.
+//
+// The honest signal is layouts-per-mount on a fling, read via CDP LayoutCount
+// (real-browser only — jsdom and the unit suite can't see forced reflows, which is
+// why the bug shipped green). The broken (mount-run-not-skipped) build measures ~1.0
+// layouts/mount — one forced reflow per mounted block; the fixed build measures ~0.03
+// — the batch's single reflow amortized over the windowful. The < 0.3 bound sits an
+// order of magnitude below the 1:1 thrash signature and well above the fixed value, so
+// it fails the regression without flaking on Chromium layout-count jitter.
+test('a fling does not force one reflow per mounted block (VR-4)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	const blockCount = await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+	expect(blockCount).toBeGreaterThan(2000); // enough off-window blocks to fling through
+
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Performance.enable');
+	const layoutCount = async (): Promise<number> => {
+		const metrics: any = await cdp.send('Performance.getMetrics');
+		return metrics.metrics.find((m: any) => m.name === 'LayoutCount')?.value ?? 0;
+	};
+
+	// Settle the post-load layout so the before-bracket has no pending reflow.
+	await editor.waitForRenderFlush();
+	const layoutsBefore = await layoutCount();
+	const mounts = await flingAndCountMounts(page, 10);
+	const layoutsAfter = await layoutCount();
+
+	const layouts = layoutsAfter - layoutsBefore;
+	const perMount = mounts > 0 ? layouts / mounts : Infinity;
+	console.log(`VR-4 reflow guard ${JSON.stringify({ mounts, layouts, perMount })}`);
+
+	// Denominator floor: a fling that mounts nothing would make perMount vacuously
+	// small. A windowful per frame over 10 frames mounts hundreds of hosts.
+	expect(mounts).toBeGreaterThan(200);
+	// One forced reflow per mounted block is ~1.0; the batch amortizes to ~0.03.
+	expect(perMount).toBeLessThan(0.3);
+	expect(pageErrors).toEqual([]);
+});
+
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);

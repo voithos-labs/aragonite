@@ -89,8 +89,18 @@
 		);
 	});
 
+	// Skip the mount run (mirrors BlockHost): on a fling many rows mount in one frame,
+	// and a per-row read here interleaved with the prior row's subtotal write forces one
+	// reflow per mounted row (VR-4). The table scope's batched pass owns mount
+	// measurement (the `registerRow` effect above enrolled this row); this effect
+	// re-measures only on a subsequent real edit.
+	let firstRun = true;
 	$effect(() => {
 		void node.raw;
+		if (firstRun) {
+			firstRun = false;
+			return;
+		}
 		parentSink?.measureRowNow(id);
 	});
 
