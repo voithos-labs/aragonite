@@ -77,9 +77,10 @@ export function dispatchFocusByPath(
 }
 
 /**
- * Walk a path through nested container refs and return the BlockComponent
- * at the leaf. Used by cross-block focus extension to consult component
- * predicates (e.g. `isVerticallyTransparent`) by path.
+ * Walk a path through nested container refs and return the BlockComponent at
+ * the leaf, or null if the path doesn't resolve to a mounted ref. Backs the
+ * container shim's `getBlockComponentByPath`, through which path-based
+ * component lookup descends nested containers.
  */
 export function dispatchGetBlockComponentByPath(
 	refs: (BlockComponent | undefined)[],
