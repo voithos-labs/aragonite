@@ -174,6 +174,9 @@
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
+		get node() {
+			return node;
+		},
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow
 	});

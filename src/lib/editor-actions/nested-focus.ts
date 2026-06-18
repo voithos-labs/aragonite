@@ -13,10 +13,19 @@ import type { NestedActionsDeps } from './nested-actions';
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
 	const { stickyColumn, parent } = deps;
 	return {
-		// Bubble to the parent: only top-level blocks window in/out, and the root
-		// FocusActions owns the reveal. Nested children live inside an already-
-		// mounted top-level block.
+		// Bubble reveal to the parent: a nested scope's reveal is the editor's
+		// recursive revealPath descending through this container, so this scope
+		// doesn't own it. (Nested scopes DO window since Phase 3 — recursive
+		// nested windowing — but moveFocus below doesn't need to reveal; see its
+		// adjacent-only contract.)
 		revealPath: parent.focus.revealPath,
+		// `moveFocus` is sync and does not reveal an off-window inner target,
+		// unlike the root `moveFocus` (which routes through `revealPath`). Every
+		// caller steps by one from the focused caret (arrow navigation, widget
+		// edge, unwrap-merge) and out-of-range delegates to the parent by one, so
+		// the target is always within overscan of the pinned caret and therefore
+		// mounted. A hypothetical >overscan inner jump would silently no-op — VR-12
+		// (nested analog), latent and not currently reachable by any gesture.
 		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
 			// node.children.length is authoritative: refs.length lags after
 			// structural ops because bind:this fires asynchronously.

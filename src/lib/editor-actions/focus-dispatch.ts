@@ -48,6 +48,15 @@ export async function dispatchMoveFocus(
 	);
 }
 
+/**
+ * Adjacent-only contract: `focusByPath` is sync and does NOT reveal an
+ * off-window head, so an unmounted `refs[first]` silently no-ops. Every caller
+ * (merge-into-previous, deep-leaf merge) lands on a block adjacent to a mounted
+ * caret, i.e. within overscan of the pinned focus index → mounted. A far
+ * (>overscan) head under windowing would no-op the caret — VR-12, latent and
+ * not currently reachable. A future far caller must route through `revealByPath`
+ * first (the async sibling, which scrolls + mounts).
+ */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
 	path: number[],

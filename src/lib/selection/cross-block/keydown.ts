@@ -112,7 +112,7 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
-		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, ctx.getBlockComponentByPath);
+		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -121,14 +121,7 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(
-			selection,
-			doc,
-			focusEl,
-			focusPath,
-			side,
-			ctx.getBlockComponentByPath
-		);
+		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -275,14 +268,7 @@ async function handleDocEdgeExtend(
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
-	extendFocusToDocEdge(
-		ctx.selection,
-		ctx.getDoc(),
-		el,
-		ctx.getMyPath(),
-		direction,
-		ctx.getBlockComponentByPath
-	);
+	extendFocusToDocEdge(ctx.selection, ctx.getDoc(), el, ctx.getMyPath(), direction);
 	await revealActiveEndpoint(ctx);
 	return true;
 }

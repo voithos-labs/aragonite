@@ -6,7 +6,7 @@
  */
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
-import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../editor-keys';
+import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import { classifyStickyKey } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';
@@ -38,7 +38,6 @@ export interface SharedKeydownContext {
 	focus: FocusActions;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
-	getBlockComponentByPath: BlockComponentLookup;
 }
 
 /**
@@ -105,14 +104,7 @@ export async function handleSharedKeydown(
 			// Shift+ArrowUp extension has nowhere left to go within the block.
 			if (e.shiftKey && offset === 0) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(
-					ctx.selection,
-					ctx.getDoc(),
-					el,
-					myPath,
-					'start',
-					ctx.getBlockComponentByPath
-				);
+				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
@@ -132,14 +124,7 @@ export async function handleSharedKeydown(
 			// native Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset === textLen) {
 				e.preventDefault();
-				extendFocusToNextBlock(
-					ctx.selection,
-					ctx.getDoc(),
-					el,
-					myPath,
-					'vertical',
-					ctx.getBlockComponentByPath
-				);
+				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath, 'vertical');
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
