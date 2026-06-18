@@ -11,6 +11,7 @@ import { HeightModel } from '../cursor/height-model';
 import type { HeightOracle } from '../cursor/height-oracle';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
+import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { CstNode } from '../core/nodes';
 
 export interface ListWindowingDeps {
@@ -35,12 +36,24 @@ export interface ListWindowingDeps {
 	deactivateBelowPx: number;
 }
 
+/** A measurable child registered into a scope's batched measure pass. `applyHeight`
+ *  writes into this scope's model — `recordMeasuredChild` for a hosted leaf,
+ *  `setChildSubtotal` for a `display:contents` row. The scope reads ALL its pending
+ *  children before applying ANY write, so a fling that mounts many children costs one
+ *  reflow, not one per child. */
+export type MeasurableChild = MeasureEntry;
+
 export interface ListWindowing {
 	readonly window: WindowResult;
 	/** A DIRECTLY-MEASURED leaf: oracle (by id) + model slot. Passive — no scrollTop write. */
 	recordMeasuredChild(index: number, id: string, height: number): void;
 	/** A PROPAGATED child-container subtotal: model slot ONLY, by index. No oracle, no id, no anchor. */
 	setChildSubtotal(index: number, total: number): void;
+	/** Enroll a child in this scope's batched measure pass; returns an unregister fn
+	 *  to call on the child's unmount. The child is measured on the next pass. */
+	registerChild(id: string, child: MeasurableChild): () => void;
+	/** Re-measure ONE registered child immediately (its content height changed on edit). */
+	measureChildNow(id: string): void;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
 	dispose(): void;
@@ -56,6 +69,14 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	let model = $state<HeightModel>(buildModel());
 	let heightVersion = $state(0);
+
+	// Newly-mounted children measure into ONE scope-owned batched pass instead of each
+	// measuring in its own effect (which interleaves a layout read with the prior child's
+	// write → one forced reflow per mounted block on a fling). Registration mounts the
+	// entry; `pending` holds ids awaiting their first measure; the batch effect drains it
+	// when the window slides. An edit re-measures its one block directly (`measureChildNow`).
+	const registry = new Map<string, MeasurableChild>();
+	const pending = new Set<string>();
 
 	// Rebuild on structural child-count change (O(n) cheap raw reads); never per
 	// keystroke. Subscribe to count + scroll-el only; build inside untrack so the
@@ -139,6 +160,38 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (h > 0) deps.reportSelfHeight(h);
 	});
 
+	// The scope's batched measure pass for NEWLY-MOUNTED children. Svelte runs effects
+	// post-render, so this fires after a flush mounts children — the framework-native
+	// trigger the spec requires (no microtask/rAF/timeout). It drains `pending` into one
+	// read-all-then-write batch so a fling costs one reflow, not one per mounted block.
+	//
+	// It tracks the WINDOW only. The window changes exactly once when the mounted set
+	// slides (scroll) or when a measurement grows the model — a coalesced signal that
+	// already exists. Registration does NOT bump reactive state: the mount that registers
+	// a child already moved the window, so a per-child trigger would re-enter this effect
+	// O(children) times in one flush and trip Svelte's update-depth guard. Convergence is
+	// the same as a per-block measure: `recordMeasuredChild` only bumps `heightVersion`
+	// (which feeds the window) when the height actually changed, so once heights settle
+	// the window stops moving and the batch finds nothing pending.
+	$effect(() => {
+		void win.result;
+		untrack(() => flushMeasurements());
+	});
+
+	function flushMeasurements(): void {
+		if (pending.size === 0) return;
+		const entries: MeasurableChild[] = [];
+		for (const id of pending) {
+			const child = registry.get(id);
+			if (child) entries.push(child);
+		}
+		pending.clear();
+		// TASK 3 SEAM: record an above-viewport anchor's top here (before the writes)
+		// and adjust scrollTop by its delta after runMeasureBatch — the writes grow/shrink
+		// model slots, so the correction belongs immediately after this batch.
+		runMeasureBatch(entries);
+	}
+
 	return {
 		get window() {
 			return win.result;
@@ -167,6 +220,26 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				model.setHeight(index, total);
 				heightVersion++;
 			}
+		},
+		// Enroll without touching reactive state: the mount that registers this child
+		// already moved the window, which re-runs the batch effect to drain `pending`.
+		registerChild(id, child) {
+			registry.set(id, child);
+			pending.add(id);
+			return () => {
+				registry.delete(id);
+				pending.delete(id);
+			};
+		},
+		// An edit changes one block's height without sliding the window. Measure it
+		// directly — one block is not the thrash path, and going through the same
+		// convergence-guarded write (`recordMeasuredChild` no-ops once the height
+		// settles) is what stops a re-measure from spinning the reactive graph.
+		measureChildNow(id) {
+			const child = registry.get(id);
+			if (!child) return;
+			const h = child.readHeight();
+			if (h > 0) child.applyHeight(h);
 		},
 		async revealChild(index) {
 			const scrollEl = deps.getScrollEl();

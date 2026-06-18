@@ -379,6 +379,7 @@
 			<TableRowBlock
 				node={rowNode}
 				index={rowIdx}
+				id={rowsState.innerBlockIds[rowIdx]}
 				{rowIdx}
 				{columnCount}
 				{rowCount}
@@ -394,6 +395,7 @@
 			<TableRowBlock
 				node={rowNode}
 				index={rowIdx}
+				id={rowsState.innerBlockIds[rowIdx]}
 				{rowIdx}
 				{columnCount}
 				{rowCount}
