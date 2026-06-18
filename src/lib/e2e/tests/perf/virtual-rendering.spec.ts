@@ -223,6 +223,33 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	expect(pageErrors).toEqual([]);
 });
 
+// VR-8 mitigation #1 (skeleton background). A real compositor fling can outrun the
+// window recompute and paint a bare spacer for one frame; the blank-gap itself is
+// not harness-drivable (a main-thread scroll driver flushes the new slice before
+// paint), so this guards the MITIGATION — the spacer carries a non-transparent
+// placeholder tint — not the unreachable gap. Removing the editor.css rule or the
+// --vr-spacer-bg token drops the alpha to 0 and fails this.
+test('windowed spacers carry a placeholder background (VR-8 skeleton)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+
+	expect(await spacerCount(page)).toBeGreaterThan(0);
+
+	const alpha = await page.evaluate(() => {
+		const spacer = document.querySelector('.vr-spacer');
+		if (!spacer) return null;
+		const bg = getComputedStyle(spacer).backgroundColor;
+		const m = bg.match(/rgba?\(([^)]+)\)/);
+		if (!m) return null;
+		const parts = m[1].split(',').map((p) => parseFloat(p));
+		return parts.length === 4 ? parts[3] : 1;
+	});
+
+	expect(alpha).not.toBeNull();
+	expect(alpha!).toBeGreaterThan(0);
+});
+
 test('mounted set stays bounded as document size grows (O(viewport), not O(doc))', async ({
 	page
 }) => {
