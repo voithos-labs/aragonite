@@ -305,9 +305,6 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			win.syncScrollTop();
 			await tick();
 		},
-		// When inactive every child mounts (start..end spans all), so membership is
-		// trivially true; when active, the slice the window will render. Read after a
-		// reveal's scroll+tick to confirm the target actually landed inside it.
 		isInWindow(index) {
 			const { start, end } = win.result;
 			return index >= start && index < end;

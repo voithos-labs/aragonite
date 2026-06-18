@@ -192,6 +192,12 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
+	// Settle the route navigation before the baseline `setSource`. Unlike the
+	// neighbours that go straight to `loadLargeFixture` (whose 90s probe rides out
+	// a still-committing nav), this test's first post-goto interaction is the
+	// 2s-timeout baseline load — under CPU contention it can fire mid-navigation
+	// and abort with "navigated to /test/editor".
+	await page.waitForURL(/\/test\/editor/);
 
 	// The running mounted-block balance is polluted by the showcase mounted
 	// before perf was armed. Reset to a known 1-block baseline and settle, THEN
