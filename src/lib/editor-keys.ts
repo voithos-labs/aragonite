@@ -10,7 +10,6 @@
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
-import type { BlockComponent } from './block-component';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
@@ -56,14 +55,6 @@ export const PASTE_COORDINATOR_KEY = Symbol('paste-coordinator');
 
 export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
-
-/**
- * Path → BlockComponent lookup. Parallel to BLOCK_EL_LOOKUP_KEY, but returns
- * the live view-layer ref so callers can consult component-side predicates
- * (e.g. isVerticallyTransparent) when routing cross-block focus.
- */
-export const BLOCK_COMPONENT_LOOKUP_KEY = Symbol('block-component-lookup');
-export type BlockComponentLookup = (path: number[]) => BlockComponent | null;
 
 /** Getter-wrapped so block components always read the latest reactive Document. */
 export const DOC_KEY = Symbol('editor-doc');
