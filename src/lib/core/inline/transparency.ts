@@ -16,8 +16,8 @@
  * it" rather than skipping it.
  *
  * Forward-coupling: this off-window correctness depends on the eager whole-tree
- * sweep. If 0.8.5 makes `inlineContent` lazy / window-scoped, off-window leaves
- * lose their cache and degrade to not-transparent — reinstating VR-6. That work
+ * sweep. If `inlineContent` ever becomes lazy / window-scoped, off-window leaves
+ * lose their cache and degrade to not-transparent (reinstating VR-6) — that work
  * must keep transparency answerable for off-window nodes.
  */
 

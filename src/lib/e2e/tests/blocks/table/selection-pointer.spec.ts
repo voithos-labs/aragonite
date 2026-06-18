@@ -30,7 +30,7 @@ async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Pro
 	await page.mouse.up();
 }
 
-test.describe('table block: selection', () => {
+test.describe('table block: pointer selection', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -155,29 +155,6 @@ test.describe('table block: selection', () => {
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.anchor.path[0]).toBe(0);
 		expect(sel!.focus.path[0]).toBe(1);
-	});
-
-	test('rectangular intra-table drag paints overlay across the rectangle', async ({ page }) => {
-		await dragBetweenCells(page, 0, 4);
-		await editor.waitForCrossBlock(true);
-		const sel = await editor.bridge.getSelectionPaths();
-		expect(sel!.anchor.path).toEqual(sel!.focus.path);
-		expect(sel!.anchor.offset).toBe(0);
-		expect(sel!.focus.offset).toBe(4);
-		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
-	});
-
-	test('anti-diagonal rectangular selection paints full bounding rect (regression for b840b18)', async ({
-		page
-	}) => {
-		// Cell 2 = (row 0, col 2) — top-right; cell 6 = (row 2, col 0) — bottom-left.
-		// Pre-fix returned an empty rect set; this asserts the full 3×3 bounding rect.
-		await dragBetweenCells(page, 2, 6);
-		await editor.waitForCrossBlock(true);
-		const sel = await editor.bridge.getSelectionPaths();
-		expect(sel!.anchor.offset).toBe(2);
-		expect(sel!.focus.offset).toBe(6);
-		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
 	});
 
 	test('Ctrl+Shift+End collapse-to-end lands the caret in the small table last cell', async ({

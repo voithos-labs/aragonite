@@ -1,0 +1,56 @@
+import { test, expect, type Page } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+
+async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
+	const from = page.locator('[role="cell"]').nth(fromIdx);
+	const to = page.locator('[role="cell"]').nth(toIdx);
+	const fromBox = await from.boundingBox();
+	const toBox = await to.boundingBox();
+	if (!fromBox || !toBox) throw new Error('dragBetweenCells: missing bounding box');
+	const sx = fromBox.x + fromBox.width / 2;
+	const sy = fromBox.y + fromBox.height / 2;
+	const ex = toBox.x + toBox.width / 2;
+	const ey = toBox.y + toBox.height / 2;
+	await page.mouse.move(sx, sy);
+	await page.mouse.down();
+	for (let i = 1; i <= 10; i++) {
+		const t = i / 10;
+		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+	}
+	await page.mouse.up();
+}
+
+test.describe('table block: rectangular selection', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(TABLE_3x3);
+	});
+
+	test('rectangular intra-table drag paints overlay across the rectangle', async ({ page }) => {
+		await dragBetweenCells(page, 0, 4);
+		await editor.waitForCrossBlock(true);
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel!.anchor.path).toEqual(sel!.focus.path);
+		expect(sel!.anchor.offset).toBe(0);
+		expect(sel!.focus.offset).toBe(4);
+		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
+
+	test('anti-diagonal rectangular selection paints full bounding rect (regression for b840b18)', async ({
+		page
+	}) => {
+		// Cell 2 = (row 0, col 2) — top-right; cell 6 = (row 2, col 0) — bottom-left.
+		// Pre-fix returned an empty rect set; this asserts the full 3×3 bounding rect.
+		await dragBetweenCells(page, 2, 6);
+		await editor.waitForCrossBlock(true);
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel!.anchor.offset).toBe(2);
+		expect(sel!.focus.offset).toBe(6);
+		expect(await page.locator('.selection-overlay').count()).toBeGreaterThan(0);
+	});
+});
