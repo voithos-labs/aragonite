@@ -392,9 +392,12 @@ test('scrolling to a mid offset does not make the top visible block vanish', asy
 
 	await editor.waitForRenderFlush();
 
-	// The same block must still be present and not have teleported. Phase 2 ships
-	// estimate-based spacers, so allow generous drift — the asserted invariant is
-	// non-disappearance, not pixel-perfect anchoring.
+	// The same block must still be present and not have teleported. The asserted invariant
+	// is non-disappearance, not VR-2 anchoring: the before/after block-Y delta reads flat by
+	// construction (one pre-paint flush settles the band before the DOM is observable, and
+	// nothing mutates between the two reads), so no tighter bound here could guard the
+	// within-flush correction. That correction is guarded by the settled-scrollTop test
+	// ('a deep jump ... holds the viewport via scroll-anchor correction').
 	const after = await page.evaluate((path) => {
 		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;
@@ -696,8 +699,12 @@ test('nested: scrolling mid into a giant blockquote does not teleport the top ne
 		return host ? host.getBoundingClientRect().top : null;
 	}, topNested!.path);
 	expect(after).not.toBeNull();
-	// Phase-3 ships estimate-based spacers at depth, so allow generous drift — the
-	// asserted invariant is non-disappearance, not pixel-perfect anchoring.
+	// Guards non-disappearance / non-teleport of the SETTLED top block, not VR-2
+	// anchoring: a before/after block-Y delta reads flat by construction (the spacer
+	// write, slice mount, and scrollTop correction all flush in one pre-paint pass, so
+	// the DOM is only observable post-settle). The VR-2 within-flush correction is
+	// guarded by the settled-scrollTop test below ('a deep jump ... holds the viewport
+	// via scroll-anchor correction'); this bound stays at non-disappearance.
 	expect(Math.abs(after! - topNested!.top)).toBeLessThan(250);
 	expect(pageErrors).toEqual([]);
 });
@@ -1085,9 +1092,12 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 
 	await editor.waitForRenderFlush();
 
-	// The same row must still be present and not have teleported. Estimate-based spacers
-	// allow bounded drift; the invariant is non-disappearance, not pixel-perfect anchoring.
-	// A systematic mis-measure (every row under-measured) blows past this bound.
+	// The same row must still be present and not have teleported. Guards non-disappearance
+	// of the SETTLED top row, not VR-2 anchoring: the before/after cell-Y delta reads flat
+	// by construction (one pre-paint flush settles the band before the DOM is observable),
+	// and it cannot catch a static mis-measure either — nothing mutates between the two
+	// reads, so the same row stays at the same settled Y. The VR-2 within-flush correction
+	// is guarded by the settled-scrollTop test below.
 	const after = await page.evaluate((idx) => {
 		const cell = document
 			.querySelector(`[data-table-row-idx="${idx}"]`)
