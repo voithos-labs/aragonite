@@ -37,7 +37,7 @@
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { whenRefMounted } from '../reactivity/publish-ref.svelte';
+	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
@@ -67,12 +67,6 @@
 
 	bootstrapCodeLanguages();
 	runStartupInvariantChecks();
-
-	// Cap re-waits in revealPath's mount loop: a same-index mount at a deeper scope
-	// wakes the bare-index waiter spuriously, so the loop re-checks; the cap stops a
-	// wake storm from spinning. The never-mounts hang is handled separately by the
-	// window-membership short-circuit before the loop, not by this counter (VR-5).
-	const MAX_REVEAL_REWAITS = 64;
 
 	let {
 		source = '',
@@ -286,21 +280,16 @@
 	async function revealPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const top = path[0];
-		// Only scroll-and-await for an in-doc, unmounted block: an out-of-doc index
-		// (transient size lag) can never mount, so the loop would hang — fall through
-		// and return what's there. An already-mounted block needs no scroll.
-		if (top < doc.children.length && !blockRefs[top]) {
-			await topWindowing.revealChild(top);
-			// If the scroll missed (a stale model left `top` outside the recomputed
-			// window), no top-level mount will ever fire — degrade instead of hanging:
-			// fall through and return what's there (VR-5). Otherwise re-wait, since a
-			// nested block mounting at the same local index can wake this spuriously.
-			if (!blockRefs[top] && !topWindowing.isInWindow(top)) return null;
-			let rewaits = 0;
-			while (!blockRefs[top] && rewaits++ < MAX_REVEAL_REWAITS) {
-				await whenRefMounted(top, () => !!blockRefs[top]);
-			}
-		}
+		// Scroll the top-level block into its window and await its mount via the shared
+		// reveal-and-wait gate: it skips an already-mounted (or out-of-doc) block, re-checks
+		// after a spurious cross-level wake, and — load-bearing for VR-5 — degrades instead
+		// of hanging when a stale model left `top` outside the recomputed window.
+		await revealChildOrWait(top, {
+			childCount: doc.children.length,
+			getRef: (i) => blockRefs[i],
+			revealChild: topWindowing.revealChild,
+			isInWindow: topWindowing.isInWindow
+		});
 		const ref = blockRefs[top];
 		if (!ref) return null;
 		if (path.length === 1) return ref;
