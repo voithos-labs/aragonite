@@ -246,7 +246,8 @@
 			getRef: (i) => rowsState.innerBlockRefs[i],
 			dropRef: (i) => (rowsState.innerBlockRefs[i] = undefined),
 			revealChild: windowing.revealChild,
-			isStale: (i) => i < bounds.start || i >= bounds.end
+			isStale: (i) => i < bounds.start || i >= bounds.end,
+			isInWindow: windowing.isInWindow
 		});
 		const rowRef = rowsState.innerBlockRefs[rowIdx];
 		if (!rowRef) return null;

@@ -129,7 +129,8 @@
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
-		revealChild: windowing.revealChild
+		revealChild: windowing.revealChild,
+		isInWindow: windowing.isInWindow
 	});
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;

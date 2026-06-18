@@ -68,6 +68,12 @@
 	bootstrapCodeLanguages();
 	runStartupInvariantChecks();
 
+	// Cap re-waits in revealPath's mount loop: a same-index mount at a deeper scope
+	// wakes the bare-index waiter spuriously, so the loop re-checks; the cap stops a
+	// wake storm from spinning. The never-mounts hang is handled separately by the
+	// window-membership short-circuit before the loop, not by this counter (VR-5).
+	const MAX_REVEAL_REWAITS = 64;
+
 	let {
 		source = '',
 		resolveImageUrl,
@@ -285,9 +291,15 @@
 		// and return what's there. An already-mounted block needs no scroll.
 		if (top < doc.children.length && !blockRefs[top]) {
 			await topWindowing.revealChild(top);
-			// A nested block mounting at the same local index can wake the wait while
-			// blockRefs[top] is still empty; re-wait until the real top-level mount lands.
-			while (!blockRefs[top]) await whenRefMounted(top, () => !!blockRefs[top]);
+			// If the scroll missed (a stale model left `top` outside the recomputed
+			// window), no top-level mount will ever fire — degrade instead of hanging:
+			// fall through and return what's there (VR-5). Otherwise re-wait, since a
+			// nested block mounting at the same local index can wake this spuriously.
+			if (!blockRefs[top] && !topWindowing.isInWindow(top)) return null;
+			let rewaits = 0;
+			while (!blockRefs[top] && rewaits++ < MAX_REVEAL_REWAITS) {
+				await whenRefMounted(top, () => !!blockRefs[top]);
+			}
 		}
 		const ref = blockRefs[top];
 		if (!ref) return null;

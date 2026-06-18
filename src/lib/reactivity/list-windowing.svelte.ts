@@ -59,6 +59,10 @@ export interface ListWindowing {
 	measureChildNow(id: string): void;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
+	/** True iff `index` is in the CURRENT mounted window `[start, end)` (inactive ⇒ all
+	 *  children mount, so always true). Read after `revealChild` to prove a reveal landed
+	 *  before waiting on a mount that can otherwise never come (VR-5 termination). */
+	isInWindow(index: number): boolean;
 	dispose(): void;
 }
 
@@ -300,6 +304,13 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			scrollEl.scrollTop = listTop + model.offsetOf(Math.min(index, model.size));
 			win.syncScrollTop();
 			await tick();
+		},
+		// When inactive every child mounts (start..end spans all), so membership is
+		// trivially true; when active, the slice the window will render. Read after a
+		// reveal's scroll+tick to confirm the target actually landed inside it.
+		isInWindow(index) {
+			const { start, end } = win.result;
+			return index >= start && index < end;
 		},
 		dispose() {
 			win.dispose();

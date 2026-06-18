@@ -18,6 +18,9 @@ export interface ContainerBlockComponentDeps {
 	readonly nodeChildrenLength: number;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	readonly revealChild?: (index: number) => Promise<void>;
+	/** True iff `index` is in this scope's current window; lets the reveal degrade
+	 *  instead of hanging when a scroll missed (VR-5). */
+	readonly isInWindow?: (index: number) => boolean;
 }
 
 export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): BlockComponent {
@@ -71,7 +74,8 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 				await revealChildOrWait(head, {
 					childCount: deps.nodeChildrenLength,
 					getRef: (i) => deps.innerBlockRefs[i],
-					revealChild: deps.revealChild
+					revealChild: deps.revealChild,
+					isInWindow: deps.isInWindow
 				});
 			}
 			const ref = deps.innerBlockRefs[head];
