@@ -27,6 +27,10 @@ renders every block with no spacers — windowing stays inactive.
 
 - No page errors (e.g. `state_unsafe_mutation`) surface during the off-window reveal, scroll, or undo paths.
 
+## Measure batching (VR-4)
+
+- A fling does not force one reflow per mounted block: flinging ~1 viewport per animation frame through a multi-thousand-block doc mounts hundreds of hosts, but forced synchronous reflows (CDP `LayoutCount`) stay an order of magnitude below the mount count — layouts-per-mount well under 0.3, vs the ~1.0 of the un-batched mount path. Mount measurement rides the scope's read-all-then-write batch; the per-block re-measure effect (BlockHost `measureNow` / TableRowBlock `measureRowNow`) must skip its mount run and fire only on a subsequent edit. Real-browser only — jsdom reports zero layout, so the unit suite can't catch the regression.
+
 ## Recursive container windowing (Phase 3)
 
 - Giant single blockquote (2MB, one `blockquote` node): mounted set bounded, nested spacers present. [covered]
