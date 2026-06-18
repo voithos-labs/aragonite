@@ -17,10 +17,10 @@ The primary design principles:
 
 ```
 Editor (shell — owns CST, undo stack, editor-actions contexts)
-  └─ BlockList (keyed {#each} over CST children)
+  └─ BlockList (keyed {#each} over CST children — windowed when activated)
        ├─ BlockHost (resolves component by node.kind)
        │    ├─ TextEditableBlock (paragraph, heading, setextHeading, raw-editable)
-       │    ├─ CodeBlock (fenced code — textarea surface)
+       │    ├─ CodeBlock (fenced code — contenteditable + highlight.js)
        │    ├─ ThematicBreakBlock (non-editable, focusable)
        │    ├─ BlockquoteBlock (container — nested BlockList)
        │    └─ ListBlock (container — ListItemBlock children, each with nested BlockList)
@@ -28,7 +28,7 @@ Editor (shell — owns CST, undo stack, editor-actions contexts)
 ```
 
 - **Editor** — top-level shell. Owns the CST `Document`, the undo stack, and the editor-actions contexts. Manages focus after structural operations using `await tick()`.
-- **BlockList** — renders the CST children array via a keyed `{#each}`.
+- **BlockList** — renders the CST children via a keyed `{#each}`. A small scope renders the full array; an activated scope renders only a windowed slice plus top/bottom spacers, so the local loop index no longer equals the absolute child index. See `docs/design/editor/virtual-rendering.md` for the windowing model that keeps large documents performant.
 - **BlockHost** — given a CST node, resolves which block component to render by `node.kind`. Thin wrapper.
 - **TextEditableBlock** — shared contenteditable surface for paragraphs, headings, and raw-editable block types, parameterized by CSS class.
 - **Container block components** — `BlockquoteBlock` and `ListBlock`/`ListItemBlock` each host a nested `BlockList` with their own scoped editor-actions contexts.
@@ -502,7 +502,7 @@ The registry is module-global, which means multiple editor instances on the same
 
 ## Node Type Coverage
 
-The CST defines one document root plus 13 block kinds the editor must handle. Block kinds not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior. The `document` row below is included for completeness but is the tree root, not a rendered block.
+The CST defines a document root plus the block kinds the editor must handle. Block kinds not yet assigned a dedicated component render as **raw-editable blocks** — the `raw` text is shown in a contenteditable with monospace styling, fully editable, with no special merge behavior. The `document` row below is included for completeness but is the tree root, not a rendered block.
 
 | Node Type               | Kind                      | Editor Behavior                                                                                                                                                                                                                                                                                                                                                   |
 | ----------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -85,19 +85,13 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const registry = new Map<string, MeasurableChild>();
 	const pending = new Set<string>();
 
-	// Hold the anchor block's screen position fixed across a height mutation. A measure-in
-	// or a width rebuild changes the heights of blocks ABOVE the viewport, which grows or
-	// shrinks the top spacer and slides the visible content with no compensation (VR-2).
-	// The fix is the spec's manual correction (the editor disables native `overflow-anchor`,
-	// so nothing else holds the line): record the top-of-viewport block's offset before the
-	// mutation, recompute it after, and shift `scrollTop` by the delta. The delta is read
+	// Hold the anchor block's screen position fixed across a height mutation that resizes
+	// the top spacer and would otherwise slide the visible content (VR-2). The editor
+	// disables native `overflow-anchor`, so nothing else holds the line. The delta is read
 	// from the Fenwick model — synchronous and exact — NOT from `getBoundingClientRect`: a
 	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
 	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
-	// no-op). `offsetOf(anchorIndex)` is the sum of heights above the anchor, so its delta is
-	// exactly the shift to cancel. The anchor index is the same block before and after, and
-	// no DOM is read, so the batch's read-all-then-write split is preserved (one scrollTop
-	// write after the writes, not a read interleaved with them).
+	// no-op).
 	function correctAnchor(mutate: () => void): void {
 		const scrollEl = deps.getScrollEl();
 		const anchorIndex = model.indexAtOffset(localScrollTop());
@@ -107,14 +101,12 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
 	}
 
-	// Rebuild on structural child-count change (O(n) cheap raw reads) or an editor WIDTH
-	// change (prose re-wraps, so every measured height the oracle cached is stale —
-	// `widthVersion` is bumped after `invalidateWidth` clears that cache, so the rebuild
-	// reseeds from new-width estimates). Never per keystroke. Subscribe to count + scroll-el
-	// + widthVersion only; build inside untrack so the effect doesn't subscribe to every
-	// child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset shift
-	// the flush-pass correction can't see (its before-snapshot is captured after this ran),
-	// so anchor-correct the reseed itself to keep the viewport stable through a resize reflow.
+	// Rebuild on structural child-count change or an editor WIDTH change (prose re-wraps, so
+	// every height the oracle cached is stale; `widthVersion` is bumped after the cache is
+	// cleared). Never per keystroke. Build inside `untrack` so the effect doesn't subscribe
+	// to every child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset
+	// shift the flush-pass correction can't see (its before-snapshot is captured after this
+	// ran), so anchor-correct the reseed itself to keep the viewport stable.
 	$effect(() => {
 		void deps.getChildren().length;
 		void deps.getScrollEl();
@@ -199,30 +191,23 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	// The scope's batched measure pass for NEWLY-MOUNTED children. Svelte runs effects
 	// post-render, so this fires after a flush mounts children — the framework-native
-	// trigger the spec requires (no microtask/rAF/timeout). It drains `pending` into one
-	// read-all-then-write batch so a fling costs one reflow, not one per mounted block.
+	// trigger the spec requires (no microtask/rAF/timeout).
 	//
-	// It tracks the WINDOW only. The window changes exactly once when the mounted set
-	// slides (scroll) or when a measurement grows the model — a coalesced signal that
-	// already exists. Registration does NOT bump reactive state: the mount that registers
-	// a child already moved the window, so a per-child trigger would re-enter this effect
-	// O(children) times in one flush and trip Svelte's update-depth guard. Convergence is
-	// the same as a per-block measure: `recordMeasuredChild` only bumps `heightVersion`
-	// (which feeds the window) when the height actually changed, so once heights settle
-	// the window stops moving and the batch finds nothing pending.
+	// It tracks the WINDOW only — a coalesced signal that already moves when the mounted set
+	// slides. Registration deliberately does NOT bump reactive state: the mount that
+	// registers a child already moved the window, so a per-child trigger would re-enter this
+	// effect O(children) times in one flush and trip Svelte's update-depth guard.
 	$effect(() => {
 		void win.result;
 		untrack(() => flushMeasurements());
 	});
 
-	// Re-measure currently-mounted children after a WIDTH change. The width rebuild
-	// above reseeds every slot from the new-width ESTIMATE, but mounted blocks have real
-	// (old-width) heights that no longer match how they wrap now. Their measure effects
-	// key on `node.raw`, not width, so they won't re-fire on resize — re-enroll every
-	// registered (mounted) id and drain immediately. Draining here (not just leaving it
-	// for the window-tracking batch effect) makes the re-measure deterministic on the
-	// resize frame regardless of effect order; the batch effect's own run then finds
-	// nothing pending. The first run (widthVersion 0) finds an empty registry → no-op.
+	// Re-measure currently-mounted children after a WIDTH change. The rebuild above reseeds
+	// every slot from the new-width ESTIMATE, but mounted blocks have real (old-width) heights
+	// that no longer match how they wrap now. Their measure effects key on `node.raw`, not
+	// width, so they won't re-fire on resize — re-enroll every registered id and drain here
+	// (rather than leaving it for the window-tracking batch effect) so the re-measure lands on
+	// the resize frame regardless of effect order.
 	$effect(() => {
 		void deps.getWidthVersion();
 		untrack(() => {

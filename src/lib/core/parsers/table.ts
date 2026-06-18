@@ -99,8 +99,8 @@ export function parseTable(
 	};
 }
 
-// GFM pads short body rows with empty cells and truncates long ones to the
-// header column count.
+// GFM pads short rows (header and body alike) with empty cells and truncates
+// long ones to the delimiter column count.
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');

@@ -56,5 +56,6 @@ export type {
 	EditorEvents,
 	EditEvent,
 	EditorEventMap,
+	EditorError,
 	SelectionChangeEvent
 } from './editor-events';
