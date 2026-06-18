@@ -45,10 +45,11 @@ export class EditorPage {
 	 * raw, plus prefix/suffix) with a long timeout instead. Returns the doc's
 	 * top-level block count. The fixture is set via `setSource` (state setup, not
 	 * a simulated edit) — windowing activates when the estimated height clears the
-	 * editor's watermark.
+	 * editor's watermark. `suffix` appends trailing markdown (e.g. a paragraph
+	 * below the fixture) so a sibling block exists for cross-block navigation.
 	 */
-	async loadLargeFixture(shape: FixtureShape, bytes: number): Promise<number> {
-		const fixture = generateFixture(shape, bytes);
+	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
+		const fixture = generateFixture(shape, bytes) + suffix;
 		await this.page.evaluate((c) => (window as any).__test.setSource(c), fixture);
 		const minLength = fixture.replace(/\s+$/, '').length;
 		await this.page.waitForFunction(
