@@ -12,10 +12,15 @@ import {
 	dispatchGetBlockComponentByPath
 } from './focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+import type { CstNode } from '../core/nodes';
+import { isVerticallyTransparentNode } from '../core/inline/transparency';
 
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	readonly nodeChildrenLength: number;
+	/** The container's CST node, for the pure-data transparency test — works
+	 *  off-window where `innerBlockRefs` is sparse (VR-6). */
+	readonly node: CstNode;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	readonly revealChild?: (index: number) => Promise<void>;
 	/** True iff `index` is in this scope's current window; lets the reveal degrade
@@ -90,8 +95,7 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 			dispatchFocusAtColumn(deps.innerBlockRefs, x, from);
 		},
 		isVerticallyTransparent(): boolean {
-			if (deps.nodeChildrenLength === 0) return false;
-			return deps.innerBlockRefs.every((ref) => ref?.isVerticallyTransparent?.() ?? false);
+			return isVerticallyTransparentNode(deps.node);
 		},
 		selectEdgeWidget(side: 'start' | 'end'): boolean {
 			if (deps.nodeChildrenLength === 0) return false;

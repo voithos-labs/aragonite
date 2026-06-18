@@ -13,7 +13,6 @@
 	} from '../../block-component';
 	import type { CstNode } from '../../core/nodes';
 	import {
-		BLOCK_COMPONENT_LOOKUP_KEY,
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
@@ -32,7 +31,6 @@
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
-		type BlockComponentLookup,
 		type BlockElLookup,
 		type DocumentGetter,
 		type LinkReferenceResolverRef,
@@ -109,7 +107,6 @@
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getBlockComponentByPath = getContext<BlockComponentLookup>(BLOCK_COMPONENT_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
@@ -141,7 +138,6 @@
 		selection,
 		getDoc,
 		getBlockElByPath,
-		getBlockComponentByPath,
 		revealPath: focusActions.revealPath,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
@@ -236,8 +232,7 @@
 		history,
 		focus: focusActions,
 		getDoc,
-		getBlockElByPath,
-		getBlockComponentByPath
+		getBlockElByPath
 	};
 
 	const textRender = createTextRender({

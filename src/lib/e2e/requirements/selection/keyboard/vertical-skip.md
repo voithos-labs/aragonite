@@ -26,6 +26,14 @@ edge — vertical-skip is a vertical-only behavior.
 - Ctrl+Shift+Home at a document whose first block is transparent lands
   the focus on the first text-bearing block, not on the transparent edge.
 
+## Off-window (windowed doc) — VR-6
+
+- Ctrl+Shift+End in a windowed doc whose last block is an image-only
+  paragraph that is currently OFF-window (unmounted): focus lands on the
+  last text-bearing block, identical to the non-windowed result. The
+  transparency decision must come from the CST node, not a mounted
+  component — an unmounted transparent block must still be skipped.
+
 ## Container recursion
 
 - Shift+ArrowDown from a paragraph above a list whose only items are
