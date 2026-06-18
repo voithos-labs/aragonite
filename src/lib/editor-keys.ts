@@ -86,6 +86,15 @@ export type BlockMeasureChannel = {
 export const FOCUSED_PATH_KEY = Symbol('focused-path');
 export type FocusedPathGetter = () => number[] | null;
 
+/**
+ * @internal Monotonic counter the editor root bumps when its scroll element's WIDTH
+ * changes (a `ResizeObserver` on `.editor`). Prose re-wraps at a new width, so every
+ * windowing scope reads it to rebuild its model and re-measure mounted blocks at the
+ * new width. Sourced once at the root; height-only resizes don't bump it.
+ */
+export const WIDTH_VERSION_KEY = Symbol('width-version');
+export type WidthVersionGetter = () => number;
+
 /** @internal Per-kind height oracle (Editor-constructed); read by nested windowing scopes. */
 export const HEIGHT_ORACLE_KEY = Symbol('height-oracle');
 /**

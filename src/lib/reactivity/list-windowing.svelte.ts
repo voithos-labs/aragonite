@@ -24,6 +24,9 @@ export interface ListWindowingDeps {
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
+	/** Monotonic counter bumped on an editor WIDTH change (after the oracle's measured
+	 *  cache is cleared). Rebuilds the model at the new width and re-measures mounted blocks. */
+	getWidthVersion: () => number;
 	/** This scope's path (the parentPath its children render under). [] at top level. */
 	getParentPath: () => number[];
 	/** This scope's own measurable box; re-measured on inner reflow to report a fresh subtotal upward. Absent at top level. */
@@ -78,15 +81,45 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const registry = new Map<string, MeasurableChild>();
 	const pending = new Set<string>();
 
-	// Rebuild on structural child-count change (O(n) cheap raw reads); never per
-	// keystroke. Subscribe to count + scroll-el only; build inside untrack so the
-	// effect doesn't subscribe to every child's raw via the oracle.
+	// Hold the anchor block's screen position fixed across a height mutation. A measure-in
+	// or a width rebuild changes the heights of blocks ABOVE the viewport, which grows or
+	// shrinks the top spacer and slides the visible content with no compensation (VR-2).
+	// The fix is the spec's manual correction (the editor disables native `overflow-anchor`,
+	// so nothing else holds the line): record the top-of-viewport block's offset before the
+	// mutation, recompute it after, and shift `scrollTop` by the delta. The delta is read
+	// from the Fenwick model — synchronous and exact — NOT from `getBoundingClientRect`: a
+	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
+	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
+	// no-op). `offsetOf(anchorIndex)` is the sum of heights above the anchor, so its delta is
+	// exactly the shift to cancel. The anchor index is the same block before and after, and
+	// no DOM is read, so the batch's read-all-then-write split is preserved (one scrollTop
+	// write after the writes, not a read interleaved with them).
+	function correctAnchor(mutate: () => void): void {
+		const scrollEl = deps.getScrollEl();
+		const anchorIndex = model.indexAtOffset(localScrollTop());
+		const before = model.offsetOf(anchorIndex);
+		mutate();
+		const delta = model.offsetOf(anchorIndex) - before;
+		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
+	}
+
+	// Rebuild on structural child-count change (O(n) cheap raw reads) or an editor WIDTH
+	// change (prose re-wraps, so every measured height the oracle cached is stale —
+	// `widthVersion` is bumped after `invalidateWidth` clears that cache, so the rebuild
+	// reseeds from new-width estimates). Never per keystroke. Subscribe to count + scroll-el
+	// + widthVersion only; build inside untrack so the effect doesn't subscribe to every
+	// child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset shift
+	// the flush-pass correction can't see (its before-snapshot is captured after this ran),
+	// so anchor-correct the reseed itself to keep the viewport stable through a resize reflow.
 	$effect(() => {
 		void deps.getChildren().length;
 		void deps.getScrollEl();
+		void deps.getWidthVersion();
 		untrack(() => {
-			model = buildModel();
-			heightVersion++;
+			correctAnchor(() => {
+				model = buildModel();
+				heightVersion++;
+			});
 		});
 	});
 
@@ -178,6 +211,22 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		untrack(() => flushMeasurements());
 	});
 
+	// Re-measure currently-mounted children after a WIDTH change. The width rebuild
+	// above reseeds every slot from the new-width ESTIMATE, but mounted blocks have real
+	// (old-width) heights that no longer match how they wrap now. Their measure effects
+	// key on `node.raw`, not width, so they won't re-fire on resize — re-enroll every
+	// registered (mounted) id and drain immediately. Draining here (not just leaving it
+	// for the window-tracking batch effect) makes the re-measure deterministic on the
+	// resize frame regardless of effect order; the batch effect's own run then finds
+	// nothing pending. The first run (widthVersion 0) finds an empty registry → no-op.
+	$effect(() => {
+		void deps.getWidthVersion();
+		untrack(() => {
+			for (const id of registry.keys()) pending.add(id);
+			flushMeasurements();
+		});
+	});
+
 	function flushMeasurements(): void {
 		if (pending.size === 0) return;
 		const entries: MeasurableChild[] = [];
@@ -186,10 +235,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			if (child) entries.push(child);
 		}
 		pending.clear();
-		// TASK 3 SEAM: record an above-viewport anchor's top here (before the writes)
-		// and adjust scrollTop by its delta after runMeasureBatch — the writes grow/shrink
-		// model slots, so the correction belongs immediately after this batch.
-		runMeasureBatch(entries);
+		// The batch's writes grow/shrink model slots, including above-viewport ones, so
+		// wrap it in the anchor correction to keep the top-of-viewport block fixed.
+		correctAnchor(() => runMeasureBatch(entries));
 	}
 
 	return {

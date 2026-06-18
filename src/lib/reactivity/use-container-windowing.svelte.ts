@@ -5,9 +5,11 @@ import {
 	HEIGHT_ORACLE_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
+	WIDTH_VERSION_KEY,
 	type BlockMeasureChannel,
 	type FocusedPathGetter,
-	type ParentScopeSink
+	type ParentScopeSink,
+	type WidthVersionGetter
 } from '../editor-keys';
 import type { HeightOracle } from '../cursor/height-oracle';
 import type { CstNode } from '../core/nodes';
@@ -39,6 +41,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	const oracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const getFocusPath = getContext<FocusedPathGetter | undefined>(FOCUSED_PATH_KEY);
+	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
 	const windowing = createListWindowing({
@@ -49,6 +52,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getOwnEl: opts.getOwnEl,
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
+		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		getParentPath: opts.getParentPath,
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
