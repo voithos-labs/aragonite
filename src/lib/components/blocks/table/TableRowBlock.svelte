@@ -29,6 +29,7 @@
 	let {
 		node,
 		index,
+		id,
 		rowIdx,
 		columnCount,
 		rowCount,
@@ -39,6 +40,7 @@
 	}: {
 		node: CstNode;
 		index: number;
+		id: string;
 		rowIdx: number;
 		columnCount: number;
 		rowCount: number;
@@ -70,13 +72,26 @@
 
 	// A `display: contents` row has no box, so measure a cell: every cell stretches
 	// to the grid row track (no grid gap), so a cell's border-box height is the row
-	// height. `void node.raw` re-measures when this row's cell content changes.
+	// height. Enroll in the table scope's batched pass (mirrors BlockHost) so a fling
+	// over a giant table reads every mounted row before writing any subtotal — one
+	// reflow, not one per row. Re-registers on index change; re-measures on edit.
+	$effect(() => {
+		void index;
+		if (!parentSink) return;
+		const currentIndex = index;
+		return parentSink.registerRow(
+			id,
+			() => {
+				const cell = rowEl?.querySelector(':scope > .table-cell') as HTMLElement | null;
+				return cell?.getBoundingClientRect().height ?? 0;
+			},
+			(h) => parentSink.setChildSubtotal(currentIndex, h)
+		);
+	});
+
 	$effect(() => {
 		void node.raw;
-		if (!parentSink || !rowEl) return;
-		const cell = rowEl.querySelector(':scope > .table-cell') as HTMLElement | null;
-		const h = cell?.getBoundingClientRect().height ?? 0;
-		if (h > 0) parentSink.setChildSubtotal(index, h);
+		parentSink?.measureRowNow(id);
 	});
 
 	const bundle = createStandardNestedActions(cellsState, {

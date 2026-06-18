@@ -10,7 +10,7 @@
 	import {
 		EDITOR_EVENTS_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
-		type RecordBlockHeight
+		type BlockMeasureChannel
 	} from '../editor-keys';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
@@ -56,7 +56,7 @@
 		return publishRefSlot(index, ref, setRef, getRef);
 	});
 
-	const recordBlockHeight = getContext<RecordBlockHeight | undefined>(RECORD_BLOCK_HEIGHT_KEY);
+	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
 
 	$effect(() => {
 		if (perfEnabled()) incMountedBlocks();
@@ -65,14 +65,24 @@
 		};
 	});
 
-	// Reports post-layout height up to the editor (oracle cache + live height
-	// model). Re-runs on raw change since height grows with content; jsdom
-	// reports 0, so the guard skips recording until a real browser layout exists.
+	// Enroll in the scope's batched measure pass instead of measuring inline — a
+	// per-block read interleaved with a sibling's model write forces one reflow per
+	// mounted block on a fling (VR-4). The scope reads every pending block then writes,
+	// so the batch costs one reflow. Re-registers on path change (reorder re-binds the
+	// write to the new index); jsdom reports 0 height, guarded inside the batch.
+	$effect(() => {
+		void myPath;
+		if (!measureChannel) return;
+		return measureChannel.register(myPath, index, id, () =>
+			hostEl ? hostEl.getBoundingClientRect().height : 0
+		);
+	});
+
+	// An edit grows/shrinks this one block; re-measure it directly (one block, not the
+	// thrash path). The write is convergence-guarded, so this can't spin the graph.
 	$effect(() => {
 		void node.raw;
-		if (!recordBlockHeight || !hostEl) return;
-		const h = hostEl.getBoundingClientRect().height;
-		if (h > 0) recordBlockHeight(myPath, id, h);
+		measureChannel?.measureNow(id);
 	});
 </script>
 

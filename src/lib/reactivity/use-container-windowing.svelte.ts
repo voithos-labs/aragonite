@@ -5,9 +5,9 @@ import {
 	HEIGHT_ORACLE_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
+	type BlockMeasureChannel,
 	type FocusedPathGetter,
-	type ParentScopeSink,
-	type RecordBlockHeight
+	type ParentScopeSink
 } from '../editor-keys';
 import type { HeightOracle } from '../cursor/height-oracle';
 import type { CstNode } from '../core/nodes';
@@ -60,14 +60,26 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	});
 
 	if (opts.provideLeafChannel) {
-		// A DIRECT child (path one deeper than this scope) measures into this model.
-		setContext(RECORD_BLOCK_HEIGHT_KEY, ((path, id, h) => {
-			const depth = opts.getParentPath().length;
-			if (path.length === depth + 1) windowing.recordMeasuredChild(path[depth], id, h);
-		}) satisfies RecordBlockHeight);
+		// A DIRECT child (path one deeper than this scope) measures into this model via
+		// the scope's batched pass. Nested hosts (path deeper than this scope) belong to
+		// their own scope's channel, so register is a no-op here.
+		setContext(RECORD_BLOCK_HEIGHT_KEY, {
+			register(path, index, id, readHeight) {
+				const depth = opts.getParentPath().length;
+				if (path.length !== depth + 1) return () => {};
+				return windowing.registerChild(id, {
+					readHeight,
+					applyHeight: (h) => windowing.recordMeasuredChild(index, id, h)
+				});
+			},
+			measureNow: windowing.measureChildNow
+		} satisfies BlockMeasureChannel);
 	}
 	setContext(PARENT_SCOPE_SINK_KEY, {
-		setChildSubtotal: windowing.setChildSubtotal
+		setChildSubtotal: windowing.setChildSubtotal,
+		registerRow: (id, readHeight, applyHeight) =>
+			windowing.registerChild(id, { readHeight, applyHeight }),
+		measureRowNow: windowing.measureChildNow
 	} satisfies ParentScopeSink);
 
 	return windowing;
