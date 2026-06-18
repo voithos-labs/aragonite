@@ -1134,6 +1134,26 @@ function buildWideProseDoc(): string {
 	return Array.from({ length: WIDE_PROSE_BLOCKS }, () => line).join('\n\n') + '\n';
 }
 
+// The nested analog of buildNonUniformDoc: ONE blockquote whose children the per-kind
+// estimator badly UNDER-models, so a deep jump lands in an unmeasured nested band. Every
+// child is a tall `<br>`-heavy quoted paragraph (~30 rendered lines from short raw → the
+// char-based estimate counts ~1 line), kept inside a single `blockquote` node by the bare
+// `>` lazy-continuation line between paragraphs (the same join the giant-blockquote fixture
+// uses). The `<br>`s sit on ONE physical line, so each paragraph is one `> …` line that
+// round-trips byte-identically through `loadContent`'s exact-equality poll. Blockquote (not
+// list) on purpose: its paragraph children are BlockHosts that enroll in the scope's batched
+// measure pass — the `correctAnchor`-wrapped `flushMeasurements` — so this exercises the
+// nested scope's anchor correction. List items report via the deliberately-uncorrected
+// `setChildSubtotal` channel (the documented VR-2 cross-scope limitation), which would make
+// a list-based jump vacuous for the same reason the uniform fixtures are.
+const NESTED_NON_UNIFORM_CHILDREN = 1000;
+function buildNonUniformBlockquoteDoc(): string {
+	const tall = `line${'<br>line'.repeat(30)}`;
+	return (
+		Array.from({ length: NESTED_NON_UNIFORM_CHILDREN }, () => `> ${tall}`).join('\n>\n') + '\n'
+	);
+}
+
 // VR-2 anchor correction. With native `overflow-anchor` disabled (Editor.svelte) the
 // editor OWNS scroll-anchor correction: when above-viewport blocks measure in taller
 // than their estimate, the top spacer grows and would slide the visible content down by
@@ -1309,5 +1329,87 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 	// reseed is anchor-corrected, so a sub-line bound holds even as every height changes.
 	expect(after.anchorTop).not.toBeNull();
 	expect(drift).toBeLessThan(20);
+	expect(pageErrors).toEqual([]);
+});
+
+// VR-2 anchor correction at a NESTED scope. `correctAnchor` is instantiated per scope
+// (the editor root AND every activated nested container), and the deep-jump test above
+// guards only the ROOT instance — its flat doc makes the root scope the one whose band
+// measures in. This guards a nested instance with the SAME settled-scrollTop discriminator,
+// driving the jump into a single giant blockquote whose children measure in far taller than
+// estimate.
+//
+// What makes the compensation NESTED-attributable (not a duplicate of the root test, which
+// reverts the same `scrollTop += delta` line): the doc has exactly ONE top-level block (the
+// blockquote). The root scope's model therefore holds a single entry, so its anchor index is
+// always 0 and `offsetOf(0) ≡ 0` — the root `correctAnchor` delta is structurally 0, a no-op,
+// and the count-stable rebuild `$effect` never fires for it either. Any observed compensation
+// can only come from the blockquote's OWN scope correcting as its paragraph children (BlockHosts
+// that enroll in the scope's batched `flushMeasurements`) measure in above the viewport. Same
+// revert, two tests, disjoint responsible scopes: root above, nested here.
+//
+// Mutation-check (reverting `correctAnchor`'s `scrollEl.scrollTop += delta`): compensation
+// drops to ~0 on this nested jump — the nested band measures in, the inner top spacer grows,
+// and with no correction the content slides while scrollTop stays pinned at the jump target.
+test('a deep jump into a giant blockquote holds the viewport via the nested scope anchor correction (VR-2)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent(buildNonUniformBlockquoteDoc());
+
+	// Preconditions: ONE top-level blockquote (so the root scope can't compensate), windowed
+	// from INSIDE (nested spacers present), or the nested-attribution argument is vacuous.
+	expect(await cstBlockCount(page)).toBe(1);
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	const estimateScrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+
+	// Jump 60% into the estimate-seeded nested content — a fresh band whose quoted paragraphs
+	// the estimator under-models by ~30× (the tall `<br>` paragraphs), the VR-2 jump condition
+	// one scope down.
+	const target = Math.round(estimateScrollHeight * 0.6);
+	await editor.scrollEditorTo(target);
+	for (let i = 0; i < 5; i++) await editor.waitForRenderFlush();
+
+	const settled = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		// A NESTED host (comma-path) at the viewport top proves the visible content is the
+		// blockquote's windowed children, not the container chrome.
+		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
+		let topBlockY: number | null = null;
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > top + 1) {
+				topBlockY = rect.top;
+				break;
+			}
+		}
+		return { scrollTop: editorEl.scrollTop, editorTop: top, topBlockY };
+	});
+
+	const compensation = settled.scrollTop - target;
+	console.log(
+		`VR-2 nested anchor ${JSON.stringify({ estimateScrollHeight, target, ...settled, compensation })}`
+	);
+
+	// Load-bearing discriminator: the nested scope's `correctAnchor` shifts scrollTop FORWARD
+	// off the jump target by the band's measure-in error. Reverting `scrollTop += delta` pins
+	// scrollTop at exactly the target (compensation 0); the > 500px floor sits well above
+	// jitter and far below the multi-thousand-px compensation a 30×-under-modeled nested band
+	// produces.
+	expect(compensation).toBeGreaterThan(500);
+
+	// The viewport stayed populated through the reflow: a mounted nested block still sits at
+	// the top edge. Without correction the content is displaced but scrollTop is unchanged, so
+	// this stays true too — a sanity check, not the discriminator (that is `compensation`).
+	expect(settled.topBlockY).not.toBeNull();
+	expect(settled.topBlockY!).toBeLessThan(settled.editorTop + 60);
 	expect(pageErrors).toEqual([]);
 });
