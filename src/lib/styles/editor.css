@@ -264,3 +264,11 @@
 :where(.editor) .md-br-widget {
 	/* Reserved for future selected-state styling — today no chrome. */
 }
+
+/* Off-window placeholder tint (VR-8). Spacers reserve the height of unmounted
+   blocks; a fling can outrun the window recompute and paint a bare spacer for one
+   frame, which without a background tears white. The faint tint reads as "loading".
+   Global across the three spacer renderers (BlockList / ListBlock / TableBlock). */
+:where(.editor) .vr-spacer {
+	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
+}

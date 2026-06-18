@@ -54,6 +54,13 @@
 	--md-unresolved-color: #c0392b;
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
+
+	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
+	   the window recompute and paint a bare spacer for one frame; the tint reads as
+	   "loading" rather than a white tear. Invisible in steady state (the spacer
+	   always sits an overscan band outside the viewport). Light text on dark bg → a
+	   faint light tint. */
+	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
 :root[data-theme-type='light'] {
@@ -87,4 +94,7 @@
 	--code-tok-removed: #cf222e;
 	--code-tok-heading: #0550ae;
 	--code-tok-link: #0550ae;
+
+	/* Dark text on light bg → a faint dark tint (see VR-8 note above). */
+	--vr-spacer-bg: rgba(0, 0, 0, 0.03);
 }
