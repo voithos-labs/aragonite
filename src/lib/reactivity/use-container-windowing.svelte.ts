@@ -57,7 +57,12 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
-		overscan: 4,
+		// A fling can outrun the deferred window recompute by more than the overscan
+		// band, briefly painting an empty spacer (VR-8). 6 widens the band without
+		// breaching the mounted-set ceiling (the < 60 flat e2e bound is the guard); a
+		// skeleton spacer background covers the residual one-frame gap a compositor
+		// fling can still open.
+		overscan: 6,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
 		deactivateBelowPx: 3000
