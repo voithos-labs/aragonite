@@ -342,7 +342,10 @@
 
 	function collectColumnRects(): { left: number; right: number }[] {
 		if (!tableEl || rowCount === 0) return [];
-		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx="0"]');
+		// Columns share grid track widths, so any mounted row yields the same
+		// geometry. Read the first MOUNTED row (not row 0, which row-windowing
+		// unmounts once the table scrolls past it — VR-K1).
+		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx]');
 		if (!firstRowEl) return [];
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return [];
