@@ -1,9 +1,26 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
 const TRANSPARENT_MIDDLE = 'first\n\n![pic](/test-fixtures/sample.png)\n\nthird\n';
 const LIST_ONLY_TRANSPARENT =
 	'above\n\n- ![pic](/test-fixtures/sample.png)\n- ![pic](/test-fixtures/sample.png)\n\nbelow\n';
+
+// A doc tall enough to clear the windowing watermark (4000px), with a known
+// text block then a final image-only paragraph. At the top scroll position the
+// tail blocks are off-window (unmounted), so the transparency decision for the
+// final block can't come from a mounted component — it must read the CST.
+const WINDOWED_TAIL_BLOCKS = 800;
+function windowedDocWithTransparentTail(): string {
+	const text = Array.from({ length: WINDOWED_TAIL_BLOCKS }, (_, i) => `para ${i}`).join('\n\n');
+	return `${text}\n\n![pic](/test-fixtures/sample.png)\n`;
+}
+
+function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
+	return page.evaluate(
+		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
+		index
+	);
+}
 
 test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 	let editor: EditorPage;
@@ -95,6 +112,33 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.focus.path).toEqual([1]);
+	});
+
+	test('Ctrl+Shift+End skips an OFF-window transparent last block in a windowed doc (VR-6)', async ({
+		page
+	}) => {
+		await editor.loadContent(windowedDocWithTransparentTail());
+		const lastIdx = WINDOWED_TAIL_BLOCKS; // the image-only paragraph
+		const lastTextIdx = WINDOWED_TAIL_BLOCKS - 1;
+
+		// Precondition: windowing is active and the tail is unmounted, so the
+		// transparency check runs against a node with no live component. If the
+		// last block were mounted this test would pass with the old component gate
+		// too (vacuous) — assert the off-window condition is real.
+		await editor.focusBlockStart(0);
+		expect(await topLevelHostPresent(page, lastIdx)).toBe(false);
+		expect(await topLevelHostPresent(page, lastTextIdx)).toBe(false);
+
+		await page.keyboard.press('Control+Shift+End');
+		await editor.waitForCrossBlock(true);
+
+		const sel = await editor.bridge.getSelectionPaths();
+		expect(sel).not.toBeNull();
+		// Matches the non-windowed result: the endpoint skips the transparent
+		// image-only last block and lands on the last text-bearing block. With the
+		// reverted component gate the off-window image returns null → not skipped →
+		// focus would land on [lastIdx].
+		expect(sel!.focus.path).toEqual([lastTextIdx]);
 	});
 
 	test('Shift+ArrowRight does not skip a transparent next paragraph (horizontal vs vertical)', async () => {

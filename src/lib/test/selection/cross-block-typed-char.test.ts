@@ -72,7 +72,6 @@ function makeHandlers(
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: () => null,
-		getBlockComponentByPath: () => null,
 		revealPath: env.deps.revealPath,
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,

@@ -14,7 +14,7 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type { BlockComponentLookup, BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -37,7 +37,6 @@ export interface CrossBlockDispatchContext {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
-	getBlockComponentByPath: BlockComponentLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
