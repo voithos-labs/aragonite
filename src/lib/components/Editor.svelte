@@ -25,6 +25,7 @@
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
+		WIDTH_VERSION_KEY,
 		type BlockComponentLookup,
 		type BlockElLookup,
 		type DocumentGetter,
@@ -404,6 +405,30 @@
 	});
 	setContext(HEIGHT_ORACLE_KEY, heightOracle);
 
+	// A WIDTH change re-wraps prose, so every height the oracle cached at the old width
+	// is stale and every windowing scope must rebuild + re-measure. The editor root owns
+	// one ResizeObserver on its scroll element; on a real width delta it clears the
+	// oracle's measured cache and bumps this counter, which the scopes read to rebuild
+	// (and which anchor-corrects the reflow so the viewport stays put). A height-only
+	// resize doesn't re-wrap, so it's ignored. ResizeObserver's per-callback batching is
+	// the coalescing — no setTimeout/rAF debounce (G4.4).
+	let widthVersion = $state(0);
+	setContext(WIDTH_VERSION_KEY, () => widthVersion);
+	$effect(() => {
+		const el = editorEl;
+		if (!el) return;
+		let lastWidth = el.clientWidth;
+		const observer = new ResizeObserver(() => {
+			const width = el.clientWidth;
+			if (width === lastWidth) return;
+			lastWidth = width;
+			heightOracle.invalidateWidth();
+			widthVersion++;
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
 	// The focused block's full path drives each windowing scope's per-level pin, so
 	// a scroll that pushes the caret off-screen never tears down native focus/IME.
 	//
@@ -546,6 +571,13 @@
 		color: var(--color-text-primary, #ffffff);
 		min-height: 200px;
 		overflow-y: auto;
+		/* The editor owns scroll-anchor correction manually (list-windowing's
+		   correctAnchor): record the top-of-viewport block's offset before a measure-in
+		   or width reflow, shift scrollTop by the delta after. Native scroll anchoring
+		   FIGHTS that — it independently rewrites scrollTop (~2,264px on a deep jump into
+		   an unmeasured band), double-correcting. Disable it so the manual path owns the
+		   line; do NOT restore `overflow-anchor` (VR-2/VR-2a). */
+		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);

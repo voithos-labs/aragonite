@@ -1071,3 +1071,206 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 	expect(Math.abs(after! - topRow!.top)).toBeLessThan(250);
 	expect(pageErrors).toEqual([]);
 });
+
+// Build a doc the per-kind estimator badly UNDER-models: tall paragraphs (many
+// hard `<br>` line breaks → ~30 rendered lines from short raw, so the char-based
+// estimate counts ~1 line) interleaved with short single-line paragraphs. The
+// estimate-seeded model therefore runs far shorter than the real layout, so a deep
+// scroll lands in an UNMEASURED band where the overscan blocks above the viewport
+// top measure in ~30× taller than estimate — the exact VR-2 jump condition.
+const NON_UNIFORM_BLOCKS = 1200;
+function buildNonUniformDoc(): string {
+	return (
+		Array.from({ length: NON_UNIFORM_BLOCKS }, (_, i) =>
+			i % 4 === 0 ? `line${'<br>line'.repeat(30)}` : `short ${i}`
+		).join('\n\n') + '\n'
+	);
+}
+
+// Width-SENSITIVE doc for the resize test: long single-line paragraphs (~60 words) that
+// wrap to more lines as the content column narrows, so a width change really does change
+// every block's real height (unlike the `<br>` fixture, whose hard breaks are
+// width-independent). ~900 such paragraphs clear the activation watermark.
+const WIDE_PROSE_BLOCKS = 900;
+function buildWideProseDoc(): string {
+	const line = Array.from({ length: 60 }, (_, w) => `word${w % 16}`).join(' ');
+	return Array.from({ length: WIDE_PROSE_BLOCKS }, () => line).join('\n\n') + '\n';
+}
+
+// VR-2 anchor correction. With native `overflow-anchor` disabled (Editor.svelte) the
+// editor OWNS scroll-anchor correction: when above-viewport blocks measure in taller
+// than their estimate, the top spacer grows and would slide the visible content down by
+// the accumulated error; `correctAnchor` shifts scrollTop by the model-offset delta so
+// the block the user is looking at stays at the viewport top.
+//
+// The honest discriminator is the SETTLED scrollTop, not a within-flush block drift: a
+// model write and the spacer's bound `style.height` flush in the same pre-paint pass as
+// the slice mount, so by the time the DOM is observable the band has already settled and
+// a block-Y delta reads flat (the probe established this). The load-bearing signal is
+// that scrollTop is compensated FORWARD off the jump target by the accumulated band error
+// (~thousands of px), holding the same content in view. Mutation-check (proven by
+// reverting `correctAnchor`'s `scrollTop += delta`): scrollTop stays pinned at the exact
+// target (compensation 0) and the content the user was looking at is displaced out of
+// view — see the report's before/after numbers.
+test('a deep jump into an unmeasured band holds the viewport via scroll-anchor correction (VR-2)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent(buildNonUniformDoc());
+
+	// Precondition: windowing is active, or there is no spacer band to jump into and the
+	// test is vacuous.
+	expect(await spacerCount(page)).toBeGreaterThan(0);
+	const estimateScrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+
+	// Jump 60% into the estimate-seeded content — a fresh, unmeasured band whose blocks
+	// the estimator under-models by ~30× (the tall `<br>` paragraphs).
+	const target = Math.round(estimateScrollHeight * 0.6);
+	await editor.scrollEditorTo(target);
+	for (let i = 0; i < 5; i++) await editor.waitForRenderFlush();
+
+	const settled = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const bottom = editorEl.getBoundingClientRect().bottom;
+		const hosts = Array.from(
+			document.querySelectorAll('[data-block-path]:not([data-block-path*=","])')
+		) as HTMLElement[];
+		let topBlockY: number | null = null;
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > top + 1) {
+				topBlockY = rect.top;
+				break;
+			}
+		}
+		return { scrollTop: editorEl.scrollTop, editorTop: top, editorBottom: bottom, topBlockY };
+	});
+
+	const compensation = settled.scrollTop - target;
+	console.log(
+		`VR-2 anchor ${JSON.stringify({ estimateScrollHeight, target, ...settled, compensation })}`
+	);
+
+	// Load-bearing: scrollTop is compensated FORWARD by the band's measure-in error. The
+	// uncorrected build pins scrollTop at exactly the target (compensation 0); the +500px
+	// floor sits well above measurement jitter and far below the multi-thousand-px
+	// compensation a 30×-under-modeled band produces.
+	expect(compensation).toBeGreaterThan(500);
+
+	// The viewport stayed populated through the reflow: a mounted block still sits at the
+	// top edge (not a blank spacer, not scrolled past the content). Without correction the
+	// content is displaced but scrollTop is unchanged, so this stays true too — it's a
+	// sanity check, not the discriminator (that is `compensation` above).
+	expect(settled.topBlockY).not.toBeNull();
+	expect(settled.topBlockY!).toBeLessThan(settled.editorTop + 60);
+	expect(pageErrors).toEqual([]);
+});
+
+// VR-1 resize / width invalidation. A width change re-wraps prose, so the heights the
+// oracle measured at the old width are stale. The editor's ResizeObserver clears the
+// oracle cache and bumps `widthVersion`, which rebuilds every scope's model at the new
+// width AND re-enrolls the mounted blocks so the batch re-measures their real new-width
+// heights. Part A's anchor correction (the rebuild reseed is wrapped in it) keeps the
+// viewport stable through the reflow.
+//
+// Two signals. (1) Re-measure: the model's `scrollHeight` must TRACK the narrower wrap —
+// a mounted block grows in the DOM and the model must follow, so `scrollHeight` grows.
+// Reverting the wiring (`invalidateWidth` + the `widthVersion` re-enroll) leaves the
+// model on wide heights while the DOM re-wraps taller underneath, so `scrollHeight` does
+// NOT track and the bound fails. (2) Anchor: the top-of-viewport block does not teleport
+// as the model reseeds.
+test('narrowing the viewport re-measures wrapped heights and holds the anchor (VR-1)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadContent(buildWideProseDoc());
+
+	expect(await spacerCount(page)).toBeGreaterThan(0);
+
+	// Scroll mid-doc so the window has mounted+measured a band at the WIDE width — the
+	// blocks whose real heights change when the column narrows. (Above-window blocks sit
+	// at estimate and reseed to a narrow estimate either way; the mounted band is where
+	// re-measure is observable.)
+	const wideScrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	const viewport = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).clientHeight
+	);
+	for (let top = 0; top < wideScrollHeight / 2; top += Math.round(viewport * 0.6)) {
+		await editor.scrollEditorTo(top);
+	}
+	await editor.scrollEditorTo(Math.round(wideScrollHeight / 2));
+
+	const before = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const hosts = Array.from(
+			document.querySelectorAll('[data-block-path]:not([data-block-path*=","])')
+		) as HTMLElement[];
+		// The block at the viewport top (anchor) and a fully-mounted block's own height
+		// (re-wrap sanity), both read at the wide width.
+		let anchor: { path: string; top: number } | null = null;
+		let sampleHeight: number | null = null;
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (!anchor && rect.bottom > top + 1)
+				anchor = { path: host.getAttribute('data-block-path')!, top: rect.top };
+			if (rect.top > top + 1 && sampleHeight === null) sampleHeight = rect.height;
+		}
+		return {
+			width: editorEl.clientWidth,
+			scrollHeight: editorEl.scrollHeight,
+			anchor,
+			sampleHeight
+		};
+	});
+	expect(before.anchor).not.toBeNull();
+
+	// Narrow the window substantially → the content column re-wraps every paragraph to
+	// more lines, firing the editor's width ResizeObserver.
+	await page.setViewportSize({ width: 760, height: 900 });
+	for (let i = 0; i < 5; i++) await editor.waitForRenderFlush();
+
+	const after = await page.evaluate((anchorPath) => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const host = document.querySelector(`[data-block-path='${anchorPath}']`) as HTMLElement | null;
+		return {
+			width: editorEl.clientWidth,
+			scrollHeight: editorEl.scrollHeight,
+			anchorTop: host ? host.getBoundingClientRect().top : null
+		};
+	}, before.anchor!.path);
+
+	const drift =
+		after.anchorTop !== null ? Math.abs(after.anchorTop - before.anchor!.top) : Infinity;
+	console.log(
+		`VR-1 resize ${JSON.stringify({
+			wideWidth: before.width,
+			narrowWidth: after.width,
+			wideScrollHeight: before.scrollHeight,
+			narrowScrollHeight: after.scrollHeight,
+			drift
+		})}`
+	);
+
+	expect(after.width).toBeLessThan(before.width - 100); // a real width delta occurred
+
+	// (1) Re-measure: the narrower column wraps each paragraph to more lines, so the
+	// model-backed scrollHeight grows. Without the width wiring the model keeps wide
+	// heights and scrollHeight barely moves; the > 10% growth bound fails on the revert.
+	expect(after.scrollHeight).toBeGreaterThan(before.scrollHeight * 1.1);
+
+	// (2) Anchor held through the reflow: the top block does not teleport. The rebuild
+	// reseed is anchor-corrected, so a sub-line bound holds even as every height changes.
+	expect(after.anchorTop).not.toBeNull();
+	expect(drift).toBeLessThan(20);
+	expect(pageErrors).toEqual([]);
+});
