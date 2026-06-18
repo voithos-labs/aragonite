@@ -78,10 +78,19 @@
 		);
 	});
 
-	// An edit grows/shrinks this one block; re-measure it directly (one block, not the
-	// thrash path). The write is convergence-guarded, so this can't spin the graph.
+	// An edit grows/shrinks this one block; re-measure it directly (convergence-guarded,
+	// so it can't spin the graph). Skip the MOUNT run: the batched pass above already owns
+	// mount measurement, and a per-block read on a fling interleaved with a sibling's model
+	// write is exactly the one-reflow-per-block thrash this design removes (VR-4). `firstRun`
+	// resetting on remount is intended — a block re-entering the window is a fresh mount the
+	// batch measures.
+	let firstRun = true;
 	$effect(() => {
 		void node.raw;
+		if (firstRun) {
+			firstRun = false;
+			return;
+		}
 		measureChannel?.measureNow(id);
 	});
 </script>
