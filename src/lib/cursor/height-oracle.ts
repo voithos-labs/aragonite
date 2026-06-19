@@ -5,7 +5,7 @@
  * on mount, supersede estimates and are keyed by stable block id, so structural
  * index shifts and undo don't invalidate them.
  */
-import type { BlockKind, CstNode } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 
 // Inline image syntax `![alt](url)` — the form that embeds a sized, rendered
 // image whose height the char-based estimate badly undercounts.
@@ -46,7 +46,7 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 	}
 
 	function estimate(node: CstNode, width: number): number {
-		const kind: BlockKind = node.kind;
+		const kind = node.kind;
 		const raw = node.raw;
 		switch (kind) {
 			case 'thematicBreak':

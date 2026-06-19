@@ -6,7 +6,7 @@
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { SelectionPoint } from '../../../selection/primitives';
-import type { BlockKind } from '../../../core/nodes';
+import type { AnyBlockKind } from '../../../core/nodes';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
 import { createAutoScroll } from '../../../selection/autoscroll';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
@@ -295,7 +295,7 @@ function blockAtPoint(
 					const path = JSON.parse(attr) as number[];
 					const kind = el.getAttribute('data-block-kind');
 					const hitTest = kind
-						? tryGetBlockKindDescriptor(kind as BlockKind)?.foreignDragHitTest
+						? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
 						: undefined;
 					if (hitTest) {
 						const wrapper = el;

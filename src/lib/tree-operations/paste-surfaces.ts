@@ -1,5 +1,5 @@
 import type { UndoEntryMode } from '../action-contracts';
-import type { BlockKind, CstNode, Document } from '../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ export interface ScopedStructuralPasteInput {
 }
 
 export interface PasteSurface {
-	kind: BlockKind;
+	kind: AnyBlockKind;
 	/**
 	 * Splice `text` into `node` at `offset` (optionally pre-deleting a range).
 	 * Pure data transform.
@@ -60,7 +60,7 @@ export interface PasteSurface {
 
 // ── Registry ───────────────────────────────────────────────────────────────
 
-const surfaces = new Map<BlockKind, PasteSurface>();
+const surfaces = new Map<AnyBlockKind, PasteSurface>();
 
 export function registerPasteSurface(surface: PasteSurface): void {
 	if (import.meta.env.DEV && surfaces.has(surface.kind)) {
@@ -72,7 +72,7 @@ export function registerPasteSurface(surface: PasteSurface): void {
 	surfaces.set(surface.kind, surface);
 }
 
-export function getPasteSurface(kind: BlockKind): PasteSurface | undefined {
+export function getPasteSurface(kind: AnyBlockKind): PasteSurface | undefined {
 	return surfaces.get(kind);
 }
 
