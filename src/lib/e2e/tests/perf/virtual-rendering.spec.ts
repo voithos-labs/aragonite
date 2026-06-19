@@ -1419,3 +1419,171 @@ test('a deep jump into a giant blockquote holds the viewport via the nested scop
 	expect(settled.topBlockY!).toBeLessThan(settled.editorTop + 60);
 	expect(pageErrors).toEqual([]);
 });
+
+// F4: anchor remap across a structural count-change rebuild. Inserting a block ABOVE the fold
+// shifts every index below it, so the rebuild effect's old numeric `correctAnchor` measured a
+// DIFFERENT block's offset at the anchor's now-stale index and over-corrected by ~one
+// inserted-block height — the top-of-viewport block teleported (reachable via undo/redo of an
+// edit above the current scroll position). The fix remaps the anchor by stable id, so its
+// screen Y holds.
+//
+// Driven at a NESTED scope (one giant blockquote): its windowing reads `node.childIds`, which
+// the production `spliceChildren` keeps in lockstep, so a programmatic above-fold splice gives
+// the new block a valid id AND fires the rebuild without moving the scroll (undo would scroll
+// back to the edited region — unusable here). Above-fold blocks are unmounted, so there is no
+// clickable target; this is a model-reaction regression, not interaction routing. Unlike the
+// deep-jump tests (where block-Y "reads flat by construction" because nothing mutates between
+// reads), this DOES mutate the child set, so a wrong correction genuinely moves the anchor —
+// block-Y IS the discriminator. Mutation-check: reverting the id-remap fails the held-Y bound.
+test('inserting a block above the fold holds the viewport via anchor remap (F4)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// Non-uniform on purpose: a uniform doc can't catch the bug — inserting a block of the same
+	// height as index N's old occupant makes the numeric delta accidentally correct. The tall
+	// quoted children make the off-by-one anchor-block-height error large and observable. ONE
+	// top-level blockquote, windowed from inside.
+	await editor.loadContent(buildNonUniformBlockquoteDoc());
+	expect(await cstBlockCount(page)).toBe(1);
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	// Scroll mid-doc, measuring the band the window passes over so the model holds real
+	// (measured) heights around the anchor — the rebuild's reseed is only observable where
+	// measured heights diverge from the reseed estimate.
+	const viewport = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).clientHeight
+	);
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	const target = Math.round(scrollHeight / 2);
+	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
+		await editor.scrollEditorTo(top);
+	}
+	await editor.scrollEditorTo(target);
+	await editor.waitForRenderFlush();
+
+	// The nested host at the top of the viewport (the anchor): its child index within the
+	// blockquote and its screen Y. The insert lands at child 0, well above it.
+	const before = await page.evaluate(() => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const top = editorEl.getBoundingClientRect().top;
+		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > top + 1)
+				return {
+					childIndex: JSON.parse(host.getAttribute('data-block-path')!)[1] as number,
+					y: rect.top
+				};
+		}
+		return null;
+	});
+	expect(before).not.toBeNull();
+	expect(before!.childIndex).toBeGreaterThan(5); // the insert is far above the fold
+
+	const childCountBefore = await page.evaluate(
+		() => (window as any).__test.getDocument().children[0].children.length
+	);
+
+	// Splice a tall quoted paragraph in at child 0 — well above the viewport, into the unmounted
+	// region. Fires the blockquote scope's windowing rebuild (ids kept in lockstep) without
+	// moving the scroll.
+	await page.evaluate(() => {
+		const tall = `> inserted${'<br>line'.repeat(30)}\n`;
+		(window as any).__test.spliceContainerChildren([0], 0, 0, tall);
+	});
+	expect(
+		await page.evaluate(() => (window as any).__test.getDocument().children[0].children.length)
+	).toBe(childCountBefore + 1);
+	await editor.waitForRenderFlush();
+
+	// The anchor child (now at childIndex+1 after the above-fold insert) must stay at the same
+	// screen Y. Without the id-remap the numeric correction over-shoots and it jumps by ~one
+	// inserted-block height.
+	const after = await page.evaluate((childIndex) => {
+		const host = document.querySelector(
+			`[data-block-path='${JSON.stringify([0, childIndex])}']`
+		) as HTMLElement | null;
+		return host ? host.getBoundingClientRect().top : null;
+	}, before!.childIndex + 1);
+
+	const drift = after !== null ? Math.abs(after - before!.y) : Infinity;
+	console.log(`F4 anchor-remap ${JSON.stringify({ ...before, after, drift })}`);
+
+	expect(after).not.toBeNull();
+	// The tall inserted block is hundreds of px; the buggy correction displaces the anchor by
+	// roughly that, the fix holds it within sub-line jitter. 40px sits below the block height
+	// and above measurement noise.
+	expect(drift).toBeLessThan(40);
+	expect(pageErrors).toEqual([]);
+});
+
+// F6: column-width stability under row windowing. `minmax(80px, max-content)` sizes a track
+// to its currently-MOUNTED cells, so a column with one very wide cell near the top SHRINKS
+// once that cell scrolls out of the mounted window — every row reflows mid-scroll. The fix
+// pins each track to the widest cell seen across all windowed-in rows (monotonic-grow floor),
+// so the column can't shrink when its widest cell unmounts. Mutation-check: reverting the
+// pin lets column 0 collapse to the narrow rows' width after the scroll, failing the bound.
+test('a column does not shrink when its widest cell scrolls out of the window (F6)', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// One tall table. Row 0 (body) has a VERY wide first cell; the rest are narrow. Enough
+	// rows to window so the wide row unmounts on a deep scroll. Column 0's max-content is
+	// driven entirely by that one wide cell.
+	const wide = 'wordwordword '.repeat(20).trim();
+	const header = '| a | b | c |\n| --- | --- | --- |\n';
+	const wideRow = `| ${wide} | y | z |\n`;
+	const body = Array.from({ length: 800 }, () => `| p | q | r |`).join('\n') + '\n';
+	await editor.loadContent(header + wideRow + body);
+
+	// Precondition: the table windows its rows AND the wide row (row-idx 1, after the header
+	// row 0) is mounted at load so column 0 starts at the wide width.
+	expect(
+		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
+	).toBeGreaterThan(0);
+
+	// Column 0's track width at load, read from a mounted row's first cell (the track width is
+	// shared, so any mounted row reports it). The wide row is in the initial window.
+	const widthBefore = await page.evaluate(() => {
+		const cell = document.querySelector('[data-table-row-idx] > .table-cell') as HTMLElement | null;
+		return cell ? cell.getBoundingClientRect().width : null;
+	});
+	expect(widthBefore).not.toBeNull();
+	// Sanity: the wide cell really did stretch column 0 well past the 80px floor.
+	expect(widthBefore!).toBeGreaterThan(200);
+
+	// Scroll deep so the wide row (near the top) unmounts and only narrow rows remain mounted.
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	await editor.scrollEditorTo(Math.round(scrollHeight * 0.9));
+	await editor.waitForRenderFlush();
+
+	// Precondition: the wide row genuinely unmounted (else the test is vacuous — the column
+	// would stay wide simply because the wide cell is still in the DOM).
+	expect(await page.evaluate(() => document.querySelector('[data-table-row-idx="1"]'))).toBeNull();
+
+	// Column 0's track width now, from a currently-mounted (narrow) row's first cell.
+	const widthAfter = await page.evaluate(() => {
+		const cell = document.querySelector('[data-table-row-idx] > .table-cell') as HTMLElement | null;
+		return cell ? cell.getBoundingClientRect().width : null;
+	});
+	console.log(`F6 column-stability ${JSON.stringify({ widthBefore, widthAfter })}`);
+
+	expect(widthAfter).not.toBeNull();
+	// The track must NOT have collapsed to the narrow rows' width. Without the pin it shrinks
+	// toward the 80px floor; the fix holds it at (near) the wide width. A 0.9x bound tolerates
+	// sub-pixel jitter while failing hard on the multi-hundred-px collapse the bug produces.
+	expect(widthAfter!).toBeGreaterThan(widthBefore! * 0.9);
+	expect(pageErrors).toEqual([]);
+});

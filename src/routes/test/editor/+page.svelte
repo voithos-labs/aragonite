@@ -14,6 +14,7 @@
 	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
 	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
 	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
+	import { spliceChildren } from '$lib/editor/tree-operations/children';
 	import { getStateForNode } from '$lib/editor/reactivity/state-registry';
 	import type { BlockKind, CstNode } from '$lib/editor/core/nodes';
 	import {
@@ -167,6 +168,27 @@
 			getBlockCount: () => {
 				const doc = parse(editor.getSource());
 				return doc.children.length;
+			},
+			// Structurally splice the children of a NESTED container (by path) IN PLACE, ids
+			// kept in lockstep via the production helper, then retrigger that container's
+			// reactivity. Unlike setSource (a full reparse that resets scroll + model) or undo
+			// (which scrolls back to the edited region), this fires the container scope's
+			// windowing rebuild on a count change WITHOUT moving the scroll — the VR-2 above-fold
+			// anchor-remap path. `markdown` is parsed to top-level blocks and inserted as the
+			// container's children. Root-only paths are rejected (root ids live in a separate
+			// `blockIds` array this helper can't reach).
+			spliceContainerChildren: (
+				path: number[],
+				at: number,
+				removeCount: number,
+				markdown: string
+			): void => {
+				if (path.length === 0) return;
+				const container = nodeAt(editor.__test.getDocument(), path) as CstNode | null;
+				if (!container) return;
+				const inserted = markdown ? parse(markdown).children : [];
+				spliceChildren(container, at, removeCount, ...inserted);
+				container.children = [...(container.children ?? [])];
 			},
 			getBlockKind: (index: number) => {
 				const doc = parse(editor.getSource());
