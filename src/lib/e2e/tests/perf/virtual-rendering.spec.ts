@@ -1587,3 +1587,44 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 	expect(widthAfter!).toBeGreaterThan(widthBefore! * 0.9);
 	expect(pageErrors).toEqual([]);
 });
+
+// F2: undo must fire when the caret's block has windowed out and NO block holds
+// focus (focus fell to the editor root / <body>). The sibling test above
+// ('undo of an off-window block edit ...') focuses a still-mounted block before
+// Ctrl+Z as the pre-fix workaround; this one deliberately does not — it proves
+// the editor-root document-level keydown listener routes undo with nothing
+// focused. Reverting that listener leaves the key press inert and the marker in
+// place, failing here.
+test("undo fires after the caret's block is windowed out (F2)", async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
+
+	await editor.focusBlockStart(0);
+	await editor.typeText('WINDOWED_MARK');
+	await editor.bridge.waitForSourceContains('WINDOWED_MARK');
+	await editor.waitForUndoBatchFlush();
+
+	// Scroll block 0 well past the focus pin cap so it unmounts. Past the cap the
+	// pin blurs, so native focus leaves the contenteditable entirely.
+	const scrollHeight = await page.evaluate(
+		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
+	);
+	await editor.scrollEditorTo(scrollHeight);
+	expect(await topLevelHostPresent(page, 0)).toBe(false);
+
+	// The crux of the regression: no mounted block holds focus. Focus is on the
+	// editor root or <body>, so a block-scoped keydown handler would never see the
+	// Ctrl+Z. (The pre-fix bug: undo silently inert here.)
+	const focusOk = await page.evaluate(() => {
+		const active = document.activeElement;
+		return active === document.body || active === document.querySelector('.editor');
+	});
+	expect(focusOk).toBe(true);
+
+	await editor.undo();
+	await editor.bridge.waitForSourceNotContains('WINDOWED_MARK', 10_000);
+	expect(await editor.bridge.getSource()).not.toContain('WINDOWED_MARK');
+	expect(pageErrors).toEqual([]);
+});

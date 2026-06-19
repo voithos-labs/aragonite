@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext } from 'svelte';
+	import { setContext, tick } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -58,6 +58,7 @@
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
+	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import BlockList from './BlockList.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
@@ -336,12 +337,14 @@
 	// page never leak load failures into each other's broken-state recompute.
 	const brokenImageUrls = new Set<string>();
 
+	const pasteCoordinator = createPasteCoordinator(controller);
+
 	setContext(BLOCK_EDIT_KEY, blockEdit);
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 	setContext(CONTROLLER_KEY, controller);
-	setContext(PASTE_COORDINATOR_KEY, createPasteCoordinator(controller));
+	setContext(PASTE_COORDINATOR_KEY, pasteCoordinator);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
@@ -392,6 +395,64 @@
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
+	});
+
+	// ── Editor-root keydown routing ──────────────────────────────────────
+	//
+	// When the caret's block windows out, native focus drops to <body> and the
+	// per-block keydown handlers go silent. This editor-scope handler reuses the
+	// same cross-block composer the blocks use, reading every live value off
+	// `selection`/`getDoc`/etc. — `getEl` is only a mount guard and `getMyPath`
+	// only a fallback, so the editor root and the focus path stand in.
+	const editorCrossBlock = createCrossBlockHandlers({
+		getEl: () => editorEl ?? null,
+		getMyPath: () => selectionState.focus?.path ?? [],
+		getIndex: () => selectionState.focus?.path?.[0] ?? 0,
+		selection: selectionState,
+		getDoc,
+		getBlockElByPath,
+		revealPath,
+		getEditorRoot: () => editorEl ?? null,
+		getEditorLifetime: () => lifetimeController.signal,
+		stickyColumn,
+		containerEdit,
+		blockEdit,
+		controller,
+		history,
+		pasteCoordinator,
+		getCursorOffset: () => selectionState.focus?.offset ?? null,
+		afterReactivity: () => tick(),
+		setPendingCursor: () => {}
+	});
+
+	// Routes keystrokes that land on the editor root or <body> — i.e. no mounted
+	// block consumed them. A focused block handles its own keys first, so this
+	// only fires for the windowed-out caret: undo/redo with no block focused, and
+	// cross-block extend/collapse whose focus endpoint scrolled out.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const onKeyDown = (e: KeyboardEvent) => {
+			const active = document.activeElement;
+			if (active !== root && active !== document.body) return;
+
+			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
+			// caret whose block unmounted, not necessarily a selection.
+			if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+				e.preventDefault();
+				history.requestUndo();
+				return;
+			}
+			if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+				e.preventDefault();
+				history.requestRedo();
+				return;
+			}
+
+			if (selectionState.isCrossBlock) void editorCrossBlock.handleKeyDown(e);
+		};
+		root.ownerDocument.addEventListener('keydown', onKeyDown);
+		return () => root.ownerDocument.removeEventListener('keydown', onKeyDown);
 	});
 
 	// ── Virtual rendering (top-level windowing) ──────────────────────────
@@ -539,7 +600,10 @@
 	export const __test = { getDocument, getBlockComponent, getUndoStack, getOperationsLog };
 </script>
 
-<div class="editor" bind:this={editorEl} role="group" aria-label="Markdown editor">
+<!-- tabindex="-1": focusable so a windowed-out block can hand focus here instead
+	of letting it fall to <body>, but not tab-reachable. Non-editable, so focusing
+	it creates no native selection the selectionchange bridge would collapse. -->
+<div class="editor" bind:this={editorEl} tabindex="-1" role="group" aria-label="Markdown editor">
 	<BlockList
 		children={doc.children}
 		{blockIds}

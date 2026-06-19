@@ -62,6 +62,7 @@
 	} from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../selection/cross-block/dispatch';
+	import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 	import {
 		rawOffsetAtNode,
 		rawTextOfNode,
@@ -426,6 +427,14 @@
 			pendingCursorOffset = null;
 		}
 		markKeystrokeSettle();
+	});
+
+	// Windowed out while focused: hand focus to the editor root so the next
+	// keystroke routes through its document-level listener instead of falling to
+	// <body>. See parkFocusOnEditorRoot.
+	$effect(() => {
+		const blockEl = el;
+		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
 
 	// Asymmetric clearer: when the cursor moves to a position different from
