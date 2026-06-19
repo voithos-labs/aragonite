@@ -37,15 +37,3 @@ export function buildLiveHtmlWidget(node: InlineNode): HTMLSpanElement {
 	shell.appendChild(document.createElement('br'));
 	return shell;
 }
-
-/** True when the inline node renders as a live atomic widget in the DOM
- *  (image, or rawHtml whose source slice is in the live allowlist). Used by
- *  TextEditableBlock's widget-aware code paths (cursor adjacency, edge-widget
- *  select, vertical-skip) to recognize br widgets alongside images. */
-export function isLiveWidgetInline(inline: InlineNode, raw: string): boolean {
-	if (inline.kind === 'image') return true;
-	if (inline.kind === 'rawHtml') {
-		return isLiveHtmlTag(raw.slice(inline.start, inline.end));
-	}
-	return false;
-}
