@@ -5,9 +5,9 @@
 		ContainerEditActions,
 		FocusActions,
 		ListContext
-	} from '../../action-contracts';
-	import type { BlockComponent } from '../../block-component';
-	import type { CstNode } from '../../core/nodes';
+	} from '../../../action-contracts';
+	import type { BlockComponent } from '../../../block-component';
+	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -15,24 +15,24 @@
 		LIST_CONTEXT_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY
-	} from '../../editor-keys';
-	import { metadataOf } from '../../core/nodes';
-	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { displayLength } from '../../core/lines';
-	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../perf/instruments';
+	} from '../../../editor-keys';
+	import { metadataOf } from '../../../core/nodes';
+	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { displayLength } from '../../../core/lines';
+	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
+	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../editor-actions/nested-actions';
-	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
-	import { buildTaskItemAmbient } from './list/task-checkbox';
-	import BlockList from '../BlockList.svelte';
-	import { publishRefSlot } from '../../reactivity/publish-ref.svelte';
-	import { eventToChord } from '../../schema/keybindings';
-	import { resolveKindBinding, type CommandId } from '../../schema/commands';
+	} from '../../../editor-actions/nested-actions';
+	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
+	import { buildTaskItemAmbient } from './task-checkbox';
+	import BlockList from '../../BlockList.svelte';
+	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { eventToChord } from '../../../schema/keybindings';
+	import { resolveKindBinding, type CommandId } from '../../../schema/commands';
 
 	let {
 		node,

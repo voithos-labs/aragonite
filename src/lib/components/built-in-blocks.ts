@@ -15,11 +15,11 @@ import {
 } from '../schema/block-component-registry';
 import { augmentBlockKind } from '../schema/block-kind-descriptor';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
-import TextEditableBlock from './blocks/TextEditableBlock.svelte';
-import CodeBlock from './blocks/CodeBlock.svelte';
+import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
+import CodeBlock from './blocks/code/CodeBlock.svelte';
 import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
 import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
-import ListBlock from './blocks/ListBlock.svelte';
+import ListBlock from './blocks/list/ListBlock.svelte';
 import TableBlock from './blocks/table/TableBlock.svelte';
 import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';

@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { readEditorFile, stripComments } from './scan-source';
 
 const RENDER_DOM_FILE = 'components/blocks/text/text-render.ts';
-const TEXT_BLOCK_FILE = 'components/blocks/TextEditableBlock.svelte';
+const TEXT_BLOCK_FILE = 'components/blocks/text/TextEditableBlock.svelte';
 const CELL_RENDER_FILE = 'components/blocks/table/cell-render.ts';
 const CELL_BLOCK_FILE = 'components/blocks/table/TableCellBlock.svelte';
 

@@ -5,9 +5,9 @@
 		ContainerEditActions,
 		FocusActions,
 		ListContext
-	} from '../../action-contracts';
-	import type { BlockComponent } from '../../block-component';
-	import type { CstNode } from '../../core/nodes';
+	} from '../../../action-contracts';
+	import type { BlockComponent } from '../../../block-component';
+	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -15,19 +15,19 @@
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
 		STICKY_COLUMN_KEY
-	} from '../../editor-keys';
-	import type { UndoController } from '../../editor-actions/deps';
-	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { createListContext } from '../../editor-actions/list-context';
-	import { createListOverrides } from '../../editor-actions/list-overrides';
-	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../reactivity/window-slice';
+	} from '../../../editor-keys';
+	import type { UndoController } from '../../../editor-actions/deps';
+	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { createListContext } from '../../../editor-actions/list-context';
+	import { createListOverrides } from '../../../editor-actions/list-overrides';
+	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
+	import { sliceWindow } from '../../../reactivity/window-slice';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../editor-actions/nested-actions';
-	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
+	} from '../../../editor-actions/nested-actions';
+	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

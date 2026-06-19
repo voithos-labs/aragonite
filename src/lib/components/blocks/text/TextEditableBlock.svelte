@@ -5,9 +5,9 @@
 		ContainerEditActions,
 		FocusActions,
 		HistoryActions
-	} from '../../action-contracts';
-	import { type AmbientPrefix, type BlockComponent } from '../../block-component';
-	import type { CstNode } from '../../core/nodes';
+	} from '../../../action-contracts';
+	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -34,40 +34,40 @@
 		type ResolveImageUrl,
 		type ResolveLinkUrl,
 		type WidgetSelectionState
-	} from '../../editor-keys';
-	import type { UndoController } from '../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../cursor/sticky-column';
-	import { parseInline, getContentRange, isProseKind } from '../../core/inline';
-	import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
-	import { isLiveWidgetInline } from '../../core/inline/raw-html-widget';
-	import { trimTrailingLineEnding } from '../../core/lines';
-	import { hasSelection as hasSelectionHelper } from '../../cursor/content-offsets';
-	import { toggleInlineFormat } from './text/format-toggle';
-	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
-	import { createTextClipboard } from './text/text-clipboard';
-	import { createTextRender } from './text/text-render';
-	import { findFirstEdgeWidget, findLastEdgeWidget } from './text/widget-adjacency';
-	import { createWidgetInteraction } from './text/widget-interaction';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../selection/shared-keydown';
-	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createEditableSurface } from './editable-surface';
-	import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
+	} from '../../../editor-keys';
+	import type { UndoController } from '../../../editor-actions/deps';
+	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { parseInline, getContentRange, isProseKind } from '../../../core/inline';
+	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
+	import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
+	import { trimTrailingLineEnding } from '../../../core/lines';
+	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+	import { toggleInlineFormat } from './format-toggle';
+	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
+	import { createTextClipboard } from './text-clipboard';
+	import { createTextRender } from './text-render';
+	import { findFirstEdgeWidget, findLastEdgeWidget } from './widget-adjacency';
+	import { createWidgetInteraction } from './widget-interaction';
+	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import { createEditableSurface } from '../editable-surface';
+	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		rawOffsetAtNode,
 		rawTextOfNode,
 		createRangeAtRawOffsets
-	} from '../../cursor/widget-offset';
-	import { ambientSpanOf } from '../../ambient/ambient-dom';
-	import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
-	import { eventToChord } from '../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+	} from '../../../cursor/widget-offset';
+	import { ambientSpanOf } from '../../../ambient/ambient-dom';
+	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
+	import { eventToChord } from '../../../schema/keybindings';
+	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
 	import {
 		perfEnabled,
 		recordBlockRender,
 		markKeystrokeStart,
 		markKeystrokeSettle
-	} from '../../perf/instruments';
+	} from '../../../perf/instruments';
 
 	let {
 		node,
@@ -105,7 +105,7 @@
 	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
 	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 	const imageLoadPolicy =
-		getContext<() => import('../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
+		getContext<() => import('../../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
 	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
