@@ -65,9 +65,12 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	test('Case 1 — paragraph above → mid-table Backspace clears prefix and promotes header', async ({
+	test('Case 1 — paragraph above → mid-table Backspace clears whole rows and promotes the survivor', async ({
 		page
 	}) => {
+		// Whole-row snap: dragging into a body cell selects every touched row in
+		// full, so the header row and row 1 are removed and row 2 ("3 | 4") is
+		// promoted to header — not a partial-cell clear.
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
@@ -77,8 +80,10 @@ test.describe('table block: cross-block delete', () => {
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| A | B |');
-		await editor.bridge.waitForSourceContains('|  | 2 |');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceContains('| 3 | 4 |');
+		// Survivor is the only row left → 2 cells.
+		await expect(page.locator('[role="cell"]')).toHaveCount(2);
 	});
 
 	test('Case 2 — mid-table → paragraph below Backspace clears suffix', async ({ page }) => {
@@ -255,11 +260,13 @@ test.describe('table block: cross-block delete', () => {
 		await editor.waitForNoSourceMutation();
 		const source = await editor.bridge.getSource();
 		// The table grid must stay valid: external paragraph text must never be
-		// fused into a table cell. The bug produced `| 3 | 4after\n |`. The correct
-		// table-aware delete clears the anchor cell and leaves "after" a paragraph.
+		// fused into a table cell (the old bug produced `| 3 | 4after\n |`).
+		// Whole-row snap selects the anchor's entire bottom row, so it is removed
+		// outright; "after" stays a paragraph.
 		expect(source).toContain('| --- | --- |');
 		expect(source).not.toContain('4after');
-		expect(source).toContain('| 3 |  |');
+		expect(source).not.toContain('| 3 |');
+		expect(source).toContain('| 1 | 2 |');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});

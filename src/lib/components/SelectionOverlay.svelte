@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { SELECTION_END, type BlockComponent } from '../block-component';
-	import { EDITOR_ROOT_KEY, SELECTION_KEY } from '../editor-keys';
+	import { DOC_KEY, EDITOR_ROOT_KEY, SELECTION_KEY, type DocumentGetter } from '../editor-keys';
 	import type { SelectionState } from '../selection/selection-state.svelte';
 	import {
 		normalize,
 		classifyBlockForSelection,
 		type BlockSelectionClass
 	} from '../selection/primitives';
+	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
 	import { firstScrollableDescendant, nearestScrollContainer } from '../cursor/scroll-ancestors';
 
 	let {
@@ -25,6 +26,7 @@
 
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.
@@ -94,9 +96,21 @@
 
 		function measure(): void {
 			if (!sel.anchor || !sel.focus || !ref.measurePartialRects) return;
-			const { start, end } = normalize({ anchor: sel.anchor, focus: sel.focus });
+			const normalized = normalize({ anchor: sel.anchor, focus: sel.focus });
+			const doc = getDoc?.();
+			const { start, end } = doc
+				? snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end)
+				: normalized;
 			const startOffset = classification === 'end' ? 0 : start.offset;
-			const endOffset = classification === 'start' ? SELECTION_END : end.offset;
+			// measurePartialRects paints [start, end) exclusive. A snapped table end
+			// is the inclusive last cell of its row; +1 paints the whole row, matching
+			// what copy/delete capture.
+			const endOffset =
+				classification === 'start'
+					? SELECTION_END
+					: end.cellCoordinate
+						? end.offset + 1
+						: end.offset;
 			const viewportRects: DOMRect[] = ref.measurePartialRects(startOffset, endOffset);
 			const blockRect = el.getBoundingClientRect();
 			endpointRects = mergeRectsPerLine(

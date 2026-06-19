@@ -7,6 +7,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize, assertCharOffset } from './primitives';
+import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
@@ -31,7 +32,8 @@ export function collectCrossBlockText(
 	anchor: SelectionPoint,
 	focus: SelectionPoint
 ): string {
-	const { start, end } = normalize({ anchor, focus });
+	const normalized = normalize({ anchor, focus });
+	const { start, end } = snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end);
 	const startNode = nodeAt(doc, start.path);
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
@@ -78,7 +80,9 @@ export function collectCrossBlockText(
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if ('kind' in endNode && (endNode as CstNode).kind === 'table') {
-		endHead = emitTablePortion(endNode as CstNode, 0, end.offset);
+		// Snapped end.offset is the inclusive last cell of its row; emitTablePortion
+		// takes an exclusive end. +1 makes the captured rows match the delete.
+		endHead = emitTablePortion(endNode as CstNode, 0, end.offset + 1);
 	} else {
 		const endOffset = assertCharOffset(end, 'collectCrossBlockText:end');
 		if (endOffset === displayLength(endRaw) && end.path.length > 1) {

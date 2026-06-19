@@ -209,7 +209,9 @@ function deleteFromProseIntoTable(
 	const truncatedReplacement = reparseWithFallback(truncatedRaw, startBlock.leadingTrivia);
 	for (const node of truncatedReplacement) sharing.stamp(node);
 
-	const result = deleteCellsAndCollapse(table, 0, end.offset);
+	// end.offset is the whole-row-snapped inclusive last cell; deleteCellsAndCollapse
+	// takes an exclusive end, so clearing the same rows the clipboard copied needs +1.
+	const result = deleteCellsAndCollapse(table, 0, end.offset + 1);
 
 	const deletionPaths = collectDeletionPaths(
 		doc,
@@ -325,7 +327,8 @@ function deleteAcrossTwoTables(
 	sharing: SharingState
 ): RangeDeleteResult {
 	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
-	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset);
+	// end.offset is the whole-row-snapped inclusive last cell; +1 for the exclusive end.
+	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset + 1);
 
 	const emptiedEndpoints: number[][] = [];
 	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);

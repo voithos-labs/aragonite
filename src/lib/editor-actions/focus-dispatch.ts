@@ -3,7 +3,7 @@
  * No Svelte context or reactivity; inputs are passed in as parameters.
  */
 
-import type { FocusActions } from '../action-contracts';
+import type { FocusActions, MoveFocusOptions } from '../action-contracts';
 import {
 	CURSOR_END,
 	type BlockComponent,
@@ -21,6 +21,9 @@ import { consumeStickyLanding } from './focus-landing';
  * diverge from `refs.length` for one render cycle after a structural op
  * (bind:this fires asynchronously). Without it, delegation fires prematurely
  * and the cursor escapes the container.
+ *
+ * `options` propagates upward unchanged so a flag like `append: false` reaches
+ * the root, where the past-end append actually lives.
  */
 export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
@@ -28,15 +31,21 @@ export async function dispatchMoveFocus(
 	position: FocusPosition,
 	stickyColumn: StickyColumnState,
 	parent: { focus: FocusActions; index: number },
-	childCount?: number
+	childCount?: number,
+	options?: MoveFocusOptions
 ): Promise<void> {
+	// Omit the options arg when unset so the common path stays a two-arg call.
+	const delegate = (targetIndex: number) =>
+		options
+			? parent.focus.moveFocus(targetIndex, position, options)
+			: parent.focus.moveFocus(targetIndex, position);
 	if (innerIndex < 0) {
-		await parent.focus.moveFocus(parent.index - 1, position);
+		await delegate(parent.index - 1);
 		return;
 	}
 	const upperBound = childCount ?? refs.length;
 	if (innerIndex >= upperBound) {
-		await parent.focus.moveFocus(parent.index + 1, position);
+		await delegate(parent.index + 1);
 		return;
 	}
 
@@ -44,7 +53,7 @@ export async function dispatchMoveFocus(
 	if (!block?.focusable) return;
 
 	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
-		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount)
+		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount, options)
 	);
 }
 

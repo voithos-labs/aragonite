@@ -71,4 +71,24 @@ describe('moveFocus past the last block', () => {
 		expect(splitEvents).toHaveLength(0);
 		expect(appendEvents[0].path).toEqual([1]);
 	});
+
+	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
+		const { createUndoController } = await import('$lib/editor/editor-actions/undo-controller');
+		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
+		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
+
+		const { deps, doc, events } = makeEditorActionsDeps([
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as any
+		]);
+		const captured: EditEvent[] = [];
+		events.on('edit', (e) => captured.push(e));
+
+		const controller = createUndoController(deps);
+		const focus = createFocusActions(deps, controller);
+
+		await focus.moveFocus(doc.children.length, 'start', { append: false });
+
+		expect(doc.children).toHaveLength(1);
+		expect(captured).toHaveLength(0);
+	});
 });
