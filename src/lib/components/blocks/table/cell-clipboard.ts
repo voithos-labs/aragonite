@@ -9,7 +9,7 @@
 import type { DocumentGetter } from '../../../editor-keys';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { metadataOf } from '../../../core/nodes';
-import { nodeAt } from '../../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
 import { pathsEqual } from '../../../selection/path-math';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
 
@@ -29,7 +29,7 @@ export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 	if (!isIntraTableMultiCell || !sel.anchor || !sel.focus) return null;
 
 	const tableNode = nodeAt(deps.getDoc(), sel.anchor.path);
-	if (!tableNode || !('kind' in tableNode) || tableNode.kind !== 'table') return null;
+	if (!tableNode || !isBlockNode(tableNode) || tableNode.kind !== 'table') return null;
 
 	const colCount = metadataOf(tableNode, 'table').columnCount;
 	const a = {

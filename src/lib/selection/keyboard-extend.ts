@@ -17,7 +17,7 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
-import { nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { comparePaths } from './primitives';
 import { displayLength } from '../core/lines';
 
@@ -350,7 +350,7 @@ export function normalizeTableEndpoint(
 ): SelectionPoint {
 	for (let d = 0; d < path.length - 1; d++) {
 		const node = nodeAt(doc, path.slice(0, d + 1));
-		if (node && 'kind' in node && node.kind === 'table') {
+		if (node && isBlockNode(node) && node.kind === 'table') {
 			const colCount = metadataOf(node, 'table').columnCount;
 			const rowIdx = path[d + 1];
 			const colIdx = path[d + 2] ?? 0;
@@ -373,7 +373,7 @@ export function normalizeTableEndpoint(
 export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
 	if (!point.cellCoordinate) return null;
 	const node = nodeAt(doc, point.path);
-	if (!node || !('kind' in node) || node.kind !== 'table') return null;
+	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const colCount = metadataOf(node, 'table').columnCount;
 	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
 }

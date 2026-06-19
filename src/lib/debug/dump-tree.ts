@@ -105,6 +105,10 @@ function formatMetadata(node: CstNode, opts: Required<DumpTreeOptions>): string 
 		case 'table':
 			if ('columnCount' in m && m.columnCount) frags.push(`columnCount=${m.columnCount}`);
 			break;
+		default:
+			// Plugin and metadata-less kinds: no kind-specific fragments; the
+			// generic path still prints kind + raw.
+			break;
 	}
 	if (opts.showAllMetadata) frags.push(`metaRaw=${JSON.stringify(m)}`);
 	return frags.join(' ');
