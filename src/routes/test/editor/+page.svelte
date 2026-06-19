@@ -13,7 +13,7 @@
 	} from '$lib/editor/debug/inspect';
 	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
 	import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
-	import { nodeAt } from '$lib/editor/tree-operations/node-ops';
+	import { isBlockNode, nodeAt } from '$lib/editor/tree-operations/node-ops';
 	import { spliceChildren } from '$lib/editor/tree-operations/children';
 	import { getStateForNode } from '$lib/editor/reactivity/state-registry';
 	import type { BlockKind, CstNode } from '$lib/editor/core/nodes';
@@ -274,7 +274,7 @@
 				if (!path) return '';
 				const doc = parse(editor.getSource());
 				const node = nodeAt(doc, path);
-				if (!node || node.kind === 'document' || !isProseKind(node.kind)) return '';
+				if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
 				const range = getContentRange(node);
 				const inline = parseInline(node.raw, range.start, range.end);
 				return dumpInlineTree(inline);
@@ -448,7 +448,7 @@
 			if (!path) return '';
 			const doc = parse(liveSource);
 			const node = nodeAt(doc, path);
-			if (!node || node.kind === 'document' || !isProseKind(node.kind)) return '';
+			if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
 			const range = getContentRange(node);
 			const inline = parseInline(node.raw, range.start, range.end);
 			return dumpInlineTree(inline);

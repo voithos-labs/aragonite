@@ -15,7 +15,7 @@ import { assertCharOffset } from '../primitives';
 import { applyCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { parse } from '../../core/parser';
-import { nodeAt } from '../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
@@ -108,7 +108,7 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	if (!anchor || !focus) return false;
 	if (!pathsEqual(anchor.path, focus.path)) return false;
 	const node = nodeAt(doc, anchor.path);
-	if (!node || node.kind !== 'table') return false;
+	if (!node || !isBlockNode(node) || node.kind !== 'table') return false;
 	const meta = metadataOf(node, 'table');
 	const rowCount = node.children?.length ?? 0;
 	const cellCount = meta.columnCount * rowCount;

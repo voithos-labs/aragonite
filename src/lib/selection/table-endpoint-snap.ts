@@ -25,7 +25,7 @@
 
 import type { Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import { nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
 import { comparePaths } from './primitives';
 
@@ -44,7 +44,7 @@ export function snapCrossBlockTableEndpoints(
 function snapEndpoint(doc: Document, point: SelectionPoint, side: 'start' | 'end'): SelectionPoint {
 	if (!point.cellCoordinate) return point;
 	const node = nodeAt(doc, point.path);
-	if (!node || !('kind' in node) || node.kind !== 'table') return point;
+	if (!node || !isBlockNode(node) || node.kind !== 'table') return point;
 
 	const colCount = metadataOf(node, 'table').columnCount;
 	const row = Math.floor(point.offset / colCount);

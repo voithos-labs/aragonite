@@ -7,7 +7,7 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import type { BlockKind } from '../core/nodes';
+import type { AnyBlockKind } from '../core/nodes';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -219,7 +219,7 @@ function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number)
 					const kind = el.getAttribute('data-block-kind');
 					// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
 					const hitTest = kind
-						? tryGetBlockKindDescriptor(kind as BlockKind)?.foreignDragHitTest
+						? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
 						: undefined;
 					if (hitTest) {
 						const wrapper = el;

@@ -196,7 +196,7 @@ export interface InlineNode {
 // ── Node Types ──────────────────────────────────────────────────────────────
 
 export interface CstNode {
-	kind: BlockKind;
+	kind: AnyBlockKind;
 	leadingTrivia: string;
 	raw: string;
 	metadata?: BlockMetadata;

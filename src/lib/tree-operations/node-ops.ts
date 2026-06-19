@@ -47,6 +47,15 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 	return cur;
 }
 
+/**
+ * Narrow a `nodeAt` result to `CstNode`. Structural, not kind-based: a plugin
+ * may mint `'document'` as a block kind, so `kind` no longer discriminates
+ * `CstNode` from `Document` — only `Document` lacks `raw`.
+ */
+export function isBlockNode(node: CstNode | Document): node is CstNode {
+	return 'raw' in node;
+}
+
 // ── Split ──
 
 /**
