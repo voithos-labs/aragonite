@@ -6,6 +6,7 @@
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
+		BROKEN_IMAGE_URLS_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
 		DOC_KEY,
@@ -331,6 +332,10 @@
 	const lifetimeController = new AbortController();
 	$effect(() => () => lifetimeController.abort());
 
+	// Per-instance broken-image-URL cache: scoped here so two editors on one
+	// page never leak load failures into each other's broken-state recompute.
+	const brokenImageUrls = new Set<string>();
+
 	setContext(BLOCK_EDIT_KEY, blockEdit);
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
@@ -343,6 +348,7 @@
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
 	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
+	setContext(BROKEN_IMAGE_URLS_KEY, brokenImageUrls);
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);

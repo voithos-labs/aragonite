@@ -6,17 +6,18 @@ import type { InlineNode } from '../../core/nodes';
 import type { ImageLoadPolicy } from '../../core/inline-render';
 import { isAllowedImageSrcScheme } from '../../core/url-policy';
 
-// Resolved URLs that have failed to load this session. Inline rebuild on every
-// keystroke creates a fresh <img>; without this cache the new widget renders
-// without `md-image-broken` until the async `error` event re-fires, producing
-// a visible layout flicker (no min-width/min-height, no dashed border) on each
-// keystroke in a paragraph that contains a broken image.
-const knownBrokenUrls = new Set<string>();
-
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	paragraphPath: number[];
 	imageLoadPolicy?: ImageLoadPolicy;
+	/**
+	 * Resolved URLs that failed to load this session, scoped per editor instance.
+	 * Inline rebuild on every keystroke creates a fresh <img>; without this cache
+	 * the new widget renders without `md-image-broken` until the async `error`
+	 * event re-fires, producing a visible layout flicker (no min-width/min-height,
+	 * no dashed border) on each keystroke in a paragraph with a broken image.
+	 */
+	brokenUrlCache: Set<string>;
 }
 
 export function buildImageWidget(
@@ -68,16 +69,19 @@ export function buildImageWidget(
 	// Only an image we actually loaded can be broken. A blocked/placeholder
 	// widget leaves src unset, and an unset <img> reports complete && naturalWidth
 	// === 0 in a real browser — without this guard those would render as broken.
-	if (img.src && (knownBrokenUrls.has(resolvedUrl) || (img.complete && img.naturalWidth === 0))) {
+	if (
+		img.src &&
+		(opts.brokenUrlCache.has(resolvedUrl) || (img.complete && img.naturalWidth === 0))
+	) {
 		widget.classList.add('md-image-broken');
 	}
 	img.addEventListener('error', () => {
-		knownBrokenUrls.add(resolvedUrl);
+		opts.brokenUrlCache.add(resolvedUrl);
 		widget.classList.add('md-image-broken');
 	});
 	img.addEventListener('load', () => {
 		if (img.naturalWidth > 0) {
-			knownBrokenUrls.delete(resolvedUrl);
+			opts.brokenUrlCache.delete(resolvedUrl);
 			widget.classList.remove('md-image-broken');
 		}
 	});

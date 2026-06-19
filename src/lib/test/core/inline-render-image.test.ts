@@ -7,11 +7,16 @@ import { renderInlineNodes, type RenderInlineOptions } from '$lib/editor/core/in
 import { buildImageWidget } from '$lib/editor/components/image/widget-dom';
 
 // The component layer injects buildImageWidget; core owns no image-widget code
-// and renders alt-only without it.
-const withWidget = (opts: RenderInlineOptions = {}): RenderInlineOptions => ({
-	buildImageWidget,
-	...opts
-});
+// and renders alt-only without it. The component supplies a per-editor broken-URL
+// cache via a closure; mirror that here with one fresh Set per options object.
+const withWidget = (opts: RenderInlineOptions = {}): RenderInlineOptions => {
+	const brokenUrlCache = new Set<string>();
+	return {
+		buildImageWidget: (node, raw, imgOpts) =>
+			buildImageWidget(node, raw, { ...imgOpts, brokenUrlCache }),
+		...opts
+	};
+};
 
 describe('inline-render image — render-context flag (parameter threading)', () => {
 	const raw = '![cat|400](https://example.com/cat.png)';

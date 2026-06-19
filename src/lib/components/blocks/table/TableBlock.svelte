@@ -433,39 +433,27 @@
 >
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
-		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
-		     index (bounds.start + localIndex), never the local loop index. -->
-		{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-			{@const rowIdx = bounds.start + localIndex}
-			<TableRowBlock
-				node={rowNode}
-				index={rowIdx}
-				id={rowsState.innerBlockIds[rowIdx]}
-				{rowIdx}
-				{columnCount}
-				{rowCount}
-				alignments={meta?.alignments ?? []}
-				myPath={[...myPath, rowIdx]}
-				setRef={setRowRef}
-				getRef={getRowRef}
-			/>
-		{/each}
+	{/if}
+	<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
+	     index (bounds.start + localIndex), never the local loop index. When
+	     inactive, bounds are {0, rowCount} so rowIdx === the loop index. -->
+	{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
+		{@const rowIdx = bounds.start + localIndex}
+		<TableRowBlock
+			node={rowNode}
+			index={rowIdx}
+			id={rowsState.innerBlockIds[rowIdx]}
+			{rowIdx}
+			{columnCount}
+			{rowCount}
+			alignments={meta?.alignments ?? []}
+			myPath={[...myPath, rowIdx]}
+			setRef={setRowRef}
+			getRef={getRowRef}
+		/>
+	{/each}
+	{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
-	{:else}
-		{#each node.children ?? [] as rowNode, rowIdx (rowsState.innerBlockIds[rowIdx])}
-			<TableRowBlock
-				node={rowNode}
-				index={rowIdx}
-				id={rowsState.innerBlockIds[rowIdx]}
-				{rowIdx}
-				{columnCount}
-				{rowCount}
-				alignments={meta?.alignments ?? []}
-				myPath={[...myPath, rowIdx]}
-				setRef={setRowRef}
-				getRef={getRowRef}
-			/>
-		{/each}
 	{/if}
 </div>
 
