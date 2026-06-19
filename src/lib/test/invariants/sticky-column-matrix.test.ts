@@ -1,5 +1,5 @@
 import { describe, it, expect, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import type { BlockEditActions } from '$lib/editor/action-contracts';
 import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/editor/cursor/sticky-column';

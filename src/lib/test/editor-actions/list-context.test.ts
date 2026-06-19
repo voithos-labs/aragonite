@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createListContext } from '../../editor-actions/list-context';
 import { registerBlockListState } from '../../reactivity/state-registry';
-import { createUndoController } from '../../editor-actions/undo-controller';
+import { createUndoController } from '../../editor-actions/undo/undo-controller';
 import { parse } from '../../core/parser';
 import {
 	makeBlockListState,
