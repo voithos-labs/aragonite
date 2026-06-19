@@ -5,9 +5,9 @@
 		ContainerEditActions,
 		FocusActions,
 		HistoryActions
-	} from '../../action-contracts';
-	import { type BlockComponent } from '../../block-component';
-	import type { CstNode } from '../../core/nodes';
+	} from '../../../action-contracts';
+	import { type BlockComponent } from '../../../block-component';
+	import type { CstNode } from '../../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -23,10 +23,10 @@
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
 		type DocumentGetter
-	} from '../../editor-keys';
-	import type { UndoController } from '../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../cursor/sticky-column';
+	} from '../../../editor-keys';
+	import type { UndoController } from '../../../editor-actions/deps';
+	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -34,28 +34,31 @@
 		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
-	} from '../../cursor/content-offsets';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../selection/shared-keydown';
-	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createEditableSurface } from './editable-surface';
-	import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
-	import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
-	import { renderCodeBlock } from './code/code-renderer';
+	} from '../../../cursor/content-offsets';
+	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import type { SelectionState } from '../../../selection/selection-state.svelte';
+	import { createEditableSurface } from '../editable-surface';
+	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+	import {
+		writeCrossBlockCopy,
+		writeCrossBlockCut
+	} from '../../../selection/cross-block/clipboard';
+	import { renderCodeBlock } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
 		isBetweenEmptyPair,
 		isBetweenEmptyBracketPair
-	} from './code/code-editing';
-	import { indentLines, dedentLines, type IndentResult } from './code/code-indent';
-	import { computeCodeEnter } from './code/code-enter';
-	import { computeAutoPair } from './code/code-beforeinput';
-	import { computeFenceExit } from './code/code-fence-exit';
-	import { classifyFenceBoundary } from './code/code-fence-boundary';
-	import { metadataOf } from '../../core/nodes';
-	import { trimTrailingLineEnding, normalizeLineEndings } from '../../core/lines';
-	import { pasteDispatch } from '../../tree-operations/paste/dispatch';
-	import { eventToChord } from '../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+	} from './code-editing';
+	import { indentLines, dedentLines, type IndentResult } from './code-indent';
+	import { computeCodeEnter } from './code-enter';
+	import { computeAutoPair } from './code-beforeinput';
+	import { computeFenceExit } from './code-fence-exit';
+	import { classifyFenceBoundary } from './code-fence-boundary';
+	import { metadataOf } from '../../../core/nodes';
+	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
+	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+	import { eventToChord } from '../../../schema/keybindings';
+	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 

@@ -4,7 +4,7 @@
 	import type { CstNode } from '../core/nodes';
 	import type { EditorEvents } from '../editor-events';
 	import SelectionOverlay from './SelectionOverlay.svelte';
-	import TextEditableBlock from './blocks/TextEditableBlock.svelte';
+	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 	import { getBlockComponent } from '../schema/block-component-registry';
 	import {
