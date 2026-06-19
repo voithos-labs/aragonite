@@ -9,7 +9,7 @@ import {
 	makeStubFocus,
 	makeEditorActionsDeps
 } from '../harness/editor-actions';
-import type { CstNode } from '../../core/nodes';
+import { metadataOf, type CstNode } from '../../core/nodes';
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
@@ -207,5 +207,98 @@ describe('list-context — insertItemAfter', () => {
 			taskMarker: '[ ] '
 		});
 		expect(items[1].raw).toBe('2. [ ] \n');
+	});
+});
+
+// ── ordered-marker suffix normalization on indent / promote (F18) ──────────
+
+describe('list-context — ordered suffix adopts destination on move', () => {
+	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
+
+	it('indent: a "1. " item moved into a "1) " sublist adopts ") "', async () => {
+		// item0 ("1. a") already holds an ordered "1) x" sublist; item1 ("2. b")
+		// indents into it. The moved item must adopt the sublist's ") " suffix —
+		// not keep its own ". " — matching paste-absorb.
+		const doc = parse('1. a\n   1) x\n2. b\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveSublist = () => deps.doc.children[0].children![0].children![1];
+		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
+		registerBlockListState(list, listState as any);
+		const sublist = list.children![0].children![1];
+		expect(sublist.kind).toBe('list');
+		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		await listContext.indentItem(1);
+
+		// b joined the sublist as its second item, renumbered to "2) " (not "2. ").
+		expect(markersOf(liveSublist())).toEqual(['1) ', '2) ']);
+		expect(liveSublist().children![1].raw.startsWith('2) ')).toBe(true);
+		// Outer list lost item1, item0 stays "1. ".
+		expect(markersOf(liveList())).toEqual(['1. ']);
+	});
+
+	it('promote: a "1) " sub-item moved to a "1. " outer list adopts ". "', async () => {
+		// Two-item sublist so promoting the first leaves a survivor — proving the
+		// survivor renumbers within the sublist (") " preserved) while the moved
+		// item adopts the outer ". ".
+		const doc = parse('1. a\n   1) x\n   2) y\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveSublist = () => deps.doc.children[0].children![0].children![1];
+		const listState = makeBlockListState(liveList, ['item-0']);
+		registerBlockListState(list, listState as any);
+		const sublist = list.children![0].children![1];
+		expect(sublist.kind).toBe('list');
+		expect(sublist.children).toHaveLength(2);
+		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		await listContext.promoteNestedItem(0, sublist, 0);
+
+		// x promoted to outer position 1, adopting ". " and renumbering to "2. ".
+		expect(markersOf(liveList())).toEqual(['1. ', '2. ']);
+		expect(liveList().children![1].raw.startsWith('2. ')).toBe(true);
+		// Survivor y stays in the sublist, renumbered to "1) " — ") " preserved.
+		expect(markersOf(liveSublist())).toEqual(['1) ']);
 	});
 });

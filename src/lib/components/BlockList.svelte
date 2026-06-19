@@ -32,42 +32,31 @@
 	let slice = $derived(children.slice(start, end));
 </script>
 
-{#if active}
-	<div class="block-list">
+<div class="block-list">
+	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>
-		{#each slice as node, localIndex (blockIds[start + localIndex])}
-			{@const absoluteIndex = start + localIndex}
-			<!-- ABSOLUTE-INDEX INVARIANT: index/id/key are the absolute child index
-			     (start + localIndex), never the local loop index — paths and structural
-			     ops key off it. The focused block stays in this each via the window's
-			     contiguous pin-extension, so its DOM node (and focus/IME) survive scroll. -->
-			<BlockHost
-				{node}
-				index={absoluteIndex}
-				id={blockIds[absoluteIndex]}
-				{parentPath}
-				ambientPrefix={absoluteIndex === 0 ? ambientPrefixForFirst : ''}
-				{setRef}
-				{getRef}
-			/>
-		{/each}
+	{/if}
+	{#each slice as node, localIndex (blockIds[start + localIndex])}
+		{@const absoluteIndex = start + localIndex}
+		<!-- ABSOLUTE-INDEX INVARIANT: index/id/key are the absolute child index
+		     (start + localIndex), never the local loop index — paths and structural
+		     ops key off it. When inactive, bounds are {0, childCount} so absoluteIndex
+		     === i; the focused block stays in this each via the window's contiguous
+		     pin-extension, so its DOM node (and focus/IME) survive scroll. -->
+		<BlockHost
+			{node}
+			index={absoluteIndex}
+			id={blockIds[absoluteIndex]}
+			{parentPath}
+			ambientPrefix={absoluteIndex === 0 ? ambientPrefixForFirst : ''}
+			{setRef}
+			{getRef}
+		/>
+	{/each}
+	{#if active}
 		<div class="vr-spacer" style="height: {win!.bottomSpacerPx}px"></div>
-	</div>
-{:else}
-	<div class="block-list">
-		{#each children as node, i (blockIds[i])}
-			<BlockHost
-				{node}
-				index={i}
-				id={blockIds[i]}
-				{parentPath}
-				ambientPrefix={i === 0 ? ambientPrefixForFirst : ''}
-				{setRef}
-				{getRef}
-			/>
-		{/each}
-	</div>
-{/if}
+	{/if}
+</div>
 
 <style>
 	.block-list {

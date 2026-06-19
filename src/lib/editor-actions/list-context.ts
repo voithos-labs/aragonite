@@ -23,7 +23,11 @@ import {
 	normalizeItemMarkerToList,
 	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
-import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
+import {
+	buildListItem,
+	buildListShell,
+	readOrderedSuffix
+} from '../tree-operations/list/list-builders';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
@@ -85,6 +89,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					if (existingNestedList) {
 						destList = destScope.node;
 						destScope.children.push(movedItem);
+						// Adopt the destination list's marker suffix (`. ` vs `) `) so an
+						// ordered item indented into an ordered sublist conforms to it,
+						// matching paste-absorb. Renumber (below) repaints the number+raw
+						// on the canonical handle. A fresh shell has no convention to adopt.
+						if (ordered) {
+							const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
+							const meta = metadataOf(moved, 'listItem');
+							meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(destList);
+						}
 					} else {
 						destList = buildListShell(ordered, [movedItem]);
 						sharing.stamp(destList);
@@ -300,6 +313,13 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					}
 
 					normalizeItemMarkerToList(item, outerScope.node);
+					// normalizeItemMarkerToList only reconciles the glyph (ordered ↔
+					// unordered); adopt the destination's punctuation suffix (`. ` vs `) `)
+					// too, matching paste-absorb. Renumber (below) repaints the number+raw.
+					if (metadataOf(outerScope.node, 'list').ordered) {
+						const meta = metadataOf(item, 'listItem');
+						meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(outerScope.node);
+					}
 
 					outerScope.children.splice(parentItemIdx + 1, 0, item);
 					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
