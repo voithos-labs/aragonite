@@ -171,6 +171,47 @@ test.describe('table block: clipboard cut', () => {
 		expect(surviving).toContain('b1');
 	});
 
+	test('partial-column cross-block Cut anchored in a mid-cell keeps clipboard and surviving cells complementary', async ({
+		page
+	}) => {
+		// Inverse of the test above: the drag STARTS in a mid-row, mid-column cell
+		// (a2 = row 1, col 1) and exits to the paragraph above. The drag-start anchor
+		// is the table endpoint here, not the focus. Without cellCoordinate:true on
+		// that anchor the whole-row snap never fires, so the copy row-rounds while the
+		// delete clears from the mid-cell — a2/a3 land on the clipboard AND survive.
+		await editor.loadContent(
+			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
+		);
+		const from = page.locator('[role="cell"]').nth(4); // a2 (mid-column)
+		const to = page.getByText('head');
+		const fromBox = await from.boundingBox();
+		const toBox = await to.boundingBox();
+		if (!fromBox || !toBox) throw new Error('missing bounding box');
+		const sx = fromBox.x + fromBox.width / 2;
+		const sy = fromBox.y + fromBox.height / 2;
+		const ex = toBox.x + toBox.width / 2;
+		const ey = toBox.y + toBox.height / 2;
+		await page.mouse.move(sx, sy);
+		await page.mouse.down();
+		for (let i = 1; i <= 12; i++) {
+			const t = i / 12;
+			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+		}
+		await page.mouse.up();
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('Control+x');
+		await editor.bridge.waitForSourceNotContains('a1');
+
+		const clip = await readClipboard(page);
+		const surviving = await editor.bridge.getSource();
+		for (const value of ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']) {
+			const copied = clip.includes(value);
+			const survived = surviving.includes(value);
+			expect(copied !== survived, `${value}: copied=${copied} survived=${survived}`).toBe(true);
+		}
+	});
+
 	test('cross-block Ctrl+X then Ctrl+Z restores the original document in one undo', async ({
 		page
 	}) => {

@@ -110,6 +110,45 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		expect(concatChildren(deps.doc.children[0].children ?? [])).toBe(childrenBefore);
 	});
 
+	it('rolls back an in-place splice on a node already unshared earlier in the same undo unit', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
+		const controller = createUndoController(deps);
+
+		// First commit pushes a real snapshot — bumping the epoch and unsharing
+		// children[0], which is now owned at the current epoch.
+		await controller.commitMultiScope({
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scope]) => {
+				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				return [{ op: 'insert', at: 2, count: 1 }];
+			}
+		});
+
+		const ownedContainer = deps.doc.children[0];
+		const childrenBefore = concatChildren(ownedContainer.children ?? []);
+
+		// Second commit is `snapshot:'skip'` (a same-unit join). The scope node is
+		// already owned at this epoch, so copy-path-on-write is a no-op: the splice
+		// lands in place. A top-level array swap can't reach the in-place mutation —
+		// the in-scope arrays must be captured and restored too.
+		const scopes: MultiScopeTarget[] = [{ node: ownedContainer, state, path: [0] }];
+		await expect(
+			controller.commitMultiScope({
+				scopes,
+				snapshot: 'skip',
+				mutate: ([scope]) => {
+					scope.children.splice(0, 1);
+					return []; // wrong arity → production throw after the splice
+				}
+			})
+		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
+
+		expect(deps.doc.children[0]).toBe(ownedContainer);
+		expect(concatChildren(deps.doc.children[0].children ?? [])).toBe(childrenBefore);
+	});
+
 	it('leaves the document scope byte-identical when a top-level mutation splices then throws', async () => {
 		const { deps } = makeEditorActionsDeps([
 			makeContainerNode(['- a\n']),

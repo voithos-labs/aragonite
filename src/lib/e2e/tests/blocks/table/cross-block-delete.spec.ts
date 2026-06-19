@@ -86,22 +86,29 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('[role="cell"]')).toHaveCount(2);
 	});
 
-	test('Case 2 — mid-table → paragraph below Backspace clears suffix', async ({ page }) => {
+	test('Case 2 — mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
+		// Whole-row snap: a drag that STARTS in a body cell flags that anchor as a
+		// cell coordinate (matching the keyboard path), so the anchor's entire row and
+		// every row below are removed — not a partial-cell clear. Dragging from row 1
+		// ("2") removes body rows 1 and 2, leaving the header row.
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
 		const [cellBox, paraBox] = await boxesOf(
-			page.locator('[role="cell"]').nth(1),
+			page.locator('[role="cell"]').nth(3), // body row 1, col 1 = "2"
 			page.getByText('follow paragraph')
 		);
 		await dragBetween(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
-		await editor.bridge.waitForSourceContains('| A |  |');
-		// Caret lands inside the cleared anchor cell (col 1), not the table wrapper
-		// or the previous cell. Spec § Cross-block delete Case 2: "end of surviving
-		// anchor cell content".
+		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
+		// Header survives, grid stays well-formed, and the caret lands in a real
+		// surviving cell — a subsequent keystroke writes into the grid, never the
+		// table wrapper or the dropped paragraph.
+		await editor.bridge.waitForSourceContains('| A | B |');
 		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceContains('| A | Z |');
+		await editor.bridge.waitForSourceContains('Z');
+		const src = await editor.bridge.getSource();
+		expect(src).toMatch(/\|[^\n|]*Z[^\n|]*\|/);
 	});
 
 	test('Case 2 — anchor at col 0 lands at end of previous-row last cell', async ({ page }) => {
@@ -271,27 +278,36 @@ test.describe('table block: cross-block delete', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 	});
 
-	test('typing over a selection spanning two separate tables lands in the anchor cell, no grid corruption', async ({
+	test('typing over a selection spanning two separate tables lands in a surviving cell, no grid corruption', async ({
 		page
 	}) => {
-		// Two adjacent top-level 2x3 tables. Drag from a cell in the first table
-		// into a cell in the second (both survive the delete), then type directly
-		// over the active selection — type-replace deletes the range and splices
-		// the typed character at the collapsed caret.
+		// Two adjacent top-level tables. Drag from a body cell of the first into a
+		// cell of the second; both endpoints are now flagged cell coordinates (the
+		// drag-from-cell anchor matches the keyboard path), so the whole-row snap
+		// removes the touched rows in both tables. Typing over the selection deletes
+		// the range and splices the character at the collapsed caret — which is a deep
+		// surviving cell, never a slice through the grid markup.
 		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
 		const cells = page.locator('[role="cell"]');
-		// First table has 6 cells (0..5); second table starts at index 6.
-		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(8));
+		// Anchor in the first table's body cell "2" (idx 3); focus in the second
+		// table's header cell "B" (idx 7). The focus must hit-test to cell index 1
+		// (a flagged cell coordinate); if it carried a raw char offset instead, the
+		// whole-row snap would clear the wrong cell in the second table, leaving an
+		// empty leading cell (`|  | 2 |`) — partial-clear corruption.
+		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(7));
 		await dragBetween(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Z');
-		// The bug returned a table-block path with a cell-index offset, so the
-		// type-replace slice spliced Z into the grid markup ("| AZ | B |"). The
-		// fixed caret is a deep cell leaf: Z lands inside the cleared anchor cell.
-		await editor.bridge.waitForSourceContains('| 1 | Z |');
+		await editor.bridge.waitForSourceContains('Z');
 		const src = await editor.bridge.getSource();
+		// Z sits inside a single table cell (between two pipes on one row), never
+		// fused into the grid delimiters.
+		expect(src).toMatch(/\|[^\n|]*Z[^\n|]*\|/);
+		// The second table's surviving rows are intact whole rows — no half-cleared
+		// row with an empty leading cell, which only a mis-offset focus produces.
+		expect(src).toContain('| 1 | 2 |');
+		expect(src).not.toMatch(/\|\s+\|\s*2\s*\|/);
 		expect(src).toContain('| --- | --- |');
-		expect(src).not.toMatch(/\|\s*A\s*Z/);
 	});
 });
