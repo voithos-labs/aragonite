@@ -347,12 +347,11 @@
 		if (!el || hasSelectionHelper()) return false;
 		const offset = getCursorOffsetHelper(el) ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
-			// Don't fall through to moveFocus's past-end behavior (which would
-			// append a new paragraph). Delete at the closer boundary is a
-			// focus-only move when a next block exists; a true no-op otherwise.
-			if (index + 1 < getDoc().children.length) {
-				focusActions.moveFocus(index + 1, 'start');
-			}
+			// Mirror of codeBackspace's unconditional moveFocus(index - 1), but the
+			// root's forward asymmetry (past-end appends a paragraph) would strand a
+			// spurious block here. Suppress the append: focus the next block if one
+			// exists (sibling or via upward delegation), no-op at the true doc end.
+			focusActions.moveFocus(index + 1, 'start', { append: false });
 			return true;
 		}
 		return false;

@@ -2,15 +2,20 @@
 
 End-to-end coverage for cross-block range-delete through tables (rangeDelete table-aware branch).
 
+A table that is an ENDPOINT of a cross-block selection snaps to WHOLE ROWS, so
+the highlight, clipboard copy, and delete all agree on the same cells (see
+`selection-whole-row-snap.md`). The mid-row cases below therefore clear whole
+rows, not partial cells.
+
 ## Happy paths
 
 - Case 1 (paragraph above → cell mid-table): drag from paragraph head into a body cell, Backspace.
-  Anchor paragraph head preserved; cells in `[0..focusCellIdx)` cleared; rows fully covered by the
-  range removed; if the header row is consumed, the next surviving row is promoted to header.
-  Surviving paragraph and surviving table remain adjacent (no merge).
+  Anchor paragraph head preserved; every row the selection touches is cleared in full and rows
+  fully covered are removed; if the header row is consumed, the next surviving row is promoted to
+  header. Surviving paragraph and surviving table remain adjacent (no merge).
 - Case 2 (cell mid-table → paragraph below): drag from a body cell into the paragraph below, Backspace.
-  Cells `[startCellIdx..lastCell]` cleared; rows below the start row removed; head of the
-  paragraph below dropped. Surviving table + surviving paragraph remain adjacent.
+  The anchor cell's entire row (and every row below it) is cleared/removed; head of the paragraph
+  below dropped. Surviving table + surviving paragraph remain adjacent.
 - Case 3 (full-table span: paragraph above → table → paragraph below): the table is consumed in full,
   the anchor paragraph tail is dropped, the focus paragraph head is dropped, and the two paragraphs
   merge into one block.

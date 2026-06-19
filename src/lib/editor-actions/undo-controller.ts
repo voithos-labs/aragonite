@@ -214,6 +214,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			pushUndoSnapshot(args.snapshot.blockIndex, args.snapshot.offset);
 		}
 
+		// The container branch mutates the live tree in place (its scope views
+		// are windows onto live nodes), unlike the document branch which builds
+		// on `childrenCopy` and only publishes on success. Capture the top-level
+		// array so a throw can discard it: copy-path-on-write means every node
+		// the mutation touched was copied before it was written, so the
+		// pre-mutation array still reaches an intact tree at every depth.
+		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
+
 		try {
 			if (args.kind === 'document') {
 				const childrenCopy = [...deps.doc.children];
@@ -243,13 +251,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			}
 		} catch (err) {
 			if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+			// Discard the container branch's in-place mutation (the document
+			// branch never published, so it needs no restore).
+			if (savedDocChildren) deps.doc.children = savedDocChildren;
 			deps.events.emit('error', {
 				origin: 'commit',
 				error: err,
 				context: { op: args.op?.kind, path: args.eventPath }
 			});
 			// Loud for developers; production swallows so a single failed mutation
-			// doesn't kill the editor (the tree was never published).
+			// doesn't kill the editor (the tree stays intact: the document branch
+			// publishes only on success, the container branch is rolled back above).
 			if (import.meta.env.DEV) throw err;
 			return;
 		}

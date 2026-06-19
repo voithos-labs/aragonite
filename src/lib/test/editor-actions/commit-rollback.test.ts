@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import type { MultiScopeTarget } from '$lib/editor/editor-actions/deps';
+import { concatChildren, serialize } from '$lib/editor/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import type { UndoEntry } from '$lib/editor/undo/types';
 
 function makeContainerNode(childRaws: string[]): any {
 	return {
@@ -9,6 +12,11 @@ function makeContainerNode(childRaws: string[]): any {
 		raw: childRaws.join(''),
 		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r }))
 	};
+}
+
+/** Serialized snapshot bytes per stack entry — byte-identity across a throw. */
+function stackBytes(entries: UndoEntry[]): string[] {
+	return entries.map((e) => serialize(e.snapshot));
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -36,5 +44,93 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		expect(deps.undoManager.getStacks().undo.length).toBe(before); // rolled back (was before+1 before the fix)
 		expect(errors).toHaveLength(1);
 		expect(errors[0].origin).toBe('commit');
+	});
+
+	it('restores the redo stack, not just undo, after a throwing commit', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
+		const controller = createUndoController(deps);
+
+		// A successful commit then an undo populates the redo stack, so the catch
+		// has both stacks to restore — a regression restoring only undo would drift
+		// redo and stay invisible to an undo-length-only assertion.
+		await controller.commitMultiScope({
+			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+			snapshot: { blockIndex: 0, offset: 0 },
+			mutate: ([scope]) => {
+				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				return [{ op: 'insert', at: 2, count: 1 }];
+			}
+		});
+		deps.undoManager.undo(controller.captureCurrentState());
+
+		const before = deps.undoManager.getStacks();
+		expect(before.redo).toHaveLength(1);
+
+		await expect(
+			controller.commitMultiScope({
+				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+				snapshot: { blockIndex: 0, offset: 0 },
+				mutate: () => {
+					throw new Error('boom');
+				}
+			})
+		).rejects.toThrow('boom');
+
+		const after = deps.undoManager.getStacks();
+		expect(stackBytes(after.redo)).toEqual(stackBytes(before.redo));
+		expect(stackBytes(after.undo)).toEqual(stackBytes(before.undo));
+	});
+
+	it('leaves the live tree byte-identical when a container mutation splices then throws', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
+		const controller = createUndoController(deps);
+
+		const originalContainer = deps.doc.children[0];
+		const childrenBefore = concatChildren(originalContainer.children ?? []);
+
+		// Splice the live scope view, then trip the production arity check — the
+		// real "throws AFTER all splices completed" path F13 calls out. Without the
+		// rollback the spliced copy stays in deps.doc with stale ancestor raw.
+		// Array (not tuple) typing degrades the return so the wrong arity compiles.
+		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
+		await expect(
+			controller.commitMultiScope({
+				scopes,
+				snapshot: { blockIndex: 0, offset: 0 },
+				mutate: ([scope]) => {
+					scope.children.splice(0, 1);
+					return []; // wrong arity → production throw after the splice
+				}
+			})
+		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
+
+		expect(deps.doc.children[0]).toBe(originalContainer);
+		expect(concatChildren(deps.doc.children[0].children ?? [])).toBe(childrenBefore);
+	});
+
+	it('leaves the document scope byte-identical when a top-level mutation splices then throws', async () => {
+		const { deps } = makeEditorActionsDeps([
+			makeContainerNode(['- a\n']),
+			makeContainerNode(['- b\n'])
+		]);
+		const controller = createUndoController(deps);
+
+		const serializedBefore = serialize(deps.doc);
+
+		const scopes: MultiScopeTarget[] = [controller.getDocScope()];
+		await expect(
+			controller.commitMultiScope({
+				scopes,
+				snapshot: { blockIndex: 0, offset: 0 },
+				mutate: ([scope]) => {
+					scope.children.splice(0, 1); // drop a top-level block
+					return []; // wrong arity → production throw after the splice
+				}
+			})
+		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
+
+		expect(serialize(deps.doc)).toBe(serializedBefore);
 	});
 });

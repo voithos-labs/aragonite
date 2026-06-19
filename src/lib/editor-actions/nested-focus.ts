@@ -4,7 +4,7 @@
  * count so out-of-range delegation routes through the parent correctly.
  */
 
-import type { FocusActions } from '../action-contracts';
+import type { FocusActions, MoveFocusOptions } from '../action-contracts';
 import type { FocusPosition } from '../block-component';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { dispatchMoveFocus } from './focus-dispatch';
@@ -26,7 +26,11 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 		// the target is always within overscan of the pinned caret and therefore
 		// mounted. A hypothetical >overscan inner jump would silently no-op — VR-12
 		// (nested analog), latent and not currently reachable by any gesture.
-		async moveFocus(innerIndex: number, position: FocusPosition): Promise<void> {
+		async moveFocus(
+			innerIndex: number,
+			position: FocusPosition,
+			options?: MoveFocusOptions
+		): Promise<void> {
 			// node.children.length is authoritative: refs.length lags after
 			// structural ops because bind:this fires asynchronously.
 			await dispatchMoveFocus(
@@ -38,7 +42,8 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 					focus: parent.focus,
 					index: deps.index
 				},
-				deps.node.children?.length
+				deps.node.children?.length,
+				options
 			);
 		}
 	};

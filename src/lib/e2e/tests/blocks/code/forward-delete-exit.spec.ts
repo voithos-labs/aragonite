@@ -1,0 +1,92 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../../editor-page';
+
+// Forward-Delete at a fenced code block's closer boundary (exitNext): a focus
+// move to the next block when one exists, a true no-op at the document end.
+// Regression for F11 — the old guard compared a container-local index against
+// the ROOT child count, so a nested code block either appended a spurious
+// paragraph (false guard) or no-op'd past a real next sibling (true guard).
+
+// Raw offset of the closer boundary for the body "code\n": just before the
+// closer fence's leading newline (== bodyEnd). Shared by every code block here
+// because the offset is local to the block's own contenteditable; the
+// blockquote's `> ` prefix renders as an ambient marker, not body text.
+const CLOSER_BOUNDARY = 8;
+
+async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
+	await editor.focusBlockAtPath(path, CLOSER_BOUNDARY);
+	await editor.page.keyboard.press('Delete');
+}
+
+test.describe('code block — forward-Delete at closer exit', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('root code block followed by a paragraph: focus moves to the paragraph', async () => {
+		await editor.loadContent('```\ncode\n```\n\nafter\n');
+		const blockCountBefore = await editor.bridge.getBlockCount();
+
+		await pressDeleteAtCloser(editor, [0]);
+		await editor.waitForRenderFlush();
+
+		// Caret landed in the paragraph; typing proves real focus, not a no-op.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('Xafter');
+		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nXafter\n');
+		expect(await editor.bridge.getBlockCount()).toBe(blockCountBefore);
+	});
+
+	// The root single-block no-op (`'```\ncode\n```\n'`, Delete at the closer) is
+	// already covered by editing-block-exit.spec.ts. Here only the cross-boundary
+	// arrangements the old root-count guard mishandled need new coverage.
+
+	test('nested code block, paragraph follows at root: focus delegates to the root paragraph', async () => {
+		await editor.loadContent('> ```\n> code\n> ```\n\nafter\n');
+		// Self-validate the fixture: blockquote[codeBlock] at root 0, paragraph at root 1.
+		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		const blockCountBefore = await editor.bridge.getBlockCount();
+
+		await pressDeleteAtCloser(editor, [0, 0]);
+		await editor.waitForRenderFlush();
+
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('Xafter');
+		expect(await editor.bridge.getSource()).toBe('> ```\n> code\n> ```\n\nXafter\n');
+		expect(await editor.bridge.getBlockCount()).toBe(blockCountBefore);
+	});
+
+	test('nested code block at the true document end: Delete is a no-op (no append)', async () => {
+		await editor.loadContent('para\n\n> ```\n> code\n> ```\n');
+		// paragraph at root 0, blockquote[codeBlock] last at root 1 — the code block
+		// sits at the true document end, reachable only by upward delegation.
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+		expect(await editor.bridge.getBlockKind(1)).toBe('blockquote');
+
+		await pressDeleteAtCloser(editor, [1, 0]);
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe('para\n\n> ```\n> code\n> ```\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+	});
+
+	test('nested code block with a sibling paragraph inside the blockquote: focus moves to the sibling', async () => {
+		await editor.loadContent('> ```\n> code\n> ```\n>\n> sibling\n');
+		// blockquote[codeBlock, paragraph] — the next block is the sibling INSIDE
+		// the container, not a delegation target.
+		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
+		const blockCountBefore = await editor.bridge.getBlockCount();
+
+		await pressDeleteAtCloser(editor, [0, 0]);
+		await editor.waitForRenderFlush();
+
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('Xsibling');
+		expect(await editor.bridge.getSource()).toBe('> ```\n> code\n> ```\n>\n> Xsibling\n');
+		expect(await editor.bridge.getBlockCount()).toBe(blockCountBefore);
+	});
+});

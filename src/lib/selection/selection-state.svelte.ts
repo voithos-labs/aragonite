@@ -8,6 +8,7 @@ import type { Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint, SelectionDragStart } from './primitives';
 import { normalize } from './primitives';
+import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { pathsEqual } from './path-math';
 
 // ── Public factory ──────────────────────────────────────────────────────────
@@ -105,13 +106,23 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	get start(): SelectionPoint | null {
-		if (!this.#anchor || !this.#focus) return null;
-		return normalize({ anchor: this.#anchor, focus: this.#focus }).start;
+		return this.#normalizedSnapped()?.start ?? null;
 	}
 
 	get end(): SelectionPoint | null {
+		return this.#normalizedSnapped()?.end ?? null;
+	}
+
+	// Cross-block table endpoints snap to whole rows so highlight, copy, and
+	// delete agree (table-endpoint-snap.ts). getDoc is absent in cross-block-only
+	// test harnesses, which never carry a table endpoint — fall back to plain
+	// normalize.
+	#normalizedSnapped(): { start: SelectionPoint; end: SelectionPoint } | null {
 		if (!this.#anchor || !this.#focus) return null;
-		return normalize({ anchor: this.#anchor, focus: this.#focus }).end;
+		const range = normalize({ anchor: this.#anchor, focus: this.#focus });
+		const getDoc = this.#getDoc;
+		if (!getDoc) return range;
+		return snapCrossBlockTableEndpoints(getDoc(), range.start, range.end);
 	}
 
 	get selectAllCount(): number {

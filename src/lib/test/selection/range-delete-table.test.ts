@@ -14,17 +14,20 @@ function findTable(doc: Document): CstNode | null {
 
 const TWO_COL_FOUR_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 
+// Cross-block table-END endpoints are whole-row-snapped before rangeDelete, so
+// end.offset is the INCLUSIVE last cell of its row (table-endpoint-snap.ts). The
+// table-end delete clears [0, end.offset] inclusive.
 describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () => {
-	it('clears cells [0..end), removes fully-covered rows, promotes header', () => {
+	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
 		// Doc: paragraph + 4-row table (header + 3 body rows)
 		const source = `intro paragraph\n\n${TWO_COL_FOUR_ROW}`;
 		const doc = parse(source);
 
-		// end.offset = 3 → clears cells 0,1,2 (header row entirely, plus body row 1's cell 0)
+		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's cell 0)
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 5 },
-			{ path: [1], offset: 3 },
+			{ path: [1], offset: 2 },
 			createSharingState()
 		);
 
@@ -51,14 +54,14 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 	});
 
 	it('removes the table when the entire table is in range', () => {
-		// 1-row, 2-col table; clear all 2 cells.
+		// 1-row, 2-col table; clear all 2 cells (inclusive last cell = 1).
 		const source = 'before\n\n| A | B |\n| --- | --- |\n';
 		const doc = parse(source);
 
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 6 },
-			{ path: [1], offset: 2 },
+			{ path: [1], offset: 1 },
 			createSharingState()
 		);
 
@@ -73,7 +76,7 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 4 },
-			{ path: [2], offset: 2 },
+			{ path: [2], offset: 1 },
 			createSharingState()
 		);
 
@@ -82,7 +85,7 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		expect(survivors[0].kind).toBe('paragraph');
 		const table = survivors[1];
 		expect(table.kind).toBe('table');
-		// Header row removed (cells 0,1 both in range), row 1 promoted to header
+		// Header row removed (cells 0,1 both in range, inclusive end = 1), row 1 promoted to header
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
 		expect(table.children![0].children![0].raw).toBe('1');
 	});
@@ -94,11 +97,11 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		const source = 'para\n\nmiddle\n\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n';
 		const doc = parse(source);
 
-		// end.offset = 3 → clears cells 0,1,2: header row removed, body promoted.
+		// end.offset = 2 (inclusive) → clears cells 0,1,2: header row removed, body promoted.
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 2 },
-			{ path: [2, 0], offset: 3 },
+			{ path: [2, 0], offset: 2 },
 			createSharingState()
 		);
 
@@ -300,15 +303,15 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 });
 
 describe('rangeDelete — table edge cases', () => {
-	it('Case 1 with end.offset = totalCellCount removes the entire table', () => {
+	it('Case 1 with end at the last cell removes the entire table', () => {
 		const source = `head\n\n${TWO_COL_FOUR_ROW}`;
 		const doc = parse(source);
-		const cellCount = 2 * 4;
+		const lastCellIdx = 2 * 4 - 1;
 
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 2 },
-			{ path: [1], offset: cellCount },
+			{ path: [1], offset: lastCellIdx },
 			createSharingState()
 		);
 
@@ -344,14 +347,14 @@ const TWO_COL_THREE_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 describe('rangeDelete — across two top-level tables (char-addressable caret)', () => {
 	it('both tables survive: caret lands in the start table anchor cell with a char offset', () => {
 		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1),
-		// focus cell 3 of B. A's cell (1,1) clears + its last body row drops; A
-		// survives. B's header row drops; B survives.
+		// focus inclusive cell 2 of B (row 1, col 0). A's cell (1,1) clears + its
+		// last body row drops; A survives. B's header row drops; B survives.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 3 },
-			{ path: [1], offset: 3 },
+			{ path: [1], offset: 2 },
 			createSharingState()
 		);
 
@@ -365,13 +368,13 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 
 	it('start empties, end survives: caret lands in the first surviving cell of the end table', () => {
 		// Anchor cell 0 of A clears all of A → A removed. B shifts to [0]; its
-		// header row (cells 0,1,2 cleared by focus offset 3) drops, body promotes.
+		// header row (cells 0,1,2 cleared by inclusive focus offset 2) drops, body promotes.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 0 },
-			{ path: [1], offset: 3 },
+			{ path: [1], offset: 2 },
 			createSharingState()
 		);
 
@@ -382,14 +385,14 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('start survives, end empties: caret lands in the start table anchor cell', () => {
-		// Anchor cell 3 of A clears A's tail; A survives at [0]. Focus offset 6
-		// (all cells) clears B entirely → B removed.
+		// Anchor cell 3 of A clears A's tail; A survives at [0]. Focus inclusive cell 5
+		// (last cell) clears B entirely → B removed.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 3 },
-			{ path: [1], offset: 6 },
+			{ path: [1], offset: 5 },
 			createSharingState()
 		);
 
@@ -407,7 +410,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		const result = rangeDelete(
 			doc,
 			{ path: [1], offset: 0 },
-			{ path: [2], offset: 6 },
+			{ path: [2], offset: 5 },
 			createSharingState()
 		);
 
@@ -427,7 +430,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		const result = rangeDelete(
 			doc,
 			{ path: [1], offset: 0 },
-			{ path: [2], offset: 6 },
+			{ path: [2], offset: 5 },
 			createSharingState()
 		);
 
@@ -446,7 +449,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 0 },
-			{ path: [2], offset: 3 },
+			{ path: [2], offset: 2 },
 			createSharingState()
 		);
 
@@ -463,7 +466,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 0 },
-			{ path: [1], offset: 6 },
+			{ path: [1], offset: 5 },
 			createSharingState()
 		);
 

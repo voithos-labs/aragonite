@@ -73,8 +73,23 @@ export interface BlockEditActions {
 	): void | Promise<void>;
 }
 
+export interface MoveFocusOptions {
+	/**
+	 * When false, a move past the true document end no-ops instead of appending a
+	 * trailing paragraph. Only the root append is suppressed; sibling moves and
+	 * upward delegation are unaffected. Defaults to true (Enter/split rely on the
+	 * append). Forward-Delete at a block's trailing boundary passes false: it is a
+	 * focus move when a next block exists, a no-op at the document end.
+	 */
+	append?: boolean;
+}
+
 export interface FocusActions {
-	moveFocus(blockIndex: number, position: FocusPosition): void | Promise<void>;
+	moveFocus(
+		blockIndex: number,
+		position: FocusPosition,
+		options?: MoveFocusOptions
+	): void | Promise<void>;
 	/** Mount an off-window top-level block before placing a caret in it; see EditorActionsDeps.revealPath. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 }

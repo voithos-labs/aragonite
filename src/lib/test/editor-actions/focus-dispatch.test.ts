@@ -26,6 +26,20 @@ describe('dispatchMoveFocus', () => {
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start');
 	});
 
+	it('forwards moveFocus options to the parent on upward delegation', async () => {
+		const parentFocus = makeStubFocus();
+		await dispatchMoveFocus(
+			[mockRef({ focus: vi.fn() })],
+			1,
+			'start',
+			makeStickyColumn(),
+			{ focus: parentFocus, index: 5 },
+			undefined,
+			{ append: false }
+		);
+		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start', { append: false });
+	});
+
 	it('routes numeric position to child.focus(offset)', async () => {
 		const child = mockRef({ focus: vi.fn() });
 		await dispatchMoveFocus([child], 0, 3, makeStickyColumn(), {
