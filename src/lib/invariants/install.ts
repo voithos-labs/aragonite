@@ -34,7 +34,7 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
  * G1.9 per-commit seam: the freshest undo entry is the one the commit's
  * mutations could have corrupted, so its digest is re-verified after each
  * commit (one digest over top-level rows). Deeper entries stay covered by
- * the restore-time check in editor-actions/history.ts.
+ * the restore-time check in editor-actions/undo/history.ts.
  */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
+import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
 import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
 import type { CstNode } from '$lib/editor/core/nodes';
 import type { EditEvent } from '$lib/editor/editor-events';

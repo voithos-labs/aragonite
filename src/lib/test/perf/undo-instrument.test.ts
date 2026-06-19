@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createUndoController } from '../../editor-actions/undo-controller';
+import { createUndoController } from '../../editor-actions/undo/undo-controller';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import type { CstNode } from '../../core/nodes';
 import {

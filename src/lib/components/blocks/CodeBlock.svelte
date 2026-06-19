@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { getContext, tick } from 'svelte';
+	import { getContext } from 'svelte';
 	import type {
 		BlockEditActions,
 		ContainerEditActions,
 		FocusActions,
 		HistoryActions
 	} from '../../action-contracts';
-	import { type BlockComponent, type StickyColumnDirection } from '../../block-component';
+	import { type BlockComponent } from '../../block-component';
 	import type { CstNode } from '../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
@@ -35,15 +35,9 @@
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../cursor/content-offsets';
-	import { findOffsetNearestX } from '../../cursor/sticky-measure';
-	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
-	import {
-		handleSharedKeydown,
-		handleSharedBeforeInput,
-		type SharedKeydownContext
-	} from '../../selection/shared-keydown';
+	import { handleSharedKeydown, handleSharedBeforeInput } from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createCrossBlockHandlers } from '../../selection/cross-block/dispatch';
+	import { createEditableSurface } from './editable-surface';
 	import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 	import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 	import { renderCodeBlock } from './code/code-renderer';
@@ -86,14 +80,33 @@
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
-	const crossBlock = createCrossBlockHandlers({
+	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
+		getAmbientLength: () => 0,
+		backend: {
+			getRaw: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
+			setRaw: (offset) => {
+				if (el) setCursorOffsetHelper(el, offset);
+			},
+			buildRange: (start, end) => (el ? createRangeFromOffsets(el, start, end) : null)
+		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
+		getComposing: () => composing,
+		setComposing: (value) => {
+			composing = value;
+		},
+		getPreEditOffset: () => preEditOffset,
+		setPreEditOffset: (offset) => {
+			preEditOffset = offset;
+		},
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		},
 		selection,
 		getDoc,
 		getBlockElByPath,
-		revealPath: focusActions.revealPath,
+		focusActions,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
@@ -102,69 +115,28 @@
 		controller,
 		history,
 		pasteCoordinator,
-		getCursorOffset: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
-		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		}
-	});
-
-	const sharedCtx: SharedKeydownContext = {
-		getEl: () => el ?? null,
-		getCursorOffset: () => (el ? getCursorOffsetHelper(el) : null),
 		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
 		getTextLen: () => (el?.textContent ?? '').length,
-		getMyPath: () => myPath,
-		getIndex: () => index,
-		crossBlock,
-		selection,
-		stickyColumn,
-		history,
-		focus: focusActions,
-		getDoc,
-		getBlockElByPath
-	};
+		readText: () => el?.textContent ?? '',
+		// Code anchors undo at preEditOffset only; it has no kind-change remount to
+		// re-focus, so it passes no saved offset (the omitted 4th argument).
+		commitInput: (text, preEdit) => blockEdit.updateBlockContent(index, text + '\n', preEdit)
+	});
+
+	const crossBlock = editableSurface.crossBlock;
+	const sharedCtx = editableSurface.sharedCtx;
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const editable = true;
 	export const focusable = true;
 
-	export function focus(offset: number): void {
-		if (!el) return;
-		el.focus();
-		setCursorOffsetHelper(el, Math.max(0, offset));
-	}
-
-	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		if (!el) return;
-		el.focus();
-		const targetOffset = findOffsetNearestX(el, x, from);
-		setCursorOffsetHelper(el, targetOffset);
-	}
-
-	export function getCursorOffset(): number | null {
-		if (!el) return null;
-		return getCursorOffsetHelper(el);
-	}
-
-	export function getSelectedText(): string {
-		return window.getSelection()?.toString() ?? '';
-	}
-
-	export function setSelection(start: number, end: number): void {
-		if (!el) return;
-		const range = createRangeFromOffsets(el, start, end);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
-	}
-
-	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
-		if (!el) return [];
-		return measurePartialRectsInContentEditable(el, startOffset, endOffset);
-	}
+	export const focus = editableSurface.surface.focus;
+	export const focusAtColumn = editableSurface.surface.focusAtColumn;
+	export const getCursorOffset = editableSurface.surface.getCursorOffset;
+	export const getSelectedText = editableSurface.surface.getSelectedText;
+	export const setSelection = editableSurface.surface.setSelection;
+	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
 	// ── Render pipeline ───────────────────────────────────────────────────────
 
@@ -220,27 +192,9 @@
 
 	// ── Event handlers ────────────────────────────────────────────────────────
 
-	function onInput(): void {
-		stickyColumn.reset();
-		if (composing || !el) return;
-		const text = el.textContent ?? '';
-		const savedOffset = getCursorOffsetHelper(el) ?? 0;
-		blockEdit.updateBlockContent(index, text + '\n', preEditOffset);
-		pendingCursorOffset = savedOffset;
-	}
-
-	function onCompositionStart(): void {
-		if (!el) return;
-		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
-		preEditOffset = getCursorOffsetHelper(el) ?? 0;
-		crossBlock.handleCompositionStart();
-		composing = true;
-	}
-
-	function onCompositionEnd(): void {
-		composing = false;
-		onInput();
-	}
+	const onInput = editableSurface.onInput;
+	const onCompositionStart = editableSurface.onCompositionStart;
+	const onCompositionEnd = editableSurface.onCompositionEnd;
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;

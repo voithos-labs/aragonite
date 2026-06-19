@@ -5,8 +5,8 @@ import {
 	performCrossBlockDeleteSync,
 	type CrossBlockMutationContext
 } from '$lib/editor/selection/cross-block/ops';
-import { createUndoController } from '$lib/editor/editor-actions/undo-controller';
-import { createHistoryActions } from '$lib/editor/editor-actions/history';
+import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
+import { createHistoryActions } from '$lib/editor/editor-actions/undo/history';
 import { parse } from '$lib/editor/core/parser';
 import { serialize } from '$lib/editor/core/serializer';
 import { registerBlockListState } from '$lib/editor/reactivity/state-registry';

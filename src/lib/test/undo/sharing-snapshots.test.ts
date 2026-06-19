@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
 import { parse } from '../../core/parser';
-import { createUndoController } from '../../editor-actions/undo-controller';
-import { createHistoryActions } from '../../editor-actions/history';
+import { createUndoController } from '../../editor-actions/undo/undo-controller';
+import { createHistoryActions } from '../../editor-actions/undo/history';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
 function makeHarness(source: string) {

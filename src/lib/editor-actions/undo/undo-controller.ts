@@ -5,17 +5,17 @@
  */
 
 import { tick } from 'svelte';
-import type { BlockComponent } from '../block-component';
-import type { CstNode, Document } from '../core/nodes';
-import type { EditorSelection } from '../editor-keys';
-import type { UndoEntry } from '../undo/types';
-import type { SelectionPoint } from '../selection/primitives';
-import { digestDoc } from '../invariants/snapshot-integrity';
-import { readCurrentSelection } from '../selection/native-bridge';
-import { pathsEqual } from '../selection/path-math';
-import { assertInvariant } from '../invariants/assert';
-import { nodeAt } from '../tree-operations/node-ops';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
+import type { BlockComponent } from '../../block-component';
+import type { CstNode, Document } from '../../core/nodes';
+import type { EditorSelection } from '../../editor-keys';
+import type { UndoEntry } from '../../undo/types';
+import type { SelectionPoint } from '../../selection/primitives';
+import { digestDoc } from '../../invariants/snapshot-integrity';
+import { readCurrentSelection } from '../../selection/native-bridge';
+import { pathsEqual } from '../../selection/path-math';
+import { assertInvariant } from '../../invariants/assert';
+import { nodeAt } from '../../tree-operations/node-ops';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
 import { createTextBatch } from './text-batch';
 import type {
 	CommitContainerStructuralArgs,
@@ -23,18 +23,23 @@ import type {
 	ContainerScope,
 	EditorActionsDeps,
 	UndoController
-} from './deps';
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '../action-contracts';
-import type { OpDescriptor } from '../schema/operations';
-import { toEditEvent } from '../editor-events';
+} from '../deps';
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
+import type { OpDescriptor } from '../../schema/operations';
+import { toEditEvent } from '../../editor-events';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
-} from '../tree-operations/structural-change';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { assertCommittedNodes, assertUndoTopIntegrity } from '../invariants/install';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { docByteLength, perfEnabled, recordSnapshotClone, setUndoGauge } from '../perf/instruments';
+} from '../../tree-operations/structural-change';
+import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import { assertCommittedNodes, assertUndoTopIntegrity } from '../../invariants/install';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import {
+	docByteLength,
+	perfEnabled,
+	recordSnapshotClone,
+	setUndoGauge
+} from '../../perf/instruments';
 
 // ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
 
