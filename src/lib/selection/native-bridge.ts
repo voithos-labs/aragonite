@@ -74,6 +74,25 @@ export function clearNativeSelection(): void {
 	window.getSelection()?.removeAllRanges();
 }
 
+/**
+ * When an editable block holding native focus is windowed out, focus would
+ * fall to <body> (outside `.editor`) and the editor-root keydown listener's
+ * activeElement guard would still route — but focusing the editor root keeps
+ * the focused state inside the editor and avoids body-scoped quirks. The root
+ * is non-editable (`tabindex="-1"`), so focusing it creates no native range to
+ * sync. No-op unless this block actually holds focus and the root is still in
+ * the document (skips full-editor teardown, where the root is gone too).
+ */
+export function parkFocusOnEditorRoot(
+	blockEl: HTMLElement | null,
+	editorRoot: HTMLElement | null
+): void {
+	if (!blockEl || !editorRoot?.isConnected) return;
+	// preventScroll: the root is the scroll container, so a default focus scroll
+	// would fight the reveal path's scrollIntoView.
+	if (document.activeElement === blockEl) editorRoot.focus({ preventScroll: true });
+}
+
 // ── Selection read/restore for undo ─────────────────────────────────────────
 
 /**
