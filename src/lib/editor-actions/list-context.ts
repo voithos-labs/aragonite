@@ -17,15 +17,16 @@ import {
 } from '../tree-operations/structural-change';
 import { splitNode as performSplit } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
-import { rebuildListRaw, rebuildListItemRaw } from '../schema/container-rebuilders';
+import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
 	renumberOrderedList,
-	normalizeItemMarkerToList
+	normalizeItemMarkerToList,
+	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
+import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
-import { freshChildIds, generateBlockId } from '../block-id';
 
 export interface ListContextDeps {
 	get index(): number;
@@ -85,14 +86,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						destList = destScope.node;
 						destScope.children.push(movedItem);
 					} else {
-						destList = {
-							kind: 'list',
-							leadingTrivia: '',
-							raw: '',
-							metadata: { ordered },
-							children: [movedItem],
-							childIds: [generateBlockId()]
-						};
+						destList = buildListShell(ordered, [movedItem]);
 						sharing.stamp(destList);
 						destScope.children.push(destList);
 					}
@@ -135,24 +129,16 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				const prevItem = node.children[itemIndex];
 				const prevMeta = prevItem ? metadataOf(prevItem, 'listItem') : undefined;
 				const prevMarker = prevMeta?.marker ?? '- ';
-				const marker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 				const inheritTask = prevMeta?.taskItem === true;
-				newItem = {
-					kind: 'listItem',
-					leadingTrivia: '',
-					raw: '',
-					metadata: {
-						marker,
+				newItem = buildListItem(
+					{
+						marker: bumpOrderedMarker(prevMarker),
 						taskItem: inheritTask,
 						taskChecked: false,
 						taskMarker: inheritTask ? '[ ] ' : null
 					},
-					innerPrefix: '',
-					children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
-					childIds: [generateBlockId()],
-					innerSuffix: ''
-				};
-				rebuildListItemRaw(newItem);
+					[{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }]
+				);
 			}
 
 			await deps.controller.commitMultiScope({
@@ -211,24 +197,16 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					}
 
 					const prevMarker = metadataOf(itemScope.node, 'listItem')?.marker ?? '- ';
-					const newMarker = prevMarker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
-					const newItem: CstNode = {
-						kind: 'listItem',
-						leadingTrivia: '',
-						raw: '',
-						metadata: {
-							marker: newMarker,
+					const newItem = buildListItem(
+						{
+							marker: bumpOrderedMarker(prevMarker),
 							taskItem: metadataOf(itemScope.node, 'listItem').taskItem ?? false,
 							taskChecked: false,
 							taskMarker: null
 						},
-						innerPrefix: '',
-						children: secondHalf,
-						childIds: freshChildIds(secondHalf),
-						innerSuffix: ''
-					};
+						secondHalf
+					);
 					sharing.stamp(newItem);
-					rebuildListItemRaw(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
 					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);

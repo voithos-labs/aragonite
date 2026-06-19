@@ -21,6 +21,13 @@ import {
 	typeFreshItem
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
+import {
+	deleteColumn,
+	deleteRow,
+	editCell,
+	insertColumnRight,
+	insertRowBelow
+} from './gestures/table';
 import { lateCorrection } from './gestures/correction';
 
 /**
@@ -206,6 +213,33 @@ export class Gestures {
 
 	resizeImage(direction: 'left' | 'right', steps: number): Promise<void> {
 		return resizeImage(this.ctx, direction, steps);
+	}
+
+	// ── Table ─────────────────────────────────────────────────────────────────
+	// Real cell-click + keyboard row/column ops. Each resyncs around the table's
+	// canonical cell auto-padding. Cells are addressed by row-major rendered
+	// index, which shifts after an insert/delete — the caller sequences against
+	// the current grid. A live interactive table only exists after a load, so
+	// these run over a loaded table, not a typed one.
+
+	editCell(cellIndex: number, text: string): Promise<void> {
+		return editCell(this.ctx, cellIndex, text);
+	}
+
+	insertColumnRight(cellIndex: number): Promise<void> {
+		return insertColumnRight(this.ctx, cellIndex);
+	}
+
+	deleteColumn(cellIndex: number): Promise<void> {
+		return deleteColumn(this.ctx, cellIndex);
+	}
+
+	insertRowBelow(cellIndex: number): Promise<void> {
+		return insertRowBelow(this.ctx, cellIndex);
+	}
+
+	deleteRow(cellIndex: number): Promise<void> {
+		return deleteRow(this.ctx, cellIndex);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────

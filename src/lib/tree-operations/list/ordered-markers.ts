@@ -11,6 +11,14 @@ import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedChild } from '../unshare';
 
 /**
+ * Increment the numeric prefix of an ordered marker by one, preserving the
+ * suffix. No-op when the marker has no leading digits (unordered markers).
+ */
+export function bumpOrderedMarker(marker: string): string {
+	return marker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
+}
+
+/**
  * Renumber an ordered list's items in place starting at `fromIndex`. No-op
  * on unordered lists. Preserves each item's marker suffix (`. ` vs `) `).
  *
