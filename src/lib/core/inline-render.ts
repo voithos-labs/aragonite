@@ -5,7 +5,7 @@
  */
 
 import type { InlineNode } from './nodes';
-import { buildLiveHtmlWidget, isLiveHtmlTag } from './inline/raw-html-widget';
+import { buildCoreInlineWidget } from './inline/inline-widgets';
 import { isAllowedHrefScheme } from './url-policy';
 
 // ── Render options ──────────────────────────────────────────────────────────
@@ -254,13 +254,13 @@ export function renderInlineNodes(
 			}
 
 			case 'rawHtml': {
-				const slice = raw.slice(node.start, node.end);
-				if (isLiveHtmlTag(slice)) {
-					frag.appendChild(buildLiveHtmlWidget(node));
+				const widget = buildCoreInlineWidget(node, raw);
+				if (widget) {
+					frag.appendChild(widget);
 				} else {
 					const span = document.createElement('span');
 					span.className = 'md-raw-html';
-					span.textContent = slice;
+					span.textContent = raw.slice(node.start, node.end);
 					frag.appendChild(span);
 				}
 				break;

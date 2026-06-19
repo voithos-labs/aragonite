@@ -22,7 +22,7 @@
  */
 
 import type { CstNode } from '../nodes';
-import { isLiveWidgetInline } from './raw-html-widget';
+import { isInlineWidget } from './inline-widgets';
 
 export function isVerticallyTransparentNode(node: CstNode | null | undefined): boolean {
 	if (!node) return false;
@@ -41,7 +41,7 @@ export function isVerticallyTransparentNode(node: CstNode | null | undefined): b
 	const inlines = node.inlineContent;
 	if (!inlines || inlines.length === 0) return false;
 	for (const inline of inlines) {
-		if (isLiveWidgetInline(inline, node.raw)) continue;
+		if (isInlineWidget(inline, node.raw)) continue;
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return false;
 	}

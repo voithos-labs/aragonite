@@ -15,7 +15,7 @@ import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
 import type { WidgetSelectionState } from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
-import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
+import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
 import { keyboardResizeWidth } from '../../image/image-resize';
@@ -74,7 +74,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const inlines = node.inlineContent ?? [];
 		if (inlines.length === 0) return false;
 		for (const inline of inlines) {
-			if (isLiveWidgetInline(inline, node.raw)) continue;
+			if (isInlineWidget(inline, node.raw)) continue;
 			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 			return false;
 		}
@@ -246,7 +246,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// renders there and a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of deps.node.inlineContent ?? []) {
-			if (!isLiveWidgetInline(inline, deps.node.raw)) continue;
+			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			const widget = el.querySelector(
 				`[data-inline-widget][data-source-start="${inline.start}"]`
 			) as HTMLElement | null;

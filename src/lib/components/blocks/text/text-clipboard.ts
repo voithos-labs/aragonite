@@ -13,7 +13,7 @@ import type { PasteCommitCoordinator } from '../../../tree-operations/paste/past
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
-import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
+import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block/clipboard';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
@@ -87,7 +87,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart)
 		) {
 			const inline = (deps.node.inlineContent ?? []).find(
-				(n) => isLiveWidgetInline(n, deps.node.raw) && n.start === selectedWidget.sourceStart
+				(n) => isInlineWidget(n, deps.node.raw) && n.start === selectedWidget.sourceStart
 			);
 			if (inline) {
 				const newRaw =

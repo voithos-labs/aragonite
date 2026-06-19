@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { isLiveHtmlTag, isLiveWidgetInline } from '../../core/inline/raw-html-widget';
+import { isLiveHtmlTag } from '../../core/inline/raw-html-widget';
 import type { InlineNode } from '../../core/nodes';
 
 describe('renderInlineNodes — rawHtml (literal-default)', () => {
@@ -133,26 +133,5 @@ describe('isLiveHtmlTag — predicate', () => {
 	});
 	it('returns false for <!-- comment -->', () => {
 		expect(isLiveHtmlTag('<!-- comment -->')).toBe(false);
-	});
-});
-
-describe('isLiveWidgetInline — predicate', () => {
-	it('returns true for image inline nodes', () => {
-		const node: InlineNode = { kind: 'image', start: 0, end: 5, url: 'x', alt: '' };
-		expect(isLiveWidgetInline(node, '![](x)')).toBe(true);
-	});
-	it('returns true for rawHtml inline nodes with allowlist tag', () => {
-		const raw = '<br>';
-		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(isLiveWidgetInline(node, raw)).toBe(true);
-	});
-	it('returns false for rawHtml inline nodes with non-allowlist tag', () => {
-		const raw = '<span>';
-		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
-		expect(isLiveWidgetInline(node, raw)).toBe(false);
-	});
-	it('returns false for text nodes', () => {
-		const node: InlineNode = { kind: 'text', start: 0, end: 3, text: 'foo' };
-		expect(isLiveWidgetInline(node, 'foo')).toBe(false);
 	});
 });

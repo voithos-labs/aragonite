@@ -40,7 +40,7 @@
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../../core/inline';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
-	import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
+	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { toggleInlineFormat } from './format-toggle';
@@ -434,7 +434,7 @@
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of node.inlineContent ?? []) {
-			if (!isLiveWidgetInline(inline, node.raw)) continue;
+			if (!isInlineWidget(inline, node.raw)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = el.querySelector(`[data-inline-widget][data-source-start="${inline.start}"]`);
 			if (widget) {

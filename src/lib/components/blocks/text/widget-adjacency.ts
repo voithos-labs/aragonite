@@ -6,7 +6,7 @@
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
+import { isInlineWidget } from '../../../core/inline/inline-widgets';
 
 export interface WidgetRange {
 	start: number;
@@ -26,7 +26,7 @@ export function widgetAtCursor(
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
 	for (const inline of inlineContent ?? []) {
-		if (!isLiveWidgetInline(inline, raw)) continue;
+		if (!isInlineWidget(inline, raw)) continue;
 		if (offset === inline.start) return { start: inline.start, end: inline.end, atRight: false };
 		if (offset === inline.end) return { start: inline.start, end: inline.end, atRight: true };
 	}
@@ -39,7 +39,7 @@ export function findWidgetNodeByStart(
 	raw: string
 ): WidgetRange | null {
 	for (const inline of inlineContent ?? []) {
-		if (isLiveWidgetInline(inline, raw) && inline.start === sourceStart) {
+		if (isInlineWidget(inline, raw) && inline.start === sourceStart) {
 			return { start: inline.start, end: inline.end };
 		}
 	}
@@ -53,7 +53,7 @@ export function findFirstEdgeWidget(
 	raw: string
 ): WidgetRange | null {
 	for (const inline of inlines) {
-		if (isLiveWidgetInline(inline, raw)) {
+		if (isInlineWidget(inline, raw)) {
 			return { start: inline.start, end: inline.end };
 		}
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
@@ -69,7 +69,7 @@ export function findLastEdgeWidget(
 ): WidgetRange | null {
 	for (let i = inlines.length - 1; i >= 0; i--) {
 		const inline = inlines[i];
-		if (isLiveWidgetInline(inline, raw)) {
+		if (isInlineWidget(inline, raw)) {
 			return { start: inline.start, end: inline.end };
 		}
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
