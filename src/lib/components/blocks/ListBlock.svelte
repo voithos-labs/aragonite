@@ -158,30 +158,23 @@
 <div class="list-block" bind:this={boxEl}>
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
-		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key are the absolute item index
-		     (bounds.start + localIndex), never the local loop index — paths and
-		     structural ops key off it. -->
-		{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
-			{@const absoluteIndex = bounds.start + localIndex}
-			<ListItemBlock
-				node={item}
-				index={absoluteIndex}
-				myPath={[...myPath, absoluteIndex]}
-				setRef={setItemRef}
-				getRef={getItemRef}
-			/>
-		{/each}
+	{/if}
+	<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key are the absolute item index
+	     (bounds.start + localIndex), never the local loop index — paths and
+	     structural ops key off it. When inactive, bounds are {0, childCount} so
+	     absoluteIndex === i. -->
+	{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
+		{@const absoluteIndex = bounds.start + localIndex}
+		<ListItemBlock
+			node={item}
+			index={absoluteIndex}
+			myPath={[...myPath, absoluteIndex]}
+			setRef={setItemRef}
+			getRef={getItemRef}
+		/>
+	{/each}
+	{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
-	{:else}
-		{#each node.children ?? [] as item, i (listState.innerBlockIds[i])}
-			<ListItemBlock
-				node={item}
-				index={i}
-				myPath={[...myPath, i]}
-				setRef={setItemRef}
-				getRef={getItemRef}
-			/>
-		{/each}
 	{/if}
 </div>
 

@@ -26,6 +26,15 @@ Everything supported is re-exported from the barrel (`src/lib/editor`). Adding a
 
 The consumer owns load, save, and dirty-state. `editor.__test.*` is internal and test-only — not part of the contract.
 
+## Multiple instances
+
+Mounting two or more editors in one JavaScript context is supported. The boundary:
+
+- **Schema is process-global.** The block grammar — block kinds, their components, openers, and commands — is one shared definition set per context (the `customElements` model: a kind is a definition every instance sees; registering the same kind twice is a conflict, not a per-instance override).
+- **Runtime state is per-instance.** Every piece of mutable state an editor accumulates — selection, undo history, transient render caches — is scoped to that editor. Nothing one instance does to its own state reaches another.
+
+So two editors share one grammar but never share state.
+
 ## Theming
 
 The module owns its CSS. Two stylesheets ship under `styles/`:

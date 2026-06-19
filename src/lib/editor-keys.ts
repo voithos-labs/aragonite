@@ -36,6 +36,14 @@ export type ResolveLinkUrl = (rawUrl: string) => string;
 
 export const IMAGE_LOAD_POLICY_KEY = Symbol('image-load-policy');
 
+/**
+ * Per-editor cache of resolved image URLs that failed to load this session.
+ * Mutable runtime state — one Set per editor instance so a failed load in one
+ * editor never suppresses another's broken-state recompute. See
+ * `components/image/widget-dom.ts` for why the cache exists.
+ */
+export const BROKEN_IMAGE_URLS_KEY = Symbol('broken-image-urls');
+
 /** Internal — editor event seam handed to BlockHost's error boundary. Not a plugin extension point. */
 export const EDITOR_EVENTS_KEY = Symbol('editor-events');
 

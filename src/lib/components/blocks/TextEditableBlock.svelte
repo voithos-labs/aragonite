@@ -17,6 +17,7 @@
 		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
+		BROKEN_IMAGE_URLS_KEY,
 		DOC_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
@@ -114,6 +115,7 @@
 	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 	const imageLoadPolicy =
 		getContext<() => import('../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
+	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
@@ -263,7 +265,8 @@
 		},
 		get linkSignature(): string {
 			return linkRef?.signature ?? '';
-		}
+		},
+		brokenUrlCache
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

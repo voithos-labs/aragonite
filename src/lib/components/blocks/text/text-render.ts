@@ -29,6 +29,7 @@ export interface TextRenderDeps {
 	get myPath(): number[];
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
+	brokenUrlCache: Set<string>;
 }
 
 export interface TextRender {
@@ -74,7 +75,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				resolveLinkUrl: deps.resolveLinkUrl,
 				imageLoadPolicy: deps.imageLoadPolicy,
 				paragraphPath: deps.myPath,
-				buildImageWidget
+				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
+					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache })
 			})
 		);
 		return frag;
