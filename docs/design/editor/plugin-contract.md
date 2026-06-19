@@ -103,10 +103,12 @@ Registration model
   consequence of definitions-are-global (per-instance _enablement_, if ever needed, is the
   policy layer above), not a latent surprise.
 - **Reset is a test/HMR affordance, not a runtime API.** Because registration throws on
-  duplicate, any path that re-executes a registration module (Vite HMR re-running a module;
-  test files that register across setups) must first reset to a clean slate. A single
-  `__resetSchemaRegistriesForTests()` clears all registries and re-runs built-in registration;
-  the HMR dispose hook calls the same reset. This affordance is internal — never exposed.
+  duplicate, any path that re-registers would otherwise throw. Two internal, never-exposed
+  affordances cover that: a single `__resetSchemaRegistriesForTests()` clears every _non-built-in_
+  registration (built-ins survive, so tests that mint plugin/test kinds isolate without losing
+  the grammar), and the registration modules decline dev HMR (`import.meta.hot?.decline()`) so an
+  edit to one full-reloads the page — built-ins re-register in a fresh module graph rather than
+  double-registering.
 
 **Why global, given the 1.2 per-instance `plugins` prop?** The roadmap flagged the apparent
 tension. It resolves cleanly: kind _definitions_ are global because, like custom elements, a
@@ -119,11 +121,14 @@ per-instance registration. It is not built now (no demand — YAGNI).
 ### Plugin-kind naming + collision rules
 
 `declarePluginKind(name)` is the single mint point for a `PluginBlockKind`. It enforces the
-name pattern and rejects collisions with **both** built-in kinds **and** previously-declared
-plugin kinds. The brand keeps `BlockKind` switches exhaustive over built-ins while letting the
-registries key plugin kinds. Plugin-vs-plugin collision detection requires a record of declared
-plugin kinds — minted names are tracked so a second `declarePluginKind` with the same name
-throws.
+name pattern and rejects collisions with **built-in kinds**, **previously-declared plugin
+kinds**, and **reserved structural sentinels** — currently `document`, the CST-root
+discriminant (`Document.kind`). The brand keeps `BlockKind` switches exhaustive over built-ins
+while letting the registries key plugin kinds. Plugin-vs-plugin collision detection requires a
+record of declared plugin kinds — minted names are tracked so a second `declarePluginKind` with
+the same name throws. The `document` reservation matters because node-vs-document narrowing is
+structural (`'raw' in node`), so a plugin kind named `document` would not corrupt the tree —
+but reserving it keeps the contract unsurprising and the sentinel unambiguous.
 
 ### Events access seam — `getEvents()` canonical
 
