@@ -80,6 +80,13 @@ export async function collapseCrossBlock(
 
 /**
  * Scroll the focus block into view. No-op if already visible.
+ *
+ * Off-window (windowed-out) prose focus is intentionally NOT revealed here: the
+ * cross-block keydown handler is block-scoped, so revealing the focus unmounts
+ * the block holding native focus and silences the next keystroke. Following the
+ * extend's far endpoint into view needs editor-root keystroke routing — tracked
+ * as a structural follow-up alongside "undo/redo inert when the caret's block is
+ * unmounted" (docs/issues.md).
  */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
@@ -337,7 +344,11 @@ function leafOffsetEnd(doc: Document, path: number[]): number {
  * merges external text into a cell and corrupts the grid. Non-table paths pass
  * through unchanged.
  */
-function normalizeTableEndpoint(doc: Document, path: number[], offset: number): SelectionPoint {
+export function normalizeTableEndpoint(
+	doc: Document,
+	path: number[],
+	offset: number
+): SelectionPoint {
 	for (let d = 0; d < path.length - 1; d++) {
 		const node = nodeAt(doc, path.slice(0, d + 1));
 		if (node && 'kind' in node && node.kind === 'table') {

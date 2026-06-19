@@ -28,17 +28,16 @@ export function parseLinkReferenceDefinition(
 
 	if (segment.length > 0) {
 		const urlResult = parseUrl(segment);
-		if (urlResult) {
-			url = urlResult.url;
-			const afterUrl = segment.slice(urlResult.consumed).replace(/^[ \t]*/, '');
-			if (afterUrl.length > 0) {
-				title = parseTrailingTitle(afterUrl);
-			} else {
-				const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
-				if (next) {
-					title = next.title;
-					lineCursor = next.lineIndex;
-				}
+		if (!urlResult) return null;
+		url = urlResult.url;
+		const afterUrl = segment.slice(urlResult.consumed).replace(/^[ \t]*/, '');
+		if (afterUrl.length > 0) {
+			title = parseTrailingTitle(afterUrl);
+		} else {
+			const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
+			if (next) {
+				title = next.title;
+				lineCursor = next.lineIndex;
 			}
 		}
 	} else {

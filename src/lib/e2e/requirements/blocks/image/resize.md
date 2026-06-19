@@ -11,4 +11,5 @@
 
 - Click-and-release on handle without movement is no-op (no undo entry)
 - Drag near 25/50/75/100% snaps to those percentages
+- Keyboard resize shares the drag path's envelope: Shift+ArrowRight caps at editor content width, Shift+ArrowLeft holds at the keyboard minimum (envelope math unit-covered in `image-resize.test.ts`)
 - Broken image (load failed) shows the popover for URL editing but suppresses resize handles — handles re-appear if the URL is corrected and the image loads

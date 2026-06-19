@@ -200,6 +200,7 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? 800,
 		cursor,
 		widgetSelection,
 		blockEdit,
