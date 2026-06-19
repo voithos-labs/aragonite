@@ -59,6 +59,22 @@ Containers don't set `HISTORY_KEY` — undo/redo walks up to the editor root dir
 
 Containers don't rebuild their own raw — the commit primitives rebuild the unshared spine after every structural mutation; the kind's `rebuildRaw` (declared at registration) is what that chain rebuild invokes.
 
+### Virtual Rendering
+
+Leaf blocks need no windowing work — BlockHost measures their height generically, so VR is invisible to a leaf author.
+
+A container renders a windowed slice of its children. It wires one hook, `useContainerWindowing(deps)`, supplying thunks that name its variation:
+
+- `getIndex` / `getParentPath` — this scope's slot in its parent and its own path.
+- `getChildren` / `getChildIds` — the live child nodes and their ids.
+- `getListEl` — the content-origin element that scrolls with the children (holds the spacers and items), never the viewport.
+- `getOwnEl` — the element the parent measures for this scope's height (omit at the root).
+- `provideLeafChannel` — `true` when direct children are BlockHosts (blockquote, list-item), `false` for direct-`{#each}` scopes (list, table).
+
+The hook reads the windowing contexts — height oracle, focus path, width version, parent sink — internally; the author never touches the oracle, Fenwick model, sinks, or channels. It returns a handle: render the window slice into the `{#each}`, and feed `revealChild` / `isInWindow` into `createContainerBlockComponent` so off-window focus and path reveal resolve a mounted child.
+
+Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing).
+
 ### The Owned-Scope Contract
 
 Undo snapshots share the live tree's nodes, so a container commit hands its `mutate` an owned `ContainerScope` — the container already copied out of sharing, with its working `children` attached. Write through `scope.node` / `scope.children`, never through references captured before the commit; those may be snapshot-shared originals, and writing through them corrupts undo history (invariant G1.9).
