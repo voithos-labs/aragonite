@@ -98,6 +98,16 @@ HTML entities pass through: &copy; 2026 — em-dash &mdash;, non-break&nbsp;spac
 2. Ordered second
 3. Ordered third
 
+A blank line keeps a second paragraph inside the same item, and markers can mix as they nest:
+
+1. First item, paragraph one.
+
+   Still item one — an indented continuation paragraph in the same item.
+2. Second item with a nested unordered sub-list:
+   - mixed-marker child
+   - another child
+3. Third item.
+
 ## Task lists
 
 - [x] Completed — click to toggle
@@ -111,6 +121,35 @@ HTML entities pass through: &copy; 2026 — em-dash &mdash;, non-break&nbsp;spac
 > Multi-paragraph content stays inside the quote.
 >
 > > Nested blockquote.
+
+## Nested containers
+
+A blockquote wrapping a list:
+
+> Quote intro paragraph.
+>
+> - quoted item one
+> - quoted item two
+>   - nested under a quoted item
+
+List items can hold multiple blocks — here a blockquote, then a fenced code block:
+
+- Item with a quote inside:
+
+  > a blockquote nested in a list item
+
+- Item with code inside:
+
+  \`\`\`js
+  const insideAListItem = true;
+  \`\`\`
+
+Three levels deep, alternating ordered and unordered:
+
+1. Ordered level one
+   - unordered level two
+     1. ordered level three
+2. Back to level one
 
 ## Code
 
@@ -170,7 +209,7 @@ Explicit width × height:
 
 ![Square|200x200](https://picsum.photos/seed/limestone-square/300/300)
 
-With a title (hover the image):
+With a title, and intentionally **no size hint** — a remote image with unknown dimensions reserves no height until it decodes, so this one is the live check that loading it (scroll past it, then back up) re-measures the block and holds the scroll position instead of jumping:
 
 ![Mountains](https://picsum.photos/seed/limestone-mountain/500/350 "Click me — try the popover")
 
