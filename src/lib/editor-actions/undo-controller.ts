@@ -200,6 +200,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				 * check. Thunk: the owned nodes only exist after `mutate` unshares.
 				 */
 				touchedNodes?: () => CstNode[];
+				/**
+				 * Restore each scope's pre-mutate children/childIds on throw. The
+				 * top-level array swap can't reach an in-place splice into a node
+				 * already unshared this undo unit; this thunk does. Closes over the
+				 * scopes `mutate` prepared, so it only resolves after `mutate` ran.
+				 */
+				rollback?: () => void;
 		  };
 
 	async function __commit(args: CommitArgs): Promise<void> {
@@ -252,8 +259,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		} catch (err) {
 			if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
 			// Discard the container branch's in-place mutation (the document
-			// branch never published, so it needs no restore).
+			// branch never published, so it needs no restore). Restore the
+			// top-level array first (structure top-down), then let the rollback
+			// thunk recover any in-place splice the array swap couldn't reach.
 			if (savedDocChildren) deps.doc.children = savedDocChildren;
+			if (args.kind === 'container') args.rollback?.();
 			deps.events.emit('error', {
 				origin: 'commit',
 				error: err,
@@ -321,6 +331,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		view: ContainerScope;
 		ids: string[];
 		refs: (BlockComponent | undefined)[];
+		/**
+		 * The owned node's pre-swap children/childIds arrays — the rollback target
+		 * when this scope was already unshared earlier in the same undo unit, so
+		 * copy-path-on-write was a no-op and the mutate spliced in place (the
+		 * top-level array swap can't reach an in-place mutation). Pre-swap because
+		 * `prepareScopeView` replaces `owned.children` with a fresh working array
+		 * the mutate then dirties; the array that sat there before is an untouched
+		 * snapshot of the post-prior-op state.
+		 */
+		savedChildren: CstNode[] | undefined;
+		savedChildIds: string[] | undefined;
 	}
 
 	/**
@@ -346,6 +367,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 		const refs = [...s.state.innerBlockRefs];
+		const savedChildren = owned.children;
+		const savedChildIds = owned.childIds;
 		owned.children = [...(owned.children ?? [])];
 		return {
 			target: s,
@@ -354,7 +377,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			owned,
 			view: { node: owned, children: owned.children!, sharing: deps.sharing },
 			ids,
-			refs
+			refs,
+			savedChildren,
+			savedChildIds
 		};
 	}
 
@@ -422,7 +447,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			afterTick,
 			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
 			touchedNodes: () =>
-				prepared.map((p) => p.owned).filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined)
+				prepared.map((p) => p.owned).filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
+			rollback: () => {
+				for (const p of prepared) {
+					p.owned.children = p.savedChildren;
+					p.owned.childIds = p.savedChildIds;
+				}
+			}
 		});
 	}
 

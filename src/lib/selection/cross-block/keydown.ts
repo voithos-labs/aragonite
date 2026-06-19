@@ -85,19 +85,23 @@ async function handleCrossBlockActive(
 	// stale single-block raw while the cross-block selection visually persists.
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		// Capture the collapse target BEFORE deleting: a cross-block delete collapses
-		// "start wins", so the merged block lands at the normalized start path.
-		const collapsePath = (selection.start ?? selection.focus)?.path ?? myPath;
-		await performCrossBlockDelete(mutCtx);
+		// Reveal at the delete's own caret, not a pre-delete start path. rangeDelete
+		// returns the authoritative post-delete position against the merged tree; for a
+		// table endpoint that is the deep [table,row,col] cell whose runCommand exists.
+		// The old code revealed selection.start.path, which for a table is [tableIdx] —
+		// the table wrapper, which has no runCommand, so the command was silently
+		// dropped after the destructive delete.
+		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
+		const collapsedCaret = await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
-		// Reveal mounts the merged block when it's off-window, so the command
-		// (Enter/Tab/Ctrl+B…) dispatches into a live component.
-		const target = await ctx.revealPath(collapsePath);
+		const postDeleteDoc = getDoc();
+		const revealTarget = collapsedCaret?.path ?? fallbackPath;
+		const target = await ctx.revealPath(revealTarget);
 		const chord = eventToChord(e);
 		if (target?.runCommand && chord) {
 			dispatchKeyCommand(
 				chord,
-				{ kind: kindOfPath(collapsePath, doc), runCommand: target.runCommand },
+				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
 				{ history: ctx.history }
 			);
 		}

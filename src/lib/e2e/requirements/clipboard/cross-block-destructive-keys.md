@@ -60,3 +60,12 @@ For every delete-then-dispatch key, after the key press the editor is no
 longer in cross-block mode (no `[data-cross-block]` attribute on the
 editor root). This pins the Theme A symptom — the stale selection rendered
 over mutated block indices.
+
+### 8. Command key with a table-start cross-block selection reaches the cell
+
+Drag from a mid-row table cell out to a paragraph below so the table is the
+start of the cross-block range; press Enter. The range deletes (the covered
+body rows are removed) and the dispatcher reveals the delete's own
+post-delete caret — a deep table cell — so the cell's Enter command runs
+(a row is inserted below) instead of being silently dropped at the table
+wrapper. The grid stays well-formed and the next keystroke lands in a cell.

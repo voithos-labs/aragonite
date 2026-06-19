@@ -31,6 +31,11 @@ of Cut routes through the same paths as Backspace/Delete.
   exactly complementary — every body cell is either copied (and removed) or
   surviving (and not copied), never both and never neither. Whole-row snap
   makes copy and delete capture the same rows.
+- Partial-column cross-block Cut anchored in a mid-cell (drag STARTS in a
+  mid-row, mid-column cell and exits to a block above): same complementary
+  guarantee. The drag-start anchor is the table endpoint here, so it must
+  carry the cell-coordinate flag for the snap to fire — otherwise the copy
+  row-rounds while the delete clears from the mid-cell.
 
 ## User interactions
 
