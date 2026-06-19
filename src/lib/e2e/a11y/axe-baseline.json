@@ -1,5 +1,5 @@
 {
-	"$comment": "Known-violations allowlist for the axe baseline-ratchet gate (rule-id level). Each entry is deferred AA work with a milestone, not an accepted defect — the list only shrinks. The gate fails on any violation whose rule id is NOT here. See docs/superpowers/specs/2026-06-14-0.7.10-editor-boundary-hardening-design.md.",
+	"$comment": "Known-violations allowlist for the axe baseline-ratchet gate (rule-id level). Each entry is deferred AA work with a milestone, not an accepted defect — the list only shrinks. The gate fails on any violation whose rule id is NOT here.",
 	"allow": [
 		{
 			"id": "color-contrast",
