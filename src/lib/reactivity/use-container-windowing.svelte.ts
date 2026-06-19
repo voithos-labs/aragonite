@@ -81,7 +81,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 					applyHeight: (h) => windowing.recordMeasuredChild(index, id, h)
 				});
 			},
-			measureNow: windowing.measureChildNow
+			measureNow: windowing.measureChildNow,
+			measureOnResize: windowing.measureChildOnResize
 		} satisfies BlockMeasureChannel);
 	}
 	setContext(PARENT_SCOPE_SINK_KEY, {

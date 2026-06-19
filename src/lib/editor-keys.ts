@@ -74,11 +74,16 @@ export type DocumentGetter = () => Document;
  * of the scope's depth — nested hosts route to their own scope's channel); `readHeight`
  * is called inside the scope's read-all-then-write batch, never inline. `measureNow`
  * re-measures just this block after an edit (one block, not the thrash path).
+ * `measureOnResize` is the ResizeObserver path for async growth (an image decoding in):
+ * it carries the observer-reported border-box height so the scope can O(1)-gate against
+ * the height it already recorded and skip the expensive re-measure on the no-op mount
+ * resize — the fling case — touching the DOM only on a genuine post-mount change.
  */
 export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
 export type BlockMeasureChannel = {
 	register: (path: number[], index: number, id: string, readHeight: () => number) => () => void;
 	measureNow: (id: string) => void;
+	measureOnResize: (id: string, observedHeight: number) => void;
 };
 
 /** @internal Live getter for the focused block's full path; drives per-level VR pins. */
