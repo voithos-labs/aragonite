@@ -2,8 +2,7 @@
  * CSS-ownership guards (G4.6). The editor module owns its CSS: app.css holds no
  * editor-owned rules or tokens, every editor-owned token read is declared in
  * editor-theme.css, and every host-token read carries a fallback so an extracted
- * editor renders with no host theme. See docs/design/editor/invariants.md and
- * docs/superpowers/specs/2026-06-14-css-ownership-migration-design.md.
+ * editor renders with no host theme. See docs/design/editor/invariants.md.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
