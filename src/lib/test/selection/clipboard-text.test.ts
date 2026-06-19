@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
+import type { SelectionPoint } from '../../selection/primitives';
 import { parse } from '../../core/parser';
 
 describe('collectCrossBlockText', () => {
@@ -39,9 +40,18 @@ describe('collectCrossBlockText', () => {
 		expect(text).toContain('after');
 	});
 
+	// Cross-block table endpoints snap to whole rows (table-endpoint-snap.ts), so
+	// the clipboard captures the same rows the highlight paints and the delete
+	// clears. Production endpoints carry cellCoordinate:true (normalizeTableEndpoint
+	// / pointer drag); the offset is a row-major cell index.
 	describe('through tables', () => {
-		const fixture = 'Before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n';
-		const tableRaw = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+		// 3 columns × (header + 2 body rows). Cell indices: header 0..2, row 1 = 3..5,
+		// row 2 = 6..8. A mid-row endpoint (e.g. cell 4) lets the snap show: a partial
+		// row is pulled to the whole row.
+		const fixture =
+			'Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nAfter.\n';
+		const tableRaw = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+		const cell = (offset: number): SelectionPoint => ({ path: [1], offset, cellCoordinate: true });
 
 		it('emits full table.raw when selection spans the whole table', () => {
 			const doc = parse(fixture);
@@ -49,27 +59,34 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe(`Before.\n\n${tableRaw}\nAfter.`);
 		});
 
-		it('emits sub-table from anchor cell when focus is in a following paragraph', () => {
+		it('table-as-start: snaps the anchor cell up to its whole row, then to table end', () => {
+			// Anchor in cell 4 (row 1, col 1) → snaps down to row-start (cell 3); emits
+			// whole rows 1..2, not a col-1..2 sub-rectangle.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [1], offset: 2 }, { path: [2], offset: 6 });
-			expect(text).toBe('| 1 | 2 |\n| --- | --- |\n\nAfter.');
+			const text = collectCrossBlockText(doc, cell(4), { path: [2], offset: 6 });
+			expect(text).toBe('| 1 | 2 | 3 |\n| --- | --- | --- |\n| 4 | 5 | 6 |\n\nAfter.');
 		});
 
-		it('emits sub-table up to focus cell when anchor is in a preceding paragraph', () => {
+		it('table-as-end: snaps the focus cell to its whole row so the row is fully captured', () => {
+			// Focus in cell 4 (row 1) → snaps up to the row's last cell; emits whole
+			// rows 0..1 (header + row 1), including the trailing cells the user did not
+			// drag across. Pre-snap this dropped row 1 entirely.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, { path: [1], offset: 2 });
-			expect(text).toBe('Before.\n\n| A | B |\n| --- | --- |\n');
+			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, cell(4));
+			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
-		it('emits sub-table for row band when both endpoints are inside the same table', () => {
+		it('intra-table same-path selection is NOT snapped — sub-rectangle band preserved', () => {
+			// Both endpoints on the same table: rectangular sub-cell copy stays, the
+			// row-band rounding is the existing intra-table behavior, untouched by snap.
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [1], offset: 1 }, { path: [1], offset: 3 });
-			expect(text).toBe(tableRaw);
+			const text = collectCrossBlockText(doc, cell(1), cell(4));
+			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		});
 
 		it('returns empty string when both endpoints share a zero-length table portion', () => {
 			const doc = parse(fixture);
-			const text = collectCrossBlockText(doc, { path: [1], offset: 2 }, { path: [1], offset: 2 });
+			const text = collectCrossBlockText(doc, cell(4), cell(4));
 			expect(text).toBe('');
 		});
 

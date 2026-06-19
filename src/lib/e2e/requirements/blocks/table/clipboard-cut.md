@@ -26,6 +26,11 @@ of Cut routes through the same paths as Backspace/Delete.
 
 - A single Ctrl+Z after any of the three Cut variants restores the
   pre-cut document in one undo entry.
+- Partial-column cross-block Cut (drag from a block above into a mid-row,
+  mid-column cell): the clipboard text and the surviving table cells are
+  exactly complementary — every body cell is either copied (and removed) or
+  surviving (and not copied), never both and never neither. Whole-row snap
+  makes copy and delete capture the same rows.
 
 ## User interactions
 
