@@ -50,6 +50,8 @@ Each scope corrects this itself. Before a height mutation it records the offset 
 
 Native browser scroll anchoring is **disabled** (`overflow-anchor: none` on the scroll container). Native anchoring and the manual correction otherwise fight — both rewrite the scroll position, double-correcting — and native anchoring is unreliable for windowed content (its anchor node can be the very block unmounting as the slice shifts, or a spacer whose height is being rewritten). The manual path must own the correction.
 
+Because native anchoring is off, content that grows _after_ it was first measured — a remote image decoding in, a web font swapping, a lazy embed — would slide the viewport the same way. Each rendered block reports post-mount size changes; a change is gated against the height already recorded for that block (the common no-op resize costs nothing) and genuine growth is re-measured through the same scope-local anchor correction.
+
 The only residual artifact of estimate error is scrollbar-thumb drift — cosmetic, and it shrinks monotonically as heights are measured.
 
 ## Resize and Width Invalidation
