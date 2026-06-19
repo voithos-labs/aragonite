@@ -3,7 +3,7 @@
  * and paste flows.
  */
 
-import type { CstNode } from '../../core/nodes';
+import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
@@ -70,6 +70,46 @@ export function buildListItemWithContent(template: CstNode, children: CstNode[])
 	if (children[0]) children[0].leadingTrivia = '';
 	rebuildListItemRaw(item);
 	return item;
+}
+
+/**
+ * Construct a listItem from explicit metadata (marker + task fields) around
+ * the provided children, with empty affixes. For action-layer sites that
+ * derive a fresh marker rather than mirroring a source item's metadata.
+ * Children are placed verbatim — clone first if still referenced elsewhere.
+ */
+export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): CstNode {
+	const item: CstNode = {
+		kind: 'listItem',
+		leadingTrivia: '',
+		raw: '',
+		metadata,
+		innerPrefix: '',
+		children,
+		childIds: freshChildIds(children),
+		innerSuffix: ''
+	};
+	if (children[0]) children[0].leadingTrivia = '';
+	rebuildListItemRaw(item);
+	return item;
+}
+
+/**
+ * Construct a bare list shell (kind/ordered/children only, empty raw). Unlike
+ * `assembleListHalf` this neither renumbers nor rebuilds raw — the caller owns
+ * that, which a live-tree caller must do through its `sharing` state so the
+ * moved items are unshared before being written (Design Rule 5).
+ */
+export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
+	const metadata: ListMetadata = { ordered };
+	return {
+		kind: 'list',
+		leadingTrivia: '',
+		raw: '',
+		metadata,
+		children,
+		childIds: freshChildIds(children)
+	};
 }
 
 // ── Marker helpers ───────────────────────────────────────────────────────────

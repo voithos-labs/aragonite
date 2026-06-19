@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, getContext } from 'svelte';
+	import { setContext, getContext, untrack } from 'svelte';
 	import type {
 		BlockEditActions,
 		CellPosition,
@@ -21,7 +21,9 @@
 		FOCUS_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
-		TABLE_CONTEXT_KEY
+		TABLE_CONTEXT_KEY,
+		WIDTH_VERSION_KEY,
+		type WidthVersionGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
@@ -57,6 +59,7 @@
 	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -107,6 +110,60 @@
 
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+
+	// Pin each column track to the widest cell SEEN across all windowed-in rows, not just
+	// the currently-mounted slice. `repeat(columnCount, minmax(80px, max-content))` alone
+	// sizes a track to its mounted cells, so under row windowing a column jumps width as a
+	// wide cell scrolls out of the mounted set (F6). The cached floor only grows, so the
+	// track can't shrink when its widest cell unmounts; `max-content` stays the upper bound
+	// so a still-wider cell scrolling IN still expands it (and feeds the cache). Reset on a
+	// column-count change or a width re-wrap (`widthVersion`), which invalidate the cache.
+	let columnMaxWidths = $state<number[]>([]);
+
+	const trackTemplate = $derived(
+		Array.from({ length: columnCount }, (_, c) => {
+			const floor = Math.max(80, columnMaxWidths[c] ?? 0);
+			return `minmax(${floor}px, max-content)`;
+		}).join(' ')
+	);
+
+	let measuredColumnEpoch = '';
+
+	// Re-measure when the mounted slice slides (`win` re-derives on every window recompute) or
+	// after a column-count change / width re-wrap (both invalidate cached widths). Runs
+	// post-flush, so the newly mounted rows are in the DOM. A column-count or width change
+	// resets the cache first — the old maxes are stale (narrower wrap, shifted track set) and
+	// monotonic-grow would otherwise pin a track too wide. Within a stable epoch it only grows
+	// the floor and only bumps state on an increase, so it settles rather than spinning.
+	$effect(() => {
+		void win;
+		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}`;
+		untrack(() => {
+			if (epoch !== measuredColumnEpoch) {
+				measuredColumnEpoch = epoch;
+				columnMaxWidths = [];
+			}
+			growColumnFloors();
+		});
+	});
+
+	function growColumnFloors(): void {
+		if (!tableEl || columnCount === 0) return;
+		const next = columnMaxWidths.slice();
+		let grew = false;
+		const rows = tableEl.querySelectorAll(':scope > [data-table-row-idx]');
+		for (const rowEl of rows) {
+			const cells = rowEl.querySelectorAll(':scope > .table-cell');
+			for (let c = 0; c < cells.length && c < columnCount; c++) {
+				const width = (cells[c] as HTMLElement).getBoundingClientRect().width;
+				if (width > (next[c] ?? 0)) {
+					next[c] = width;
+					grew = true;
+				}
+			}
+		}
+		if (grew) columnMaxWidths = next;
+	}
 
 	function rowRefAt(rowIdx: number): BlockComponent | undefined {
 		return rowsState.innerBlockRefs[rowIdx];
@@ -372,7 +429,7 @@
 	bind:this={tableEl}
 	class="table-block"
 	role="table"
-	style:grid-template-columns={`repeat(${columnCount}, minmax(80px, max-content))`}
+	style:grid-template-columns={trackTemplate}
 >
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>

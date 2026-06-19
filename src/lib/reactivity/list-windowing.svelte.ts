@@ -67,10 +67,17 @@ export interface ListWindowing {
 }
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
+	// The id list index-aligned with the CURRENT `model`. Snapshotted (not read live)
+	// because a structural rebuild needs the OLD ordering to remap the anchor by id, but
+	// by the time the rebuild effect runs `deps.getChildIds()` already reflects the new
+	// children. Copied — `innerBlockIds` is mutated in place on splice.
+	let modelChildIds: string[] = [];
+
 	function buildModel(): HeightModel {
 		const width = estimateWidth(deps.getListEl(), deps.getScrollEl());
 		const children = deps.getChildren();
 		const ids = deps.getChildIds();
+		modelChildIds = ids.slice();
 		return new HeightModel(children.map((n, i) => deps.oracle.height(ids[i], n, width)));
 	}
 
@@ -101,18 +108,40 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
 	}
 
+	// The structural-rebuild variant of correctAnchor. A count change (block inserted or
+	// deleted) shifts every index above it, so the numeric `correctAnchor` would measure a
+	// DIFFERENT block's offset at the same index N in the new model and over/under-correct by
+	// ~one anchor-block height (VR-2 jump on an above-fold edit). Remap by stable id instead:
+	// the anchor block's id is captured against the OLD ordering (`modelChildIds`, set at the
+	// prior buildModel) and found again in the rebuilt model. Degrades to the numeric path for
+	// the width-version trigger (ids unchanged → newIndex === anchorIndex). If the anchor block
+	// itself was deleted (not found), skip — there is no surviving block to hold the line.
+	function correctAnchorByStableId(mutate: () => void): void {
+		const scrollEl = deps.getScrollEl();
+		const anchorIndex = model.indexAtOffset(localScrollTop());
+		const before = model.offsetOf(anchorIndex);
+		const anchorId = modelChildIds[anchorIndex];
+		mutate();
+		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
+		if (newIndex === -1) return;
+		const delta = model.offsetOf(newIndex) - before;
+		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
+	}
+
 	// Rebuild on structural child-count change or an editor WIDTH change (prose re-wraps, so
 	// every height the oracle cached is stale; `widthVersion` is bumped after the cache is
 	// cleared). Never per keystroke. Build inside `untrack` so the effect doesn't subscribe
 	// to every child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset
 	// shift the flush-pass correction can't see (its before-snapshot is captured after this
-	// ran), so anchor-correct the reseed itself to keep the viewport stable.
+	// ran), so anchor-correct the reseed itself to keep the viewport stable — by stable id, so
+	// an insert/delete above the anchor remaps to the surviving block instead of index N's new
+	// occupant.
 	$effect(() => {
 		void deps.getChildren().length;
 		void deps.getScrollEl();
 		void deps.getWidthVersion();
 		untrack(() => {
-			correctAnchor(() => {
+			correctAnchorByStableId(() => {
 				model = buildModel();
 				heightVersion++;
 			});

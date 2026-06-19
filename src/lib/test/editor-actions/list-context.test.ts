@@ -71,6 +71,9 @@ describe('list-context — splitItemAtOffset', () => {
 		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
 		expect(newItem.children).toHaveLength(3);
+		// Unordered split: marker mirrors the source, taskMarker stays null.
+		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
+		expect(newItem.raw.startsWith('- ')).toBe(true);
 	});
 
 	it('single-child split preserves the count:1 descriptor path', async () => {
@@ -113,5 +116,96 @@ describe('list-context — splitItemAtOffset', () => {
 
 		expect(liveList().children).toHaveLength(2);
 		expect(listState.innerBlockIds).toHaveLength(2);
+	});
+
+	it('ordered split bumps the new item marker and renumbers', async () => {
+		const doc = parse('1. a\n2. b\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
+		registerBlockListState(list, listState as any);
+		const item0 = list.children![0];
+		registerBlockListState(
+			item0,
+			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
+		);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		// Split item 0 ("1. a") mid-word: the new sibling takes marker "2. " and
+		// the following original item renumbers to "3. ".
+		await listContext.splitItemAtOffset(0, 0, 1);
+
+		const items = liveList().children!;
+		expect(items).toHaveLength(3);
+		expect(items[1].metadata).toMatchObject({ marker: '2. ', taskMarker: null });
+		expect(items[2].metadata).toMatchObject({ marker: '3. ' });
+	});
+});
+
+// ── insertItemAfter marker + task inheritance ──────────────────────────────
+
+describe('list-context — insertItemAfter', () => {
+	it('inherits the task marker and bumps an ordered marker', async () => {
+		const doc = parse('1. [ ] a\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const listState = makeBlockListState(liveList, ['item-0']);
+		registerBlockListState(list, listState as any);
+		registerBlockListState(
+			list.children![0],
+			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
+		);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		await listContext.insertItemAfter(0);
+
+		const items = liveList().children!;
+		expect(items).toHaveLength(2);
+		// New item bumps "1. " -> "2. " and inherits the unchecked task marker.
+		expect(items[1].metadata).toMatchObject({
+			marker: '2. ',
+			taskItem: true,
+			taskChecked: false,
+			taskMarker: '[ ] '
+		});
+		expect(items[1].raw).toBe('2. [ ] \n');
 	});
 });
