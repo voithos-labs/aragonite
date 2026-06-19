@@ -93,6 +93,24 @@
 		}
 		measureChannel?.measureNow(id);
 	});
+
+	// A block can grow AFTER mount without its `raw` changing — an image (or other async
+	// content) decoding in. The `raw` effect above never sees it, and native overflow-anchor
+	// is off, so the growth would slide the viewport. Observe the box and hand the scope the
+	// observer-reported border-box height; it gates on the height it already recorded, so the
+	// mount resize (and the cached-then-remounted case, where the grown size can arrive in
+	// the very first callback) is handled without a `settled`-flag timing race, and the
+	// no-op fling case does no DOM read. Genuine growth re-measures and anchor-corrects.
+	$effect(() => {
+		if (!hostEl || !measureChannel) return;
+		const observer = new ResizeObserver((entries) => {
+			const box = entries[0]?.borderBoxSize?.[0];
+			const height = box ? box.blockSize : entries[0]?.contentRect.height;
+			if (height != null) measureChannel.measureOnResize(id, height);
+		});
+		observer.observe(hostEl);
+		return () => observer.disconnect();
+	});
 </script>
 
 <div

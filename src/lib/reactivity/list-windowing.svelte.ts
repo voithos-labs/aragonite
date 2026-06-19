@@ -57,6 +57,10 @@ export interface ListWindowing {
 	registerChild(id: string, child: MeasurableChild): () => void;
 	/** Re-measure ONE registered child immediately (its content height changed on edit). */
 	measureChildNow(id: string): void;
+	/** ResizeObserver path: `observedHeight` is the observer-reported border-box height.
+	 *  O(1)-gate against the recorded height and re-measure (anchor-corrected) only on a
+	 *  genuine post-mount change, so the no-op mount resize on a fling costs no DOM read. */
+	measureChildOnResize(id: string, observedHeight: number): void;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
 	/** True iff `index` is in the CURRENT mounted window `[start, end)` (inactive ⇒ all
@@ -64,6 +68,22 @@ export interface ListWindowing {
 	 *  before waiting on a mount that can otherwise never come (VR-5 termination). */
 	isInWindow(index: number): boolean;
 	dispose(): void;
+}
+
+/**
+ * Resize-gate decision (pure, unit-tested). A ResizeObserver fires for every newly
+ * mounted block — including the no-op mount resize a fling produces — and again on async
+ * growth (an image decoding in). Re-measure ONLY when the observed height genuinely
+ * differs from the height already recorded for this block, NOT based on which callback
+ * delivered it: the cached-remount case can report the grown size in the very FIRST
+ * callback, so a callback-order heuristic (skip the first, act on the rest) would drop
+ * it and leave the jump uncorrected. `recorded === undefined` means the batched mount
+ * pass hasn't measured this block yet — defer to it rather than racing a lone read in on
+ * a fling-dirtied layout. Sub-pixel diffs are measurement noise.
+ */
+export function shouldRemeasureOnResize(recorded: number | undefined, observed: number): boolean {
+	if (observed <= 0 || recorded === undefined) return false;
+	return Math.abs(recorded - observed) >= 1;
 }
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
@@ -258,6 +278,18 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		correctAnchor(() => runMeasureBatch(entries));
 	}
 
+	// Re-measure ONE block and anchor-correct. Read the height BEFORE correctAnchor so no
+	// DOM read follows the model write, and a block at or below the anchor yields a zero
+	// delta (no scroll move for in-view edits). The write is convergence-guarded
+	// (`recordMeasuredChild` no-ops once the height settles), so a redundant call can't
+	// spin the reactive graph.
+	function measureOne(id: string): void {
+		const child = registry.get(id);
+		if (!child) return;
+		const h = child.readHeight();
+		if (h > 0) correctAnchor(() => child.applyHeight(h));
+	}
+
 	return {
 		get window() {
 			return win.result;
@@ -297,15 +329,19 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 				pending.delete(id);
 			};
 		},
-		// An edit changes one block's height without sliding the window. Measure it
-		// directly — one block is not the thrash path, and going through the same
-		// convergence-guarded write (`recordMeasuredChild` no-ops once the height
-		// settles) is what stops a re-measure from spinning the reactive graph.
+		// An edit re-wrapped this block; re-measure it precisely (raw changed, so the
+		// height almost certainly did too — no point gating).
 		measureChildNow(id) {
-			const child = registry.get(id);
-			if (!child) return;
-			const h = child.readHeight();
-			if (h > 0) child.applyHeight(h);
+			measureOne(id);
+		},
+		// ResizeObserver path for async growth (an image decoding in). `observedHeight` is
+		// the observer-reported border-box height — same box as getBoundingClientRect. The
+		// gate reads the oracle's recorded height (O(1), no DOM), so the no-op mount resize
+		// a fling fires for every newly-mounted block returns without a getBoundingClientRect
+		// on the spacer-dirtied layout (VR-4). Only a genuine post-mount change falls through
+		// to the precise, anchor-corrected re-measure.
+		measureChildOnResize(id, observedHeight) {
+			if (shouldRemeasureOnResize(deps.oracle.measured(id), observedHeight)) measureOne(id);
 		},
 		async revealChild(index) {
 			const scrollEl = deps.getScrollEl();
