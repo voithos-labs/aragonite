@@ -69,6 +69,22 @@ test.describe('image resize', () => {
 		await editor.bridge.waitForSourceContains('|380');
 	});
 
+	// Parity with the drag path's upper clamp: holding Shift+ArrowRight must not
+	// grow the image past the editor content width. A pure-math unit test can't
+	// catch a wiring gap between the keyboard and drag entry points.
+	test('Shift+ArrowRight caps at editor content width', async ({ page }) => {
+		const contentWidth = await editor.editorContainer.evaluate((el) => el.clientWidth);
+		const startWidth = contentWidth - 30;
+		await editor.loadContent(`![cat|${startWidth}](/test-fixtures/sample.png)\n`);
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.click();
+		// Each press steps +20px; three presses overshoot the 30px headroom.
+		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+		await editor.bridge.waitForSourceContains(`|${contentWidth}`);
+		const src = await editor.bridge.getSource();
+		expect(Number(src.match(/\|(\d+)\]/)![1])).toBe(contentWidth);
+	});
+
 	test('click-and-release without drag is no-op', async ({ page }) => {
 		await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();

@@ -2,13 +2,17 @@
 import { describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
 import type { CstNode } from '../../../core/nodes';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
+import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
 
-function mount(raw: string, linkRef?: LinkReferenceResolverRef) {
+function mount(
+	raw: string,
+	linkRef?: LinkReferenceResolverRef,
+	resolveLinkUrl: ResolveLinkUrl = (u) => u
+) {
 	const el = document.createElement('div');
 	let node = makeCell(raw);
 	const render = createCellRender({
@@ -20,7 +24,8 @@ function mount(raw: string, linkRef?: LinkReferenceResolverRef) {
 		},
 		get linkRef() {
 			return linkRef;
-		}
+		},
+		resolveLinkUrl
 	});
 	return {
 		el,
@@ -46,6 +51,16 @@ describe('createCellRender', () => {
 		const anchor = el.querySelector('a.md-link-content');
 		expect(anchor).not.toBeNull();
 		expect(anchor?.getAttribute('href')).toBe('https://example.com');
+	});
+
+	it('rewrites a link href through a non-identity resolveLinkUrl', () => {
+		// An embedder rewriting a relative href to an absolute one — the seam the
+		// paragraph path threads and the cell path dropped.
+		const { el, render } = mount('[t](/wiki/page)', undefined, (u) => `https://host${u}`);
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe(
+			'https://host/wiki/page'
+		);
 	});
 
 	it('preserves textContent for an escaped pipe', () => {

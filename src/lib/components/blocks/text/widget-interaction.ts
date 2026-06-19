@@ -18,6 +18,7 @@ import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { isLiveWidgetInline } from '../../../core/inline/raw-html-widget';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
+import { keyboardResizeWidth } from '../../image/image-resize';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
 	widgetAtCursor,
@@ -27,7 +28,6 @@ import {
 } from './widget-adjacency';
 
 const KEYBOARD_STEP = 20;
-const KEYBOARD_MIN_WIDTH = 32;
 const FALLBACK_DEFAULT_WIDTH = 400;
 
 export interface WidgetInteractionDeps {
@@ -36,6 +36,7 @@ export interface WidgetInteractionDeps {
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
+	getEditorContentWidth: () => number;
 	cursor: AmbientCursorIO;
 	widgetSelection: WidgetSelectionState;
 	blockEdit: BlockEditActions;
@@ -101,7 +102,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 			const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
 			const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
-			const newWidth = Math.max(KEYBOARD_MIN_WIDTH, currentWidth + delta);
+			const newWidth = keyboardResizeWidth(currentWidth, delta, deps.getEditorContentWidth());
 
 			const newFields: ImageFields = {
 				alt: inline.alt ?? '',

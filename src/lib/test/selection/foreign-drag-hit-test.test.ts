@@ -68,4 +68,12 @@ describe('table foreignDragHitTest', () => {
 	it('is not registered on non-coordinate kinds (paragraph)', () => {
 		expect(tryGetBlockKindDescriptor('paragraph')?.foreignDragHitTest).toBeUndefined();
 	});
+
+	it('still encodes the hit when row windowing has unmounted row 0', () => {
+		// Row-windowing scrolls row 0 off-screen and unmounts it; the column count
+		// must come from any mounted row, not the hard-coded row 0 (VR-K1).
+		cells[0][0].closest('[data-table-row-idx]')!.remove();
+		pointAt(cells[1][2]); // row 1, col 2 → 1*3 + 2 = 5
+		expect(tableDragHitTest(wrapper, 0, 0)).toBe(5);
+	});
 });

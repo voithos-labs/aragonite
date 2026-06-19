@@ -36,18 +36,23 @@ export function createHistoryActions(
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
+	// Drop any armed keystroke batch before the history swap so its debounce
+	// timer can't push a stale snapshot after the stack moves underneath it.
+	function beginHistorySwap(): void {
+		deps.stickyColumn.reset();
+		controller.clearDebouncedCheckpoint();
+	}
+
 	return {
 		async requestUndo(): Promise<void> {
-			deps.stickyColumn.reset();
-			controller.clearDebouncedCheckpoint();
-
+			beginHistorySwap();
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;
 			await restore(entry, 'undo');
 		},
 
 		async requestRedo(): Promise<void> {
-			deps.stickyColumn.reset();
+			beginHistorySwap();
 			const entry = deps.undoManager.redo(controller.captureCurrentState());
 			if (!entry) return;
 			await restore(entry, 'redo');

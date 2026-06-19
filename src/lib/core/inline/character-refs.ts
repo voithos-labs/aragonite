@@ -52,7 +52,7 @@ function tryMatchReference(raw: string, pos: number, end: number): InlineNode | 
 	if (body[0] === '#') {
 		decoded = decodeNumeric(body);
 	} else {
-		decoded = HTML5_NAMED_ENTITIES[body] ?? null;
+		decoded = Object.hasOwn(HTML5_NAMED_ENTITIES, body) ? HTML5_NAMED_ENTITIES[body] : null;
 	}
 	if (decoded === null) return null;
 

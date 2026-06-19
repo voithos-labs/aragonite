@@ -24,12 +24,14 @@
 		HISTORY_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
+		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
-		type LinkReferenceResolverRef
+		type LinkReferenceResolverRef,
+		type ResolveLinkUrl
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -114,6 +116,7 @@
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -210,7 +213,10 @@
 		const offsets = cursor.getRawSelection();
 		if (!offsets) return false;
 		const result = toggleInlineFormat(readCellText(), offsets, format);
-		blockEdit.updateBlockContent(index, result.newDisplay, preEditOffset, result.newSelStart);
+		// Anchor undo at the live post-toggle caret, not preEditOffset: cross-block
+		// dispatch reaches toggleFormat via runCommand with no preceding onKeyDown to
+		// refresh preEditOffset, so it would be stale. Mirrors TextEditableBlock.
+		blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart);
 		tick().then(() => setSelection(result.newSelStart, result.newSelEnd));
 		return true;
 	}
@@ -275,7 +281,8 @@
 		},
 		get linkRef() {
 			return linkRef;
-		}
+		},
+		resolveLinkUrl
 	});
 
 	$effect(() => {

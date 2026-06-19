@@ -7,7 +7,7 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
-import { handleShiftClick } from '../keyboard-extend';
+import { handleShiftClick, normalizeTableEndpoint } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
 import { clearNativeSelection, offsetFromViewportPoint } from '../native-bridge';
 import { installDragListener } from '../drag-pointer';
@@ -80,6 +80,10 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		if (!root) return false;
 		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
+		// A drag anchored inside a table addresses a deep [table,row,col] path with
+		// a char offset; normalize it to the table block + row-major cell index so
+		// collapse/reveal lands on the deep cell, matching the keyboard path.
+		const anchorPoint = normalizeTableEndpoint(ctx.getDoc(), myPath.slice(), offset);
 		const lifetimeSignal = ctx.getEditorLifetime();
 		if (!lifetimeSignal) {
 			if (import.meta.env.DEV) {
@@ -97,7 +101,7 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 				getBlockElByPath: ctx.getBlockElByPath,
 				lifetimeSignal
 			},
-			{ path: myPath.slice(), offset }
+			anchorPoint
 		);
 	}
 

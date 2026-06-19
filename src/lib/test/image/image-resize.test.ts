@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
 	clampWidth,
+	keyboardResizeWidth,
 	snapWidth,
 	resolveAspectLockedHeight,
+	KEYBOARD_MIN_WIDTH,
 	MIN_WIDTH
 } from '../../components/image/image-resize';
 
@@ -18,6 +20,23 @@ describe('clampWidth', () => {
 	});
 	it('rounds non-integer input', () => {
 		expect(clampWidth(123.7, 1000)).toBe(124);
+	});
+});
+
+describe('keyboardResizeWidth', () => {
+	const max = 800;
+	it('caps growth at the editor content width', () => {
+		expect(keyboardResizeWidth(790, 20, max)).toBe(max);
+	});
+	it('does not exceed the ceiling on a value already at it', () => {
+		expect(keyboardResizeWidth(800, 20, max)).toBe(max);
+	});
+	it('holds at the keyboard floor when shrinking past it', () => {
+		expect(keyboardResizeWidth(40, -20, max)).toBe(KEYBOARD_MIN_WIDTH);
+		expect(keyboardResizeWidth(KEYBOARD_MIN_WIDTH, -20, max)).toBe(KEYBOARD_MIN_WIDTH);
+	});
+	it('passes through a nudge that stays within bounds', () => {
+		expect(keyboardResizeWidth(400, 20, max)).toBe(420);
 	});
 });
 

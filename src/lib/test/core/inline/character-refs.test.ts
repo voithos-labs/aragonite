@@ -32,6 +32,17 @@ describe('scanCharacterReferences', () => {
 		expect(result.every((n) => n.kind === 'text')).toBe(true);
 	});
 
+	it('rejects inherited Object.prototype names as named entities', () => {
+		const cases = ['&toString;', '&constructor;', '&hasOwnProperty;', '&__proto__;'];
+		for (const raw of cases) {
+			const result = scanCharacterReferences(raw, 0, raw.length, []);
+			expect(
+				result.every((n) => n.kind === 'text'),
+				raw
+			).toBe(true);
+		}
+	});
+
 	it('decodes decimal numeric references', () => {
 		const result = scanCharacterReferences('&#39;', 0, 5, []);
 		const refs = result.filter((n) => n.kind === 'entityReference');
