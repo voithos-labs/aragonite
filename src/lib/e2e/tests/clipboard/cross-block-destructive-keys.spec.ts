@@ -111,4 +111,51 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('\t');
 	});
+
+	// A command key whose cross-block selection STARTS in a table must reach the
+	// table cell's runCommand, not the TableBlock wrapper. The dispatcher reveals
+	// the delete's own post-delete caret (a deep [table,row,col] cell), so the
+	// command lands; the old code revealed selection.start.path ([tableIdx]) and
+	// the command was silently dropped after the destructive delete.
+	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n\nAfter.\n'
+		);
+		// Drag from body cell "bbb" (mid-row, mid-col) out to the paragraph below so
+		// the table is the start endpoint of the cross-block range.
+		const from = page.locator('[role="cell"]').nth(4);
+		const to = page.getByText('After.');
+		const fromBox = await from.boundingBox();
+		const toBox = await to.boundingBox();
+		if (!fromBox || !toBox) throw new Error('missing bounding box');
+		const sx = fromBox.x + fromBox.width / 2;
+		const sy = fromBox.y + fromBox.height / 2;
+		const ex = toBox.x + toBox.width / 2;
+		const ey = toBox.y + toBox.height / 2;
+		await page.mouse.move(sx, sy);
+		await page.mouse.down();
+		for (let i = 1; i <= 12; i++) {
+			const t = i / 12;
+			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+		}
+		await page.mouse.up();
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('Enter');
+		await editor.waitForCrossBlock(false);
+		// The delete wipes the covered body rows, then the cell's Enter command
+		// inserts an empty body row below the caret — the observable proof the
+		// command reached the cell's runCommand. A command dropped at the table
+		// wrapper would leave only the header row, no empty body row.
+		await editor.bridge.waitForSourceContains('| --- | --- | --- |\n|  |  |  |');
+
+		// The caret lands in the new cell: the next keystroke writes into the grid,
+		// and the table stays well-formed.
+		await editor.typeText('Z');
+		await editor.bridge.waitForSourceContains('| Z |');
+		const source = await editor.bridge.getSource();
+		expect(source).toContain('| h1 | h2 | h3 |');
+	});
 });

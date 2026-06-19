@@ -5,7 +5,9 @@ End-to-end coverage for cross-block range-delete through tables (rangeDelete tab
 A table that is an ENDPOINT of a cross-block selection snaps to WHOLE ROWS, so
 the highlight, clipboard copy, and delete all agree on the same cells (see
 `selection-whole-row-snap.md`). The mid-row cases below therefore clear whole
-rows, not partial cells.
+rows, not partial cells. This holds for every entry path — keyboard extension,
+drag INTO a table, and drag that STARTS in a cell — because all of them flag the
+table endpoints as cell coordinates.
 
 ## Happy paths
 
@@ -48,7 +50,8 @@ Intra-table Backspace dispatches by what the selection covers:
   paragraph below) produces the same table-aware delete as pointer drag — the table endpoint is
   represented by cell index (`[tableIdx]` + cell), not a deep cell leaf path, so the delete never
   falls through to the generic merge that would fuse paragraph text into a cell.
-- Typing a character over a cross-block selection spanning two **separate top-level tables** (both
-  surviving the delete) lands the typed character inside the start table's surviving anchor cell —
-  it never slices the table's grid markup (`| A | B |`) mid-row. The collapsed caret is a deep cell
-  leaf with a char offset, not a cell-index offset on the table block.
+- Typing a character over a cross-block selection spanning two **separate top-level tables** lands
+  the typed character inside a surviving cell of the start table — it never slices the table's grid
+  markup (`| A | B |`) mid-row. Both table endpoints are flagged cell coordinates, so the whole-row
+  snap removes the touched rows in each table and the collapsed caret is a deep surviving-cell leaf
+  with a char offset, not a cell-index offset on the table block.

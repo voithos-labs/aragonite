@@ -6,9 +6,11 @@
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { SelectionPoint } from '../../../selection/primitives';
+import type { BlockKind } from '../../../core/nodes';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
 import { createAutoScroll } from '../../../selection/autoscroll';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
+import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,9 +46,16 @@ export function installCellDragListener(
 	let rafId: number | null = null;
 
 	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
+	// cellCoordinate marks the offset as a row-major cell index. When the drag
+	// exits to a foreign block, the whole-row snap (table-endpoint-snap.ts) needs
+	// it on this anchor so copy/delete agree on the same rows — without it a Cut
+	// anchored mid-row row-rounds the copy while the delete clears from the
+	// mid-cell, duplicating the leading cells. Same-table extends compare equal
+	// paths and short-circuit the snap, so the intra-table rectangle is untouched.
 	const anchorPoint: SelectionPoint = {
 		path: anchor.tablePath.slice(),
-		offset: anchorCellIdx
+		offset: anchorCellIdx,
+		cellCoordinate: true
 	};
 
 	// `anchor.tableEl` is `[role="table"]`, the .block-host wrapper-equivalent
@@ -114,10 +123,18 @@ export function installCellDragListener(
 	function extendToForeignBlock(clientX: number, clientY: number): void {
 		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
 		if (!hit) return;
-		const offset = offsetFromViewportPoint(hit.element, clientX, clientY);
+		// A table destination addresses cells by row-major index, not char offset, and
+		// must carry cellCoordinate so the whole-row snap fires symmetrically with the
+		// anchor (matching the keyboard path, which flags both endpoints). Without it a
+		// drag between two tables snaps only the anchor, mismapping the collapse caret
+		// and slicing the destination grid markup.
+		const offset = hit.foreignDragHitTest
+			? hit.foreignDragHitTest(clientX, clientY)
+			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
-		const focusPoint: SelectionPoint = { path: hit.path, offset };
-		// Anchor stays cell-encoded (shallow tablePath, cellIdx offset); foreign focus carries a deep block path with a character offset. Consumers disambiguate via pathsEqual / isCustomRendered.
+		const focusPoint: SelectionPoint = hit.foreignDragHitTest
+			? { path: hit.path, offset, cellCoordinate: true }
+			: { path: hit.path, offset };
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
@@ -254,12 +271,18 @@ export function cellCoordsOfElement(
  * case (drag exits the table). Walks up to the nearest data-block-path
  * ancestor — cells don't carry that attribute, so the search resolves to the
  * destination block (paragraph, header, etc.) rather than the originating cell.
+ * A destination whose kind has internal coordinate addressing (another table)
+ * carries its `foreignDragHitTest` so the focus can be a cell-coordinate point.
  */
 function blockAtPoint(
 	editorRoot: HTMLElement,
 	clientX: number,
 	clientY: number
-): { path: number[]; element: HTMLElement } | null {
+): {
+	path: number[];
+	element: HTMLElement;
+	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
+} | null {
 	const target = document.elementFromPoint(clientX, clientY);
 	if (!target) return null;
 
@@ -270,6 +293,18 @@ function blockAtPoint(
 			if (attr) {
 				try {
 					const path = JSON.parse(attr) as number[];
+					const kind = el.getAttribute('data-block-kind');
+					const hitTest = kind
+						? tryGetBlockKindDescriptor(kind as BlockKind)?.foreignDragHitTest
+						: undefined;
+					if (hitTest) {
+						const wrapper = el;
+						return {
+							path,
+							element: wrapper,
+							foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
+						};
+					}
 					const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
 					return { path, element: editable ?? el };
 				} catch {
