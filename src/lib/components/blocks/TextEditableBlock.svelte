@@ -6,11 +6,7 @@
 		FocusActions,
 		HistoryActions
 	} from '../../action-contracts';
-	import {
-		type AmbientPrefix,
-		type BlockComponent,
-		type StickyColumnDirection
-	} from '../../block-component';
+	import { type AmbientPrefix, type BlockComponent } from '../../block-component';
 	import type { CstNode } from '../../core/nodes';
 	import {
 		BLOCK_EDIT_KEY,
@@ -47,21 +43,15 @@
 	import { isLiveWidgetInline } from '../../core/inline/raw-html-widget';
 	import { trimTrailingLineEnding } from '../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../cursor/content-offsets';
-	import { findOffsetNearestX } from '../../cursor/sticky-measure';
 	import { toggleInlineFormat } from './text/format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text/text-keydown';
 	import { createTextClipboard } from './text/text-clipboard';
 	import { createTextRender } from './text/text-render';
 	import { findFirstEdgeWidget, findLastEdgeWidget } from './text/widget-adjacency';
 	import { createWidgetInteraction } from './text/widget-interaction';
-	import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
-	import {
-		handleSharedKeydown,
-		handleSharedBeforeInput,
-		type SharedKeydownContext
-	} from '../../selection/shared-keydown';
+	import { handleSharedKeydown, handleSharedBeforeInput } from '../../selection/shared-keydown';
 	import type { SelectionState } from '../../selection/selection-state.svelte';
-	import { createCrossBlockHandlers } from '../../selection/cross-block/dispatch';
+	import { createEditableSurface } from './editable-surface';
 	import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 	import {
 		rawOffsetAtNode,
@@ -134,14 +124,32 @@
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
-	const crossBlock = createCrossBlockHandlers({
+	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
+		backend: {
+			getRaw: () => cursor.getRaw(),
+			setRaw: (offset) => cursor.setRaw(offset),
+			buildRange: (start, end) =>
+				createRangeAtRawOffsets(el!, ambientLength + start, ambientLength + end)
+		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
+		getComposing: () => composing,
+		setComposing: (value) => {
+			composing = value;
+		},
+		getPreEditOffset: () => preEditOffset,
+		setPreEditOffset: (offset) => {
+			preEditOffset = offset;
+		},
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		},
 		selection,
 		getDoc,
 		getBlockElByPath,
-		revealPath: focusActions.revealPath,
+		focusActions,
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
@@ -150,11 +158,6 @@
 		controller,
 		history,
 		pasteCoordinator,
-		getCursorOffset: () => cursor.getRaw(),
-		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
 		afterRawMutated: (targetNode) => {
 			if (isProseKind(targetNode.kind)) {
 				const range = getContentRange(targetNode);
@@ -165,8 +168,26 @@
 					linkRef?.current
 				);
 			}
+		},
+		getFocusOffset: () => {
+			if (!el) return null;
+			const sel = window.getSelection();
+			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+			const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+			return Math.max(0, content - ambientLength);
+		},
+		getTextLen: () => getDisplayText().length,
+		readText: () => readRawText(),
+		commitInput: (text, preEdit, saved) =>
+			blockEdit.updateBlockContent(index, text + '\n', preEdit, saved),
+		inputPrelude: () => {
+			markKeystrokeStart();
+			lastSnapTargetOffset = null;
 		}
 	});
+
+	const crossBlock = editableSurface.crossBlock;
+	const sharedCtx = editableSurface.sharedCtx;
 
 	const clipboardHandlers = createTextClipboard({
 		get node() {
@@ -217,28 +238,6 @@
 		}
 	});
 
-	const sharedCtx: SharedKeydownContext = {
-		getEl: () => el ?? null,
-		getCursorOffset: () => cursor.getRaw(),
-		getFocusOffset: () => {
-			if (!el) return null;
-			const sel = window.getSelection();
-			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-			const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-			return Math.max(0, content - ambientLength);
-		},
-		getTextLen: () => getDisplayText().length,
-		getMyPath: () => myPath,
-		getIndex: () => index,
-		crossBlock,
-		selection,
-		stickyColumn,
-		history,
-		focus: focusActions,
-		getDoc,
-		getBlockElByPath
-	};
-
 	const textRender = createTextRender({
 		get el() {
 			return el ?? null;
@@ -275,48 +274,12 @@
 	export const editable = true;
 	export const focusable = true;
 
-	export function focus(offset: number): void {
-		if (!el) return;
-		el.focus();
-		cursor.setRaw(Math.max(0, offset));
-	}
-
-	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
-		if (!el) return;
-		el.focus();
-		// minOffset = ambientLength keeps the scan out of the marker region.
-		const contentOffset = findOffsetNearestX(el, x, from, ambientLength);
-		cursor.setRaw(Math.max(0, contentOffset - ambientLength));
-	}
-
-	export function getCursorOffset(): number | null {
-		return cursor.getRaw();
-	}
-
-	export function getSelectedText(): string {
-		if (!el) return '';
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return '';
-		return sel.toString();
-	}
-
-	export function setSelection(start: number, end: number): void {
-		if (!el) return;
-		const range = createRangeAtRawOffsets(el, ambientLength + start, ambientLength + end);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
-	}
-
-	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
-		if (!el) return [];
-		return measurePartialRectsInContentEditable(
-			el,
-			ambientLength + startOffset,
-			ambientLength + endOffset
-		);
-	}
+	export const focus = editableSurface.surface.focus;
+	export const focusAtColumn = editableSurface.surface.focusAtColumn;
+	export const getCursorOffset = editableSurface.surface.getCursorOffset;
+	export const getSelectedText = editableSurface.surface.getSelectedText;
+	export const setSelection = editableSurface.surface.setSelection;
+	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
 	export function isVerticallyTransparent(): boolean {
 		return widgetInteraction.isVerticallyTransparent();
@@ -483,18 +446,7 @@
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
-	function onInput(): void {
-		markKeystrokeStart();
-		stickyColumn.reset();
-		lastSnapTargetOffset = null;
-		if (composing || !el) return;
-		const text = readRawText();
-		const savedRawOffset = cursor.getRaw() ?? 0;
-		// preEdit drives the undo snapshot anchor; postEdit drives focus when typing
-		// (e.g. `# `) triggers a kind change and the block remounts.
-		blockEdit.updateBlockContent(index, text + '\n', preEditOffset, savedRawOffset);
-		pendingCursorOffset = savedRawOffset;
-	}
+	const onInput = editableSurface.onInput;
 
 	// Walk children directly (rather than reading textContent) so stray text
 	// nodes Chromium inserts around the marker span don't pollute the raw.
@@ -509,17 +461,8 @@
 		return out;
 	}
 
-	function onCompositionStart(): void {
-		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
-		preEditOffset = cursor.getRaw() ?? 0;
-		crossBlock.handleCompositionStart();
-		composing = true;
-	}
-
-	function onCompositionEnd(): void {
-		composing = false;
-		onInput();
-	}
+	const onCompositionStart = editableSurface.onCompositionStart;
+	const onCompositionEnd = editableSurface.onCompositionEnd;
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;

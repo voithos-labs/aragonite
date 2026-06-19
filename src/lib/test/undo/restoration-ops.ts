@@ -13,10 +13,10 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../core/lines';
-import { createUndoController } from '../../editor-actions/undo-controller';
+import { createUndoController } from '../../editor-actions/undo/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createContainerEditActions } from '../../editor-actions/container-edit';
-import { createHistoryActions } from '../../editor-actions/history';
+import { createHistoryActions } from '../../editor-actions/undo/history';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
