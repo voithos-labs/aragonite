@@ -18,7 +18,10 @@ export function tableDragHitTest(
 	const cell = cellAtPoint(clientX, clientY, tableEl);
 	if (!cell) return null;
 
-	const firstRow = tableEl.querySelector(':scope > [data-table-row-idx="0"]');
+	// Read the first MOUNTED row, not row 0 — row-windowing unmounts row 0 once
+	// the table scrolls past it (VR-K1). Column tracks are uniform, so any
+	// mounted row yields the same count. Mirrors TableBlock.collectColumnRects.
+	const firstRow = tableEl.querySelector(':scope > [data-table-row-idx]');
 	if (!firstRow) return null;
 	const columnCount = firstRow.querySelectorAll(':scope > [role="cell"]').length;
 	if (columnCount === 0) return null;

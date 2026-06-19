@@ -69,12 +69,18 @@ export function installDragListener(
 			return;
 		}
 
-		const offset = hit.foreignDragHitTest
-			? hit.foreignDragHitTest(clientX, clientY)
+		const isCellCoordinate = !!hit.foreignDragHitTest;
+		const offset = isCellCoordinate
+			? hit.foreignDragHitTest!(clientX, clientY)
 			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 
-		const focusPoint: SelectionPoint = { path: hit.path, offset };
+		// A table endpoint's offset is a row-major cell index, not a char offset.
+		// The flag routes collapse/reveal to the deep cell (cellEndpointDeepPath)
+		// and arms the assertCharOffset guard, matching the keyboard path.
+		const focusPoint: SelectionPoint = isCellCoordinate
+			? { path: hit.path, offset, cellCoordinate: true }
+			: { path: hit.path, offset };
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {

@@ -133,6 +133,42 @@ test.describe('table block: pointer selection', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
+	// F3: a pointer-drag table endpoint must carry cellCoordinate:true so collapse
+	// routes to the DEEP [table,row,col] cell, matching the keyboard path. Without the
+	// flag, collapse lands on the table WRAPPER at a meaningless char offset and the
+	// typed marker misses the cell. Multi-char cells separate the row-major linear
+	// index from a char offset, making the wrong-landing observable.
+	test('collapsing a pointer-dragged table selection lands the caret in the deep cell (F3)', async ({
+		page
+	}) => {
+		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR);
+		const para = page.getByText('Before.');
+		const targetCell = page.locator('[role="cell"]').last(); // last body cell "fff"
+		const paraBox = await para.boundingBox();
+		const cellBox = await targetCell.boundingBox();
+		if (!paraBox || !cellBox) throw new Error('missing boxes');
+		const sx = paraBox.x + 5;
+		const sy = paraBox.y + paraBox.height / 2;
+		const ex = cellBox.x + cellBox.width / 2;
+		const ey = cellBox.y + cellBox.height / 2;
+		await page.mouse.move(sx, sy);
+		await page.mouse.down();
+		for (let i = 1; i <= 12; i++) {
+			const t = i / 12;
+			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+		}
+		await page.mouse.up();
+		await editor.waitForCrossBlock(true);
+
+		await page.keyboard.press('ArrowRight'); // collapse to end (the focus cell)
+		await editor.waitForCrossBlock(false);
+		await editor.typeText('DEEP_MARK');
+		await editor.bridge.waitForSourceContains('DEEP_MARK');
+
+		const cells = page.locator('[role="cell"]');
+		expect(await cells.last().textContent()).toContain('DEEP_MARK');
+	});
+
 	test('drag from paragraph above into table enters cross-block', async ({ page }) => {
 		await editor.loadContent('Before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		const para = page.getByText('Before.');

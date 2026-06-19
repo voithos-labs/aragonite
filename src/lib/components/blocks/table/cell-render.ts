@@ -6,7 +6,7 @@
  */
 
 import type { CstNode } from '../../../core/nodes';
-import type { LinkReferenceResolverRef } from '../../../editor-keys';
+import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import { getContentRange, parseInline } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -16,6 +16,7 @@ export interface CellRenderDeps {
 	get el(): HTMLElement | null;
 	get node(): CstNode;
 	get linkRef(): LinkReferenceResolverRef | undefined;
+	resolveLinkUrl: ResolveLinkUrl;
 }
 
 export interface CellRender {
@@ -56,7 +57,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		);
 		el.replaceChildren(
 			renderInlineNodes(content, node.raw, {
-				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true
+				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
+				resolveLinkUrl: deps.resolveLinkUrl
 			})
 		);
 		lastRenderedKey = renderKey;

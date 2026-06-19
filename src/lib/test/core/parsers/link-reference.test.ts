@@ -51,6 +51,24 @@ describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
 	});
 });
 
+// ── Destination parsing ─────────────────────────────────────────────────────
+
+describe('parseLinkReferenceDefinition — destination', () => {
+	function parseOne(source: string) {
+		const lines = splitLines(source);
+		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
+	}
+
+	it('returns null for an unclosed angle-bracket destination', () => {
+		expect(parseOne('[foo]: <bar\n')).toBeNull();
+	});
+
+	it('leaves an unclosed angle-bracket destination as a paragraph', () => {
+		const doc = parse('[foo]: <bar\n');
+		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph']);
+	});
+});
+
 describe('round-trip: link reference definition with escaped brackets', () => {
 	const cases = [
 		{ name: '\\] in label', source: '[foo\\]bar]: /url\n' },

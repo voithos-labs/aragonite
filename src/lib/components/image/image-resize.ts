@@ -12,6 +12,14 @@ export function clampWidth(width: number, maxWidth: number): number {
 	return rounded;
 }
 
+// Keyboard nudge floor sits above MIN_WIDTH so a held Shift+Arrow can't shrink
+// an image to a sub-clickable sliver; the ceiling matches the drag path.
+export const KEYBOARD_MIN_WIDTH = 32;
+
+export function keyboardResizeWidth(currentWidth: number, delta: number, maxWidth: number): number {
+	return clampWidth(Math.max(KEYBOARD_MIN_WIDTH, currentWidth + delta), maxWidth);
+}
+
 export function snapWidth(width: number, maxWidth: number, snapThresholdPx: number): number {
 	const rounded = Math.round(width);
 	for (const pct of SNAP_PERCENTAGES) {
