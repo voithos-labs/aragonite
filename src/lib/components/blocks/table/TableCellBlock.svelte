@@ -59,6 +59,7 @@
 	} from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createCrossBlockHandlers } from '../../../selection/cross-block/dispatch';
+	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		writeCrossBlockCopy,
 		writeCrossBlockCut
@@ -292,6 +293,14 @@
 			cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
+	});
+
+	// Windowed out while focused: hand focus to the editor root so the next
+	// keystroke routes through its document-level listener instead of falling to
+	// <body>. See parkFocusOnEditorRoot.
+	$effect(() => {
+		const blockEl = el;
+		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
 
 	// Walk children rather than reading textContent: a rendered widget (e.g. the
