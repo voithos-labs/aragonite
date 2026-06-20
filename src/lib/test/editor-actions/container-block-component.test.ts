@@ -19,8 +19,7 @@ function listNode(childCount: number): CstNode {
 	const children: CstNode[] = Array.from({ length: childCount }, () => ({
 		kind: 'paragraph',
 		leadingTrivia: '',
-		raw: 'text\n',
-		inlineContent: [{ kind: 'text', start: 0, end: 4, text: 'text' }]
+		raw: 'text\n'
 	}));
 	return { kind: 'list', leadingTrivia: '', raw: '', children };
 }
@@ -96,8 +95,7 @@ describe('createContainerBlockComponent', () => {
 				{
 					kind: 'paragraph',
 					leadingTrivia: '',
-					raw: '![pic](/x.png)\n',
-					inlineContent: [{ kind: 'image', start: 0, end: 14, url: '/x.png', alt: 'pic' }]
+					raw: '![pic](/x.png)\n'
 				}
 			]
 		};

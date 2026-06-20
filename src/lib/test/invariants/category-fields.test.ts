@@ -16,13 +16,6 @@ describe('checkCategoryFields (G1.5)', () => {
 		expect(violation?.detail).toEqual({ kind: 'paragraph', field: 'children' });
 	});
 
-	it('fires when a non-prose kind carries inlineContent', () => {
-		const node = leaf('---\n');
-		node.inlineContent = [];
-		const violation = checkCategoryFields(node);
-		expect(violation?.detail).toEqual({ kind: 'thematicBreak', field: 'inlineContent' });
-	});
-
 	it('fires when a leaf carries a container structural field', () => {
 		const node = leaf('hello\n');
 		node.innerPrefix = '';
@@ -30,12 +23,6 @@ describe('checkCategoryFields (G1.5)', () => {
 			kind: 'paragraph',
 			field: 'innerPrefix'
 		});
-	});
-
-	it('passes for a real prose leaf with inlineContent', () => {
-		const node = leaf('hello *world*\n');
-		node.inlineContent = [];
-		expect(checkCategoryFields(node)).toBeNull();
 	});
 
 	it('passes for a real container with children', () => {

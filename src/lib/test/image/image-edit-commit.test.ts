@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { parse } from '../../core/parser';
-import { parseAllInlineContent } from '../../core/inline';
+import { getInlineContent } from '../../core/inline/inline-cache';
 import type { UndoController } from '../../editor-actions/deps';
 import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 import type { EditorEvents } from '../../editor-events';
@@ -25,9 +25,8 @@ function makeStubController() {
 describe('image edit commit — redundant-commit guard (E1)', () => {
 	it('does not commit when the new image bytes equal the current source', async () => {
 		const doc = parse('![alt](url)\n');
-		parseAllInlineContent(doc.children);
 		const para = doc.children[0] as CstNode;
-		const image = (para.inlineContent ?? []).find((n) => n.kind === 'image')!;
+		const image = getInlineContent(para).find((n) => n.kind === 'image')!;
 
 		const controller = makeStubController();
 		const committer = createImageEditCommitter({
