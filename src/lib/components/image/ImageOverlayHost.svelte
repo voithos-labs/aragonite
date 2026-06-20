@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import type { Document } from '../../core/nodes';
 	import type { UndoController } from '../../editor-actions/deps';
+	import { LINK_REF_KEY, type LinkReferenceResolverRef } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
 	import ImageProperties from './ImageProperties.svelte';
@@ -31,6 +33,8 @@
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
 
+	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+
 	// Props are stable for the editor's lifetime; the committer captures them
 	// once on purpose — reactive values already cross as getters.
 	// svelte-ignore state_referenced_locally
@@ -39,7 +43,8 @@
 		getEditorEl,
 		widgetSelection,
 		controller,
-		events
+		events,
+		linkRef
 	});
 
 	$effect(() => {
