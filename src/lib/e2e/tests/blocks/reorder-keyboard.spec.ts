@@ -46,4 +46,29 @@ test.describe('keyboard reorder', () => {
 		await editor.page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals('> a\n>\n> b\n');
 	});
+
+	// Boundary clamp: a move with no sibling in that direction must change nothing
+	// AND push no undo entry — otherwise a boundary press would silently consume a
+	// Ctrl+Z. The type-then-boundary-then-undo sequence catches a phantom entry the
+	// unit-level clamp test can't (it bypasses the keymap-dispatch path).
+	test('Alt+Arrow at a boundary is a no-op and creates no undo entry', async () => {
+		await editor.loadContent('A\n\nB\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'A' }).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.type('X');
+		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
+
+		await editor.page.keyboard.press('Alt+ArrowUp'); // first block — nothing above
+		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
+
+		await editor.page.keyboard.press('Control+z'); // undoes the typing, not a phantom reorder
+		await editor.bridge.waitForSourceEquals('A\n\nB\n');
+	});
+
+	test('Alt+ArrowDown on the last block is a no-op', async () => {
+		await editor.loadContent('A\n\nB\n');
+		await editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).click();
+		await editor.page.keyboard.press('Alt+ArrowDown');
+		await editor.bridge.waitForSourceEquals('A\n\nB\n');
+	});
 });
