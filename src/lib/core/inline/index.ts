@@ -36,6 +36,19 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
+ * Compute a prose node's inline tree from its raw. Pure — no caching, no
+ * reactive reads. The render path calls this directly; the caching accessor
+ * (inline-cache.ts) calls it on a miss.
+ */
+export function computeInlineContent(
+	node: CstNode,
+	resolver?: LinkReferenceResolver
+): InlineNode[] {
+	const range = getContentRange(node);
+	return parseInline(node.raw, range.start, range.end, resolver);
+}
+
+/**
  * Prose-node count of an inline-sweep target set. Lives here rather than in
  * perf/instruments because isProseKind reads the schema registry and
  * instruments must stay a leaf module.
