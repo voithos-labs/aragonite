@@ -22,7 +22,6 @@ function blankFirstParagraph(item: CstNode): void {
 		throw new Error('item must start with a paragraph');
 	}
 	first.raw = '\n';
-	first.inlineContent = undefined;
 }
 
 // ── buildExitReplacement ───────────────────────────────────────────────────

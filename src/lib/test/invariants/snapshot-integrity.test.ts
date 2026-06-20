@@ -45,13 +45,6 @@ describe('checkSnapshotIntegrity (G1.9)', () => {
 		for (const entry of undo) expect(checkSnapshotIntegrity(entry)).toBeNull();
 	});
 
-	it('does not fire for inlineContent cache writes through a shared node (exempt: derived, non-serialized)', () => {
-		const { deps, controller } = makeHarness('hello\n');
-		controller.pushUndoSnapshot(0, 0);
-		deps.doc.children[0].inlineContent = [];
-		expect(checkSnapshotIntegrity(topEntry(deps))).toBeNull();
-	});
-
 	it('does not fire when a still-shared node is moved by the live tree (exempt: bytes-scoped, not frozen-position)', async () => {
 		const { deps, controller } = makeHarness('- a\n- b\n');
 		const list = deps.doc.children[0];

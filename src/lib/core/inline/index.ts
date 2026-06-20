@@ -64,23 +64,6 @@ export function countProseNodes(nodes: CstNode[]): number {
 	return count;
 }
 
-/**
- * Refresh `inlineContent` on every prose node under `nodes`. The editor shell
- * is the sole production caller — operations rely on it instead of
- * pre-populating the cache themselves.
- */
-export function parseAllInlineContent(nodes: CstNode[], resolver?: LinkReferenceResolver): void {
-	for (const node of nodes) {
-		if (isProseKind(node.kind)) {
-			const range = getContentRange(node);
-			node.inlineContent = parseInline(node.raw, range.start, range.end, resolver);
-		}
-		if (node.children) {
-			parseAllInlineContent(node.children, resolver);
-		}
-	}
-}
-
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**

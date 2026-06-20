@@ -1,15 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { isVerticallyTransparentNode } from '../../core/inline/transparency';
 import { parse } from '../../core/parser';
-import { parseAllInlineContent } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
 
-// Parse like the editor shell does (whole-tree inline cache), so the predicate
-// is exercised against the real node shape rather than hand-built inlines.
+// The predicate computes inline content on demand, so a freshly parsed node is
+// the real shape it sees in production — no pre-population needed.
 function block(md: string, index = 0): CstNode {
-	const doc = parse(md);
-	parseAllInlineContent(doc.children);
-	return doc.children[index];
+	return parse(md).children[index];
 }
 
 describe('isVerticallyTransparentNode', () => {
@@ -65,8 +62,7 @@ describe('isVerticallyTransparentNode', () => {
 			isVerticallyTransparentNode({
 				kind: 'tableCell',
 				leadingTrivia: '',
-				raw: '![a](/a.png)',
-				inlineContent: [{ kind: 'image', start: 0, end: 12, url: '/a.png', alt: 'a' }]
+				raw: '![a](/a.png)'
 			})
 		).toBe(false);
 	});
@@ -77,11 +73,10 @@ describe('isVerticallyTransparentNode', () => {
 		).toBe(false);
 	});
 
-	// Off-window node with no eager `inlineContent` field: the predicate resolves
-	// transparency via the lazy accessor (computes from raw), so an image-only
-	// paragraph is transparent even unmounted. Guards the forward-coupling that
-	// keeps transparency answerable off-window.
-	it('resolves transparency from raw when inlineContent is absent', () => {
+	// The predicate computes inline content from raw, so an image-only paragraph
+	// is transparent even unmounted/off-window. Guards the coupling that keeps
+	// transparency answerable without a mounted render.
+	it('resolves transparency from a raw-only node', () => {
 		expect(
 			isVerticallyTransparentNode({ kind: 'paragraph', leadingTrivia: '', raw: '![pic](/x.png)\n' })
 		).toBe(true);
