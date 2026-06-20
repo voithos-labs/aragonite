@@ -6,13 +6,18 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
-import type { DocumentGetter, WidgetSelectionState } from '../../../editor-keys';
+import type {
+	DocumentGetter,
+	LinkReferenceResolverRef,
+	WidgetSelectionState
+} from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
+import { getInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block/clipboard';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
@@ -30,6 +35,7 @@ export interface TextClipboardDeps {
 	getDoc: DocumentGetter;
 	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
+	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
 export interface TextClipboardHandlers {
@@ -86,9 +92,11 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			selectedWidget !== null &&
 			deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart)
 		) {
-			const inline = (deps.node.inlineContent ?? []).find(
-				(n) => isInlineWidget(n, deps.node.raw) && n.start === selectedWidget.sourceStart
-			);
+			const inline = getInlineContent(
+				deps.node,
+				deps.linkRef?.current,
+				deps.linkRef?.signature ?? ''
+			).find((n) => isInlineWidget(n, deps.node.raw) && n.start === selectedWidget.sourceStart);
 			if (inline) {
 				const newRaw =
 					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);

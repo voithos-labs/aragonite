@@ -77,12 +77,14 @@ describe('isVerticallyTransparentNode', () => {
 		).toBe(false);
 	});
 
-	// An unparsed cache must degrade to "land on it", matching the component's
-	// length === 0 → false, never crash or over-skip.
-	it('is false when inlineContent is absent', () => {
+	// Off-window node with no eager `inlineContent` field: the predicate resolves
+	// transparency via the lazy accessor (computes from raw), so an image-only
+	// paragraph is transparent even unmounted. Guards the forward-coupling that
+	// keeps transparency answerable off-window.
+	it('resolves transparency from raw when inlineContent is absent', () => {
 		expect(
 			isVerticallyTransparentNode({ kind: 'paragraph', leadingTrivia: '', raw: '![pic](/x.png)\n' })
-		).toBe(false);
+		).toBe(true);
 	});
 
 	it('is false for null/undefined', () => {

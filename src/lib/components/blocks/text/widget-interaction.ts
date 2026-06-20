@@ -12,9 +12,10 @@
  */
 
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
-import type { CstNode } from '../../../core/nodes';
-import type { WidgetSelectionState } from '../../../editor-keys';
+import type { CstNode, InlineNode } from '../../../core/nodes';
+import type { LinkReferenceResolverRef, WidgetSelectionState } from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
+import { getInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
@@ -44,6 +45,7 @@ export interface WidgetInteractionDeps {
 	getSnapTarget: () => number | null;
 	setSnapTarget: (offset: number | null) => void;
 	setPendingCursor: (offset: number | null) => void;
+	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
 export interface WidgetInteraction {
@@ -64,6 +66,12 @@ export interface WidgetInteraction {
 }
 
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
+	// Resolver-aware so widget detection matches the render path's view — a
+	// mismatch around reference-style image widgets breaks cursor/clipboard.
+	function inlinesOf(node: CstNode): InlineNode[] {
+		return getInlineContent(node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+	}
+
 	function isTypingKey(e: KeyboardEvent): boolean {
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		return e.key.length === 1;
@@ -71,7 +79,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function isVerticallyTransparent(): boolean {
 		const node = deps.node;
-		const inlines = node.inlineContent ?? [];
+		const inlines = inlinesOf(node);
 		if (inlines.length === 0) return false;
 		for (const inline of inlines) {
 			if (isInlineWidget(inline, node.raw)) continue;
@@ -86,7 +94,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const selectedWidget = deps.widgetSelection.getSelected();
 		if (selectedWidget === null) return false;
 
-		const widget = findWidgetNodeByStart(selectedWidget.sourceStart, node.inlineContent, node.raw);
+		const widget = findWidgetNodeByStart(selectedWidget.sourceStart, inlinesOf(node), node.raw);
 		const widgetIsHere =
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
 		if (!widgetIsHere) return false;
@@ -95,9 +103,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// both, so the shift check has to win or resize never fires.
 		if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 			e.preventDefault();
-			const inline = (node.inlineContent ?? []).find(
-				(n) => n.kind === 'image' && n.start === widget.start
-			);
+			const inline = inlinesOf(node).find((n) => n.kind === 'image' && n.start === widget.start);
 			if (!inline || inline.kind !== 'image') return true;
 
 			const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
@@ -198,7 +204,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean {
 		if (effectiveOffset === null) return false;
 		const node = deps.node;
-		const widgetAt = widgetAtCursor(effectiveOffset, node.inlineContent, node.raw);
+		const widgetAt = widgetAtCursor(effectiveOffset, inlinesOf(node), node.raw);
 		if (!widgetAt) return false;
 
 		if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
@@ -245,7 +251,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// Don't override a click that landed in a real text node — native caret
 		// renders there and a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
-		for (const inline of deps.node.inlineContent ?? []) {
+		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			const widget = el.querySelector(
 				`[data-inline-widget][data-source-start="${inline.start}"]`
@@ -280,7 +286,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
 		const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
 		const focus = Math.max(0, content - deps.getAmbientLength());
-		for (const inline of deps.node.inlineContent ?? []) {
+		for (const inline of inlinesOf(deps.node)) {
 			if (inline.kind !== 'image') continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
 				return inline.end;
