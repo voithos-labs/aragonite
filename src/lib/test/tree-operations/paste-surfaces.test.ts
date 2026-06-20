@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	registerPasteSurface,
 	getPasteSurface,
@@ -25,12 +25,9 @@ describe('paste-surfaces registry', () => {
 		expect(getPasteSurface('paragraph')).toBeUndefined();
 	});
 
-	it('overwrites the existing entry on re-register', () => {
-		const first = makeSurface('paragraph');
-		const second = makeSurface('paragraph');
-		registerPasteSurface(first);
-		registerPasteSurface(second);
-		expect(getPasteSurface('paragraph')).toBe(second);
+	it('throws on re-register of the same kind (register-once)', () => {
+		registerPasteSurface(makeSurface('paragraph'));
+		expect(() => registerPasteSurface(makeSurface('paragraph'))).toThrow(/already registered/i);
 	});
 
 	it('keeps entries for different kinds independent', () => {
@@ -39,29 +36,5 @@ describe('paste-surfaces registry', () => {
 		expect(getPasteSurface('paragraph')).toBeDefined();
 		expect(getPasteSurface('heading')).toBeDefined();
 		expect(getPasteSurface('paragraph')).not.toBe(getPasteSurface('heading'));
-	});
-
-	describe('dev-mode double-register warning', () => {
-		let warnSpy: ReturnType<typeof vi.spyOn>;
-
-		beforeEach(() => {
-			warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		});
-		afterEach(() => {
-			warnSpy.mockRestore();
-		});
-
-		it('warns when the same kind is registered twice in DEV', () => {
-			if (!import.meta.env.DEV) return;
-			registerPasteSurface(makeSurface('paragraph'));
-			registerPasteSurface(makeSurface('paragraph'));
-			expect(warnSpy).toHaveBeenCalledOnce();
-			expect(warnSpy.mock.calls[0][0]).toContain('double register');
-		});
-
-		it('does not warn on a fresh registration', () => {
-			registerPasteSurface(makeSurface('paragraph'));
-			expect(warnSpy).not.toHaveBeenCalled();
-		});
 	});
 });

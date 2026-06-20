@@ -279,9 +279,10 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch — strategy routing end-to-end', () => {
-	// Earlier describes call __resetPasteSurfacesForTests; re-register the
-	// paragraph default so routing sees the same surface it would in the app.
+	// Register-once: clear first, then register the paragraph default so routing
+	// sees the same surface it would in the app, independent of prior describes.
 	beforeEach(() => {
+		__resetPasteSurfacesForTests();
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));
 	});
 
