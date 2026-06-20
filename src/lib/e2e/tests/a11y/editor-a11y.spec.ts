@@ -43,4 +43,13 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await expect(page.locator('span.md-link-blocked')).toHaveCount(1);
 		await expectNoNewA11yViolations(page, 'blocked-link');
 	});
+
+	test('keyboard reorder announces via live region and has no new violations', async ({ page }) => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('Alt+ArrowDown');
+		await editor.bridge.waitForSourceMatches(/beta[\s\S]*alpha[\s\S]*gamma/);
+		await expect(page.locator('.editor-sr-live-reorder')).toContainText('Moved block to position');
+		await expectNoNewA11yViolations(page, 'reorder-announce');
+	});
 });

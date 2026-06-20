@@ -7,6 +7,7 @@ any violation outside the committed baseline allowlist fails the gate.
 
 - Default multi-block content has no new (non-baselined) axe violations.
 - An active cross-block selection exposes an ARIA live region announcing the span, and has no new violations.
+- A keyboard block reorder (Alt+Arrow) announces the new position via a live region, and has no new violations.
 
 ## Edge cases (cross-wave states)
 
