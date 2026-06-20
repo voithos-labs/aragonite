@@ -16,6 +16,11 @@
 		left: -1.25rem;
 		top: 0.15em;
 		opacity: 0;
+		/* Hidden = inert: a nested unit's handle (list item, sub-item) sits at the
+		   same left margin as its container's handle. While hidden it must not
+		   hit-test, or the container's handle would steal the pointerdown and the
+		   drag would resolve to the wrong unit. The reveal rule re-enables it. */
+		pointer-events: none;
 		cursor: grab;
 		user-select: none;
 		color: var(--color-ui-muted, #a4a4a4);
