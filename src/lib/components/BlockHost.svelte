@@ -182,6 +182,7 @@
 	   handle, not a staircase of ancestor handles. */
 	:global(.reorder-host:hover:not(:has(.reorder-host:hover)) > .block-drag-handle) {
 		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.failed-block {
