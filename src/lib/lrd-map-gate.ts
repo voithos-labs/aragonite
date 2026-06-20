@@ -8,26 +8,22 @@ import type { Document } from './core/nodes';
 import type { EditEvent } from './editor-events';
 import { nodeAt } from './tree-operations/node-ops';
 
-const INTRA_BLOCK_OPS: ReadonlySet<EditEvent['op']> = new Set([
-	'input',
-	'updateContent',
-	'metadataUpdate'
-]);
-
 /**
- * Whether a commit could change the LRD set. Rebuild on any structural commit;
- * on an intra-block edit, rebuild only when the doc already holds an LRD
- * (`currentSignature` non-empty — a kind-change carries an intra `op`, so this
- * conservatively covers an LRD being edited away) or the edited node is now an
- * LRD (the first definition created in a previously LRD-free doc). An LRD-free
- * doc skips the walk on routine typing.
+ * Whether a commit could change the LRD set, gating the O(nodes) map rebuild off
+ * the keystroke hot path. The op discriminates the two ways the set changes:
+ *
+ *   - A kind change to/from `linkReferenceDefinition` commits structurally as
+ *     `updateContent` (the noop-kind-stable path emits the debounced `input`
+ *     instead), so any op that is NOT a kind-stable `input`/`metadataUpdate`
+ *     could add or remove a definition — rebuild.
+ *   - A kind-stable edit can only change the set if it edits a definition's own
+ *     bytes (label/url/title) — so an `input`/`metadataUpdate` rebuilds only
+ *     when its target node is itself an LRD.
+ *
+ * Net: typing in an ordinary paragraph never walks the doc, even in a
+ * definition-dense document.
  */
-export function lrdMapCouldChange(
-	doc: Document,
-	event: EditEvent,
-	currentSignature: string
-): boolean {
-	if (!INTRA_BLOCK_OPS.has(event.op)) return true;
-	if (currentSignature !== '') return true;
+export function lrdMapCouldChange(doc: Document, event: EditEvent): boolean {
+	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
 	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
 }
