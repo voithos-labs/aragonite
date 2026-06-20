@@ -1,5 +1,7 @@
 import { parseInline, getContentRange, isProseKind } from '../../core/inline';
+import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
+import type { LinkReferenceResolverRef } from '../../editor-keys';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../../tree-operations/unshare';
 import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
@@ -15,6 +17,7 @@ export interface ImageEditCommitterDeps {
 	widgetSelection: WidgetSelectionState;
 	controller: UndoController;
 	events: EditorEvents;
+	linkRef?: LinkReferenceResolverRef;
 }
 
 export interface SelectedImageFields {
@@ -60,7 +63,10 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
-		for (const inline of para.inlineContent ?? []) {
+		// Resolver-aware so a reference-style image resolves the same way the render
+		// path saw it — otherwise the widget the user clicked has no match here.
+		const inlines = getInlineContent(para, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		for (const inline of inlines) {
 			if (inline.kind === 'image' && inline.start === sourceStart) return inline;
 		}
 		return null;

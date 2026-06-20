@@ -39,6 +39,7 @@
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { parseInline, getContentRange, isProseKind } from '../../../core/inline';
+	import { getInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding } from '../../../core/lines';
@@ -209,6 +210,9 @@
 		widgetSelection,
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
+		},
+		get linkRef() {
+			return linkRef;
 		}
 	});
 
@@ -235,6 +239,9 @@
 		},
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
+		},
+		get linkRef() {
+			return linkRef;
 		}
 	});
 
@@ -286,7 +293,7 @@
 	}
 
 	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
-		const inlines = node.inlineContent ?? [];
+		const inlines = getInlineContent(node, linkRef?.current, linkRef?.signature ?? '');
 		if (inlines.length === 0) return false;
 		const target =
 			side === 'start'
@@ -433,7 +440,7 @@
 		}
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of node.inlineContent ?? []) {
+		for (const inline of getInlineContent(node, linkRef?.current, linkRef?.signature ?? '')) {
 			if (!isInlineWidget(inline, node.raw)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
 			const widget = el.querySelector(`[data-inline-widget][data-source-start="${inline.start}"]`);
