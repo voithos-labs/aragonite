@@ -345,8 +345,7 @@ test('axisR: steady-state instrument breakdown (nested 1MB)', async ({ page }) =
 			parseCount: s.parseCount,
 			parseMs: Math.round(s.parseMsTotal),
 			parseBlockCount: s.parseBlockCount,
-			inlineRefreshCount: s.inlineRefreshCount,
-			inlineRefreshNodeCount: s.inlineRefreshNodeCount,
+			inlineComputeCount: s.inlineComputeCount,
 			snapshotCount: s.snapshotCount,
 			rebuildDepths: s.rebuildDepths
 		});
@@ -405,8 +404,7 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 		renders: s.blockRenderCount,
 		parseCount: s.parseCount,
 		parseBlockCount: s.parseBlockCount,
-		inlineRefreshCount: s.inlineRefreshCount,
-		inlineRefreshNodeCount: s.inlineRefreshNodeCount,
+		inlineComputeCount: s.inlineComputeCount,
 		snapshotCount: s.snapshotCount,
 		rebuildDepths: s.rebuildDepths
 	});

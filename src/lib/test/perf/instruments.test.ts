@@ -12,7 +12,7 @@ import {
 	perfEnabled,
 	perfSnapshot,
 	recordBlockRender,
-	recordInlineRefresh,
+	recordInlineCompute,
 	recordParse,
 	recordRebuildDepth,
 	recordSnapshotClone,
@@ -27,8 +27,7 @@ const EMPTY: PerfSnapshot = {
 	parseCount: 0,
 	parseMsTotal: 0,
 	parseBlockCount: 0,
-	inlineRefreshCount: 0,
-	inlineRefreshNodeCount: 0,
+	inlineComputeCount: 0,
 	undoLiveBytes: 0,
 	undoEntryCount: 0,
 	blockRenderCount: 0,
@@ -42,7 +41,7 @@ function recordOneOfEach(): void {
 	recordSnapshotClone(100);
 	recordRebuildDepth(3);
 	recordParse(1.5, 10);
-	recordInlineRefresh(5);
+	recordInlineCompute();
 	setUndoGauge(1000, 2);
 	recordBlockRender(2);
 	markKeystrokeStart();
@@ -76,7 +75,8 @@ describe('perf instruments', () => {
 		recordRebuildDepth(2);
 		recordRebuildDepth(4);
 		recordParse(1.5, 10);
-		recordInlineRefresh(7);
+		recordInlineCompute();
+		recordInlineCompute();
 		setUndoGauge(1234, 3);
 		const s = perfSnapshot();
 		expect(s.snapshotCloneBytes).toBe(150);
@@ -84,8 +84,7 @@ describe('perf instruments', () => {
 		expect(s.rebuildDepths).toEqual({ 2: 2, 4: 1 });
 		expect(s.parseCount).toBe(1);
 		expect(s.parseBlockCount).toBe(10);
-		expect(s.inlineRefreshCount).toBe(1);
-		expect(s.inlineRefreshNodeCount).toBe(7);
+		expect(s.inlineComputeCount).toBe(2);
 		expect(s.undoLiveBytes).toBe(1234);
 		expect(s.undoEntryCount).toBe(3);
 	});
