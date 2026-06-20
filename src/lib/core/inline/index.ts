@@ -13,6 +13,7 @@ import type { LinkReferenceResolver } from './link-reference-resolver';
 import { scanInlineRawHtml } from './raw-html';
 import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
 import { processHardLineBreaks, mergeAdjacentText } from './post-process';
+import { recordInlineCompute } from '../../perf/instruments';
 
 // ── Content Range ──────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export function computeInlineContent(
 	node: CstNode,
 	resolver?: LinkReferenceResolver
 ): InlineNode[] {
+	recordInlineCompute();
 	const range = getContentRange(node);
 	return parseInline(node.raw, range.start, range.end, resolver);
 }

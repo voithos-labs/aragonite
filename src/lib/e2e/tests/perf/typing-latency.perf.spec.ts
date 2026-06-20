@@ -91,13 +91,14 @@ test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
-	// The sweep runs on the debounced input flush (~250ms after the keystroke),
-	// so poll the snapshot instead of reading it immediately.
+	// The edited block's inline recompute rides the debounced input flush
+	// (~250ms after the keystroke), so poll the snapshot rather than reading it
+	// immediately.
 	await page.waitForFunction(
-		() => (window as any).__test.perf.snapshot().inlineRefreshCount >= 1,
+		() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 		null,
 		{ timeout: 5_000, polling: 16 }
 	);
 	const snapshot = await page.evaluate(() => (window as any).__test.perf.snapshot());
-	expect(snapshot.inlineRefreshCount).toBeGreaterThanOrEqual(1);
+	expect(snapshot.inlineComputeCount).toBeGreaterThanOrEqual(1);
 });

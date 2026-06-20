@@ -17,8 +17,7 @@ export interface PerfSnapshot {
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
-	inlineRefreshCount: number;
-	inlineRefreshNodeCount: number;
+	inlineComputeCount: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -40,8 +39,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
-		inlineRefreshCount: 0,
-		inlineRefreshNodeCount: 0,
+		inlineComputeCount: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -102,10 +100,9 @@ export function recordParse(ms: number, blockCount: number): void {
 	counters.parseBlockCount += blockCount;
 }
 
-export function recordInlineRefresh(nodeCount: number): void {
+export function recordInlineCompute(): void {
 	if (!enabled) return;
-	counters.inlineRefreshCount++;
-	counters.inlineRefreshNodeCount += nodeCount;
+	counters.inlineComputeCount++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {
