@@ -17,6 +17,7 @@ import type { LinkReferenceResolverRef, WidgetSelectionState } from '../../../ed
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { getInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
+import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
 import { keyboardResizeWidth } from '../../image/image-resize';
@@ -78,15 +79,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	function isVerticallyTransparent(): boolean {
-		const node = deps.node;
-		const inlines = inlinesOf(node);
-		if (inlines.length === 0) return false;
-		for (const inline of inlines) {
-			if (isInlineWidget(inline, node.raw)) continue;
-			if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
-			return false;
-		}
-		return true;
+		// Resolver-free, matching the off-window keyboard-extend path: the
+		// vertical-skip decision is uniform everywhere. The other widget reads
+		// below stay resolver-aware (parity with render).
+		return isVerticallyTransparentNode(deps.node);
 	}
 
 	async function handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean> {
