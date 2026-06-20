@@ -3,8 +3,8 @@
 A keystroke re-renders only the blocks whose rendered DOM can actually
 change — never the whole document. The block render path subscribes to the
 document-level LRD resolver, so a careless reassignment of that resolver on
-every edit invalidates every mounted block. This guards the render layer,
-distinct from `inline-dirty-set` (which guards the inline-parse sweep).
+every edit invalidates every mounted block. This guards the render layer:
+that a bounded set of blocks re-renders per edit.
 
 ## Happy paths
 

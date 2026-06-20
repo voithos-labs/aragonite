@@ -1,15 +1,13 @@
-# Feature: Inline dirty-set scoping
+# Feature: Cross-block LRD reactivity
 
-The per-edit inline sweep refreshes only the edited top-level subtree on
-intra-block edits; an LRD signature change widens it back to whole-doc so
-cross-block references stay fresh.
+A link-reference definition lives in its own block, but the references that
+resolve through it live in other blocks. Editing the definition must keep those
+references fresh in the rendered DOM, even though the edit never touches the
+referencing block.
 
 ## Happy paths
 
-- typing scopes the sweep: with perf instruments armed, one keystroke in a
-  30-paragraph document records an inline refresh of at most 2 prose nodes,
-  not all 30
-- LRD edit re-resolves other blocks: typing an LRD into one block turns an
-  unresolved reference in another block into a resolved link — both in the
-  rendered DOM and in that block's cached `inlineContent` (the signature
-  change forces a whole-doc sweep)
+- LRD edit re-resolves another block: turning a plain block into an LRD (a real
+  keystroke edit that changes the document's LRD signature) converts an
+  unresolved reference in a different block from a dimmed unresolved marker into
+  a live link whose `href` matches the new definition
