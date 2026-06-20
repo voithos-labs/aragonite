@@ -120,6 +120,7 @@
 
 <div
 	class="block-host"
+	class:reorder-host={reorderable && dragHandles}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
 	bind:this={hostEl}
@@ -173,9 +174,13 @@
 	}
 
 	/* Pure-CSS hover reveal: no per-block reactive state on a path the 0.8 work
-	   proved scales with mounted-component count. `> ` keeps a hovered nested
-	   host from revealing an ancestor's handle. */
-	.block-host:hover > :global(.block-drag-handle) {
+	   proved scales with mounted-component count. Global (not scoped) because
+	   reorder hosts nest across components (blockquote > child, list item >
+	   sub-item). `.reorder-host` marks any host that renders a handle (BlockHost
+	   when reorderable, plus ListItemBlock); `:not(:has(.reorder-host:hover))`
+	   reveals only the INNERMOST hovered unit's handle, so a deep hover shows one
+	   handle, not a staircase of ancestor handles. */
+	:global(.reorder-host:hover:not(:has(.reorder-host:hover)) > .block-drag-handle) {
 		opacity: 1;
 	}
 

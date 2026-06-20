@@ -235,7 +235,12 @@
 	}
 </script>
 
-<div class="list-item-block" data-task-checked={taskCheckedAttr} bind:this={boxEl}>
+<div
+	class="list-item-block"
+	class:reorder-host={dragHandles}
+	data-task-checked={taskCheckedAttr}
+	bind:this={boxEl}
+>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="list-item-content" onkeydown={handleKeydown} bind:this={contentEl}>
 		<BlockList
@@ -262,11 +267,9 @@
 		align-items: flex-start;
 	}
 
-	/* Pure-CSS hover reveal, matching .block-host. `> ` scopes it to this item's
-	   own handle, never a nested sub-item's. */
-	.list-item-block:hover > :global(.block-drag-handle) {
-		opacity: 1;
-	}
+	/* Hover reveal is the shared global `.reorder-host` rule in BlockHost (the
+	   `reorder-host` class above opts this item in); it reveals only the
+	   innermost hovered unit, so a sub-item's hover never lights the parent. */
 
 	.list-item-content {
 		flex: 1;
