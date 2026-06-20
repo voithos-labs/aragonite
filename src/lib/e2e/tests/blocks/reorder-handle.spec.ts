@@ -44,6 +44,19 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
+	test('nested hover reveals only the innermost unit, not the ancestor handle', async () => {
+		await editor.loadContent('> a\n>\n> b\n');
+		const bqOwnHandle = editor.page.locator(
+			'.block-host[data-block-kind="blockquote"] > .block-drag-handle'
+		);
+		const child = editor.page.locator('.blockquote-block .block-host', { hasText: 'b' });
+		const childHandle = child.locator('.block-drag-handle');
+
+		await child.hover();
+		await expect(childHandle).toHaveCSS('opacity', '1'); // innermost unit reveals
+		await expect(bqOwnHandle).toHaveCSS('opacity', '0'); // ancestor stays hidden — no staircase
+	});
+
 	test('axe baseline stays green with handles rendered', async ({ page }) => {
 		await editor.loadContent('- one\n\nplain\n\n> quoted\n');
 		await editor.waitForRenderFlush();
