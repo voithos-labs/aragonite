@@ -16,8 +16,8 @@ import { pathsEqual } from './path-math';
 export interface SelectionStateOptions {
 	/**
 	 * Fired after any state mutation. No payload — subscribers call
-	 * `editor.getSelection()` to read the new value. Bridged onto
-	 * `editor.events.selectionChange` by Editor.svelte.
+	 * `editor.getSelection()` to read the new value. Bridged onto the
+	 * `selectionChange` event (reached via `getEvents()`) by Editor.svelte.
 	 */
 	onChange?: () => void;
 	/**
