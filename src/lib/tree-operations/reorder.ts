@@ -1,4 +1,6 @@
 import type { CstNode } from '../core/nodes';
+import type { SharingState } from '../undo/epoch-tracker';
+import { ensureUnsharedChild } from './unshare';
 import type { StructuralChange } from './structural-change';
 
 // A reorder rewrites no bytes and creates no node: it is one contiguous `replace`
@@ -16,4 +18,36 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 	const idMap: Record<number, number> = {};
 	for (let k = 0; k < count; k++) idMap[k] = oldWindow[k] - lo;
 	return { op: 'replace', at: lo, count, newCount: count, idMap };
+}
+
+/**
+ * Reorder children while keeping block separators positional. A separator (blank
+ * line) is stored as the next child's `leadingTrivia`, but the serializer reads it
+ * per slot (`leadingTrivia + raw`) — so it belongs to the position, not the node.
+ * Permuting nodes alone drags each node's trivia to its new slot, corrupting the
+ * separators. This captures the spanned window's trivia by slot, permutes, then
+ * reassigns positionally so the moved nodes adopt their destination slot's separator.
+ *
+ * Writing `leadingTrivia` is a byte write, so each spanned child is unshared first
+ * (copy-path-on-write — unshare.ts). The caller's `children` must be an owned array
+ * (a commit ceremony's working copy or an already-unshared container scope).
+ */
+export function reorderChildrenWithTrivia(
+	children: CstNode[],
+	from: number,
+	to: number,
+	sharing: SharingState
+): StructuralChange {
+	if (from === to) return { op: 'noop' };
+	const lo = Math.min(from, to);
+	const hi = Math.max(from, to);
+	const windowTrivia: string[] = [];
+	for (let i = lo; i <= hi; i++) {
+		windowTrivia.push(ensureUnsharedChild({ children }, i, sharing).leadingTrivia);
+	}
+	const change = reorderChildren(children, from, to);
+	for (let k = 0; k < windowTrivia.length; k++) {
+		children[lo + k].leadingTrivia = windowTrivia[k];
+	}
+	return change;
 }
