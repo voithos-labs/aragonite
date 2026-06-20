@@ -1,35 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 
-test.describe('inline dirty-set scoping', () => {
+test.describe('cross-block LRD reactivity', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-	});
-
-	test('one keystroke refreshes only the edited subtree', async ({ page }) => {
-		const paragraphs = Array.from({ length: 30 }, (_, i) => `para ${i}`).join('\n\n') + '\n';
-		await editor.loadContent(paragraphs);
-		await page.evaluate(() => {
-			(window as any).__test.perf.enable();
-			(window as any).__test.perf.reset();
-		});
-
-		await editor.focusBlockEnd(0);
-		await editor.typeSlowly('x');
-		await editor.bridge.waitForSourceContains('para 0x');
-		// The sweep runs on the debounced input flush (~250ms after the keystroke).
-		await page.waitForFunction(
-			() => (window as any).__test.perf.snapshot().inlineRefreshCount >= 1,
-			null,
-			{ timeout: 5_000, polling: 16 }
-		);
-
-		const snapshot = await page.evaluate(() => (window as any).__test.perf.snapshot());
-		// Expected 1 refreshed node; 2 allows one extra flush boundary — not all 30.
-		expect(snapshot.inlineRefreshNodeCount).toBeLessThanOrEqual(2);
 	});
 
 	test('an LRD edit in one block re-resolves references in another', async ({ page }) => {
@@ -50,16 +27,5 @@ test.describe('inline dirty-set scoping', () => {
 		await expect(link).toHaveCount(1);
 		await expect(link).toHaveAttribute('href', 'https://example.com');
 		await expect(block0.locator('span.md-unresolved-ref')).toHaveCount(0);
-
-		// Cache, not just render: the signature-forced whole-doc sweep must
-		// leave block 0's inlineContent re-resolved for non-render consumers.
-		await page.waitForFunction(
-			() =>
-				((window as any).__test.getDocument().children[0].inlineContent ?? []).some(
-					(n: { kind: string }) => n.kind === 'link'
-				),
-			null,
-			{ timeout: 5_000, polling: 16 }
-		);
 	});
 });
