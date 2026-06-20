@@ -17,7 +17,7 @@ Two axes are deliberately **not** viewport-bounded — recorded as references, n
 `src/lib/editor/test/perf/baseline.json` holds the exact numbers and the machine spec — the source of truth.
 
 - **Gated:** `npm run perf:check` enforces the keystroke (`e2e`) rows; `amplification.test.ts` asserts the structural `counters`.
-- **Report-only:** the `parse` / `clone` / `snapshot*` / `ancestryRebuild` rows are dev references — environment-sensitive (orders of magnitude, not targets; see baseline.json's note).
+- **Report-only:** the `parse` / `snapshot*` / `ancestryRebuild` rows are dev references — environment-sensitive (orders of magnitude, not targets; see baseline.json's note).
 
 ## Key architectural decisions
 
