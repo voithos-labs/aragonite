@@ -1,4 +1,4 @@
-import { metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
+import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import type { KeyBinding } from './keybindings';
 import {
@@ -157,6 +157,12 @@ const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
+	if (registry.has(kind)) {
+		throw new Error(
+			`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
+				`use augmentBlockKind to merge fields into an existing registration.`
+		);
+	}
 	registry.set(kind, descriptor);
 }
 
@@ -195,6 +201,13 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 /** Every kind currently registered. Caller must not mutate. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
 	return Array.from(registry.keys());
+}
+
+/** Test-only. Removes every non-built-in descriptor; built-ins survive. */
+export function __removePluginBlockKindsForTests(): void {
+	for (const kind of registry.keys()) {
+		if (!isBuiltinBlockKind(kind)) registry.delete(kind);
+	}
 }
 
 // ── Built-in registrations ──────────────────────────────────────────────────
@@ -342,3 +355,6 @@ registerBlockKind('listItem', {
 		{ chord: 'Shift+Tab', command: 'list.unindent' }
 	]
 });
+
+// register-once now throws on duplicate; full-reload on edit instead of re-running these.
+import.meta.hot?.accept(() => import.meta.hot?.invalidate());

@@ -1,6 +1,7 @@
 /**
- * Observer-pattern event surface exposed as `editor.events`. Events fire
- * synchronously; handlers must NOT mutate the document.
+ * Observer-pattern event surface reached via the editor component's
+ * `getEvents()` accessor. Events fire synchronously; handlers must NOT
+ * mutate the document.
  *
  * Emission sites:
  *   - `edit` structural op: inside `__commit`, after publish.

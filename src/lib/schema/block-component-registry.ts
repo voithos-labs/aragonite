@@ -4,7 +4,7 @@
  */
 
 import type { Component } from 'svelte';
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { BlockComponent } from '../block-component';
 
 export interface BlockComponentEntry {
@@ -37,9 +37,21 @@ export function defineBlockComponent<P extends Record<string, unknown>>(
 const registry = new Map<AnyBlockKind, BlockComponentEntry>();
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
+	if (registry.has(kind)) {
+		throw new Error(
+			`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
+		);
+	}
 	registry.set(kind, entry);
 }
 
 export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {
 	return registry.get(kind);
+}
+
+/** Test-only. Removes every non-built-in component entry; built-ins survive. */
+export function __removePluginComponentsForTests(): void {
+	for (const kind of registry.keys()) {
+		if (!isBuiltinBlockKind(kind)) registry.delete(kind);
+	}
 }
