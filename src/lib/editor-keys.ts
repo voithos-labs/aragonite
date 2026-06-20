@@ -22,6 +22,10 @@ export const FOCUS_KEY = Symbol('focus-actions');
 export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
+/** Sibling-reorder action shared by the keyboard nudge and the drag handle. */
+export const REORDER_ACTION_KEY = Symbol('reorder-action');
+export type { ReorderAction } from './editor-actions/reorder-action';
+
 export const SELECTION_KEY = Symbol('selection');
 export type { EditorSelection } from './selection/primitives';
 

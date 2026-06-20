@@ -137,6 +137,30 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.5)) {
 		await copyPasteUndoDetour(ctx, g);
 	}
+
+	if (rng.chance(0.5)) await g.pause();
+
+	if (rng.chance(0.7)) {
+		await reorderUndoDetour(ctx, g);
+	}
+}
+
+/**
+ * Move the title block down a position, then undo — net identity. This drives a
+ * reorder BETWEEN edits and undo/redo, the interleaving that surfaces the
+ * aliasing/unshare/stamp corruption a reorder can introduce (the simulation is
+ * the only oracle that catches that class — CLAUDE.md). Block 0 is a heading or
+ * paragraph in every note and every note has a sibling below it, so the move is
+ * never a no-op; the closing assertion proves the single undo restores byte-exact.
+ */
+async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await g.pause();
+	await g.reorder(0, 1);
+	await g.pause();
+	await g.undo();
+	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
+	ctx.tracker.resync(before);
 }
 
 /**

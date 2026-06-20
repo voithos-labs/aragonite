@@ -23,6 +23,7 @@
 		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
 		PASTE_COORDINATOR_KEY,
+		REORDER_ACTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
@@ -31,6 +32,7 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type LinkReferenceResolverRef,
+		type ReorderAction,
 		type ResolveImageUrl,
 		type ResolveLinkUrl,
 		type WidgetSelectionState
@@ -89,6 +91,7 @@
 	);
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
@@ -348,6 +351,12 @@
 				pendingCursorOffset = caretOffset;
 				return true;
 			}
+			case 'block.moveUp':
+				reorder.nudgeReorderUnit(myPath, -1);
+				return true;
+			case 'block.moveDown':
+				reorder.nudgeReorderUnit(myPath, 1);
+				return true;
 			default:
 				return false;
 		}

@@ -15,6 +15,7 @@ import {
 	nestQuote,
 	outdent,
 	outdentEmptyItem,
+	reorder,
 	softEnter,
 	startQuote,
 	toggleTask,
@@ -175,6 +176,11 @@ export class Gestures {
 
 	outdent(): Promise<void> {
 		return outdent(this.ctx);
+	}
+
+	/** Move the top-level block at `blockIndex` up (dir -1) or down (dir 1) via Alt+Arrow. */
+	reorder(blockIndex: number, dir: -1 | 1): Promise<void> {
+		return reorder(this.ctx, blockIndex, dir);
 	}
 
 	/**

@@ -139,6 +139,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Tab', command: 'block.insertTab' },
 	{ chord: 'Backspace', command: 'block.mergePrev' },
 	{ chord: 'Delete', command: 'block.mergeNext' },
+	{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 	{ chord: 'Mod+B', command: 'format.toggleStrong' },
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },

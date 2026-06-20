@@ -43,6 +43,21 @@ export async function outdent(ctx: SimContext): Promise<void> {
 }
 
 /**
+ * Move the top-level block at `blockIndex` up/down among its siblings via the
+ * Alt+ArrowUp/Down reorder chord. A reorder permutes siblings without changing
+ * their count, so it settles on the source delta (the permutation) and resyncs.
+ * A no-op move (already at an end) leaves the source unchanged, so the settle
+ * times out and the gesture fails loudly.
+ */
+export async function reorder(ctx: SimContext, blockIndex: number, dir: -1 | 1): Promise<void> {
+	await ctx.editor.clickBlock(blockIndex);
+	await ctx.editor.waitForRenderFlush();
+	await actThenResync(ctx, () =>
+		ctx.page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown')
+	);
+}
+
+/**
  * Tab to nest a freshly-created EMPTY list item one level deeper, the move that
  * lifts the two-level ceiling. Indenting a filled trailing item doesn't nest it
  * under its sibling, but indenting the empty item Enter just created does — so the
