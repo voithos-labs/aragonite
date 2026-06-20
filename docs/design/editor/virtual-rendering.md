@@ -4,7 +4,7 @@
 
 Bound the number of mounted block components to the viewport, so two costs stop scaling with document size:
 
-- **Per-keystroke cost.** The dominant steady-state cost is framework reactive-flush work proportional to the number of mounted components (see `docs/perf/latency-attribution-findings.md`). The only lever that turns O(mounted) into O(viewport) is to genuinely unmount off-screen blocks.
+- **Per-keystroke cost.** The dominant steady-state cost is framework reactive-flush work proportional to the number of mounted components (see `docs/perf/performance.md`). The only lever that turns O(mounted) into O(viewport) is to genuinely unmount off-screen blocks.
 - **Initial render.** Large documents in several shapes (many small blocks, deep nesting, large tables) cannot materialize their DOM at all when every block mounts.
 
 `content-visibility` is not a substitute: it skips paint and layout but leaves components mounted, so their per-keystroke reactive work still runs. The cost being targeted is script, not layout — windowing must be real JS unmounting, not a CSS hint.
@@ -34,7 +34,7 @@ The load-bearing contract: **the index handed to a block and to every operation 
 
 A per-kind **height oracle** estimates and caches block heights, mirroring the editor's per-kind descriptor pattern. The durable commitment is the interface — an O(1) estimate plus a measured-height cache — not any particular estimator.
 
-- **Estimate — O(1), no subtree walk.** A per-kind heuristic derives a height from the block's materialized `raw` length and the content width. Because container raw is materialized (the container-raw decision, `docs/perf/074-container-raw-decision.md`), a container's `raw` already holds all descendant text, so a container estimate is also O(1) — no recursive walk. First layout is O(n) cheap reads, not O(n) tree walks.
+- **Estimate — O(1), no subtree walk.** A per-kind heuristic derives a height from the block's materialized `raw` length and the content width. Because container raw is materialized (the container-raw decision, `docs/perf/performance.md`), a container's `raw` already holds all descendant text, so a container estimate is also O(1) — no recursive walk. First layout is O(n) cheap reads, not O(n) tree walks.
 - **Measured cache, keyed by stable id.** Once a block mounts, its real height is measured and cached by stable block id — not by index — so split/merge index shifts and undo (which restores ids with the snapshot) do not invalidate it. Measured always supersedes estimate; stale entries self-correct on the next mount.
 - **Cumulative model.** Each activated scope owns a binary-indexed (Fenwick) tree over its children: index → pixel offset, offset → index, and total, all logarithmic. It is instantiated lazily on activation and maintained by the same structural-change flow that already syncs ids and refs, so there is no second bypass surface to keep in sync.
 
