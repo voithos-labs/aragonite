@@ -7,7 +7,7 @@
 
 import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
-import { getContentRange, parseInline } from '../../../core/inline';
+import { computeInlineContent } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -48,13 +48,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
-		const range = getContentRange(node);
-		const content = parseInline(
-			node.raw,
-			range.start,
-			range.end,
-			hasRef ? deps.linkRef?.current : undefined
-		);
+		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
 		el.replaceChildren(
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
