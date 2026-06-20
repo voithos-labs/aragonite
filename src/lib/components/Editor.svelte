@@ -625,7 +625,7 @@
 		lifetime={lifetimeController.signal}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
-	<div class="editor-sr-live" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
 </div>
 
 <style>
@@ -671,7 +671,8 @@
 		background: var(--color-ui-dulled, #afb1b3);
 	}
 
-	.editor-sr-live {
+	.editor-sr-live,
+	.editor-sr-live-reorder {
 		position: absolute;
 		width: 1px;
 		height: 1px;
