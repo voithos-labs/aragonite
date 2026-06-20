@@ -1,71 +1,369 @@
 {
-	"recorded": "2026-06-10",
+	"recorded": "2026-06-20",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows are report-only references, not gates. Counter rows are machine-independent. Time rows transcribed from perf-results/editor-bench.json (npm run perf:editor); counter rows from amplification.test.ts output under vitest run. Clone rows include DEV clone-safe-metadata invariant checks (vitest sets DEV) — upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. Rebuild-depth gauge re-seamed in 0.7.4 (a4fb3e4): it now fires in rebuildUnsharedChain, depth counts the full spine including the leaf (+1 vs the old ancestors-only semantics), and typing samples too — earlier depth histograms are not comparable.",
+	"note": "Time rows (parse / clone / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`) and `counters` (structural amplification, asserted by amplification.test.ts). DEV invariant assertions run under vitest, so clone/snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest.",
 	"parse": {
-		"flat-prose-100KB": { "mean-ms": 0.2664, "rme-pct": 0.46, "samples": 1877 },
-		"flat-prose-1MB": { "mean-ms": 2.6469, "rme-pct": 0.78, "samples": 189 },
-		"flat-prose-10MB": { "mean-ms": 31.5124, "rme-pct": 1.72, "samples": 96 },
-		"nested-containers-100KB": { "mean-ms": 3.1456, "rme-pct": 5.45, "samples": 159 },
-		"nested-containers-1MB": { "mean-ms": 33.1547, "rme-pct": 2.21, "samples": 16 },
-		"nested-containers-10MB": { "mean-ms": 378.9174, "rme-pct": 2.8, "samples": 10 },
-		"many-small-blocks-100KB": { "mean-ms": 1.4937, "rme-pct": 1.0, "samples": 335 },
-		"many-small-blocks-1MB": { "mean-ms": 15.7977, "rme-pct": 1.83, "samples": 32 },
-		"many-small-blocks-10MB": { "mean-ms": 217.0827, "rme-pct": 1.94, "samples": 14 },
-		"single-giant-paragraph-100KB": { "mean-ms": 0.1055, "rme-pct": 0.09, "samples": 4740 },
-		"single-giant-paragraph-1MB": { "mean-ms": 1.0496, "rme-pct": 0.31, "samples": 477 },
-		"single-giant-paragraph-10MB": { "mean-ms": 10.4819, "rme-pct": 0.15, "samples": 287 },
-		"reference-heavy-100KB": { "mean-ms": 0.7688, "rme-pct": 2.6, "samples": 651 },
-		"reference-heavy-1MB": { "mean-ms": 7.3001, "rme-pct": 1.54, "samples": 69 },
-		"reference-heavy-10MB": { "mean-ms": 85.7559, "rme-pct": 1.17, "samples": 35 },
-		"table-heavy-100KB": { "mean-ms": 1.1429, "rme-pct": 0.97, "samples": 438 },
-		"table-heavy-1MB": { "mean-ms": 13.3423, "rme-pct": 3.54, "samples": 38 },
-		"table-heavy-10MB": { "mean-ms": 168.9074, "rme-pct": 2.51, "samples": 18 }
+		"flat-prose-100KB": {
+			"mean-ms": 0.2944,
+			"rme-pct": 0.61,
+			"samples": 1699
+		},
+		"flat-prose-1MB": {
+			"mean-ms": 2.925,
+			"rme-pct": 0.85,
+			"samples": 171
+		},
+		"flat-prose-10MB": {
+			"mean-ms": 37.1037,
+			"rme-pct": 2.15,
+			"samples": 81
+		},
+		"nested-containers-100KB": {
+			"mean-ms": 3.7025,
+			"rme-pct": 2.34,
+			"samples": 136
+		},
+		"nested-containers-1MB": {
+			"mean-ms": 47.3193,
+			"rme-pct": 9.68,
+			"samples": 11
+		},
+		"nested-containers-10MB": {
+			"mean-ms": 466.2855,
+			"rme-pct": 3,
+			"samples": 10
+		},
+		"many-small-blocks-100KB": {
+			"mean-ms": 1.902,
+			"rme-pct": 1.33,
+			"samples": 263
+		},
+		"many-small-blocks-1MB": {
+			"mean-ms": 20.3445,
+			"rme-pct": 2.13,
+			"samples": 25
+		},
+		"many-small-blocks-10MB": {
+			"mean-ms": 262.3165,
+			"rme-pct": 2.4,
+			"samples": 12
+		},
+		"single-giant-paragraph-100KB": {
+			"mean-ms": 0.1147,
+			"rme-pct": 0.49,
+			"samples": 4360
+		},
+		"single-giant-paragraph-1MB": {
+			"mean-ms": 1.2232,
+			"rme-pct": 2.27,
+			"samples": 409
+		},
+		"single-giant-paragraph-10MB": {
+			"mean-ms": 11.1353,
+			"rme-pct": 0.64,
+			"samples": 270
+		},
+		"reference-heavy-100KB": {
+			"mean-ms": 0.8752,
+			"rme-pct": 1.6,
+			"samples": 572
+		},
+		"reference-heavy-1MB": {
+			"mean-ms": 8.4384,
+			"rme-pct": 1.94,
+			"samples": 60
+		},
+		"reference-heavy-10MB": {
+			"mean-ms": 100.9811,
+			"rme-pct": 1.87,
+			"samples": 30
+		},
+		"table-heavy-100KB": {
+			"mean-ms": 1.3169,
+			"rme-pct": 2.2,
+			"samples": 380
+		},
+		"table-heavy-1MB": {
+			"mean-ms": 14.4733,
+			"rme-pct": 6.08,
+			"samples": 35
+		},
+		"table-heavy-10MB": {
+			"mean-ms": 191.1835,
+			"rme-pct": 2.01,
+			"samples": 16
+		},
+		"giant-single-list-100KB": {
+			"mean-ms": 2.0606,
+			"rme-pct": 1.55,
+			"samples": 243
+		},
+		"giant-single-list-1MB": {
+			"mean-ms": 25.8252,
+			"rme-pct": 1.63,
+			"samples": 20
+		},
+		"giant-single-list-10MB": {
+			"mean-ms": 275.9135,
+			"rme-pct": 2.07,
+			"samples": 11
+		},
+		"giant-single-blockquote-100KB": {
+			"mean-ms": 1.9775,
+			"rme-pct": 1.59,
+			"samples": 253
+		},
+		"giant-single-blockquote-1MB": {
+			"mean-ms": 22.4434,
+			"rme-pct": 3.84,
+			"samples": 23
+		},
+		"giant-single-blockquote-10MB": {
+			"mean-ms": 262.2643,
+			"rme-pct": 3.8,
+			"samples": 12
+		},
+		"giant-single-table-100KB": {
+			"mean-ms": 1.1058,
+			"rme-pct": 1.9,
+			"samples": 453
+		},
+		"giant-single-table-1MB": {
+			"mean-ms": 12.4089,
+			"rme-pct": 4.41,
+			"samples": 41
+		},
+		"giant-single-table-10MB": {
+			"mean-ms": 183.4377,
+			"rme-pct": 2.43,
+			"samples": 17
+		}
 	},
 	"clone": {
-		"note": "Historical reference — cloneDocument left the production snapshot path in 0.7.4 (snapshots share the live tree; see snapshotPush). Rows recorded 2026-06-10.",
-		"flat-prose-100KB": { "mean-ms": 0.1498, "rme-pct": 0.55, "samples": 3338 },
-		"flat-prose-1MB": { "mean-ms": 1.4959, "rme-pct": 0.86, "samples": 335 },
-		"flat-prose-10MB": { "mean-ms": 15.4326, "rme-pct": 0.97, "samples": 195 },
-		"nested-containers-100KB": { "mean-ms": 3.4547, "rme-pct": 1.37, "samples": 145 },
-		"nested-containers-1MB": { "mean-ms": 38.6115, "rme-pct": 2.26, "samples": 13 },
-		"nested-containers-10MB": { "mean-ms": 403.372, "rme-pct": 2.1, "samples": 10 },
-		"many-small-blocks-100KB": { "mean-ms": 0.0333, "rme-pct": 1.14, "samples": 15037 },
-		"many-small-blocks-1MB": { "mean-ms": 0.5502, "rme-pct": 4.85, "samples": 910 },
-		"many-small-blocks-10MB": { "mean-ms": 11.3804, "rme-pct": 8.58, "samples": 264 },
-		"single-giant-paragraph-100KB": { "mean-ms": 0.0001, "rme-pct": 1.43, "samples": 9076724 },
-		"single-giant-paragraph-1MB": { "mean-ms": 0.0001, "rme-pct": 0.72, "samples": 9551278 },
-		"single-giant-paragraph-10MB": { "mean-ms": 0.0001, "rme-pct": 0.29, "samples": 56143102 },
-		"reference-heavy-100KB": { "mean-ms": 0.5198, "rme-pct": 0.83, "samples": 962 },
-		"reference-heavy-1MB": { "mean-ms": 5.0971, "rme-pct": 1.12, "samples": 99 },
-		"reference-heavy-10MB": { "mean-ms": 55.9178, "rme-pct": 1.68, "samples": 54 },
-		"table-heavy-100KB": { "mean-ms": 2.0743, "rme-pct": 1.25, "samples": 242 },
-		"table-heavy-1MB": { "mean-ms": 22.0247, "rme-pct": 2.2, "samples": 23 },
-		"table-heavy-10MB": { "mean-ms": 243.3659, "rme-pct": 0.86, "samples": 13 }
+		"note": "Historical reference — cloneDocument left the production snapshot path (snapshots share the live tree; see snapshotPush). Still benched for regression visibility.",
+		"flat-prose-100KB": {
+			"mean-ms": 0.1771,
+			"rme-pct": 1.02,
+			"samples": 2824
+		},
+		"flat-prose-1MB": {
+			"mean-ms": 1.7016,
+			"rme-pct": 2.24,
+			"samples": 294
+		},
+		"flat-prose-10MB": {
+			"mean-ms": 16.433,
+			"rme-pct": 1.47,
+			"samples": 183
+		},
+		"nested-containers-100KB": {
+			"mean-ms": 3.6923,
+			"rme-pct": 1.83,
+			"samples": 136
+		},
+		"nested-containers-1MB": {
+			"mean-ms": 41.2343,
+			"rme-pct": 3.19,
+			"samples": 13
+		},
+		"nested-containers-10MB": {
+			"mean-ms": 444.3877,
+			"rme-pct": 1.35,
+			"samples": 10
+		},
+		"many-small-blocks-100KB": {
+			"mean-ms": 0.039,
+			"rme-pct": 2.08,
+			"samples": 12806
+		},
+		"many-small-blocks-1MB": {
+			"mean-ms": 0.6025,
+			"rme-pct": 6.25,
+			"samples": 830
+		},
+		"many-small-blocks-10MB": {
+			"mean-ms": 13.7609,
+			"rme-pct": 9.91,
+			"samples": 219
+		},
+		"single-giant-paragraph-100KB": {
+			"mean-ms": 0.0001,
+			"rme-pct": 3.84,
+			"samples": 8088423
+		},
+		"single-giant-paragraph-1MB": {
+			"mean-ms": 0.0001,
+			"rme-pct": 0.9,
+			"samples": 8729043
+		},
+		"single-giant-paragraph-10MB": {
+			"mean-ms": 0.0001,
+			"rme-pct": 0.44,
+			"samples": 50501688
+		},
+		"reference-heavy-100KB": {
+			"mean-ms": 0.5565,
+			"rme-pct": 1.24,
+			"samples": 899
+		},
+		"reference-heavy-1MB": {
+			"mean-ms": 5.4413,
+			"rme-pct": 1.97,
+			"samples": 92
+		},
+		"reference-heavy-10MB": {
+			"mean-ms": 59.6584,
+			"rme-pct": 1.84,
+			"samples": 51
+		},
+		"table-heavy-100KB": {
+			"mean-ms": 2.2234,
+			"rme-pct": 2.14,
+			"samples": 225
+		},
+		"table-heavy-1MB": {
+			"mean-ms": 23.7278,
+			"rme-pct": 2.4,
+			"samples": 22
+		},
+		"table-heavy-10MB": {
+			"mean-ms": 266.7675,
+			"rme-pct": 1.14,
+			"samples": 12
+		},
+		"giant-single-list-100KB": {
+			"mean-ms": 2.9228,
+			"rme-pct": 1.74,
+			"samples": 172
+		},
+		"giant-single-list-1MB": {
+			"mean-ms": 36.7805,
+			"rme-pct": 3.66,
+			"samples": 14
+		},
+		"giant-single-list-10MB": {
+			"mean-ms": 363.9513,
+			"rme-pct": 9.4,
+			"samples": 10
+		},
+		"giant-single-blockquote-100KB": {
+			"mean-ms": 0.0164,
+			"rme-pct": 1.16,
+			"samples": 30549
+		},
+		"giant-single-blockquote-1MB": {
+			"mean-ms": 0.46,
+			"rme-pct": 3.47,
+			"samples": 1089
+		},
+		"giant-single-blockquote-10MB": {
+			"mean-ms": 5.6645,
+			"rme-pct": 11.63,
+			"samples": 531
+		},
+		"giant-single-table-100KB": {
+			"mean-ms": 2.0688,
+			"rme-pct": 1.53,
+			"samples": 242
+		},
+		"giant-single-table-1MB": {
+			"mean-ms": 23.9147,
+			"rme-pct": 4.25,
+			"samples": 21
+		},
+		"giant-single-table-10MB": {
+			"mean-ms": 290.9046,
+			"rme-pct": 18.49,
+			"samples": 12
+		}
 	},
 	"snapshotPush": {
-		"note": "Real push path (pushUndoSnapshot over harness deps), recorded 2026-06-11. DEV digest included (vitest sets DEV; ~O(doc bytes), see snapshotDigest) — production pushes skip it. Stack saturates at MAX_UNDO during sampling, so means include the shift-at-cap. A one-off run with DEV stubbed off measured the production push at 0.0031/0.0279/0.4132 ms (nested-containers 100KB/1MB/10MB) and 0.0026/0.0200/0.2821 ms (flat-prose) — O(top-level children), vs 32ms/357ms production cloning pre-0.7.4.",
-		"nested-containers-100KB": { "mean-ms": 0.1508, "rme-pct": 0.68, "samples": 3316 },
-		"nested-containers-1MB": { "mean-ms": 1.5398, "rme-pct": 0.34, "samples": 325 },
-		"nested-containers-10MB": { "mean-ms": 23.7144, "rme-pct": 1.1, "samples": 127 },
-		"flat-prose-100KB": { "mean-ms": 0.156, "rme-pct": 0.34, "samples": 3206 },
-		"flat-prose-1MB": { "mean-ms": 1.5445, "rme-pct": 1.13, "samples": 324 },
-		"flat-prose-10MB": { "mean-ms": 16.6706, "rme-pct": 0.81, "samples": 180 }
+		"note": "Real undo-push path (pushUndoSnapshot over harness deps). The DEV-only integrity digest is included (vitest sets DEV); snapshotDigest isolates that share. The stack saturates at MAX_UNDO during sampling, so means include the shift-at-cap. Production push (DEV off) is O(top-level children) — far below these rows.",
+		"nested-containers-100KB": {
+			"mean-ms": 0.152,
+			"rme-pct": 0.34,
+			"samples": 3290
+		},
+		"nested-containers-1MB": {
+			"mean-ms": 1.5732,
+			"rme-pct": 0.45,
+			"samples": 318
+		},
+		"nested-containers-10MB": {
+			"mean-ms": 24.8455,
+			"rme-pct": 1.75,
+			"samples": 121
+		},
+		"flat-prose-100KB": {
+			"mean-ms": 0.229,
+			"rme-pct": 1.28,
+			"samples": 2184
+		},
+		"flat-prose-1MB": {
+			"mean-ms": 2.1093,
+			"rme-pct": 2.75,
+			"samples": 238
+		},
+		"flat-prose-10MB": {
+			"mean-ms": 17.1251,
+			"rme-pct": 2.49,
+			"samples": 176
+		}
 	},
 	"snapshotDigest": {
 		"note": "digestDoc alone — the DEV-only integrity share of the snapshotPush rows.",
-		"nested-containers-100KB": { "mean-ms": 0.1454, "rme-pct": 0.27, "samples": 3440 },
-		"nested-containers-1MB": { "mean-ms": 1.5172, "rme-pct": 0.41, "samples": 330 },
-		"nested-containers-10MB": { "mean-ms": 22.5835, "rme-pct": 1.01, "samples": 133 },
-		"flat-prose-100KB": { "mean-ms": 0.1542, "rme-pct": 0.34, "samples": 3244 },
-		"flat-prose-1MB": { "mean-ms": 1.5284, "rme-pct": 0.56, "samples": 328 },
-		"flat-prose-10MB": { "mean-ms": 15.877, "rme-pct": 0.57, "samples": 189 }
+		"nested-containers-100KB": {
+			"mean-ms": 0.1533,
+			"rme-pct": 0.5,
+			"samples": 3263
+		},
+		"nested-containers-1MB": {
+			"mean-ms": 1.6197,
+			"rme-pct": 1.24,
+			"samples": 309
+		},
+		"nested-containers-10MB": {
+			"mean-ms": 27.4454,
+			"rme-pct": 3.87,
+			"samples": 110
+		},
+		"flat-prose-100KB": {
+			"mean-ms": 0.1732,
+			"rme-pct": 0.93,
+			"samples": 2888
+		},
+		"flat-prose-1MB": {
+			"mean-ms": 1.5988,
+			"rme-pct": 0.98,
+			"samples": 313
+		},
+		"flat-prose-10MB": {
+			"mean-ms": 16.1894,
+			"rme-pct": 0.92,
+			"samples": 186
+		}
 	},
 	"ancestryRebuild": {
-		"depth-8-many-tiny-lists-1MB": { "mean-ms": 0.0015, "rme-pct": 8.96, "samples": 342180 },
-		"breadth-single-100KB-list": { "mean-ms": 0.1491, "rme-pct": 0.7, "samples": 3354 },
-		"breadth-single-1MB-list": { "mean-ms": 2.0358, "rme-pct": 4.13, "samples": 246 },
-		"breadth-single-10MB-list": { "mean-ms": 23.1146, "rme-pct": 3.76, "samples": 130 }
+		"depth-8-many-tiny-lists-1MB": {
+			"mean-ms": 0.0016,
+			"rme-pct": 6.42,
+			"samples": 305154
+		},
+		"breadth-single-100KB-list": {
+			"mean-ms": 0.0408,
+			"rme-pct": 1.22,
+			"samples": 12245
+		},
+		"breadth-single-1MB-list": {
+			"mean-ms": 0.5699,
+			"rme-pct": 3.51,
+			"samples": 880
+		},
+		"breadth-single-10MB-list": {
+			"mean-ms": 19.0752,
+			"rme-pct": 6.44,
+			"samples": 158
+		}
 	},
 	"counters": {
 		"nested-containers-100KB-amplification": 3.55,
@@ -75,48 +373,140 @@
 	},
 	"e2e": {
 		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. Re-blessed 2026-06-20 after 0.8.5 (lazy inlineContent + giant-container un-cap): top-level + container windowing bounds mounted components to the viewport, so a giant single container's keystroke is O(viewport) — giant-single-{list,blockquote,table} 10MB keystroke p50 ≈ 2.5ms (load ~2s, linear). Every keystroke row types into a mounted in-window block (block 0; the harness prepends a prose target for container-first shapes incl. the three giant-single shapes). 10MB rows: 15 keystrokes; others 30. Two non-viewport-bounded axes are recorded but NOT viewport-scaled: single-giant-paragraph is the intra-block long-paragraph span-rebuild axis (Axis 5, VR does not address it); flat high-top-level-block-count shapes (flat-prose/many-small-blocks/reference-heavy) carry an O(top-level-count) keystroke cost at 10MB (36/231/99ms) — peers of each other, not an LRD-specific cost (the precise LRD-map gate removed the per-keystroke definition-map walk). The perf-gate enforces the ≤1MB rows for all shapes plus the giant-single shapes at 10MB (their viewport-bounded claim).",
-		"flat-prose-100KB": { "loadMs": 56.2, "keystrokeP50Ms": 2.9, "keystrokeP95Ms": 6.3 },
-		"flat-prose-1MB": { "loadMs": 148, "keystrokeP50Ms": 4.9, "keystrokeP95Ms": 9.1 },
-		"flat-prose-10MB": { "loadMs": 1445.5, "keystrokeP50Ms": 38.1, "keystrokeP95Ms": 154.7 },
-		"nested-containers-100KB": { "loadMs": 70.9, "keystrokeP50Ms": 2.7, "keystrokeP95Ms": 4.3 },
-		"nested-containers-1MB": { "loadMs": 224.5, "keystrokeP50Ms": 6.4, "keystrokeP95Ms": 8 },
-		"nested-containers-10MB": { "loadMs": 1783.4, "keystrokeP50Ms": 49.7, "keystrokeP95Ms": 125.6 },
-		"many-small-blocks-100KB": { "loadMs": 79.5, "keystrokeP50Ms": 4, "keystrokeP95Ms": 5.2 },
-		"many-small-blocks-1MB": { "loadMs": 532.1, "keystrokeP50Ms": 29.9, "keystrokeP95Ms": 32.1 },
-		"many-small-blocks-10MB": { "loadMs": 23339.3, "keystrokeP50Ms": 231, "keystrokeP95Ms": 597.8 },
+		"flat-prose-100KB": {
+			"loadMs": 56.2,
+			"keystrokeP50Ms": 2.9,
+			"keystrokeP95Ms": 6.3
+		},
+		"flat-prose-1MB": {
+			"loadMs": 148,
+			"keystrokeP50Ms": 4.9,
+			"keystrokeP95Ms": 9.1
+		},
+		"flat-prose-10MB": {
+			"loadMs": 1445.5,
+			"keystrokeP50Ms": 38.1,
+			"keystrokeP95Ms": 154.7
+		},
+		"nested-containers-100KB": {
+			"loadMs": 70.9,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 4.3
+		},
+		"nested-containers-1MB": {
+			"loadMs": 224.5,
+			"keystrokeP50Ms": 6.4,
+			"keystrokeP95Ms": 8
+		},
+		"nested-containers-10MB": {
+			"loadMs": 1783.4,
+			"keystrokeP50Ms": 49.7,
+			"keystrokeP95Ms": 125.6
+		},
+		"many-small-blocks-100KB": {
+			"loadMs": 79.5,
+			"keystrokeP50Ms": 4,
+			"keystrokeP95Ms": 5.2
+		},
+		"many-small-blocks-1MB": {
+			"loadMs": 532.1,
+			"keystrokeP50Ms": 29.9,
+			"keystrokeP95Ms": 32.1
+		},
+		"many-small-blocks-10MB": {
+			"loadMs": 23339.3,
+			"keystrokeP50Ms": 231,
+			"keystrokeP95Ms": 597.8
+		},
 		"single-giant-paragraph-100KB": {
 			"loadMs": 38,
 			"keystrokeP50Ms": 21.7,
 			"keystrokeP95Ms": 24.8
 		},
-		"single-giant-paragraph-1MB": { "loadMs": 168, "keystrokeP50Ms": 171.6, "keystrokeP95Ms": 187 },
+		"single-giant-paragraph-1MB": {
+			"loadMs": 168,
+			"keystrokeP50Ms": 171.6,
+			"keystrokeP95Ms": 187
+		},
 		"single-giant-paragraph-10MB": {
 			"loadMs": 1620.5,
 			"keystrokeP50Ms": 2234.4,
 			"keystrokeP95Ms": 2530.5
 		},
-		"reference-heavy-100KB": { "loadMs": 66.6, "keystrokeP50Ms": 3.1, "keystrokeP95Ms": 5.6 },
-		"reference-heavy-1MB": { "loadMs": 183.1, "keystrokeP50Ms": 8.6, "keystrokeP95Ms": 10.8 },
-		"reference-heavy-10MB": { "loadMs": 2395.3, "keystrokeP50Ms": 99, "keystrokeP95Ms": 241.2 },
-		"table-heavy-100KB": { "loadMs": 87.4, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 5.5 },
-		"table-heavy-1MB": { "loadMs": 208.4, "keystrokeP50Ms": 3.3, "keystrokeP95Ms": 3.7 },
-		"table-heavy-10MB": { "loadMs": 679.6, "keystrokeP50Ms": 15.3, "keystrokeP95Ms": 98.5 },
-		"giant-single-list-100KB": { "loadMs": 85.8, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 5.9 },
-		"giant-single-list-1MB": { "loadMs": 264, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 3.3 },
-		"giant-single-list-10MB": { "loadMs": 2384.9, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 70.2 },
+		"reference-heavy-100KB": {
+			"loadMs": 66.6,
+			"keystrokeP50Ms": 3.1,
+			"keystrokeP95Ms": 5.6
+		},
+		"reference-heavy-1MB": {
+			"loadMs": 183.1,
+			"keystrokeP50Ms": 8.6,
+			"keystrokeP95Ms": 10.8
+		},
+		"reference-heavy-10MB": {
+			"loadMs": 2395.3,
+			"keystrokeP50Ms": 99,
+			"keystrokeP95Ms": 241.2
+		},
+		"table-heavy-100KB": {
+			"loadMs": 87.4,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 5.5
+		},
+		"table-heavy-1MB": {
+			"loadMs": 208.4,
+			"keystrokeP50Ms": 3.3,
+			"keystrokeP95Ms": 3.7
+		},
+		"table-heavy-10MB": {
+			"loadMs": 679.6,
+			"keystrokeP50Ms": 15.3,
+			"keystrokeP95Ms": 98.5
+		},
+		"giant-single-list-100KB": {
+			"loadMs": 85.8,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 5.9
+		},
+		"giant-single-list-1MB": {
+			"loadMs": 264,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.3
+		},
+		"giant-single-list-10MB": {
+			"loadMs": 2384.9,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 70.2
+		},
 		"giant-single-blockquote-100KB": {
 			"loadMs": 54.6,
 			"keystrokeP50Ms": 2.4,
 			"keystrokeP95Ms": 5.5
 		},
-		"giant-single-blockquote-1MB": { "loadMs": 194, "keystrokeP50Ms": 2.4, "keystrokeP95Ms": 4.4 },
+		"giant-single-blockquote-1MB": {
+			"loadMs": 194,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 4.4
+		},
 		"giant-single-blockquote-10MB": {
 			"loadMs": 1749.3,
 			"keystrokeP50Ms": 2.6,
 			"keystrokeP95Ms": 69.6
 		},
-		"giant-single-table-100KB": { "loadMs": 69.4, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
-		"giant-single-table-1MB": { "loadMs": 224.2, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
-		"giant-single-table-10MB": { "loadMs": 1982.7, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 70.5 }
+		"giant-single-table-100KB": {
+			"loadMs": 69.4,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 3.8
+		},
+		"giant-single-table-1MB": {
+			"loadMs": 224.2,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 3.8
+		},
+		"giant-single-table-10MB": {
+			"loadMs": 1982.7,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 70.5
+		}
 	}
 }
