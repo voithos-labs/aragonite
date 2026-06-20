@@ -74,14 +74,16 @@
 		"table-heavy-1MB-amplification": 1.96
 	},
 	"e2e": {
-		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. Re-blessed 2026-06-16 after 0.8.6 Phase 2 (top-level virtual rendering): windowing bounds mounted components to the viewport, so both load and keystroke cost are now O(viewport), not O(document). Every keystroke row types into a mounted in-window block (block 0; the harness prepends a prose target for container-first shapes). 10MB rows: 15 keystrokes; others 30. single-giant-paragraph is the intra-block long-paragraph axis VR does NOT address (one block's span rebuild — Axis 5), so its rows did not collapse. Still capped at ≤1MB in the typing-latency spec: nested-containers/many-small-blocks/table-heavy @10MB — un-capping the now-renderable 10MB rows is the 1.0 scale gate.",
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds, not production latencies. Re-blessed 2026-06-20 after 0.8.5 (lazy inlineContent + giant-container un-cap): top-level + container windowing bounds mounted components to the viewport, so a giant single container's keystroke is O(viewport) — giant-single-{list,blockquote,table} 10MB keystroke p50 ≈ 2.5ms (load ~2s, linear). Every keystroke row types into a mounted in-window block (block 0; the harness prepends a prose target for container-first shapes incl. the three giant-single shapes). 10MB rows: 15 keystrokes; others 30. Two non-viewport-bounded axes are recorded but NOT viewport-scaled: single-giant-paragraph is the intra-block long-paragraph span-rebuild axis (Axis 5, VR does not address it); flat high-top-level-block-count shapes (flat-prose/many-small-blocks/reference-heavy) carry an O(top-level-count) keystroke cost at 10MB (36/231/99ms) — peers of each other, not an LRD-specific cost (the precise LRD-map gate removed the per-keystroke definition-map walk). The perf-gate enforces the ≤1MB rows for all shapes plus the giant-single shapes at 10MB (their viewport-bounded claim).",
 		"flat-prose-100KB": { "loadMs": 56.2, "keystrokeP50Ms": 2.9, "keystrokeP95Ms": 6.3 },
 		"flat-prose-1MB": { "loadMs": 148, "keystrokeP50Ms": 4.9, "keystrokeP95Ms": 9.1 },
 		"flat-prose-10MB": { "loadMs": 1445.5, "keystrokeP50Ms": 38.1, "keystrokeP95Ms": 154.7 },
 		"nested-containers-100KB": { "loadMs": 70.9, "keystrokeP50Ms": 2.7, "keystrokeP95Ms": 4.3 },
 		"nested-containers-1MB": { "loadMs": 224.5, "keystrokeP50Ms": 6.4, "keystrokeP95Ms": 8 },
+		"nested-containers-10MB": { "loadMs": 1783.4, "keystrokeP50Ms": 49.7, "keystrokeP95Ms": 125.6 },
 		"many-small-blocks-100KB": { "loadMs": 79.5, "keystrokeP50Ms": 4, "keystrokeP95Ms": 5.2 },
 		"many-small-blocks-1MB": { "loadMs": 532.1, "keystrokeP50Ms": 29.9, "keystrokeP95Ms": 32.1 },
+		"many-small-blocks-10MB": { "loadMs": 23339.3, "keystrokeP50Ms": 231, "keystrokeP95Ms": 597.8 },
 		"single-giant-paragraph-100KB": {
 			"loadMs": 38,
 			"keystrokeP50Ms": 21.7,
@@ -95,7 +97,18 @@
 		},
 		"reference-heavy-100KB": { "loadMs": 66.6, "keystrokeP50Ms": 3.1, "keystrokeP95Ms": 5.6 },
 		"reference-heavy-1MB": { "loadMs": 183.1, "keystrokeP50Ms": 8.6, "keystrokeP95Ms": 10.8 },
+		"reference-heavy-10MB": { "loadMs": 2395.3, "keystrokeP50Ms": 99, "keystrokeP95Ms": 241.2 },
 		"table-heavy-100KB": { "loadMs": 87.4, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 5.5 },
-		"table-heavy-1MB": { "loadMs": 208.4, "keystrokeP50Ms": 3.3, "keystrokeP95Ms": 3.7 }
+		"table-heavy-1MB": { "loadMs": 208.4, "keystrokeP50Ms": 3.3, "keystrokeP95Ms": 3.7 },
+		"table-heavy-10MB": { "loadMs": 679.6, "keystrokeP50Ms": 15.3, "keystrokeP95Ms": 98.5 },
+		"giant-single-list-100KB": { "loadMs": 85.8, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 5.9 },
+		"giant-single-list-1MB": { "loadMs": 264, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 3.3 },
+		"giant-single-list-10MB": { "loadMs": 2384.9, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 70.2 },
+		"giant-single-blockquote-100KB": { "loadMs": 54.6, "keystrokeP50Ms": 2.4, "keystrokeP95Ms": 5.5 },
+		"giant-single-blockquote-1MB": { "loadMs": 194, "keystrokeP50Ms": 2.4, "keystrokeP95Ms": 4.4 },
+		"giant-single-blockquote-10MB": { "loadMs": 1749.3, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 69.6 },
+		"giant-single-table-100KB": { "loadMs": 69.4, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
+		"giant-single-table-1MB": { "loadMs": 224.2, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
+		"giant-single-table-10MB": { "loadMs": 1982.7, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 70.5 }
 	}
 }
