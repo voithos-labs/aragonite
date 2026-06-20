@@ -51,16 +51,17 @@ Tokens split into two contracts. **`editor-theme.css` is the authoritative manif
 
 Light and dark palettes key on `:root[data-theme-type='light']` — toggle that attribute as the host does. Host tokens are read-with-fallback so a consumer that omits them still renders.
 
-## Resolve / policy props
+## Behavior / policy props
 
-Four optional props customize how URLs and images are handled:
+Optional props customize URL/image handling and editor affordances:
 
-| Prop              | Effect                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| `resolveImageUrl` | Rewrite a raw image URL before it reaches `img.src` (e.g. resolve a relative path)     |
-| `resolveLinkUrl`  | Rewrite a raw link href at render time                                                 |
-| `imageLoadPolicy` | `auto` (load images) or `placeholder` (defer loading)                                  |
-| `onLinkActivate`  | Handle a link click (Ctrl/Cmd+click or activation); replaces the default `window.open` |
+| Prop               | Effect                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------ |
+| `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (e.g. resolve a relative path)                     |
+| `resolveLinkUrl`   | Rewrite a raw link href at render time                                                                 |
+| `imageLoadPolicy`  | `auto` (load images) or `placeholder` (defer loading)                                                  |
+| `onLinkActivate`   | Handle a link click (Ctrl/Cmd+click or activation); replaces the default `window.open`                 |
+| `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available |
 
 **Set-once at mount.** These thread to the renderer through context but are **not** folded into the prose render-memo key. A reactive post-mount swap renders stale — set them at mount and treat them as fixed for the editor's lifetime. (Rationale: `docs/design/editor/editor.md`.)
 

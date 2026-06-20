@@ -9,6 +9,7 @@
 	import type { BlockComponent } from '../../../block-component';
 	import type { CstNode } from '../../../core/nodes';
 	import {
+		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		FOCUS_KEY,
@@ -33,6 +34,7 @@
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { resolveKindBinding, type CommandId } from '../../../schema/commands';
+	import BlockDragHandle from '../../BlockDragHandle.svelte';
 
 	let {
 		node,
@@ -55,6 +57,7 @@
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
+	const dragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY)?.() ?? false;
 
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
@@ -245,12 +248,24 @@
 			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}
 		/>
 	</div>
+	<!-- A list item IS a reorder unit; its inner content BlockList passes the
+		 default reorderable={false}, so the paragraph inside gets no handle. -->
+	{#if dragHandles}
+		<BlockDragHandle />
+	{/if}
 </div>
 
 <style>
 	.list-item-block {
+		position: relative;
 		display: flex;
 		align-items: flex-start;
+	}
+
+	/* Pure-CSS hover reveal, matching .block-host. `> ` scopes it to this item's
+	   own handle, never a nested sub-item's. */
+	.list-item-block:hover > :global(.block-drag-handle) {
+		opacity: 1;
 	}
 
 	.list-item-content {

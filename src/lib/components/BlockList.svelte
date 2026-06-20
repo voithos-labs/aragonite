@@ -7,6 +7,9 @@
 
 	// setRef/getRef are owner-supplied callbacks. A bind:blockRefs $bindable
 	// array desyncs from the owner's state across cross-effect mutations.
+	// `reorderable` is true only when these children ARE reorder units (document
+	// root, list, blockquote). A list item's inner content list passes false so its
+	// paragraph gets no handle. Default false keeps new container call sites opt-in.
 	let {
 		children,
 		blockIds,
@@ -14,7 +17,8 @@
 		getRef,
 		parentPath = [],
 		ambientPrefixForFirst = '',
-		window: win = undefined
+		window: win = undefined,
+		reorderable = false
 	}: {
 		children: CstNode[];
 		blockIds: string[];
@@ -23,6 +27,7 @@
 		parentPath?: number[];
 		ambientPrefixForFirst?: AmbientPrefix;
 		window?: WindowResult;
+		reorderable?: boolean;
 	} = $props();
 
 	let active = $derived(win?.active ?? false);
@@ -51,6 +56,7 @@
 			ambientPrefix={absoluteIndex === 0 ? ambientPrefixForFirst : ''}
 			{setRef}
 			{getRef}
+			{reorderable}
 		/>
 	{/each}
 	{#if active}
