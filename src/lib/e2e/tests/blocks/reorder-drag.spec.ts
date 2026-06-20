@@ -102,4 +102,68 @@ test.describe('drag to reorder', () => {
 		const selected = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selected).toBe('');
 	});
+
+	test('drag toward the bottom edge autoscrolls past virtualized blocks and drops', async () => {
+		// Far more paragraphs than fit in the viewport, so blocks below the fold are
+		// virtualized out — the drop target is unreachable without autoscroll.
+		await editor.loadContent(
+			Array.from({ length: 150 }, (_, i) => 'para ' + i).join('\n\n') + '\n'
+		);
+		const editorEl = editor.page.locator('.editor');
+
+		const handle = await handleCenter('.block-host', 'para 0');
+		const edgeBox = await editorEl.boundingBox();
+		if (!edgeBox) throw new Error('editor not laid out');
+		// A few px above the scroll container's bottom — inside the autoscroll
+		// threshold band so the held pointer drives the rAF loop downward.
+		const edgeX = edgeBox.x + edgeBox.width / 2;
+		const edgeY = edgeBox.y + edgeBox.height - 5;
+
+		const startScroll = await editorEl.evaluate((el) => el.scrollTop);
+		await editor.page.mouse.move(handle.x, handle.y);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(edgeX, edgeY, { steps: 8 });
+
+		// Autoscroll is a self-driving rAF loop once the pointer is held near the
+		// edge. Poll scrollTop until it has advanced past a full viewport height
+		// (guarantees an off-window region is reached); jitter the pointer each
+		// iteration to keep Playwright's pointer state fresh. NEVER waitForTimeout.
+		await expect
+			.poll(
+				async () => {
+					await editor.page.mouse.move(edgeX, edgeY);
+					return editorEl.evaluate((el) => el.scrollTop);
+				},
+				{ intervals: [16], timeout: 5000 }
+			)
+			.toBeGreaterThan(startScroll + edgeBox.height);
+
+		// Move out of the threshold band onto a now-visible block so autoscroll
+		// halts and geometry stabilizes before we read the drop target. Reading a
+		// boundingBox while the loop still scrolls would be stale on drop.
+		const drop = await editor.page.evaluate(() => {
+			const root = document.querySelector('.editor') as HTMLElement;
+			const rootRect = root.getBoundingClientRect();
+			// A mounted top-level block sitting in the upper-middle of the viewport.
+			for (const host of Array.from(root.querySelectorAll('.block-host'))) {
+				if (host.getAttribute('data-block-path')?.includes(',')) continue;
+				const r = host.getBoundingClientRect();
+				if (r.top > rootRect.top + rootRect.height * 0.25 && r.bottom < rootRect.bottom - 40) {
+					return { x: r.x + r.width / 2, y: r.y + r.height / 2, text: host.textContent ?? '' };
+				}
+			}
+			return null;
+		});
+		if (!drop) throw new Error('no stable mid-viewport drop target after autoscroll');
+		expect(drop.text).not.toContain('para 0');
+
+		await editor.page.mouse.move(drop.x, drop.y, { steps: 6 });
+		await editor.page.mouse.up();
+
+		// para 0 committed a move into the off-window region: it now follows some
+		// later paragraph in the source. Exact landing index is irrelevant.
+		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\npara 0\n/);
+		// And the document is intact — no block dropped or duplicated.
+		expect(await editor.bridge.getBlockCount()).toBe(150);
+	});
 });
