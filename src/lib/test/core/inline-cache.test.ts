@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { getInlineContent } from '../../core/inline/inline-cache';
+import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver';
 import type { CstNode } from '../../core/nodes';
 
 function firstProse(src: string): CstNode {
@@ -51,5 +52,24 @@ describe('getInlineContent', () => {
 	it('returns [] for a non-prose node', () => {
 		const code = parse('```\ncode\n```\n').children[0];
 		expect(getInlineContent(code)).toEqual([]);
+	});
+
+	it('forwards the resolver so a reference-style link resolves to a link node', () => {
+		const src = 'see [text][ref]\n\n[ref]: https://example.com\n';
+		const doc = parse(src);
+		const map = buildLinkReferenceMap(doc.children);
+
+		const resolved = getInlineContent(doc.children[0], map.resolve, map.signature);
+		const link = resolved.find((n) => n.kind === 'link');
+		expect(link).toBeDefined();
+		expect(link?.url).toBe('https://example.com');
+		expect(resolved.some((n) => n.kind === 'unresolvedReference')).toBe(false);
+
+		// Without a resolver the reference branch is skipped entirely, so the same
+		// `[text][ref]` falls through to plain text — no resolved link. Parse fresh
+		// so the WeakMap entry from the resolved read above can't mask the miss.
+		const fresh = parse(src).children[0];
+		const unforwarded = getInlineContent(fresh, undefined, '');
+		expect(unforwarded.some((n) => n.kind === 'link')).toBe(false);
 	});
 });
