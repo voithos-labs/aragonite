@@ -8,7 +8,7 @@
  * not from openers.
  */
 
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { ParsedLine } from '../core/lines';
 
 /**
@@ -39,6 +39,11 @@ let orderedCache: BlockOpener[] | null = null;
 let interruptCache: ((lineText: string) => boolean)[] | null = null;
 
 export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): void {
+	if (openers.has(kind)) {
+		throw new Error(
+			`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
+		);
+	}
 	openers.set(kind, opener);
 	orderedCache = null;
 	interruptCache = null;
@@ -70,8 +75,18 @@ export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number 
 	return [...openers.entries()].map(([kind, o]) => ({ kind, priority: o.priority }));
 }
 
+// Opener tests own the whole registry (register a controlled set after a full clear).
 export function __resetBlockOpenersForTests(): void {
 	openers.clear();
+	orderedCache = null;
+	interruptCache = null;
+}
+
+// The unified schema reset preserves built-ins for tests that merely add plugin kinds.
+export function __removePluginOpenersForTests(): void {
+	for (const kind of openers.keys()) {
+		if (!isBuiltinBlockKind(kind)) openers.delete(kind);
+	}
 	orderedCache = null;
 	interruptCache = null;
 }

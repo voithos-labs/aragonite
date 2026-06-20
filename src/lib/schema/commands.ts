@@ -52,11 +52,23 @@ type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 const globalCommands = new Map<CommandId, GlobalCommandRun>();
 
 export function registerCommand(id: GlobalCommandId, run: GlobalCommandRun): void {
+	if (globalCommands.has(id)) {
+		throw new Error(`registerCommand: "${id}" is already registered. Commands are register-once.`);
+	}
 	globalCommands.set(id, run);
 }
 
 export function getCommand(id: CommandId): GlobalCommandRun | undefined {
 	return globalCommands.get(id);
+}
+
+const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
+
+/** Test-only. Removes every command outside the closed built-in vocabulary. */
+export function __removePluginCommandsForTests(): void {
+	for (const id of globalCommands.keys()) {
+		if (!BUILTIN_COMMAND_IDS.has(id)) globalCommands.delete(id);
+	}
 }
 
 registerCommand('history.undo', (ctx) => {
@@ -67,6 +79,9 @@ registerCommand('history.redo', (ctx) => {
 	ctx.history.requestRedo();
 	return true;
 });
+
+// register-once now throws on duplicate; full-reload on edit instead of re-running these.
+import.meta.hot?.accept(() => import.meta.hot?.invalidate());
 
 export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Z', command: 'history.undo' },
