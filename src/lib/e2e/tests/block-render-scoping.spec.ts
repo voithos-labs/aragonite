@@ -37,10 +37,11 @@ test.describe('block render scoping', () => {
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('plain targetx');
 		// The reassignment that would fan the render out rides the debounced
-		// input flush (~250ms), signalled by the inline refresh; wait past it,
-		// then let any invalidated render effects settle, before reading.
+		// input flush (~250ms), signalled by the edited block's inline recompute;
+		// wait past it, then let any invalidated render effects settle, before
+		// reading.
 		await page.waitForFunction(
-			() => (window as any).__test.perf.snapshot().inlineRefreshCount >= 1,
+			() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 			null,
 			{ timeout: 5_000, polling: 16 }
 		);
@@ -71,7 +72,7 @@ test.describe('block render scoping', () => {
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('old.example.comx');
 		await page.waitForFunction(
-			() => (window as any).__test.perf.snapshot().inlineRefreshCount >= 1,
+			() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 			null,
 			{ timeout: 5_000, polling: 16 }
 		);
