@@ -8,7 +8,6 @@
  * for a cell's path) would silently misroute through the wrong container.
  */
 
-import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext } from './dispatch';
@@ -34,10 +33,6 @@ export function applyInlineResult(
 		const targetNode = chain[chain.length - 1];
 		if (!targetNode) return;
 		targetNode.raw = result.newRaw;
-		if (isProseKind(targetNode.kind)) {
-			const range = getContentRange(targetNode);
-			targetNode.inlineContent = parseInline(targetNode.raw, range.start, range.end);
-		}
 		rebuildUnsharedChain(chain, ctx.controller.sharing);
 		return;
 	}

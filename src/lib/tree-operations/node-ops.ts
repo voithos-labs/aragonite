@@ -24,7 +24,6 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import { getContentRange, isProseKind, parseInline } from '../core/inline';
 import { trimTrailingLineEnding } from '../core/lines';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
@@ -184,12 +183,6 @@ export function mergeIntoPrevDeepLeaf(
 	const joinOffset = targetText.length;
 
 	target.raw = targetText + currText + lineEnding;
-	// The reactive pipeline didn't fire for `target` because the user typed in
-	// `curr`; rebuild the inline cache so downstream consumers see post-merge text.
-	if (isProseKind(target.kind)) {
-		const range = getContentRange(target);
-		target.inlineContent = parseInline(target.raw, range.start, range.end);
-	}
 	if (mergeTarget.path.length > 0) {
 		rebuildAncestryRaw(prev, mergeTarget.path);
 	}
@@ -270,9 +263,6 @@ export function updateNodeContent(
 	node.children = reparsed.children;
 	node.innerPrefix = reparsed.innerPrefix;
 	node.innerSuffix = reparsed.innerSuffix;
-	// inlineContent is a cache; downstream dispatch reads it instead of re-parsing,
-	// so a paragraph that just gained trailing text would otherwise still look image-only.
-	node.inlineContent = isProseKind(node.kind) ? reparsed.inlineContent : undefined;
 
 	return node.kind !== oldKind ? replacePreservingFirst(blockIndex, 1, 1) : { op: 'noop' };
 }
@@ -285,13 +275,6 @@ function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;
 		ensureEditableContainers(node);
-		// `parse` only does block-level work; populate the inline cache so
-		// downstream consumers (cursor walkers, click-snap, widget hit-tests)
-		// see the post-split inline tree without waiting for the next render.
-		if (isProseKind(node.kind)) {
-			const range = getContentRange(node);
-			node.inlineContent = parseInline(node.raw, range.start, range.end);
-		}
 		return node;
 	}
 

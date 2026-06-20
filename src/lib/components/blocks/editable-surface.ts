@@ -73,8 +73,6 @@ export interface EditableSurfaceDeps {
 	controller: UndoController;
 	history: HistoryActions;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** Post-mutation reparse hook for cross-block type-replace; text reparses inline, code/cell omit. */
-	afterRawMutated?: (node: CstNode) => void;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
 	getFocusOffset: () => number | null;
@@ -127,8 +125,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pasteCoordinator: deps.pasteCoordinator,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => deps.setPendingCursor(offset),
-		afterRawMutated: deps.afterRawMutated
+		setPendingCursor: (offset) => deps.setPendingCursor(offset)
 	});
 
 	const sharedCtx: SharedKeydownContext = {

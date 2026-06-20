@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { parseAllInlineContent } from '../../core/inline';
+import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
 import { replacePreservingFirst } from '../../tree-operations/structural-change';
@@ -81,19 +81,18 @@ describe('updateNodeContent', () => {
 		expect(doc.children[0].metadata).toBeUndefined();
 	});
 
-	it('refreshes inlineContent for prose kinds so post-edit dispatch sees fresh inlines', () => {
+	it('exposes fresh inlines via the lazy accessor after an edit (validate-on-read)', () => {
 		const source = '![pic](/sample.png)\n';
 		const doc = parse(source);
-		parseAllInlineContent(doc.children);
 		// Pre-edit: image-only inline tree.
-		expect(doc.children[0].inlineContent!.map((n) => n.kind)).toEqual(['image']);
+		expect(getInlineContent(doc.children[0]).map((n) => n.kind)).toEqual(['image']);
 
 		updateNodeContent(doc, 0, '![pic](/sample.png)a\n');
 
-		const inlines = doc.children[0].inlineContent;
-		expect(inlines).toBeDefined();
-		expect(inlines!.map((n) => n.kind)).toEqual(['image', 'text']);
-		expect(inlines![1].text).toBe('a');
+		// raw changed in place → the accessor recomputes rather than returning the cached image-only tree.
+		const inlines = getInlineContent(doc.children[0]);
+		expect(inlines.map((n) => n.kind)).toEqual(['image', 'text']);
+		expect(inlines[1].text).toBe('a');
 	});
 });
 

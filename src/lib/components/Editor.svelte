@@ -44,9 +44,7 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { countProseNodes, parseAllInlineContent } from '../core/inline';
-	import { collectInlineDirty } from '../inline-dirty-set';
-	import { perfEnabled, recordInlineRefresh } from '../perf/instruments';
+	import { lrdMapCouldChange } from '../lrd-map-gate';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
@@ -101,7 +99,6 @@
 			ensureEditableContainers(child);
 		}
 		const refMap = buildLinkReferenceMap(d.children);
-		parseAllInlineContent(d.children, refMap.resolve);
 		return { doc: d, resolver: refMap.resolve, signature: refMap.signature };
 	}
 
@@ -150,26 +147,18 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// Sole populator of `inlineContent`: every emitted `edit` event
-			// (structural commits, the debounced input flush, undo/redo) refreshes
-			// the cache with a fresh resolver here. Operations must NOT pre-populate
-			// — any tree they build is overwritten before a consumer can read it.
-			// The LRD map rebuild stays whole-doc (cheap raw-free walk; incremental
-			// maintenance is roadmapped); the sweep is scoped by collectInlineDirty.
-			const newMap = buildLinkReferenceMap(doc.children);
-			const signatureChanged = newMap.signature !== currentSignature;
-			const dirty = collectInlineDirty(doc, e, signatureChanged);
-			const targets = dirty === 'all' ? doc.children : dirty;
-			parseAllInlineContent(targets, newMap.resolve);
-			// Reassign only on a real LRD change. Routine typing leaves the
-			// resolver set identical, so handing out a fresh closure identity here
-			// would invalidate every block that read the resolver at mount — a
-			// one-time whole-document re-render on the first edit.
-			if (signatureChanged) {
-				currentResolver = newMap.resolve;
-				currentSignature = newMap.signature;
+			// `inlineContent` is computed lazily on read (core/inline/inline-cache);
+			// the shell no longer sweeps it. It only maintains the LRD resolver:
+			// rebuild the map when a commit could change the LRD set, and hand out a
+			// fresh resolver identity only on a real signature change — a fresh
+			// identity on every edit would re-render every block that read it.
+			if (lrdMapCouldChange(doc, e, currentSignature)) {
+				const newMap = buildLinkReferenceMap(doc.children);
+				if (newMap.signature !== currentSignature) {
+					currentResolver = newMap.resolve;
+					currentSignature = newMap.signature;
+				}
 			}
-			if (perfEnabled()) recordInlineRefresh(countProseNodes(targets));
 		});
 		return () => dispose();
 	});
