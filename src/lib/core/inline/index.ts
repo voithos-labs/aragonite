@@ -50,20 +50,6 @@ export function computeInlineContent(
 	return parseInline(node.raw, range.start, range.end, resolver);
 }
 
-/**
- * Prose-node count of an inline-sweep target set. Lives here rather than in
- * perf/instruments because isProseKind reads the schema registry and
- * instruments must stay a leaf module.
- */
-export function countProseNodes(nodes: CstNode[]): number {
-	let count = 0;
-	for (const node of nodes) {
-		if (isProseKind(node.kind)) count++;
-		if (node.children) count += countProseNodes(node.children);
-	}
-	return count;
-}
-
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**
