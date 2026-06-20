@@ -1,6 +1,6 @@
 # Feature: Caret dispatch around image+text paragraphs
 
-A paragraph that starts image-only is vertically transparent. Once the user types trailing text, the paragraph stops being transparent and the editor must dispatch caret traversal to the now-text-bearing portion. Routine typing must refresh `node.inlineContent`; otherwise stale parses make the editor still treat the paragraph as image-only.
+A paragraph that starts image-only is vertically transparent. Once the user types trailing text, the paragraph stops being transparent and the editor must dispatch caret traversal to the now-text-bearing portion. Routine typing must refresh the paragraph's inline parse; otherwise stale parses make the editor still treat the paragraph as image-only.
 
 ## Happy paths
 

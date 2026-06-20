@@ -1,10 +1,11 @@
 /**
- * G4.2 — the prose render path must never read `node.inlineContent`. The render
- * effect re-parses `node.raw` locally; reading the cache during render once
- * closed a read/write loop that corrupted keyed-`{#each}` index assignment
- * after splitBlock (editor.md § Reactive State Plumbing). Non-render consumers
- * (event handlers, exported methods, click-snap) may read it — so this scan is
- * scoped to the render path only: the DOM-build file plus the render `$effect`.
+ * G4.2 (perf-hygiene) — the prose render path must compute inline content via
+ * the pure `computeInlineContent`, never the caching `getInlineContent`
+ * accessor. The cache is a non-reactive WeakMap: a render that read it would
+ * skip render-relevant changes the pure compute always sees. Non-render
+ * consumers (event handlers, exported methods, click-snap) may use the cached
+ * accessor — so this scan is scoped to the render path only: the DOM-build file
+ * plus the render `$effect`.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,8 +16,8 @@ const TEXT_BLOCK_FILE = 'components/blocks/text/TextEditableBlock.svelte';
 const CELL_RENDER_FILE = 'components/blocks/table/cell-render.ts';
 const CELL_BLOCK_FILE = 'components/blocks/table/TableCellBlock.svelte';
 
-function readsInlineContent(code: string): boolean {
-	return /\.inlineContent\b/.test(code);
+function callsCachingAccessor(code: string): boolean {
+	return /\bgetInlineContent\b/.test(code);
 }
 
 /**
@@ -47,52 +48,50 @@ export function extractRenderEffect(rawText: string, anchor = 'textRender.render
 	return null;
 }
 
-describe('G4.2 no .inlineContent read in the render path', () => {
-	it('text-render.ts (whole render DOM-build file) does not read .inlineContent', () => {
+describe('G4.2 render path computes inline, never the caching accessor', () => {
+	it('text-render.ts (whole render DOM-build file) does not call getInlineContent', () => {
 		const file = readEditorFile(RENDER_DOM_FILE);
 		expect(file.text.length).toBeGreaterThan(0);
-		expect(readsInlineContent(file.code)).toBe(false);
+		expect(callsCachingAccessor(file.code)).toBe(false);
 	});
 
-	it('TextEditableBlock render $effect does not read .inlineContent', () => {
+	it('TextEditableBlock render $effect does not call getInlineContent', () => {
 		const file = readEditorFile(TEXT_BLOCK_FILE);
 		const effect = extractRenderEffect(file.text);
 		// Fail loud if the anchor vanished (rename/refactor) — a silent pass would
 		// leave the render path unguarded.
 		expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
-		expect(readsInlineContent(effect!)).toBe(false);
+		expect(callsCachingAccessor(effect!)).toBe(false);
 	});
 
-	it('cell-render.ts (whole render DOM-build file) does not read .inlineContent', () => {
+	it('cell-render.ts (whole render DOM-build file) does not call getInlineContent', () => {
 		const file = readEditorFile(CELL_RENDER_FILE);
 		expect(file.text.length).toBeGreaterThan(0);
-		expect(readsInlineContent(file.code)).toBe(false);
+		expect(callsCachingAccessor(file.code)).toBe(false);
 	});
 
-	it('TableCellBlock render $effect does not read .inlineContent', () => {
+	it('TableCellBlock render $effect does not call getInlineContent', () => {
 		const file = readEditorFile(CELL_BLOCK_FILE);
 		const effect = extractRenderEffect(file.text, 'cellRender.render');
 		expect(effect, 'cell render $effect anchor "cellRender.render" not found').not.toBeNull();
-		expect(readsInlineContent(effect!)).toBe(false);
+		expect(callsCachingAccessor(effect!)).toBe(false);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('readsInlineContent flags a synthetic render read', () => {
-		expect(readsInlineContent('el.replaceChildren(build(node.inlineContent));')).toBe(true);
-		expect(readsInlineContent('const c = parseInline(node.raw, range.start, range.end);')).toBe(
-			false
-		);
+	it('callsCachingAccessor flags a synthetic render call', () => {
+		expect(callsCachingAccessor('el.replaceChildren(build(getInlineContent(node)));')).toBe(true);
+		expect(callsCachingAccessor('const c = computeInlineContent(node, resolver);')).toBe(false);
 	});
 
-	it('extractRenderEffect isolates the effect and would catch a read inside it', () => {
+	it('extractRenderEffect isolates the effect and would catch a call inside it', () => {
 		const bad =
-			'const x = node.inlineContent;\n' + // outside the effect — must be ignored
-			'$effect(() => {\n  textRender.render();\n  const c = node.inlineContent;\n});\n';
+			'const x = getInlineContent(node);\n' + // outside the effect — must be ignored
+			'$effect(() => {\n  textRender.render();\n  const c = getInlineContent(node);\n});\n';
 		const effect = extractRenderEffect(bad);
 		expect(effect).not.toBeNull();
-		expect(readsInlineContent(effect!)).toBe(true);
-		// The leading read outside the effect is excluded from the extracted block.
+		expect(callsCachingAccessor(effect!)).toBe(true);
+		// The leading call outside the effect is excluded from the extracted block.
 		expect(effect!.includes('const x')).toBe(false);
 	});
 
