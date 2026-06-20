@@ -234,7 +234,7 @@ No auto-merge with the block above the container occurs — each Backspace press
 
 **Delete** — remove the node from the children array.
 
-**Reorder** — move the node among its siblings within the children array; IDs don't change. Reachable two ways over the same operation: keyboard (Alt+↑/↓ nudges the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle. Drag commits one move on release; a pointer held near the viewport edge autoscrolls so off-window targets come into reach (drop hit-tests against mounted siblings, so a far target is reached by scrolling it into the window rather than by spacer-region hit-testing). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
+**Reorder** — move the node among its siblings; IDs don't change. Reachable two ways over one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (a single insertion line marks the drop, one commit on release, autoscroll brings off-screen targets into reach). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
 
 **Block type change** (via re-parse) — when re-parsing a block's updated `raw` produces a different block kind, the node is replaced with a new node of the correct type. The ID is preserved.
 
