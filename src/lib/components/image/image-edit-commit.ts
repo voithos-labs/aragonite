@@ -1,4 +1,3 @@
-import { parseInline, getContentRange, isProseKind } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
@@ -105,10 +104,6 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const leafIdx = paragraphPath[paragraphPath.length - 1];
 		const writeRaw = (paragraph: CstNode) => {
 			paragraph.raw = newRaw;
-			if (isProseKind(paragraph.kind)) {
-				const range = getContentRange(paragraph);
-				paragraph.inlineContent = parseInline(paragraph.raw, range.start, range.end);
-			}
 		};
 
 		if (paragraphPath.length === 1) {

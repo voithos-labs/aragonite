@@ -53,13 +53,6 @@ export interface CrossBlockDispatchContext {
 	/** Svelte's tick() — awaited after mutations so the DOM settles. */
 	afterReactivity: () => Promise<void>;
 	setPendingCursor: (offset: number) => void;
-
-	/**
-	 * Post-mutation hook for cross-block type-replace, called after the typed
-	 * character is spliced into the target node's raw. TextEditableBlock uses
-	 * it to reparse inline content; CodeBlock doesn't need one.
-	 */
-	afterRawMutated?: (node: CstNode) => void;
 }
 
 export interface CrossBlockHandlers {
