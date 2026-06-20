@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
+import { createReorderAction } from '$lib/editor/editor-actions/reorder-action';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
 import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
@@ -27,11 +28,10 @@ import type { CstNode } from '$lib/editor/core/nodes';
  * `applyStructuralChangeToIdsRefs` (the commit primitive's auto-sync) is the
  * code under test; the ops drive it through the real action bundles.
  *
- * Scope note (TRIAGE): "reorder" in the spec row has no structural op today —
- * there is no move/reorder primitive in editor-actions or tree-operations
- * (drag-to-reorder is unimplemented). The alignment invariant is exercised by
- * the ops that exist — split / merge / delete / paste — which together cover
- * every StructuralChange shape (insert, delete, replace).
+ * Ops covered: split / merge / delete / paste (insert/delete/replace shapes)
+ * and reorder (a `replace` whose `idMap` permutes the spanned window) — the
+ * shape most likely to desync ids/refs, since every moved slot reuses an
+ * existing id rather than minting one.
  */
 
 function makeNode(kind: string, raw: string): CstNode {
@@ -43,6 +43,7 @@ function makeNode(kind: string, raw: string): CstNode {
 interface TopHarness {
 	doc: ReturnType<typeof makeEditorActionsDeps>['doc'];
 	actions: ReturnType<typeof createBlockEditActions>;
+	reorder: ReturnType<typeof createReorderAction>;
 	ids: () => string[];
 	refs: () => (BlockComponent | undefined)[];
 }
@@ -53,7 +54,8 @@ function makeTop(raws: string[]): TopHarness {
 	);
 	const controller = createUndoController(deps);
 	const actions = createBlockEditActions(deps, controller);
-	return { doc, actions, ids: getBlockIds, refs: getBlockRefs };
+	const reorder = createReorderAction(deps, controller);
+	return { doc, actions, reorder, ids: getBlockIds, refs: getBlockRefs };
 }
 
 function assertAligned(h: {
@@ -124,6 +126,17 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids().at(-1)).toBe(id1);
 	});
 
+	it('reorder keeps arrays aligned and carries moved ids via idMap', async () => {
+		const h = makeTop(['aaa\n', 'bbb\n', 'ccc\n']);
+		const [id0, id1, id2] = h.ids();
+
+		await h.reorder.nudgeReorderUnit([0], 1); // move 'aaa' down past 'bbb'
+
+		assertAligned(h);
+		// permutation -> [bbb, aaa, ccc]; every slot reuses an existing id (no mint).
+		expect(h.ids()).toEqual([id1, id0, id2]);
+	});
+
 	it('round-trip stays byte-stable across a sequence of ops', async () => {
 		const h = makeTop(['one\n', 'two\n', 'three\n']);
 		// serialize(parse(serialize(doc))) === serialize(doc): the live tree the
@@ -153,6 +166,7 @@ interface ContainerHarness {
 	node: () => CstNode;
 	state: ReturnType<typeof createBlockListState>;
 	bundle: ReturnType<typeof createStandardNestedActions>;
+	reorder: ReturnType<typeof createReorderAction>;
 }
 
 // Seed innerBlockRefs to mirror a mounted container: createBlockListState starts
@@ -167,6 +181,7 @@ function makeContainer(source: string): ContainerHarness {
 	const node = () => doc.children[0];
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
+	const reorder = createReorderAction(deps, controller);
 	const state = createBlockListState(node);
 	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
 
@@ -184,7 +199,7 @@ function makeContainer(source: string): ContainerHarness {
 		}
 	});
 
-	return { doc, node, state, bundle };
+	return { doc, node, state, bundle, reorder };
 }
 
 function assertContainerAligned(h: ContainerHarness) {
@@ -255,6 +270,17 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		expect(h.state.innerBlockIds[0]).toBe(id0);
 		// id1 (the untouched second item) survives at the tail.
 		expect(h.state.innerBlockIds).toContain(id1);
+	});
+
+	it('inner reorder keeps arrays aligned and carries moved ids via idMap', async () => {
+		const h = makeContainer(BQ_THREE);
+		const [id0, id1, id2] = h.state.innerBlockIds;
+
+		await h.reorder.nudgeReorderUnit([0, 0], 1); // move first bq child down
+
+		assertContainerAligned(h);
+		// permutation -> [bbbb, aaaa, cccc]; ids follow the move, none minted.
+		expect(h.state.innerBlockIds).toEqual([id1, id0, id2]);
 	});
 
 	it('round-trip stays byte-stable and serialized raw tracks the mutated children', async () => {
