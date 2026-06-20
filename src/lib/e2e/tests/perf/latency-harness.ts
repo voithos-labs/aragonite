@@ -12,14 +12,21 @@ import { generateFixture, type FixtureShape } from '../../../test/perf/fixtures/
 const LOAD_TIMEOUT_MS = 480_000;
 const KEYSTROKE_TIMEOUT_MS = 60_000;
 
-// Shapes whose first block is a container (list, table): focusBlockEnd(0)
-// cannot place a caret inside those, and table-cell edits re-pad the whole
-// table (breaking the +1-length settle). These rows PREPEND a plain paragraph
-// so the caret target is block 0. Under windowing the per-keystroke cost is
-// O(mounted), so the target must be a mounted in-window block — block 0 is
-// always mounted at load (scrollTop=0); an appended last block would be
+// Shapes whose first block is a container (list, blockquote, table):
+// focusBlockEnd(0) cannot place a caret inside those — for a giant container it
+// targets the last child, which is windowed out — and table-cell edits re-pad
+// the whole table (breaking the +1-length settle). These rows PREPEND a plain
+// paragraph so the caret target is block 0. Under windowing the per-keystroke
+// cost is O(mounted), so the target must be a mounted in-window block — block 0
+// is always mounted at load (scrollTop=0); an appended last block would be
 // off-window and have no DOM host to type into.
-const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set(['nested-containers', 'table-heavy']);
+const NEEDS_PROSE_TARGET: ReadonlySet<FixtureShape> = new Set([
+	'nested-containers',
+	'table-heavy',
+	'giant-single-list',
+	'giant-single-blockquote',
+	'giant-single-table'
+]);
 // The trailing '\n' plus the '\n' separator yields a blank line after the
 // paragraph, so it parses as a standalone block 0 ahead of the container.
 const PROSE_TARGET = 'perf cursor target\n';
