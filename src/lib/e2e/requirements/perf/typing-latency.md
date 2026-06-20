@@ -27,23 +27,21 @@ not production latencies. The caveat is embedded in every result artifact.
   O(top-level blocks) per poll — because serializing the source per poll at
   10MB would dwarf the latency being measured
 
-## Capped rows
+## Sizes
 
-10MB rows run for the multi-block shapes: flat-prose, single-giant-paragraph,
-many-small-blocks, nested-containers, and table-heavy. 0.8.6 virtual rendering
-un-capped the latter three (their old blocker was mounting every block; windowing
-bounds it). Still capped at 1MB:
+All shapes run at 100KB / 1MB / 10MB — nothing is capped. The giant-single
+shapes (list/blockquote/table) un-capped at 0.8.5: their 10MB load is linear
+(~2s) and windowing bounds the mount, so the keystroke is O(viewport) (p50
+~2.6ms at 10MB). reference-heavy un-capped at 0.8.5 too — lazy inlineContent
+removed the per-edit whole-document inline sweep that made its keystroke fail to
+settle. Container-first shapes (nested-containers, table-heavy, and the three
+giant-single shapes) PREPEND a plain paragraph as the block-0 caret target,
+since focusBlockEnd(0) on a giant container would target a windowed-out child.
 
-- giant-single-list, giant-single-blockquote, giant-single-table — windowing
-  bounds their RENDERING (proven at 2MB in virtual-rendering.spec.ts), but their
-  10MB LOAD does not complete in 60s: the one-time parse + inline-content build
-  for a single container with hundreds of thousands of children is O(doc), which
-  VR does not address. All three fail identically (incl. the list/blockquote
-  shapes that touch no table code), so it is the single-giant-container load axis
-  (incremental parsing 0.8.1 / lazy inlineContent 0.8.5), not a windowing bug.
-- reference-heavy — loads, but a single keystroke fails to settle within 60s
-  (per-edit whole-doc inline sweep over ~65k reference-bearing blocks; lazy
-  inlineContent 0.8.4 targets exactly this)
+Two axes stay non-viewport-bounded (recorded, not regression-gated at 10MB):
+single-giant-paragraph (intra-block span rebuild, Axis 5) and the flat
+high-top-level-block-count shapes (flat-prose/many-small-blocks/reference-heavy),
+whose 10MB keystroke carries an O(top-level-count) cost.
 
 ## Artifacts
 
