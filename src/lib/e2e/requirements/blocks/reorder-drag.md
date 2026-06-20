@@ -14,7 +14,7 @@ reflows mid-drag and the tree changes once, on release.
 
 - Drop outside any valid sibling gap / release without moving: no change.
 - Escape or pointercancel during a drag: cancelled, no change.
-- Drag near the viewport edge autoscrolls so off-screen siblings come into reach.
+- Drag toward the viewport edge in a large doc autoscrolls past virtualized blocks so an off-window target comes into reach, and the drop commits an intact move.
 
 ## User interactions
 
