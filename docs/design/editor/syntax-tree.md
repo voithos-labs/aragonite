@@ -55,7 +55,7 @@ All nodes are **mutable plain objects** — no class hierarchy. There is one `Cs
 Node kind categories:
 
 - **Container kinds** carry `children`. Blockquote, list, and listItem also carry `innerPrefix`/`innerSuffix`; table and tableRow hold their grid children directly without an inner prefix/suffix pair.
-- **Inline-bearing kinds** — those registering `supportsInline` on their block-kind descriptor (paragraph, heading, setextHeading, tableCell) — carry `inlineContent` (populated by the inline parser).
+- **Inline-bearing kinds** — those registering `supportsInline` on their block-kind descriptor (paragraph, heading, setextHeading, tableCell) — have an inline tree computed lazily on read, not stored as a node field.
 - **Other leaf kinds** (fencedCode, thematicBreak, indentedCode, htmlBlock, linkReferenceDefinition, unrecognized) have no children or inline content.
 
 Why a flat interface instead of a mapped-type discriminated union: the editor mutates `kind` in place when a block type changes (e.g., paragraph → heading). A strict discriminated union would make in-place mutation a type error.
@@ -66,7 +66,7 @@ All nodes carry `leadingTrivia` (blank lines before the block) and `raw` (full s
 
 **Container blocks** (blockquote, list, listItem) add `children`, `innerPrefix`/`innerSuffix` (leading/trailing whitespace inside the container), `childIds` (parallel-indexed stable IDs for keyed rendering — see `editor.md` § Block Identity), and kind-specific metadata. Container `raw` includes the outer syntax (e.g., `> ` prefixes). Children are a decomposition of the inner (stripped) content. Table and tableRow are also containers — they hold their grid children (`tableRow` / `tableCell`) but parse the cell layout straight from `raw` rather than via an inner prefix/suffix.
 
-**Inline-bearing blocks** (kinds registering `supportsInline`: paragraph, heading, setextHeading, tableCell) add optional `inlineContent` — the inline node tree populated by Phase 2 parsing. A rendering cache derived from `raw`, never used for serialization.
+**Inline-bearing blocks** (kinds registering `supportsInline`: paragraph, heading, setextHeading, tableCell) have a Phase-2 inline node tree. It is not a node field: a rendering cache derived from `raw`, computed lazily on read (validated by `raw` plus the link-reference signature) and never used for serialization.
 
 **Other leaf blocks** carry kind-specific metadata where applicable. The `unrecognized` kind is a reserved catch-all contract — see § Design Invariants for why no parser path emits it today.
 
@@ -109,7 +109,7 @@ Inline nodes nest. For example, `**bold *and italic***` produces a Strong node c
 
 **Relationship to `raw`:**
 
-In Phase 2, `inlineContent` is **derived** from `raw`. It is a rendering cache — disposable and re-parsed whenever `raw` changes. The inline tree is never used for serialization. The invariant: concatenating all leaf `text` values and marker syntax in the inline tree reproduces the portion of `raw` that was parsed.
+In Phase 2, the inline tree is **derived** from `raw`. It is a rendering cache — disposable, computed lazily on read, and validated against `raw` (so it recomputes when `raw` changes). The inline tree is never used for serialization. The invariant: concatenating all leaf `text` values and marker syntax in the inline tree reproduces the portion of `raw` that was parsed.
 
 Phase 3 (ownership flip to tree-as-truth) was evaluated and rejected — Phase 2 is the permanent architecture. See the Phase 3 section above for rationale.
 
