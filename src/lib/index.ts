@@ -15,6 +15,7 @@ export interface EditorProps {
 	resolveLinkUrl?: ResolveLinkUrl;
 	imageLoadPolicy?: ImageLoadPolicy;
 	onLinkActivate?: (url: string, event: MouseEvent) => void;
+	blockDragHandles?: boolean;
 }
 
 export type { BlockComponent } from './block-component';

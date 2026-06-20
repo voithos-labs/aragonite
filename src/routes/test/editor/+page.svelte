@@ -33,6 +33,12 @@
 	let source = $state(SHOWCASE_CONTENT);
 	let editor: ReturnType<typeof Editor>;
 
+	// Test-only set-once toggle: `?dragHandles=false` mounts the editor with the
+	// hover drag handle disabled so the reorder-handle e2e can cover the off path.
+	const blockDragHandles =
+		typeof window === 'undefined' ||
+		new URLSearchParams(window.location.search).get('dragHandles') !== 'false';
+
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
 	// editor ops (via the ops-log subscriber) AND native DOM selection changes
 	// (selectionchange). Without the selectionchange half, clicking in a block
@@ -422,7 +428,7 @@
 
 <div class="test-harness">
 	<div class="editor-slot">
-		<Editor bind:this={editor} {source} />
+		<Editor bind:this={editor} {source} {blockDragHandles} />
 	</div>
 	<DebugPanel
 		rawSource={liveSource}

@@ -4,6 +4,7 @@
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
 	import {
+		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		BROKEN_IMAGE_URLS_KEY,
@@ -72,13 +73,15 @@
 		resolveImageUrl,
 		resolveLinkUrl,
 		imageLoadPolicy = 'auto',
-		onLinkActivate
+		onLinkActivate,
+		blockDragHandles = true
 	}: {
 		source?: string;
 		resolveImageUrl?: (rawUrl: string) => string;
 		resolveLinkUrl?: (rawUrl: string) => string;
 		imageLoadPolicy?: import('../core/inline-render').ImageLoadPolicy;
 		onLinkActivate?: (url: string, event: MouseEvent) => void;
+		blockDragHandles?: boolean;
 	} = $props();
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
@@ -354,6 +357,7 @@
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
 	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
+	setContext(BLOCK_DRAG_HANDLES_KEY, () => blockDragHandles);
 	setContext(BROKEN_IMAGE_URLS_KEY, brokenImageUrls);
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
@@ -614,6 +618,7 @@
 		getRef={getBlockRefSlot}
 		parentPath={[]}
 		window={topWindowing.window}
+		reorderable={true}
 	/>
 	<ImageOverlayHost
 		{widgetSelection}
