@@ -30,13 +30,13 @@ not production latencies. The caveat is embedded in every result artifact.
 ## Sizes
 
 All shapes run at 100KB / 1MB / 10MB — nothing is capped. The giant-single
-shapes (list/blockquote/table) un-capped at 0.8.5: their 10MB load is linear
-(~2s) and windowing bounds the mount, so the keystroke is O(viewport) (p50
-~2.6ms at 10MB). reference-heavy un-capped at 0.8.5 too — lazy inlineContent
-removed the per-edit whole-document inline sweep that made its keystroke fail to
-settle. Container-first shapes (nested-containers, table-heavy, and the three
-giant-single shapes) PREPEND a plain paragraph as the block-0 caret target,
-since focusBlockEnd(0) on a giant container would target a windowed-out child.
+shapes (list/blockquote/table) un-capped at 0.8.5: their 10MB load is linear and
+windowing bounds the mount, so the keystroke is O(viewport). reference-heavy
+un-capped at 0.8.5 too — lazy inlineContent removed the per-edit whole-document
+inline sweep that made its keystroke fail to settle. Container-first shapes
+(nested-containers, table-heavy, and the three giant-single shapes) PREPEND a
+plain paragraph as the block-0 caret target, since focusBlockEnd(0) on a giant
+container would target a windowed-out child. (Headline numbers: baseline.json.)
 
 Two axes stay non-viewport-bounded (recorded, not regression-gated at 10MB):
 single-giant-paragraph (intra-block span rebuild, Axis 5) and the flat
