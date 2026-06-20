@@ -24,6 +24,8 @@ const ALLOWLIST: Record<string, string> = {
 	'src/lib/editor/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
 	// rAF coalesces pointermove bursts to one handler per frame (cross-block drag).
 	'src/lib/editor/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
+	// Same pointermove throttle for drag-to-reorder; mirrors drag-pointer.ts.
+	'src/lib/editor/selection/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
 	// Same pointermove throttle for intra-table drag; mirrors drag-pointer.ts but
 	// lives under table/ because it is table-cell specific.
 	'src/lib/editor/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',
