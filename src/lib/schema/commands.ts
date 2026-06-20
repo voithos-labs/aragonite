@@ -80,9 +80,6 @@ registerCommand('history.redo', (ctx) => {
 	return true;
 });
 
-// register-once now throws on duplicate; full-reload on edit instead of re-running these.
-import.meta.hot?.accept(() => import.meta.hot?.invalidate());
-
 export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Z', command: 'history.undo' },
 	{ chord: 'Mod+Y', command: 'history.redo' },

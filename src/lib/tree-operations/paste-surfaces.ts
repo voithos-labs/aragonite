@@ -63,10 +63,9 @@ export interface PasteSurface {
 const surfaces = new Map<AnyBlockKind, PasteSurface>();
 
 export function registerPasteSurface(surface: PasteSurface): void {
-	if (import.meta.env.DEV && surfaces.has(surface.kind)) {
-		console.warn(
-			`[paste-surfaces] double register for ${surface.kind} — overwriting. ` +
-				`Likely two modules registered the same kind, or a plugin forgot an idempotency guard.`
+	if (surfaces.has(surface.kind)) {
+		throw new Error(
+			`registerPasteSurface: "${surface.kind}" is already registered. Paste surfaces are register-once.`
 		);
 	}
 	surfaces.set(surface.kind, surface);
@@ -78,4 +77,8 @@ export function getPasteSurface(kind: AnyBlockKind): PasteSurface | undefined {
 
 export function __resetPasteSurfacesForTests(): void {
 	surfaces.clear();
+}
+
+export function __removePasteSurfaceForTests(kind: AnyBlockKind): void {
+	surfaces.delete(kind);
 }

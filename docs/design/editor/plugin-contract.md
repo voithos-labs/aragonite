@@ -70,10 +70,11 @@ registration, not a render-time crash.
 
 ### Schema registries — global, register-once, conflict-on-duplicate
 
-The block grammar is a set of **process-global** registries (block-kind descriptors, block
-components, block openers, global commands), each keyed by `AnyBlockKind` (or command id). This
-is the `customElements` model: a kind is a _definition_ every editor instance in the process
-shares, exactly as `customElements.define` defines an element for every document.
+The block grammar is a set of **process-global** registries — block-kind descriptors, block
+components, block openers, global commands (in `schema/`), and per-kind paste surfaces (in
+`tree-operations/`) — each keyed by `AnyBlockKind` (or command id). This is the `customElements`
+model: a kind is a _definition_ every editor instance in the process shares, exactly as
+`customElements.define` defines an element for every document.
 
 ```
 Registration model
@@ -102,13 +103,14 @@ Registration model
   process parses plugin blocks even if its consumer did not pass the plugin. This is the chosen
   consequence of definitions-are-global (per-instance _enablement_, if ever needed, is the
   policy layer above), not a latent surprise.
-- **Reset is a test/HMR affordance, not a runtime API.** Because registration throws on
-  duplicate, any path that re-registers would otherwise throw. Two internal, never-exposed
-  affordances cover that: a single `__resetSchemaRegistriesForTests()` clears every _non-built-in_
-  registration (built-ins survive, so tests that mint plugin/test kinds isolate without losing
-  the grammar), and the registration modules decline dev HMR (`import.meta.hot?.decline()`) so an
-  edit to one full-reloads the page — built-ins re-register in a fresh module graph rather than
-  double-registering.
+- **Reset is a test affordance; HMR needs a reload.** Because registration throws on duplicate,
+  any path that re-registers would otherwise throw. For tests, `__resetSchemaRegistriesForTests()`
+  clears every _non-built-in_ schema registration (built-ins survive, so tests that mint
+  plugin/test kinds isolate without losing the grammar); the paste-surface registry, living in
+  `tree-operations/`, keeps its own full-clear reset. For dev HMR, a registration module cannot be
+  hot-swapped in place under register-once — editing one requires a page reload (a deliberate,
+  dev-only consequence; the modules carry no HMR-accept magic). All reset affordances are internal,
+  never exposed.
 
 **Why global, given the 1.2 per-instance `plugins` prop?** The roadmap flagged the apparent
 tension. It resolves cleanly: kind _definitions_ are global because, like custom elements, a
