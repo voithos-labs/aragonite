@@ -50,6 +50,7 @@ function makeContainer(source: string) {
 		node,
 		state,
 		reorder,
+		deps: harness.deps,
 		undo: history.requestUndo,
 		ids: () => state.innerBlockIds,
 		stable() {
@@ -149,5 +150,17 @@ describe('reorder action — blockquote', () => {
 		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 99); // clamps to 2
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
+	});
+
+	// A drag carries no live caret, so the undo snapshot synthesizes the restore
+	// path. It must be the child's deep path within the container, not a top-level
+	// index — otherwise undoing a drag of a nested block strands the caret on an
+	// unrelated top-level block. (jsdom has no native selection, so this harness
+	// always exercises the no-caret fallback.)
+	it('a no-caret container reorder snapshots a deep restore path', async () => {
+		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
+		await h.reorder.moveReorderUnit([0, 0], 2); // drag bq child 0 -> last
+		const { undo } = h.deps.undoManager.getStacks();
+		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]); // into the blockquote, not [0]
 	});
 });

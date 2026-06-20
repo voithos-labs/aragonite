@@ -110,16 +110,22 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		setUndoGauge(liveBytes, undo.length);
 	}
 
-	function pushUndoSnapshot(blockIndex: number, offset: number): void {
+	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
 		const selection =
 			readCurrentSelection(deps.selectionState, deps.blockRefs) ??
-			collapsedSelectionAt(blockIndex, offset);
+			collapsedSelectionAtPath(fallbackPath, offset);
 		deps.undoManager.push({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
 			selection
 		});
 		recordSnapshotPerf();
+	}
+
+	// Public entry: a top-level block coordinate. The no-caret fallback is a
+	// top-level path; container callers go through __commit's path-aware variant.
+	function pushUndoSnapshot(blockIndex: number, offset: number): void {
+		pushUndoSnapshotPath([blockIndex], offset);
 	}
 
 	// Path from the live focused leaf; offset from the caller (pre-edit). The
@@ -223,7 +229,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// at cap.
 		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
 		if (args.snapshot !== 'skip') {
-			pushUndoSnapshot(args.snapshot.blockIndex, args.snapshot.offset);
+			// With no live caret (e.g. a handle drag) the snapshot synthesizes a
+			// restore path. A container edit's coordinate is child-relative, so
+			// prefix it with the container's eventPath; a document edit's is already
+			// a top-level index. (When a caret IS live — every keyboard path — it
+			// wins and this fallback is unused.)
+			const fallbackPath =
+				args.kind === 'container'
+					? [...args.eventPath, args.snapshot.blockIndex]
+					: [args.snapshot.blockIndex];
+			pushUndoSnapshotPath(fallbackPath, args.snapshot.offset);
 		}
 
 		// The container branch mutates the live tree in place (its scope views
