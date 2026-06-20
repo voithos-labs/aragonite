@@ -1,13 +1,14 @@
 /**
  * G1.9 — snapshot aliasing rule for structural-sharing undo. The invariant is
  * BYTES-scoped: no mutation may change the serialized bytes reachable through
- * a node an undo/redo entry still shares. Two deliberate exemptions:
+ * a node an undo/redo entry still shares. One deliberate exemption:
  *
- *   - `inlineContent` cache writes through shared nodes are allowed — the
- *     cache is derived and non-serialized, so it never reaches history bytes;
  *   - a still-shared node may be MOVED (re-parented) by the live tree (e.g.
  *     list indent) — shared means read-only BYTES, not frozen position. Each
  *     snapshot owns its children array, so its view of the tree is unaffected.
+ *
+ * The inline tree is a derived cache held in an external WeakMap (inline-cache),
+ * not a node field, so it never reaches history bytes — nothing to exempt.
  *
  * The digest IS the formalization: FNV-1a over prefix/suffix plus each
  * top-level child's leadingTrivia + raw. Top-level only — a container's raw

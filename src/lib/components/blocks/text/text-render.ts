@@ -52,8 +52,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return node.raw.slice(0, range.start);
 	}
 
-	// Inline content is computed by the caller and threaded in; the render path
-	// never reads node.inlineContent — see editor.md § Reactive State Plumbing.
+	// Render computes inline content via computeInlineContent (the pure path), not
+	// the caching getInlineContent accessor — the cache is non-reactive, so reading
+	// it here would skip render-relevant changes (invariants G4.2).
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const node = deps.node;
 		const frag = document.createDocumentFragment();
