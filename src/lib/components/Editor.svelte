@@ -152,7 +152,7 @@
 			// rebuild the map when a commit could change the LRD set, and hand out a
 			// fresh resolver identity only on a real signature change — a fresh
 			// identity on every edit would re-render every block that read it.
-			if (lrdMapCouldChange(doc, e, currentSignature)) {
+			if (lrdMapCouldChange(doc, e)) {
 				const newMap = buildLinkReferenceMap(doc.children);
 				if (newMap.signature !== currentSignature) {
 					currentResolver = newMap.resolve;
