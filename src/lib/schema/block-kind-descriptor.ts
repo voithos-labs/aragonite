@@ -355,6 +355,3 @@ registerBlockKind('listItem', {
 		{ chord: 'Shift+Tab', command: 'list.unindent' }
 	]
 });
-
-// register-once now throws on duplicate; full-reload on edit instead of re-running these.
-import.meta.hot?.accept(() => import.meta.hot?.invalidate());

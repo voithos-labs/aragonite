@@ -4,7 +4,10 @@
  */
 
 import { registerLanguage } from './code-languages';
-import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
+import {
+	registerPasteSurface,
+	__removePasteSurfaceForTests
+} from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
 
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -54,7 +57,8 @@ export function bootstrapCodeLanguages(): void {
 	registerPasteSurface(codePasteSurface);
 }
 
-/** Test-only: reset booted flag. */
+/** Test-only: reset booted flag and undo the surface bootstrap registered, so a re-bootstrap doesn't conflict. */
 export function __resetBootForTests(): void {
 	booted = false;
+	__removePasteSurfaceForTests(codePasteSurface.kind);
 }

@@ -65,6 +65,3 @@ registerPasteSurface(tableCellPasteSurface);
 // the selection layer dispatches through the descriptor registry — no
 // selection→table-component import.
 augmentBlockKind('table', { foreignDragHitTest: tableDragHitTest });
-
-// register-once now throws on duplicate; full-reload on edit instead of re-running these.
-import.meta.hot?.accept(() => import.meta.hot?.invalidate());
