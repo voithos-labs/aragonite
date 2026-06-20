@@ -63,10 +63,14 @@ back to `BlockKind`. Code that must exhaustively handle built-ins keeps switchin
 `BlockKind` after that narrowing; code that dispatches by registry lookup keys on
 `AnyBlockKind` and tolerates unknown kinds.
 
-**Unknown-kind rule:** any exhaustive `switch` over kind must have a default arm that degrades
-safely (the height oracle estimates an unknown kind as prose; serialization round-trips it via
-`raw`). A plugin kind with no registered descriptor is a registration error surfaced at
-registration, not a render-time crash.
+**Unknown-kind rule:** any exhaustive `switch` over kind needs a default arm that degrades
+safely — the height oracle estimates an unknown kind as prose, serialization round-trips it via
+`raw`, and a kind with no registered component renders a visible raw fallback. A descriptor is
+different: it is required infrastructure (`getBlockKindDescriptor` is read throughout — merge
+rules, container rebuild, selection), so a descriptor-less kind throws at first use, a
+render-path throw contained by the per-block error boundary as a failed-block fallback. Built-in
+descriptor completeness is bootstrap-checked (G1.2 over the closed union); validating that a
+plugin registered its descriptor is a 1.2 plugin-lifecycle concern.
 
 ### Schema registries — global, register-once, conflict-on-duplicate
 

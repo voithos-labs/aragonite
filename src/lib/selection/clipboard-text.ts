@@ -5,7 +5,7 @@
 import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import { nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize, assertCharOffset } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
@@ -41,12 +41,8 @@ export function collectCrossBlockText(
 	// On a table, offsets index half-open cell ranges (spec § "Two encodings"),
 	// not character positions; the three table branches below route through
 	// emitTablePortion so the generic raw.slice paths don't return garbage.
-	if (
-		pathsEqual(start.path, end.path) &&
-		'kind' in startNode &&
-		(startNode as CstNode).kind === 'table'
-	) {
-		return emitTablePortion(startNode as CstNode, start.offset, end.offset);
+	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
+		return emitTablePortion(startNode, start.offset, end.offset);
 	}
 
 	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
@@ -54,8 +50,8 @@ export function collectCrossBlockText(
 
 	let effectiveStartPath = start.path;
 	let startTail: string;
-	if ('kind' in startNode && (startNode as CstNode).kind === 'table') {
-		const tableNode = startNode as CstNode;
+	if (isBlockNode(startNode) && startNode.kind === 'table') {
+		const tableNode = startNode;
 		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const allCellsCount = tableNode.children!.length * colCount;
 		startTail = emitTablePortion(tableNode, start.offset, allCellsCount);
@@ -79,10 +75,10 @@ export function collectCrossBlockText(
 
 	let effectiveEndPath = end.path;
 	let endHead: string;
-	if ('kind' in endNode && (endNode as CstNode).kind === 'table') {
+	if (isBlockNode(endNode) && endNode.kind === 'table') {
 		// Snapped end.offset is the inclusive last cell of its row; emitTablePortion
 		// takes an exclusive end. +1 makes the captured rows match the delete.
-		endHead = emitTablePortion(endNode as CstNode, 0, end.offset + 1);
+		endHead = emitTablePortion(endNode, 0, end.offset + 1);
 	} else {
 		const endOffset = assertCharOffset(end, 'collectCrossBlockText:end');
 		if (endOffset === displayLength(endRaw) && end.path.length > 1) {
