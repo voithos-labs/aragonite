@@ -31,7 +31,6 @@ function copyNode(node: CstNode, sharing: SharingState): CstNode {
 		assertInvariant('clone-safe-metadata', () => checkCloneSafeMetadata(node));
 		copy.metadata = cloneMetadata(node.metadata);
 	}
-	if (node.inlineContent) copy.inlineContent = [...node.inlineContent];
 	sharing.stamp(copy);
 	return copy;
 }

@@ -19,7 +19,6 @@ const MERGE_ROLES: ReadonlySet<MergeRole> = new Set([
  * one-directional (a container *may* be transiently childless mid-edit, so we
  * never require fields, only forbid illegal ones):
  *   - non-containers must not carry `children`;
- *   - non-prose kinds must not carry `inlineContent`;
  *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers;
  *   - `mergeRole` must be one of the five legal roles.
  * Editor-level fields (`childIds`, `ownerEpoch`) are deliberately unchecked —
@@ -30,9 +29,6 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 
 	if (!d.isContainer && node.children !== undefined) {
 		return illegalField(node.kind, 'children', 'leaf carries children');
-	}
-	if (!d.supportsInline && node.inlineContent !== undefined) {
-		return illegalField(node.kind, 'inlineContent', 'non-prose carries inlineContent');
 	}
 	if (!d.isContainer && node.innerPrefix !== undefined) {
 		return illegalField(node.kind, 'innerPrefix', 'leaf carries container structural field');
