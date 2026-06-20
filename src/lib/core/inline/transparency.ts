@@ -3,9 +3,10 @@
  * cross-block vertical traversal (Shift+Arrow, Ctrl+Shift+Home/End) should pass
  * over it? A block is transparent when its only inline content is widgets
  * (images, live `<br>`) and blank text; a container is transparent when every
- * child is. Mirrors the component-level `isVerticallyTransparent` (widget
- * interaction + container shim) but reads the CST node directly, so it answers
- * for an OFF-WINDOW (unmounted) block where no component exists (VR-6).
+ * child is. The single implementation of the vertical-skip decision: the widget
+ * interaction and container components delegate here, and it reads the CST node
+ * directly so it also answers for an OFF-WINDOW (unmounted) block where no
+ * component exists (VR-6).
  *
  * Reads the inline tree through `getInlineContent`, which computes on demand —
  * so it answers for an off-window (unmounted) leaf where no component exists and
@@ -33,10 +34,11 @@ export function isVerticallyTransparentNode(node: CstNode | null | undefined): b
 		return node.children.every(isVerticallyTransparentNode);
 	}
 	// No resolver: transparency is the vertical-skip decision and stays LRD-free
-	// so the path-walkers that call it carry no resolver. The only effect is that
-	// a rare reference-style-image-only paragraph isn't auto-skipped on vertical
-	// arrow; direct `![](url)` images are unaffected, and in-block cursor handling
-	// stays resolver-correct via the component readers.
+	// so the path-walkers that call it carry no resolver. Uniform across every
+	// vertical path now (the component delegates here too): a rare reference-
+	// style-image-only paragraph isn't auto-skipped on any vertical path; direct
+	// `![](url)` images are unaffected, and in-block cursor handling stays
+	// resolver-correct via the other component readers.
 	const inlines = getInlineContent(node);
 	if (inlines.length === 0) return false;
 	for (const inline of inlines) {
