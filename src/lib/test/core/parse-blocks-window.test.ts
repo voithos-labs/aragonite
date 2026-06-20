@@ -1,8 +1,7 @@
 /**
- * Contract pin for the parseBlocks(lines, start, end) window — the stable
- * seam 0.8.1's block-incremental parsing builds on. Contract: a window whose
- * boundaries fall on block starts parses identically to a full parse of the
- * window's text.
+ * Contract pin for the parseBlocks(lines, start, end) window seam. Contract: a
+ * window whose boundaries fall on block starts parses identically to a full
+ * parse of the window's text.
  */
 import { describe, expect, it } from 'vitest';
 import { parseBlocks } from '../../core/parser';
