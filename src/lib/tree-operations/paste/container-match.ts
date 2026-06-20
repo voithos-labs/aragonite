@@ -7,7 +7,6 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { isProseKind, parseInline, getContentRange } from '../../core/inline';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -176,10 +175,6 @@ async function applyContainerMatchingMerge(
 				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
 				ownedLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
-				if (isProseKind(ownedLeaf.kind)) {
-					const range = getContentRange(ownedLeaf);
-					ownedLeaf.inlineContent = parseInline(ownedLeaf.raw, range.start, range.end);
-				}
 				rebuildUnsharedChain(chain, sharing);
 				return [{ op: 'noop' }];
 			},
@@ -215,14 +210,6 @@ async function applyContainerMatchingMerge(
 			const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
 			ownedLeaf.raw = displayBefore + firstItemText + targetLineEnding;
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
-			if (isProseKind(ownedLeaf.kind)) {
-				const range = getContentRange(ownedLeaf);
-				ownedLeaf.inlineContent = parseInline(ownedLeaf.raw, range.start, range.end);
-			}
-			if (isProseKind(lastLeaf.kind)) {
-				const range = getContentRange(lastLeaf);
-				lastLeaf.inlineContent = parseInline(lastLeaf.raw, range.start, range.end);
-			}
 			// Rebuild target's ancestry so the enclosing listItem reflects the
 			// merged paragraph before siblings splice in.
 			rebuildUnsharedChain(chain, sharing);

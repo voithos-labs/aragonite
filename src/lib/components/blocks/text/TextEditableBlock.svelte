@@ -38,7 +38,7 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import { parseInline, getContentRange, isProseKind } from '../../../core/inline';
+	import { isProseKind } from '../../../core/inline';
 	import { getInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -159,17 +159,6 @@
 		controller,
 		history,
 		pasteCoordinator,
-		afterRawMutated: (targetNode) => {
-			if (isProseKind(targetNode.kind)) {
-				const range = getContentRange(targetNode);
-				targetNode.inlineContent = parseInline(
-					targetNode.raw,
-					range.start,
-					range.end,
-					linkRef?.current
-				);
-			}
-		},
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();
