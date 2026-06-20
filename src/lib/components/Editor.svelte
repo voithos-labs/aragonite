@@ -56,6 +56,7 @@
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
+	import { installReorderDrag } from '../selection/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
@@ -149,6 +150,12 @@
 	// action's commit callback. Its own polite region — clobbering
 	// selectionDescription would drop the move from the a11y tree.
 	let reorderAnnouncement = $state('');
+
+	// Drag-reorder overlay: a single ghost (follows the pointer) + one insertion
+	// line, driven by the drag controller. Single elements, not per-block, so the
+	// hover/drag path adds no per-mounted-component cost.
+	let reorderGhost = $state<{ clientX: number; clientY: number; label: string } | null>(null);
+	let reorderLine = $state<{ left: number; top: number; width: number } | null>(null);
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
@@ -383,6 +390,22 @@
 		} else {
 			editorEl.removeAttribute('data-cross-block');
 		}
+	});
+
+	// Drag-to-reorder: a delegated handle-drag on the editor root. Installed once
+	// editorEl is bound; torn down on unmount via the lifetime signal.
+	$effect(() => {
+		if (!editorEl) return;
+		const handle = installReorderDrag({
+			editorRoot: editorEl,
+			moveReorderUnit: reorder.moveReorderUnit,
+			overlay: {
+				setGhost: (g) => (reorderGhost = g),
+				setLine: (l) => (reorderLine = l)
+			},
+			lifetimeSignal: lifetimeController.signal
+		});
+		return () => handle.dispose();
 	});
 
 	// Bridge native caret movement (click, arrow key) onto the
@@ -631,6 +654,17 @@
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
+	{#if reorderLine}
+		<div
+			class="reorder-line"
+			style="left:{reorderLine.left}px;top:{reorderLine.top}px;width:{reorderLine.width}px"
+		></div>
+	{/if}
+	{#if reorderGhost}
+		<div class="reorder-ghost" style="left:{reorderGhost.clientX}px;top:{reorderGhost.clientY}px">
+			{reorderGhost.label}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -687,5 +721,34 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 		border: 0;
+	}
+
+	/* Drag overlay: viewport-fixed (rects come from getBoundingClientRect /
+	   pointer client coords); pointer-events:none so they never intercept the
+	   drag's own pointer stream. */
+	.reorder-line {
+		position: fixed;
+		height: 2px;
+		background: var(--md-accent, #4f46e5);
+		border-radius: 2px;
+		pointer-events: none;
+		z-index: 20;
+	}
+
+	.reorder-ghost {
+		position: fixed;
+		transform: translate(0.75rem, 0.5rem);
+		max-width: 16rem;
+		padding: 0.15rem 0.5rem;
+		font-size: 0.85em;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		background: var(--md-accent, #4f46e5);
+		color: #fff;
+		border-radius: 4px;
+		opacity: 0.9;
+		pointer-events: none;
+		z-index: 21;
 	}
 </style>

@@ -1,0 +1,235 @@
+/**
+ * Pointer drag-to-reorder. One delegated capture-phase pointerdown on the editor
+ * root starts a drag from any `.block-drag-handle`; document-level listeners then
+ * track the pointer, paint a ghost + a single insertion line (no tree mutation,
+ * no reflow), and commit ONE move on drop. Mirrors selection/drag-pointer.ts's
+ * lifecycle (document listeners, rAF coalescing, autoscroll, lifetime teardown,
+ * pointercancel for Tauri WebView2).
+ *
+ * Baseline targeting only: the drop index is resolved against currently-mounted
+ * siblings; autoscroll brings off-viewport siblings into the window. Precise
+ * off-window (spacer-region) targeting is a separate layer.
+ */
+
+import type { ReorderAction } from '../editor-actions/reorder-action';
+import { createAutoScroll } from './autoscroll';
+
+export interface ReorderDragOverlay {
+	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;
+	setLine(l: { left: number; top: number; width: number } | null): void;
+}
+
+export interface ReorderDragContext {
+	editorRoot: HTMLElement;
+	moveReorderUnit: ReorderAction['moveReorderUnit'];
+	overlay: ReorderDragOverlay;
+	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
+	lifetimeSignal?: AbortSignal;
+}
+
+export function installReorderDrag(ctx: ReorderDragContext): { dispose(): void } {
+	const root = ctx.editorRoot;
+
+	function onPointerDown(e: PointerEvent): void {
+		if (e.button !== 0) return;
+		const target = e.target as HTMLElement | null;
+		if (!target?.closest('.block-drag-handle')) return;
+		const dragHost = target.closest('.reorder-host') as HTMLElement | null;
+		if (!dragHost) return;
+		const session = startSession(ctx, dragHost);
+		if (!session) return;
+		// Capture-phase + stopPropagation so the block's own pointerdown (which
+		// would start a cross-block text selection) never fires; preventDefault
+		// keeps the handle from stealing focus / starting a native selection.
+		e.preventDefault();
+		e.stopPropagation();
+		session.begin(e);
+	}
+
+	root.addEventListener('pointerdown', onPointerDown, true);
+
+	let disposed = false;
+	function dispose(): void {
+		if (disposed) return;
+		disposed = true;
+		root.removeEventListener('pointerdown', onPointerDown, true);
+	}
+	if (ctx.lifetimeSignal) {
+		if (ctx.lifetimeSignal.aborted) {
+			dispose();
+			return { dispose };
+		}
+		ctx.lifetimeSignal.addEventListener('abort', dispose, { once: true });
+	}
+	return { dispose };
+}
+
+// ── Drag session ─────────────────────────────────────────────────────────────
+
+function startSession(
+	ctx: ReorderDragContext,
+	dragHost: HTMLElement
+): { begin(e: PointerEvent): void } | null {
+	const fromPath = pathFor(dragHost);
+	const fromIndex = indexOf(dragHost);
+	const group = dragHost.parentElement;
+	if (!fromPath || fromIndex === null || !group) return null;
+	const siblingSelector = dragHost.classList.contains('list-item-block')
+		? '.list-item-block'
+		: '.block-host';
+	const label = ghostLabel(dragHost);
+
+	let pending: { clientX: number; clientY: number } | null = null;
+	let rafId: number | null = null;
+	let dropTo: number | null = null;
+
+	function siblings(): { index: number; rect: DOMRect }[] {
+		const out: { index: number; rect: DOMRect }[] = [];
+		for (const el of Array.from(group!.children)) {
+			if (!(el instanceof HTMLElement)) continue;
+			if (!el.matches(siblingSelector) || !el.classList.contains('reorder-host')) continue;
+			const index = indexOf(el);
+			if (index !== null) out.push({ index, rect: el.getBoundingClientRect() });
+		}
+		out.sort((a, b) => a.index - b.index);
+		return out;
+	}
+
+	function process(clientX: number, clientY: number): void {
+		const sibs = siblings();
+		// rawR = the original index before which to drop (first sibling whose
+		// vertical midpoint is below the pointer; else past the last). Removing the
+		// dragged item shifts later indices down by one, hence the `> fromIndex`
+		// adjustment so a downward drop lands where the line showed.
+		let rawR = sibs.length ? sibs[sibs.length - 1].index + 1 : fromIndex! + 1;
+		let line = sibs.length
+			? {
+					left: sibs[sibs.length - 1].rect.left,
+					top: sibs[sibs.length - 1].rect.bottom,
+					width: sibs[sibs.length - 1].rect.width
+				}
+			: null;
+		for (const s of sibs) {
+			if (clientY < s.rect.top + s.rect.height / 2) {
+				rawR = s.index;
+				line = { left: s.rect.left, top: s.rect.top, width: s.rect.width };
+				break;
+			}
+		}
+		dropTo = rawR <= fromIndex! ? rawR : rawR - 1;
+		ctx.overlay.setGhost({ clientX, clientY, label });
+		if (line) ctx.overlay.setLine(line);
+	}
+
+	const autoScroll = createAutoScroll({
+		getPointer: () => pending,
+		getTargets: () => [ctx.editorRoot],
+		onScrolled: () => {
+			if (pending) process(pending.clientX, pending.clientY);
+		}
+	});
+
+	function onMove(e: PointerEvent): void {
+		pending = { clientX: e.clientX, clientY: e.clientY };
+		if (rafId !== null) return;
+		rafId = requestAnimationFrame(() => {
+			rafId = null;
+			if (!pending) return;
+			process(pending.clientX, pending.clientY);
+			autoScroll.maybeStart();
+		});
+	}
+
+	let done = false;
+	function teardown(): void {
+		if (done) return;
+		done = true;
+		document.removeEventListener('pointermove', onMove);
+		document.removeEventListener('pointerup', onUp);
+		document.removeEventListener('pointercancel', onCancel);
+		document.removeEventListener('keydown', onKey, true);
+		ctx.lifetimeSignal?.removeEventListener('abort', onCancel);
+		if (rafId !== null) cancelAnimationFrame(rafId);
+		autoScroll.dispose();
+		document.body.style.userSelect = '';
+		ctx.overlay.setGhost(null);
+		ctx.overlay.setLine(null);
+		pending = null;
+	}
+
+	// A release landing before the coalescing rAF runs would otherwise commit a
+	// stale dropTo (or none) — e.g. a fast drag whose final move is still pending.
+	function flushPendingMove(): void {
+		if (rafId !== null && pending) process(pending.clientX, pending.clientY);
+	}
+
+	function commitDrop(): void {
+		flushPendingMove();
+		const to = dropTo;
+		teardown();
+		if (to !== null && to !== fromIndex) void ctx.moveReorderUnit(fromPath!, to);
+	}
+	function onUp(): void {
+		commitDrop();
+	}
+	function onCancel(): void {
+		teardown();
+	}
+	function onKey(e: KeyboardEvent): void {
+		if (e.key === 'Escape') teardown();
+	}
+
+	return {
+		begin(e: PointerEvent) {
+			document.body.style.userSelect = 'none';
+			document.addEventListener('pointermove', onMove);
+			document.addEventListener('pointerup', onUp);
+			document.addEventListener('pointercancel', onCancel);
+			document.addEventListener('keydown', onKey, true);
+			ctx.lifetimeSignal?.addEventListener('abort', onCancel, { once: true });
+			process(e.clientX, e.clientY);
+		}
+	};
+}
+
+// ── Element → path / index ───────────────────────────────────────────────────
+
+// A `.block-host` carries its own `data-block-path`; a `.list-item-block` does
+// not, so we borrow a descendant block-host's path — the action's
+// resolveReorderUnit climbs from it to the list item either way.
+function pathFor(host: HTMLElement): number[] | null {
+	const own = host.getAttribute('data-block-path');
+	const raw = own ?? host.querySelector('[data-block-path]')?.getAttribute('data-block-path');
+	if (!raw) return null;
+	try {
+		return JSON.parse(raw) as number[];
+	} catch {
+		return null;
+	}
+}
+
+// The unit's index among its siblings: a block-host's own path tail; a list
+// item's inner content path's second-to-last entry (the item index).
+function indexOf(host: HTMLElement): number | null {
+	const own = host.getAttribute('data-block-path');
+	if (own) {
+		try {
+			return (JSON.parse(own) as number[]).at(-1) ?? null;
+		} catch {
+			return null;
+		}
+	}
+	const innerRaw = host.querySelector('[data-block-path]')?.getAttribute('data-block-path');
+	if (!innerRaw) return null;
+	try {
+		return (JSON.parse(innerRaw) as number[]).at(-2) ?? null;
+	} catch {
+		return null;
+	}
+}
+
+function ghostLabel(host: HTMLElement): string {
+	const text = (host.textContent ?? '').trim().replace(/\s+/g, ' ');
+	if (!text) return 'block';
+	return text.length > 40 ? text.slice(0, 40) + '…' : text;
+}
