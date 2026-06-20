@@ -729,7 +729,7 @@
 	.reorder-line {
 		position: fixed;
 		height: 2px;
-		background: var(--md-accent, #4f46e5);
+		background: var(--md-reorder-indicator);
 		border-radius: 2px;
 		pointer-events: none;
 		z-index: 20;
@@ -744,7 +744,7 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		background: var(--md-accent, #4f46e5);
+		background: var(--md-reorder-indicator);
 		color: #fff;
 		border-radius: 4px;
 		opacity: 0.9;
