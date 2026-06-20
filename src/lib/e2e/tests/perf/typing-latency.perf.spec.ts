@@ -21,27 +21,16 @@ const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 ];
 
 // Rows above a shape's cap are not generated; omissions are recorded in the
-// requirements file. 0.8.6 virtual rendering un-capped the MULTI-block shapes
-// whose 10MB blocker was mounting every block: many-small-blocks +
-// nested-containers (Phase 2 top-level windowing) and table-heavy (Phase 2 — many
-// small tables stay below the watermark) now load and settle a keystroke at 10MB
-// (verified PERF=1).
-//   The single-giant-CONTAINER shapes stay capped: VR bounds their RENDERING
-//   (proven at 2MB in virtual-rendering.spec.ts), but their 10MB LOAD does not
-//   complete in 60s — the one-time parse + inline-content build for a single
-//   container with hundreds of thousands of children is O(doc), which VR (a
-//   rendering optimization) does not address. All three fail identically,
-//   including the list/blockquote shapes that touch no table code, so it is the
-//   single-giant-container load axis (incremental parsing 0.8.1 / lazy
-//   inlineContent 0.8.5), not a windowing bug.
-//   reference-heavy stays capped: its 10MB keystroke is bounded by reference/LRD
-//   resolution over the whole document, not mounted-component count (0.8.4).
-const MAX_BYTES: Partial<Record<FixtureShape, number>> = {
-	'reference-heavy': 1_000_000,
-	'giant-single-list': 1_000_000,
-	'giant-single-blockquote': 1_000_000,
-	'giant-single-table': 1_000_000
-};
+// requirements file. 0.8.6 virtual rendering un-capped the multi-block shapes
+// whose 10MB blocker was mounting every block. The single-giant-container shapes
+// (giant-single-list/blockquote/table) were previously capped on the assumption
+// their 10MB load wouldn't complete in 60s; measurement disproved it — the load
+// is linear (~3.4s at 10MB; parse ~6%, the rest linear $state/tree
+// materialization) and VR bounds the mount, so they are un-capped here.
+//   reference-heavy was capped because its 10MB keystroke ran the per-edit
+//   whole-document inline sweep over every reference-bearing block; lazy
+//   inlineContent (0.8.5) removed that sweep, so it un-caps too.
+const MAX_BYTES: Partial<Record<FixtureShape, number>> = {};
 
 function round(ms: number): number {
 	return Math.round(ms * 10) / 10;
