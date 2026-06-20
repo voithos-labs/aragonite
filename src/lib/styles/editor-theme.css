@@ -54,6 +54,7 @@
 	--md-unresolved-color: #c0392b;
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
+	--md-reorder-indicator: #6496ff;
 
 	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
 	   the window recompute and paint a bare spacer for one frame; the tint reads as
