@@ -26,6 +26,10 @@ export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 export const REORDER_ACTION_KEY = Symbol('reorder-action');
 export type { ReorderAction } from './editor-actions/reorder-action';
 
+/** Getter-wrapped set-once flag: render the mouse-only hover drag handle. False
+ *  hides it; keyboard reorder stays available regardless. */
+export const BLOCK_DRAG_HANDLES_KEY = Symbol('block-drag-handles');
+
 export const SELECTION_KEY = Symbol('selection');
 export type { EditorSelection } from './selection/primitives';
 

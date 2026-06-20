@@ -14,8 +14,8 @@ export class EditorPage {
 
 	// ── Navigation ──────────────────────────────────────────────────────
 
-	async goto() {
-		await this.page.goto('/test/editor');
+	async goto(query = '') {
+		await this.page.goto(`/test/editor${query}`);
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000
@@ -83,18 +83,19 @@ export class EditorPage {
 	// Top-level addressing only. Container blocks (blockquote, list, listItem)
 	// render nested BlockHosts whose data-block-path carries a comma; the
 	// :not([data-block-path*=","]) filter excludes them. Use focusBlockAtPath
-	// for nested addressing.
+	// for nested addressing. The :not(.block-drag-handle) filter drops the hover
+	// reorder grip — also a non-overlay host child — so the count stays one per block.
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
-			.locator(':scope > *:not(.selection-overlay)')
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)')
 			.first();
 	}
 
 	getBlocks(): Locator {
 		return this.page
 			.locator('[data-block-path]:not([data-block-path*=","])')
-			.locator(':scope > *:not(.selection-overlay)');
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)');
 	}
 
 	async getDomBlockCount(): Promise<number> {

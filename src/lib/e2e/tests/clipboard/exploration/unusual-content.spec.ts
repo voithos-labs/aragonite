@@ -38,7 +38,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.loadContent('above\n\n---\n\nbelow\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted'));
 
-		const hr = editor.page.locator('.block-list > .block-host > :not(.selection-overlay)').nth(1);
+		const hr = editor.getBlock(1);
 		await hr.click();
 
 		await editor.page.keyboard.press('Control+v');

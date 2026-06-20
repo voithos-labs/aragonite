@@ -123,6 +123,7 @@
 		getRef={(i) => listState.innerBlockRefs[i]}
 		parentPath={myPath}
 		window={windowing.window}
+		reorderable={true}
 	/>
 </div>
 
