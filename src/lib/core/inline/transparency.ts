@@ -4,15 +4,10 @@
  * over it? A block is transparent when its only inline content is widgets
  * (images, live `<br>`) and blank text; a container is transparent when every
  * child is. The single implementation of the vertical-skip decision: the widget
- * interaction and container components delegate here, and it reads the CST node
- * directly so it also answers for an OFF-WINDOW (unmounted) block where no
- * component exists (VR-6).
- *
- * Reads the inline tree through `getInlineContent`, which computes on demand —
- * so it answers for an off-window (unmounted) leaf where no component exists and
- * the eager field may be absent. An empty result reads as not-transparent,
- * matching the component's `length === 0 → false` so an unparsed block degrades
- * to "land on it" rather than skipping it.
+ * interaction and container components delegate here. It reads the inline tree
+ * through `getInlineContent` (computed on demand), so it answers for an
+ * off-window (unmounted) leaf where no component exists. An empty result reads
+ * as not-transparent, so an unparsed block degrades to "land on it".
  */
 
 import type { CstNode } from '../nodes';
