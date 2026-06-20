@@ -8,7 +8,7 @@ Parse inline markdown syntax within inline-bearing blocks — kinds registering 
 
 ### raw as source of truth (CST Phase 2 model)
 
-`inlineContent` is derived from `raw`, re-parsed on every edit, never used for serialization. `serialize()` still reads `raw` only. If the inline parser has bugs, worst case is wrong styling, never data loss. The inline tree is disposable — a rendering cache.
+The inline tree is derived from `raw`, never used for serialization. `serialize()` still reads `raw` only. If the inline parser has bugs, worst case is wrong styling, never data loss. The inline tree is disposable — a rendering cache, computed lazily on read: the render path computes it locally via `computeInlineContent`, and non-render consumers read it through the cached `getInlineContent` accessor.
 
 ### Re-render on every input
 
