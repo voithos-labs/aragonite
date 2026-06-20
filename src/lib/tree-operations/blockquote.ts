@@ -6,7 +6,7 @@ import { freshChildIds } from '../block-id';
 /**
  * Compute the result of unwrapping a blockquote's first child (Rule U2).
  * Returns [liftedChild] or [liftedChild, remainingBlockquote]. Input is not
- * mutated; returned blocks are fresh clones (omits the inlineContent cache).
+ * mutated; returned blocks are fresh clones.
  */
 export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
 	if (
