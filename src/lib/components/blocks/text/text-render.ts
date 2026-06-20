@@ -10,7 +10,7 @@ import type { AmbientPrefix } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
-import { getContentRange, isProseKind, parseInline } from '../../../core/inline';
+import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import { buildImageWidget } from '../../image/widget-dom';
@@ -104,13 +104,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
-			const range = getContentRange(node);
-			const content = parseInline(
-				node.raw,
-				range.start,
-				range.end,
-				hasRef ? deps.linkResolver : undefined
-			);
+			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
 			el.replaceChildren(buildInlineDOM(content));
 			lastRenderedKey = renderKey;
 		} else {
