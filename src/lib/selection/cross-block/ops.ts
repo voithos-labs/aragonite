@@ -21,7 +21,7 @@ import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps
 import { applyCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import type { StructuralChange } from '../../tree-operations/structural-change';
-import { nodeAt } from '../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathHasPrefix, pathsEqual } from '../path-math';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
@@ -259,10 +259,10 @@ function collectTouchedContainers(
 			if (seen.has(key)) continue;
 			seen.add(key);
 			const node = nodeAt(doc, ancestorPath);
-			if (!node || !('kind' in node) || !node.children) continue;
-			const state = getStateForNode(node as CstNode);
+			if (!node || !isBlockNode(node) || !node.children) continue;
+			const state = getStateForNode(node);
 			if (!state) continue;
-			touched.push({ path: ancestorPath, node: node as CstNode, state });
+			touched.push({ path: ancestorPath, node, state });
 		}
 	}
 

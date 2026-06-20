@@ -447,7 +447,7 @@ All three entry points delegate to one internal commit helper that owns the full
 
 ### Event Seam
 
-The editor exposes an observer-pattern event surface at `editor.events`. Three channels:
+The editor component exposes an observer-pattern event surface via its `getEvents()` accessor. Three channels:
 
 - **`edit`** — fires after every commit. Payload is the `EditEvent` discriminated union (`editor-events.ts`), keyed by `op` over the `OperationKind` enum: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`.
 - **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.

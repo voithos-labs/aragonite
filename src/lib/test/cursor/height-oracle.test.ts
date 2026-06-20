@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
 import type { CstNode } from '../../core/nodes';
+import { declarePluginKind } from '../../schema/plugin-kind';
 
 const opts = {
 	lineHeight: 24,
@@ -67,6 +68,18 @@ describe('createHeightOracle', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = { kind: 'blockquote', leadingTrivia: '', raw: 'x'.repeat(250) };
 		expect(o.estimate(quote, 800)).toBe(24 * 3 + 16);
+	});
+
+	// The plugin-contract unknown-kind rule: a kind with no per-kind arm must fall
+	// through to the default wrapped (prose) estimate, never crash the measure path.
+	it('estimates an unknown plugin kind via the default wrapped arm', () => {
+		const o = createHeightOracle(opts);
+		const plugin: CstNode = {
+			kind: declarePluginKind('oracle-unknown-kind'),
+			leadingTrivia: '',
+			raw: 'x'.repeat(250)
+		};
+		expect(o.estimate(plugin, 800)).toBe(24 * 3 + 16);
 	});
 
 	it('counts source lines with the trailing-newline correction', () => {
