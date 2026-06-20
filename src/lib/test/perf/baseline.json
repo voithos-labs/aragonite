@@ -104,9 +104,17 @@
 		"giant-single-list-100KB": { "loadMs": 85.8, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 5.9 },
 		"giant-single-list-1MB": { "loadMs": 264, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 3.3 },
 		"giant-single-list-10MB": { "loadMs": 2384.9, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 70.2 },
-		"giant-single-blockquote-100KB": { "loadMs": 54.6, "keystrokeP50Ms": 2.4, "keystrokeP95Ms": 5.5 },
+		"giant-single-blockquote-100KB": {
+			"loadMs": 54.6,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 5.5
+		},
 		"giant-single-blockquote-1MB": { "loadMs": 194, "keystrokeP50Ms": 2.4, "keystrokeP95Ms": 4.4 },
-		"giant-single-blockquote-10MB": { "loadMs": 1749.3, "keystrokeP50Ms": 2.6, "keystrokeP95Ms": 69.6 },
+		"giant-single-blockquote-10MB": {
+			"loadMs": 1749.3,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 69.6
+		},
 		"giant-single-table-100KB": { "loadMs": 69.4, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
 		"giant-single-table-1MB": { "loadMs": 224.2, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 3.8 },
 		"giant-single-table-10MB": { "loadMs": 1982.7, "keystrokeP50Ms": 2.5, "keystrokeP95Ms": 70.5 }
