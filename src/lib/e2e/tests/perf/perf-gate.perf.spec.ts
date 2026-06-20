@@ -58,7 +58,13 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 			const ceiling = row.keystrokeP50Ms * TOLERANCE + FLOOR_MS;
 
 			const editor = new EditorPage(page);
-			const m = await measureTypingLatency(page, editor, shape, SIZE_BYTES[size], SIZE_KEYSTROKES[size]);
+			const m = await measureTypingLatency(
+				page,
+				editor,
+				shape,
+				SIZE_BYTES[size],
+				SIZE_KEYSTROKES[size]
+			);
 
 			console.log(
 				`PERF-GATE ${shape}-${size} p50=${m.p50Ms.toFixed(1)}ms ` +
