@@ -20,6 +20,8 @@ export const BLOCK_COMMAND_IDS = [
 	'block.insertTab',
 	'block.mergePrev',
 	'block.mergeNext',
+	'block.moveUp',
+	'block.moveDown',
 	'format.toggleStrong',
 	'format.toggleEmphasis',
 	'heading.cycle',

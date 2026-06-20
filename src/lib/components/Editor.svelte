@@ -20,6 +20,7 @@
 		IMAGE_LOAD_POLICY_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
+		REORDER_ACTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
@@ -52,7 +53,8 @@
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../undo/epoch-tracker';
 	import { createEditorEvents } from '../editor-events';
-	import { createEditorActions } from '../editor-actions';
+	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
+	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
@@ -139,6 +141,11 @@
 			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
 			: ''
 	);
+
+	// Screen-reader announcement for keyboard/drag reorder, set by the reorder
+	// action's commit callback. Its own polite region — clobbering
+	// selectionDescription would drop the move from the a11y tree.
+	let reorderAnnouncement = $state('');
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
@@ -283,7 +290,7 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
-	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions({
+	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
 			return doc;
 		},
@@ -311,7 +318,9 @@
 		getBlockElByPath,
 		revealPath,
 		events
-	});
+	};
+	const { blockEdit, focus, history, containerEdit, controller } =
+		createEditorActions(editorActionsDeps);
 
 	// Reactive getter: block components call this at keystroke time to read
 	// the latest doc, not the snapshot captured when they mounted.
@@ -328,12 +337,17 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller);
 
+	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
+		reorderAnnouncement = `Moved block to position ${to + 1} of ${total}`;
+	});
+
 	setContext(BLOCK_EDIT_KEY, blockEdit);
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 	setContext(CONTROLLER_KEY, controller);
 	setContext(PASTE_COORDINATOR_KEY, pasteCoordinator);
+	setContext(REORDER_ACTION_KEY, reorder);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
@@ -611,6 +625,7 @@
 		lifetime={lifetimeController.signal}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
+	<div class="editor-sr-live" role="status" aria-live="polite">{reorderAnnouncement}</div>
 </div>
 
 <style>

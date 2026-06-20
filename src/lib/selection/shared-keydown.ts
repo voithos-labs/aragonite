@@ -68,8 +68,10 @@ export async function handleSharedKeydown(
 	if (!el) return false;
 
 	// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
+	// Alt+Arrow is the block-reorder chord, not caret nav — leave the sticky
+	// column untouched and let it fall through to dispatchKeyCommand.
 	const stickyAction = classifyStickyKey(e.key);
-	if (stickyAction === 'capture') {
+	if (stickyAction === 'capture' && !e.altKey) {
 		const x = getCurrentCursorEditorRelativeX(el);
 		if (x !== null) ctx.stickyColumn.capture(x);
 	} else if (stickyAction === 'reset') {
@@ -108,7 +110,7 @@ export async function handleSharedKeydown(
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
-			if (!e.shiftKey) {
+			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
 				ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return true;
@@ -128,7 +130,7 @@ export async function handleSharedKeydown(
 				scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 				return true;
 			}
-			if (!e.shiftKey) {
+			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
 				ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return true;

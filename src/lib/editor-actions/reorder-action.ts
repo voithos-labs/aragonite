@@ -28,7 +28,8 @@ export interface ReorderAction {
 
 export function createReorderAction(
 	deps: EditorActionsDeps,
-	controller: UndoController
+	controller: UndoController,
+	onReorder?: (to: number, total: number) => void
 ): ReorderAction {
 	function caretOffset(): number {
 		return readCurrentSelection(deps.selectionState, deps.blockRefs)?.focus.offset ?? 0;
@@ -72,14 +73,14 @@ export function createReorderAction(
 	function resolveAndClamp(
 		fromPath: number[],
 		computeTo: (currentIndex: number) => number
-	): { unit: ReorderUnit; to: number } | null {
+	): { unit: ReorderUnit; to: number; total: number } | null {
 		const unit = resolveReorderUnit(deps.doc, fromPath);
 		if (!unit) return null;
 		const parent = unit.parentKind === 'document' ? deps.doc : nodeAt(deps.doc, unit.parentPath);
-		const count = parent?.children?.length ?? 0;
-		const to = Math.max(0, Math.min(computeTo(unit.index), count - 1));
+		const total = parent?.children?.length ?? 0;
+		const to = Math.max(0, Math.min(computeTo(unit.index), total - 1));
 		if (to === unit.index) return null;
-		return { unit, to };
+		return { unit, to, total };
 	}
 
 	async function run(
@@ -92,6 +93,7 @@ export function createReorderAction(
 		// commit's afterTick re-places the caret in the moved block.
 		deps.selectionState.collapse();
 		await commitReorder(target.unit, target.to, caretOffset());
+		onReorder?.(target.to, target.total);
 	}
 
 	return {
