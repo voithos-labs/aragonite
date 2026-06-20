@@ -4,8 +4,8 @@
  * selection. Snapshots share the live tree's nodes, so a restore re-marks
  * the epoch (the restored nodes are now also held by the swap entry) and
  * re-copies the children array so later publishes never write the stack's
- * entry. Inline caches repopulate via the shell sweep on the emitted
- * undo/redo event.
+ * entry. Inline content is computed lazily on read, so restore parses no
+ * inline — rendered blocks recompute on demand.
  */
 
 import { tick } from 'svelte';
