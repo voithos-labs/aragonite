@@ -115,4 +115,24 @@ export function createSearchState(deps: SearchDeps) {
 		rescan
 	};
 }
-export type SearchState = ReturnType<typeof createSearchState>;
+/** Public controller surface — what `editor.getSearch()` exposes. Internal-only
+ *  members (`rescan`, `revealActive`) are deliberately omitted: adding a public
+ *  member later is non-breaking, removing one is breaking, so keep this minimal. */
+export interface SearchState {
+	readonly isOpen: boolean;
+	readonly query: string;
+	readonly replacement: string;
+	readonly options: SearchOptions;
+	readonly matches: Match[];
+	readonly activeIndex: number;
+	readonly error: string | null;
+	open(): void;
+	close(): void;
+	setQuery(q: string): void;
+	setReplacement(s: string): void;
+	setOptions(partial: Partial<SearchOptions>): void;
+	next(): void;
+	prev(): void;
+	replaceCurrent(): Promise<void>;
+	replaceAll(): Promise<void>;
+}
