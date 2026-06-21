@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { isAllowedHrefScheme, isAllowedImageSrcScheme } from '../../core/url-policy';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+	isAllowedHrefScheme,
+	isAllowedImageSrcScheme,
+	defaultLinkActivation
+} from '../../core/url-policy';
 
 describe('url-policy — href allowlist', () => {
 	it.each([
@@ -29,6 +34,25 @@ describe('url-policy — href allowlist', () => {
 		expect(isAllowedHrefScheme(c0(1))).toBe(false);
 		expect(isAllowedHrefScheme(c0(0x1f))).toBe(false);
 		expect(isAllowedImageSrcScheme(c0(1))).toBe(false);
+	});
+});
+
+describe('url-policy — defaultLinkActivation', () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it('opens allowed http(s) links in a noopener tab', () => {
+		const open = vi.spyOn(window, 'open').mockReturnValue(null);
+		defaultLinkActivation('https://example.com', new MouseEvent('click'));
+		expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+	});
+
+	it('refuses disallowed schemes (incl. control-byte obfuscation) and warns instead', () => {
+		const open = vi.spyOn(window, 'open').mockReturnValue(null);
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		defaultLinkActivation('javascript:alert(1)', new MouseEvent('click'));
+		defaultLinkActivation('\x01javascript:alert(1)', new MouseEvent('click'));
+		expect(open).not.toHaveBeenCalled();
+		expect(warn).toHaveBeenCalledTimes(2);
 	});
 });
 

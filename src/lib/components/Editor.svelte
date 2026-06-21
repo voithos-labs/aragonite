@@ -48,6 +48,7 @@
 	import { ensureEditableContainers } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
+	import { defaultLinkActivation } from '../core/url-policy';
 	import { lrdMapCouldChange } from '../lrd-map-gate';
 	import {
 		buildLinkReferenceMap,
@@ -95,7 +96,7 @@
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
 	const activateLink = (url: string, event: MouseEvent) =>
-		onLinkActivate ? onLinkActivate(url, event) : window.open(url, '_blank', 'noopener,noreferrer');
+		(onLinkActivate ?? defaultLinkActivation)(url, event);
 
 	// ── State ───────────────────────────────────────────────────────────
 
