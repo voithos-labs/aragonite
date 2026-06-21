@@ -1,8 +1,11 @@
-/** Expand `$1`..`$9`, `$&`/`$0` (full match), and `$$` (literal $) against a
- *  regex match's groups. Literal mode passes `undefined` groups → verbatim. */
+/** Expand `$1`..`$9`, `$&`/`$0` (full match), `$$` (literal $), and `\n`/`\t`/`\\`
+ *  escapes against a regex match's groups. Literal mode passes `undefined` groups
+ *  → verbatim (a single-line replace input can't carry a real newline, so escapes
+ *  are the only way to inject one — regex mode only, matching VS Code). */
 export function expandReplacement(template: string, groups: string[] | undefined): string {
 	if (!groups) return template;
-	return template.replace(/\$(\$|&|\d+)/g, (_, token: string) => {
+	return template.replace(/\\([nt\\])|\$(\$|&|\d+)/g, (_, esc: string, token: string) => {
+		if (esc) return esc === 'n' ? '\n' : esc === 't' ? '\t' : '\\';
 		if (token === '$') return '$';
 		if (token === '&') return groups[0] ?? '';
 		const n = Number(token);
