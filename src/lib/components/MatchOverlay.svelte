@@ -60,8 +60,10 @@
 			state.matches.forEach((m, i) => {
 				if (!pathsEqual(m.path, path)) return;
 				for (const r of leaf.measurePartialRects!(m.start, m.end)) {
-					// A zero-width client rect (a regex like `a*`/`^` matching empty, or a
-					// degenerate line-boundary fragment) would paint an invisible sliver.
+					// Empty matches never reach here — the collapsed-range guard in overlay-rects
+					// drops them upstream. This drops a degenerate zero-width client rect a
+					// non-collapsed match can still emit from `getClientRects` (e.g. a line-boundary
+					// fragment), which would otherwise paint an invisible sliver.
 					if (r.width <= 0) continue;
 					out.push(toLocal(r, blockRect, i === state.activeIndex));
 				}
