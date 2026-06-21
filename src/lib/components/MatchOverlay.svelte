@@ -60,6 +60,9 @@
 			state.matches.forEach((m, i) => {
 				if (!pathsEqual(m.path, path)) return;
 				for (const r of leaf.measurePartialRects!(m.start, m.end)) {
+					// A zero-width client rect (a regex like `a*`/`^` matching empty, or a
+					// degenerate line-boundary fragment) would paint an invisible sliver.
+					if (r.width <= 0) continue;
 					out.push(toLocal(r, blockRect, i === state.activeIndex));
 				}
 			});

@@ -173,6 +173,8 @@ export interface CommitController {
 	/** Editor's sharing epoch state, exposed for out-of-ceremony copy-path-on-write. */
 	sharing: SharingState;
 	pushUndoSnapshot(blockIndex: number, offset: number): void;
+	/** Snapshot whose no-caret fallback seeds a deep leaf path (e.g. a match nested in a list item). */
+	pushUndoSnapshotPath(path: number[], offset: number): void;
 	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;

@@ -21,6 +21,7 @@ entirely through the keyboard and the bar's buttons. Replace-all is one undo ste
 - The case toggle (`Aa`) narrows a case-insensitive match set to the case-sensitive subset (count drops).
 - The whole-word toggle (`W`) drops substring-only matches (count drops).
 - The regex toggle (`.*`) interprets the query as a pattern (a metacharacter query matches where a literal one would not).
+- A regex that can match empty (e.g. `a*`) paints no zero-width overlay sliver — every painted `.match-overlay` has nonzero width.
 - A regex `$1` capture reference expands in the replacement.
 - A replacement that introduces a heading marker changes the block's kind.
 - A regex-mode replacement with a `\n` escape splits the matched block into two (the single-line replace input can't carry a real newline).
