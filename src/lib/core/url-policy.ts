@@ -1,7 +1,8 @@
 /**
  * URL scheme allowlist for rendered href/src. Enforced at the render sinks
  * (inline-render link/autolink, image widget src) so author-controlled URLs
- * can't smuggle script execution into the DOM. Pure — no DOM, no config.
+ * can't smuggle script execution into the DOM. The scheme predicates are pure;
+ * `defaultLinkActivation` is the one DOM sink (it gates `window.open`).
  */
 
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
@@ -30,4 +31,16 @@ export function isAllowedHrefScheme(url: string): boolean {
 export function isAllowedImageSrcScheme(url: string): boolean {
 	const scheme = schemeOf(url);
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);
+}
+
+/**
+ * Safe-by-default link open used when the consumer supplies no `onLinkActivate`.
+ * Gated on the href allowlist so a `javascript:` link can't execute on Ctrl/Cmd+click.
+ */
+export function defaultLinkActivation(url: string, _event: MouseEvent): void {
+	if (isAllowedHrefScheme(url)) {
+		window.open(url, '_blank', 'noopener,noreferrer');
+	} else {
+		console.warn(`Blocked link with disallowed scheme: ${url}`);
+	}
 }
