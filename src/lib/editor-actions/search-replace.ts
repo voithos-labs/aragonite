@@ -26,6 +26,13 @@ function descend(root: CstNode, rel: number[]): CstNode | null {
 	return node ?? null;
 }
 
+// GFM table-cell raw uses `|` and newline as delimiters; escape pipes and collapse
+// newlines so a replacement carrying either lands as literal text in one cell
+// instead of splitting the row or spilling into adjacent cells.
+function escapeTableCell(replacement: string): string {
+	return replacement.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
 function groupBy<K>(matches: Match[], key: (m: Match) => K): Map<K, Match[]> {
 	const groups = new Map<K, Match[]>();
 	for (const m of matches) {
@@ -48,7 +55,9 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		for (const ranges of byLeaf.values()) {
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
-			if (leaf) leaf.raw = applyRangesToText(leaf.raw, ranges, template);
+			if (!leaf) continue;
+			const escape = leaf.kind === 'tableCell' ? escapeTableCell : undefined;
+			leaf.raw = applyRangesToText(leaf.raw, ranges, template, escape);
 		}
 		// A nested leaf's edit must propagate up the clone's materialized container
 		// raw before we reparse from `child.raw`; a top-level leaf (rel empty) needs none.
@@ -67,7 +76,11 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
 		if (indices.length === 0) return;
 		const seed = groups.get(indices[indices.length - 1])![0];
-		controller.pushUndoSnapshot(seed.path[0], seed.start); // one entry for the whole batch
+		// One pushed snapshot + per-subtree skip-commits = one undo entry. A throw
+		// mid-batch leaves earlier subtrees applied, but this single snapshot still
+		// restores the original document on undo (the commit publishes only on
+		// success), so recovery stays one Ctrl+Z — intentional.
+		controller.pushUndoSnapshot(seed.path[0], seed.start);
 		let total = 0;
 		for (const topIndex of indices) {
 			const newNodes = buildSubtree(topIndex, groups.get(topIndex)!, template);
