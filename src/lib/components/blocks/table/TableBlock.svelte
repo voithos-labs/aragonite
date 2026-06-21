@@ -341,6 +341,11 @@
 		return rects;
 	}
 
+	export function cellRect(rowIdx: number, colIdx: number): DOMRect | null {
+		const cellEl = cellElementAt(rowIdx, colIdx);
+		return cellEl ? cellEl.getBoundingClientRect() : null;
+	}
+
 	function collectSelectedCells(start: number, end: number): { rowIdx: number; colIdx: number }[] {
 		const anchor = selection?.anchor;
 		const focus = selection?.focus;
@@ -394,7 +399,8 @@
 		revealByPath,
 		getCursorOffset,
 		getCursorPosition,
-		measurePartialRects
+		measurePartialRects,
+		cellRect
 	} satisfies BlockComponent);
 
 	function collectColumnRects(): { left: number; right: number }[] {
