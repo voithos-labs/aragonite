@@ -115,14 +115,13 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// Guards the `ensureUnsharedChildren` line in moveRow: reorder's
-	// rebuildTableRaw canonicalizes every row's raw, so without the unshare it
-	// writes THROUGH snapshot-shared rows and undo restores CANONICAL bytes. On a
-	// tight, unpadded table the original is non-canonical, so a corrupted undo is
-	// observable as a byte mismatch. RED if the unshare line is removed.
-	test('reorder→undo restores non-canonical source byte-exactly (unshare guard)', async ({
-		page
-	}) => {
+	// Real-browser undo-restoration fidelity on a non-canonical table: reorder's
+	// rebuildTableRaw canonicalizes the live view, so undo must restore the exact
+	// original tight bytes. Covers the gap between the canonical parity e2e and the
+	// proxy-blind unit test. (Note: a single reorder→undo does NOT exercise the
+	// `ensureUnsharedChildren` line in moveRow — that snapshot-aliasing needs a prior
+	// shared snapshot; the line is correct by design, mirroring deleteRow's unshare.)
+	test('reorder→undo restores a non-canonical table source byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
 		await editor.loadContent(NONCANON);
 		// Compare against the loaded source, not the literal — getSource() normalizes
