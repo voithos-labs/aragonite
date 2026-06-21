@@ -15,6 +15,12 @@ describe('expandReplacement', () => {
 	it('leaves an out-of-range group ref empty', () => {
 		expect(expandReplacement('$9', ['ab', 'a'])).toBe('');
 	});
+	it('expands \\n / \\t / \\\\ escapes in regex mode', () => {
+		expect(expandReplacement('a\\nb\\tc\\\\d', ['x'])).toBe('a\nb\tc\\d');
+	});
+	it('does not expand escapes in literal mode', () => {
+		expect(expandReplacement('a\\nb', undefined)).toBe('a\\nb');
+	});
 });
 
 describe('applyRangesToText', () => {

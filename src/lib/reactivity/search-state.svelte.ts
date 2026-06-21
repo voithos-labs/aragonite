@@ -14,6 +14,10 @@ interface SearchDeps {
 		replaceAll(m: Match[], t: string): Promise<void>;
 	};
 	reveal: (path: number[]) => Promise<unknown>;
+	// Closing unmounts the bar; without this the focused find input is removed and
+	// focus falls to <body>, stranding keyboard routing (undo, cross-block) outside
+	// the editor. Returns focus to the document.
+	onClose: () => void;
 }
 
 export function createSearchState(deps: SearchDeps) {
@@ -71,6 +75,7 @@ export function createSearchState(deps: SearchDeps) {
 		close() {
 			isOpen = false;
 			matches = [];
+			deps.onClose();
 		},
 		setQuery(q: string) {
 			query = q;
