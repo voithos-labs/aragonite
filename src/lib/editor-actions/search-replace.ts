@@ -1,118 +1,106 @@
 /**
- * Find/replace writes. replaceOne mutates a single leaf surgically (identity
- * preserved). replaceAll rebuilds the whole document in one commit: surgical
- * per-leaf batching is infeasible here because a StructuralChange describes one
- * contiguous window, so non-contiguous matches sharing a container can't commit
- * as one change, and per-leaf sequential commits hit a stale state-registry once
- * the first unshares the shared spine. Whole-doc rebuild sidesteps both at the
- * cost of node identity — acceptable for an explicit batch op (focus is in the
- * bar, not the document).
+ * Find/replace writes. One mechanism: per affected TOP-LEVEL subtree, reparse its
+ * substituted source and commit a count:1 replace at its index. replaceOne is the
+ * single-subtree case; replaceAll batches every affected subtree under one undo
+ * entry. O(affected subtrees), not O(document). Identity holds for every unaffected
+ * top-level block. Aliasing-safe by construction: the live commit replaces a slot
+ * with freshly-parsed nodes (the clone is private), never writing through a
+ * snapshot-shared node — so no carry-through into a stamped window.
  */
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
-import { serialize } from '../core/serializer';
-import { cloneDocument } from '../tree-operations/clone';
+import { cloneNode } from '../tree-operations/clone';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import { nodeAt } from '../tree-operations/node-ops';
-import { expectStateForNode } from '../reactivity/state-registry';
 import {
 	replacePreservingFirst,
-	stampStructuralChange,
-	type StructuralChange
+	stampStructuralChange
 } from '../tree-operations/structural-change';
 import { applyRangesToText } from '../search/replace';
 import type { Match } from '../search/document-scan';
-import type { ContainerScope, EditorActionsDeps, UndoController } from './deps';
+import type { EditorActionsDeps, UndoController } from './deps';
+import { toEditEvent } from '../editor-events';
 
-function asNode(n: CstNode | Document | null): CstNode | null {
-	return n && 'raw' in n ? (n as CstNode) : null;
+function descend(root: CstNode, rel: number[]): CstNode | null {
+	let node: CstNode | undefined = root;
+	for (const i of rel) node = node?.children?.[i];
+	return node ?? null;
+}
+
+function groupBy<K>(matches: Match[], key: (m: Match) => K): Map<K, Match[]> {
+	const groups = new Map<K, Match[]>();
+	for (const m of matches) {
+		const k = key(m);
+		let g = groups.get(k);
+		if (!g) {
+			g = [];
+			groups.set(k, g);
+		}
+		g.push(m);
+	}
+	return groups;
 }
 
 export function createSearchReplace(deps: EditorActionsDeps, controller: UndoController) {
-	async function replaceOne(match: Match, template: string): Promise<void> {
-		const leaf = asNode(nodeAt(deps.doc, match.path));
-		if (!leaf) return;
-		const newNodes = parse(applyRangesToText(leaf.raw, [match], template)).children;
-		const idx = match.path[match.path.length - 1];
-		const parentPath = match.path.slice(0, -1);
-
-		if (parentPath.length === 0) {
-			await controller.commitStructural({
-				snapshot: { blockIndex: idx, offset: match.start },
-				mutate: (children) => {
-					children.splice(idx, 1, ...newNodes);
-					const change = replacePreservingFirst(idx, 1, newNodes.length);
-					stampStructuralChange(children, change, deps.sharing);
-					return change;
-				},
-				op: { kind: 'replaceBlock', detail: { count: newNodes.length } }
-			});
-			return;
-		}
-
-		const parent = asNode(nodeAt(deps.doc, parentPath));
-		if (!parent) return;
-		const state = expectStateForNode(parent);
-		await controller.commitContainerStructural({
-			containerNode: parent,
-			path: parentPath,
-			state,
-			snapshot: { blockIndex: idx, offset: match.start },
-			mutate: (scope: ContainerScope) => {
-				scope.children.splice(idx, 1, ...newNodes);
-				const change = replacePreservingFirst(idx, 1, newNodes.length);
-				stampStructuralChange(scope.children, change, scope.sharing);
-				return change;
-			},
-			op: { kind: 'replaceBlock', detail: { count: newNodes.length }, eventPath: parentPath }
-		});
-	}
-
-	async function replaceAll(matches: Match[], template: string): Promise<void> {
-		if (matches.length === 0) return;
-
-		// Build the replaced document on a private clone, then realize structural
-		// changes (splits, kind changes) through one serialize→parse round-trip.
-		const clone = cloneDocument(deps.doc);
-		const byLeaf = new Map<string, { path: number[]; ranges: Match[] }>();
-		for (const m of matches) {
-			const key = m.path.join(',');
-			let group = byLeaf.get(key);
-			if (!group) {
-				group = { path: m.path, ranges: [] };
-				byLeaf.set(key, group);
-			}
-			group.ranges.push(m);
-		}
-		for (const { path, ranges } of byLeaf.values()) {
-			const leaf = asNode(nodeAt(clone, path));
+	// Reparse top-level child `topIndex` with its descendant matches substituted.
+	function buildSubtree(topIndex: number, matches: Match[], template: string): CstNode[] {
+		const child = cloneNode(deps.doc.children[topIndex]);
+		const byLeaf = groupBy(matches, (m) => m.path.slice(1).join(','));
+		for (const ranges of byLeaf.values()) {
+			const rel = ranges[0].path.slice(1);
+			const leaf = descend(child, rel);
 			if (leaf) leaf.raw = applyRangesToText(leaf.raw, ranges, template);
 		}
-		// serialize() reads top-level materialized raw, so containers holding an
-		// edited leaf need their raw rebuilt before serialization. rebuildAncestryRaw
-		// roots at a container with a relative path — the top-level child is that root.
-		for (const { path } of byLeaf.values()) {
-			if (path.length > 1) rebuildAncestryRaw(clone.children[path[0]], path.slice(1));
+		// A nested leaf's edit must propagate up the clone's materialized container
+		// raw before we reparse from `child.raw`; a top-level leaf (rel empty) needs none.
+		for (const ranges of byLeaf.values()) {
+			const rel = ranges[0].path.slice(1);
+			if (rel.length > 0) rebuildAncestryRaw(child, rel);
 		}
-		const newChildren = parse(serialize(clone)).children;
-
-		await controller.commitStructural({
-			snapshot: { blockIndex: matches[0].path[0], offset: matches[0].start },
-			mutate: (children) => {
-				const oldCount = children.length;
-				children.splice(0, oldCount, ...newChildren);
-				const change: StructuralChange = {
-					op: 'replace',
-					at: 0,
-					count: oldCount,
-					newCount: newChildren.length
-				};
-				stampStructuralChange(children, change, deps.sharing);
-				return change;
-			},
-			op: { kind: 'replaceBlock', detail: { count: newChildren.length } }
-		});
+		const newNodes = parse(child.raw).children;
+		// leadingTrivia is positional (the separator before this block) and lives off
+		// `raw`, so parsing `child.raw` alone drops it — carry it onto the first node.
+		if (newNodes[0]) newNodes[0].leadingTrivia = child.leadingTrivia;
+		return newNodes;
 	}
 
-	return { replaceOne, replaceAll };
+	async function replaceSubtrees(groups: Map<number, Match[]>, template: string): Promise<void> {
+		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
+		if (indices.length === 0) return;
+		const seed = groups.get(indices[indices.length - 1])![0];
+		controller.pushUndoSnapshot(seed.path[0], seed.start); // one entry for the whole batch
+		let total = 0;
+		for (const topIndex of indices) {
+			const newNodes = buildSubtree(topIndex, groups.get(topIndex)!, template);
+			total += newNodes.length;
+			await controller.commitStructural({
+				snapshot: 'skip', // batch shares the single snapshot pushed above
+				mutate: (children) => {
+					children.splice(topIndex, 1, ...newNodes);
+					const change = replacePreservingFirst(topIndex, 1, newNodes.length);
+					stampStructuralChange(children, change, deps.sharing);
+					return change;
+				}
+				// op omitted → no per-commit edit event; one is emitted after the batch
+			});
+		}
+		deps.events.emit(
+			'edit',
+			toEditEvent({ kind: 'replaceBlock', detail: { count: total } }, [], Date.now())
+		);
+	}
+
+	return {
+		replaceOne: (match: Match, template: string) =>
+			replaceSubtrees(
+				groupBy([match], (m) => m.path[0]),
+				template
+			),
+		replaceAll: (matches: Match[], template: string) =>
+			matches.length === 0
+				? Promise.resolve()
+				: replaceSubtrees(
+						groupBy(matches, (m) => m.path[0]),
+						template
+					)
+	};
 }
