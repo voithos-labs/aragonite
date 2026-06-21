@@ -43,6 +43,7 @@ export interface OperationDetailMap {
 	tableDeleteRow: { rowIdx: number; crossBlock?: true };
 	tableInsertColumn: { colIdx: number; side: 'left' | 'right' };
 	tableDeleteColumn: { colIdx: number; crossBlock?: true };
+	tableReorderRow: { from: number; to: number };
 	tableCycleAlignment: { colIdx: number };
 }
 

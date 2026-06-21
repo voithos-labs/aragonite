@@ -22,6 +22,7 @@
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		REORDER_ACTION_KEY,
+		REORDER_ANNOUNCE_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SEARCH_KEY,
@@ -377,8 +378,11 @@
 	// shortcut and the bar's chevron share one source of truth.
 	let replaceExpanded = $state(false);
 
+	const announceReorder = (message: string) => {
+		reorderAnnouncement = message;
+	};
 	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
-		reorderAnnouncement = `Moved block to position ${to + 1} of ${total}`;
+		announceReorder(`Moved block to position ${to + 1} of ${total}`);
 	});
 
 	setContext(BLOCK_EDIT_KEY, blockEdit);
@@ -388,6 +392,7 @@
 	setContext(CONTROLLER_KEY, controller);
 	setContext(PASTE_COORDINATOR_KEY, pasteCoordinator);
 	setContext(REORDER_ACTION_KEY, reorder);
+	setContext(REORDER_ANNOUNCE_KEY, announceReorder);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(SEARCH_KEY, searchState);

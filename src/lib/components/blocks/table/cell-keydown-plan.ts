@@ -30,6 +30,8 @@ export type CellShortcutAction =
 	| 'insertColumnLeft'
 	| 'deleteRow'
 	| 'deleteColumn'
+	| 'moveRowUp'
+	| 'moveRowDown'
 	| 'cycleAlignment';
 
 export type CellKeyPlan =
@@ -81,6 +83,18 @@ const SHORTCUTS: Array<{
 		action: 'deleteColumn',
 		arg: (s) => s.colIdx
 	},
+	// Before the arrow-nav branches below, so Alt selects row reorder over the
+	// plain ArrowUp/ArrowDown caret move.
+	{
+		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowUp',
+		action: 'moveRowUp',
+		arg: (s) => s.rowIdx
+	},
+	{
+		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowDown',
+		action: 'moveRowDown',
+		arg: (s) => s.rowIdx
+	},
 	{
 		match: (e) => e.ctrlOrMeta && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
 		action: 'cycleAlignment',
@@ -106,8 +120,9 @@ export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	if (e.key === 'ArrowRight' && !e.shiftKey && s.offset === s.textLen && s.collapsed) {
 		return horizontalMove(nextCell(pos, s.columnCount, s.rowCount), 'start', 'down');
 	}
-	if (e.key === 'ArrowUp' && !e.shiftKey) return verticalMove(cellAbove(pos), 'up');
-	if (e.key === 'ArrowDown' && !e.shiftKey) return verticalMove(cellBelow(pos, s.rowCount), 'down');
+	if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey) return verticalMove(cellAbove(pos), 'up');
+	if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey)
+		return verticalMove(cellBelow(pos, s.rowCount), 'down');
 	if (e.key === 'Tab' && !e.shiftKey) {
 		const move = nextCell(pos, s.columnCount, s.rowCount);
 		return move.kind === 'cell'
