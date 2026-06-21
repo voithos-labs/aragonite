@@ -115,6 +115,20 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		expect(serialize(snapshot)).toBe(before);
 	});
 
+	it('seeds the undo snapshot with the deep match path for a nested replacement', async () => {
+		const doc = parse('- itemX\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		const match = scanForLiteral(deps.doc, 'X')[0];
+		expect(match.path.length).toBeGreaterThan(1); // genuinely nested, so RED ≠ GREEN
+
+		await sr.replaceOne(match, 'Y');
+
+		const entry = deps.undoManager.getStacks().undo[0];
+		expect(entry.selection.anchor.path).toEqual(match.path);
+		expect(entry.selection.anchor.offset).toBe(match.start);
+	});
+
 	it('preserves the block id of an untouched top-level block', async () => {
 		const doc = parse('keep me\n\nchange X\n');
 		const { deps, getBlockIds } = makeEditorActionsDeps(doc.children);

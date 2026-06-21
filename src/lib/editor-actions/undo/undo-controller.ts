@@ -122,8 +122,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		recordSnapshotPerf();
 	}
 
-	// Public entry: a top-level block coordinate. The no-caret fallback is a
-	// top-level path; container callers go through __commit's path-aware variant.
+	// Top-level coordinate wrapper; deep-path callers (nested replace, __commit
+	// fallback) use pushUndoSnapshotPath directly so their no-caret fallback
+	// seeds the real leaf, not the top-level block.
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		pushUndoSnapshotPath([blockIndex], offset);
 	}
@@ -524,6 +525,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	return {
 		sharing: deps.sharing,
 		pushUndoSnapshot,
+		pushUndoSnapshotPath,
 		pushUndoSnapshotDebounced: textBatch.keystroke,
 		commitStructural,
 		commitContainerStructural,
