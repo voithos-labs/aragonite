@@ -26,6 +26,12 @@ export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 export const REORDER_ACTION_KEY = Symbol('reorder-action');
 export type { ReorderAction } from './editor-actions/reorder-action';
 
+/** Announce a reorder into the editor's polite live region. Shared so the
+ *  table-row path (which bypasses the generic reorder action) reuses the one
+ *  `.editor-sr-live-reorder` region instead of growing a second channel. */
+export const REORDER_ANNOUNCE_KEY = Symbol('reorder-announce');
+export type ReorderAnnounce = (message: string) => void;
+
 /** Getter-wrapped set-once flag: render the mouse-only hover drag handle. False
  *  hides it; keyboard reorder stays available regardless. */
 export const BLOCK_DRAG_HANDLES_KEY = Symbol('block-drag-handles');

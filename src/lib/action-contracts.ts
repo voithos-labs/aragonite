@@ -281,5 +281,8 @@ export interface TableContext {
 	insertColumnRight(colIdx: number): Promise<void>;
 	deleteRow(rowIdx: number): Promise<void>;
 	deleteColumn(colIdx: number): Promise<void>;
+	/** Move a body row up/down among body rows. The header row is fixed (no-op on it). */
+	moveRowUp(rowIdx: number): Promise<void>;
+	moveRowDown(rowIdx: number): Promise<void>;
 	cycleAlignment(colIdx: number): Promise<void>;
 }

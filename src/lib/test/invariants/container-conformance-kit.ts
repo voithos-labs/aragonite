@@ -355,7 +355,8 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 		},
 		parentContainerEdit: rootContainerEdit,
 		controller,
-		focusCell
+		focusCell,
+		announceReorder: vi.fn()
 	});
 
 	const seen: EditEvent[] = [];
@@ -508,7 +509,8 @@ async function checkTableColumnOneUndo(): Promise<void> {
 		},
 		parentContainerEdit: rootContainerEdit,
 		controller,
-		focusCell: vi.fn()
+		focusCell: vi.fn(),
+		announceReorder: vi.fn()
 	});
 
 	const before = deps.undoManager.getStacks().undo.length;
