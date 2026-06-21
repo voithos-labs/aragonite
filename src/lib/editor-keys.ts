@@ -33,6 +33,9 @@ export const BLOCK_DRAG_HANDLES_KEY = Symbol('block-drag-handles');
 export const SELECTION_KEY = Symbol('selection');
 export type { EditorSelection } from './selection/primitives';
 
+export const SEARCH_KEY = Symbol('search');
+export type { SearchState } from './reactivity/search-state.svelte';
+
 export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
 export type { WidgetSelectionState };
 
