@@ -85,6 +85,21 @@ test.describe('search — find and highlight', () => {
 		await expect(count(page)).toHaveText(/No results/);
 		await expect(overlays(page)).toHaveCount(0);
 	});
+
+	test('a regex matching empty paints no zero-width overlay sliver', async ({ page }) => {
+		await openFind(editor);
+		await page.getByRole('button', { name: 'Regex' }).click();
+		await findInput(page).click();
+		// `a*` matches each `a` run AND the empty string at every other position; the
+		// empty matches measure zero-width and must be dropped, not painted.
+		await typeQuery(editor, 'a*');
+		await expect(overlays(page).first()).toBeVisible();
+		const widths = await overlays(page).evaluateAll((els) =>
+			els.map((el) => el.getBoundingClientRect().width)
+		);
+		expect(widths.length).toBeGreaterThan(0);
+		expect(widths.every((w) => w > 0)).toBe(true);
+	});
 });
 
 test.describe('search — navigation', () => {

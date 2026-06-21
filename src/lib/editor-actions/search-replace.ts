@@ -80,7 +80,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		// mid-batch leaves earlier subtrees applied, but this single snapshot still
 		// restores the original document on undo (the commit publishes only on
 		// success), so recovery stays one Ctrl+Z — intentional.
-		controller.pushUndoSnapshot(seed.path[0], seed.start);
+		controller.pushUndoSnapshotPath(seed.path, seed.start);
 		let total = 0;
 		for (const topIndex of indices) {
 			const newNodes = buildSubtree(topIndex, groups.get(topIndex)!, template);
