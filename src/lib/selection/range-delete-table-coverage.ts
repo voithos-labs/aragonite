@@ -9,7 +9,7 @@ import type { UndoEntryMode } from '../action-contracts';
 import type { SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import type { MultiScopeTarget } from '../editor-actions/deps';
+import type { MultiScopeTarget } from '../action-contracts';
 import { deleteNode } from '../tree-operations/node-ops';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { classifyTableSelectionCoverage } from './range-delete-table';
