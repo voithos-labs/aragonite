@@ -4,26 +4,26 @@ import { createSearchState } from '../../reactivity/search-state.svelte';
 
 const stubReplace = { replaceOne: async () => {}, replaceAll: async () => {} };
 
+function makeState(source: string, onClose: () => void = () => {}) {
+	const doc = parse(source);
+	return createSearchState({
+		getDoc: () => doc,
+		replace: stubReplace,
+		reveal: async () => null,
+		onClose
+	});
+}
+
 describe('SearchState', () => {
 	it('rescans on query change and counts matches', () => {
-		const doc = parse('cat cat dog\n');
-		const s = createSearchState({
-			getDoc: () => doc,
-			replace: stubReplace,
-			reveal: async () => null
-		});
+		const s = makeState('cat cat dog\n');
 		s.open();
 		s.setQuery('cat');
 		expect(s.matches.length).toBe(2);
 		expect(s.activeIndex).toBe(0);
 	});
 	it('next/prev wrap around', () => {
-		const doc = parse('a a a\n');
-		const s = createSearchState({
-			getDoc: () => doc,
-			replace: stubReplace,
-			reveal: async () => null
-		});
+		const s = makeState('a a a\n');
 		s.open();
 		s.setQuery('a');
 		s.next();
@@ -35,16 +35,22 @@ describe('SearchState', () => {
 		expect(s.activeIndex).toBe(2); // wrap back
 	});
 	it('sets error and clears matches on invalid regex', () => {
-		const doc = parse('text\n');
-		const s = createSearchState({
-			getDoc: () => doc,
-			replace: stubReplace,
-			reveal: async () => null
-		});
+		const s = makeState('text\n');
 		s.open();
 		s.setOptions({ regex: true });
 		s.setQuery('(');
 		expect(s.error).not.toBeNull();
 		expect(s.matches.length).toBe(0);
+	});
+	it('close clears matches and notifies onClose', () => {
+		let closed = 0;
+		const s = makeState('a a\n', () => closed++);
+		s.open();
+		s.setQuery('a');
+		expect(s.matches.length).toBe(2);
+		s.close();
+		expect(s.isOpen).toBe(false);
+		expect(s.matches.length).toBe(0);
+		expect(closed).toBe(1);
 	});
 });

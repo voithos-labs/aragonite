@@ -369,7 +369,8 @@
 	const searchState = createSearchState({
 		getDoc,
 		replace: searchReplace,
-		reveal: (p) => focus.revealPath(p)
+		reveal: (p) => focus.revealPath(p),
+		onClose: () => editorEl?.focus()
 	});
 	// Replace-row visibility lives here, not in SearchBar, so the root Ctrl+H
 	// shortcut and the bar's chevron share one source of truth.
