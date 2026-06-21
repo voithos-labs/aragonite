@@ -24,6 +24,7 @@
 		REORDER_ACTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
+		SEARCH_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
@@ -32,7 +33,8 @@
 		type DocumentGetter,
 		type EditorSelection,
 		type ResolveImageUrl,
-		type ResolveLinkUrl
+		type ResolveLinkUrl,
+		type SearchState
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createHeightOracle } from '../cursor/height-oracle';
@@ -56,12 +58,15 @@
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
+	import { createSearchReplace } from '../editor-actions/search-replace';
+	import { createSearchState } from '../reactivity/search-state.svelte';
 	import { installReorderDrag } from '../selection/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import BlockList from './BlockList.svelte';
+	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import './built-in-blocks';
@@ -75,7 +80,8 @@
 		resolveLinkUrl,
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
-		blockDragHandles = true
+		blockDragHandles = true,
+		searchBar = true
 	}: {
 		source?: string;
 		resolveImageUrl?: (rawUrl: string) => string;
@@ -83,6 +89,7 @@
 		imageLoadPolicy?: import('../core/inline-render').ImageLoadPolicy;
 		onLinkActivate?: (url: string, event: MouseEvent) => void;
 		blockDragHandles?: boolean;
+		searchBar?: boolean;
 	} = $props();
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
@@ -176,6 +183,17 @@
 					currentSignature = newMap.signature;
 				}
 			}
+		});
+		return () => dispose();
+	});
+
+	// Re-scan after a commit, but only while the bar is open and off the typing
+	// hot path: deferred via tick() off the commit path, never a per-keystroke
+	// synchronous scan. When the bar is closed this adds zero keystroke work
+	// (perf contract, checked by perf:check).
+	$effect(() => {
+		const dispose = events.on('edit', () => {
+			if (searchState.isOpen) void tick().then(() => searchState.rescan());
 		});
 		return () => dispose();
 	});
@@ -347,6 +365,16 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller);
 
+	const searchReplace = createSearchReplace(editorActionsDeps, controller);
+	const searchState = createSearchState({
+		getDoc,
+		replace: searchReplace,
+		reveal: (p) => focus.revealPath(p)
+	});
+	// Replace-row visibility lives here, not in SearchBar, so the root Ctrl+H
+	// shortcut and the bar's chevron share one source of truth.
+	let replaceExpanded = $state(false);
+
 	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
 		reorderAnnouncement = `Moved block to position ${to + 1} of ${total}`;
 	});
@@ -360,6 +388,7 @@
 	setContext(REORDER_ACTION_KEY, reorder);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
 	setContext(SELECTION_KEY, selectionState);
+	setContext(SEARCH_KEY, searchState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
@@ -463,6 +492,25 @@
 		if (!editorEl) return;
 		const root = editorEl;
 		const onKeyDown = (e: KeyboardEvent) => {
+			const mod = e.ctrlKey || e.metaKey;
+			// Search shortcuts route regardless of which block holds focus, so they
+			// sit before the editor-root/body activeElement guard below. Seed the
+			// query from the live native selection before open() — focusing the find
+			// input collapses that selection.
+			if (searchBar && mod && (e.key === 'f' || e.key === 'h')) {
+				e.preventDefault();
+				const selected = window.getSelection()?.toString() ?? '';
+				replaceExpanded = e.key === 'h';
+				searchState.open();
+				if (selected) searchState.setQuery(selected);
+				return;
+			}
+			if (e.key === 'Escape' && searchState.isOpen) {
+				e.preventDefault();
+				searchState.close();
+				return;
+			}
+
 			const active = document.activeElement;
 			if (active !== root && active !== document.body) return;
 
@@ -593,6 +641,10 @@
 		return events;
 	}
 
+	export function getSearch(): SearchState {
+		return searchState;
+	}
+
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
 		blockRefs[i] = r;
 	}
@@ -643,6 +695,9 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	{#if searchBar}
+		<SearchBar {replaceExpanded} onToggleReplace={() => (replaceExpanded = !replaceExpanded)} />
+	{/if}
 	<ImageOverlayHost
 		{widgetSelection}
 		{controller}
