@@ -8,7 +8,7 @@ import type { CstNode } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './undo/epoch-tracker';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { ScopedOpDescriptor } from './schema/operations';
+import type { OpDescriptor, ScopedOpDescriptor } from './schema/operations';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the
@@ -138,6 +138,55 @@ export interface CommitMultiScopeArgs<
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
+}
+
+export interface CommitStructuralArgs {
+	snapshot: { blockIndex: number; offset: number } | 'skip';
+	mutate: (children: CstNode[]) => StructuralChange;
+	op?: OpDescriptor;
+	afterTick?: () => void;
+	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
+	touchedNodes?: CstNode[];
+}
+
+export interface CommitContainerStructuralArgs {
+	containerNode: CstNode;
+	/** Doc-absolute path of `containerNode` — the spine the primitive unshares + rebuilds. */
+	path: number[];
+	state: {
+		innerBlockIds: string[];
+		innerBlockRefs: (BlockComponent | undefined)[];
+	};
+	snapshot: { blockIndex: number; offset: number } | 'skip';
+	mutate: (scope: ContainerScope) => StructuralChange;
+	op?: ScopedOpDescriptor;
+	afterTick?: () => void;
+}
+
+/**
+ * Selection-free commit surface: snapshot pushers and the structural commit
+ * primitives. Lives in the contracts leaf so the selection layer can depend on
+ * it without dragging in `EditorSelection`/`UndoEntry`. `UndoController`
+ * (editor-actions/deps) extends this with the two selection-typed members.
+ */
+export interface CommitController {
+	/** Editor's sharing epoch state, exposed for out-of-ceremony copy-path-on-write. */
+	sharing: SharingState;
+	pushUndoSnapshot(blockIndex: number, offset: number): void;
+	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
+	commitStructural(args: CommitStructuralArgs): Promise<void>;
+	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
+	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
+		args: CommitMultiScopeArgs<S>
+	): Promise<void>;
+	/**
+	 * Expose the document root as a MultiScopeTarget so commitMultiScope
+	 * callers can include doc-level splices alongside container scopes
+	 * (e.g., a cross-block delete whose LCA is the document root).
+	 */
+	getDocScope(): MultiScopeTarget;
+	/** Clear the pending keystroke-debounce timer; next edit starts a new batch. */
+	clearDebouncedCheckpoint(): void;
 }
 
 export interface ContainerEditActions {

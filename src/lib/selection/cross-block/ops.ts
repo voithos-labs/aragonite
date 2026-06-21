@@ -17,7 +17,7 @@ import type { SelectionState } from '../selection-state.svelte';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
-import type { MultiScopeTarget, UndoController } from '../../editor-actions/deps';
+import type { CommitController, MultiScopeTarget } from '../../action-contracts';
 import { applyCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import type { StructuralChange } from '../../tree-operations/structural-change';
@@ -34,7 +34,7 @@ export interface CrossBlockMutationContext {
 	getDoc: () => Document;
 	getBlockElByPath: (path: number[]) => HTMLElement | null;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
-	controller: UndoController;
+	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
 }
