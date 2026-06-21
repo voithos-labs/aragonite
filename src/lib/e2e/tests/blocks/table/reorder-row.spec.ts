@@ -114,4 +114,29 @@ test.describe('table block: keyboard row reorder', () => {
 			'Moved row to position 2 of 3'
 		);
 	});
+
+	// Guards the `ensureUnsharedChildren` line in moveRow: reorder's
+	// rebuildTableRaw canonicalizes every row's raw, so without the unshare it
+	// writes THROUGH snapshot-shared rows and undo restores CANONICAL bytes. On a
+	// tight, unpadded table the original is non-canonical, so a corrupted undo is
+	// observable as a byte mismatch. RED if the unshare line is removed.
+	test('reorder→undo restores non-canonical source byte-exactly (unshare guard)', async ({
+		page
+	}) => {
+		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
+		await editor.loadContent(NONCANON);
+		// Compare against the loaded source, not the literal — getSource() normalizes
+		// trailing whitespace. toContain proves load did NOT canonicalize the cells
+		// (canonical is `| 1 | 2 |`, which does not contain `|1|2|`); without that the
+		// test couldn't discriminate the unshare line.
+		const original = await editor.bridge.getSource();
+		expect(original).toContain('|1|2|');
+
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('Alt+ArrowDown');
+		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|/);
+
+		await editor.undo();
+		expect(await editor.bridge.getSource()).toBe(original);
+	});
 });
