@@ -162,7 +162,7 @@
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
 	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
-	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} />
+	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
 	<!-- Rendered LAST so `:scope > :not(.selection-overlay)` (block-el lookup,
 		 caret placement) still resolves the block content as its first match. -->
 	{#if reorderable && dragHandles}
