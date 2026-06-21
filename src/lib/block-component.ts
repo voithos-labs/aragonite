@@ -106,6 +106,14 @@ export interface BlockComponent {
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
 	/**
+	 * Viewport-space rect of a single cell, addressed by 2D coordinate. For
+	 * whole-cell highlighting (search matches) on grid surfaces, where the
+	 * caller has a `[rowIdx, colIdx]` and wants that cell's box directly,
+	 * bypassing measurePartialRects' selection-aware range logic. Returns null
+	 * when the cell isn't mounted or the coordinate is out of range.
+	 */
+	cellRect?(rowIdx: number, colIdx: number): DOMRect | null;
+	/**
 	 * True when vertical traversal (ArrowUp/Down sticky-column dispatch)
 	 * should pass straight through this block — the block has no caret-able
 	 * text positions of its own, only widgets that carry no column meaning.
