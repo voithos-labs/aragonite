@@ -30,7 +30,7 @@ function scanForLiteral(doc: Document, needle: string) {
 	return out;
 }
 
-describe('replaceAll — whole-doc rebuild, one undo entry', () => {
+describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	it('two matches in two children of one blockquote, both splitting, commit as ONE undo entry', async () => {
 		const doc = parse('> aXa\n>\n> bXb\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
@@ -56,6 +56,15 @@ describe('replaceAll — whole-doc rebuild, one undo entry', () => {
 		expect(serialize(deps.doc)).toContain('itemY');
 	});
 
+	it('replaces matches across two separate top-level subtrees in one entry', async () => {
+		const doc = parse('cat one\n\n- cat two\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'dog');
+		expect(deps.undoManager.getStacks().undo.length).toBe(1);
+		expect(serialize(deps.doc)).toBe('dog one\n\n- dog two\n');
+	});
+
 	it('replaces each found match exactly once (no re-scan of the replacement)', async () => {
 		const doc = parse('a a a\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
@@ -63,9 +72,38 @@ describe('replaceAll — whole-doc rebuild, one undo entry', () => {
 		await sr.replaceAll(scanForLiteral(deps.doc, 'a'), 'aa');
 		expect(serialize(deps.doc)).toBe('aa aa aa\n');
 	});
+
+	it('replaces text inside a table cell', async () => {
+		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'dog');
+		expect(serialize(deps.doc)).toContain('dog');
+		expect(serialize(deps.doc)).not.toContain('cat');
+	});
+
+	it('does not write through a snapshot-shared node (aliasing: pushed snapshot still serializes to pre-replace source)', async () => {
+		const doc = parse('> aXa\n>\n> bXb\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		const before = serialize(deps.doc);
+		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), 'ZZ');
+		const snapshot = deps.undoManager.getStacks().undo[0].snapshot;
+		expect(serialize(snapshot)).toBe(before);
+	});
+
+	it('preserves the block id of an untouched top-level block', async () => {
+		const doc = parse('keep me\n\nchange X\n');
+		const { deps, getBlockIds } = makeEditorActionsDeps(doc.children);
+		const idBefore = getBlockIds()[0];
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), 'Y');
+		expect(getBlockIds()[0]).toBe(idBefore);
+		expect(serialize(deps.doc)).toBe('keep me\n\nchange Y\n');
+	});
 });
 
-describe('replaceOne — surgical, identity preserved', () => {
+describe('replaceOne — single-subtree case', () => {
 	it('replaces a single match and keeps one undo entry', async () => {
 		const doc = parse('the cat sat\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
