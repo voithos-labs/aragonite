@@ -82,6 +82,29 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		expect(serialize(deps.doc)).not.toContain('cat');
 	});
 
+	it('escapes a pipe in a table-cell replacement so the row keeps its cells', async () => {
+		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'a|b');
+		const bodyCells = deps.doc.children[0].children![1].children!;
+		expect(bodyCells.length).toBe(2); // not split into three by the literal pipe
+		expect(bodyCells[1].raw.trim()).toBe('2'); // adjacent cell not displaced
+		expect(serialize(deps.doc)).toContain('a\\|b'); // escaped in source
+	});
+
+	it('collapses a newline in a regex table-cell replacement so no phantom row appears', async () => {
+		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		// Regex mode supplies groups, which lets `\n` expand; the cell escape must
+		// then collapse it so the table doesn't gain a row.
+		const matches = scanForLiteral(deps.doc, 'cat').map((m) => ({ ...m, groups: ['cat'] }));
+		await sr.replaceAll(matches, 'a\\nb');
+		expect(deps.doc.children[0].children!.length).toBe(2); // header + one body row
+		expect(deps.doc.children[0].children![1].children![0].raw.trim()).toBe('a b');
+	});
+
 	it('does not write through a snapshot-shared node (aliasing: pushed snapshot still serializes to pre-replace source)', async () => {
 		const doc = parse('> aXa\n>\n> bXb\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
