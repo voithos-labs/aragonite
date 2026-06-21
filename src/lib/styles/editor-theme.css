@@ -50,6 +50,8 @@
 
 	/* Presentational tokens (mode-independent). Previously inline-only fallbacks. */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
+	--search-match-bg: rgba(120, 150, 255, 0.22);
+	--search-match-active-bg: #d8a657;
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
 	--md-unresolved-color: #c0392b;
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
