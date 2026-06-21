@@ -19,7 +19,7 @@ import type { SelectionState } from '../selection-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
-import type { UndoController } from '../../editor-actions/deps';
+import type { CommitController } from '../../action-contracts';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
@@ -44,7 +44,7 @@ export interface CrossBlockDispatchContext {
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
-	controller: UndoController;
+	controller: CommitController;
 	history: HistoryActions;
 	pasteCoordinator: PasteCommitCoordinator;
 
