@@ -59,17 +59,19 @@ test.describe('table block: keyboard row reorder', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
+		// A plain click lands the caret at the click position, not offset 0, so the
+		// marker may land either side of the cell text — assert presence, not position.
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('| X1 | 2 |');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
 
 		await page.keyboard.press('Alt+ArrowUp');
 		await editor.waitForNoSourceMutation();
-		await editor.bridge.waitForSourceContains('| X1 | 2 |');
+		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('| 1 | 2 |');
-		await editor.bridge.waitForSourceNotContains('| X1 | 2 |');
+		await editor.bridge.waitForSourceEquals(TABLE_2BODY);
+		await editor.bridge.waitForSourceNotContains('Z');
 	});
 
 	test('Alt+ArrowDown on the last body row is a no-op', async ({ page }) => {
