@@ -19,10 +19,12 @@
 		CONTROLLER_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
+		REORDER_ANNOUNCE_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
 		WIDTH_VERSION_KEY,
+		type ReorderAnnounce,
 		type WidthVersionGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
@@ -60,6 +62,7 @@
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
+	const announceReorder = getContext<ReorderAnnounce>(REORDER_ANNOUNCE_KEY);
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -197,7 +200,8 @@
 		},
 		parentContainerEdit,
 		controller,
-		focusCell
+		focusCell,
+		announceReorder
 	});
 
 	const ctx: TableContext = {

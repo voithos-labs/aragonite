@@ -1,7 +1,8 @@
 /**
- * Factory for the TableContext mutation bundle: row/column insert/delete and
- * column-alignment cycling. The component owns sticky-column state, focused-cell
- * tracking, DOM helpers, and BlockComponent — only structural mutations live here.
+ * Factory for the TableContext mutation bundle: row/column insert/delete, body-row
+ * reorder, and column-alignment cycling. The component owns sticky-column state,
+ * focused-cell tracking, DOM helpers, and BlockComponent — only structural
+ * mutations live here.
  */
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
@@ -14,7 +15,8 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { assertInvariant } from '../invariants/assert';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
-import { rebuildTableRowRaw } from '../schema/container-rebuilders';
+import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
+import { reorderChildren } from '../tree-operations/reorder';
 import {
 	insertEmptyRow,
 	insertEmptyColumn,
@@ -22,6 +24,23 @@ import {
 	deleteColumn as mutDeleteColumn,
 	cycleAlignment as mutCycleAlignment
 } from '../tree-operations/table-mutations';
+
+/**
+ * Destination row index for a body-row reorder, or null when the move is a
+ * no-op: the header (row 0) is positionally fixed, and a body row can't move
+ * before row 1 or past the last row. Returning null skips the commit, so a
+ * boundary press pushes no undo entry.
+ */
+export function tableRowReorderTarget(
+	rowIdx: number,
+	dir: -1 | 1,
+	rowCount: number
+): number | null {
+	if (rowIdx === 0) return null;
+	const to = rowIdx + dir;
+	if (to < 1 || to > rowCount - 1) return null;
+	return to;
+}
 
 export interface TableMutationsContextDeps {
 	get node(): CstNode;
@@ -32,6 +51,7 @@ export interface TableMutationsContextDeps {
 	parentContainerEdit: ContainerEditActions;
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
+	announceReorder: (message: string) => void;
 }
 
 export type TableMutationsContext = Pick<
@@ -42,6 +62,8 @@ export type TableMutationsContext = Pick<
 	| 'insertColumnRight'
 	| 'deleteRow'
 	| 'deleteColumn'
+	| 'moveRowUp'
+	| 'moveRowDown'
 	| 'cycleAlignment'
 >;
 
@@ -119,11 +141,43 @@ export function createTableMutationsContext(
 		});
 	}
 
+	async function moveRow(rowIdx: number, dir: -1 | 1): Promise<void> {
+		const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+		const rowCount = node.children?.length ?? 0;
+		const to = tableRowReorderTarget(rowIdx, dir, rowCount);
+		if (to === null) return;
+		// focusout nulls focusedCell on the post-commit re-render, so capture the
+		// column now; the generic reorder afterTick would land at column 0.
+		const col = focusedCell?.colIdx ?? 0;
+		await parentContainerEdit.commitContainer({
+			containerNode: node,
+			path: [...myPath],
+			state: rowsState,
+			snapshot: { blockIndex: index, offset: 0 },
+			mutate: (scope) => {
+				// rebuildTableRaw rewrites EVERY row's raw (canonical padding), so the
+				// rows must be unshared before the write — reorderChildren only permutes
+				// references (no unshare, unlike reorderChildrenWithTrivia).
+				ensureUnsharedChildren(scope.node, scope.sharing);
+				const change = reorderChildren(scope.node.children!, rowIdx, to);
+				rebuildTableRaw(scope.node);
+				return change;
+			},
+			op: { kind: 'tableReorderRow', detail: { from: rowIdx, to }, eventPath: [index, to] },
+			afterTick: () => {
+				focusCell(to, col, 'start');
+				deps.announceReorder(`Moved row to position ${to} of ${rowCount - 1}`);
+			}
+		});
+	}
+
 	return {
 		insertRowAbove: (rowIdx) => insertRow(rowIdx, 'above'),
 		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
 		insertColumnLeft: (colIdx) => insertColumn(colIdx, 'left'),
 		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
+		moveRowUp: (rowIdx) => moveRow(rowIdx, -1),
+		moveRowDown: (rowIdx) => moveRow(rowIdx, 1),
 
 		async deleteRow(rowIdx) {
 			const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;

@@ -50,6 +50,7 @@ export type Op =
 	| { t: 'tableDeleteRow'; i: number }
 	| { t: 'tableInsertColumn'; i: number }
 	| { t: 'tableDeleteColumn'; i: number }
+	| { t: 'tableReorderRow'; i: number; dir: -1 | 1 }
 	| { t: 'tableCycleAlignment'; i: number }
 	| { t: 'typeCell'; r: number; c: number; n: number }
 	| { t: 'rangeDelete'; a: number; b: number; off: number };
@@ -68,6 +69,11 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({ t: fc.constant('tableDeleteRow' as const), i: fc.nat(4) }),
 	fc.record({ t: fc.constant('tableInsertColumn' as const), i: fc.nat(3) }),
 	fc.record({ t: fc.constant('tableDeleteColumn' as const), i: fc.nat(3) }),
+	fc.record({
+		t: fc.constant('tableReorderRow' as const),
+		i: fc.nat(4),
+		dir: fc.constantFrom(-1 as const, 1 as const)
+	}),
 	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
 	fc.record({ t: fc.constant('typeCell' as const), r: fc.nat(4), c: fc.nat(3), n: fc.nat(2) }),
 	fc.record({ t: fc.constant('rangeDelete' as const), a: fc.nat(5), b: fc.nat(5), off: fc.nat(4) })
@@ -146,6 +152,7 @@ export async function runOp(h: Harness, op: Op): Promise<void> {
 		case 'tableDeleteRow':
 		case 'tableInsertColumn':
 		case 'tableDeleteColumn':
+		case 'tableReorderRow':
 		case 'tableCycleAlignment':
 		case 'typeCell':
 			return runTableOp(h, op);
@@ -276,6 +283,7 @@ async function runTableOp(
 				| 'tableDeleteRow'
 				| 'tableInsertColumn'
 				| 'tableDeleteColumn'
+				| 'tableReorderRow'
 				| 'tableCycleAlignment'
 				| 'typeCell';
 		}
@@ -328,14 +336,18 @@ async function runTableOp(
 		},
 		parentContainerEdit: h.rootContainerEdit,
 		controller: h.controller,
-		focusCell: () => {}
+		focusCell: () => {},
+		announceReorder: () => {}
 	});
 
 	if (op.t === 'tableInsertRow') await ctx.insertRowBelow(op.i % rowCount);
 	else if (op.t === 'tableDeleteRow') await ctx.deleteRow(op.i % rowCount);
 	else if (op.t === 'tableInsertColumn') await ctx.insertColumnRight(op.i % colCount);
 	else if (op.t === 'tableDeleteColumn') await ctx.deleteColumn(op.i % colCount);
-	else await ctx.cycleAlignment(op.i % colCount);
+	else if (op.t === 'tableReorderRow') {
+		const rowIdx = op.i % rowCount;
+		await (op.dir === -1 ? ctx.moveRowUp(rowIdx) : ctx.moveRowDown(rowIdx));
+	} else await ctx.cycleAlignment(op.i % colCount);
 }
 
 async function runRangeDelete(
