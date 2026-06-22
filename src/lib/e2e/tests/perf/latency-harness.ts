@@ -56,6 +56,23 @@ async function waitForDocLength(page: Page, min: number, timeout: number): Promi
 	);
 }
 
+// Per-keystroke settle on block 0's OWN length term (leadingTrivia + raw) — the
+// edited block's exact contribution to docLengthInPage, so it detects the commit
+// at the identical point but in O(1), never summing the whole $state-proxy
+// children array. The O(children) sum added a per-poll cost that scaled with
+// block count and inflated flat high-block-count rows — a harness artifact, not
+// editor cost (see docs/perf/performance.md).
+async function waitForBlock0Len(page: Page, min: number, timeout: number): Promise<void> {
+	await page.waitForFunction(
+		(min) => {
+			const c = (window as any).__test.getDocument().children[0];
+			return c ? c.leadingTrivia.length + c.raw.length >= min : false;
+		},
+		min,
+		{ timeout, polling: 16 }
+	);
+}
+
 export function percentileMs(samples: number[], p: number): number {
 	const sorted = [...samples].sort((a, b) => a - b);
 	return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
@@ -96,13 +113,16 @@ export async function measureTypingLatency(
 		throw new Error(
 			`perf target block ${targetBlock} is not mounted — windowing left it off-window`
 		);
-	const baseLength = await page.evaluate(docLengthInPage);
+	const base0 = await page.evaluate(() => {
+		const c = (window as any).__test.getDocument().children[0];
+		return c.leadingTrivia.length + c.raw.length;
+	});
 
 	const samples: number[] = [];
 	for (let i = 1; i <= keystrokes; i++) {
 		const keyStart = performance.now();
 		await editor.typeSlowly('x');
-		await waitForDocLength(page, baseLength + i, KEYSTROKE_TIMEOUT_MS);
+		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
 		samples.push(performance.now() - keyStart);
 	}
 
