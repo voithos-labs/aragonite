@@ -201,6 +201,6 @@
 	.failed-block-raw {
 		margin: 0.25rem 0 0;
 		white-space: pre-wrap;
-		font-family: var(--font-mono, monospace);
+		font-family: var(--font-editor, ui-monospace, monospace);
 	}
 </style>

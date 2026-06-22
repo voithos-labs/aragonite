@@ -662,19 +662,19 @@
 	}
 
 	.text-editable-block.raw-block {
-		font-family: 'Fira Code', 'Consolas', monospace;
+		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.9em;
 		opacity: 0.85;
 	}
 
 	.text-editable-block :global(.md-marker) {
-		opacity: 0.4;
+		opacity: var(--syntax-marker-dim, 0.4);
 		font-weight: normal;
 		font-style: normal;
 	}
 
 	.text-editable-block :global(.inline-code-content) {
-		font-family: 'Fira Code', 'Consolas', monospace;
+		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.9em;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border-radius: 3px;
