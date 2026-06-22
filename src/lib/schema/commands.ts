@@ -12,6 +12,11 @@
 import type { AnyBlockKind } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
+import {
+	lookupOverride,
+	overrideDecision,
+	type KeybindingOverrideMap
+} from './keybinding-overrides';
 
 export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
 export const BLOCK_COMMAND_IDS = [
@@ -88,22 +93,44 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Shift+Z', command: 'history.redo' }
 ];
 
-/**
- * Per-kind keymap ONLY — no global fallthrough. Container bubble handlers use
- * this: global commands (undo/redo) belong to the focused leaf, and a leaf's
- * async keydown handler preventDefaults only AFTER an await, so a bubbling event
- * reaches a container handler with `defaultPrevented` still false. Falling
- * through to the global table there would fire undo/redo a second time.
- */
-export function resolveKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
+function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
 	const keymap = tryGetBlockKindDescriptor(kind)?.keymap;
 	return keymap?.find((b) => normalizeChord(b.chord) === chord) ?? null;
 }
 
-/** Per-kind keymap first, then the editor-global table. Returns the matched binding. */
-export function resolveBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
+/**
+ * Per-kind keymap ONLY — no global fallthrough. Override(kind) decides first
+ * (binding shadows, 'disabled' short-circuits without consulting the built-in);
+ * absent → built-in kind keymap. Container bubble handlers use this: the global
+ * tier belongs to the focused leaf (see existing double-fire note).
+ */
+export function resolveKindBinding(
+	chord: string,
+	kind: AnyBlockKind,
+	overrides?: KeybindingOverrideMap
+): KeyBinding | null {
+	const decision = overrideDecision(lookupOverride(overrides, kind, chord));
+	if (decision !== undefined) return decision;
+	return builtinKindBinding(chord, kind);
+}
+
+/**
+ * Leaf precedence: override(kind) → override(global) → built-in kind → built-in
+ * global. An override (bind or disable) at any tier ends resolution. Override
+ * source dominates specificity (override-global before built-in-kind) so a
+ * global disable suppresses a chord even where a kind defines it.
+ */
+export function resolveBinding(
+	chord: string,
+	kind: AnyBlockKind,
+	overrides?: KeybindingOverrideMap
+): KeyBinding | null {
+	const kindDecision = overrideDecision(lookupOverride(overrides, kind, chord));
+	if (kindDecision !== undefined) return kindDecision;
+	const globalDecision = overrideDecision(lookupOverride(overrides, 'global', chord));
+	if (globalDecision !== undefined) return globalDecision;
 	return (
-		resolveKindBinding(chord, kind) ??
+		builtinKindBinding(chord, kind) ??
 		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
 		null
 	);
@@ -113,9 +140,10 @@ export function resolveBinding(chord: string, kind: AnyBlockKind): KeyBinding | 
 export function dispatchKeyCommand(
 	chord: string,
 	target: CommandDispatchTarget,
-	ctx: GlobalCommandContext
+	ctx: GlobalCommandContext,
+	overrides?: KeybindingOverrideMap
 ): boolean {
-	const binding = resolveBinding(chord, target.kind);
+	const binding = resolveBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	const globalRun = getCommand(binding.command);
 	if (globalRun) return globalRun(ctx);

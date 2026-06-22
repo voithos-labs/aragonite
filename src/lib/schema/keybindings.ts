@@ -6,6 +6,7 @@
  * no in-scope binding needs them.
  */
 import type { CommandId } from './commands';
+import { devWarn } from '../dev-warn';
 
 export interface KeyBinding {
 	chord: string;
@@ -36,4 +37,31 @@ export function normalizeChord(chord: string): string {
 	const present = new Set(parts);
 	const mods = MOD_ORDER.filter((m) => present.has(m));
 	return [...mods, normalizeKey(key)].join('+');
+}
+
+const VALID_MODIFIERS = new Set(['Mod', 'Alt', 'Shift']);
+
+/**
+ * Validate then normalize a consumer-supplied chord. Returns null (dev-warned)
+ * when a non-final token is not a recognized modifier or the key is empty —
+ * guarding the trap where `'Ctrl+B'` silently drops the unrecognized `Ctrl` and
+ * collapses to bare `'B'`, a binding that would fire on every keypress.
+ */
+export function normalizeChordStrict(chord: string): string | null {
+	const parts = chord.split('+');
+	const key = parts.pop() ?? '';
+	if (key === '') {
+		devWarn('keybindings', `chord "${chord}": empty key; entry dropped`);
+		return null;
+	}
+	for (const mod of parts) {
+		if (!VALID_MODIFIERS.has(mod)) {
+			devWarn(
+				'keybindings',
+				`chord "${chord}": unrecognized modifier "${mod}" (use Mod/Alt/Shift); entry dropped`
+			);
+			return null;
+		}
+	}
+	return normalizeChord(chord);
 }
