@@ -47,6 +47,17 @@ async function settle(page: Page, min: number): Promise<void> {
 	);
 }
 
+// O(1) settle on block 0's own raw length — avoids docLengthInPage's O(children)
+// sum so the poll itself can't add per-keystroke cost that scales with block
+// count (disambiguates a real editor residual from a harness-poll artifact).
+async function settleBlock0Len(page: Page, min: number): Promise<void> {
+	await page.waitForFunction(
+		(min) => ((window as any).__test.getDocument().children[0]?.raw.length ?? 0) >= min,
+		min,
+		{ timeout: 60_000, polling: 16 }
+	);
+}
+
 function p50(xs: number[]): number {
 	const s = [...xs].sort((a, b) => a - b);
 	return s[Math.max(0, Math.ceil(0.5 * s.length) - 1)];
@@ -361,24 +372,100 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	const rows: object[] = [];
 	for (const blockCount of [1000, 10000, 30000]) {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
-		await loadAndFocusLast(page, editor, src);
-		let base = await page.evaluate(docLengthInPage);
-		await editor.typeSlowly('x'); // warm up
-		await settle(page, base + 1);
-		base += 1;
+		// Type into block 0 (top, always in-window). Focusing the LAST block fails
+		// once windowing activates and unmounts it — and matches the gated harness,
+		// which also edits block 0.
+		await editor.goto();
+		await page.evaluate((c) => (window as any).__test.setSource(c), src);
+		await settle(page, src.replace(/\s+$/, '').length);
+		await editor.waitForRenderFlush();
+		await editor.focusBlockEnd(0);
+		let b0 = await page.evaluate(() => (window as any).__test.getDocument().children[0].raw.length);
+		await editor.typeSlowly('x'); // warm up past the first-edit re-render
+		await settleBlock0Len(page, b0 + 1);
+		b0 += 1;
+		await page.evaluate(() => {
+			(window as any).__test.perf.enable();
+			(window as any).__test.perf.reset();
+		});
 		const harness: number[] = [];
 		const N = 10;
 		for (let i = 1; i <= N; i++) {
 			const t0 = performance.now();
 			await editor.typeSlowly('x');
-			await settle(page, base + i);
+			await settleBlock0Len(page, b0 + i);
 			harness.push(performance.now() - t0);
 		}
-		base += N;
-		rows.push({ blockCount, p50Ms: Math.round(p50(harness)) });
+		b0 += N;
+		// Mounted top-level host count from the DOM — robust to perf-enable timing
+		// (the net mountedBlockCount counter needs enabling before any block mounts).
+		const mountedTopLevel = await page.evaluate(
+			() => document.querySelectorAll('[data-block-path]:not([data-block-path*=","])').length
+		);
+		const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
+		rows.push({
+			blockCount,
+			p50Ms: Math.round(p50(harness)),
+			inPageP50Ms: snap.keystrokeInPageMs.length
+				? Math.round(p50(snap.keystrokeInPageMs) * 10) / 10
+				: null,
+			mountedTopLevel,
+			rendersPerKeystroke: Math.round((snap.blockRenderCount / N) * 100) / 100
+		});
 	}
 	write('axisS-flatcount', { rows });
 	expect(rows.length).toBe(3);
+});
+
+// ── Axis Load: flat load-cliff attribution ──────────────────────────────────
+// The ~23s many-small-blocks-10MB load: first-render-mounts-all, or O(count) tree
+// materialization? mountedTopLevel (DOM, robust) vs topLevelChildCount + the CDP
+// script/layout split answer it. Load settle stays O(count) — it's a one-time
+// poll, dwarfed by the load it waits on.
+test('axisLoad: flat load mounted-count + script/layout split', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const rows: object[] = [];
+	for (const bytes of [1_000_000, 4_000_000, 10_000_000]) {
+		const src = generateFixture('many-small-blocks', bytes);
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Performance.enable');
+		const metric = (m: any, n: string): number =>
+			m.metrics.find((x: any) => x.name === n)?.value ?? 0;
+		await editor.goto();
+		await page.evaluate(() => {
+			(window as any).__test.perf.enable();
+			(window as any).__test.perf.reset();
+		});
+		const before: any = await cdp.send('Performance.getMetrics');
+		const t0 = performance.now();
+		await page.evaluate((c) => (window as any).__test.setSource(c), src);
+		await settle(page, src.replace(/\s+$/, '').length);
+		await editor.waitForRenderFlush();
+		const loadMs = performance.now() - t0;
+		const after: any = await cdp.send('Performance.getMetrics');
+		const mountedTopLevel = await page.evaluate(
+			() => document.querySelectorAll('[data-block-path]:not([data-block-path*=","])').length
+		);
+		const topLevelChildCount = await page.evaluate(
+			() => (window as any).__test.getDocument().children.length
+		);
+		const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
+		rows.push({
+			bytes,
+			loadMs: Math.round(loadMs),
+			topLevelChildCount,
+			mountedTopLevel,
+			rendersDuringLoad: snap.blockRenderCount,
+			scriptMs: Math.round(
+				(metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000
+			),
+			layoutMs: Math.round(
+				(metric(after, 'LayoutDuration') - metric(before, 'LayoutDuration')) * 1000
+			)
+		});
+	}
+	write('axisLoad-flat', { rows });
+	expect(rows).toHaveLength(3);
 });
 
 // ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
