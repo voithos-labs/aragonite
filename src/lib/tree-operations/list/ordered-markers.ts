@@ -54,17 +54,20 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
 	const meta = metadataOf(item, 'listItem');
 	const itemOrdered = /^\d/.test(meta.marker);
-	if (itemOrdered === parentOrdered) return;
 
 	const siblings = parentList.children ?? [];
 	const templateMarker =
 		siblings.length > 0 ? metadataOf(siblings[0], 'listItem').marker : undefined;
 
 	if (parentOrdered) {
-		const suffix = templateMarker?.replace(/^\d+/, '') ?? '. ';
-		meta.marker = '1' + suffix;
+		// Already ordered: only the number/suffix can differ, which the caller's
+		// renumber + suffix-adoption handle — nothing to template here.
+		if (itemOrdered) return;
+		meta.marker = '1' + (templateMarker?.replace(/^\d+/, '') ?? '. ');
 	} else {
-		meta.marker = templateMarker ?? '- ';
+		const target = templateMarker ?? '- ';
+		if (meta.marker === target) return;
+		meta.marker = target;
 	}
 	rebuildListItemRaw(item);
 }

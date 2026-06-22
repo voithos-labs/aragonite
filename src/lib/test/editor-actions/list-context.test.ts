@@ -302,3 +302,93 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 		expect(markersOf(liveSublist())).toEqual(['1) ']);
 	});
 });
+
+// ── unordered glyph normalization on indent / promote (#2b) ─────────────────
+
+describe('list-context — unordered glyph adopts destination on move', () => {
+	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
+
+	it('indent: a "- " item moved into a "* " sublist adopts "* "', async () => {
+		// item0 ("- a") holds an unordered "* x" sublist; item1 ("- b") indents into
+		// it and must adopt the sublist's "* " glyph, not keep its own "- ".
+		const doc = parse('- a\n  * x\n- b\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveSublist = () => deps.doc.children[0].children![0].children![1];
+		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
+		registerBlockListState(list, listState as any);
+		const sublist = list.children![0].children![1];
+		expect(sublist.kind).toBe('list');
+		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		await listContext.indentItem(1);
+
+		// b joined the sublist as its second item, adopting the "* " glyph.
+		expect(markersOf(liveSublist())).toEqual(['* ', '* ']);
+		expect(liveSublist().children![1].raw.startsWith('* ')).toBe(true);
+		// Outer list lost item1; item0 stays "- ".
+		expect(markersOf(liveList())).toEqual(['- ']);
+	});
+
+	it('promote: a "* " sub-item moved to a "- " outer list adopts "- "', async () => {
+		// Two-item sublist so promoting the first leaves a survivor that keeps "* ".
+		const doc = parse('- a\n  * x\n  * y\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveSublist = () => deps.doc.children[0].children![0].children![1];
+		const listState = makeBlockListState(liveList, ['item-0']);
+		registerBlockListState(list, listState as any);
+		const sublist = list.children![0].children![1];
+		expect(sublist.kind).toBe('list');
+		expect(sublist.children).toHaveLength(2);
+		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		await listContext.promoteNestedItem(0, sublist, 0);
+
+		// x promoted to outer position 1, adopting "- ".
+		expect(markersOf(liveList())).toEqual(['- ', '- ']);
+		expect(liveList().children![1].raw.startsWith('- ')).toBe(true);
+		// Survivor y stays in the sublist, keeping "* ".
+		expect(markersOf(liveSublist())).toEqual(['* ']);
+	});
+});

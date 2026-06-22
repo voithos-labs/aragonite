@@ -89,14 +89,17 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					if (existingNestedList) {
 						destList = destScope.node;
 						destScope.children.push(movedItem);
-						// Adopt the destination list's marker suffix (`. ` vs `) `) so an
-						// ordered item indented into an ordered sublist conforms to it,
-						// matching paste-absorb. Renumber (below) repaints the number+raw
-						// on the canonical handle. A fresh shell has no convention to adopt.
+						// Adopt the destination sublist's marker style so the moved item
+						// conforms to it (matching paste-absorb): the `. `/`) ` suffix within
+						// the ordered axis, or the bullet glyph within the unordered axis.
+						// Renumber (below) repaints an ordered number+raw on the canonical
+						// handle. A fresh shell has no convention to adopt.
+						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
 						if (ordered) {
-							const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
 							const meta = metadataOf(moved, 'listItem');
 							meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(destList);
+						} else {
+							normalizeItemMarkerToList(moved, destList);
 						}
 					} else {
 						destList = buildListShell(ordered, [movedItem]);
