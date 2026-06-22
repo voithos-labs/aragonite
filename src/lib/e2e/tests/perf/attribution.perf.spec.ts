@@ -388,6 +388,15 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			(window as any).__test.perf.enable();
 			(window as any).__test.perf.reset();
 		});
+		// CDP ScriptDuration/keystroke is the airtight measure: immune to both the
+		// in-page mark (fires at the edited block's render effect) and the block-0
+		// poll (resolves at the synchronous commit). With the O(1) settle the poll
+		// script is negligible, so flat ScriptDuration ⇒ editor work is provably flat.
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Performance.enable');
+		const metric = (m: any, n: string): number =>
+			m.metrics.find((x: any) => x.name === n)?.value ?? 0;
+		const before: any = await cdp.send('Performance.getMetrics');
 		const harness: number[] = [];
 		const N = 10;
 		for (let i = 1; i <= N; i++) {
@@ -396,6 +405,7 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			await settleBlock0Len(page, b0 + i);
 			harness.push(performance.now() - t0);
 		}
+		const after: any = await cdp.send('Performance.getMetrics');
 		b0 += N;
 		// Mounted top-level host count from the DOM — robust to perf-enable timing
 		// (the net mountedBlockCount counter needs enabling before any block mounts).
@@ -409,6 +419,10 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			inPageP50Ms: snap.keystrokeInPageMs.length
 				? Math.round(p50(snap.keystrokeInPageMs) * 10) / 10
 				: null,
+			scriptMsPerKey:
+				Math.round(
+					((metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000 * 10) / N
+				) / 10,
 			mountedTopLevel,
 			rendersPerKeystroke: Math.round((snap.blockRenderCount / N) * 100) / 100
 		});
