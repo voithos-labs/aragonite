@@ -3,6 +3,8 @@
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
+	import type { EditorProps, EditorInstance } from '../editor-props';
+	import type { EditorEvents } from '../editor-events';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
@@ -84,15 +86,7 @@
 		onLinkActivate,
 		blockDragHandles = true,
 		searchBar = true
-	}: {
-		source?: string;
-		resolveImageUrl?: (rawUrl: string) => string;
-		resolveLinkUrl?: (rawUrl: string) => string;
-		imageLoadPolicy?: import('../core/inline-render').ImageLoadPolicy;
-		onLinkActivate?: (url: string, event: MouseEvent) => void;
-		blockDragHandles?: boolean;
-		searchBar?: boolean;
-	} = $props();
+	}: EditorProps = $props();
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
@@ -644,13 +638,16 @@
 		return readCurrentSelection(selectionState, blockRefs);
 	}
 
-	export function getEvents() {
+	export function getEvents(): EditorEvents {
 		return events;
 	}
 
 	export function getSearch(): SearchState {
 		return searchState;
 	}
+
+	// Compile-time conformance: the published handle can't drift from the exports.
+	void ({ getSource, getSelection, getEvents, getSearch } satisfies EditorInstance);
 
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
 		blockRefs[i] = r;

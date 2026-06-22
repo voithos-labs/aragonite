@@ -1,0 +1,31 @@
+/**
+ * Public prop and instance-handle types for <Editor>. Single source of truth:
+ * Editor.svelte annotates its $props() and instance surface against these, and
+ * index.ts re-exports them — so neither can drift from the component.
+ */
+import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type { ImageLoadPolicy } from './core/inline-render';
+import type { KeybindingOverride } from './schema/keybinding-overrides';
+import type { EditorSelection } from './selection/primitives';
+import type { EditorEvents } from './editor-events';
+import type { SearchState } from './reactivity/search-state.svelte';
+
+export interface EditorProps {
+	source?: string;
+	resolveImageUrl?: ResolveImageUrl;
+	resolveLinkUrl?: ResolveLinkUrl;
+	imageLoadPolicy?: ImageLoadPolicy;
+	onLinkActivate?: (url: string, event: MouseEvent) => void;
+	blockDragHandles?: boolean;
+	searchBar?: boolean;
+	/** Per-instance keymap overrides over the built-in command vocabulary. */
+	keybindings?: KeybindingOverride[];
+}
+
+/** The `bind:this` surface a consumer can name and hold a ref to. */
+export interface EditorInstance {
+	getSource(): string;
+	getSelection(): EditorSelection | null;
+	getEvents(): EditorEvents;
+	getSearch(): SearchState;
+}
