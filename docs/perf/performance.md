@@ -9,9 +9,9 @@ Qualitative shape (exact numbers live in `baseline.json`, below):
 
 One keystroke axis is deliberately **not** viewport-bounded — recorded as a reference, not gated:
 
-- **Intra-block long-paragraph editing** — a single block's span rebuild scales with paragraph length; windowing windows blocks, not the interior of one block.
+- **Intra-block long-paragraph editing** — a single block's span rebuild scales with paragraph length; windowing windows blocks, not the interior of one block. It is transient — any Enter splits the paragraph into viewport-bounded blocks — so it only surfaces from pasting a multi-MB blob; the lever, if a real workload needs it, is intra-block DOM reconciliation of the rebuilt span run.
 
-Document **load** is O(document size): the reactive tree is materialized up front (`$state`-proxying every node, id assignment, height seeding) — script-bound and linear in node count, sub-second at realistic sizes, multi-second only at the hundreds-of-thousands-of-blocks extreme. Windowing bounds the _mount_ at load, not this materialization.
+Document **load** is O(document size): the reactive tree is materialized up front (`$state`-proxying every node, id assignment, height seeding) — script-bound and linear in node count, sub-second at realistic sizes, multi-second only at the hundreds-of-thousands-of-blocks extreme. Windowing bounds the _mount_ at load, not this materialization. The only lever is lazy/shallow proxying of the node tree — an architectural change deferred until a workload needs it.
 
 A flat high-block-count keystroke cost was once recorded here as an O(top-level-count) axis. Measurement showed it was a **harness artifact** — the latency harness summed the whole `$state`-proxy children array on every settle poll — not editor work. Flat-document keystrokes are O(viewport) like every other shape.
 
