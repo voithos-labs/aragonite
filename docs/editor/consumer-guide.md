@@ -6,13 +6,13 @@ How to embed, theme, and wire the editor as a library. Contributor-facing intern
 
 Everything supported is re-exported from the barrel (`src/lib/editor`). Adding an export is non-breaking; removing one is breaking — the surface is kept minimal and grows on demand.
 
-| Group             | What you get                                                                        |
-| ----------------- | ----------------------------------------------------------------------------------- |
-| **Component**     | `Editor` — the Svelte component                                                     |
-| **Props type**    | `EditorProps`, plus the resolve/policy types its fields reference                   |
-| **CST utilities** | `parse` / `serialize` for round-tripping Markdown; inline helpers for preprocessing |
-| **Node types**    | Block-kind and inline-node types for inspecting a parsed document                   |
-| **Events types**  | The event-payload types the observer surface emits                                  |
+| Group             | What you get                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Component**     | `Editor` — the Svelte component                                                                                                                               |
+| **Props type**    | `EditorProps`, plus the resolve/policy types its fields reference                                                                                             |
+| **CST utilities** | `parse` / `serialize` for round-tripping Markdown; `parseInline`, `getContentRange`, `isProseKind` for inspecting a block's inline content and editable range |
+| **Node types**    | Block-kind and inline-node types for inspecting a parsed document                                                                                             |
+| **Events types**  | The event-payload types the observer surface emits                                                                                                            |
 
 ### Component contract
 
@@ -23,8 +23,25 @@ Everything supported is re-exported from the barrel (`src/lib/editor`). Adding a
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or null when nothing is focused. Path arrays are copies.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
+  - **`getSearch()`** — the find/replace controller (see [Search](#search)).
 
 The consumer owns load, save, and dirty-state. `editor.__test.*` is internal and test-only — not part of the contract.
+
+### Mount example
+
+```svelte
+<script>
+	import { Editor } from '$lib/editor';
+	import '$lib/editor/styles/editor-theme.css';
+
+	let editor;
+</script>
+
+<Editor bind:this={editor} source={'# Hello\n'} theme="dark" />
+<button onclick={() => save(editor.getSource())}>Save</button>
+```
+
+`source` seeds the document at mount; read it back imperatively with `getSource()`.
 
 ## Multiple instances
 
@@ -40,30 +57,46 @@ So two editors share one grammar but never share state.
 The module owns its CSS. Two stylesheets ship under `styles/`:
 
 - **`editor.css`** — structural painting rules. Auto-imported by the component; nothing to do.
-- **`editor-theme.css`** — the default token palette, for both modes. Import it for the default look, or replace it wholesale to retheme.
+- **`editor-theme.css`** — the default token palette (light + dark). Import it for the default look, or replace it wholesale to retheme. **It is the authoritative manifest** — read it for the exact token set and values rather than copying them here.
 
-Tokens split into two contracts. **`editor-theme.css` is the authoritative manifest** — read it for the exact set and values rather than copying them here.
+### Scope
 
-| Contract          | Tokens                                                                            | Owner                                                   |
-| ----------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| **Editor-owned**  | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--selection-overlay-bg`, `--md-*` | Declared by the module; override at `:root` or narrower |
-| **Host-provided** | `--color-*`, `--radius-*`                                                         | Read with fallbacks; the module never declares them     |
+Tokens are declared on the editor's own root (`.editor`), never on `:root` — the module does not inject custom properties into a consumer's global scope. To give the same palette to non-editor chrome (a surrounding toolbar, a placeholder editor), add the `limestone-editor-theme` class to a wrapper; it inherits the identical token set with no token declarations of your own.
 
-Light and dark palettes key on `:root[data-theme-type='light']` — toggle that attribute as the host does. Host tokens are read-with-fallback so a consumer that omits them still renders.
+### Light / dark
+
+Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on a `.limestone-editor-theme` wrapper, set the attribute directly. Dark is the base — `'light'` overrides only the tokens that differ.
+
+### Overriding and custom themes
+
+Three paths, by scope:
+
+1. **Override individual tokens** — declare them on `.editor` (or a narrower / your own selector) in a stylesheet loaded after `editor-theme.css`; custom properties cascade, so `.editor { --syntax-heading: #f90; }` wins. Per-mode: `.editor[data-editor-theme='light'] { … }`.
+2. **Add a named theme** — define `.editor[data-editor-theme='solarized'] { … }` and pass `theme="solarized"`. The base block supplies fallbacks for any token the custom theme omits, so a partial theme overrides only what it names.
+3. **Replace wholesale** — skip `editor-theme.css` and ship your own token file scoped to `.editor`.
+
+### Token contracts
+
+| Contract            | Tokens                                                                                                | Notes                                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Syntax & chrome** | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--md-*`, `--selection-overlay-bg`, `--search-match-*` | Editor-owned; light + dark values shipped                                                                                                     |
+| **Host palette**    | `--color-*`, `--radius-*`                                                                             | Host-overridable. The module ships light + dark `--color-*` defaults so it renders without a host, and every read carries an inline fallback. |
 
 ## Behavior / policy props
 
 Optional props customize URL/image handling and editor affordances:
 
-| Prop               | Effect                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------ |
-| `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (e.g. resolve a relative path)                     |
-| `resolveLinkUrl`   | Rewrite a raw link href at render time                                                                 |
-| `imageLoadPolicy`  | `auto` (load images) or `placeholder` (defer loading)                                                  |
-| `onLinkActivate`   | Handle a link click (Ctrl/Cmd+click or activation); replaces the default `window.open`                 |
-| `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available |
+| Prop               | Effect                                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (e.g. resolve a relative path)                                                        |
+| `resolveLinkUrl`   | Rewrite a raw link href at render time                                                                                                    |
+| `imageLoadPolicy`  | `auto` (load images) or `placeholder` (defer loading)                                                                                     |
+| `onLinkActivate`   | Handle a link click (Ctrl/Cmd+click or activation); replaces the default `window.open`                                                    |
+| `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
+| `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
+| `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 
-**Set-once at mount.** These thread to the renderer through context but are **not** folded into the prose render-memo key. A reactive post-mount swap renders stale — set them at mount and treat them as fixed for the editor's lifetime. (Rationale: `docs/design/editor/editor.md`.)
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context but are **not** folded into the prose render-memo key; a reactive post-mount swap renders stale, so set them at mount and treat them as fixed for the editor's lifetime. (Rationale: `docs/design/editor/editor.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Events
 
@@ -75,7 +108,17 @@ Subscribe to the observer surface via `editor.getEvents()`. Three channels:
 | `selectionChange` | Whenever the selection changes; payload is the snapshot or null                               |
 | `error`           | On a failure the editor contains rather than propagates (subscriber / render / commit origin) |
 
+Payload envelopes (the per-op arms change; read the source type rather than enumerating them here):
+
+- **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op` (the operation kind). `detail` is the per-op payload defined in `schema/operations.ts`.
+- **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
+- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit` and `context` carries the block path or op kind when known.
+
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
+
+## Search
+
+`getSearch()` returns the imperative find/replace controller (`SearchState`) — the same engine the built-in bar drives. Use it to set the query and options (case sensitivity, whole-word, regex), step through matches, and replace one or all. The `searchBar` prop renders the built-in UI (Ctrl+F / Ctrl+H) over the same controller; set it `false` to drive search from your own chrome.
 
 ## Mutation-ceremony map
 
