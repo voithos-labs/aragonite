@@ -6,24 +6,19 @@
 
 export { default as Editor } from './components/Editor.svelte';
 
-import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
-import type { ImageLoadPolicy } from './core/inline-render';
-
-export interface EditorProps {
-	source?: string;
-	resolveImageUrl?: ResolveImageUrl;
-	resolveLinkUrl?: ResolveLinkUrl;
-	imageLoadPolicy?: ImageLoadPolicy;
-	onLinkActivate?: (url: string, event: MouseEvent) => void;
-	blockDragHandles?: boolean;
-	searchBar?: boolean;
-}
+export type { EditorProps, EditorInstance } from './editor-props';
 
 export type { BlockComponent } from './block-component';
 export type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 export type { ImageLoadPolicy } from './core/inline-render';
 export type { SearchState, SearchOptions } from './reactivity/search-state.svelte';
 export type { Match } from './search/document-scan';
+
+// ── Selection + keybinding public types ────────────────────────────────────────
+
+export type { EditorSelection } from './selection/primitives';
+export type { KeybindingOverride } from './schema/keybinding-overrides';
+export type { CommandId } from './schema/commands';
 
 // ── CST utilities ────────────────────────────────────────────────────────────
 
