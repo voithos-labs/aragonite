@@ -174,7 +174,7 @@
 	.search-tog.on,
 	.search-chevron.on {
 		color: var(--color-bg, #1e1f24);
-		background: var(--color-accent, #7a93d6);
+		background: var(--color-accent, #567b67);
 	}
 	.search-nav,
 	.search-x {
