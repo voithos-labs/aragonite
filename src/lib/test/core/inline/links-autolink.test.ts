@@ -33,6 +33,55 @@ describe('parseInline — autolinks (Stage 3)', () => {
 		expect(autolinks).toHaveLength(1);
 		expect(autolinks[0].url).toBe('https://example.com/?a');
 	});
+
+	it('non-http scheme angle autolink (ftp)', () => {
+		const nodes = inlineOf('Get <ftp://files.example.com/x> here');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('ftp://files.example.com/x');
+	});
+
+	it('mailto scheme angle autolink keeps the scheme verbatim (no double prefix)', () => {
+		const nodes = inlineOf('Mail <mailto:a@b.com> now');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('mailto:a@b.com');
+	});
+
+	it('irc and custom (+.-) schemes autolink', () => {
+		for (const uri of ['irc://chat.example.com', 'a+b-c.d://x']) {
+			const nodes = inlineOf(`see <${uri}> end`);
+			expect(nodes[1].kind).toBe('autolink');
+			expect(nodes[1].url).toBe(uri);
+		}
+	});
+
+	it('uppercase scheme autolinks', () => {
+		const nodes = inlineOf('see <HTTPS://example.com> end');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('HTTPS://example.com');
+	});
+
+	it('one-char scheme is not an autolink (min scheme length 2)', () => {
+		const nodes = inlineOf('see <a:b> end');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('whitespace in the body rejects the autolink', () => {
+		const nodes = inlineOf('see <ftp://a b> end');
+		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
+	});
+
+	it('bare email angle autolink still works (mailto prefixed)', () => {
+		const nodes = inlineOf('Mail <foo@bar.com> now');
+		expect(nodes[1].kind).toBe('autolink');
+		expect(nodes[1].url).toBe('mailto:foo@bar.com');
+	});
+
+	it('scheme autolink adjacent to inline raw-HTML does not fight over the brackets', () => {
+		const nodes = inlineOf('<b>x</b> <ftp://h/p>');
+		const autolinks = nodes.filter((n) => n.kind === 'autolink');
+		expect(autolinks).toHaveLength(1);
+		expect(autolinks[0].url).toBe('ftp://h/p');
+	});
 });
 
 describe('trimTrailingPunctuation (GFM §6.9)', () => {
