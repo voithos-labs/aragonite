@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Editor from '$lib/editor/components/Editor.svelte';
+	import { Editor } from '$lib/editor';
 	import { parse } from '$lib/editor/core/parser';
 	import { serialize } from '$lib/editor/core/serializer';
 	import { SHOWCASE_CONTENT } from '$lib/editor/e2e/test-content';
