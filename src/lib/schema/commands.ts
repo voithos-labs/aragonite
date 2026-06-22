@@ -136,6 +136,31 @@ export function resolveBinding(
 	);
 }
 
+/**
+ * True when the editor-global keymap binds this chord (today: undo/redo). The
+ * input-layer interception sites consult this to know which chords they own —
+ * then route the command through the override-aware resolver. Precise: it never
+ * matches a modified variant like `Mod+Alt+Y`, only the exact global chords.
+ */
+export function isEditorGlobalChord(chord: string): boolean {
+	return GLOBAL_KEYMAP.some((b) => normalizeChord(b.chord) === chord);
+}
+
+/**
+ * Resolve a chord at GLOBAL scope only: a consumer global override (bind or
+ * disable), else the editor-global keymap. For input-layer sites that own
+ * undo/redo with no focused block (the editor-root keydown listener), where a
+ * kind tier would have no block to apply to.
+ */
+export function resolveGlobalBinding(
+	chord: string,
+	overrides?: KeybindingOverrideMap
+): KeyBinding | null {
+	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
+	if (decision !== undefined) return decision;
+	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? null;
+}
+
 /** Resolve the chord and run the command. Returns true when handled. */
 export function dispatchKeyCommand(
 	chord: string,

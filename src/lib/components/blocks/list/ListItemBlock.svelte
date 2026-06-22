@@ -13,9 +13,11 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		FOCUS_KEY,
+		KEYBINDING_OVERRIDES_KEY,
 		LIST_CONTEXT_KEY,
 		SELECTION_KEY,
-		STICKY_COLUMN_KEY
+		STICKY_COLUMN_KEY,
+		type KeybindingOverridesGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
@@ -55,6 +57,7 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	const dragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY)?.() ?? false;
@@ -228,7 +231,7 @@
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
-		const binding = resolveKindBinding(chord, node.kind);
+		const binding = resolveKindBinding(chord, node.kind, keybindingOverrides());
 		if (binding && runCommand(binding.command)) {
 			e.preventDefault();
 		}

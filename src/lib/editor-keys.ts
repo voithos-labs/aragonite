@@ -10,6 +10,7 @@
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
+import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
@@ -35,6 +36,10 @@ export type ReorderAnnounce = (message: string) => void;
 /** Getter-wrapped set-once flag: render the mouse-only hover drag handle. False
  *  hides it; keyboard reorder stays available regardless. */
 export const BLOCK_DRAG_HANDLES_KEY = Symbol('block-drag-handles');
+
+/** Per-instance keybinding overrides, getter-wrapped so dispatch sites read the latest derived map. */
+export const KEYBINDING_OVERRIDES_KEY = Symbol('keybinding-overrides');
+export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 
 export const SELECTION_KEY = Symbol('selection');
 export type { EditorSelection } from './selection/primitives';
