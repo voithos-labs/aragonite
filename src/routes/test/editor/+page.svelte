@@ -17,6 +17,7 @@
 	import { spliceChildren } from '$lib/editor/tree-operations/children';
 	import { getStateForNode } from '$lib/editor/reactivity/state-registry';
 	import type { BlockKind, CstNode } from '$lib/editor/core/nodes';
+	import type { KeybindingOverride } from '$lib/editor/schema/keybinding-overrides';
 	import {
 		registerBlockKind,
 		tryGetBlockKindDescriptor
@@ -31,6 +32,7 @@
 	import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
+	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor: ReturnType<typeof Editor>;
 
 	// Test-only set-once toggle: `?dragHandles=false` mounts the editor with the
@@ -170,6 +172,9 @@
 			getDocument: () => editor.__test.getDocument(),
 			setSource: (md: string) => {
 				source = md;
+			},
+			setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
+				keybindings = overrides;
 			},
 			getBlockCount: () => {
 				const doc = parse(editor.getSource());
@@ -428,7 +433,7 @@
 
 <div class="test-harness">
 	<div class="editor-slot">
-		<Editor bind:this={editor} {source} {blockDragHandles} />
+		<Editor bind:this={editor} {source} {blockDragHandles} {keybindings} />
 	</div>
 	<DebugPanel
 		rawSource={liveSource}

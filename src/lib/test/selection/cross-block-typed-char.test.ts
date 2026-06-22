@@ -4,6 +4,7 @@ import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block/disp
 import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
 import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
 import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
+import { normalizeKeybindingOverrides } from '$lib/editor/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
 import { createUndoManager } from '$lib/editor/undo/manager';
@@ -80,6 +81,7 @@ function makeHandlers(
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
+		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller),
 		getCursorOffset,
 		afterReactivity: async () => {},

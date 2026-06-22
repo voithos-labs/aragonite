@@ -22,6 +22,7 @@
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		KEYBINDING_OVERRIDES_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		RESOLVE_LINK_URL_KEY,
@@ -30,6 +31,7 @@
 		TABLE_CONTEXT_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
+		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
@@ -100,6 +102,7 @@
 	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
@@ -155,6 +158,7 @@
 		blockEdit,
 		controller,
 		history,
+		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerRawLength(el) : 0),
@@ -331,7 +335,15 @@
 				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
 				// other editable surface.
 				const chord = eventToChord(e);
-				if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
+				if (
+					chord &&
+					dispatchKeyCommand(
+						chord,
+						{ kind: node.kind, runCommand },
+						{ history },
+						keybindingOverrides()
+					)
+				) {
 					e.preventDefault();
 					return;
 				}

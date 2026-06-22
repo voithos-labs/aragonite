@@ -18,11 +18,13 @@
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
+		KEYBINDING_OVERRIDES_KEY,
 		PASTE_COORDINATOR_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
-		type DocumentGetter
+		type DocumentGetter,
+		type KeybindingOverridesGetter
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -69,6 +71,7 @@
 	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
@@ -117,6 +120,7 @@
 		blockEdit,
 		controller,
 		history,
+		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
 		getTextLen: () => (el?.textContent ?? '').length,
@@ -254,7 +258,10 @@
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		const chord = eventToChord(e);
-		if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
+		if (
+			chord &&
+			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+		) {
 			e.preventDefault();
 			return;
 		}

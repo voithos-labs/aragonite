@@ -20,6 +20,7 @@ import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
+import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
@@ -46,6 +47,7 @@ export interface CrossBlockDispatchContext {
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
+	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 
 	getCursorOffset: () => number | null;

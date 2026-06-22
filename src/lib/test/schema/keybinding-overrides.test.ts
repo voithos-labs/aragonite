@@ -4,7 +4,12 @@ import {
 	lookupOverride,
 	overrideDecision
 } from '$lib/editor/schema/keybinding-overrides';
-import { resolveBinding, resolveKindBinding } from '$lib/editor/schema/commands';
+import {
+	resolveBinding,
+	resolveKindBinding,
+	isEditorGlobalChord,
+	resolveGlobalBinding
+} from '$lib/editor/schema/commands';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {
@@ -93,5 +98,40 @@ describe('override-aware resolution (commands.ts)', () => {
 	it('no overrides leaves built-in resolution unchanged', () => {
 		expect(resolveBinding('Mod+Z', 'paragraph')?.command).toBe('history.undo');
 		expect(resolveKindBinding('Enter', 'paragraph')?.command).toBe('block.split');
+	});
+});
+
+describe('isEditorGlobalChord', () => {
+	it('matches the exact default history chords only', () => {
+		expect(isEditorGlobalChord('Mod+Z')).toBe(true);
+		expect(isEditorGlobalChord('Mod+Y')).toBe(true);
+		expect(isEditorGlobalChord('Mod+Shift+Z')).toBe(true);
+	});
+
+	it('does NOT match a modified variant — the Ctrl+Alt+Y interception bug guard', () => {
+		expect(isEditorGlobalChord('Mod+Alt+Y')).toBe(false);
+		expect(isEditorGlobalChord('Mod+Alt+Z')).toBe(false);
+		expect(isEditorGlobalChord('Mod+B')).toBe(false);
+	});
+});
+
+describe('resolveGlobalBinding', () => {
+	it('returns the default global binding when no override', () => {
+		expect(resolveGlobalBinding('Mod+Z')?.command).toBe('history.undo');
+		expect(resolveGlobalBinding('Mod+Y')?.command).toBe('history.redo');
+	});
+
+	it('honors a global rebind and disable', () => {
+		const rebind = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: 'history.redo' }]);
+		expect(resolveGlobalBinding('Mod+Z', rebind)?.command).toBe('history.redo');
+		const disable = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: null }]);
+		expect(resolveGlobalBinding('Mod+Z', disable)).toBeNull();
+	});
+
+	it('ignores a kind-scoped override (global scope only)', () => {
+		const kindScoped = normalizeKeybindingOverrides([
+			{ chord: 'Mod+Z', command: 'history.redo', kind: 'paragraph' }
+		]);
+		expect(resolveGlobalBinding('Mod+Z', kindScoped)?.command).toBe('history.undo');
 	});
 });
