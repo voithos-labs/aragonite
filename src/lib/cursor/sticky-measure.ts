@@ -75,10 +75,28 @@ export function findOffsetNearestX(
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
 	const targetViewportX = editorRelativeX + editorLeft;
 
+	// Sticky-from-above lands on the FIRST visual line, sticky-from-below on the
+	// LAST, so only offsets near that edge can be the answer. Walk inward from the
+	// probed edge and stop a few lines past it — the band filter below discards
+	// anything further regardless, so the result is identical to a full scan while
+	// the work is O(lines-near-edge), not O(raw length). The scan stays linear
+	// (BiDi makes per-line left values non-monotonic); only its range is bounded.
+	const forward = from === 'above';
+	const STOP_AFTER_LINES = 3;
 	const candidates: { offset: number; rect: DOMRect }[] = [];
-	for (let offset = minOffset; offset <= totalLen; offset++) {
+	let edgeExtreme = forward ? Infinity : -Infinity; // min top (above) / max bottom (below)
+	let lineH = 0;
+	for (let k = 0; k <= totalLen - minOffset; k++) {
+		const offset = forward ? minOffset + k : totalLen - k;
 		const rect = getOffsetRect(container, offset);
-		if (rect) candidates.push({ offset, rect });
+		if (!rect) continue;
+		if (lineH === 0) lineH = Math.max(1, rect.bottom - rect.top);
+		if (candidates.length > 0) {
+			const distancePastEdge = forward ? rect.top - edgeExtreme : edgeExtreme - rect.bottom;
+			if (distancePastEdge > STOP_AFTER_LINES * lineH) break;
+		}
+		candidates.push({ offset, rect });
+		edgeExtreme = forward ? Math.min(edgeExtreme, rect.top) : Math.max(edgeExtreme, rect.bottom);
 	}
 	if (candidates.length === 0) return minOffset;
 
