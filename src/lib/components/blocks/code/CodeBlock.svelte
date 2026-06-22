@@ -493,7 +493,7 @@
 		width: 100%;
 		outline: none;
 		padding: 12px;
-		font-family: 'Fira Code', 'Consolas', monospace;
+		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.9em;
 		line-height: 1.5;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
@@ -513,7 +513,7 @@
 	}
 
 	.code-block :global(.md-marker) {
-		opacity: 0.4;
+		opacity: var(--syntax-marker-dim, 0.4);
 	}
 
 	.code-block :global(.md-marker.md-lang) {
