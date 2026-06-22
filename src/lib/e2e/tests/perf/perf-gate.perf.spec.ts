@@ -19,13 +19,17 @@ test.skip(!process.env.PERF_GATE, 'run via `npm run perf:check`');
 // (with a changelog note) after a Chromium/OS/toolchain bump moves the floor —
 // never to silence a real regression.
 //
-// Rows: the ≤1MB shapes (all renderable), plus the giant-single shapes at 10MB —
-// their keystroke is O(viewport) (windowing bounds the mount of one giant
-// container), so gating at 10MB is what guards that claim against an O(doc)
-// regression that would hide at 1MB. The flat high-block-count 10MB rows
-// (flat-prose/many-small/reference-heavy) carry an O(top-level-count) cost that
-// is not viewport-bounded; they stay recorded-not-gated to avoid a wall-clock-
-// sensitive ceiling.
+// Rows: the ≤1MB shapes plus every renderable shape's 10MB keystroke — all
+// O(viewport). Windowing bounds the mounted set to the viewport regardless of
+// block count (attribution axisS: mounted/renders flat 1k→30k), so gating at 10MB
+// guards the O(viewport) claim against an O(doc) regression that would hide at
+// 1MB. The flat high-block-count shapes (flat-prose/many-small-blocks/reference-
+// heavy) were previously excluded on a belief they carried an O(top-level-count)
+// keystroke cost; that was a harness artifact — the per-keystroke settle summed
+// docLengthInPage over the whole $state-proxy children array — now fixed in
+// latency-harness, so they gate too. (Intra-block single-giant-paragraph stays
+// recorded-not-gated: its span rebuild is O(paragraph length), not viewport-
+// bounded — a genuinely separate axis.)
 const TOLERANCE = 1.1;
 const FLOOR_MS = 5;
 
@@ -37,9 +41,13 @@ const GATED_ROWS: Array<[shape: FixtureShape, size: string]> = [
 	['nested-containers', '1MB'],
 	['reference-heavy', '1MB'],
 	['table-heavy', '1MB'],
+	['many-small-blocks', '1MB'],
 	['giant-single-list', '10MB'],
 	['giant-single-blockquote', '10MB'],
-	['giant-single-table', '10MB']
+	['giant-single-table', '10MB'],
+	['flat-prose', '10MB'],
+	['many-small-blocks', '10MB'],
+	['reference-heavy', '10MB']
 ];
 
 interface E2eBaselineRow {
