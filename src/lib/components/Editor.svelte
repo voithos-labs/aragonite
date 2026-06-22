@@ -21,6 +21,7 @@
 		HEIGHT_ORACLE_KEY,
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
+		KEYBINDING_OVERRIDES_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		REORDER_ACTION_KEY,
@@ -69,6 +70,9 @@
 	import { createOperationsLog } from '../debug/operations-log';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
+	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
+	import { eventToChord } from '../schema/keybindings';
+	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
@@ -85,8 +89,11 @@
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
 		blockDragHandles = true,
-		searchBar = true
+		searchBar = true,
+		keybindings
 	}: EditorProps = $props();
+
+	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
@@ -395,6 +402,7 @@
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
 	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
 	setContext(BLOCK_DRAG_HANDLES_KEY, () => blockDragHandles);
+	setContext(KEYBINDING_OVERRIDES_KEY, () => overridesMap);
 	setContext(BROKEN_IMAGE_URLS_KEY, brokenImageUrls);
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
@@ -480,6 +488,7 @@
 		controller,
 		history,
 		pasteCoordinator,
+		getKeybindingOverrides: () => overridesMap,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		afterReactivity: () => tick(),
 		setPendingCursor: () => {}
@@ -516,15 +525,13 @@
 			if (active !== root && active !== document.body) return;
 
 			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
-			// caret whose block unmounted, not necessarily a selection.
-			if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+			// caret whose block unmounted, not necessarily a selection. No block is
+			// focused here, so resolve at global scope (consumer override, else default).
+			const rootChord = eventToChord(e);
+			if (rootChord && isEditorGlobalChord(rootChord)) {
 				e.preventDefault();
-				history.requestUndo();
-				return;
-			}
-			if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-				e.preventDefault();
-				history.requestRedo();
+				const binding = resolveGlobalBinding(rootChord, overridesMap);
+				if (binding) getCommand(binding.command)?.({ history });
 				return;
 			}
 

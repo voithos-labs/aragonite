@@ -18,6 +18,8 @@ import {
 } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
+import { eventToChord } from '../schema/keybindings';
+import { isEditorGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -78,16 +80,16 @@ export async function handleSharedKeydown(
 		ctx.stickyColumn.reset();
 	}
 
-	// Ctrl+Y doesn't fire beforeinput historyRedo in Chromium/WebView2, so catch here.
-	if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+	// The editor owns undo/redo: native contenteditable history stays suppressed
+	// (preventDefault on keydown — Ctrl+Y doesn't fire beforeinput historyRedo in
+	// Chromium/WebView2, so keydown is the reliable layer). Precise chord matching
+	// (not a loose key check, which also caught Ctrl+Alt+Y) then defers the command
+	// to the block's own override-aware dispatchKeyCommand, so a consumer can rebind
+	// or disable these chords like any other binding.
+	const historyChord = eventToChord(e);
+	if (historyChord && isEditorGlobalChord(historyChord)) {
 		e.preventDefault();
-		ctx.history.requestUndo();
-		return true;
-	}
-	if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-		e.preventDefault();
-		ctx.history.requestRedo();
-		return true;
+		return false;
 	}
 
 	// ── Arrow boundary navigation ─────────────────────────────────────────

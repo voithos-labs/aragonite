@@ -20,6 +20,7 @@
 		FOCUS_KEY,
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
+		KEYBINDING_OVERRIDES_KEY,
 		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
 		PASTE_COORDINATOR_KEY,
@@ -31,6 +32,7 @@
 		WIDGET_SELECTION_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
+		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
 		type ReorderAction,
 		type ResolveImageUrl,
@@ -99,6 +101,7 @@
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
@@ -161,6 +164,7 @@
 		blockEdit,
 		controller,
 		history,
+		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => {
 			if (!el) return null;
@@ -528,7 +532,10 @@
 		}
 
 		const chord = eventToChord(e);
-		if (chord && dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history })) {
+		if (
+			chord &&
+			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+		) {
 			e.preventDefault();
 			return;
 		}

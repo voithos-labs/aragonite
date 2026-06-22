@@ -3,7 +3,15 @@
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
 	import type { CstNode } from '../../core/nodes';
-	import { BLOCK_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
+	import {
+		BLOCK_EDIT_KEY,
+		FOCUS_KEY,
+		HISTORY_KEY,
+		KEYBINDING_OVERRIDES_KEY,
+		type KeybindingOverridesGetter
+	} from '../../editor-keys';
+	import { eventToChord } from '../../schema/keybindings';
+	import { resolveBinding, getCommand, isEditorGlobalChord } from '../../schema/commands';
 	import { displayLength } from '../../core/lines';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -11,6 +19,7 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	let el: HTMLDivElement | undefined = $state();
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -31,14 +40,13 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
-		if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+		// The editor owns undo/redo; resolve override-aware so a consumer can rebind
+		// or disable these chords even while a thematic break is focused.
+		const chord = eventToChord(e);
+		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
-			history.requestUndo();
-			return;
-		}
-		if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-			e.preventDefault();
-			history.requestRedo();
+			const binding = resolveBinding(chord, node.kind, keybindingOverrides());
+			if (binding) getCommand(binding.command)?.({ history });
 			return;
 		}
 

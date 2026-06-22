@@ -22,6 +22,7 @@ import type {
 import type { BlockComponent, StickyColumnDirection } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -72,6 +73,7 @@ export interface EditableSurfaceDeps {
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
+	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
@@ -122,6 +124,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
+		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick(),
