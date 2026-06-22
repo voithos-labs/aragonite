@@ -1,17 +1,41 @@
 /**
- * Editor default theme — editor-owned token values. Declared at :root so they
- * form an override-friendly contract and serve every consumer (including the
- * out-of-.editor CodeMirror placeholder). The editor never declares the host
- * --color-* / --radius-* tokens; those come from the consumer, read with
- * fallbacks in editor.css. Light palette keys on :root[data-theme-type='light']
- * exactly as the host app toggles it.
+ * Editor default theme — editor-owned token values, scoped to the editor rather
+ * than `:root` so an extracted module never injects ~50 custom properties into a
+ * consumer's global scope. Tokens are declared on `.editor` (the component's own
+ * root) and on `.limestone-editor-theme` (an opt-in class a consumer puts on any
+ * non-editor chrome — e.g. a CodeMirror placeholder — that wants the same
+ * palette, so the consumer borrows tokens without redeclaring them). `:where()`
+ * keeps specificity at 0 so a consumer override at `.editor { --x: … }` wins.
  *
- * Consumers: import this file for the default look, or replace it wholesale to
- * retheme. Override any token at :root or a narrower scope.
+ * Light vs dark keys on `data-editor-theme='light'` on the same element; the
+ * `<Editor theme>` prop reflects there, and a consumer sets it on a
+ * `.limestone-editor-theme` wrapper. Dark is the base (no attribute needed).
+ *
+ * Host `--color-*` tokens ship light+dark defaults here so the module renders
+ * correctly with no host theme; a host still overrides them at a higher scope,
+ * and every component read keeps an inline fallback (G4.6b).
+ *
+ * Consumers: import this file for the default look, override any token at
+ * `.editor` (or narrower), add a named theme via `data-editor-theme='<name>'`
+ * with your own block, or replace this file wholesale to retheme.
  */
 
-:root {
+:where(.editor, .limestone-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+
+	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
+	--color-bg: #1b1c21;
+	--color-bg-secondary: rgba(128, 128, 128, 0.12);
+	--color-bg-elevated: #2a2c33;
+	--color-bg-muted: #2a2a2a;
+	--color-text: #d6d9e0;
+	--color-text-primary: #ffffff;
+	--color-text-muted: #aaaaaa;
+	--color-border: #3d4047;
+	--color-ui-muted: #a4a4a4;
+	--color-ui-dulled: #afb1b3;
+	--color-accent: #567b67;
+	--color-danger: #e06c75;
 
 	/* Markdown syntax highlighting (dark defaults) */
 	--syntax-heading: #a6e22e;
@@ -67,7 +91,21 @@
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
-:root[data-theme-type='light'] {
+:where(.editor, .limestone-editor-theme)[data-editor-theme='light'] {
+	/* Host chrome tokens (light) */
+	--color-bg: #ffffff;
+	--color-bg-secondary: rgba(0, 0, 0, 0.05);
+	--color-bg-elevated: #f5f6f8;
+	--color-bg-muted: #eaeaea;
+	--color-text: #1f2328;
+	--color-text-primary: #000000;
+	--color-text-muted: #57606a;
+	--color-border: #d0d7de;
+	--color-ui-muted: #6e7781;
+	--color-ui-dulled: #8c959f;
+	--color-accent: #567b67;
+	--color-danger: #cf222e;
+
 	/* Markdown syntax highlighting (light) */
 	--syntax-heading: #3f6e1a;
 	--syntax-emphasis: #0369a1;

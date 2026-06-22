@@ -90,7 +90,8 @@
 		onLinkActivate,
 		blockDragHandles = true,
 		searchBar = true,
-		keybindings
+		keybindings,
+		theme = 'dark'
 	}: EditorProps = $props();
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
@@ -696,7 +697,14 @@
 <!-- tabindex="-1": focusable so a windowed-out block can hand focus here instead
 	of letting it fall to <body>, but not tab-reachable. Non-editable, so focusing
 	it creates no native selection the selectionchange bridge would collapse. -->
-<div class="editor" bind:this={editorEl} tabindex="-1" role="group" aria-label="Markdown editor">
+<div
+	class="editor"
+	data-editor-theme={theme}
+	bind:this={editorEl}
+	tabindex="-1"
+	role="group"
+	aria-label="Markdown editor"
+>
 	<BlockList
 		children={doc.children}
 		{blockIds}
