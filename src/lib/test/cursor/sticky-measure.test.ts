@@ -189,5 +189,54 @@ describe('sticky-measure geometry', () => {
 			const offset = findOffsetNearestX(block, -EDITOR_LEFT, 'above', 4);
 			expect(offset).toBe(4);
 		});
+
+		it('bounds the scan to the probed edge instead of the whole block', () => {
+			// 195-char text node, 20 chars/visual line → 10 lines, tops spaced wide so
+			// the band filter never bridges adjacent lines (as the wrapped-line fixtures
+			// above do). The bounded scan must read far fewer than all ~196 offsets.
+			text.data = 'a'.repeat(195);
+			const PER_LINE = 20;
+			const LINE_GAP = LINE_HEIGHT * 3;
+			let rectCalls = 0;
+			const rectAt = (offset: number): DOMRect => {
+				const top = Math.floor(offset / PER_LINE) * LINE_GAP;
+				const left = (offset % PER_LINE) * CHAR_WIDTH;
+				return {
+					left,
+					right: left + CHAR_WIDTH,
+					top,
+					bottom: top + LINE_HEIGHT,
+					width: CHAR_WIDTH,
+					height: LINE_HEIGHT,
+					x: left,
+					y: top,
+					toJSON: () => ({})
+				} as DOMRect;
+			};
+			Range.prototype.getClientRects = function (this: Range): DOMRectList {
+				rectCalls++;
+				const off = this.startContainer === text ? this.startOffset : 0;
+				const rect = rectAt(off);
+				return {
+					length: 1,
+					item: (i: number) => (i === 0 ? rect : null),
+					0: rect,
+					[Symbol.iterator]: function* () {
+						yield rect;
+					}
+				} as unknown as DOMRectList;
+			};
+
+			// 'above' → first line (offsets 0-19); column 5 ⇒ offset 5.
+			expect(findOffsetNearestX(block, 5 * CHAR_WIDTH - EDITOR_LEFT, 'above', 0)).toBe(5);
+			const aboveCalls = rectCalls;
+			rectCalls = 0;
+			// 'below' → last line (offsets 180-195); column 5 ⇒ offset 185.
+			expect(findOffsetNearestX(block, 5 * CHAR_WIDTH - EDITOR_LEFT, 'below', 0)).toBe(185);
+
+			// Each direction reads only a few lines' worth of offsets, not all ~196.
+			expect(aboveCalls).toBeLessThan(120);
+			expect(rectCalls).toBeLessThan(120);
+		});
 	});
 });
