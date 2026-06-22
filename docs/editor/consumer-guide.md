@@ -77,10 +77,12 @@ Three paths, by scope:
 
 ### Token contracts
 
-| Contract            | Tokens                                                                                                | Notes                                                                                                                                         |
-| ------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Syntax & chrome** | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--md-*`, `--selection-overlay-bg`, `--search-match-*` | Editor-owned; light + dark values shipped                                                                                                     |
-| **Host palette**    | `--color-*`, `--radius-*`                                                                             | Host-overridable. The module ships light + dark `--color-*` defaults so it renders without a host, and every read carries an inline fallback. |
+All tokens are editor-owned and shipped with light + dark values, so the module renders correctly host-less in both modes. Override any of them the same way — at `.editor` or a wrapper (never `:root`; see [Overriding](#overriding-and-custom-themes)).
+
+| Group       | Tokens                                                                                                | Role                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Content** | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--md-*`, `--selection-overlay-bg`, `--search-match-*` | The editor's own visual language                                                                              |
+| **Chrome**  | `--color-*`, `--radius-*`                                                                             | App-chrome flavored (bg/text/border/accent) — override to match your app palette; reads keep inline fallbacks |
 
 ## Behavior / policy props
 

@@ -11,9 +11,12 @@
  * `<Editor theme>` prop reflects there, and a consumer sets it on a
  * `.limestone-editor-theme` wrapper. Dark is the base (no attribute needed).
  *
- * Host `--color-*` tokens ship light+dark defaults here so the module renders
- * correctly with no host theme; a host still overrides them at a higher scope,
- * and every component read keeps an inline fallback (G4.6b).
+ * The `--color-*` tokens are app-chrome flavored (bg/text/border/accent the
+ * editor borrows to blend in) but are owned here like everything else: shipped
+ * with light+dark defaults so the module renders correctly with no host. A
+ * consumer matching its own app palette overrides them at `.editor` (or a
+ * wrapper) — NOT at `:root`, whose inherited value is shadowed by these direct
+ * defaults. Every component read also keeps an inline fallback (G4.6b).
  *
  * Consumers: import this file for the default look, override any token at
  * `.editor` (or narrower), add a named theme via `data-editor-theme='<name>'`

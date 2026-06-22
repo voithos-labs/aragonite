@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Editor } from '$lib/editor';
 	import { parse } from '$lib/editor/core/parser';
-	import { applyTheme, DEFAULT_THEME } from '$lib/theme';
+	import { applyTheme, DEFAULT_THEME, currentThemeType } from '$lib/theme';
 	import {
 		dumpTree,
 		dumpUndoStack,
@@ -87,7 +87,13 @@
 	</header>
 	<div class="demo-body">
 		<div class="editor-slot">
-			<Editor bind:this={editor} {source} {blockDragHandles} {keybindings} />
+			<Editor
+				bind:this={editor}
+				{source}
+				{blockDragHandles}
+				{keybindings}
+				theme={$currentThemeType}
+			/>
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
