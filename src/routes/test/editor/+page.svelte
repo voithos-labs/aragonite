@@ -77,7 +77,7 @@
 	});
 </script>
 
-<div class="test-harness">
+<div class="test-harness limestone-editor-theme">
 	<header class="demo-header">
 		<h1 class="demo-title">Limestone Editor</h1>
 		<p class="demo-note">

@@ -18,6 +18,10 @@ export interface EditorProps {
 	onLinkActivate?: (url: string, event: MouseEvent) => void;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
+	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
+	 *  own `.editor[data-editor-theme='<name>']` token block. */
+	theme?: string;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 }
