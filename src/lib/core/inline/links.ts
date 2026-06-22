@@ -563,12 +563,16 @@ function scanRegionForAutolinks(raw: string, start: number, end: number, out: In
 
 const ANGLE_EMAIL = /^[A-Za-z0-9._+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+$/;
 
+// CommonMark absolute URI: scheme (ASCII letter + 1–31 of [A-Za-z0-9+.-], total
+// 2–32) then ':' then a body free of whitespace, '<', '>', and ASCII control chars.
+const ABSOLUTE_URI = /^[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>\x00-\x1f\x7f]*$/;
+
 function matchAngleBracketAutolink(raw: string, pos: number, end: number): InlineNode | null {
 	const closeAngle = raw.indexOf('>', pos + 1);
 	if (closeAngle === -1 || closeAngle >= end) return null;
 	const inner = raw.slice(pos + 1, closeAngle);
 
-	if (/^https?:\/\/\S+$/.test(inner)) {
+	if (ABSOLUTE_URI.test(inner)) {
 		return {
 			kind: 'autolink',
 			start: pos,
