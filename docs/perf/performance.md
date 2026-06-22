@@ -7,16 +7,19 @@ Qualitative shape (exact numbers live in `baseline.json`, below):
 - **Keystroke latency is O(viewport).** Single-digit milliseconds on realistic documents, and stays bounded into the 10MB range because virtual rendering windows the mounted component set to what's on screen.
 - **Document load is roughly linear** in document size.
 
-Two axes are deliberately **not** viewport-bounded — recorded as references, not gated:
+One keystroke axis is deliberately **not** viewport-bounded — recorded as a reference, not gated:
 
-- **Intra-block long-paragraph editing** — span rebuild scales with paragraph length; windowing does not address it.
-- **Per-top-level-block-count cost** on flat, high-block-count documents — an O(top-level-count) keystroke cost that grows with the number of top-level blocks.
+- **Intra-block long-paragraph editing** — a single block's span rebuild scales with paragraph length; windowing windows blocks, not the interior of one block.
+
+Document **load** is O(document size): the reactive tree is materialized up front (`$state`-proxying every node, id assignment, height seeding) — script-bound and linear in node count, sub-second at realistic sizes, multi-second only at the hundreds-of-thousands-of-blocks extreme. Windowing bounds the _mount_ at load, not this materialization.
+
+A flat high-block-count keystroke cost was once recorded here as an O(top-level-count) axis. Measurement showed it was a **harness artifact** — the latency harness summed the whole `$state`-proxy children array on every settle poll — not editor work. Flat-document keystrokes are O(viewport) like every other shape.
 
 ## Where the numbers live, and what's gated
 
 `src/lib/editor/test/perf/baseline.json` holds the exact numbers and the machine spec — the source of truth.
 
-- **Gated:** `npm run perf:check` enforces the keystroke (`e2e`) rows; `amplification.test.ts` asserts the structural `counters`.
+- **Gated:** `npm run perf:check` enforces the keystroke (`e2e`) rows — every renderable shape at ≤1MB and the 10MB keystroke (all O(viewport), flat and single-container alike); `amplification.test.ts` asserts the structural `counters`.
 - **Report-only:** the `parse` / `snapshot*` / `ancestryRebuild` rows are dev references — environment-sensitive (orders of magnitude, not targets; see baseline.json's note).
 
 ## Key architectural decisions
