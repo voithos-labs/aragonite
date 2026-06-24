@@ -4,7 +4,7 @@ How to embed, theme, and wire the editor as a library. Contributor-facing intern
 
 ## Public API
 
-Everything supported is re-exported from the barrel (`src/lib/editor`). Adding an export is non-breaking; removing one is breaking — the surface is kept minimal and grows on demand.
+Everything supported is re-exported from the barrel (`src/lib`). Adding an export is non-breaking; removing one is breaking — the surface is kept minimal and grows on demand.
 
 | Group             | What you get                                                                                                                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |

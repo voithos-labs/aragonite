@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import {
-	writeCrossBlockCopy,
-	writeCrossBlockCut
-} from '$lib/selection/cross-block/clipboard';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '$lib/selection/cross-block/clipboard';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';

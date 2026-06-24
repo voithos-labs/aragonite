@@ -82,8 +82,7 @@ describe('createEditorEvents', () => {
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
-		const { createUndoController } =
-			await import('$lib/editor-actions/undo/undo-controller');
+		const { createUndoController } = await import('$lib/editor-actions/undo/undo-controller');
 		const { createUndoManager } = await import('$lib/undo/manager');
 		const { createSharingState } = await import('$lib/undo/epoch-tracker');
 		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');

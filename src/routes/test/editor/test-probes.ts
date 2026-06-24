@@ -8,22 +8,10 @@ import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode } from '$lib/core/nodes';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import {
-	registerBlockKind,
-	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
+import { registerBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import {
-	dumpTree,
-	dumpUndoStack,
-	dumpInlineTree,
-	dumpOperationsLog
-} from '$lib/debug/inspect';
-import {
-	enablePerfInstruments,
-	resetPerfInstruments,
-	perfSnapshot
-} from '$lib/perf/instruments';
+import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
+import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;

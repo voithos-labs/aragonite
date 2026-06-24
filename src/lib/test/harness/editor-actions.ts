@@ -1,11 +1,7 @@
 // Shared mocks for editor-actions and selection unit tests.
 
 import { vi } from 'vitest';
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	FocusActions
-} from '$lib/action-contracts';
+import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
