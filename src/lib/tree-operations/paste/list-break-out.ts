@@ -178,9 +178,10 @@ export function buildListBreakOutReplacement(
 	}
 	secondHalfItems.push(...itemsAfter);
 
+	const base = orderedBaseOf(items[0]);
 	const replacement: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
-		replacement.push(assembleListHalf(list, firstHalfItems, 1));
+		replacement.push(assembleListHalf(list, firstHalfItems, base));
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
@@ -193,11 +194,10 @@ export function buildListBreakOutReplacement(
 		replacement.push(cloned);
 	}
 	if (secondHalfItems.length > 0) {
-		// Continue numbering across the paste gap — the split item consumes
-		// one slot in each half, so second half starts at firstHalfItems.length + 1.
-		const startNumber =
-			firstHalfItems.length > 0 ? firstHalfItems.length + 1 : orderedBaseOf(items[0]);
-		replacement.push(assembleListHalf(list, secondHalfItems, startNumber));
+		// Continue numbering across the paste gap from the list's own base — the
+		// split item consumes one slot in each half, so the second half starts at
+		// base + (number of first-half items).
+		replacement.push(assembleListHalf(list, secondHalfItems, base + firstHalfItems.length));
 	}
 
 	return replacement;

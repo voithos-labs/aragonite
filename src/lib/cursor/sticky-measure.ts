@@ -19,7 +19,7 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null 
 
 	let viewportX: number | null = null;
 	const rects = range.getClientRects();
-	if (rects.length > 0 && (rects[0].width >= 0 || rects[0].height > 0)) {
+	if (rects.length > 0 && rects[0].height > 0) {
 		viewportX = rects[0].left;
 	}
 	if (viewportX === null) {
