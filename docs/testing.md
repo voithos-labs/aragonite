@@ -2,12 +2,12 @@
 
 Two test layers, both colocated with the editor source:
 
-| Layer | Runner     | Location               | Scope                                                  |
-| ----- | ---------- | ---------------------- | ------------------------------------------------------ |
-| Unit  | Vitest     | `src/lib/editor/test/` | Pure logic — parser, serializer, tree ops, merge rules |
-| E2E   | Playwright | `src/lib/editor/e2e/`  | User interactions in a real browser                    |
+| Layer | Runner     | Location        | Scope                                                  |
+| ----- | ---------- | --------------- | ------------------------------------------------------ |
+| Unit  | Vitest     | `src/lib/test/` | Pure logic — parser, serializer, tree ops, merge rules |
+| E2E   | Playwright | `src/lib/e2e/`  | User interactions in a real browser                    |
 
-The entire editor module is self-contained: components, core logic, unit tests, and E2E tests all live under `src/lib/editor/`. If the editor is ever extracted, everything moves together.
+The entire editor module is self-contained: components, core logic, unit tests, and E2E tests all live under `src/lib/` — the property that made extraction into this standalone repo mechanical.
 
 ## Running Tests
 
@@ -60,7 +60,7 @@ E2E tests are grouped into Playwright projects:
 
 Pure TypeScript — no DOM, no browser. The most important invariant: `serialize(parse(source)) === source` for all valid GFM.
 
-Unit tests live under `src/lib/editor/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. When a SUT moves into a subdirectory the test follows — e.g. the undo manager lives at `undo/manager.ts` and its test at `test/undo/manager.test.ts`. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
+Unit tests live under `src/lib/test/`, mirroring the source tree one-for-one (the leading `components/` segment is elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`). Cross-cutting tests for top-level editor services (`round-trip`, `round-trip-complex`, `round-trip-task-items`, `editor-events`, `append-block-event`) stay at `test/` root because their SUTs sit at the editor root. When a SUT moves into a subdirectory the test follows — e.g. the undo manager lives at `undo/manager.ts` and its test at `test/undo/manager.test.ts`. Vitest discovers `*.test.ts` anywhere under the root, so no config change is needed. The top-level tests run only via the full `test:editor` suite; every other area has a dedicated `test:editor:<area>` script (see `package.json`).
 
 Tests that import a sub-path directly (e.g. `tree-operations/list/m1-contract` rather than the `tree-operations` barrel) mirror at the deeper path — `test/tree-operations/list/m1-contract.test.ts`. Test directory depth follows import depth, not just the directory the SUT lives in.
 
@@ -75,7 +75,7 @@ Tests the editor component in a real Chromium browser. No Tauri backend needed �
 ```
 Playwright test files
     ↓
-EditorPage (page object — src/lib/editor/e2e/editor-page.ts)
+EditorPage (page object — src/lib/e2e/editor-page.ts)
     ↓
 Test route (/test/editor) + test bridge (window.__test)
     ↓
@@ -89,9 +89,9 @@ Editor.svelte (production component, unchanged)
 
 ### Test Suites
 
-Feature-level specs live in `src/lib/editor/e2e/tests/` and cover: test-harness smoke, text editing (typing / split / merge / kind change), keyboard navigation (arrow keys, container traversal, sticky column), undo/redo, inline editing (bold / italic / code / links), container editing (blockquotes, lists, nested structure, exit behavior), and selection + clipboard (cut / copy / paste / select-all).
+Feature-level specs live in `src/lib/e2e/tests/` and cover: test-harness smoke, text editing (typing / split / merge / kind change), keyboard navigation (arrow keys, container traversal, sticky column), undo/redo, inline editing (bold / italic / code / links), container editing (blockquotes, lists, nested structure, exit behavior), and selection + clipboard (cut / copy / paste / select-all).
 
-Requirement files in `src/lib/editor/e2e/requirements/` pair one-to-one with spec files under `src/lib/editor/e2e/tests/`. When a subdirectory's specs split further (e.g. `tests/sticky-column/` into several files), the requirements split with them. The filesystem is the authoritative list of what's covered — if a spec has no requirement file or vice versa, one or the other is out of lockstep.
+Requirement files in `src/lib/e2e/requirements/` pair one-to-one with spec files under `src/lib/e2e/tests/`. When a subdirectory's specs split further (e.g. `tests/sticky-column/` into several files), the requirements split with them. The filesystem is the authoritative list of what's covered — if a spec has no requirement file or vice versa, one or the other is out of lockstep.
 
 **Per-block subfolder rule.** Create a per-block subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` npm script when a block area reaches 3 or more spec files. Below that threshold, specs live flat under the parent category. The per-block subfolders (list, code, image, table, blockquote) each earned their own category script this way.
 
@@ -154,7 +154,7 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
                   Recorder → simulation-captures/seed-<N>/{*.png, manifest.json}
 ```
 
-Engine lives in `src/lib/editor/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state. Typing into a freshly-created item — whose marker only materializes on its first body char — is one such resync point, not a prediction, so the deep-nesting cadence (press-Enter → indent-empty-item → type-fresh-item) fits the same predict-printable / resync-after-auto-behavior principle.
+Engine lives in `src/lib/e2e/simulation/`; specs in `tests/simulation/` (requirements 1:1 in `requirements/simulation/`). Determinism comes from a single seeded PRNG — same seed ⇒ same gesture stream ⇒ same asserted state, so a failure is replayable. The tracker predicts only printable typing (per-keystroke `waitForSourceEquals`); every gesture that triggers editor auto-behavior (Enter, Tab, paste, resize, toggle) performs, settles on an observable predicate, then resyncs to observed state. Typing into a freshly-created item — whose marker only materializes on its first body char — is one such resync point, not a prediction, so the deep-nesting cadence (press-Enter → indent-empty-item → type-fresh-item) fits the same predict-printable / resync-after-auto-behavior principle.
 
 **Multi-seed fuzzing.** A runner drives one note across many seeds, one test per seed. The seed selects the typo stream and which **net-identity detours** fire, so each seed is a distinct interleaving where transient-state bugs hide. `runSession` injects those detours — a pause that fences the undo batch, then select-delete-undo, then copy-paste-undo — each asserting byte-exact restoration of its pre-detour source. They exercise undo, selection, and clipboard mid-session while end-state equality still holds for every seed.
 
@@ -183,15 +183,15 @@ Two layers measure editor performance over shared deterministic fixtures:
 | Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                    |
 | Gate    | Playwright `e2e-perf` (`PERF_GATE`)  | `npm run perf:check`  | Keystroke p50 of the renderable 1MB rows vs baseline+tolerance — fails on regression    |
 
-`npm run perf` runs the first two. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/editor/e2e/requirements/perf/typing-latency.md`.
+`npm run perf` runs the first two. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/e2e/requirements/perf/typing-latency.md`.
 
 ### Fixtures
 
-`src/lib/editor/test/perf/fixtures/generate.ts` builds six seeded shapes at any byte target — flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy. Same (shape, size, seed) always yields identical bytes (golden-pinned), so numbers stay comparable across runs and machines.
+`src/lib/test/perf/fixtures/generate.ts` builds six seeded shapes at any byte target — flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy. Same (shape, size, seed) always yields identical bytes (golden-pinned), so numbers stay comparable across runs and machines.
 
 ### Instruments
 
-`src/lib/editor/perf/instruments.ts` hosts dev-mode counters: snapshot clone bytes, rebuild-depth histogram, parse timing, inline-refresh node counts, and an undo live-byte gauge. Recording is off until explicitly enabled, and the switch only arms under dev/Vitest — production builds pay one boolean check per record site.
+`src/lib/perf/instruments.ts` hosts dev-mode counters: snapshot clone bytes, rebuild-depth histogram, parse timing, inline-refresh node counts, and an undo live-byte gauge. Recording is off until explicitly enabled, and the switch only arms under dev/Vitest — production builds pay one boolean check per record site.
 
 On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()` / `.snapshot()`, callable from DevTools or `page.evaluate`.
 
@@ -203,7 +203,7 @@ On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()`
 | ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Machine-independent counters | Clone byte parity, container-raw amplification | Hard ceilings — fail the commit gate (`test:editor:perf`, part of `npm test`)                        |
 | Keystroke p50 (≤1MB rows)    | nested / flat / reference / table 1MB          | Gated by `npm run perf:check` — deliberate, not in `npm test`; fails past baseline + `max(10%, 5ms)` |
-| Other time rows              | Parse/clone bench ms, p95, 10MB rows           | Report-only vs `src/lib/editor/test/perf/baseline.json` (machine metadata + rme/samples)             |
+| Other time rows              | Parse/clone bench ms, p95, 10MB rows           | Report-only vs `src/lib/test/perf/baseline.json` (machine metadata + rme/samples)                    |
 
 Ceiling and baseline bumps are deliberate decisions with a changelog note, never reflexive edits.
 
@@ -232,7 +232,7 @@ Six collapsible sections:
 
 **Copy all:** The header button concatenates every section into a fenced Markdown snapshot (timestamped) and writes it to the clipboard — paste directly into bug reports or AI conversations.
 
-The underlying debug engine (`src/lib/editor/debug/`) is internal — not exported from `src/lib/editor/index.ts`.
+The underlying debug engine (`src/lib/debug/`) is internal — not exported from `src/lib/index.ts`.
 
 ### Debug engine from the console
 

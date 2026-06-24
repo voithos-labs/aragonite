@@ -3,12 +3,7 @@
 	import { Editor } from '$lib';
 	import { parse } from '$lib/core/parser';
 	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
-	import {
-		dumpTree,
-		dumpUndoStack,
-		dumpInlineTree,
-		dumpOperationsLog
-	} from '$lib/debug/inspect';
+	import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
 	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';

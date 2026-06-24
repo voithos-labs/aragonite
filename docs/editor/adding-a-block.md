@@ -4,7 +4,7 @@ How to add a block type to the CST editor. See `docs/design/editor/editor.md` fo
 
 ## Where Blocks Live
 
-Block components live in `src/lib/editor/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/editor/components/`. Editor action bundles and the container helpers they compose (nested-actions, list-context, blockquote-overrides, focus-dispatch) live in `src/lib/editor/editor-actions/`; the shared reactive state bundle (`block-list-state`) and its `state-registry` live under `src/lib/editor/reactivity/`. Block-kind and block-component registries live in `src/lib/editor/schema/`. Pure DOM helpers split by concern: `src/lib/editor/ambient/` for ambient-prefix offset and rendering helpers, `src/lib/editor/cursor/` for cursor, sticky-column, and overlay measurement helpers.
+Block components live in `src/lib/components/blocks/`. Orchestration components (Editor, BlockList, BlockHost) stay in `src/lib/components/`. Editor action bundles and the container helpers they compose (nested-actions, list-context, blockquote-overrides, focus-dispatch) live in `src/lib/editor-actions/`; the shared reactive state bundle (`block-list-state`) and its `state-registry` live under `src/lib/reactivity/`. Block-kind and block-component registries live in `src/lib/schema/`. Pure DOM helpers split by concern: `src/lib/ambient/` for ambient-prefix offset and rendering helpers, `src/lib/cursor/` for cursor, sticky-column, and overlay measurement helpers.
 
 ## Two Categories
 
@@ -96,7 +96,7 @@ A container's `ambientPrefix` can be inert text (the default) or carry interacti
 - For inert markers, return a string from the component's prefix getter — the list-item's `- `, the blockquote's `> `.
 - For markers with embedded interactive elements, return the object form with `text` plus one or more interactive ranges (character offsets, className, optional role/ARIA, click handler).
 
-Keep the component thin: define a pure `buildXAmbient(metadata, onAction)` helper alongside the component and call it from the prefix getter. Task checkboxes follow this pattern — `buildTaskItemAmbient` in `src/lib/editor/components/blocks/list/task-checkbox.ts` is the canonical example. The helper is unit-testable without mounting the component, and render-path DEV warnings for malformed metadata live in the helper.
+Keep the component thin: define a pure `buildXAmbient(metadata, onAction)` helper alongside the component and call it from the prefix getter. Task checkboxes follow this pattern — `buildTaskItemAmbient` in `src/lib/components/blocks/list/task-checkbox.ts` is the canonical example. The helper is unit-testable without mounting the component, and render-path DEV warnings for malformed metadata live in the helper.
 
 ## Sticky column participation
 
@@ -110,7 +110,7 @@ Every editable block (prose or code) participates in the pixel-X sticky column s
 
 ## Adding a code-block language
 
-To register a new code-block language for syntax highlighting, edit `src/lib/editor/components/blocks/code/code-bootstrap.ts`:
+To register a new code-block language for syntax highlighting, edit `src/lib/components/blocks/code/code-bootstrap.ts`:
 
 1. `import <name> from 'highlight.js/lib/languages/<name>';` at the top.
 2. Call `registerLanguage('<name>', <name>, ['alias1', 'alias2']);` inside `bootstrapCodeLanguages()`.
@@ -119,6 +119,6 @@ No other file needs to change. The new language is available immediately on the 
 
 ## Testing
 
-Complex blocks (lists, tables) get a dedicated spec in `src/lib/editor/e2e/requirements/blocks/` and test file in `src/lib/editor/e2e/tests/blocks/`. Simple blocks are covered by the feature-level test suites.
+Complex blocks (lists, tables) get a dedicated spec in `src/lib/e2e/requirements/blocks/` and test file in `src/lib/e2e/tests/blocks/`. Simple blocks are covered by the feature-level test suites.
 
 Write the requirements first, then the tests, then the implementation.

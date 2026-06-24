@@ -17,7 +17,7 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 
 ## Where the numbers live, and what's gated
 
-`src/lib/editor/test/perf/baseline.json` holds the exact numbers and the machine spec — the source of truth.
+`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec — the source of truth.
 
 - **Gated:** `npm run perf:check` enforces the keystroke (`e2e`) rows — every renderable shape at ≤1MB and the 10MB keystroke (all O(viewport), flat and single-container alike); `amplification.test.ts` asserts the structural `counters`.
 - **Report-only:** the `parse` / `snapshot*` / `ancestryRebuild` rows are dev references — environment-sensitive (orders of magnitude, not targets; see baseline.json's note).
