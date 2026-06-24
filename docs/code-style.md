@@ -1,6 +1,6 @@
 # Code Style Guide
 
-The canonical code-style rules (naming, decomposition, file structure, comments, directory structure) live in the `forge-style` skill. This file holds only the Limestone-specific formatting facts.
+The canonical code-style rules (naming, decomposition, file structure, comments, directory structure) live in the `forge-style` skill. This file holds only the aragonite-specific formatting facts.
 
 ## Formatting
 

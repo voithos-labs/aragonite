@@ -2,7 +2,7 @@
 
 ## Goal
 
-A block-based markdown editor for Limestone that renders and edits GFM documents using the CST as its structural backbone. Each CST block node maps to an independent editing component. The editor supports the full GFM spec, is extensible to custom block types, and evolves alongside the CST's three-phase architecture (raw source → inline parsing → structured fields).
+A block-based markdown editor that renders and edits GFM documents using the CST as its structural backbone, shipped as an embeddable library (the limestone app is its first downstream consumer). Each CST block node maps to an independent editing component. The editor supports the full GFM spec, is extensible to custom block types, and evolves alongside the CST's three-phase architecture (raw source → inline parsing → structured fields).
 
 The primary design principles:
 

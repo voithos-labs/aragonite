@@ -45,6 +45,7 @@ selection/       cross-block selection model and dispatch
 undo/            undo stack + snapshot-sharing epoch state
 invariants/      pure predicates guarding load-bearing contracts (dev assertions + tests)
 perf/            dev-mode performance instruments
+debug/           dev debug engine (CST/selection/undo/ops dumps)
 search/          read-only find/replace lens over the CST
 test/  e2e/      Vitest unit suites + Playwright E2E (+ requirements/)
 styles/          editor.css (structural) + editor-theme.css (tokens)
