@@ -16,7 +16,7 @@ Backspace at offset 0 of a non-empty non-first item merges the current item's fi
 | `- A`<br>`  - B`<br>`    - C`<br>`- D`<br>`  - E` | start of D   | `- A`<br>`  - B`<br>`    - CD`<br>`  - E` | E stays at depth 1, sibling of B, even though merge point is at depth 2         |
 | `- A`<br>`- B`<br>_blank line_<br>`  extra`       | start of B   | `- AB`<br>_blank line_<br>`  extra`       | extra paragraph absorbed into target item's children                            |
 
-The worked examples above are the ground truth for the expected reshuffling; see `src/lib/editor/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
+The worked examples above are the ground truth for the expected reshuffling; see `src/lib/test/tree-operations/merge-list-item.test.ts` for the matching unit-test coverage.
 
 ### Ordered list numbering on M1
 

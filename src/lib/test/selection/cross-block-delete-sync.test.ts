@@ -4,14 +4,14 @@ import { tick } from 'svelte';
 import {
 	performCrossBlockDeleteSync,
 	type CrossBlockMutationContext
-} from '$lib/editor/selection/cross-block/ops';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createHistoryActions } from '$lib/editor/editor-actions/undo/history';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { registerBlockListState } from '$lib/editor/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor/editor-events';
+} from '$lib/selection/cross-block/ops';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { EditEvent } from '$lib/editor-events';
 
 function makeEnv(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);

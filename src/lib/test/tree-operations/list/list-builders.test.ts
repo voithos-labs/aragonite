@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
+import { parse } from '$lib/core/parser';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
 	orderedBaseOf,
 	readOrderedSuffix,
 	splitLeafForPaste
-} from '$lib/editor/tree-operations/list/list-builders';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/tree-operations/list/list-builders';
+import type { CstNode } from '$lib/core/nodes';
 
 describe('list-builders', () => {
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { applyStructuralChangeToIdsRefs } from '$lib/editor/tree-operations/structural-change';
-import { mockRef } from '$lib/editor/test/harness/editor-actions';
+import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
+import { mockRef } from '$lib/test/harness/editor-actions';
 
 describe('applyStructuralChangeToIdsRefs', () => {
 	describe('noop', () => {

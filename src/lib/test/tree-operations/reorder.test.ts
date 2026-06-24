@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { reorderChildren, reorderChildrenWithTrivia } from '$lib/editor/tree-operations/reorder';
-import { createSharingState } from '$lib/editor/undo/epoch-tracker';
+import { reorderChildren, reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
+import { createSharingState } from '$lib/undo/epoch-tracker';
 
 const node = (raw: string) => ({ kind: 'paragraph', raw }) as any;
 const triviaNode = (leadingTrivia: string, raw: string) =>

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createContainerBlockComponent } from '$lib/editor/editor-actions/container-block-component';
-import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/editor/block-component';
-import type { CstNode } from '$lib/editor/core/nodes';
+import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
+import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
+import type { CstNode } from '$lib/core/nodes';
 
 function makeRef(): BlockComponent {
 	return {

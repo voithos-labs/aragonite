@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { compileMatcher } from '$lib/editor/search/matcher';
-import { scanDocument } from '$lib/editor/search/document-scan';
+import { parse } from '$lib/core/parser';
+import { compileMatcher } from '$lib/search/matcher';
+import { scanDocument } from '$lib/search/document-scan';
 
 const scan = (src: string, q: string) => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });

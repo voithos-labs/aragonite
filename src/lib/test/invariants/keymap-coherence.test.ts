@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { checkKeymapCoherence } from '$lib/editor/invariants/registry';
-import '$lib/editor/schema/block-kind-descriptor';
+import { checkKeymapCoherence } from '$lib/invariants/registry';
+import '$lib/schema/block-kind-descriptor';
 
 describe('G1.11 keymap coherence', () => {
 	it('passes over the real registries (the declared keymaps are coherent)', () => {

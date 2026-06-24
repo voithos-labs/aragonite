@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { parseInline } from '$lib/editor/core/inline';
-import { renderInlineNodes, type RenderInlineOptions } from '$lib/editor/core/inline-render';
-import { buildImageWidget } from '$lib/editor/components/image/widget-dom';
+import { parseInline } from '$lib/core/inline';
+import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
+import { buildImageWidget } from '$lib/components/image/widget-dom';
 
 // The component layer injects buildImageWidget; core owns no image-widget code
 // and renders alt-only without it. The component supplies a per-editor broken-URL

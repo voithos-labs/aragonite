@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { checkOpenerRegistry } from '$lib/editor/invariants/registry';
-import '$lib/editor/core/parser';
+import { checkOpenerRegistry } from '$lib/invariants/registry';
+import '$lib/core/parser';
 
 describe('G1.10 opener-registry coherence', () => {
 	it('holds over the real registries once the parser has registered built-ins', () => {

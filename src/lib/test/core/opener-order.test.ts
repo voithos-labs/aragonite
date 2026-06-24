@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
+import { parse } from '$lib/core/parser';
 
 const kindOf = (src: string, i = 0) => parse(src).children[i].kind;
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeAutoPair } from '$lib/editor/components/blocks/code/code-beforeinput';
+import { computeAutoPair } from '$lib/components/blocks/code/code-beforeinput';
 
 describe('computeAutoPair — open-and-pair', () => {
 	it.each([

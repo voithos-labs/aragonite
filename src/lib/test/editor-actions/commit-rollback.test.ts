@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import type { MultiScopeTarget } from '$lib/editor/editor-actions/deps';
-import { concatChildren, serialize } from '$lib/editor/core/serializer';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
-import type { UndoEntry } from '$lib/editor/undo/types';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import { concatChildren, serialize } from '$lib/core/serializer';
+import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { UndoEntry } from '$lib/undo/types';
 
 function makeContainerNode(childRaws: string[]): any {
 	return {

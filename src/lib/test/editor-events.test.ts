@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEditorEvents } from '$lib/editor/editor-events';
+import { createEditorEvents } from '$lib/editor-events';
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {
@@ -83,10 +83,10 @@ describe('createEditorEvents', () => {
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
 		const { createUndoController } =
-			await import('$lib/editor/editor-actions/undo/undo-controller');
-		const { createUndoManager } = await import('$lib/editor/undo/manager');
-		const { createSharingState } = await import('$lib/editor/undo/epoch-tracker');
-		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
+			await import('$lib/editor-actions/undo/undo-controller');
+		const { createUndoManager } = await import('$lib/undo/manager');
+		const { createSharingState } = await import('$lib/undo/epoch-tracker');
+		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
 		let editCount = 0;

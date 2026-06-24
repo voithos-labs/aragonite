@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/test/harness/editor-actions';
+import type { CstNode } from '$lib/core/nodes';
 
 function makeContainer(childRaws: string[]): CstNode {
 	return {

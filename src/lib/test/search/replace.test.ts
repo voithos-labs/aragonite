@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { expandReplacement, applyRangesToText } from '$lib/editor/search/replace';
+import { expandReplacement, applyRangesToText } from '$lib/search/replace';
 
 describe('expandReplacement', () => {
 	it('returns the template verbatim in literal mode (no groups)', () => {

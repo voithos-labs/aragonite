@@ -26,11 +26,11 @@ const RESET_RE = /\b(stickyColumn|editorStickyColumn)\.reset\s*\(/;
 const CAPTURE_SITES: Record<string, string> = {
 	// Shared keydown prelude captures on vertical arrows and resets on every
 	// non-preserve key, both in this file — the sanctioned path.
-	'src/lib/editor/selection/shared-keydown.ts': 'src/lib/editor/selection/shared-keydown.ts',
+	'src/lib/selection/shared-keydown.ts': 'src/lib/selection/shared-keydown.ts',
 	// Table exit-up/down captures the editor sticky X before leaving the table;
 	// the sibling cell resets it on the next non-arrow keystroke / focusout.
-	'src/lib/editor/components/blocks/table/TableBlock.svelte':
-		'src/lib/editor/components/blocks/table/TableCellBlock.svelte'
+	'src/lib/components/blocks/table/TableBlock.svelte':
+		'src/lib/components/blocks/table/TableCellBlock.svelte'
 };
 
 describe('G2.10 capture-without-reset guard', () => {

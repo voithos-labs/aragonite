@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import type { EditEvent } from '$lib/editor/editor-events';
+import type { EditEvent } from '$lib/editor-events';
 
 describe('moveFocus past the last block', () => {
 	it('emits op=appendBlock and no op=split', async () => {
-		const { createEditorEvents } = await import('$lib/editor/editor-events');
+		const { createEditorEvents } = await import('$lib/editor-events');
 		const { createUndoController } =
-			await import('$lib/editor/editor-actions/undo/undo-controller');
-		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
-		const { createUndoManager } = await import('$lib/editor/undo/manager');
-		const { createSharingState } = await import('$lib/editor/undo/epoch-tracker');
-		const { createSelectionState } = await import('$lib/editor/selection/selection-state.svelte');
+			await import('$lib/editor-actions/undo/undo-controller');
+		const { createFocusActions } = await import('$lib/editor-actions/focus');
+		const { createUndoManager } = await import('$lib/undo/manager');
+		const { createSharingState } = await import('$lib/undo/epoch-tracker');
+		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
 		const captured: EditEvent[] = [];
@@ -75,8 +75,8 @@ describe('moveFocus past the last block', () => {
 
 	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
 		const { createUndoController } =
-			await import('$lib/editor/editor-actions/undo/undo-controller');
-		const { createFocusActions } = await import('$lib/editor/editor-actions/focus');
+			await import('$lib/editor-actions/undo/undo-controller');
+		const { createFocusActions } = await import('$lib/editor-actions/focus');
 		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
 
 		const { deps, doc, events } = makeEditorActionsDeps([

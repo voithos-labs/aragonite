@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeFenceExit } from '$lib/editor/components/blocks/code/code-fence-exit';
+import { computeFenceExit } from '$lib/components/blocks/code/code-fence-exit';
 
 describe('computeFenceExit — closed fence', () => {
 	it('exits cleanly when the cursor sits at the very end of a closed fence', () => {

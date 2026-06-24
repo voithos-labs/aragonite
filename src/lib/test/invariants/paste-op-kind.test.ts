@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor/editor-events';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/test/harness/editor-actions';
+import type { EditEvent } from '$lib/editor-events';
+import type { CstNode } from '$lib/core/nodes';
 
 // G2.9 paste op-kind dual-emit. A paste surfaces a DIFFERENT op kind depending
 // on depth: top-level insertParsedBlocks emits `paste`, a paste into a container

@@ -1,17 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor/editor-actions/undo/history';
-import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { rebuildListRaw } from '$lib/editor/schema/container-rebuilders';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { rebuildListRaw } from '$lib/schema/container-rebuilders';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
+} from '$lib/test/harness/editor-actions';
 
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
 	return { kind, leadingTrivia: '', raw, metadata };

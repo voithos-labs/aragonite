@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { eventToChord, normalizeChord } from '$lib/editor/schema/keybindings';
+import { eventToChord, normalizeChord } from '$lib/schema/keybindings';
 
 function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
 	return new KeyboardEvent('keydown', init);

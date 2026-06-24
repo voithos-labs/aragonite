@@ -5,17 +5,17 @@ import type {
 	BlockEditActions,
 	ContainerEditActions,
 	FocusActions
-} from '$lib/editor/action-contracts';
-import type { BlockComponent } from '$lib/editor/block-component';
-import type { CstNode, Document } from '$lib/editor/core/nodes';
-import type { StickyColumnState } from '$lib/editor/cursor/sticky-column';
-import type { EditorActionsDeps } from '$lib/editor/editor-actions/deps';
-import type { EditorEvents } from '$lib/editor/editor-events';
-import type { BlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { createUndoManager } from '$lib/editor/undo/manager';
-import { createSharingState } from '$lib/editor/undo/epoch-tracker';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createEditorEvents } from '$lib/editor/editor-events';
+} from '$lib/action-contracts';
+import type { BlockComponent } from '$lib/block-component';
+import type { CstNode, Document } from '$lib/core/nodes';
+import type { StickyColumnState } from '$lib/cursor/sticky-column';
+import type { EditorActionsDeps } from '$lib/editor-actions/deps';
+import type { EditorEvents } from '$lib/editor-events';
+import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { createUndoManager } from '$lib/undo/manager';
+import { createSharingState } from '$lib/undo/epoch-tracker';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { createEditorEvents } from '$lib/editor-events';
 
 // ── BlockComponent / sticky-column stubs ─────────────────────────────────────
 

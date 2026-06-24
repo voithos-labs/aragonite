@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tableRowReorderTarget } from '$lib/editor/editor-actions/table-context';
+import { tableRowReorderTarget } from '$lib/editor-actions/table-context';
 
 // rowCount is the FULL row count (header at index 0 + body rows). Body rows
 // occupy indices 1..rowCount-1; the header is fixed. A null result means no-op
