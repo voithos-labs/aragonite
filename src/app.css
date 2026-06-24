@@ -1,0 +1,48 @@
+*,
+*::before,
+*::after {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+:root {
+	/* ── Default Theme (Dark) ────────────────────────────────────────────────────
+	 * Fallback chrome tokens for the isolated demo route (/test/editor). The editor
+	 * owns its own content tokens (editor-theme.css, scoped to .editor /
+	 * .limestone-editor-theme); these cover the surrounding page chrome only.
+	 */
+
+	--color-bg: #2d3033;
+	--color-surface: #1a1c1d;
+	--color-border: #3a3d40;
+
+	--color-text-primary: #ffffff;
+	--color-text-secondary: #e6e5e5;
+
+	--color-ui-dulled: #afb1b3;
+	--color-ui-muted: #a4a4a4;
+
+	--color-accent: #567b67;
+	--color-accent-primary: #567b67;
+
+	--radius-ui: 4px;
+	--radius-surface: 8px;
+
+	--font-ui: 'Inter', system-ui, sans-serif;
+}
+
+html,
+body {
+	height: 100%;
+	overflow: hidden;
+}
+
+html {
+	background: var(--color-bg);
+}
+
+body {
+	color: var(--color-text-primary);
+	font-family: var(--font-ui);
+}

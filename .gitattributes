@@ -1,0 +1,10 @@
+# Normalize line endings repo-wide: store LF in git, check out LF on every
+# platform. Without this, a Windows checkout with core.autocrlf=true materializes
+# CRLF and fights Prettier's endOfLine: lf — `prettier --check` then flags
+# committed-clean files and the local lint gate diverges from CI.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.ico binary
+*.icns binary
