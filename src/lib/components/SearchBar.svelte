@@ -28,6 +28,16 @@
 			search.close();
 		}
 	}
+
+	function onReplaceKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			search.replaceCurrent();
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			search.close();
+		}
+	}
 </script>
 
 {#if search.isOpen}
@@ -84,6 +94,8 @@
 					{search.error}
 				{:else if search.matches.length}
 					{search.activeIndex + 1} / {search.matches.length}
+				{:else if search.replacedCount != null}
+					{search.replacedCount} replaced
 				{:else}
 					No results
 				{/if}
@@ -117,6 +129,7 @@
 					placeholder="Replace"
 					value={search.replacement}
 					oninput={(e) => search.setReplacement(e.currentTarget.value)}
+					onkeydown={onReplaceKeydown}
 					aria-label="Replace"
 				/>
 				<button type="button" class="search-btn" onclick={() => search.replaceCurrent()}

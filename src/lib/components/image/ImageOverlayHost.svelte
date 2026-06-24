@@ -61,7 +61,10 @@
 
 	$effect(() => imageEdit.attachWidgetSelectListener());
 
-	$effect(() => imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null));
+	$effect(() => {
+		widgetSelection.getSelected(); // re-run + reposition when the selected widget changes
+		return imageEdit.syncOverlayToWidget(() => imageOverlayEl ?? null);
+	});
 
 	$effect(() => {
 		const root = getEditorEl();
