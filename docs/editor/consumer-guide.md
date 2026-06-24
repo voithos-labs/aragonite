@@ -61,11 +61,11 @@ The module owns its CSS. Two stylesheets ship under `styles/`:
 
 ### Scope
 
-Tokens are declared on the editor's own root (`.editor`), never on `:root` — the module does not inject custom properties into a consumer's global scope. To give the same palette to non-editor chrome (a surrounding toolbar, a placeholder editor), add the `limestone-editor-theme` class to a wrapper; it inherits the identical token set with no token declarations of your own.
+Tokens are declared on the editor's own root (`.editor`), never on `:root` — the module does not inject custom properties into a consumer's global scope. To give the same palette to non-editor chrome (a surrounding toolbar, a placeholder editor), add the `aragonite-editor-theme` class to a wrapper; it inherits the identical token set with no token declarations of your own.
 
 ### Light / dark
 
-Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on a `.limestone-editor-theme` wrapper, set the attribute directly. Dark is the base — `'light'` overrides only the tokens that differ.
+Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on a `.aragonite-editor-theme` wrapper, set the attribute directly. Dark is the base — `'light'` overrides only the tokens that differ.
 
 ### Overriding and custom themes
 
@@ -99,6 +99,35 @@ Optional props customize URL/image handling and editor affordances:
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 
 **Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context but are **not** folded into the prose render-memo key; a reactive post-mount swap renders stale, so set them at mount and treat them as fixed for the editor's lifetime. (Rationale: `docs/design/editor/editor.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+
+## Keyboard shortcuts
+
+These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linux and Cmd on macOS. Table editing is keyboard-only today (visual hover controls are roadmapped). Per-block chords can be rebound or disabled via the `keybindings` prop.
+
+| Action                     | Chord                                            |
+| -------------------------- | ------------------------------------------------ |
+| **Editing**                |                                                  |
+| Bold (toggle strong)       | `Mod+B`                                          |
+| Italic (toggle emphasis)   | `Mod+I`                                          |
+| Cycle heading level        | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
+| Undo                       | `Mod+Z`                                          |
+| Redo                       | `Mod+Y` or `Mod+Shift+Z`                         |
+| **Block reorder**          |                                                  |
+| Move block up / down       | `Alt+↑` / `Alt+↓`                                |
+| **Find / replace**         |                                                  |
+| Open find                  | `Mod+F`                                          |
+| Open find + replace        | `Mod+H`                                          |
+| Next / previous match      | `Enter` / `Shift+Enter` (in the find field)      |
+| Close search               | `Esc`                                            |
+| **Tables**                 |                                                  |
+| Move between cells         | `Tab` / `Shift+Tab`, arrow keys                  |
+| Next row (or add one)      | `Enter` (from the last cell, appends a row)      |
+| Insert row below / above   | `Mod+Enter` / `Mod+Shift+Enter`                  |
+| Insert column right / left | `Alt+Shift+→` / `Alt+Shift+←`                    |
+| Delete row                 | `Mod+Shift+Backspace`                            |
+| Delete column              | `Alt+Shift+Backspace`                            |
+| Move row up / down         | `Alt+↑` / `Alt+↓`                                |
+| Cycle column alignment     | `Mod+Shift+A`                                    |
 
 ## Events
 
