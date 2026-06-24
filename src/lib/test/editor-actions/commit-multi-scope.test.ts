@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/editor/editor-actions/deps';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/editor-actions/deps';
+import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
 function makeContainerNode(childRaws: string[]): any {
 	return {

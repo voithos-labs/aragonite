@@ -14,7 +14,7 @@ const PROVIDE_HISTORY_KEY_RE = /setContext\s*\(\s*HISTORY_KEY\b/;
 
 // The editor root is the sole legitimate provider; every other site must only
 // `getContext` it.
-const ALLOWED_PROVIDER = 'src/lib/editor/components/Editor.svelte';
+const ALLOWED_PROVIDER = 'src/lib/components/Editor.svelte';
 
 interface ProvideHit {
 	relPath: string;

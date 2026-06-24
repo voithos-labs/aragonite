@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { lrdMapCouldChange } from '$lib/editor/lrd-map-gate';
-import type { EditEvent } from '$lib/editor/editor-events';
+import { parse } from '$lib/core/parser';
+import { lrdMapCouldChange } from '$lib/lrd-map-gate';
+import type { EditEvent } from '$lib/editor-events';
 
 function event(op: EditEvent['op'], path: number[], detail?: unknown): EditEvent {
 	return { op, path, detail, timestamp: 0 } as EditEvent;

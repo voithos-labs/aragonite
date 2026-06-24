@@ -3,7 +3,7 @@ import {
 	cycleHeading,
 	insertHardBreak,
 	insertLiteralTab
-} from '$lib/editor/components/blocks/text/text-keydown';
+} from '$lib/components/blocks/text/text-keydown';
 
 describe('cycleHeading', () => {
 	it('adds a heading prefix when raw is a paragraph', () => {

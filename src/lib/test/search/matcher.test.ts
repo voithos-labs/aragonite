@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compileMatcher } from '$lib/editor/search/matcher';
+import { compileMatcher } from '$lib/search/matcher';
 
 const ranges = (q: string, opts: Partial<Parameters<typeof compileMatcher>[1]> = {}, text = '') => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false, ...opts });

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
+import { parse } from '$lib/core/parser';
 import {
 	ensureListItemNewlineTerminated,
 	spliceTerminatedItems
-} from '$lib/editor/tree-operations/list/terminator';
-import { rebuildListRaw } from '$lib/editor/schema/container-rebuilders';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/tree-operations/list/terminator';
+import { rebuildListRaw } from '$lib/schema/container-rebuilders';
+import type { CstNode } from '$lib/core/nodes';
 
 describe('ensureListItemNewlineTerminated', () => {
 	it('no-ops on an already terminated item', () => {

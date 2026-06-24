@@ -1,18 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createListOverrides } from '$lib/editor/editor-actions/list-overrides';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { parse } from '$lib/editor/core/parser';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createListOverrides } from '$lib/editor-actions/list-overrides';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { parse } from '$lib/core/parser';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/test/harness/editor-actions';
+import type { CstNode } from '$lib/core/nodes';
 
 function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;

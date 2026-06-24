@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Editor } from '$lib/editor';
-	import { parse } from '$lib/editor/core/parser';
-	import { applyTheme, DEFAULT_THEME, currentThemeType } from '$lib/theme';
+	import { Editor } from '$lib';
+	import { parse } from '$lib/core/parser';
+	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
 	import {
 		dumpTree,
 		dumpUndoStack,
 		dumpInlineTree,
 		dumpOperationsLog
-	} from '$lib/editor/debug/inspect';
-	import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
-	import { isBlockNode, nodeAt } from '$lib/editor/tree-operations/node-ops';
-	import { SHOWCASE_CONTENT } from '$lib/editor/e2e/test-content';
-	import type { KeybindingOverride } from '$lib/editor/schema/keybinding-overrides';
+	} from '$lib/debug/inspect';
+	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
+	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
+	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
+	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
 

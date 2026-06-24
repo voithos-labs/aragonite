@@ -47,7 +47,7 @@ whose 10MB keystroke carries an O(top-level-count) cost.
 
 - one JSON line per row on stdout (`PERF {...}`)
 - `perf-results/e2e-<shape>-<size>.json` per row (gitignored raw output)
-- curated headline numbers live in `src/lib/editor/test/perf/baseline.json`
+- curated headline numbers live in `src/lib/test/perf/baseline.json`
   under the `e2e` key
 
 ## Bridge sanity

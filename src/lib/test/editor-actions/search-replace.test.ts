@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { getBlockKindDescriptor } from '$lib/editor/schema/block-kind-descriptor';
-import type { CstNode, Document } from '$lib/editor/core/nodes';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createSearchReplace } from '$lib/editor/editor-actions/search-replace';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import type { CstNode, Document } from '$lib/core/nodes';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
 // Minimal literal scan for tests (the real scan is search/document-scan.ts):

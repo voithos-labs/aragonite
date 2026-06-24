@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { InlineNode } from '$lib/editor/core/nodes';
+import type { InlineNode } from '$lib/core/nodes';
 import {
 	widgetAtCursor,
 	findWidgetNodeByStart,
@@ -7,7 +7,7 @@ import {
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
 	rawHasNoTextAfter
-} from '$lib/editor/components/blocks/text/widget-adjacency';
+} from '$lib/components/blocks/text/widget-adjacency';
 
 function text(start: number, end: number, value: string): InlineNode {
 	return { kind: 'text', start, end, text: value };

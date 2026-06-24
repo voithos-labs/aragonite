@@ -3,13 +3,13 @@ import {
 	normalizeKeybindingOverrides,
 	lookupOverride,
 	overrideDecision
-} from '$lib/editor/schema/keybinding-overrides';
+} from '$lib/schema/keybinding-overrides';
 import {
 	resolveBinding,
 	resolveKindBinding,
 	isEditorGlobalChord,
 	resolveGlobalBinding
-} from '$lib/editor/schema/commands';
+} from '$lib/schema/commands';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseFirstBlock } from '$lib/editor/tree-operations/parse-block';
+import { parseFirstBlock } from '$lib/tree-operations/parse-block';
 
 describe('parseFirstBlock', () => {
 	it('returns first block of parsed input', () => {

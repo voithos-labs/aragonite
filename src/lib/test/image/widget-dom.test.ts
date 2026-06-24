@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/editor/core/inline';
-import { buildImageWidget } from '$lib/editor/components/image/widget-dom';
-import type { InlineNode } from '$lib/editor/core/nodes';
+import { parseInline } from '$lib/core/inline';
+import { buildImageWidget } from '$lib/components/image/widget-dom';
+import type { InlineNode } from '$lib/core/nodes';
 
 const raw = '![cat](https://example.com/cat.png)';
 

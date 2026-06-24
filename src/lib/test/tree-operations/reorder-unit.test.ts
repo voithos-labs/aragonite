@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { resolveReorderUnit } from '$lib/editor/tree-operations/reorder-unit';
+import { parse } from '$lib/core/parser';
+import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
 
 describe('resolveReorderUnit', () => {
 	it('top-level block resolves to itself under the document', () => {

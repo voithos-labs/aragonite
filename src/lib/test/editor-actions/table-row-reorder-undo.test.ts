@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/editor/core/serializer';
-import { makeHarness, runOp } from '$lib/editor/test/undo/restoration-ops';
+import { serialize } from '$lib/core/serializer';
+import { makeHarness, runOp } from '$lib/test/undo/restoration-ops';
 
 // A row reorder rebuilds the WHOLE table raw to canonical padding. Undo must
 // restore the original bytes — including the original NON-canonical padding —

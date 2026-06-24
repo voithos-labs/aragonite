@@ -34,7 +34,7 @@
 
 ## Coverage notes
 
-The following scenarios are exercised at the unit-test level (`src/lib/editor/test/core/inline/character-refs.test.ts`) rather than via E2E:
+The following scenarios are exercised at the unit-test level (`src/lib/test/core/inline/character-refs.test.ts`) rather than via E2E:
 
 - Malformed forms (`&;`, `&amp` without semicolon, `&#abc;`, `&#xZZ;`) emitted as plain text.
 - Boundary numeric references (`&#0;`, `&#x110000;`, surrogate-range code points) decoded to U+FFFD per CommonMark §6.2.
