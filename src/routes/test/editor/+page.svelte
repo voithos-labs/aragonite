@@ -74,7 +74,7 @@
 
 <div class="test-harness limestone-editor-theme">
 	<header class="demo-header">
-		<h1 class="demo-title">Limestone Editor</h1>
+		<h1 class="demo-title">aragonite</h1>
 		<p class="demo-note">
 			Live demo of the CST block editor. The debug panel on the right inspects the syntax tree,
 			selection, undo stack, and operations log as you type.
