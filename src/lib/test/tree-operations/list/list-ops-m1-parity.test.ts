@@ -15,10 +15,7 @@ import { describe, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
 import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
-import {
-	assertContainerParity,
-	seedChildIdsRecursive
-} from '$lib/test/harness/container-parity';
+import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
