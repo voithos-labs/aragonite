@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { declarePluginKind } from '$lib/editor/schema/plugin-kind';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
-} from '$lib/editor/schema/block-kind-descriptor';
+} from '$lib/schema/block-kind-descriptor';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
-} from '$lib/editor/schema/block-component-registry';
+} from '$lib/schema/block-component-registry';
 import {
 	registerBlockOpener,
 	listRegisteredOpeners,
 	type BlockOpener
-} from '$lib/editor/schema/block-openers';
-import { registerCommand, getCommand } from '$lib/editor/schema/commands';
-import { __resetSchemaRegistriesForTests } from '$lib/editor/schema/registry-reset';
+} from '$lib/schema/block-openers';
+import { registerCommand, getCommand } from '$lib/schema/commands';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const minimal = {
 	mergeRole: 'not-mergeable',

@@ -44,36 +44,36 @@
  */
 
 import { expect, vi } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
-} from '$lib/editor/editor-actions/nested-actions';
-import { createNestedFocus } from '$lib/editor/editor-actions/nested-focus';
-import { createTableMutationsContext } from '$lib/editor/editor-actions/table-context';
-import { createListContext } from '$lib/editor/editor-actions/list-context';
+} from '$lib/editor-actions/nested-actions';
+import { createNestedFocus } from '$lib/editor-actions/nested-focus';
+import { createTableMutationsContext } from '$lib/editor-actions/table-context';
+import { createListContext } from '$lib/editor-actions/list-context';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
-} from '$lib/editor/editor-actions/unwrap-strategies';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { getBlockKindDescriptor } from '$lib/editor/schema/block-kind-descriptor';
-import { rebuildContainerRawIfContainer } from '$lib/editor/schema/container-raw';
-import { rebuildUnsharedAncestry } from '$lib/editor/tree-operations/unshare';
-import { createSharingState } from '$lib/editor/undo/epoch-tracker';
+} from '$lib/editor-actions/unwrap-strategies';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
+import { rebuildUnsharedAncestry } from '$lib/tree-operations/unshare';
+import { createSharingState } from '$lib/undo/epoch-tracker';
 import {
 	mockRef,
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
-import type { BlockKind, CstNode, Document } from '$lib/editor/core/nodes';
-import type { ContainerEditActions } from '$lib/editor/action-contracts';
-import type { EditEvent } from '$lib/editor/editor-events';
+} from '$lib/test/harness/editor-actions';
+import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { ContainerEditActions } from '$lib/action-contracts';
+import type { EditEvent } from '$lib/editor-events';
 
 // ── Capability map ────────────────────────────────────────────────────────────
 

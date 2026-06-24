@@ -1,10 +1,10 @@
 import { describe, it, expect, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import type { BlockEditActions } from '$lib/editor/action-contracts';
-import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/editor/cursor/sticky-column';
-import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/core/nodes';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import type { BlockEditActions } from '$lib/action-contracts';
+import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-column';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { CstNode } from '$lib/core/nodes';
 
 // G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
 // on the state object itself and are covered in cursor/sticky-column.test.ts;

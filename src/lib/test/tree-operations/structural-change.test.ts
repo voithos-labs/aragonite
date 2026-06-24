@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { StructuralChange } from '$lib/editor/tree-operations/structural-change';
+import type { StructuralChange } from '$lib/tree-operations/structural-change';
 
 describe('StructuralChange — type shape', () => {
 	it('accepts all four variants including replace with idMap', () => {

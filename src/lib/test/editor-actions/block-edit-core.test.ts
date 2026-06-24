@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createBlockEditCore } from '$lib/editor/editor-actions/block-edit-core';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor/editor-actions/block-edit-scope';
-import { createSharingState } from '$lib/editor/undo/epoch-tracker';
-import type { CstNode } from '$lib/editor/core/nodes';
-import { parse } from '$lib/editor/core/parser';
+import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
+import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import { createSharingState } from '$lib/undo/epoch-tracker';
+import type { CstNode } from '$lib/core/nodes';
+import { parse } from '$lib/core/parser';
 
 function leaf(raw: string): CstNode {
 	return parse(raw).children[0];

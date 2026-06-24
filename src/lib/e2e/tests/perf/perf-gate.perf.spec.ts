@@ -56,7 +56,7 @@ interface E2eBaselineRow {
 }
 
 const baseline: { e2e: Record<string, E2eBaselineRow> } = JSON.parse(
-	readFileSync('src/lib/editor/test/perf/baseline.json', 'utf8')
+	readFileSync('src/lib/test/perf/baseline.json', 'utf8')
 );
 
 test.describe('perf gate — keystroke p50 within budget', () => {

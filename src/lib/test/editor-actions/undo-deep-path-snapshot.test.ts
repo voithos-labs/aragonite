@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { makeEditorActionsDeps, mockRef } from '$lib/editor/test/harness/editor-actions';
-import type { CstNode } from '$lib/editor/core/nodes';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import type { CstNode } from '$lib/core/nodes';
 
 function makeNode(kind: string, raw: string): CstNode {
 	return { kind, leadingTrivia: '', raw } as CstNode;

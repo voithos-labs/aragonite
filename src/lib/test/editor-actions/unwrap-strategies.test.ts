@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
-} from '$lib/editor/editor-actions/unwrap-strategies';
-import { tryGetBlockKindDescriptor } from '$lib/editor/schema/block-kind-descriptor';
-import { ALL_BLOCK_KINDS } from '$lib/editor/core/nodes';
+} from '$lib/editor-actions/unwrap-strategies';
+import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 
 describe('unwrapRole declarations resolve to registered strategies', () => {
 	it('every declared role names an implemented strategy', () => {

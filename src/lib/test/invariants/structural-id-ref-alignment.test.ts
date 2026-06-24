@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createReorderAction } from '$lib/editor/editor-actions/reorder-action';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor/editor-actions/nested-actions';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { rebuildContainerRawIfContainer } from '$lib/editor/schema/container-raw';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createReorderAction } from '$lib/editor-actions/reorder-action';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
 import {
 	mockRef,
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/editor/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/editor/block-component';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/test/harness/editor-actions';
+import type { BlockComponent } from '$lib/block-component';
+import type { CstNode } from '$lib/core/nodes';
 
 /**
  * G2.8 — after every structural op the three parallel arrays stay length-matched

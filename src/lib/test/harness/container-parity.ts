@@ -17,8 +17,8 @@
  */
 
 import { expect } from 'vitest';
-import { assignIds } from '$lib/editor/block-id';
-import type { CstNode } from '$lib/editor/core/nodes';
+import { assignIds } from '$lib/block-id';
+import type { CstNode } from '$lib/core/nodes';
 
 export function assertContainerParity(node: CstNode, path = 'root'): void {
 	if (!node.children) return;

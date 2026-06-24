@@ -3,11 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	writeCrossBlockCopy,
 	writeCrossBlockCut
-} from '$lib/editor/selection/cross-block/clipboard';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { parse } from '$lib/editor/core/parser';
-import type { CrossBlockHandlers } from '$lib/editor/selection/cross-block/dispatch';
-import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
+} from '$lib/selection/cross-block/clipboard';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { parse } from '$lib/core/parser';
+import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
+import type { SelectionState } from '$lib/selection/selection-state.svelte';
 
 function makeDeps(selection: SelectionState, deleteSpy = vi.fn(async () => {})) {
 	const doc = parse('hello\n\nworld\n');

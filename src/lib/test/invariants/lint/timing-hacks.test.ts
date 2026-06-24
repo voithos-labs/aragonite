@@ -21,18 +21,18 @@ import { collectEditorSources } from './scan-source';
 const ALLOWLIST: Record<string, string> = {
 	// rAF autoscroll loop — frame-paced scrolling during pointer drag, an
 	// animation cadence, not async ordering.
-	'src/lib/editor/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
+	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
 	// rAF coalesces pointermove bursts to one handler per frame (cross-block drag).
-	'src/lib/editor/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
+	'src/lib/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
 	// Same pointermove throttle for drag-to-reorder; mirrors drag-pointer.ts.
-	'src/lib/editor/selection/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
+	'src/lib/selection/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
 	// Same pointermove throttle for intra-table drag; mirrors drag-pointer.ts but
 	// lives under table/ because it is table-cell specific.
-	'src/lib/editor/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',
+	'src/lib/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
-	'src/lib/editor/editor-actions/undo/text-batch.ts': 'setTimeout wall-clock undo debounce'
+	'src/lib/editor-actions/undo/text-batch.ts': 'setTimeout wall-clock undo debounce'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;

@@ -5,11 +5,11 @@ import {
 	resolveBinding,
 	resolveKindBinding,
 	dispatchKeyCommand
-} from '$lib/editor/schema/commands';
+} from '$lib/schema/commands';
 import {
 	augmentBlockKind,
 	tryGetBlockKindDescriptor
-} from '$lib/editor/schema/block-kind-descriptor';
+} from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {

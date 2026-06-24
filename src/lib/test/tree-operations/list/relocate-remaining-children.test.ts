@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/editor/tree-operations/list/unwrap-merge';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
 
 // Preserve-absolute-indent relocation of the merged-away item's remaining
 // children. merge-list-item.test.ts pins tree shape + mergePoint; this file

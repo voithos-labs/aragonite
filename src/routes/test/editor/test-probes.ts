@@ -1,29 +1,29 @@
-import type { Editor } from '$lib/editor';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { parseInline, getContentRange, isProseKind } from '$lib/editor/core/inline';
-import { findBlockPathForElement } from '$lib/editor/selection/path-lookup';
-import { isBlockNode, nodeAt } from '$lib/editor/tree-operations/node-ops';
-import { spliceChildren } from '$lib/editor/tree-operations/children';
-import { getStateForNode } from '$lib/editor/reactivity/state-registry';
-import type { BlockKind, CstNode } from '$lib/editor/core/nodes';
-import type { KeybindingOverride } from '$lib/editor/schema/keybinding-overrides';
+import type { Editor } from '$lib';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
+import { findBlockPathForElement } from '$lib/selection/path-lookup';
+import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
+import { spliceChildren } from '$lib/tree-operations/children';
+import { getStateForNode } from '$lib/reactivity/state-registry';
+import type { BlockKind, CstNode } from '$lib/core/nodes';
+import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import {
 	registerBlockKind,
 	tryGetBlockKindDescriptor
-} from '$lib/editor/schema/block-kind-descriptor';
-import { registerBlockComponent } from '$lib/editor/schema/block-component-registry';
+} from '$lib/schema/block-kind-descriptor';
+import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import {
 	dumpTree,
 	dumpUndoStack,
 	dumpInlineTree,
 	dumpOperationsLog
-} from '$lib/editor/debug/inspect';
+} from '$lib/debug/inspect';
 import {
 	enablePerfInstruments,
 	resetPerfInstruments,
 	perfSnapshot
-} from '$lib/editor/perf/instruments';
+} from '$lib/perf/instruments';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;

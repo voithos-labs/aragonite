@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { serialize } from '$lib/editor/core/serializer';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createHistoryActions } from '$lib/editor/editor-actions/undo/history';
-import { createReorderAction } from '$lib/editor/editor-actions/reorder-action';
-import { createBlockListState } from '$lib/editor/reactivity/block-list-state.svelte';
-import { mockRef, makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
+import { parse } from '$lib/core/parser';
+import { serialize } from '$lib/core/serializer';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { createReorderAction } from '$lib/editor-actions/reorder-action';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 

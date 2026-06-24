@@ -12,14 +12,14 @@
  */
 
 import { describe, it } from 'vitest';
-import { parse } from '$lib/editor/core/parser';
-import { mergeListItemIntoPrevious } from '$lib/editor/tree-operations/list/unwrap-merge';
-import { applyStructuralChangeToIdsRefs } from '$lib/editor/tree-operations/structural-change';
+import { parse } from '$lib/core/parser';
+import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
+import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
 import {
 	assertContainerParity,
 	seedChildIdsRecursive
-} from '$lib/editor/test/harness/container-parity';
-import type { CstNode } from '$lib/editor/core/nodes';
+} from '$lib/test/harness/container-parity';
+import type { CstNode } from '$lib/core/nodes';
 
 /**
  * Mirror the commitContainer path: M1 is invoked with a children-copy and the

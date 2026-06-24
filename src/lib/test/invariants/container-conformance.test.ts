@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { isBuiltinBlockKind } from '$lib/editor/core/nodes';
+import { isBuiltinBlockKind } from '$lib/core/nodes';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
-} from '$lib/editor/schema/block-kind-descriptor';
+} from '$lib/schema/block-kind-descriptor';
 import {
 	CONTAINER_PROFILES,
 	checkStripLocalIndexAddressing,

@@ -6,8 +6,8 @@ A CST block editor for GFM Markdown. The raw Markdown is the source of truth —
 
 ```svelte
 <script>
-	import { Editor } from '$lib/editor';
-	import '$lib/editor/styles/editor-theme.css';
+	import { Editor } from '$lib';
+	import '$lib/styles/editor-theme.css';
 
 	let editor;
 	const source = '# Hello\n\nStart typing.';

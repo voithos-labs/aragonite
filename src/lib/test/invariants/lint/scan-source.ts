@@ -9,10 +9,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
-export const EDITOR_SRC = path.resolve('src/lib/editor');
+export const EDITOR_SRC = path.resolve('src/lib');
 
 export interface SourceFile {
-	/** Posix-style path relative to repo root, e.g. `src/lib/editor/x.ts`. */
+	/** Posix-style path relative to repo root, e.g. `src/lib/x.ts`. */
 	relPath: string;
 	/** Raw file text, comments intact. */
 	text: string;

@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createCrossBlockHandlers } from '$lib/editor/selection/cross-block/dispatch';
-import { createSelectionState } from '$lib/editor/selection/selection-state.svelte';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
-import { normalizeKeybindingOverrides } from '$lib/editor/schema/keybinding-overrides';
-import { createBlockEditActions } from '$lib/editor/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor/editor-actions/container-edit';
-import { createUndoManager } from '$lib/editor/undo/manager';
-import { createSharingState } from '$lib/editor/undo/epoch-tracker';
-import { createEditorEvents } from '$lib/editor/editor-events';
-import { parse } from '$lib/editor/core/parser';
-import { mockRef, makeStickyColumn } from '$lib/editor/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/editor/block-component';
-import type { CstNode } from '$lib/editor/core/nodes';
-import type { EditEvent } from '$lib/editor/editor-events';
-import type { SelectionState } from '$lib/editor/selection/selection-state.svelte';
+import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createUndoManager } from '$lib/undo/manager';
+import { createSharingState } from '$lib/undo/epoch-tracker';
+import { createEditorEvents } from '$lib/editor-events';
+import { parse } from '$lib/core/parser';
+import { mockRef, makeStickyColumn } from '$lib/test/harness/editor-actions';
+import type { BlockComponent } from '$lib/block-component';
+import type { CstNode } from '$lib/core/nodes';
+import type { EditEvent } from '$lib/editor-events';
+import type { SelectionState } from '$lib/selection/selection-state.svelte';
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 

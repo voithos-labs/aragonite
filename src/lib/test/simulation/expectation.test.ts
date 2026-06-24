@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ExpectationTracker } from '$lib/editor/e2e/simulation/expectation';
+import { ExpectationTracker } from '$lib/e2e/simulation/expectation';
 
 describe('ExpectationTracker', () => {
 	it('predicts printable append before the trailing newline', () => {

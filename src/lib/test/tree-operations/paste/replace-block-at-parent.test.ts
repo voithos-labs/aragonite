@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { replaceBlockAtParent } from '$lib/editor/tree-operations/paste/replace-block-at-parent';
-import { createUndoController } from '$lib/editor/editor-actions/undo/undo-controller';
-import { createPasteCoordinator } from '$lib/editor/editor-actions/paste-coordinator';
-import { makeEditorActionsDeps } from '$lib/editor/test/harness/editor-actions';
-import { parse } from '$lib/editor/core/parser';
-import type { CstNode } from '$lib/editor/core/nodes';
+import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
+import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { parse } from '$lib/core/parser';
+import type { CstNode } from '$lib/core/nodes';
 
 function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
