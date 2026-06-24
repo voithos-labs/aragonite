@@ -283,7 +283,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
 		const focus = Math.max(0, content - deps.getAmbientLength());
 		for (const inline of inlinesOf(deps.node)) {
-			if (inline.kind !== 'image') continue;
+			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
 				return inline.end;
 			}
