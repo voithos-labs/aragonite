@@ -211,3 +211,48 @@ to factories). Findings:
 - **`components/blocks/list/ListItemBlock.svelte:135` (isEmptyItem)** — not data-loss.
   `exitListAtItem`→`buildExitReplacement` _relocates_ trailing children; the shallow check is
   deliberate per the in-code comment.
+
+---
+
+## Resolution (2026-06-24)
+
+Worked through to completion this pass (commits on `main`). This section is the authoritative
+status; inline `[ ]` boxes above may lag.
+
+### Fixed + committed
+
+- **Theme 1** — table-context `deleteRow`/`deleteColumn` afterTick now read through `deps.node`
+  (the post-commit node), not the stale pre-commit capture.
+- **Theme 2** — `buildListBreakOutReplacement` captures `orderedBaseOf(items[0])` and numbers
+  both halves from it; **regression test added** (`test/tree-operations/paste/list-break-out.test.ts`).
+- **Theme 3** — `widgetExtensionTarget` uses `isInlineWidget` (covers non-image atomic widgets).
+- **Theme 4** — `unwrap-strategies.ts:74` `moveFocus` awaited; `survivingAnchorCellCaret` guards
+  `anchorRow === 0`; `sticky-measure.ts` guard changed to `rects[0].height > 0`.
+- **Theme 5 / 6** — `.limestone-editor-theme` → `.aragonite-editor-theme` (hard rename across
+  CSS/docs/demo + the `aragonite.debug-panel.state.v1` storage key & its e2e ref); `testing.md`
+  debug import path; `editor.md` library framing; `CLAUDE.md` `debug/` row; `code-style.md` /
+  `commit-conventions.md` naming; `inline-cache.ts` comment trimmed.
+- **Theme 9 (UI/UX clear-cut)** — A1 reveal active match on type; A2 scroll mounted-but-offscreen
+  match; A3 Enter in replace input; A4 "N replaced" feedback; A5 restore caret on close; A6 image
+  overlay repositions on widget switch. **B1** search bar kept floating (owner). **B2** reorder
+  drag-handle tooltip added. **B3** keyboard-shortcuts section added to the consumer guide
+  (table hover affordances stay roadmapped).
+
+Verified: `npm run check` 0 errors · `npm run test:editor` 2393 pass / 1 skip · `npm run lint`
+clean · `e2e-search` 23/23 · `e2e-blocks/image` 84/84 · full `npm run test:e2e` run post-fix.
+
+### Not a bug (re-verified, unchanged)
+
+`safeIntersects` (Theme 4) and the six entries under "False positives" above.
+
+### Deferred — recommendations (no code change; need owner sign-off / are roadmapped)
+
+- **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — cosmetic dead-code.
+- **Theme 7** `undo/` ↔ `selection/` **type-only** cycle — erased at runtime; the clean fix
+  (relocate `EditorSelection` + `SharingState` to a shared leaf) touches ~10 import sites. Left
+  unchanged to avoid churning the deliberate DAG without sign-off.
+- **Theme 7** move `editor-actions/nested-*.ts` → `editor-actions/nested/`; relocate
+  `selection/reorder-drag.ts` beside `reorder-action.ts` (minor org).
+- **Theme 8** add e2e for delete-last-row/col focus landing (guards Theme 1) and Shift+Arrow into
+  a non-image widget (guards Theme 3).
+- **B3** table hover insert/delete affordances (owner: roadmapped after the table-row drag handle).
