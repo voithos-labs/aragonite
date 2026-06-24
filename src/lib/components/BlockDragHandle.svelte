@@ -6,7 +6,12 @@
 	screen-reader-visible path. This grip is a mouse-only affordance and stays out of
 	the tab/SR flow. Reveal-on-hover lives on the host (.block-host / .list-item-block)
 	as a pure-CSS rule — no per-block reactive state. -->
-<span class="block-drag-handle" aria-hidden="true" {onpointerdown}>
+<span
+	class="block-drag-handle"
+	aria-hidden="true"
+	title="Drag to reorder — or Alt+↑ / Alt+↓"
+	{onpointerdown}
+>
 	<span class="dots"></span>
 </span>
 
