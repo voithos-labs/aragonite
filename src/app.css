@@ -10,7 +10,7 @@
 	/* ── Default Theme (Dark) ────────────────────────────────────────────────────
 	 * Fallback chrome tokens for the isolated demo route (/test/editor). The editor
 	 * owns its own content tokens (editor-theme.css, scoped to .editor /
-	 * .limestone-editor-theme); these cover the surrounding page chrome only.
+	 * .aragonite-editor-theme); these cover the surrounding page chrome only.
 	 */
 
 	--color-bg: #2d3033;

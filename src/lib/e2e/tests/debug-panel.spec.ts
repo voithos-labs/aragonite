@@ -13,7 +13,7 @@ test.describe('debug panel', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.page.evaluate(() => localStorage.removeItem('limestone.debug-panel.state.v1'));
+		await editor.page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
 		await editor.page.reload();
 		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000
