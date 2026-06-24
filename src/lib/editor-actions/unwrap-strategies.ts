@@ -71,7 +71,7 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 		});
 	} else if (firstChildEmpty && node.children.length === 1) {
 		await deps.parent.blockEdit.deleteBlock(index);
-		deps.parent.focus.moveFocus(index - 1, 'end');
+		await deps.parent.focus.moveFocus(index - 1, 'end');
 	} else {
 		const replacement = unwrapFirstItemFromList(node);
 		if (replacement.length === 0) return;

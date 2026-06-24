@@ -312,6 +312,12 @@ function survivingAnchorCellCaret(
 	}
 	const survivorRow = anchorRow - 1;
 	const survivorCol = cellsPerRow - 1;
+	if (survivorRow < 0) {
+		// Defensive: anchor was in row 0 and that row was removed. Not reached by
+		// current callers (they collapse to 'tableEmpty' first), but the contract
+		// must not index table.children[-1].
+		return { path: [...startPath, 0, 0], offset: 0 };
+	}
 	const survivor = table.children![survivorRow].children![survivorCol];
 	return { path: [...startPath, survivorRow, survivorCol], offset: displayLength(survivor.raw) };
 }
