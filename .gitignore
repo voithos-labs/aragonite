@@ -1,0 +1,29 @@
+.DS_Store
+node_modules
+/build
+/.svelte-kit
+/package
+.env
+.env.*
+!.env.example
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+.idea/
+tmp/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Note-taking simulation capture artifacts (screenshots + manifest), kept
+# outside test-results/ so Playwright doesn't wipe them between runs.
+simulation-captures/
+
+# Raw perf harness output; curated numbers live in baseline.json
+perf-results/
+
+# Subagent-driven-development scratch (briefs, reports, progress ledger)
+.superpowers/
+
+# Brainstorm/plan process artifacts — durable record lives in changelog + design docs
+docs/superpowers/
