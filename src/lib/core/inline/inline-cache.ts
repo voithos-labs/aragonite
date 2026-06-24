@@ -1,10 +1,9 @@
 /**
- * Lazy `inlineContent` accessor for non-render consumers. The inline tree is a
- * derived rendering cache (CST Phase 2) — computed on first read and stored in
- * a node-keyed, non-reactive WeakMap, validated by (raw, LRD-signature). A
- * shared/unchanged node hits; an in-place raw mutation or a copy-on-write new
- * object misses and recomputes. Non-reactive by design: never call from the
- * render path (render uses computeInlineContent — see invariants G4.2).
+ * Lazy `inlineContent` accessor for non-render consumers, backed by a
+ * node-keyed, non-reactive WeakMap keyed on (raw, LRD-signature). Non-reactive
+ * by design: never call from the render path (which uses computeInlineContent) —
+ * a reactive read+write here would re-introduce the keyed-`{#each}` corruption
+ * that invariant G4.2 guards against.
  */
 import type { CstNode, InlineNode } from '../nodes';
 import type { LinkReferenceResolver } from './link-reference-resolver';

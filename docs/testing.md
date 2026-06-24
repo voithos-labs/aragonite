@@ -253,7 +253,7 @@ The existing test-bridge calls (`getSource`, `setSource`, `getBlockCount`, etc.)
 Both Vitest and Playwright tests can reach the engine — the module is internal, not sealed. From a unit test, import directly:
 
 ```ts
-import { dumpTree, dumpSelection } from '$lib/editor/debug/inspect';
+import { dumpTree, dumpSelection } from '$lib/debug/inspect';
 ```
 
 From an E2E spec, read through the bridge:
