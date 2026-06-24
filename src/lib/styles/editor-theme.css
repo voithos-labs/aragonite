@@ -2,14 +2,14 @@
  * Editor default theme — editor-owned token values, scoped to the editor rather
  * than `:root` so an extracted module never injects ~50 custom properties into a
  * consumer's global scope. Tokens are declared on `.editor` (the component's own
- * root) and on `.limestone-editor-theme` (an opt-in class a consumer puts on any
+ * root) and on `.aragonite-editor-theme` (an opt-in class a consumer puts on any
  * non-editor chrome — e.g. a CodeMirror placeholder — that wants the same
  * palette, so the consumer borrows tokens without redeclaring them). `:where()`
  * keeps specificity at 0 so a consumer override at `.editor { --x: … }` wins.
  *
  * Light vs dark keys on `data-editor-theme='light'` on the same element; the
  * `<Editor theme>` prop reflects there, and a consumer sets it on a
- * `.limestone-editor-theme` wrapper. Dark is the base (no attribute needed).
+ * `.aragonite-editor-theme` wrapper. Dark is the base (no attribute needed).
  *
  * The `--color-*` tokens are app-chrome flavored (bg/text/border/accent the
  * editor borrows to blend in) but are owned here like everything else: shipped
@@ -23,7 +23,7 @@
  * with your own block, or replace this file wholesale to retheme.
  */
 
-:where(.editor, .limestone-editor-theme) {
+:where(.editor, .aragonite-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 
 	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
@@ -94,7 +94,7 @@
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
-:where(.editor, .limestone-editor-theme)[data-editor-theme='light'] {
+:where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
 	/* Host chrome tokens (light) */
 	--color-bg: #ffffff;
 	--color-bg-secondary: rgba(0, 0, 0, 0.05);

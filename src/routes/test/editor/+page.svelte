@@ -72,7 +72,7 @@
 	});
 </script>
 
-<div class="test-harness limestone-editor-theme">
+<div class="test-harness aragonite-editor-theme">
 	<header class="demo-header">
 		<h1 class="demo-title">aragonite</h1>
 		<p class="demo-note">

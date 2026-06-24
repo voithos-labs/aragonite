@@ -1,4 +1,4 @@
-export const PANEL_STORAGE_KEY = 'limestone.debug-panel.state.v1';
+export const PANEL_STORAGE_KEY = 'aragonite.debug-panel.state.v1';
 
 export type SectionKey = 'rawSource' | 'cst' | 'selection' | 'undo' | 'inline' | 'opsLog';
 
