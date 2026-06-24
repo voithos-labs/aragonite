@@ -28,6 +28,10 @@ export function createSearchState(deps: SearchDeps) {
 	let matches = $state<Match[]>([]);
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
+	// Count of the last replace/replaceAll, surfaced as "N replaced" feedback.
+	// Cleared on the next search ACTION (not in rescan — see Editor.svelte's
+	// post-commit rescan, which would otherwise wipe it instantly).
+	let replacedCount = $state<number | null>(null);
 
 	function rescan(): void {
 		const r = compileMatcher(query, options);
@@ -69,32 +73,42 @@ export function createSearchState(deps: SearchDeps) {
 		get error() {
 			return error;
 		},
+		get replacedCount() {
+			return replacedCount;
+		},
 		open() {
 			isOpen = true;
 		},
 		close() {
 			isOpen = false;
 			matches = [];
+			replacedCount = null;
 			deps.onClose();
 		},
 		setQuery(q: string) {
 			query = q;
+			replacedCount = null;
 			rescan();
+			void revealActive();
 		},
 		setReplacement(s: string) {
 			replacement = s;
 		},
 		setOptions(partial: Partial<SearchOptions>) {
 			options = { ...options, ...partial };
+			replacedCount = null;
 			rescan();
+			void revealActive();
 		},
 		next() {
+			replacedCount = null;
 			if (matches.length) {
 				activeIndex = (activeIndex + 1) % matches.length;
 				void revealActive();
 			}
 		},
 		prev() {
+			replacedCount = null;
 			if (matches.length) {
 				activeIndex = (activeIndex - 1 + matches.length) % matches.length;
 				void revealActive();
@@ -106,11 +120,14 @@ export function createSearchState(deps: SearchDeps) {
 			if (!m) return;
 			await deps.replace.replaceOne(m, replacement);
 			rescan();
+			replacedCount = 1;
 		},
 		async replaceAll() {
 			if (!matches.length) return;
+			const n = matches.length;
 			await deps.replace.replaceAll(matches, replacement);
 			rescan();
+			replacedCount = n;
 		},
 		rescan
 	};
@@ -126,6 +143,7 @@ export interface SearchState {
 	readonly matches: Match[];
 	readonly activeIndex: number;
 	readonly error: string | null;
+	readonly replacedCount: number | null;
 	open(): void;
 	close(): void;
 	setQuery(q: string): void;
