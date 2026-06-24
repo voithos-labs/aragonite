@@ -369,12 +369,38 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller);
 
+	// Pre-search caret, snapshotted on Ctrl+F open and restored on close. Plain
+	// `let` (mirrors focusedPath): only read/written from imperative handlers.
+	let savedRange: Range | null = null;
+
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	const searchState = createSearchState({
 		getDoc,
 		replace: searchReplace,
-		reveal: (p) => focus.revealPath(p),
-		onClose: () => editorEl?.focus()
+		// Reveal mounts the target block (windowed-out case), then scroll the
+		// active match's element into view — a no-op when already on screen, so it
+		// also covers the mounted-but-scrolled-out case. getBlockElByPath resolves
+		// the same path revealPath consumed; `?.` degrades to no-scroll otherwise.
+		reveal: async (p) => {
+			await focus.revealPath(p);
+			getBlockElByPath(p)?.scrollIntoView({ block: 'nearest' });
+		},
+		onClose: () => {
+			// Restore the native single-block caret when its container is still in
+			// the DOM (not windowed out, not detached by a replace). Otherwise fall
+			// back to focusing the root so cross-block keyboard routing survives.
+			if (savedRange && editorEl?.contains(savedRange.startContainer)) {
+				const node = savedRange.startContainer;
+				const host = node instanceof Element ? node : node.parentElement;
+				host?.closest<HTMLElement>('[contenteditable]')?.focus();
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(savedRange);
+			} else {
+				editorEl?.focus();
+			}
+			savedRange = null;
+		}
 	});
 	// Replace-row visibility lives here, not in SearchBar, so the root Ctrl+H
 	// shortcut and the bar's chevron share one source of truth.
@@ -510,7 +536,11 @@
 			// input collapses that selection.
 			if (searchBar && mod && (e.key === 'f' || e.key === 'h')) {
 				e.preventDefault();
-				const selected = window.getSelection()?.toString() ?? '';
+				// Snapshot before open() — focusing the find input collapses the
+				// native selection, so read both the seed text and the caret now.
+				const sel = window.getSelection();
+				const selected = sel?.toString() ?? '';
+				savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
 				replaceExpanded = e.key === 'h';
 				searchState.open();
 				if (selected) searchState.setQuery(selected);
