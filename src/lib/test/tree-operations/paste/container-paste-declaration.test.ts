@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import {
-	augmentBlockKind,
-	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
+import { augmentBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
 import { findListAbsorb } from '$lib/tree-operations/paste/list-absorb';
 import { findListBreakOut } from '$lib/tree-operations/paste/list-break-out';

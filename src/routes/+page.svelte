@@ -1,6 +1,9 @@
 <main>
 	<h1>aragonite</h1>
-	<p>A CST block editor for GFM Markdown. Raw Markdown is the source of truth; the editor parses it into a lossless syntax tree and round-trips byte-for-byte.</p>
+	<p>
+		A CST block editor for GFM Markdown. Raw Markdown is the source of truth; the editor parses it
+		into a lossless syntax tree and round-trips byte-for-byte.
+	</p>
 	<p><a href="/test/editor">Open the editor demo →</a></p>
 </main>
 
