@@ -120,13 +120,13 @@ to factories). Findings:
 - [x] **Important — §7 Diagnostic 2 (who depends on whom): `undo/` ↔ `selection/` type cycle.**
       _(Fixed — `SharingState` moved to `tree-operations/sharing.ts`; see Resolution. Locations below
       are as-discovered.)_
-  `undo/types.ts:7` imports `EditorSelection` from `selection/primitives`; `selection/range-delete.ts:10`
-  and `range-delete-table.ts:10` import `SharingState` from `undo/epoch-tracker` (as do
-  `tree-operations/{node-ops,unshare,structural-change,reorder}.ts` and `editor-actions/{deps,block-edit-scope}.ts`).
-  Type-only (erased at runtime, so no runtime cycle), but it prevents either directory from being
-  read/tested independently. Both are pure value types. Options: relocate `EditorSelection` and/or
-  `SharingState` to a stable shared leaf; or document the type-only cycle as acceptable. **Owner
-  decision** (this DAG was designed deliberately — don't churn it without sign-off).
+      `undo/types.ts:7` imports `EditorSelection` from `selection/primitives`; `selection/range-delete.ts:10`
+      and `range-delete-table.ts:10` import `SharingState` from `undo/epoch-tracker` (as do
+      `tree-operations/{node-ops,unshare,structural-change,reorder}.ts` and `editor-actions/{deps,block-edit-scope}.ts`).
+      Type-only (erased at runtime, so no runtime cycle), but it prevents either directory from being
+      read/tested independently. Both are pure value types. Options: relocate `EditorSelection` and/or
+      `SharingState` to a stable shared leaf; or document the type-only cycle as acceptable. **Owner
+      decision** (this DAG was designed deliberately — don't churn it without sign-off).
 - [ ] **Minor — §7 Diagnostic 2: inconsistent subdir grouping in `editor-actions/`.**
       `editor-actions/undo/` is a subdir, but the four `nested-*.ts` files (a cohesive nested-actions
       cluster) are flat siblings. Move them to `editor-actions/nested/` to match the `undo/` precedent.
@@ -261,9 +261,10 @@ clean · `e2e-search` 23/23 · `e2e-blocks/image` 84/84 · full `npm run test:e2
 ### Still deferred
 
 - **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — cosmetic dead-code; left.
-- **Theme 8** Shift+Arrow into a non-image inline widget — **not browser-testable**: Chromium's
-  native Shift+Arrow already straddles the `contenteditable=false` `<br>` island, producing the
-  same range the painter tints, so the `isInlineWidget` fix only changes behavior at the unit
-  level (jsdom), not in a real browser. The fix stands (consistency with sibling widget handlers);
-  a browser e2e can't distinguish it.
+- **Theme 8 (now guarded by a unit test, not e2e)** — Shift+Arrow into a non-image inline widget:
+  a browser e2e **can't** discriminate the `isInlineWidget` fix (Chromium's native Shift+Arrow
+  already straddles the `contenteditable=false` `<br>` island, yielding the same range the painter
+  tints), so it only changes behavior at the jsdom/unit level. Guarded there by
+  `test/blocks/text/widget-shift-arrow.test.ts` (revert-checked: fails when the filter reverts to
+  `kind === 'image'`).
 - **B3** table hover insert/delete affordances (owner: roadmapped after the table-row drag handle).
