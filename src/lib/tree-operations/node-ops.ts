@@ -27,7 +27,7 @@ import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import type { SharingState } from '../undo/epoch-tracker';
+import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 

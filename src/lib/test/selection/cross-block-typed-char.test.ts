@@ -8,7 +8,7 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState } from '$lib/undo/epoch-tracker';
+import { createSharingState } from '$lib/tree-operations/sharing';
 import { createEditorEvents } from '$lib/editor-events';
 import { parse } from '$lib/core/parser';
 import { mockRef, makeStickyColumn } from '$lib/test/harness/editor-actions';

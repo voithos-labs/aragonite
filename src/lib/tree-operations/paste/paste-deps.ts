@@ -9,7 +9,7 @@
 
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
-import type { SharingState } from '../../undo/epoch-tracker';
+import type { SharingState } from '../sharing';
 
 export type { CommitMultiScopeArgs, MultiScopeTarget };
 

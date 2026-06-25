@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { parse } from '../../core/parser';
 import { metadataOf } from '../../core/nodes';
-import { createSharingState } from '../../undo/epoch-tracker';
+import { createSharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../../tree-operations/unshare';
 
 function sharedDoc(src: string) {

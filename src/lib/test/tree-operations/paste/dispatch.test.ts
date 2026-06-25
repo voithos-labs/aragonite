@@ -12,7 +12,7 @@ import {
 	registerPasteSurface
 } from '../../../tree-operations/paste-surfaces';
 import { parse } from '../../../core/parser';
-import { createSharingState } from '../../../undo/epoch-tracker';
+import { createSharingState } from '../../../tree-operations/sharing';
 import {
 	expectStateForNode,
 	getStateForNode,
