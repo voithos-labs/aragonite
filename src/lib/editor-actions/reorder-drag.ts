@@ -11,8 +11,8 @@
  * off-window (spacer-region) targeting is a separate layer.
  */
 
-import type { ReorderAction } from '../editor-actions/reorder-action';
-import { createAutoScroll } from './autoscroll';
+import type { ReorderAction } from './reorder-action';
+import { createAutoScroll } from '../selection/autoscroll';
 
 export interface ReorderDragOverlay {
 	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;

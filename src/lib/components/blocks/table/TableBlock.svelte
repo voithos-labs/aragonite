@@ -40,7 +40,7 @@
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../../editor-actions/nested-actions';
+	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
 

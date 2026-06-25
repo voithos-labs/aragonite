@@ -20,7 +20,7 @@ import { createHistoryActions } from '../../editor-actions/undo/history';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
-} from '../../editor-actions/nested-actions';
+} from '../../editor-actions/nested/nested-actions';
 import { createListContext } from '../../editor-actions/list-context';
 import { createTableMutationsContext } from '../../editor-actions/table-context';
 import { performCrossBlockDelete } from '../../selection/cross-block/ops';
