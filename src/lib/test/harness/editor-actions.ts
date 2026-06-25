@@ -9,7 +9,7 @@ import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import type { EditorEvents } from '$lib/editor-events';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState } from '$lib/undo/epoch-tracker';
+import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor-events';
 

@@ -9,7 +9,7 @@
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import type { SharingState } from '../undo/epoch-tracker';
+import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import type { EditorActionsDeps, UndoController } from './deps';

@@ -7,7 +7,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
-import type { SharingState } from '../undo/epoch-tracker';
+import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, comparePaths, assertCharOffset } from './primitives';
 import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';

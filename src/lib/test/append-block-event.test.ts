@@ -7,7 +7,7 @@ describe('moveFocus past the last block', () => {
 		const { createUndoController } = await import('$lib/editor-actions/undo/undo-controller');
 		const { createFocusActions } = await import('$lib/editor-actions/focus');
 		const { createUndoManager } = await import('$lib/undo/manager');
-		const { createSharingState } = await import('$lib/undo/epoch-tracker');
+		const { createSharingState } = await import('$lib/tree-operations/sharing');
 		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
 
 		const events = createEditorEvents();
