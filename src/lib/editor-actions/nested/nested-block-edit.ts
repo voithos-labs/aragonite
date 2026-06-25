@@ -8,21 +8,21 @@
  * through `replaceBlock` — G2.9 dual-emit), and `updateBlockContent`.
  */
 
-import type { BlockEditActions } from '../action-contracts';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import type { BlockEditActions } from '../../action-contracts';
+import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	updateNodeContent as performUpdate,
 	ensureUnsharedChild,
 	reconcileTaskMetadata,
 	foldPasteReplacement
-} from '../tree-operations';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { assertInvariant } from '../invariants/assert';
-import { CURSOR_END } from '../block-component';
+} from '../../tree-operations';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { assertInvariant } from '../../invariants/assert';
+import { CURSOR_END } from '../../block-component';
 import type { NestedActionsDeps } from './nested-actions';
-import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from './unwrap-strategies';
-import { createContainerScope } from './block-edit-scope';
-import { createBlockEditCore } from './block-edit-core';
+import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
+import { createContainerScope } from '../block-edit-scope';
+import { createBlockEditCore } from '../block-edit-core';
 
 export function createNestedBlockEdit(
 	state: BlockListState,

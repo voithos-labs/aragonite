@@ -6,8 +6,8 @@
  * here forwards doc-absolute arguments unchanged.
  */
 
-import type { ContainerEditActions } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
+import type { ContainerEditActions } from '../../action-contracts';
+import type { CstNode } from '../../core/nodes';
 import type { NestedActionsDeps } from './nested-actions';
 
 export function createNestedContainerEdit(deps: NestedActionsDeps): ContainerEditActions {

@@ -13,7 +13,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import type { EditorActionsDeps, UndoController } from './deps';
-import type { NestedActionsDeps } from './nested-actions';
+import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 
 /** Owned mutation view the core's `mutate` writes through — uniform across levels. */

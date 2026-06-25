@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createStandardNestedActions } from '../../editor-actions/nested-actions';
+import { createStandardNestedActions } from '../../editor-actions/nested/nested-actions';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import {

@@ -15,7 +15,7 @@ import {
 	isItemUserEmpty
 } from '../tree-operations';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import type { NestedActionsDeps } from './nested-actions';
+import type { NestedActionsDeps } from './nested/nested-actions';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
