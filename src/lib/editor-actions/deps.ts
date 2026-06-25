@@ -4,7 +4,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { BlockElLookup, EditorSelection } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
-import type { SharingState } from '../undo/epoch-tracker';
+import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
 export type {

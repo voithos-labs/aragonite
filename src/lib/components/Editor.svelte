@@ -59,7 +59,7 @@
 		type LinkReferenceResolver
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
-	import { createSharingState } from '../undo/epoch-tracker';
+	import { createSharingState } from '../tree-operations/sharing';
 	import { createEditorEvents } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';

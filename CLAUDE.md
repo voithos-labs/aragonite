@@ -35,14 +35,14 @@ Editor (owns CST, undo stack, editor-actions contexts)
 ```
 components/      block components (Editor, BlockList, BlockHost, per-kind blocks)
 editor-actions/  upward action bundles (split, merge, paste, container overrides)
-tree-operations/ pure CST mutations (paste, list, blockquote, primitives)
+tree-operations/ pure CST mutations (paste, list, blockquote, primitives) + the structural-sharing primitive (sharing.ts)
 schema/          cross-cutting block-kind metadata (descriptors, registries, openers, merge rules, commands + keybindings)
 core/            parser, serializer, inline pipeline, CST node types
 ambient/         marker DOM + offset translation
 cursor/          sticky column, visual lines, range measurement
 reactivity/      block-list state and state registry
 selection/       cross-block selection model and dispatch
-undo/            undo stack + snapshot-sharing epoch state
+undo/            undo stack + snapshot manager
 invariants/      pure predicates guarding load-bearing contracts (dev assertions + tests)
 perf/            dev-mode performance instruments
 debug/           dev debug engine (CST/selection/undo/ops dumps)

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/container-match';
 import { parse } from '../../../core/parser';
-import { createSharingState, type SharingState } from '../../../undo/epoch-tracker';
+import { createSharingState, type SharingState } from '../../../tree-operations/sharing';
 import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
 import {
 	expectStateForNode,
