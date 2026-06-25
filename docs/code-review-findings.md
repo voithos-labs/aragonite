@@ -117,7 +117,9 @@ The tree is overall healthy: no shelf dirs (`utils/`/`helpers/`/`managers/`); `h
 `TableCellBlock.svelte`/`CodeBlock.svelte` are thin wiring shells (pure logic already extracted
 to factories). Findings:
 
-- [?] **Important — §7 Diagnostic 2 (who depends on whom): `undo/` ↔ `selection/` type cycle.**
+- [x] **Important — §7 Diagnostic 2 (who depends on whom): `undo/` ↔ `selection/` type cycle.**
+      _(Fixed — `SharingState` moved to `tree-operations/sharing.ts`; see Resolution. Locations below
+      are as-discovered.)_
   `undo/types.ts:7` imports `EditorSelection` from `selection/primitives`; `selection/range-delete.ts:10`
   and `range-delete-table.ts:10` import `SharingState` from `undo/epoch-tracker` (as do
   `tree-operations/{node-ops,unshare,structural-change,reorder}.ts` and `editor-actions/{deps,block-edit-scope}.ts`).
