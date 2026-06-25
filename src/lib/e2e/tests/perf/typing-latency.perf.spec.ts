@@ -21,15 +21,12 @@ const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 ];
 
 // Rows above a shape's cap are not generated; omissions are recorded in the
-// requirements file. 0.8.6 virtual rendering un-capped the multi-block shapes
-// whose 10MB blocker was mounting every block. The single-giant-container shapes
-// (giant-single-list/blockquote/table) were previously capped on the assumption
-// their 10MB load wouldn't complete in 60s; measurement disproved it — the load
-// is linear (~3.4s at 10MB; parse ~6%, the rest linear $state/tree
-// materialization) and VR bounds the mount, so they are un-capped here.
-//   reference-heavy was capped because its 10MB keystroke ran the per-edit
-//   whole-document inline sweep over every reference-bearing block; lazy
-//   inlineContent (0.8.5) removed that sweep, so it un-caps too.
+// requirements file. All shapes are currently un-capped: the multi-block shapes'
+// 10MB blocker was mounting every block (windowing bounds the mount now), and the
+// single-giant-container shapes (giant-single-list/blockquote/table) load linearly
+// (~3.4s at 10MB; parse ~6%, the rest $state/tree materialization) with the mount
+// VR-bounded. reference-heavy un-capped once lazy inline content removed its
+// per-edit whole-document sweep over every reference-bearing block.
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {};
 
 function round(ms: number): number {
