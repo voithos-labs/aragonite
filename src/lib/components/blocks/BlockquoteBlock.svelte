@@ -21,7 +21,7 @@
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../editor-actions/nested-actions';
+	} from '../../editor-actions/nested/nested-actions';
 	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
 	import BlockList from '../BlockList.svelte';
 

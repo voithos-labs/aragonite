@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installReorderDrag } from '../../selection/reorder-drag';
+import { installReorderDrag } from '../../editor-actions/reorder-drag';
 
 // installReorderDrag attaches ONE capture-phase pointerdown listener on the
 // editor root; the per-drag document listeners only live for the duration of a
