@@ -245,14 +245,23 @@ clean · `e2e-search` 23/23 · `e2e-blocks/image` 84/84 · full `npm run test:e2
 
 `safeIntersects` (Theme 4) and the six entries under "False positives" above.
 
-### Deferred — recommendations (no code change; need owner sign-off / are roadmapped)
+### Follow-up done (after owner sign-off to knock out the rest)
 
-- **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — cosmetic dead-code.
-- **Theme 7** `undo/` ↔ `selection/` **type-only** cycle — erased at runtime; the clean fix
-  (relocate `EditorSelection` + `SharingState` to a shared leaf) touches ~10 import sites. Left
-  unchanged to avoid churning the deliberate DAG without sign-off.
-- **Theme 7** move `editor-actions/nested-*.ts` → `editor-actions/nested/`; relocate
-  `selection/reorder-drag.ts` beside `reorder-action.ts` (minor org).
-- **Theme 8** add e2e for delete-last-row/col focus landing (guards Theme 1) and Shift+Arrow into
-  a non-image widget (guards Theme 3).
+- **Theme 7** — `undo/`↔`selection/` cycle **fixed**: `SharingState` relocated from
+  `undo/epoch-tracker.ts` to `tree-operations/sharing.ts` (it's the copy-on-write sharing
+  primitive; `undo/` never referenced it). 28 import sites updated; its unit test moved alongside.
+- **Theme 7** — directory moves **done**: `editor-actions/nested-*.ts` → `editor-actions/nested/`;
+  `reorder-drag.ts` relocated `selection/` → `editor-actions/` (it was the only
+  `selection→editor-actions` back-edge, so the move strictly improves the DAG).
+- **Theme 8** — delete-last-row/col focus regression tests **added** (`e2e/.../table/shortcuts.spec.ts`),
+  proven to discriminate the fix via a revert-check (reverting → focus on `<body>`, count 0).
+
+### Still deferred
+
+- **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — cosmetic dead-code; left.
+- **Theme 8** Shift+Arrow into a non-image inline widget — **not browser-testable**: Chromium's
+  native Shift+Arrow already straddles the `contenteditable=false` `<br>` island, producing the
+  same range the painter tints, so the `isInlineWidget` fix only changes behavior at the unit
+  level (jsdom), not in a real browser. The fix stands (consistency with sibling widget handlers);
+  a browser e2e can't distinguish it.
 - **B3** table hover insert/delete affordances (owner: roadmapped after the table-row drag handle).
