@@ -58,7 +58,6 @@ export interface DomPosition {
  */
 export function findRawOffsetTarget(container: HTMLElement, target: number): DomPosition | null {
 	let count = 0;
-	let exact: DomPosition | null = null;
 	let last: DomPosition | null = null;
 
 	function visit(current: Node): DomPosition | null {
@@ -82,11 +81,9 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 				if (count === target && parent) {
 					const prev = el.previousSibling;
 					if (prev && prev.nodeType === Node.TEXT_NODE) {
-						exact = { node: prev, offset: prev.textContent?.length ?? 0 };
-					} else {
-						exact = { node: parent, offset: idx };
+						return { node: prev, offset: prev.textContent?.length ?? 0 };
 					}
-					return exact;
+					return { node: parent, offset: idx };
 				}
 				if (count + len >= target && parent) {
 					const next = el.nextSibling;
@@ -109,7 +106,6 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 
 	const found = visit(container);
 	if (found) return found;
-	if (exact) return exact;
 	return last;
 }
 

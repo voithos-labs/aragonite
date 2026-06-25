@@ -123,8 +123,8 @@ describe('reference-style image resolution (CommonMark §6.3)', () => {
 		expect(images[0].title).toBe('Title');
 	});
 
-	it('image dimension hint in alt text is parsed (0.6.4 behavior preserved)', () => {
-		// `|100x50` dimension hint per 0.6.4 — the alt text is "logo|100x50" before
+	it('image dimension hint in alt text is parsed', () => {
+		// `|100x50` dimension hint — the alt text is "logo|100x50" before
 		// dimension-hint parsing strips the suffix
 		const nodes = inlineWithRefs('![logo|100x50][img]', '[img]: /pic.png');
 		const images = nodes.filter((n) => n.kind === 'image');
