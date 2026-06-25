@@ -6,7 +6,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import type { SharingState } from '../../undo/epoch-tracker';
+import type { SharingState } from '../sharing';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedChild } from '../unshare';
 

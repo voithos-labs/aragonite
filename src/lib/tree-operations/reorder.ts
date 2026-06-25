@@ -1,5 +1,5 @@
 import type { CstNode } from '../core/nodes';
-import type { SharingState } from '../undo/epoch-tracker';
+import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import type { StructuralChange } from './structural-change';
 
