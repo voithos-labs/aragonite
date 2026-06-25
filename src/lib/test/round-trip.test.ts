@@ -209,7 +209,7 @@ describe('round-trip: HTML blocks', () => {
 		{ name: 'script block', source: '<script>\nalert(1);\n</script>\n' },
 		{ name: 'self-closing', source: '<hr />\n' },
 		{ name: 'html then paragraph', source: '<div>\nHello\n</div>\n\nParagraph.\n' },
-		// 0.6.7 — §4.6 conformance fixtures
+		// §4.6 HTML-block conformance fixtures
 		{ name: 'type 1: same-line close', source: '<script>foo</script>\n' },
 		{
 			name: 'type 1: multi-line with close + trailing paragraph',
