@@ -217,3 +217,59 @@ test.describe('table block: keyboard vocabulary', () => {
 		expect(pageErrors).toEqual([]);
 	});
 });
+
+test.describe('table block: delete-last-row / delete-last-column focus landing', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	// Regression: deleteRow read a stale pre-commit row count and clamped the
+	// post-delete focus against `oldCount - 1`. Deleting the LAST body row then
+	// targeted a row index that no longer exists, so focus landed on nothing.
+	// Reading the post-commit count via `deps.node` (and clamping to it) keeps
+	// focus on a surviving cell.
+	test('deleting the last body row lands focus on a surviving cell', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(e.message));
+		await editor.loadContent(TABLE_3ROW);
+
+		// Header + 2 body rows = 6 cells. Focus a cell in the LAST body row
+		// (row index 2 → cell index 4). Body-count is 2, so delete is not a no-op.
+		await page.locator('[role="cell"]').nth(4).click();
+		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
+
+		await page.keyboard.press('Control+Shift+Backspace');
+		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
+		await expect(page.locator('[role="cell"]')).toHaveCount(4);
+
+		// Focus must survive on an existing cell. The stale-count bug targeted the
+		// now-removed last row, leaving focus on <body> → :focus count 0.
+		await expect(page.locator('[role="cell"]:focus')).toHaveCount(1);
+		expect(pageErrors).toEqual([]);
+	});
+
+	// Symmetric regression for deleteColumn: it read a stale pre-commit column
+	// count and clamped focus against the old width, targeting the deleted last
+	// column's index.
+	test('deleting the last column lands focus on a surviving cell', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(e.message));
+		// 2-column table so delete is not a no-op (no-op fires at 1 column).
+		await editor.loadContent(TABLE_2x2);
+
+		// Focus a body cell in the LAST column (row 1, col 1 → cell index 3).
+		await page.locator('[role="cell"]').nth(3).click();
+		await expect(page.locator('[role="cell"]').nth(3)).toBeFocused();
+
+		await page.keyboard.press('Alt+Shift+Backspace');
+		await editor.bridge.waitForSourceContains('| A |');
+		await editor.bridge.waitForSourceNotContains(' B ');
+		await expect(page.locator('[role="cell"]')).toHaveCount(2);
+
+		await expect(page.locator('[role="cell"]:focus')).toHaveCount(1);
+		expect(pageErrors).toEqual([]);
+	});
+});
