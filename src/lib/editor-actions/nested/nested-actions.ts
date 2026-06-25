@@ -12,13 +12,13 @@ import type {
 	ContainerEditActions,
 	FocusActions,
 	ListContext
-} from '../action-contracts';
-import type { CstNode } from '../core/nodes';
-import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../editor-keys';
-import { assertInvariant } from '../invariants/assert';
-import { checkNoContainerHistoryKey } from '../invariants/context-keys';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
+} from '../../action-contracts';
+import type { CstNode } from '../../core/nodes';
+import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
+import { assertInvariant } from '../../invariants/assert';
+import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
+import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { createNestedContainerEdit } from './nested-container-edit';

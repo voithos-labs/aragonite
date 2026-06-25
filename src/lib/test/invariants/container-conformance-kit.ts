@@ -51,8 +51,8 @@ import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
-} from '$lib/editor-actions/nested-actions';
-import { createNestedFocus } from '$lib/editor-actions/nested-focus';
+} from '$lib/editor-actions/nested/nested-actions';
+import { createNestedFocus } from '$lib/editor-actions/nested/nested-focus';
 import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import { createListContext } from '$lib/editor-actions/list-context';
 import {

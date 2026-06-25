@@ -22,7 +22,7 @@
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
-	} from '../../../editor-actions/nested-actions';
+	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 

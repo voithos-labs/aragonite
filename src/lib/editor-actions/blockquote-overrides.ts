@@ -10,7 +10,7 @@ import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import type { NestedActionsBundle } from './nested-actions';
+import type { NestedActionsBundle } from './nested/nested-actions';
 import type { UndoController } from './deps';
 
 export interface BlockquoteOverridesDeps {

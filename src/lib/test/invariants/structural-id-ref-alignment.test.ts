@@ -3,7 +3,7 @@ import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested-actions';
+import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';

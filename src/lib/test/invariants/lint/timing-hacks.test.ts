@@ -25,7 +25,7 @@ const ALLOWLIST: Record<string, string> = {
 	// rAF coalesces pointermove bursts to one handler per frame (cross-block drag).
 	'src/lib/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
 	// Same pointermove throttle for drag-to-reorder; mirrors drag-pointer.ts.
-	'src/lib/selection/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
+	'src/lib/editor-actions/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
 	// Same pointermove throttle for intra-table drag; mirrors drag-pointer.ts but
 	// lives under table/ because it is table-cell specific.
 	'src/lib/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',

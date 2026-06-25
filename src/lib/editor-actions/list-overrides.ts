@@ -14,7 +14,7 @@ import {
 	stampStructuralChange
 } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import type { NestedActionsOverrideFactory } from './nested-actions';
+import type { NestedActionsOverrideFactory } from './nested/nested-actions';
 
 export interface ListOverridesDeps {
 	get index(): number;
