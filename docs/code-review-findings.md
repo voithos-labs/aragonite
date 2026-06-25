@@ -19,20 +19,20 @@ The commit ceremony leaves the pre-mutation node object unmutated (the undo snap
 shares it); any `afterTick` callback that reads a post-mutation count/metadata through a
 reference captured _before_ the commit reads a stale value.
 
-- [ ] **Important — `editor-actions/table-context.ts:201,203` (`deleteRow` afterTick).**
+- [x] **Important — `editor-actions/table-context.ts:201,203` (`deleteRow` afterTick).**
       `node` is destructured from `deps` at line 183 (before the commit). `afterTick` reads
       `node.children?.length` and `metadataOf(node, 'table').columnCount` from that stale
       reference, so `targetRow = Math.min(rowIdx, newRowCount - 1)` uses the _pre-delete_ count.
       Deleting the last body row → `focusCell` targets a non-existent row (focus lost, or a
       throw if `focusCell` doesn't guard). Fix: read through `deps.node` in `afterTick`.
-- [ ] **Important — `editor-actions/table-context.ts:219` (`deleteColumn` afterTick).** Same
+- [x] **Important — `editor-actions/table-context.ts:219` (`deleteColumn` afterTick).** Same
       pattern: `metadataOf(node, 'table').columnCount` from the stale capture → off-by-one /
       non-existent column focus when deleting the last column. Fix: `deps.node`.
       _(Contrast: `insertRow`/`moveRow` afterTicks use pre-computed indices and are correct.)_
 
 ## Theme 2 — Ordered-list renumber inconsistency on paste break-out
 
-- [ ] **Important — `tree-operations/paste/list-break-out.ts:183,198-199`.**
+- [x] **Important — `tree-operations/paste/list-break-out.ts:183,198-199`.**
       `buildListBreakOutReplacement` calls `assembleListHalf(list, firstHalfItems, 1)` —
       hardcoding the first half's start number to `1` — and computes the second half from
       `firstHalfItems.length + 1`. Both ignore the list's actual base. Pasting a mismatched
@@ -44,7 +44,7 @@ reference captured _before_ the commit reads a stale value.
 
 ## Theme 3 — Atomic-widget handling assumes "image"
 
-- [ ] **Minor — `components/blocks/text/widget-interaction.ts:286`.** `widgetExtensionTarget`
+- [x] **Minor — `components/blocks/text/widget-interaction.ts:286`.** `widgetExtensionTarget`
       filters `if (inline.kind !== 'image') continue`, while every sibling in the file
       (`widgetAtCursor`, `findFirstEdgeWidget`, `findLastEdgeWidget`) uses `isInlineWidget`.
       Shift+Arrow extension into a non-image atomic widget (raw-HTML `<br>`, allowlisted inline
@@ -54,10 +54,10 @@ reference captured _before_ the commit reads a stale value.
 
 ## Theme 4 — Minor correctness / defensive gaps
 
-- [ ] **Minor — `editor-actions/unwrap-strategies.ts:74`.** `deps.parent.focus.moveFocus(index - 1, 'end')`
+- [x] **Minor — `editor-actions/unwrap-strategies.ts:74`.** `deps.parent.focus.moveFocus(index - 1, 'end')`
       is not awaited, while every sibling branch awaits. `moveFocus` awaits `revealPath`, so in a
       windowed document focus can race the reveal. Fix: `await`.
-- [ ] **Minor — `selection/range-delete-table.ts` (`survivingAnchorCellCaret`, ~line 313).**
+- [x] **Minor — `selection/range-delete-table.ts` (`survivingAnchorCellCaret`, ~line 313).**
       When `anchorRow === 0` the function computes `survivorRow = -1` and reads
       `table.children[-1].children[...]` → `TypeError`. Not currently reachable (callers always
       pass `endCellIdx = totalCellCount`, so `deleteCellsAndCollapse` returns `'tableEmpty'`
@@ -68,11 +68,11 @@ reference captured _before_ the commit reads a stale value.
       _range.start_ to _nodeRange.end_ (not range.end to node.start), so the original
       `(END_TO_START <= 0) && (START_TO_END >= 0)` is the correct inclusive intersection test. The
       variable names match. Left unchanged — "fixing" it would have broken it.
-- [ ] **Minor — `cursor/sticky-measure.ts:22`.** Guard `rects[0].width >= 0 || rects[0].height > 0`
+- [x] **Minor — `cursor/sticky-measure.ts:22`.** Guard `rects[0].width >= 0 || rects[0].height > 0`
       is always true (`DOMRect.width` is never negative), defeating the intended 0×0
       `getBoundingClientRect` fallback. Sibling helpers (`getOffsetRect`, `visual-lines.getRangeTop`)
       use `rects[0].height > 0`. Fix: match them.
-- [ ] **Minor — `cursor/widget-offset.ts:112`.** The `exact` fallback branch is unreachable by
+- [x] **Minor — `cursor/widget-offset.ts:112`.** The `exact` fallback branch is unreachable by
       construction (every site that sets `exact` immediately returns it). Dead-code clarity only;
       remove or comment as a deliberate defensive no-op.
 
@@ -81,30 +81,30 @@ reference captured _before_ the commit reads a stale value.
 The README's "the limestone app is its first consumer" is legitimate. These are stale
 _branding_ tokens that leak the old app name, one of them in the **public API**.
 
-- [?] **Important — `src/lib/styles/editor-theme.css:5,12,26,97` — public CSS class
-  `.limestone-editor-theme`.** Consumers are told to put this class on their chrome
-  (`docs/editor/consumer-guide.md`), so it's a shipped public symbol carrying the old brand.
-  Renaming is a public-API change that also touches the downstream limestone app + the demo
-  harness (`src/app.css:13`, `src/routes/test/editor/theme.ts:3-4`, `+page.svelte:75`).
-  **Owner decision needed** (rename now / dual-class alias / defer to 1.0).
-- [?] **Minor — `src/routes/test/editor/debug-panel/panel-state.svelte.ts:1`.** localStorage key
-  `'limestone.debug-panel.state.v1'` (referenced by `e2e/tests/debug-panel.spec.ts:16`).
-  Demo-only; rename alongside the decision above.
-- [ ] **Minor — `docs/code-style.md:3`, `docs/commit-conventions.md:3`.** Say "Limestone-specific"
+- [x] **Important — `src/lib/styles/editor-theme.css:5,12,26,97` — public CSS class
+      `.limestone-editor-theme`.** Consumers are told to put this class on their chrome
+      (`docs/editor/consumer-guide.md`), so it's a shipped public symbol carrying the old brand.
+      Renaming is a public-API change that also touches the downstream limestone app + the demo
+      harness (`src/app.css:13`, `src/routes/test/editor/theme.ts:3-4`, `+page.svelte:75`).
+      **Owner decision needed** (rename now / dual-class alias / defer to 1.0).
+- [x] **Minor — `src/routes/test/editor/debug-panel/panel-state.svelte.ts:1`.** localStorage key
+      `'limestone.debug-panel.state.v1'` (referenced by `e2e/tests/debug-panel.spec.ts:16`).
+      Demo-only; rename alongside the decision above.
+- [x] **Minor — `docs/code-style.md:3`, `docs/commit-conventions.md:3`.** Say "Limestone-specific"
       where they mean aragonite-specific. Pure doc pointers; safe to fix.
       _(Test fixtures using "# Limestone" as document content are harmless and intentionally left.)_
 
 ## Theme 6 — Stale docs / doc-code drift
 
-- [ ] **Important — `docs/testing.md:256`.** `import { dumpTree, dumpSelection } from '$lib/editor/debug/inspect';`
+- [x] **Important — `docs/testing.md:256`.** `import { dumpTree, dumpSelection } from '$lib/editor/debug/inspect';`
       — the `/editor/` segment is limestone-era layout. Aragonite has no `src/lib/editor/`; the
       module is `src/lib/debug/inspect.ts`. Correct path: `$lib/debug/inspect`.
-- [ ] **Important — `docs/design/editor/editor.md:5`.** Goal still reads "A block-based markdown
+- [x] **Important — `docs/design/editor/editor.md:5`.** Goal still reads "A block-based markdown
       editor for Limestone…", framing the editor as Limestone's internal tool. Every other doc
       treats limestone as a downstream consumer. Reframe to the extracted-library framing.
-- [ ] **Minor — `CLAUDE.md` module-layout table.** Omits `debug/` (`src/lib/debug/`:
+- [x] **Minor — `CLAUDE.md` module-layout table.** Omits `debug/` (`src/lib/debug/`:
       `dump-tree.ts`, `inspect.ts`, `operations-log.ts`), which is active and tested.
-- [ ] **Minor — comment signal-to-noise.** `core/inline/inline-cache.ts` header narrates the
+- [x] **Minor — comment signal-to-noise.** `core/inline/inline-cache.ts` header narrates the
       implementation (forge-style "what-comment" antipattern); past-version comments in
       `test/round-trip.test.ts:212`, `test/core/inline/links-reference.test.ts:127`,
       `e2e/tests/perf/typing-latency.perf.spec.ts:24-32` ("0.6.7 …", "0.6.4 behavior preserved").
@@ -127,26 +127,26 @@ to factories). Findings:
       read/tested independently. Both are pure value types. Options: relocate `EditorSelection` and/or
       `SharingState` to a stable shared leaf; or document the type-only cycle as acceptable. **Owner
       decision** (this DAG was designed deliberately — don't churn it without sign-off).
-- [ ] **Minor — §7 Diagnostic 2: inconsistent subdir grouping in `editor-actions/`.**
+- [x] **Minor — §7 Diagnostic 2: inconsistent subdir grouping in `editor-actions/`.**
       `editor-actions/undo/` is a subdir, but the four `nested-*.ts` files (a cohesive nested-actions
       cluster) are flat siblings. Move them to `editor-actions/nested/` to match the `undo/` precedent.
-- [ ] **Minor — §7 Diagnostic 3: `selection/reorder-drag.ts` cohesion stretch.** Block-reorder
+- [x] **Minor — §7 Diagnostic 3: `selection/reorder-drag.ts` cohesion stretch.** Block-reorder
       pointer-drag lives in `selection/` (text-selection machinery) though its only domain dependency
       is `editor-actions/reorder-action.ts`. Mitigated by its header comment. Consider relocating
       near `reorder-action.ts`.
 
 ## Theme 8 — Testing coverage gaps (would these catch a regression?)
 
-- [ ] **Important — no test for delete-last-row / delete-last-column focus landing.**
+- [x] **Important — no test for delete-last-row / delete-last-column focus landing.**
       `e2e/tests/blocks/table/shortcuts.spec.ts` delete tests assert only source mutation, not focus,
       and delete a _non-last_ row. The Theme-1 bug (focus on a non-existent cell — possibly a throw)
       passes silently. Add: 2-body-row table → delete 2nd body row → assert `toBeFocused()` on a valid
       cell; symmetric for columns.
-- [ ] **Important — no test for paste break-out into a non-1-based ordered list.** All break-out
+- [x] **Important — no test for paste break-out into a non-1-based ordered list.** All break-out
       E2E uses unordered or 1-based ordered ancestors. `buildListBreakOutReplacement` (pure, exported)
       has zero direct unit tests. Add a unit test: ordered list starting at `3.`, break-out paste,
       assert first half retains `3.`.
-- [ ] **Minor — no test for Shift+Arrow into a non-image inline widget** (Theme 3). Mirror the
+- [x] **Minor — no test for Shift+Arrow into a non-image inline widget** (Theme 3). Mirror the
       image `widget-range-paint.spec.ts` pattern for a raw-HTML `<br>` widget.
 - [~] **`safeIntersects` fallback** (Theme 4) — moot: re-verified as correct, not inverted. A
   test stubbing `Range.intersectsNode` away remains nice-to-have but low value.
@@ -155,27 +155,27 @@ to factories). Findings:
 
 ### Clear-cut (fix)
 
-- [ ] **A1 — search doesn't reveal the first match; Enter skips it.** `rescan()`
+- [x] **A1 — search doesn't reveal the first match; Enter skips it.** `rescan()`
       (`reactivity/search-state.svelte.ts:32-43`) sets `matches`/`activeIndex=0` but never reveals,
       so after typing the active match (shown "1 / N") may be off-screen; the first `Enter`→`next()`
       advances to index 1, skipping match 0 until wrap. Fix: reveal the active match after `rescan`
       on query/option change (incremental-find), keeping Enter = next.
-- [ ] **A3 — Enter in the Replace input is a dead key.** The Replace input
+- [x] **A3 — Enter in the Replace input is a dead key.** The Replace input
       (`SearchBar.svelte:115-121`) has no `onkeydown` and is in no `<form>`. Fix: add a handler
       (Enter → `replaceCurrent`, Esc → `close`).
-- [ ] **A4 — "Replace All" success is indistinguishable from "no matches".** After `replaceAll`,
+- [x] **A4 — "Replace All" success is indistinguishable from "no matches".** After `replaceAll`,
       `rescan` empties `matches` → the count renders "No results" (`SearchBar.svelte:87-89`). Fix:
       surface a transient "N replaced" message.
-- [ ] **A5 — Esc loses the caret.** `close()`→`onClose` focuses the editor root; the prior
+- [x] **A5 — Esc loses the caret.** `close()`→`onClose` focuses the editor root; the prior
       selection isn't snapshotted/restored (`search-state.svelte.ts:75-79`, `Editor.svelte` onClose).
       Fix: snapshot the selection on open, restore on close.
-- [ ] **A6 — image resize overlay doesn't reposition when switching directly between two images.**
+- [x] **A6 — image resize overlay doesn't reposition when switching directly between two images.**
       `syncOverlayToWidget.update()` (`components/image/image-edit-commit.ts:193-228`) only re-runs on
       `edit`/`resize`/`load`/`error` + ResizeObserver — not on a selection change; the enclosing
       `$effect` (`ImageOverlayHost.svelte:64`) doesn't read the selection, so A→B switch leaves the
       resize-handle box on A until the next edit. Fix: trigger `update()` on widget-selection change
       (or key the overlay div on selection identity, as the properties popover already does at :89).
-- [ ] **A2 — next/prev doesn't scroll a mounted-but-offscreen match.** `revealPath`→
+- [x] **A2 — next/prev doesn't scroll a mounted-but-offscreen match.** `revealPath`→
       `revealChildOrWait` only scrolls when the target block is _unmounted_ (windowed out); a match in
       a mounted-but-scrolled-out block updates count+highlight without scrolling. Fix: after reveal
       resolves, `scrollIntoView({block:'nearest'})` on the active match's block. _(Touches reveal
@@ -183,16 +183,16 @@ to factories). Findings:
 
 ### Needs owner decision
 
-- [?] **B1 — search bar is a floating top-right overlay** (`SearchBar.svelte:132-145`, no
-  `max-width`) that can cover top-right content/matches. Float (compact) vs dock (no overlap,
-  costs vertical space)? Recommendation: keep floating, ensure A1/A2 scroll the match clear of
-  the bar.
-- [?] **B2 — reorder discoverability.** Drag handle is hover-only + `aria-hidden`
-  (`BlockDragHandle.svelte`); Alt+↑/↓ keyboard reorder has no in-product hint. Persistent faint
-  handle? tooltip? docs-only?
-- [?] **B3 — table row/col ops are keyboard-only** (zero `<button>`/aria in
-  `components/blocks/table/`). Add hover insert/delete affordances, or keep keyboard-only +
-  document the chords?
+- [x] **B1 — search bar is a floating top-right overlay** (`SearchBar.svelte:132-145`, no
+      `max-width`) that can cover top-right content/matches. Float (compact) vs dock (no overlap,
+      costs vertical space)? Recommendation: keep floating, ensure A1/A2 scroll the match clear of
+      the bar.
+- [x] **B2 — reorder discoverability.** Drag handle is hover-only + `aria-hidden`
+      (`BlockDragHandle.svelte`); Alt+↑/↓ keyboard reorder has no in-product hint. Persistent faint
+      handle? tooltip? docs-only?
+- [x] **B3 — table row/col ops are keyboard-only** (zero `<button>`/aria in
+      `components/blocks/table/`). Decision: keyboard-only + chords documented now; hover
+      insert/delete affordances **relocated to `docs/roadmap.md`** (feature, feedback-driven).
 
 ---
 
@@ -219,7 +219,7 @@ to factories). Findings:
 ## Resolution (2026-06-24)
 
 Worked through to completion this pass (commits on `main`). This section is the authoritative
-status; inline `[ ]` boxes above may lag.
+status (the inline boxes above are reconciled to it).
 
 ### Fixed + committed
 
@@ -241,7 +241,7 @@ status; inline `[ ]` boxes above may lag.
   (table hover affordances stay roadmapped).
 
 Verified: `npm run check` 0 errors · `npm run test:editor` 2393 pass / 1 skip · `npm run lint`
-clean · `e2e-search` 23/23 · `e2e-blocks/image` 84/84 · full `npm run test:e2e` run post-fix.
+clean · full `npm run test:e2e` 897 pass · `npm run test:editor:perf` 80 pass.
 
 ### Not a bug (re-verified, unchanged)
 
@@ -258,13 +258,23 @@ clean · `e2e-search` 23/23 · `e2e-blocks/image` 84/84 · full `npm run test:e2
 - **Theme 8** — delete-last-row/col focus regression tests **added** (`e2e/.../table/shortcuts.spec.ts`),
   proven to discriminate the fix via a revert-check (reverting → focus on `<body>`, count 0).
 
-### Still deferred
+### Closed out (gaps tackled on a second review)
 
-- **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — cosmetic dead-code; left.
-- **Theme 8 (now guarded by a unit test, not e2e)** — Shift+Arrow into a non-image inline widget:
-  a browser e2e **can't** discriminate the `isInlineWidget` fix (Chromium's native Shift+Arrow
-  already straddles the `contenteditable=false` `<br>` island, yielding the same range the painter
-  tints), so it only changes behavior at the jsdom/unit level. Guarded there by
-  `test/blocks/text/widget-shift-arrow.test.ts` (revert-checked: fails when the filter reverts to
-  `kind === 'image'`).
-- **B3** table hover insert/delete affordances (owner: roadmapped after the table-row drag handle).
+- **Theme 4** `cursor/widget-offset.ts:112` unreachable `exact` fallback — **removed** (the
+  variable was only ever assigned-then-returned inside `visit`, so the outer fallback was dead).
+- **Theme 6** version-noise comments — **trimmed** in `round-trip.test.ts`, `links-reference.test.ts`,
+  and `typing-latency.perf.spec.ts` (kept the load-bearing why).
+
+### Relocated (not a code fix)
+
+- **B3** table hover insert/delete affordances → `docs/roadmap.md` (feature, feedback-driven).
+- **Pre-existing known limitations** the docs referenced through a dangling `docs/issues.md` — that
+  file was missing (a doc-drift gap this review's Pass 2 should have caught). Now created with the
+  four open editor limitations: off-window table highlight re-measure, HTML-entity literal rendering
+  (Target 1.2), table-cell `<br>` literal rendering, and off-window cross-block-extend reveal.
+
+### Still open (guarded / accepted)
+
+- **Theme 8** Shift+Arrow into a non-image inline widget — not browser-testable (Chromium's native
+  Shift+Arrow already straddles the `contenteditable=false` `<br>` island), so it's guarded at the
+  unit level by `test/blocks/text/widget-shift-arrow.test.ts` (revert-checked). The fix stands.
