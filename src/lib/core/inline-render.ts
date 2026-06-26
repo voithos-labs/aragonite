@@ -17,7 +17,6 @@ export interface RenderInlineOptions {
 	resolveImageUrl?: (rawUrl: string) => string;
 	/** Render-time href rewrite for links/autolinks (default identity). */
 	resolveLinkUrl?: (rawUrl: string) => string;
-	paragraphPath?: number[];
 	/** Whether remote images auto-load (default) or defer to a placeholder. */
 	imageLoadPolicy?: ImageLoadPolicy;
 	/**
@@ -29,7 +28,6 @@ export interface RenderInlineOptions {
 		raw: string,
 		opts: {
 			resolveImageUrl: (rawUrl: string) => string;
-			paragraphPath: number[];
 			imageLoadPolicy: ImageLoadPolicy;
 		}
 	) => Node;
@@ -201,7 +199,6 @@ export function renderInlineNodes(
 					frag.appendChild(
 						opts.buildImageWidget(node, raw, {
 							resolveImageUrl: resolveUrl,
-							paragraphPath: opts.paragraphPath ?? [],
 							imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
 						})
 					);
