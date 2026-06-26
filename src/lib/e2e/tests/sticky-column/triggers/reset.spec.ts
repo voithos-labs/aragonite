@@ -11,14 +11,24 @@ test.describe('sticky column: reset triggers', () => {
 		await editor.goto();
 	});
 
-	async function setupHighColumn() {
+	// Returns the document's left text column X (caret at offset 0, measured on a
+	// non-empty paragraph), the column a sticky-reset landing must snap back to. The
+	// trailing paragraph guarantees a downward move out of para3 lands in a real
+	// block instead of the past-end paragraph-append (which leaves a degenerate caret
+	// whose getClientRects collapses to x≈0).
+	async function setupHighColumn(): Promise<number> {
 		await editor.loadContent(
-			'A long first paragraph with enough text to have a high-column position.\n\nShort.\n\nAnother long paragraph to test landing at the original column.\n'
+			'A long first paragraph with enough text to have a high-column position.\n\n' +
+				'Short.\n\n' +
+				'Another long paragraph to test landing at the original column.\n\n' +
+				'A trailing paragraph so a downward move always lands in a real block.\n'
 		);
 		const first = editor.page.locator('[contenteditable="true"]').nth(0);
 		await first.click();
 		await editor.page.keyboard.press('Home');
+		const baseColumnX = await editor.getCaretPixelX();
 		for (let i = 0; i < 30; i++) await editor.page.keyboard.press('ArrowRight');
+		return baseColumnX;
 	}
 
 	test('typing resets sticky column', async () => {
@@ -73,22 +83,20 @@ test.describe('sticky column: reset triggers', () => {
 	});
 
 	test('ArrowRight resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
+		const baseColumnX = await setupHighColumn();
+		await editor.page.keyboard.press('ArrowDown'); // high sticky X clamps onto the short line
 		await editor.waitForRenderFlush();
 
-		await editor.page.keyboard.press('ArrowRight');
+		await editor.page.keyboard.press('ArrowRight'); // must reset the sticky column
 		await editor.waitForRenderFlush();
 
-		const postRightX = await editor.getCaretPixelX();
-
-		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown'); // lands at the reset column, not the high one
 		await editor.waitForRenderFlush();
 
+		// Sticky reset → the downward move lands back at the document's left column.
+		// Were it NOT reset, it would land ~280px in, at the remembered high column.
 		const targetX = await editor.getCaretPixelX();
-		// *4 not *3: proportional-font char snap gap after ArrowRight lands at offset 1 of "Short.".
-		// (If sticky weren't reset, the gap would be ~200px, not ~17px.)
-		expect(Math.abs(targetX - postRightX)).toBeLessThan(PIXEL_TOLERANCE * 4);
+		expect(Math.abs(targetX - baseColumnX)).toBeLessThan(PIXEL_TOLERANCE * 2);
 	});
 
 	test('End resets sticky column', async () => {
@@ -109,20 +117,21 @@ test.describe('sticky column: reset triggers', () => {
 	});
 
 	test('Enter (split) resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
+		const baseColumnX = await setupHighColumn();
+		await editor.page.keyboard.press('ArrowDown'); // high sticky X clamps onto the short line
 		await editor.waitForRenderFlush();
 
-		await editor.page.keyboard.press('Enter');
+		await editor.page.keyboard.press('Enter'); // split must reset the sticky column
 		await editor.waitForRenderFlush();
 
-		const postEnterX = await editor.getCaretPixelX();
-
-		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown'); // lands at the reset column, not the high one
 		await editor.waitForRenderFlush();
 
+		// The post-Enter caret sits in the new empty paragraph (no client rect → x≈0),
+		// so assert the downward landing against the reliably-measured left column
+		// rather than that degenerate reference. Reset → ~0 gap; no reset → ~280.
 		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - postEnterX)).toBeLessThan(PIXEL_TOLERANCE * 5);
+		expect(Math.abs(targetX - baseColumnX)).toBeLessThan(PIXEL_TOLERANCE * 2);
 	});
 
 	test('undo resets sticky column', async () => {
