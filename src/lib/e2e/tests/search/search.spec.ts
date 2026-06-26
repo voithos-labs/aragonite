@@ -393,6 +393,60 @@ test.describe('search — edit while open', () => {
 	});
 });
 
+test.describe('search — bar stays pinned', () => {
+	// Regression: the bar was absolutely positioned inside the scroll container, so
+	// navigating to an off-screen match scrolled it out of view. A zero-height
+	// sticky anchor now pins it to the scrollport top.
+	test('the bar remains in the editor viewport after Next scrolls to an off-screen match', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		// Needle at the top and far below; filler between forces a scroll when
+		// navigating from the first match to the second.
+		const filler = Array.from({ length: 80 }, (_, i) => `filler paragraph ${i}`).join('\n\n');
+		await editor.loadContent(`needle top\n\n${filler}\n\nneedle bottom\n`);
+
+		await openFind(editor);
+		await typeQuery(editor, 'needle');
+		await expect(count(page)).toHaveText(/1\s*\/\s*2/);
+
+		const barPlacement = () =>
+			page.evaluate(() => {
+				const ed = document.querySelector('.editor')!.getBoundingClientRect();
+				const bar = document.querySelector('.search-bar')?.getBoundingClientRect();
+				if (!bar) return null;
+				return {
+					pinnedToTop: bar.top >= ed.top - 2,
+					inViewport: bar.bottom > ed.top && bar.top < ed.bottom,
+					barTop: Math.round(bar.top),
+					edTop: Math.round(ed.top)
+				};
+			});
+
+		const before = await barPlacement();
+		expect(before, 'search bar must exist').not.toBeNull();
+		expect(before!.pinnedToTop && before!.inViewport).toBe(true);
+
+		// Navigate to the off-screen match; the editor scrolls down to reveal it.
+		await page.getByRole('button', { name: 'Next match' }).click();
+		await expect(count(page)).toHaveText(/2\s*\/\s*2/);
+		// Guard against a vacuous pass: if a future viewport change stops the doc
+		// from overflowing, Next scrolls nothing and "bar stayed at top" is trivially
+		// true. Assert the reveal actually scrolled the editor.
+		await expect
+			.poll(() => page.evaluate(() => document.querySelector('.editor')!.scrollTop))
+			.toBeGreaterThan(0);
+		await expect.poll(async () => (await barPlacement())?.inViewport).toBe(true);
+
+		const after = await barPlacement();
+		expect(
+			after!.pinnedToTop,
+			`bar.top=${after!.barTop} drifted from editor.top=${after!.edTop} — it scrolled away`
+		).toBe(true);
+	});
+});
+
 test.describe('search — off-window reveal', () => {
 	test('navigating to an off-window match scrolls its block into view', async ({ page }) => {
 		const pageErrors: string[] = [];
