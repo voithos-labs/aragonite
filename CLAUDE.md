@@ -114,8 +114,8 @@ Commit gate: `npm test` (full unit + every e2e project, incl. simulation) + `npm
 
 ### Testing
 
-Tests must catch regressions. Ask: "if someone broke this, would this test catch it?"
+Tests must catch regressions. Ask: "if someone broke this, would this test catch it?" Fix bugs test-first where you can, so each fix lands as a permanent regression guard.
 
 ### Style / review
 
-Follow the forge-\* conventions (style, docs, tests, review) where the toolchain provides them. Root-cause bugs before fixing. After a major change, run a review pass.
+Follow the forge-\* conventions (style, docs, tests, review) where the toolchain provides them. Root-cause bugs before fixing — invoke systematic-debugging, fix the underlying class of problem, never patch around a bug or edge case with a one-off hack. After a major change, run a review pass.
