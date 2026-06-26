@@ -77,4 +77,33 @@ describe('buildTaskItemAmbient', () => {
 		expect(result.interactive?.[0].start).toBe(3);
 		expect(result.interactive?.[0].end).toBe(6);
 	});
+
+	it.each([
+		['[x] ', true],
+		['[ ] ', false],
+		['[X] ', true]
+	])('derives ariaChecked from the marker %s', (taskMarker, expected) => {
+		const result = buildTaskItemAmbient(taskMeta({ taskMarker }), vi.fn());
+		if (typeof result === 'string') throw new Error('expected object');
+		expect(result.interactive?.[0].ariaChecked).toBe(expected);
+	});
+
+	// Desync-proofing: ariaChecked follows the keyed marker, never the parallel taskChecked field.
+	it('ignores a stale taskChecked when the marker says checked', () => {
+		const result = buildTaskItemAmbient(
+			taskMeta({ taskMarker: '[x] ', taskChecked: false }),
+			vi.fn()
+		);
+		if (typeof result === 'string') throw new Error('expected object');
+		expect(result.interactive?.[0].ariaChecked).toBe(true);
+	});
+
+	it('ignores a stale taskChecked when the marker says unchecked', () => {
+		const result = buildTaskItemAmbient(
+			taskMeta({ taskMarker: '[ ] ', taskChecked: true }),
+			vi.fn()
+		);
+		if (typeof result === 'string') throw new Error('expected object');
+		expect(result.interactive?.[0].ariaChecked).toBe(false);
+	});
 });
