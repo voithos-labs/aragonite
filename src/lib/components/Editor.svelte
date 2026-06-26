@@ -846,7 +846,7 @@
 	   should feel like a document, not a pile of blocks). Added/removed by
 	   editor-actions/reorder-drag.ts. */
 	:global(.reorder-scope) {
-		background: var(--reorder-scope-bg, rgba(128, 128, 128, 0.06));
+		background: var(--reorder-scope-bg, rgba(100, 150, 255, 0.14));
 		border-radius: 4px;
 		transition: background-color 0.12s ease;
 	}
