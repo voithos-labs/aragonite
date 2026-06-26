@@ -78,6 +78,10 @@ function startSession(
 		? '.list-item-block'
 		: '.block-host';
 	const label = ghostLabel(dragHost);
+	// The container this unit reorders within (null for a top-level block, whose
+	// scope IS the document). Marked for the drag's duration so the scope-locked
+	// reorder reads as "reorder within this list/quote" rather than broken.
+	const scopeEl = dragHost.closest('.list-block, .blockquote-block') as HTMLElement | null;
 
 	let pending: { clientX: number; clientY: number } | null = null;
 	let rafId: number | null = null;
@@ -152,6 +156,7 @@ function startSession(
 		if (rafId !== null) cancelAnimationFrame(rafId);
 		autoScroll.dispose();
 		document.body.style.userSelect = '';
+		scopeEl?.classList.remove('reorder-scope');
 		ctx.overlay.setGhost(null);
 		ctx.overlay.setLine(null);
 		pending = null;
@@ -182,6 +187,7 @@ function startSession(
 	return {
 		begin(e: PointerEvent) {
 			document.body.style.userSelect = 'none';
+			scopeEl?.classList.add('reorder-scope');
 			document.addEventListener('pointermove', onMove);
 			document.addEventListener('pointerup', onUp);
 			document.addEventListener('pointercancel', onCancel);
