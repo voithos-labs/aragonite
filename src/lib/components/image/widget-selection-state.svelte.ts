@@ -2,6 +2,13 @@
 // selection; `select` fires `onSelect` so the editor shell can clear the others.
 
 export interface WidgetTarget {
+	// Frozen at selection time on purpose — a popover commit (URL/alt/title) must
+	// target the image the popover opened on, not the live selection (see
+	// image-edit-commit's commitImageEdit). Unlike the click path (widget-dom.ts),
+	// which resolves the path live, this is a deliberate snapshot. Safe to hold
+	// because widget selection is cleared on every structural edit and navigation
+	// (the .clear() calls in ImageOverlayHost / widget-interaction), so it can
+	// never outlive a structural shift of its own path.
 	paragraphPath: number[];
 	sourceStart: number;
 	// Raw offset the caret occupied just before widget selection took over.
