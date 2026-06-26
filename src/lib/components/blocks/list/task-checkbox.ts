@@ -2,6 +2,11 @@ import type { AmbientPrefix } from '../../../block-component';
 import type { ListItemMetadata } from '../../../core/nodes';
 import { devWarn } from '../../../dev-warn';
 
+function isTaskMarkerChecked(taskMarker: string): boolean {
+	const c = taskMarker[1];
+	return c === 'x' || c === 'X';
+}
+
 export function buildTaskItemAmbient(
 	metadata: ListItemMetadata | undefined,
 	onToggle: () => void
@@ -29,7 +34,8 @@ export function buildTaskItemAmbient(
 				end: boxStart + 3,
 				className: 'task-checkbox',
 				role: 'checkbox',
-				ariaChecked: metadata.taskChecked,
+				// single source of truth: derive from the keyed marker (in the render memo key), not parallel taskChecked
+				ariaChecked: isTaskMarkerChecked(metadata.taskMarker),
 				onClick: onToggle
 			}
 		]
