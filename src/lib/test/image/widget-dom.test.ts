@@ -17,7 +17,6 @@ function imageNode(): InlineNode {
 function build(node: InlineNode, brokenUrlCache: Set<string>): HTMLElement {
 	return buildImageWidget(node, raw, {
 		resolveImageUrl: (u) => u,
-		paragraphPath: [],
 		imageLoadPolicy: 'auto',
 		brokenUrlCache
 	});
