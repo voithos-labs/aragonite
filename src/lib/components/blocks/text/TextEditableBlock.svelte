@@ -260,9 +260,6 @@
 		get imageLoadPolicy() {
 			return imageLoadPolicy();
 		},
-		get myPath() {
-			return myPath;
-		},
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
