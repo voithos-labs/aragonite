@@ -34,9 +34,10 @@ export interface TextRenderDeps {
 export interface TextRender {
 	/**
 	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw, ref-signature) nor `forceRebuild` demands
-	 * it. Pass `forceRebuild` when a pending cursor restoration needs the DOM
-	 * positions re-anchored even though the rendered key is unchanged.
+	 * neither (ambientPrefixText, raw, ref-signature, image-policy) nor
+	 * `forceRebuild` demands it. Pass `forceRebuild` when a pending cursor
+	 * restoration needs the DOM positions re-anchored even though the rendered
+	 * key is unchanged.
 	 */
 	render(opts?: { forceRebuild?: boolean }): void;
 }
@@ -98,7 +99,12 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// whole document.
 		const hasRef = node.raw.includes('[');
 		const refKeyPart = hasRef ? deps.linkSignature : '';
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}`;
+		// The built widget bakes in imageLoadPolicy (placeholder class / src), so the
+		// key must track it — but only for blocks with an image, so image-free blocks
+		// neither subscribe to policy changes nor rebuild when the policy flips.
+		const hasImg = node.raw.includes('![');
+		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 
 		if (isProseKind(node.kind)) {
