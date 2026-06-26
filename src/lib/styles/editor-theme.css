@@ -86,6 +86,10 @@
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	--md-reorder-indicator: #6496ff;
+	/* Wash on the container being reordered within during a nested drag. Tinted with
+	   the reorder accent (not neutral grey) so the hue + lightness shift stays
+	   perceptible for low-contrast vision, while remaining a soft transient wash. */
+	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	--syntax-marker-dim: 0.4;
 
 	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
