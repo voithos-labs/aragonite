@@ -1628,3 +1628,89 @@ test("undo fires after the caret's block is windowed out (F2)", async ({ page })
 	expect(await editor.bridge.getSource()).not.toContain('WINDOWED_MARK');
 	expect(pageErrors).toEqual([]);
 });
+
+// F7: reordering a list item that is BELOW the viewport top must not drift the
+// scroll. The list scope's structural anchor correction (correctAnchorByStableId)
+// runs on the reorder's model rebuild; when the scope has no content scrolled
+// above the viewport top (localScrollTop === 0) it would FOLLOW the relocated
+// anchor block and shift the shared scrollTop. One Alt+Up + Alt+Down is a no-op,
+// so scrollTop must return to baseline. Different item heights make the buggy
+// per-press shift asymmetric (≈+135px/cycle pre-fix).
+test('reordering a list item below the fold does not drift scrollTop (F7)', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto();
+
+	// Filler above AND below so the list sits mid-document with room to drift either
+	// way (not clamped at a scroll boundary). ALPHA is deliberately tall (wraps over
+	// several lines), BETA short — so the anchor-follow delta is non-zero/asymmetric.
+	const pre = Array.from({ length: 60 }, (_, i) => `pre filler ${i}`).join('\n\n');
+	const post = Array.from({ length: 60 }, (_, i) => `post filler ${i}`).join('\n\n');
+	const tall = `ZALPHAITEM ${'word '.repeat(40)}`.trim();
+	const list = `1. ${tall}\n2. ZBETAITEM\n`;
+	await editor.loadContent(`${pre}\n\n${list}\n${post}\n`);
+
+	// Content offset of the first mounted host containing `text`, or null if not mounted.
+	const offsetOf = (text: string) =>
+		page.evaluate((t) => {
+			const ed = document.querySelector('.editor') as HTMLElement;
+			const host = [...document.querySelectorAll('[data-block-path]')].find((h) =>
+				(h.textContent || '').includes(t)
+			);
+			if (!host) return null;
+			return host.getBoundingClientRect().top - ed.getBoundingClientRect().top + ed.scrollTop;
+		}, text);
+
+	// Scroll until the list mounts (it may window out at first), then position its
+	// top ~250px below the editor's viewport top, so the list scope's
+	// localScrollTop is 0 — the condition that triggered the bug.
+	let alphaOffset: number | null = null;
+	for (let step = 0; step < 80 && alphaOffset === null; step++) {
+		alphaOffset = await offsetOf('ZALPHAITEM');
+		if (alphaOffset === null) {
+			const top = await page.evaluate(() => {
+				const ed = document.querySelector('.editor') as HTMLElement;
+				return ed.scrollTop + ed.clientHeight * 0.7;
+			});
+			await editor.scrollEditorTo(top);
+		}
+	}
+	expect(alphaOffset).not.toBeNull();
+	await editor.scrollEditorTo(Math.round(alphaOffset! - 250));
+
+	// Caret in the SECOND (BETA) item, then take the baseline AFTER the click so any
+	// click-induced scroll is absorbed into the baseline.
+	await page.locator('[contenteditable="true"]', { hasText: 'ZBETAITEM' }).click();
+	await editor.waitForRenderFlush();
+
+	// The alpha host's top relative to the editor's viewport top = contentOffset − scrollTop.
+	const listTopRel = (await offsetOf('ZALPHAITEM'))! - (await scrollTopOf(page));
+	// Precondition: the list's top is below the viewport top — i.e. localScrollTop===0
+	// for the list scope. Without this the test can't reach the buggy branch.
+	expect(listTopRel, 'list must sit below the viewport top (localScrollTop===0)').toBeGreaterThan(
+		50
+	);
+
+	const baseline = await scrollTopOf(page);
+
+	// Alt+Up moves BETA to index 0; the ordered markers renumber, so order is observable
+	// through the serialized source.
+	await page.keyboard.press('Alt+ArrowUp');
+	await editor.bridge.waitForSourceMatches(/ZBETAITEM[\s\S]*ZALPHAITEM/);
+
+	// Alt+Down moves it back — structurally identical to the start.
+	await page.keyboard.press('Alt+ArrowDown');
+	await editor.bridge.waitForSourceMatches(/ZALPHAITEM[\s\S]*ZBETAITEM/);
+	await editor.waitForRenderFlush();
+
+	const after = await scrollTopOf(page);
+	expect(
+		Math.abs(after - baseline),
+		`scrollTop drifted ${after - baseline}px over one no-op reorder cycle`
+	).toBeLessThan(3);
+	expect(pageErrors).toEqual([]);
+});
+
+function scrollTopOf(page: Page): Promise<number> {
+	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
+}
