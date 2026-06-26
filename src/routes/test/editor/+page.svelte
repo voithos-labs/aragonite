@@ -13,13 +13,23 @@
 
 	let source = $state(SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
-	let editor: ReturnType<typeof Editor>;
+	// $state so the {#key} remount on toggle re-points the test probes and debug
+	// panel at the new editor instance (bind:this reassigns it).
+	let editor = $state<ReturnType<typeof Editor>>();
 
-	// Test-only set-once toggle: `?dragHandles=false` mounts the editor with the
-	// hover drag handle disabled so the reorder-handle e2e can cover the off path.
-	const blockDragHandles =
+	// `?dragHandles=false` starts with the hover drag handle disabled (the
+	// reorder-handle e2e covers the off path). The header checkbox flips it live;
+	// since blockDragHandles is set-once-at-mount, the toggle remounts the editor
+	// via {#key} (carrying the live content across so edits survive).
+	let dragHandlesOn = $state(
 		typeof window === 'undefined' ||
-		new URLSearchParams(window.location.search).get('dragHandles') !== 'false';
+			new URLSearchParams(window.location.search).get('dragHandles') !== 'false'
+	);
+
+	function toggleDragHandles() {
+		if (editor) source = editor.getSource();
+		dragHandlesOn = !dragHandlesOn;
+	}
 
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
 	// editor ops (via the ops-log subscriber) AND native DOM selection changes
@@ -60,6 +70,7 @@
 	});
 
 	$effect(() => {
+		if (!editor) return;
 		installTestProbes({
 			editor,
 			setSource: (md) => {
@@ -74,21 +85,29 @@
 
 <div class="test-harness aragonite-editor-theme">
 	<header class="demo-header">
-		<h1 class="demo-title">aragonite</h1>
-		<p class="demo-note">
-			Live demo of the CST block editor. The debug panel on the right inspects the syntax tree,
-			selection, undo stack, and operations log as you type.
-		</p>
+		<div class="demo-heading">
+			<h1 class="demo-title">aragonite</h1>
+			<p class="demo-note">
+				Live demo of the CST block editor. The debug panel on the right inspects the syntax tree,
+				selection, undo stack, and operations log as you type.
+			</p>
+		</div>
+		<label class="demo-toggle">
+			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
+			Drag handles
+		</label>
 	</header>
 	<div class="demo-body">
 		<div class="editor-slot">
-			<Editor
-				bind:this={editor}
-				{source}
-				{blockDragHandles}
-				{keybindings}
-				theme={$currentThemeType}
-			/>
+			{#key dragHandlesOn}
+				<Editor
+					bind:this={editor}
+					{source}
+					blockDragHandles={dragHandlesOn}
+					{keybindings}
+					theme={$currentThemeType}
+				/>
+			{/key}
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
@@ -137,8 +156,31 @@
 	}
 	.demo-header {
 		flex: 0 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
 		padding: 0.75rem 1rem;
 		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+	}
+	.demo-heading {
+		min-width: 0;
+	}
+	.demo-toggle {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.85rem;
+		font-family: var(--font-editor, ui-monospace, monospace);
+		color: var(--color-text-secondary, #888);
+		cursor: pointer;
+		user-select: none;
+		white-space: nowrap;
+	}
+	.demo-toggle input {
+		cursor: pointer;
+		margin: 0;
 	}
 	.demo-title {
 		margin: 0;
