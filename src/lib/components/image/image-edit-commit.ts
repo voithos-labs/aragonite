@@ -74,8 +74,12 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
 		if (!root) return null;
-		return root.querySelector(
-			`[data-image-widget][data-source-start="${sourceStart}"][data-paragraph-path="${paragraphPath.join(',')}"]`
+		// Locate the widget by its live block-host path (kept in sync) rather than
+		// a baked path attribute on the widget — see widget-dom.ts's pointerdown.
+		const host = root.querySelector(`[data-block-path='${JSON.stringify(paragraphPath)}']`);
+		if (!host) return null;
+		return host.querySelector(
+			`[data-image-widget][data-source-start="${sourceStart}"]`
 		) as HTMLElement | null;
 	}
 

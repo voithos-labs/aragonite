@@ -5,10 +5,10 @@
 import type { InlineNode } from '../../core/nodes';
 import type { ImageLoadPolicy } from '../../core/inline-render';
 import { isAllowedImageSrcScheme } from '../../core/url-policy';
+import { findBlockPathForElement } from '../../selection/path-lookup';
 
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
-	paragraphPath: number[];
 	imageLoadPolicy?: ImageLoadPolicy;
 	/**
 	 * Resolved URLs that failed to load this session, scoped per editor instance.
@@ -33,18 +33,25 @@ export function buildImageWidget(
 	widget.dataset.imageWidget = '';
 	widget.dataset.sourceStart = String(node.start);
 	widget.dataset.sourceEnd = String(node.end);
-	widget.dataset.paragraphPath = opts.paragraphPath.join(',');
 	widget.setAttribute('contenteditable', 'false');
 
 	widget.addEventListener('pointerdown', (e) => {
 		e.stopPropagation();
+		// Resolve the paragraph path live from the enclosing block-host instead
+		// of baking it at build time. A block's path shifts whenever content is
+		// inserted/removed above it — its `raw` (and so this widget's DOM) is
+		// untouched, so the render memo skips a rebuild and a baked path would go
+		// stale, making click-to-select resolve the wrong CST node. The host's
+		// `data-block-path` is kept reactively in sync.
+		const paragraphPath = findBlockPathForElement(widget);
+		if (!paragraphPath) return;
 		// Click-snap consistently lands the caret at the widget's right
 		// edge (see TextEditableBlock.snapClickToWidgetEdge) — match that
 		// for the undo anchor so Ctrl+Z restores the click's visual landing.
 		const event = new CustomEvent('image-widget-select', {
 			bubbles: true,
 			detail: {
-				paragraphPath: [...opts.paragraphPath],
+				paragraphPath,
 				sourceStart: node.start,
 				preSelectOffset: node.end
 			}

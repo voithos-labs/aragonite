@@ -26,7 +26,6 @@ export interface TextRenderDeps {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	get imageLoadPolicy(): ImageLoadPolicy;
-	get myPath(): number[];
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
 	brokenUrlCache: Set<string>;
@@ -75,7 +74,6 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				resolveImageUrl: deps.resolveImageUrl,
 				resolveLinkUrl: deps.resolveLinkUrl,
 				imageLoadPolicy: deps.imageLoadPolicy,
-				paragraphPath: deps.myPath,
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache })
 			})
