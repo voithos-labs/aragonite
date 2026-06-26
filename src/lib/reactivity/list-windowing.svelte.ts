@@ -138,10 +138,19 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// itself was deleted (not found), skip — there is no surviving block to hold the line.
 	function correctAnchorByStableId(mutate: () => void): void {
 		const scrollEl = deps.getScrollEl();
-		const anchorIndex = model.indexAtOffset(localScrollTop());
+		const lst = localScrollTop();
+		const anchorIndex = model.indexAtOffset(lst);
 		const before = model.offsetOf(anchorIndex);
 		const anchorId = modelChildIds[anchorIndex];
 		mutate();
+		// When this scope has nothing scrolled above the viewport top (lst === 0), the
+		// top-of-viewport block belongs to an ancestor scope, not this one — there is no
+		// local anchor to hold. A nonzero delta here can only come from the anchor block
+		// being relocated WITHIN this scope (a sibling reorder, or a new first child), and
+		// following it would shift the shared scrollTop spuriously (the reorder scroll-drift
+		// bug). The numeric correctAnchor needs no such guard: it measures offsetOf(the same
+		// index), which is 0 at lst === 0 regardless of relocation.
+		if (lst === 0) return;
 		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
 		const delta = model.offsetOf(newIndex) - before;
