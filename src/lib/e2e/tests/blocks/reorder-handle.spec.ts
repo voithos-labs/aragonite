@@ -27,6 +27,111 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
+	// Reachability: the prior tests only hover the block CENTER, so they pass even
+	// when the handle is unreachable. A real user moves the pointer from the block
+	// onto the handle — crossing the margin between them. If that margin isn't part
+	// of the hover region, the handle hides mid-move and, being pointer-events:none
+	// once hidden, can never re-catch the pointer (the reported deadlock).
+	test('the revealed handle stays reachable as the pointer moves onto it', async ({ page }) => {
+		await editor.loadContent('plain paragraph here\n\nsecond block\n');
+		const top = page.locator('.block-host', { hasText: 'plain paragraph' }).last();
+		const handle = top.locator('.block-drag-handle');
+
+		await top.hover();
+		await expect(handle).toHaveCSS('opacity', '1');
+
+		const box = (await handle.boundingBox())!;
+		const cx = box.x + box.width / 2;
+		const cy = box.y + box.height / 2;
+		const blockBox = (await top.boundingBox())!;
+
+		// Start over the block body, then glide LEFT onto the handle, continuously.
+		await page.mouse.move(blockBox.x + 100, cy);
+		await page.mouse.move(cx, cy, { steps: 15 });
+
+		await expect(handle).toHaveCSS('opacity', '1');
+		const hitsHandle = await page.evaluate(
+			([x, y]) => !!document.elementFromPoint(x, y)?.closest('.block-drag-handle'),
+			[cx, cy]
+		);
+		expect(hitsHandle, 'pointer over the handle must resolve TO the handle (hittable)').toBe(true);
+	});
+
+	// Clipping: on an unindented top-level block the only left margin is the editor's
+	// own padding; the handle must fit inside it, not poke behind the border (which
+	// overflow-x:auto clips).
+	test('an unindented top-level handle is not clipped behind the editor border', async ({
+		page
+	}) => {
+		await editor.loadContent('plain paragraph here\n\nsecond block\n');
+		const top = page.locator('.block-host', { hasText: 'plain paragraph' }).last();
+		const handle = top.locator('.block-drag-handle');
+
+		await top.hover();
+		await expect(handle).toHaveCSS('opacity', '1');
+
+		const innerLeft = await page.evaluate(() => {
+			const ed = document.querySelector('.editor') as HTMLElement;
+			return ed.getBoundingClientRect().left + ed.clientLeft; // just inside the border
+		});
+		const box = (await handle.boundingBox())!;
+		expect(box.x, 'handle left edge must sit inside the editor border').toBeGreaterThanOrEqual(
+			innerLeft
+		);
+	});
+
+	// Tall blocks: the handle hit area must span the block's full height, not just a
+	// dots-tall sliver at the top — otherwise approaching it at mid-height (the
+	// natural move for a tall code block) leaves the block, hides the handle, and
+	// strands it (pointer-events:none). Mid-height is the reachability axis the
+	// earlier test (which moves to the handle's own center) doesn't isolate.
+	test('a tall block handle is reachable when approached at mid-height', async ({ page }) => {
+		await editor.loadContent('```js\nline one\nline two\nline three\nline four\n```\n\ntail\n');
+		const code = page.locator('.block-host[data-block-kind="fencedCode"]').first();
+		const handle = code.locator('.block-drag-handle');
+
+		await code.hover();
+		await expect(handle).toHaveCSS('opacity', '1');
+
+		const cb = (await code.boundingBox())!;
+		const midY = cb.y + cb.height / 2;
+		const gutterX = cb.x - 10; // inside the left gutter, beside the block's middle
+
+		await page.mouse.move(cb.x + 80, midY);
+		await page.mouse.move(gutterX, midY, { steps: 12 });
+
+		await expect(handle).toHaveCSS('opacity', '1');
+		const hits = await page.evaluate(
+			([x, y]) => !!document.elementFromPoint(x, y)?.closest('.block-drag-handle'),
+			[gutterX, midY]
+		);
+		expect(hits, 'handle must be hittable in the gutter at mid-height').toBe(true);
+	});
+
+	// Alignment: the grip should sit on the first line of the block, not float above it.
+	test('the handle grip aligns with the first line of a paragraph', async ({ page }) => {
+		await editor.loadContent('A single line paragraph here.\n\ntail\n');
+		const para = page.locator('.block-host[data-block-kind="paragraph"]').first();
+		await para.hover();
+		await expect(para.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
+
+		const delta = await page.evaluate(() => {
+			const host = document.querySelector('.block-host[data-block-kind="paragraph"]')!;
+			const dots = host.querySelector('.dots')!.getBoundingClientRect();
+			const ce = host.querySelector('[contenteditable]') ?? host;
+			const tw = document.createTreeWalker(ce, NodeFilter.SHOW_TEXT);
+			const t = tw.nextNode()!;
+			const range = document.createRange();
+			range.selectNodeContents(t);
+			const line = range.getClientRects()[0];
+			return dots.top + dots.height / 2 - (line.top + line.height / 2);
+		});
+		expect(
+			Math.abs(delta),
+			`grip should align with first-line center (off by ${delta}px)`
+		).toBeLessThanOrEqual(3);
+	});
+
 	test('list item is a reorder unit; its inner paragraph is not (one handle in subtree)', async () => {
 		await editor.loadContent('- one\n\nplain\n');
 		const item = editor.page.locator('.list-item-block', { hasText: 'one' });

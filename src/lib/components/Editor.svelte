@@ -735,6 +735,13 @@
 	role="group"
 	aria-label="Markdown editor"
 >
+	{#if searchBar}
+		<!-- Zero-height sticky anchor: pins the absolutely-positioned bar to the
+		     scrollport top so it doesn't scroll away with content on next/prev. -->
+		<div class="search-anchor">
+			<SearchBar {replaceExpanded} onToggleReplace={() => (replaceExpanded = !replaceExpanded)} />
+		</div>
+	{/if}
 	<BlockList
 		children={doc.children}
 		{blockIds}
@@ -744,9 +751,6 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
-	{#if searchBar}
-		<SearchBar {replaceExpanded} onToggleReplace={() => (replaceExpanded = !replaceExpanded)} />
-	{/if}
 	<ImageOverlayHost
 		{widgetSelection}
 		{controller}
@@ -797,6 +801,15 @@
 		position: relative;
 	}
 
+	/* Sticks to the scrollport top (height:0 reserves no space); the search bar
+	   positions absolutely against it, so it stays put as the editor scrolls. */
+	.search-anchor {
+		position: sticky;
+		top: 0;
+		height: 0;
+		z-index: 5;
+	}
+
 	.editor::-webkit-scrollbar {
 		width: 6px;
 	}
@@ -825,6 +838,17 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 		border: 0;
+	}
+
+	/* Active reorder scope: a nested drag reorders only within its container, so the
+	   container gets a faint, transient wash for the drag's duration — just enough to
+	   read as "reordering within here", deliberately NOT an outline/box (a document
+	   should feel like a document, not a pile of blocks). Added/removed by
+	   editor-actions/reorder-drag.ts. */
+	:global(.reorder-scope) {
+		background: var(--reorder-scope-bg, rgba(128, 128, 128, 0.06));
+		border-radius: 4px;
+		transition: background-color 0.12s ease;
 	}
 
 	/* Drag overlay: viewport-fixed (rects come from getBoundingClientRect /

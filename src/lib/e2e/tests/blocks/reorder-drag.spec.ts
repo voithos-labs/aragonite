@@ -60,6 +60,38 @@ test.describe('drag to reorder', () => {
 		await editor.bridge.waitForSourceMatches(/- two[\s\S]*- three[\s\S]*- one/);
 	});
 
+	// Scope cue: a nested drag reorders only within its container, so the container
+	// is marked (a faint transient cue) for the drag's duration to read as
+	// "reorder within this list" rather than "broken". Cleared on drop.
+	test('a nested drag marks its scope container and clears it on drop', async () => {
+		await editor.loadContent('- one\n- two\n- three\n');
+		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
+
+		const handle = await handleCenter('.list-item-block', 'two');
+		await editor.page.mouse.move(handle.x, handle.y);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(handle.x + 30, handle.y - 24, { steps: 6 });
+
+		await expect(editor.page.locator('.list-block.reorder-scope')).toHaveCount(1);
+
+		await editor.page.mouse.up();
+		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
+	});
+
+	// A top-level drag's scope IS the document — there is no container to mark, so
+	// the cue must not appear (marking the whole editor would be noise).
+	test('a top-level drag marks no scope container', async () => {
+		await editor.loadContent('A\n\nB\n\nC\n');
+		const handle = await handleCenter('.block-host', 'B');
+		await editor.page.mouse.move(handle.x, handle.y);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(handle.x + 30, handle.y - 24, { steps: 6 });
+
+		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
+
+		await editor.page.mouse.up();
+	});
+
 	test('press and release without moving is a no-op (and pushes no undo entry)', async () => {
 		await editor.loadContent('A\n\nB\n\nC\n');
 		const before = await editor.bridge.getSource();
