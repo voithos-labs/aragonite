@@ -9,7 +9,7 @@
 		type BlockSelectionClass
 	} from '../selection/primitives';
 	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
-	import { firstScrollableDescendant, nearestScrollContainer } from '../cursor/scroll-ancestors';
+	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
 		path,
@@ -123,18 +123,8 @@
 			);
 		}
 
-		measure();
-
-		// Block-host wraps a block whose scroll context can be either INSIDE
-		// (table's `.table-block`, code block's contenteditable) or OUTSIDE
-		// (any future block embedded in a scrolling container). Check both;
-		// listen to the inner one when present.
 		const editorRoot = getEditorRoot?.();
-		const scrollEl =
-			firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);
-		if (!scrollEl) return;
-		scrollEl.addEventListener('scroll', measure, { passive: true });
-		return () => scrollEl.removeEventListener('scroll', measure);
+		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
 	});
 </script>
 

@@ -350,6 +350,10 @@
 		return cellEl ? cellEl.getBoundingClientRect() : null;
 	}
 
+	export function mountedRowWindow(): { start: number; end: number } {
+		return { start: win.start, end: win.end };
+	}
+
 	function collectSelectedCells(start: number, end: number): { rowIdx: number; colIdx: number }[] {
 		const anchor = selection?.anchor;
 		const focus = selection?.focus;
