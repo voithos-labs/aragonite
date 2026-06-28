@@ -34,7 +34,7 @@ The load-bearing contract: **the index handed to a block and to every operation 
 
 A per-kind **height oracle** estimates and caches block heights, mirroring the editor's per-kind descriptor pattern. The durable commitment is the interface — an O(1) estimate plus a measured-height cache — not any particular estimator.
 
-- **Estimate — O(1), no subtree walk.** A per-kind heuristic derives a height from the block's materialized `raw` length and the content width. Because container raw is materialized (the container-raw decision, `docs/perf/performance.md`), a container's `raw` already holds all descendant text, so a container estimate is also O(1) — no recursive walk. First layout is O(n) cheap reads, not O(n) tree walks.
+- **Estimate — O(1), no subtree walk.** A per-kind heuristic: prose from `raw` character length and content width; a container from the larger of one line-plus-chrome per child or the blob-wrap of its materialized `raw` (all descendant text), staying O(1) via `children.length` rather than a recursive walk even though container raw holds the whole subtree (the container-raw decision, `docs/perf/performance.md`); an image-bearing block from its image count and `|WxH` size hints, floored where a height isn't given in source. First layout is O(n) cheap reads, not O(n) tree walks.
 - **Measured cache, keyed by stable id.** Once a block mounts, its real height is measured and cached by stable block id — not by index — so split/merge index shifts and undo (which restores ids with the snapshot) do not invalidate it. Measured always supersedes estimate; stale entries self-correct on the next mount.
 - **Cumulative model.** Each activated scope owns a binary-indexed (Fenwick) tree over its children: index → pixel offset, offset → index, and total, all logarithmic. It is instantiated lazily on activation and maintained by the same structural-change flow that already syncs ids and refs, so there is no second bypass surface to keep in sync.
 
@@ -52,7 +52,7 @@ Native browser scroll anchoring is **disabled** (`overflow-anchor: none` on the 
 
 Because native anchoring is off, content that grows _after_ it was first measured — a remote image decoding in, a web font swapping, a lazy embed — would slide the viewport the same way. Each rendered block reports post-mount size changes; a change is gated against the height already recorded for that block (the common no-op resize costs nothing) and genuine growth is re-measured through the same scope-local anchor correction.
 
-The only residual artifact of estimate error is scrollbar-thumb drift — cosmetic, and it shrinks monotonically as heights are measured.
+The residual artifact of estimate error is scrollbar-thumb drift — cosmetic, content-stable (anchor correction holds the viewport; only the thumb-to-content mapping is off), and shrinking monotonically as heights are measured. Its magnitude is bounded by the worst per-kind estimate error; the irreducible cases are blocks whose height is not a function of `raw` — an unsized image before decode, a heavily-wrapping table. A future kind whose rendered height is genuinely unpredictable from source (a Mermaid diagram, a KaTeX render) should model a fixed-height **skeleton placeholder** as its estimate — exact while the skeleton shows, so it adds zero scroll-time error — and let the post-render growth reconcile through the same ResizeObserver + anchor-correction path, confining the change to a single controlled, content-stable swap (self-healing thereafter via the measured cache).
 
 ## Resize and Width Invalidation
 
