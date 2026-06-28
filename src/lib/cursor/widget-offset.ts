@@ -109,6 +109,48 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 	return last;
 }
 
+/**
+ * Atomic inline widgets in `container` whose raw source range intersects
+ * [start, end). A widget contributes 0 chars to textContent, so a range lying
+ * entirely inside one collapses to zero width via `createRangeAtRawOffsets` and
+ * yields no client rect; callers that must cover the widget (search highlight,
+ * cross-block selection) take its bounding box instead. Offsets are the same
+ * ambient-included raw positions `findRawOffsetTarget` walks — text-node lengths
+ * (including marker-span text) plus widget raw lengths — so a widget's position
+ * is the running walk offset, not a naive compare of `data-source-*` against the
+ * ambient-adjusted argument.
+ */
+export function widgetsIntersectingRange(
+	container: HTMLElement,
+	start: number,
+	end: number
+): HTMLElement[] {
+	const out: HTMLElement[] = [];
+	let count = 0;
+	function visit(current: Node): void {
+		if (current.nodeType === Node.TEXT_NODE) {
+			count += current.textContent?.length ?? 0;
+			return;
+		}
+		if (current.nodeType === Node.ELEMENT_NODE) {
+			const el = current as Element;
+			if (el.matches?.(WIDGET_SELECTOR)) {
+				const len = widgetRawLength(el);
+				// Half-open intersection of the widget span [count, count+len) with
+				// the requested [start, end). A zero-length widget can't be covered.
+				if (len > 0 && count < end && start < count + len) {
+					out.push(el as HTMLElement);
+				}
+				count += len;
+				return;
+			}
+			for (const child of current.childNodes) visit(child);
+		}
+	}
+	visit(container);
+	return out;
+}
+
 export function containerRawLength(container: HTMLElement): number {
 	let count = 0;
 	function visit(node: Node): void {
