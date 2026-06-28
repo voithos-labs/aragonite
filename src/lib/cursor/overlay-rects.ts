@@ -4,7 +4,7 @@
  * cross-block selection.
  */
 
-import { createRangeAtRawOffsets } from './widget-offset';
+import { createRangeAtRawOffsets, widgetsIntersectingRange } from './widget-offset';
 
 /**
  * Client rects covering [startOffset, endOffset) within `el`. Offsets are
@@ -20,6 +20,13 @@ export function measurePartialRectsInContentEditable(
 ): DOMRect[] {
 	if (startOffset === endOffset) return [];
 	const range = createRangeAtRawOffsets(el, startOffset, endOffset);
-	if (!range || typeof range.getClientRects !== 'function') return [];
-	return Array.from(range.getClientRects());
+	const rects: DOMRect[] =
+		range && typeof range.getClientRects === 'function' ? Array.from(range.getClientRects()) : [];
+	// Atomic inline widgets add 0 chars to textContent, so a range entirely inside
+	// one collapses to zero width and emits no text rect. Cover each intersected
+	// widget with its bounding box so the highlight/selection stays visible over it.
+	for (const widget of widgetsIntersectingRange(el, startOffset, endOffset)) {
+		rects.push(widget.getBoundingClientRect());
+	}
+	return rects;
 }
