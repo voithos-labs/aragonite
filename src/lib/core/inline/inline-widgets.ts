@@ -34,6 +34,29 @@ export function isInlineWidget(node: InlineNode, raw: string): boolean {
 	return descriptor ? descriptor.isWidget(node, raw) : false;
 }
 
+/**
+ * Every live widget node reachable from `nodes`, in document order. Recurses
+ * into children so a widget nested inside a non-widget container — e.g. the
+ * image in `[![alt][ref]][repo]`, whose `image` node is a child of the `link`
+ * node — is found, not just the top-level widgets. A widget is atomic, so its
+ * own children are not descended into. `raw` is the enclosing block's source;
+ * widget recognition keys on each node's absolute `start`/`end` into it.
+ */
+export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: string): InlineNode[] {
+	const out: InlineNode[] = [];
+	const visit = (list: ReadonlyArray<InlineNode>) => {
+		for (const node of list) {
+			if (isInlineWidget(node, raw)) {
+				out.push(node);
+				continue;
+			}
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(nodes);
+	return out;
+}
+
 /** Build a core-layer widget's DOM, or null when the node is not a widget or its
  *  kind builds via an injected per-render builder (image). */
 export function buildCoreInlineWidget(node: InlineNode, raw: string): HTMLElement | null {

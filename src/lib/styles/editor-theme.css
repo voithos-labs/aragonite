@@ -82,6 +82,7 @@
 	   so the active highlight must keep an alpha channel or it hides the text. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
+	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
 	--md-unresolved-color: #c0392b;
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);

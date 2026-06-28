@@ -9,6 +9,13 @@ export interface ImageFields {
 	title?: string;
 	width?: number;
 	height?: number;
+	/**
+	 * Reference label, present only for reference-style images (`![alt][label]`).
+	 * When set, `buildImageSourceBytes` emits the reference form and writes no
+	 * url/title — those live in the LRD, so re-inlining them on a resize/alt edit
+	 * would orphan the definition.
+	 */
+	label?: string;
 }
 
 /** Canonical fields-as-persisted shape for an image inline node: omits
@@ -20,13 +27,19 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 		url: image.url ?? '',
 		...(image.title !== undefined ? { title: image.title } : {}),
 		...(image.width !== undefined ? { width: image.width } : {}),
-		...(image.height !== undefined ? { height: image.height } : {})
+		...(image.height !== undefined ? { height: image.height } : {}),
+		...(image.label !== undefined ? { label: image.label } : {})
 	};
 }
 
 export function buildImageSourceBytes(fields: ImageFields): string {
 	const dimSuffix = buildDimSuffix(fields.width, fields.height);
 	const altSegment = escapeAlt(fields.alt) + dimSuffix;
+	// Reference form: the dimension hint rides in the alt, `[label]` is preserved
+	// verbatim, and url/title are not written (they belong to the LRD).
+	if (fields.label !== undefined) {
+		return `![${altSegment}][${fields.label}]`;
+	}
 	const titleSegment = fields.title !== undefined ? ` "${escapeTitle(fields.title)}"` : '';
 	return `![${altSegment}](${encodeDestination(fields.url)}${titleSegment})`;
 }

@@ -457,6 +457,41 @@
 		}
 	});
 
+	// A plain click edits (places the caret); only Ctrl/Cmd+click activates a
+	// link. Mirror the held modifier onto the root as `data-mod-active` so CSS
+	// can switch links to a pointer cursor only while the modifier is down.
+	// Reset on blur / window blur / visibility loss so a modifier released while
+	// the page is unfocused never sticks the pointer cursor on.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		// Track the last reflected state so ordinary typing (a keydown/keyup per
+		// keystroke) never touches the DOM — the attribute write stays off the
+		// keystroke hot path (perf:check), firing only when the modifier changes.
+		let active = false;
+		const apply = (next: boolean) => {
+			if (next === active) return;
+			active = next;
+			if (next) root.setAttribute('data-mod-active', '');
+			else root.removeAttribute('data-mod-active');
+		};
+		const onKey = (e: KeyboardEvent) => apply(e.ctrlKey || e.metaKey);
+		const reset = () => apply(false);
+		const onVisibility = () => {
+			if (document.visibilityState === 'hidden') apply(false);
+		};
+		document.addEventListener('keydown', onKey);
+		document.addEventListener('keyup', onKey);
+		window.addEventListener('blur', reset);
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			document.removeEventListener('keydown', onKey);
+			document.removeEventListener('keyup', onKey);
+			window.removeEventListener('blur', reset);
+			document.removeEventListener('visibilitychange', onVisibility);
+		};
+	});
+
 	// Drag-to-reorder: a delegated handle-drag on the editor root. Installed once
 	// editorEl is bound; torn down on unmount via the lifetime signal.
 	$effect(() => {

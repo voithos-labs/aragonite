@@ -16,7 +16,7 @@ import type { CstNode, InlineNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, WidgetSelectionState } from '../../../editor-keys';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { getInlineContent } from '../../../core/inline/inline-cache';
-import { isInlineWidget } from '../../../core/inline/inline-widgets';
+import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
@@ -99,13 +99,19 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// both, so the shift check has to win or resize never fires.
 		if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 			e.preventDefault();
-			const inline = inlinesOf(node).find((n) => n.kind === 'image' && n.start === widget.start);
+			// Flattened so the nested image of `[![alt][ref]][repo]` is found.
+			const inline = flattenInlineWidgets(inlinesOf(node), node.raw).find(
+				(n) => n.kind === 'image' && n.start === widget.start
+			);
 			if (!inline || inline.kind !== 'image') return true;
 
 			const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
 			const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
 			const newWidth = keyboardResizeWidth(currentWidth, delta, deps.getEditorContentWidth());
 
+			// A keyboard resize only changes the width/height — url and title are
+			// untouched — so carry the reference label through to preserve the
+			// `![alt][label]` form instead of inlining the LRD-resolved url.
 			const newFields: ImageFields = {
 				alt: inline.alt ?? '',
 				url: inline.url ?? '',
@@ -113,7 +119,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				width: newWidth,
 				...(inline.height !== undefined
 					? { height: Math.round((newWidth / currentWidth) * inline.height) }
-					: {})
+					: {}),
+				...(inline.label !== undefined ? { label: inline.label } : {})
 			};
 			const newBytes = buildImageSourceBytes(newFields);
 			const newRaw = node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);

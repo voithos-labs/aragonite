@@ -1,4 +1,5 @@
 import { getInlineContent } from '../../core/inline/inline-cache';
+import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../../tree-operations/unshare';
@@ -64,9 +65,10 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
 		// Resolver-aware so a reference-style image resolves the same way the render
 		// path saw it — otherwise the widget the user clicked has no match here.
+		// Flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
 		const inlines = getInlineContent(para, deps.linkRef?.current, deps.linkRef?.signature ?? '');
-		for (const inline of inlines) {
-			if (inline.kind === 'image' && inline.start === sourceStart) return inline;
+		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
+			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 		}
 		return null;
 	}
@@ -142,7 +144,15 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		if (!resolved) return;
 		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
 		if (!image) return;
-		const newSourceBytes = buildImageSourceBytes(newFields);
+		// Preserve the reference form on a resize/dimension/alt edit: the url and
+		// title live in the LRD, so leaving them untouched means re-emit `[label]`
+		// rather than inlining the resolved url (which would orphan the LRD).
+		// An explicit url/title change is the user opting into the inline form.
+		const fields: ImageFields =
+			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
+				? { ...newFields, label: image.label }
+				: newFields;
+		const newSourceBytes = buildImageSourceBytes(fields);
 		const newRaw =
 			resolved.paragraph.raw.slice(0, image.start) +
 			newSourceBytes +
