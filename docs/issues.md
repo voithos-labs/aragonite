@@ -15,6 +15,15 @@ In a table large enough to activate row windowing, rows outside the viewport are
 
 **Why deferred:** pre-existing gap shared with cross-block selection highlighting; the real fix is a shared vertical-scroll/mount re-measure for windowed container overlays (a shared decoration/re-measure layer), gated by VR e2e + perf. Aligns with the roadmap's selection coordinate-addressing plugin hooks.
 
+### Search-reveal of a far match can strand the viewport on the wrong block (off-window, async-undecoded content)
+
+**Severity:** minor (viewport-follow only — find still counts/highlights the match; navigation lands the scroll, not the caret)
+**Files:** `src/lib/reactivity/list-windowing.svelte.ts` (`revealChild`), `src/lib/reactivity/publish-ref.svelte.ts` (`revealChildOrWait`), `src/lib/components/Editor.svelte` (`reveal`/`revealPath`)
+
+Navigating search to an off-window match (e.g. Previous-button to the last match in the showcase) sometimes scrolls to a _different_ block (a table) instead of the match's block. Root cause is two-layered: (a) `revealChild` does one scroll to the target's _estimated_ offset, which lands short when the intervening band is under-estimated, so `revealChildOrWait` degrades and the follow-up `scrollIntoView` no-ops (block unmounted); (b) — the dominant cause in the showcase — the freshly-revealed band's **images haven't decoded**, so they measure ~0, the document height shrinks, and the browser clamps `scrollTop` back up, sliding the window off the target. Layer (a) on its own self-heals via the existing `correctAnchor` forward-compensation when the doc _grows_ on measure (verified: a `<br>`-heavy under-estimated fixture reveals on-screen with the single scroll), so a `revealChild` re-scroll loop was explored and reverted as it changed no observable end-state. Layer (b) is the real fix.
+
+**Why deferred:** layer (b) is the same off-window / async re-measure class as the windowed-table-overlay issue above — the fix is reserving image height pre-decode + re-asserting the reveal once the band settles, i.e. the shared decoration/re-measure layer. Fold into that work.
+
 ### HTML entities render as the literal source instead of the decoded character
 
 **Severity:** minor (rendering; deviates from author intent)
