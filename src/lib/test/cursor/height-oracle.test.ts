@@ -62,12 +62,31 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
-	// Guards the module's central claim: containers fall through to the default
-	// wrapped arm using raw.length (materialized container raw), not a per-kind arm.
-	it('estimates a container by raw length via the default wrapped arm', () => {
+	// Containers (blockquote/list/listItem) use a child-count-aware arm: at least
+	// one line + chrome per child, and at least the blob-wrap of the materialized
+	// raw. The prior blob-only fall-through ignored every newline and per-child
+	// chrome, undercounting a stacked container several-fold.
+	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = { kind: 'blockquote', leadingTrivia: '', raw: 'x'.repeat(250) };
+		// blob-wrap (3 lines) dominates the single-child fallback term.
 		expect(o.estimate(quote, 800)).toBe(24 * 3 + 16);
+	});
+
+	it('scales a container estimate with its child count (O(1), not a subtree walk)', () => {
+		const o = createHeightOracle(opts);
+		const raw = '- a\n- b\n- c\n- d\n- e\n'; // short rows: blob-wrap is 1 line
+		const few: CstNode = { kind: 'list', leadingTrivia: '', raw, children: [{}, {}] as CstNode[] };
+		const many: CstNode = {
+			kind: 'list',
+			leadingTrivia: '',
+			raw,
+			children: [{}, {}, {}, {}, {}] as CstNode[]
+		};
+		// Identical raw, more children => taller. The old blob-only estimate gave
+		// both the same (~1 line) height — the central undercount this arm fixes.
+		expect(o.estimate(many, 800)).toBeGreaterThan(o.estimate(few, 800));
+		expect(o.estimate(many, 800)).toBe(5 * (24 + 16)); // 5 children, >= one line + chrome each
 	});
 
 	// The plugin-contract unknown-kind rule: a kind with no per-kind arm must fall
@@ -123,6 +142,44 @@ describe('createHeightOracle', () => {
 	it('does not floor a plain paragraph without an image', () => {
 		const o = createHeightOracle(opts);
 		expect(o.estimate(para('hello'), 800)).toBe(24 + 16); // unfloored short prose
+	});
+
+	// Reference-style images (`![alt][ref]`) have no `(`; the prior detector
+	// required one and missed them, estimating a wall of reference images at ~1
+	// line — the worst single offender in the demo content.
+	it('floors a reference-style image paragraph (the `(`-less form)', () => {
+		const o = createHeightOracle(opts);
+		const ref: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![a screenshot][shot]' };
+		expect(o.estimate(ref, 800)).toBe(200);
+	});
+
+	it('sums the floor across multiple images in one paragraph', () => {
+		const o = createHeightOracle(opts);
+		const three: CstNode = {
+			kind: 'paragraph',
+			leadingTrivia: '',
+			raw: '![one][a] ![two][b] ![three][c]'
+		};
+		expect(o.estimate(three, 800)).toBe(3 * 200); // image count, not a single floor
+	});
+
+	it('uses an explicit `|WxH` height hint over the floor; width-only falls back', () => {
+		const o = createHeightOracle(opts);
+		const tall: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![a|100x500](pic.png)' };
+		expect(o.estimate(tall, 800)).toBe(500); // the hint's H, above the 200 floor
+		const wideOnly: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '![a|400](pic.png)' };
+		expect(o.estimate(wideOnly, 800)).toBe(200); // height unknown from width alone -> floor
+	});
+
+	it('estimates a wide table by cell-wrap (blob), above its source-line count', () => {
+		const o = createHeightOracle(opts);
+		// Two source lines, but one very long row that wraps far past two lines.
+		const wide: CstNode = {
+			kind: 'table',
+			leadingTrivia: '',
+			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n'
+		};
+		expect(o.estimate(wide, 800)).toBeGreaterThan(2 * 24 + 16); // not just source-line count
 	});
 
 	it('clear() empties the measured cache', () => {
