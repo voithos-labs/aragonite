@@ -138,6 +138,35 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		expect(getBlockIds()[0]).toBe(idBefore);
 		expect(serialize(deps.doc)).toBe('keep me\n\nchange Y\n');
 	});
+
+	it('gives every container in a reparsed subtree childIds (reused container never reads undefined keys)', async () => {
+		// item 0 = paragraph + continuation paragraph (≥2 children); the needle lives
+		// in item 1, so replaceAll reparses the whole top-level list. The fresh
+		// listItem[0] must arrive with childIds or a reused container's keyed-each
+		// renders `undefined` keys and the ≥2 children collide on a duplicate key.
+		const doc = parse('1. First.\n\n   Continuation.\n2. Second with a needle sub.\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const matches = scanForLiteral(deps.doc, 'needle');
+		expect(matches.length).toBeGreaterThan(0);
+		// Genuinely a ≥2-child list item, so RED ≠ GREEN (one child can't collide).
+		expect(deps.doc.children[0].children![0].children!.length).toBeGreaterThanOrEqual(2);
+
+		await sr.replaceAll(matches, 'love');
+
+		const violations: { path: number[]; childrenLen: number; idsLen: number }[] = [];
+		const walk = (node: CstNode, path: number[]) => {
+			if (!node.children || node.children.length === 0) return;
+			const idsLen = node.childIds?.length ?? -1;
+			if (idsLen !== node.children.length) {
+				violations.push({ path, childrenLen: node.children.length, idsLen });
+			}
+			node.children.forEach((c, i) => walk(c, [...path, i]));
+		};
+		walk(deps.doc.children[0], [0]);
+		expect(violations).toEqual([]);
+	});
 });
 
 describe('replaceOne — single-subtree case', () => {

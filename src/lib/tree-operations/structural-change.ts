@@ -15,7 +15,7 @@
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
-import { generateBlockId } from '../block-id';
+import { generateBlockId, assignChildIdsDeep } from '../block-id';
 
 export type StructuralChange =
 	| { op: 'noop' }
@@ -47,6 +47,16 @@ export function replacePreservingFirst(
  * Stamp the nodes a change's insert/replace window CREATED as owned by the
  * live tree. Pre-existing nodes an op writes go through ensureUnsharedPath
  * instead (tree-operations/unshare.ts).
+ *
+ * Also backfills `childIds` on any container in a created subtree (fill-absent,
+ * so builder-set ids are untouched). A freshly-PARSED node carries no childIds;
+ * if it (or a nested container) is published under a reused component instance —
+ * any identity-preserving replace, e.g. reparse/kind-change/paste/search-replace —
+ * the nested keyed-`{#each}` renders before `createBlockListState`'s post-render
+ * re-init effect runs, so undefined keys reach Svelte (a duplicate-key throw once
+ * a nested container holds ≥2 children). Initializing here, before the commit
+ * publishes, keeps the render path read-only and closes the class at the single
+ * seam every new-node op routes through.
  */
 export function stampStructuralChange(
 	children: CstNode[],
@@ -55,7 +65,10 @@ export function stampStructuralChange(
 ): void {
 	if (change.op !== 'insert' && change.op !== 'replace') return;
 	const count = change.op === 'insert' ? change.count : change.newCount;
-	for (let i = change.at; i < change.at + count; i++) sharing.stamp(children[i]);
+	for (let i = change.at; i < change.at + count; i++) {
+		sharing.stamp(children[i]);
+		assignChildIdsDeep(children[i]);
+	}
 }
 
 /**
