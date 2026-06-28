@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
-import { isInlineWidget, buildCoreInlineWidget } from '../../core/inline/inline-widgets';
+import {
+	isInlineWidget,
+	buildCoreInlineWidget,
+	flattenInlineWidgets
+} from '../../core/inline/inline-widgets';
 
 describe('isInlineWidget — registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
@@ -58,5 +62,77 @@ describe('buildCoreInlineWidget — core-layer builder dispatch', () => {
 		const raw = '<span>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
 		expect(buildCoreInlineWidget(node, raw)).toBeNull();
+	});
+});
+
+describe('flattenInlineWidgets — recursion + document order', () => {
+	const img = (start: number, end: number): InlineNode => ({
+		kind: 'image',
+		start,
+		end,
+		alt: '',
+		url: 'x'
+	});
+	const txt = (start: number, end: number, text: string): InlineNode => ({
+		kind: 'text',
+		start,
+		end,
+		text
+	});
+
+	it('returns top-level widgets in document order', () => {
+		const nodes = [img(0, 6), txt(6, 7, ' '), img(7, 13)];
+		expect(flattenInlineWidgets(nodes, '![](x) ![](x)').map((n) => n.start)).toEqual([0, 7]);
+	});
+
+	it('finds an image nested inside a link node', () => {
+		// `[![cat][shot]][repo]` — the image is a child of the link node.
+		const raw = '[![cat][shot]][repo]';
+		const nestedImage = img(1, 13);
+		const link: InlineNode = {
+			kind: 'link',
+			start: 0,
+			end: 20,
+			url: 'r',
+			label: 'repo',
+			children: [nestedImage]
+		};
+		expect(flattenInlineWidgets([link], raw)).toEqual([nestedImage]);
+	});
+
+	it('returns nothing for a link with no widget children', () => {
+		const raw = '[text](url)';
+		const link: InlineNode = {
+			kind: 'link',
+			start: 0,
+			end: 11,
+			url: 'url',
+			children: [txt(1, 5, 'text')]
+		};
+		expect(flattenInlineWidgets([link], raw)).toEqual([]);
+	});
+
+	it('preserves document order across a top-level widget and a nested one', () => {
+		const raw = '![a](x) [![b][r]][q]';
+		const topImage = img(0, 7);
+		const nestedImage = img(9, 16);
+		const link: InlineNode = {
+			kind: 'link',
+			start: 8,
+			end: 20,
+			url: 'q',
+			label: 'q',
+			children: [nestedImage]
+		};
+		expect(flattenInlineWidgets([topImage, txt(7, 8, ' '), link], raw).map((n) => n.start)).toEqual(
+			[0, 9]
+		);
+	});
+
+	it('treats an atomic widget as a leaf — does not descend into its children', () => {
+		// A widget's children belong to the widget; only the widget itself counts.
+		const inner = img(1, 5);
+		const widgetWithChildren: InlineNode = { ...img(0, 6), children: [inner] };
+		expect(flattenInlineWidgets([widgetWithChildren], '![](x)')).toEqual([widgetWithChildren]);
 	});
 });

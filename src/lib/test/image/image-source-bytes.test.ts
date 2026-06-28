@@ -47,6 +47,55 @@ describe('buildImageSourceBytes', () => {
 	});
 });
 
+describe('buildImageSourceBytes — reference form (label preserved)', () => {
+	it('emits the reference form when a label is present', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'resolved.png', label: 'ref' })).toBe(
+			'![cat][ref]'
+		);
+	});
+
+	it('keeps the dimension hint in the alt for the reference form', () => {
+		expect(
+			buildImageSourceBytes({ alt: 'cat', url: 'resolved.png', width: 400, label: 'ref' })
+		).toBe('![cat|400][ref]');
+	});
+
+	it('keeps width × height in the alt for the reference form', () => {
+		expect(
+			buildImageSourceBytes({
+				alt: 'cat',
+				url: 'resolved.png',
+				width: 400,
+				height: 300,
+				label: 'ref'
+			})
+		).toBe('![cat|400x300][ref]');
+	});
+
+	it('does NOT write url or title in the reference form (they live in the LRD)', () => {
+		const out = buildImageSourceBytes({
+			alt: 'cat',
+			url: 'resolved.png',
+			title: 'Some title',
+			width: 200,
+			label: 'shot'
+		});
+		expect(out).toBe('![cat|200][shot]');
+		expect(out).not.toContain('resolved.png');
+		expect(out).not.toContain('Some title');
+	});
+
+	it('escapes brackets in the alt of the reference form', () => {
+		expect(buildImageSourceBytes({ alt: 'a]b', url: 'u', label: 'ref' })).toBe('![a\\]b][ref]');
+	});
+
+	it('falls back to the inline form when no label is present', () => {
+		expect(buildImageSourceBytes({ alt: 'cat', url: 'cat.png', width: 400 })).toBe(
+			'![cat|400](cat.png)'
+		);
+	});
+});
+
 describe('buildImageSourceBytes — output re-parses as an image', () => {
 	const parsesToOneImage = (built: string): boolean => {
 		const nodes = parseInline(built, 0, built.length);
