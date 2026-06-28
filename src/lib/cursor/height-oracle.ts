@@ -7,9 +7,13 @@
  */
 import type { CstNode } from '../core/nodes';
 
-// Inline image syntax `![alt](url)` — the form that embeds a sized, rendered
-// image whose height the char-based estimate badly undercounts.
-const IMAGE_RAW = /!\[[^\]]*\]\(/;
+// Any image: inline `![alt](url)`, reference `![alt][ref]`, or shortcut
+// `![ref]`. Captures the alt segment so a `|WxH` size hint can be read. The
+// char-based prose estimate badly undercounts a rendered image, so an
+// image-bearing block is floored / sized off this match, not its raw length.
+const IMAGE_ALT = /!\[([^\]]*)\]/g;
+// Size hint inside the alt, e.g. `Square|200x200` or `photo|400` (width only).
+const SIZE_HINT = /\|(\d+)(?:x(\d+))?/;
 
 export interface HeightOracleOptions {
 	lineHeight: number; // px per wrapped prose line
@@ -45,6 +49,21 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		return Math.max(1, n);
 	}
 
+	// Sum of per-image rendered heights in a prose block. Each image contributes
+	// its `|WxH` hint height when present, else the min-height floor (an unsized
+	// image's height isn't knowable until decode — the ResizeObserver corrects it
+	// post-mount). Returns 0 for image-free raw. Reads raw only, never inline.
+	function imageHeights(raw: string): number {
+		let total = 0;
+		IMAGE_ALT.lastIndex = 0;
+		let m: RegExpExecArray | null;
+		while ((m = IMAGE_ALT.exec(raw)) !== null) {
+			const hint = SIZE_HINT.exec(m[1]);
+			total += hint && hint[2] ? Number(hint[2]) : opts.imageBlockMinHeight;
+		}
+		return total;
+	}
+
 	function estimate(node: CstNode, width: number): number {
 		const kind = node.kind;
 		const raw = node.raw;
@@ -57,14 +76,29 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 				return sourceLines(raw) * opts.codeLineHeight + opts.blockChrome;
 			case 'table':
 			case 'tableRow':
-				return sourceLines(raw) * opts.lineHeight + opts.blockChrome;
+				// Source-line count models a normal table; a wide table wraps its cells
+				// far beyond its row count, which the blob-wrap of the whole raw catches.
+				return (
+					Math.max(sourceLines(raw), wrappedLines(raw.length, width)) * opts.lineHeight +
+					opts.blockChrome
+				);
+			case 'blockquote':
+			case 'list':
+			case 'listItem': {
+				// O(1), no subtree walk: a container is at least one line + chrome per
+				// child, and at least its materialized text wrapped as a blob. The blob
+				// term alone (the prior `default` fall-through) ignored every newline and
+				// per-child chrome, undercounting a stacked container several-fold; the
+				// child-count term alone ignores wrap. `children` is already on the node.
+				const childCount = Math.max(1, node.children?.length ?? 1);
+				const byChildren = childCount * (opts.lineHeight + opts.blockChrome);
+				const byText = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;
+				return Math.max(byChildren, byText);
+			}
 			default: {
 				const prose = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;
-				// A rendered image dwarfs its `![alt](url)` source — the char-based estimate
-				// would seed a tall block at ~1 line, so a screenful of images undercounts to
-				// near-zero and activation/spacers under-mount. Floor it (reading raw only —
-				// never inlineContent in an estimate path).
-				return IMAGE_RAW.test(raw) ? Math.max(prose, opts.imageBlockMinHeight) : prose;
+				const images = imageHeights(raw);
+				return images > 0 ? Math.max(prose, images) : prose;
 			}
 		}
 	}
