@@ -8,6 +8,7 @@ import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
+import { assignChildIdsDeep } from '$lib/block-id';
 import {
 	mockRef,
 	makeStickyColumn,
@@ -308,5 +309,80 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		await h.bundle.blockEdit.mergeWithNext(0);
 		stable();
 		assertContainerAligned(h);
+	});
+});
+
+// ── Deep childIds backfill on reparse-into-container (G2.8 / #4 class) ─────────
+
+/**
+ * A freshly-PARSED subtree spliced under a preserved component id (replaceBlock /
+ * kind-change, paste, search-replace) carries no `childIds` on its containers. If
+ * the reused container's keyed-`{#each}` renders before `createBlockListState`'s
+ * post-render re-init effect, undefined keys reach Svelte — a duplicate-key crash
+ * once a nested container holds ≥2 children (the original Replace-All-over-"list"
+ * failure). `stampStructuralChange` backfills childIds at every container level
+ * before publish, at the single seam every new-node op routes through, so this
+ * holds for ALL paths — not just the one that first surfaced it.
+ *
+ * The fixture mirrors that crash shape: item 0 has a continuation paragraph (2
+ * children) and item 1 nests a sub-list (2 children) — multiple nested containers
+ * with ≥2 children, the duplicate-key condition.
+ */
+const NESTED_LIST = '1. First.\n\n   Continuation.\n2. Second:\n   - x\n   - y\n';
+
+function assertDeepChildIdsAligned(children: CstNode[]) {
+	const violations: { path: number[]; childrenLen: number; idsLen: number }[] = [];
+	const walk = (node: CstNode, path: number[]) => {
+		if (node.children) {
+			const idsLen = node.childIds?.length ?? -1;
+			if (idsLen !== node.children.length)
+				violations.push({ path, childrenLen: node.children.length, idsLen });
+			node.children.forEach((c, i) => walk(c, [...path, i]));
+		}
+	};
+	children.forEach((c, i) => walk(c, [i]));
+	expect(violations, `containers with childIds desynced from children`).toEqual([]);
+}
+
+describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () => {
+	it('replaceBlock with a reparsed nested list initializes childIds at every level', async () => {
+		const h = makeTop(['placeholder\n']);
+		const nested = parse(NESTED_LIST).children;
+		expect(nested[0].kind).toBe('list'); // genuinely a container, or the test is vacuous
+
+		await h.actions.replaceBlock(0, nested);
+
+		assertAligned(h);
+		assertDeepChildIdsAligned(h.doc.children);
+	});
+
+	it('insertParsedBlocks (paste) of a reparsed nested list initializes childIds deeply', async () => {
+		const h = makeTop(['head\n', 'tail\n']);
+		const nested = parse(NESTED_LIST).children;
+
+		await h.actions.insertParsedBlocks(0, 4, nested);
+
+		assertAligned(h);
+		assertDeepChildIdsAligned(h.doc.children);
+	});
+
+	// merge-prev (mergeIntoPrevDeepLeaf) is the one new-node-ish path that bypasses
+	// stampStructuralChange. It writes text into an EXISTING deep leaf and deletes the
+	// merged block — it mints no fresh container — so the deep childIds it inherits stay
+	// aligned. This pins that: a future change that made merge-prev reparse into a
+	// container would desync here (it would need the same backfill the other paths get).
+	it('mergeWithPrevious into a container leaf keeps deep childIds aligned', async () => {
+		const list = parse(NESTED_LIST).children[0];
+		expect(list.kind).toBe('list');
+		assignChildIdsDeep(list); // a mounted/committed container already carries childIds
+		const { deps, doc } = makeEditorActionsDeps([list, makeNode('paragraph', 'tail\n')]);
+		const actions = createBlockEditActions(deps, createUndoController(deps));
+
+		// prev (list = container) + curr (paragraph = prose) is merge-eligible: the
+		// paragraph folds into the list's deepest prose leaf, no parse().
+		await actions.mergeWithPrevious(1);
+
+		expect(doc.children).toHaveLength(1); // the paragraph merged into the list
+		assertDeepChildIdsAligned(doc.children);
 	});
 });
