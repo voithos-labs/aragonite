@@ -150,6 +150,16 @@
 	min-height: 0;
 }
 
+/* An image wrapped in a link (`[![alt][ref]][repo]`) renders the block-level
+   image widget inside an inline `<a>`. Left as `display: inline`, the anchor
+   stretches to the full content width, so its `title` tooltip (from the link's
+   LRD title) hovers over the empty space beside the image. Shrink the anchor to
+   hug the widget so the tooltip only covers the clickable image. */
+:where(.editor) a.md-link-content:has(> .md-image-widget) {
+	display: inline-block;
+	width: fit-content;
+}
+
 :where(.editor) .md-image-broken {
 	/* Inherits display:block from .md-image-widget; the design rule is that
 		   image widgets always force a visual line break before/after, broken or
@@ -219,6 +229,41 @@
 
 :where(.editor) .md-image-overlay > * {
 	pointer-events: auto;
+}
+
+/* Inline link text reads as a clickable link: accent + underline, mirroring
+   `.md-autolink`. Scoped to the anchor so a blocked-scheme `span.md-link-content`
+   (rendered without an `<a>`) never looks clickable; `:not(:has(.md-image-widget))`
+   keeps a wrapped image widget (an image-link, FIX above) from being underlined as
+   if it were text. The `(url)` / `[label]` markers stay dimmed — only the link
+   text (the `<a>` content) takes the accent. */
+:where(.editor) a.md-link-content:not(:has(.md-image-widget)) {
+	color: var(--color-accent, #567b67);
+	text-decoration: underline;
+}
+
+/* A plain click edits (places the caret); only Ctrl/Cmd+click activates the link.
+   So links keep the text caret by default and only show the pointer affordance
+   while the modifier is held — `Editor.svelte` mirrors that onto the root as
+   `data-mod-active`. The explicit default overrides the UA `<a href>` pointer so
+   the caret-vs-pointer state is the editor's, not the browser's. */
+:where(.editor) a.md-link-content,
+:where(.editor) .md-autolink {
+	cursor: text;
+}
+
+:where(.editor)[data-mod-active] a.md-link-content,
+:where(.editor)[data-mod-active] .md-autolink:not(.md-link-blocked) {
+	cursor: pointer;
+}
+
+/* Blocked-scheme link (`javascript:`, `vbscript:`, `file:`, `data:` in href):
+   inert metadata, not a link — muted, no accent, no underline, plain text caret,
+   so it stays visually distinct from a real (clickable) link. */
+:where(.editor) .md-link-content.md-link-blocked {
+	color: var(--md-link-blocked-color, var(--color-text-muted, #888));
+	text-decoration: none;
+	cursor: text;
 }
 
 /* Reference-link trailing markers (`[label]` / `[]`) — dimmer than the
