@@ -114,6 +114,13 @@ export interface BlockComponent {
 	 */
 	cellRect?(rowIdx: number, colIdx: number): DOMRect | null;
 	/**
+	 * Current mounted row-window `[start, end)` of a row-windowed grid surface
+	 * (table). Overlays read it reactively so a repaint fires after the window
+	 * re-slices and the new rows are committed (off-window rows can't paint until
+	 * mounted). Absent on non-windowed-grid blocks.
+	 */
+	mountedRowWindow?(): { start: number; end: number };
+	/**
 	 * True when vertical traversal (ArrowUp/Down sticky-column dispatch)
 	 * should pass straight through this block — the block has no caret-able
 	 * text positions of its own, only widgets that carry no column meaning.

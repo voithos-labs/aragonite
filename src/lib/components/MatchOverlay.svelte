@@ -2,7 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../block-component';
 	import { SEARCH_KEY, EDITOR_ROOT_KEY, type SearchState } from '../editor-keys';
-	import { firstScrollableDescendant, nearestScrollContainer } from '../cursor/scroll-ancestors';
+	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 	import { pathsEqual, isStrictAncestorOf } from '../selection/path-math';
 
 	let {
@@ -104,13 +104,8 @@
 			};
 		}
 
-		measure();
 		const editorRoot = getEditorRoot?.();
-		const scrollEl =
-			firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);
-		if (!scrollEl) return;
-		scrollEl.addEventListener('scroll', measure, { passive: true });
-		return () => scrollEl.removeEventListener('scroll', measure);
+		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
 	});
 </script>
 
