@@ -75,6 +75,49 @@ describe('findWidgetNodeByStart', () => {
 	});
 });
 
+// `[![cat][shot]][repo]` parses to a link node whose child is the image. The
+// finders must reach into the link's children — pre-fix they walked top-level
+// inlines only, so a click-selected image-in-link never resolved and could not
+// be resized.
+describe('widget nested inside a link node', () => {
+	const NESTED_RAW = '[![cat][shot]][repo]';
+	const nestedImage: InlineNode = {
+		kind: 'image',
+		start: 1,
+		end: 13,
+		alt: 'cat',
+		url: 'resolved.png',
+		label: 'shot'
+	};
+	const nestedInlines: InlineNode[] = [
+		{ kind: 'link', start: 0, end: 20, url: 'repo-url', label: 'repo', children: [nestedImage] }
+	];
+
+	it('findWidgetNodeByStart finds the nested image by its raw start', () => {
+		expect(findWidgetNodeByStart(1, nestedInlines, NESTED_RAW)).toEqual({ start: 1, end: 13 });
+	});
+
+	it('findWidgetNodeByStart returns null for the link node start (not a widget)', () => {
+		expect(findWidgetNodeByStart(0, nestedInlines, NESTED_RAW)).toBeNull();
+	});
+
+	it('widgetAtCursor finds the nested image at its leading edge', () => {
+		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW)).toEqual({
+			start: 1,
+			end: 13,
+			atRight: false
+		});
+	});
+
+	it('widgetAtCursor finds the nested image at its trailing edge', () => {
+		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW)).toEqual({
+			start: 1,
+			end: 13,
+			atRight: true
+		});
+	});
+});
+
 describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
 	it('finds a leading widget after skipping blank text', () => {
 		const raw = '  ![a](x.png)\n';

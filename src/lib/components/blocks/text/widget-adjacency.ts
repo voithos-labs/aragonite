@@ -6,7 +6,7 @@
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import { isInlineWidget } from '../../../core/inline/inline-widgets';
+import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
 
 export interface WidgetRange {
 	start: number;
@@ -25,8 +25,8 @@ export function widgetAtCursor(
 	raw: string
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
-	for (const inline of inlineContent ?? []) {
-		if (!isInlineWidget(inline, raw)) continue;
+	// Recurse so a widget nested inside a link (`[![alt][ref]][repo]`) is seen.
+	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
 		if (offset === inline.start) return { start: inline.start, end: inline.end, atRight: false };
 		if (offset === inline.end) return { start: inline.start, end: inline.end, atRight: true };
 	}
@@ -38,8 +38,8 @@ export function findWidgetNodeByStart(
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
 	raw: string
 ): WidgetRange | null {
-	for (const inline of inlineContent ?? []) {
-		if (isInlineWidget(inline, raw) && inline.start === sourceStart) {
+	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
+		if (inline.start === sourceStart) {
 			return { start: inline.start, end: inline.end };
 		}
 	}
