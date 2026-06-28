@@ -119,3 +119,15 @@ Tests must catch regressions. Ask: "if someone broke this, would this test catch
 ### Style / review
 
 Follow the forge-\* conventions (style, docs, tests, review) where the toolchain provides them. Root-cause bugs before fixing — invoke systematic-debugging, fix the underlying class of problem, never patch around a bug or edge case with a one-off hack. After a major change, run a review pass.
+
+### Subagents
+
+Any dispatched subagent (via the `Agent` tool) must invoke the `forge-style`, `forge-docs`, and `forge-tests` skills at the start of its task and enforce them in every file it touches — including improving pre-existing verbose comments that fall in its path. Subagent briefs must name these three skills explicitly.
+
+**Run dispatched subagents on opus 4.8.** Weaker models stall on multi-step editor work and produce unreliable reactivity / invariant changes; recheck any work a weaker model produced before trusting it.
+
+**The controller (dispatching session) owns long-running processes** — the full e2e batteries, the perf gate, and the simulation suite. A subagent dies on a multi-minute stream-idle timeout whether it is parked on a background run or grinding a long active dispatch, so keep each dispatch bounded and run the long gates from the controller.
+
+Reviewer subagents re-run every gate themselves — implementer-claimed numbers are never accepted. Batch similar, right-sized tasks (same subsystem/files, one cohesive change) into a single bounded dispatch rather than paying the context-rebuild + review tax per task; don't merge unrelated concerns just to save a dispatch.
+
+Brief templates, the two-stage review contract, and the gate/process rules live in `.claude/skills/aragonite-dispatch`.
