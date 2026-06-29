@@ -5,6 +5,7 @@ import {
 	HEIGHT_ORACLE_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
+	REVEAL_ANCHOR_KEY,
 	WIDTH_VERSION_KEY,
 	type BlockMeasureChannel,
 	type FocusedPathGetter,
@@ -12,6 +13,7 @@ import {
 	type WidthVersionGetter
 } from '../editor-keys';
 import type { HeightOracle } from '../cursor/height-oracle';
+import type { RevealAnchorState } from '../cursor/reveal-anchor';
 import type { CstNode } from '../core/nodes';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
@@ -43,6 +45,10 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	const getFocusPath = getContext<FocusedPathGetter | undefined>(FOCUSED_PATH_KEY);
 	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
+	const revealAnchor = getContext<RevealAnchorState | undefined>(REVEAL_ANCHOR_KEY);
+	// Single-claimant: only the ROOT scope holds the reveal anchor (path[0]); nested
+	// scopes keep top-of-viewport anchoring, or their deltas would fight over one scrollTop.
+	const isRoot = opts.getParentPath().length === 0;
 
 	const windowing = createListWindowing({
 		oracle,
@@ -52,6 +58,12 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getOwnEl: opts.getOwnEl,
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
+		getRevealAnchorIndex: isRoot
+			? () => {
+					const p = revealAnchor?.get() ?? null;
+					return p && p.length > 0 ? p[0] : null;
+				}
+			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		getParentPath: opts.getParentPath,
 		reportSelfHeight: parentSink

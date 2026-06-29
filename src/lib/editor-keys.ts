@@ -17,6 +17,7 @@ export const LIST_CONTEXT_KEY = Symbol('list-context');
 export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
 export const STICKY_COLUMN_KEY = Symbol('sticky-column');
+export const REVEAL_ANCHOR_KEY = Symbol('reveal-anchor');
 
 export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
