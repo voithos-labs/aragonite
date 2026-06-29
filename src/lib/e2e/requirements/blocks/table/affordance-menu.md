@@ -37,6 +37,10 @@ menu's action items dispatch the committed table mutations.
 - Pressing Escape closes the open menu without committing anything.
 - Opening a grip menu then choosing an action commits exactly once and closes the menu.
 
+## Structural invariants
+
+- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the raw-offset walk (cursor/widget-offset.ts counts every text node, including aria-hidden grip markup) and shifts a parked cross-block caret, so the grip markup's block boundaries must stay adjacent.
+
 ## Notes
 
 - Row grips live in a zero-width leading gutter track; the grid stays unshifted so caret geometry is untouched (the grip's dots overflow into the first cell's left padding).
