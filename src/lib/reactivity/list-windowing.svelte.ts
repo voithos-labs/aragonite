@@ -24,6 +24,11 @@ export interface ListWindowingDeps {
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
+	/** Top-level-ancestor index of an active reveal target, else null. While set,
+	 *  `correctAnchor` holds THAT index instead of the top-of-viewport block, so an
+	 *  image-decode shrink above it can't clamp the reveal off-screen. Wired on the
+	 *  ROOT scope only (single-claimant — nested scopes would fight over one scrollTop). */
+	getRevealAnchorIndex?: () => number | null;
 	/** Monotonic counter bumped on an editor WIDTH change (after the oracle's measured
 	 *  cache is cleared). Rebuilds the model at the new width and re-measures mounted blocks. */
 	getWidthVersion: () => number;
@@ -121,6 +126,25 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// no-op).
 	function correctAnchor(mutate: () => void): void {
 		const scrollEl = deps.getScrollEl();
+		const revealIdx = deps.getRevealAnchorIndex?.() ?? null;
+		if (revealIdx != null && revealIdx < model.size && scrollEl) {
+			// A reveal is in flight: re-assert the target's absolute scroll position
+			// after the measure shrinks the model, overriding the browser's auto-clamp
+			// (which otherwise drags scrollTop off the target as undecoded off-window
+			// images measure ~0 and the document shrinks). Delta-compensation can't win
+			// this — the clamp outpaces it — so we re-scroll to the target the same way
+			// revealChild does. Holds until the user takes over (clears the anchor).
+			mutate();
+			const listEl = deps.getListEl();
+			if (listEl) {
+				const listTop =
+					listEl.getBoundingClientRect().top -
+					scrollEl.getBoundingClientRect().top +
+					scrollEl.scrollTop;
+				scrollEl.scrollTop = listTop + model.offsetOf(revealIdx);
+			}
+			return;
+		}
 		const anchorIndex = model.indexAtOffset(localScrollTop());
 		const before = model.offsetOf(anchorIndex);
 		mutate();
