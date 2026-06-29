@@ -23,6 +23,23 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
 	});
 
+	test('Alt+ArrowLeft moves a column left', async ({ page }) => {
+		await editor.loadContent(TABLE_3COL);
+		await page.locator('[role="cell"]').nth(2).click(); // header "C" (col 2)
+		await page.keyboard.press('Alt+ArrowLeft');
+		await editor.bridge.waitForSourceMatches(/\| A \| C \| B \|/);
+	});
+
+	test('column move keeps focus in the moved column (typing lands there)', async ({ page }) => {
+		await editor.loadContent(TABLE_3COL);
+		await page.locator('[role="cell"]').nth(3).click(); // body cell "1" (row 1, col 0)
+		await page.keyboard.press('Alt+ArrowRight');
+		await editor.bridge.waitForSourceMatches(/\| 2 \| 1 \| 3 \|/);
+		// Focus must have followed col 0 into col 1; otherwise X lands in the wrong cell.
+		await page.keyboard.type('X');
+		await editor.bridge.waitForSourceMatches(/\| 2 \| (?:X1|1X) \| 3 \|/);
+	});
+
 	// Boundary clamp: a move with no column in that direction must change nothing
 	// AND push no undo entry — otherwise the boundary press silently consumes a
 	// Ctrl+Z. Type → boundary-press → Ctrl+Z must undo the TYPING.
