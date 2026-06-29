@@ -114,10 +114,36 @@ test.describe('table block: column affordance menu', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	test('grips do not intercept a header-cell caret click at rest', async ({ page }) => {
-		// pointer-events:none until hover keeps the top-of-column grip from stealing
-		// a normal caret click into the header cell.
+	test('column grips are pointer-events:none at rest', async ({ page }) => {
+		// State query, no interaction: at rest the grip is out of the hit-test path,
+		// so it can never steal a caret click before the table is hovered.
+		const pe = await page
+			.locator('[data-table-col-grip]')
+			.first()
+			.evaluate((el) => getComputedStyle(el).pointerEvents);
+		expect(pe).toBe('none');
+	});
+
+	test('a header-cell caret click lands in the cell while hovered', async ({ page }) => {
+		// click() hovers first, lifting the grip to pointer-events:auto; its
+		// top-of-column geometry still leaves the cell body clickable.
 		await page.locator('[role="cell"]').nth(0).click();
 		await expect(page.locator('[role="cell"]').nth(0)).toBeFocused();
+	});
+
+	test('Move column right is disabled on the last column', async ({ page }) => {
+		await page.hover('[role="table"]');
+		await page.locator('[data-table-col-grip]').nth(1).click(); // column B (last)
+		await expect(page.getByRole('menuitem', { name: /move column right/i })).toBeDisabled();
+		await expect(page.getByRole('menuitem', { name: /move column left/i })).toBeEnabled();
+	});
+
+	test('the alignment control reflects the column current alignment', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| :---: | --- |\n| 1 | 2 |\n');
+		await page.hover('[role="table"]');
+		await page.locator('[data-table-col-grip]').nth(0).click(); // center-aligned column A
+
+		const align = page.getByRole('group', { name: 'Column alignment' });
+		await expect(align.locator('.alignment-segment.active')).toHaveText('C');
 	});
 });
