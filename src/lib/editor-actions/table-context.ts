@@ -59,6 +59,22 @@ export function tableColumnReorderTarget(
 	return to;
 }
 
+/**
+ * Whether a row delete is allowed. rowCount is the FULL row count (header at
+ * index 0 + body rows). A header delete promotes the next row, so it only needs
+ * a second row; a body delete needs a second body row, else the last body row
+ * would leave a header-only table.
+ */
+export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
+	if (rowCount <= 1) return false;
+	return rowIdx === 0 || rowCount - 1 > 1;
+}
+
+/** Whether a column delete is allowed: a table must keep at least one column. */
+export function canDeleteColumn(colCount: number): boolean {
+	return colCount > 1;
+}
+
 export interface TableMutationsContextDeps {
 	get node(): CstNode;
 	get index(): number;
@@ -227,10 +243,7 @@ export function createTableMutationsContext(
 
 		async deleteRow(rowIdx) {
 			const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
-			if ((node.children?.length ?? 0) <= 1) return;
-			const willRemoveHeader = rowIdx === 0;
-			const bodyCount = (node.children?.length ?? 0) - 1;
-			if (!willRemoveHeader && bodyCount <= 1) return;
+			if (!canDeleteRow(rowIdx, node.children?.length ?? 0)) return;
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],
@@ -260,7 +273,7 @@ export function createTableMutationsContext(
 		async deleteColumn(colIdx) {
 			const { node, focusCell, focusedCell } = deps;
 			const meta = metadataOf(node, 'table');
-			if (meta.columnCount <= 1) return;
+			if (!canDeleteColumn(meta.columnCount)) return;
 			await commitColumnEdit({
 				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
