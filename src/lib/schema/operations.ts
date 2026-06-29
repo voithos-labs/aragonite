@@ -44,7 +44,9 @@ export interface OperationDetailMap {
 	tableInsertColumn: { colIdx: number; side: 'left' | 'right' };
 	tableDeleteColumn: { colIdx: number; crossBlock?: true };
 	tableReorderRow: { from: number; to: number };
+	tableReorderColumn: { from: number; to: number };
 	tableCycleAlignment: { colIdx: number };
+	tableSetAlignment: { colIdx: number };
 }
 
 export type OperationKind = keyof OperationDetailMap;
