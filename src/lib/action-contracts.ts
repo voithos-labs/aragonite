@@ -4,7 +4,7 @@
  * and the list-item operations a parent list exposes to its children.
  */
 
-import type { CstNode } from './core/nodes';
+import type { CstNode, TableAlignment } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
@@ -284,5 +284,10 @@ export interface TableContext {
 	/** Move a body row up/down among body rows. The header row is fixed (no-op on it). */
 	moveRowUp(rowIdx: number): Promise<void>;
 	moveRowDown(rowIdx: number): Promise<void>;
+	/** Move a column left/right; no-op at the first/last column boundary. */
+	moveColumnLeft(colIdx: number): Promise<void>;
+	moveColumnRight(colIdx: number): Promise<void>;
 	cycleAlignment(colIdx: number): Promise<void>;
+	/** Set a column's alignment directly — distinct from the cycle step. */
+	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
 }
