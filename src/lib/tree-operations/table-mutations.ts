@@ -87,6 +87,10 @@ export function moveColumn(table: CstNode, fromCol: number, toCol: number): Stru
 	return changes;
 }
 
+export function setAlignment(table: CstNode, colIdx: number, alignment: TableAlignment): void {
+	metadataOf(table, 'table').alignments[colIdx] = alignment;
+}
+
 export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const current = meta.alignments[colIdx];
