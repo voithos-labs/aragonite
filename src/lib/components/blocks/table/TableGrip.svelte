@@ -58,4 +58,31 @@
 		opacity: 0;
 		pointer-events: none;
 	}
+
+	/* The anchor is the gutter grid item: zero-width (its track is `0`), stretched to
+	   the row height. z-index lifts the dots above cell A, which renders DOM-later and
+	   would otherwise paint over them and eat the click. */
+	.table-grip-anchor-row {
+		position: relative;
+		z-index: 2;
+	}
+
+	/* A thin vertical dotted bar centered down the row, overflowing right out of the
+	   zero-width gutter into cell A's left padding so it never overlaps the cell text. */
+	.table-grip-row {
+		position: absolute;
+		top: 50%;
+		left: 0.15rem;
+		transform: translateY(-50%);
+		width: 0.35rem;
+		height: 1rem;
+		color: var(--color-ui-muted, #a4a4a4);
+		background-image: radial-gradient(currentColor 40%, transparent 45%);
+		background-size: 0.35rem 0.25rem;
+		background-repeat: repeat-y;
+		background-position: center;
+		cursor: pointer;
+		opacity: 0;
+		pointer-events: none;
+	}
 </style>
