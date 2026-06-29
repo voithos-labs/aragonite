@@ -25,6 +25,7 @@
 	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
+	import TableGrip from './TableGrip.svelte';
 
 	let {
 		node,
@@ -36,7 +37,8 @@
 		alignments = [],
 		myPath = [],
 		setRef,
-		getRef
+		getRef,
+		onOpenRowMenu
 	}: {
 		node: CstNode;
 		index: number;
@@ -48,6 +50,7 @@
 		myPath?: number[];
 		setRef?: (i: number, r: BlockComponent | undefined) => void;
 		getRef?: (i: number) => BlockComponent | undefined;
+		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -193,8 +196,15 @@
 	}
 </script>
 
+<!-- The grip is the row's first child so it lands in the table's zero-width gutter
+	track (col 1) and the cells fill cols 2..N+1; its dots overflow right into cell A's
+	left padding. No whitespace between it and the cells: a stray text node here joins
+	the table's raw-offset walk and misplaces a parked cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
-	{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
+	<TableGrip
+		axis="row"
+		onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
+	/>{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
 			index={colIdx}
