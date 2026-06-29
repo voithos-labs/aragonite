@@ -127,11 +127,18 @@
 	// column-count change or a width re-wrap (`widthVersion`), which invalidate the cache.
 	let columnMaxWidths = $state<number[]>([]);
 
+	// Leading `0` track is the row-grip gutter (col 1). Width 0 keeps cell A's left
+	// edge at the same x — no content shift, so caret pixel-measurement and sticky
+	// column geometry are untouched; the row grip's dots overflow right into cell A's
+	// left padding (mirrors the column grip overflowing into the header cell's top).
 	const trackTemplate = $derived(
-		Array.from({ length: columnCount }, (_, c) => {
-			const floor = Math.max(80, columnMaxWidths[c] ?? 0);
-			return `minmax(${floor}px, max-content)`;
-		}).join(' ')
+		[
+			'0',
+			...Array.from({ length: columnCount }, (_, c) => {
+				const floor = Math.max(80, columnMaxWidths[c] ?? 0);
+				return `minmax(${floor}px, max-content)`;
+			})
+		].join(' ')
 	);
 
 	let measuredColumnEpoch = '';
@@ -244,37 +251,45 @@
 
 	setContext(TABLE_CONTEXT_KEY, ctx);
 
-	// ── Column affordance menu ─────────────────────────────────────────────
+	// ── Affordance menu (row + column) ─────────────────────────────────────
 
 	const columnIndices = $derived(Array.from({ length: columnCount }, (_, c) => c));
 
-	let columnMenu = $state<{ colIdx: number; x: number; y: number } | null>(null);
+	type MenuAxis = 'row' | 'column';
+	let menu = $state<{ axis: MenuAxis; index: number; x: number; y: number } | null>(null);
 
-	const columnMenuItems = $derived(
-		columnMenu
+	const menuItems = $derived(
+		menu
 			? tableMenuItems(
-					{ colIdx: columnMenu.colIdx },
+					menu.axis === 'column' ? { colIdx: menu.index } : { rowIdx: menu.index },
 					{ rowCount, colCount: columnCount },
 					meta.alignments ?? []
 				)
 			: []
 	);
 
-	function openColumnMenu(colIdx: number, e: MouseEvent): void {
+	function openMenu(axis: MenuAxis, index: number, e: MouseEvent): void {
 		const grip = e.currentTarget as HTMLElement | null;
 		const rect = grip?.getBoundingClientRect();
-		columnMenu = {
-			colIdx,
-			x: rect ? rect.left : e.clientX,
-			y: rect ? rect.bottom : e.clientY
-		};
+		if (!rect) {
+			menu = { axis, index, x: e.clientX, y: e.clientY };
+			return;
+		}
+		// Column grip sits atop its column → drop below it; row grip sits in the left
+		// gutter → open beside it so the menu clears the table's left edge.
+		menu =
+			axis === 'column'
+				? { axis, index, x: rect.left, y: rect.bottom }
+				: { axis, index, x: rect.right, y: rect.top };
 	}
 
-	async function runColumnAction(action: CellShortcutAction): Promise<void> {
-		const target = columnMenu;
+	async function runAction(action: CellShortcutAction): Promise<void> {
+		const target = menu;
 		if (!target) return;
-		await ctx[action](target.colIdx);
-		columnMenu = null;
+		// Column actions take colIdx, row actions take rowIdx; the menu's items are
+		// scoped to one axis, so `index` is the right argument for either.
+		await ctx[action](target.index);
+		menu = null;
 	}
 
 	// ── focusout: reset internal sticky when focus leaves the table ────────
@@ -482,8 +497,11 @@
 	role="table"
 	style:grid-template-columns={trackTemplate}
 >
+	<!-- Occupies the zero-width row-grip gutter (col 1) so the column grips align to
+	     their columns (cols 2..N+1), not the gutter. Carries no grip attribute. -->
+	<span class="table-grip-corner" aria-hidden="true"></span>
 	{#each columnIndices as colIdx (colIdx)}
-		<TableGrip axis="column" onActivate={(e) => openColumnMenu(colIdx, e)} />
+		<TableGrip axis="column" onActivate={(e) => openMenu('column', colIdx, e)} />
 	{/each}
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
@@ -504,18 +522,19 @@
 			myPath={[...myPath, rowIdx]}
 			setRef={setRowRef}
 			getRef={getRowRef}
+			onOpenRowMenu={(r, e) => openMenu('row', r, e)}
 		/>
 	{/each}
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
 	{/if}
-	{#if columnMenu}
+	{#if menu}
 		<TableActionMenu
-			items={columnMenuItems}
-			x={columnMenu.x}
-			y={columnMenu.y}
-			onaction={runColumnAction}
-			onclose={() => (columnMenu = null)}
+			items={menuItems}
+			x={menu.x}
+			y={menu.y}
+			onaction={runAction}
+			onclose={() => (menu = null)}
 		/>
 	{/if}
 </div>
@@ -533,6 +552,10 @@
 	/* Spacers are direct grid children; span all columns to reserve a full row band. */
 	.vr-spacer {
 		grid-column: 1 / -1;
+	}
+	/* Zero-height so the corner + column-grip band (grid row 1) adds no visible row. */
+	.table-grip-corner {
+		height: 0;
 	}
 	/* Webkit fallback for older Chromium. */
 	.table-block::-webkit-scrollbar {
