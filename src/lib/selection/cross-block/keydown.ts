@@ -262,6 +262,19 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 			return;
 		}
 	}
+	// An off-window (windowed-out) prose endpoint can't be scrolled to while
+	// unmounted. Reveal it and park the dispatch caret in it — the same
+	// reveal-then-pin pattern as the table-cell case above. Pinning native focus in
+	// the revealed endpoint is what keeps the next keystroke (the collapse) routed,
+	// even though the reveal unmounted the block that previously held focus.
+	if (focus && !ctx.getBlockElByPath(focus.path)) {
+		const ref = await ctx.revealPath(focus.path);
+		if (ref) {
+			ref.focus(focus.offset);
+			scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
+			return;
+		}
+	}
 	scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 }
 

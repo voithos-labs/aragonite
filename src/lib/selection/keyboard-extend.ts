@@ -79,13 +79,13 @@ export async function collapseCrossBlock(
 }
 
 /**
- * Scroll the focus block into view when it is mounted. An off-window (windowed-out)
- * prose focus is intentionally NOT revealed here: re-mounting it during a cross-block
- * extend unmounts the deep-nested-list focus before the collapse can route through
- * ListBlock's own windowing, so the viewport-follow for an off-window extend endpoint
- * is a tracked residual (see docs/issues.md). This is separate from the editor-root
- * keystroke routing, which stays: focus parks on the `.editor` root on unmount and a
- * document-level listener routes the next cross-block / undo-redo keystroke regardless.
+ * Scroll the focus block into view when it is mounted. This helper does not itself
+ * reveal a windowed-out block: the doc-edge extend reveals (and pins the dispatch
+ * caret in) an off-window endpoint via `revealActiveEndpoint` before calling this,
+ * and a single-step Shift+Arrow extend lands on a block adjacent to the mounted
+ * window, so it is already mounted. Editor-root keystroke routing is independent:
+ * focus parks on the `.editor` root on unmount and a document-level listener routes
+ * the next cross-block / undo-redo keystroke regardless.
  */
 export function scrollFocusBlockIntoView(
 	selection: SelectionState,
