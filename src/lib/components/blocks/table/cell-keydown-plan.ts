@@ -32,6 +32,8 @@ export type CellShortcutAction =
 	| 'deleteColumn'
 	| 'moveRowUp'
 	| 'moveRowDown'
+	| 'moveColumnLeft'
+	| 'moveColumnRight'
 	| 'cycleAlignment';
 
 export type CellKeyPlan =
@@ -83,8 +85,9 @@ const SHORTCUTS: Array<{
 		action: 'deleteColumn',
 		arg: (s) => s.colIdx
 	},
-	// Before the arrow-nav branches below, so Alt selects row reorder over the
-	// plain ArrowUp/ArrowDown caret move.
+	// Before the arrow-nav branches below: an Alt+Arrow reorder must win over the
+	// caret move the same key triggers otherwise — for L/R that caret move is a
+	// cell hop at the cell edge, which the nav branches do not gate on altKey.
 	{
 		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowUp',
 		action: 'moveRowUp',
@@ -94,6 +97,16 @@ const SHORTCUTS: Array<{
 		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowDown',
 		action: 'moveRowDown',
 		arg: (s) => s.rowIdx
+	},
+	{
+		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowLeft',
+		action: 'moveColumnLeft',
+		arg: (s) => s.colIdx
+	},
+	{
+		match: (e) => e.altKey && !e.shiftKey && !e.ctrlOrMeta && e.key === 'ArrowRight',
+		action: 'moveColumnRight',
+		arg: (s) => s.colIdx
 	},
 	{
 		match: (e) => e.ctrlOrMeta && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
