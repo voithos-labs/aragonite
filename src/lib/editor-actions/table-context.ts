@@ -1,13 +1,13 @@
 /**
- * Factory for the TableContext mutation bundle: row/column insert/delete, body-row
- * reorder, and column-alignment cycling. The component owns sticky-column state,
- * focused-cell tracking, DOM helpers, and BlockComponent — only structural
+ * Factory for the TableContext mutation bundle: row/column insert/delete, row and
+ * column reorder, and column-alignment cycle/set. The component owns sticky-column
+ * state, focused-cell tracking, DOM helpers, and BlockComponent — only structural
  * mutations live here.
  */
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
-import type { CstNode } from '../core/nodes';
+import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -22,7 +22,9 @@ import {
 	insertEmptyColumn,
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn,
-	cycleAlignment as mutCycleAlignment
+	moveColumn as mutMoveColumn,
+	cycleAlignment as mutCycleAlignment,
+	setAlignment as mutSetAlignment
 } from '../tree-operations/table-mutations';
 
 /**
@@ -79,7 +81,10 @@ export type TableMutationsContext = Pick<
 	| 'deleteColumn'
 	| 'moveRowUp'
 	| 'moveRowDown'
+	| 'moveColumnLeft'
+	| 'moveColumnRight'
 	| 'cycleAlignment'
+	| 'setColumnAlignment'
 >;
 
 export function createTableMutationsContext(
@@ -118,7 +123,10 @@ export function createTableMutationsContext(
 
 	async function commitColumnEdit(opts: {
 		mutateColumns: (table: CstNode) => StructuralChange[];
-		op: Extract<OpDescriptor, { kind: 'tableInsertColumn' | 'tableDeleteColumn' }>;
+		op: Extract<
+			OpDescriptor,
+			{ kind: 'tableInsertColumn' | 'tableDeleteColumn' | 'tableReorderColumn' }
+		>;
 		afterTick: () => void;
 	}): Promise<void> {
 		const { index, myPath, controller } = deps;
@@ -186,6 +194,27 @@ export function createTableMutationsContext(
 		});
 	}
 
+	async function moveColumn(colIdx: number, dir: -1 | 1): Promise<void> {
+		const { node, focusCell, focusedCell } = deps;
+		const columnCount = metadataOf(node, 'table').columnCount;
+		const to = tableColumnReorderTarget(colIdx, dir, columnCount);
+		if (to === null) return;
+		// focusout nulls focusedCell on the post-commit re-render, so capture the
+		// row now; the column edit's afterTick would otherwise land at row 0.
+		const row = focusedCell?.rowIdx ?? 0;
+		// The ceremony unshares each row scope and rebuilds the table raw (cell
+		// permutation + alignment splice) via rebuildOwnedContainer — same as
+		// insert/delete; the tree-op only permutes references.
+		await commitColumnEdit({
+			mutateColumns: (table) => mutMoveColumn(table, colIdx, to),
+			op: { kind: 'tableReorderColumn', detail: { from: colIdx, to } },
+			afterTick: () => {
+				focusCell(row, to, 'start');
+				deps.announceReorder(`Moved column to position ${to + 1} of ${columnCount}`);
+			}
+		});
+	}
+
 	return {
 		insertRowAbove: (rowIdx) => insertRow(rowIdx, 'above'),
 		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
@@ -193,6 +222,8 @@ export function createTableMutationsContext(
 		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
 		moveRowUp: (rowIdx) => moveRow(rowIdx, -1),
 		moveRowDown: (rowIdx) => moveRow(rowIdx, 1),
+		moveColumnLeft: (colIdx) => moveColumn(colIdx, -1),
+		moveColumnRight: (colIdx) => moveColumn(colIdx, 1),
 
 		async deleteRow(rowIdx) {
 			const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
@@ -258,6 +289,24 @@ export function createTableMutationsContext(
 					return { op: 'noop' };
 				},
 				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
+			});
+		},
+
+		async setColumnAlignment(colIdx, alignment) {
+			const { node, index, myPath, rowsState, parentContainerEdit } = deps;
+			// Distinct from tableCycleAlignment so consumers can tell a direct set
+			// from a cycle step; commits unconditionally — the first table mutation
+			// also normalizes cell padding, so a same-value set is not a byte no-op.
+			await parentContainerEdit.commitContainer({
+				containerNode: node,
+				path: [...myPath],
+				state: rowsState,
+				snapshot: { blockIndex: index, offset: 0 },
+				mutate: (scope) => {
+					mutSetAlignment(scope.node, colIdx, alignment);
+					return { op: 'noop' };
+				},
+				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
 			});
 		}
 	};
