@@ -6,6 +6,7 @@
 
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
+import { reorderChildren } from './reorder';
 import type { StructuralChange } from './structural-change';
 
 const ALIGN_CYCLE: TableAlignment[] = ['left', 'center', 'right'];
@@ -67,6 +68,22 @@ export function deleteColumn(table: CstNode, colIdx: number): StructuralChange[]
 	}
 	meta.alignments.splice(colIdx, 1);
 	meta.columnCount -= 1;
+	return changes;
+}
+
+// Per-row cell permute keeps keyed cell identity (reorderChildren's idMap);
+// the alignments splice mirrors that permutation byte-for-byte so the two stay
+// in lockstep for any from/to. columnCount is untouched — a move adds no column.
+export function moveColumn(table: CstNode, fromCol: number, toCol: number): StructuralChange[] {
+	const meta = metadataOf(table, 'table');
+	const changes: StructuralChange[] = [];
+	for (const row of table.children ?? []) {
+		changes.push(reorderChildren(row.children!, fromCol, toCol));
+	}
+	if (fromCol !== toCol) {
+		const [moved] = meta.alignments.splice(fromCol, 1);
+		meta.alignments.splice(toCol, 0, moved);
+	}
 	return changes;
 }
 
