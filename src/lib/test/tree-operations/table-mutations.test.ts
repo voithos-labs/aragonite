@@ -6,7 +6,8 @@ import {
 	deleteRow,
 	deleteColumn,
 	moveColumn,
-	cycleAlignment
+	cycleAlignment,
+	setAlignment
 } from '../../tree-operations/table-mutations';
 import type { TableMetadata, TableRowMetadata } from '../../core/nodes';
 
@@ -141,5 +142,13 @@ describe('cycleAlignment', () => {
 			cycleAlignment(table, 0);
 			expect((table.metadata as TableMetadata).alignments[0]).not.toBe('none');
 		}
+	});
+});
+
+describe('setAlignment', () => {
+	it('sets a single column alignment directly', () => {
+		const table = parseTable('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		setAlignment(table, 1, 'right');
+		expect((table.metadata as TableMetadata).alignments).toEqual(['none', 'right']);
 	});
 });
