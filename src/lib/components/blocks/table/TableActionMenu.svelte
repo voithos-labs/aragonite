@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { TableMenuItem } from './table-menu-model';
+	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
 		items,
@@ -11,7 +12,7 @@
 		items: TableMenuItem[];
 		x: number;
 		y: number;
-		onaction: (action: string) => void;
+		onaction: (action: CellShortcutAction) => void;
 		onclose: () => void;
 	} = $props();
 

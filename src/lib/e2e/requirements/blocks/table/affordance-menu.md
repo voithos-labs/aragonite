@@ -22,6 +22,7 @@ L/C/R alignment control previews the column's alignment (wiring is a later task)
 ## User interactions
 
 - The grips are pointer-events:none at rest, so a header-cell caret click is never intercepted while the table is not hovered.
+- While the table is hovered (grips lifted to pointer-events:auto), a header-cell caret click still lands in the cell — the grip's top-of-column geometry leaves the cell body clickable.
 - Clicking outside the open menu closes it without committing anything.
 - Pressing Escape closes the open menu without committing anything.
 - Opening a grip menu then choosing an action commits exactly once and closes the menu.
