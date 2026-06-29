@@ -1,26 +1,22 @@
 <script lang="ts">
 	let {
 		axis,
-		onActivate,
-		onpointerdown
+		onActivate
 	}: {
 		axis: 'row' | 'column';
 		onActivate: (e: MouseEvent) => void;
-		onpointerdown?: (e: PointerEvent) => void;
 	} = $props();
 
 	function handlePointerDown(e: PointerEvent): void {
 		// Keep the grip's own pointer stream off the editor's selection/focus
 		// handlers; the affordance opens a menu, it doesn't place a caret.
 		e.stopPropagation();
-		onpointerdown?.(e);
 	}
 </script>
 
 <!-- Mouse-only affordance: the cell chords are the operable, screen-reader path,
 	so the grip stays out of the tab/SR flow (aria-hidden, non-focusable). Reveal
-	is a pure-CSS host:hover rule in editor.css, not per-grip reactive state.
-	onpointerdown is reserved for the roadmapped drag. -->
+	is a pure-CSS host:hover rule in editor.css, not per-grip reactive state. -->
 <span class="table-grip-anchor table-grip-anchor-{axis}">
 	<span
 		class="table-grip table-grip-{axis}"

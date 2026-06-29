@@ -46,6 +46,7 @@
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
 	import { tableMenuItems } from './table-menu-model';
+	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
 		node,
@@ -269,11 +270,10 @@
 		};
 	}
 
-	async function runColumnAction(action: string): Promise<void> {
+	async function runColumnAction(action: CellShortcutAction): Promise<void> {
 		const target = columnMenu;
 		if (!target) return;
-		const run = ctx[action as keyof TableContext] as (arg: number) => Promise<void>;
-		await run(target.colIdx);
+		await ctx[action](target.colIdx);
 		columnMenu = null;
 	}
 
