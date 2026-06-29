@@ -255,3 +255,34 @@ test.describe('table block: row affordance menu', () => {
 		await expect(firstBodyCell).toBeFocused();
 	});
 });
+
+test.describe('table block: grid markup structure', () => {
+	// The grip markup adds elements between the grid's dynamic block regions. A
+	// whitespace-only text node directly under a raw-walk container joins the
+	// raw-offset walk (cursor/widget-offset.ts counts every text node, incl.
+	// aria-hidden) and shifts a parked cross-block caret. This guards the whole
+	// table/row markup so later drag tasks can't reintroduce one.
+	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(TABLE);
+		await expect(page.locator('.table-row').first()).toBeVisible();
+
+		const offenders = await page.evaluate(() => {
+			const out: string[] = [];
+			document.querySelectorAll('.table-block, .table-row').forEach((el) => {
+				el.childNodes.forEach((n) => {
+					const text = n.textContent ?? '';
+					if (n.nodeType === Node.TEXT_NODE && text.length > 0 && text.trim() === '') {
+						out.push((el as HTMLElement).className);
+					}
+				});
+			});
+			return out;
+		});
+
+		expect(offenders).toEqual([]);
+	});
+});
