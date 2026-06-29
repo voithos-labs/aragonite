@@ -1,14 +1,16 @@
 /**
  * Pure model for the table affordance menu: which items a target cell, row, or
  * column offers and whether each is enabled. The component renders this and
- * dispatches `context[action](arg)` on click; enablement mirrors the context's
- * own refusal rules so a disabled item can never reach a no-op commit.
+ * dispatches `context[action](arg)` on click; enablement reuses the context's
+ * own refusal predicates so a disabled item can never reach a no-op commit.
  */
 import type { CellShortcutAction } from './cell-keydown-plan';
 import type { TableAlignment } from '../../../core/nodes';
 import {
 	tableRowReorderTarget,
-	tableColumnReorderTarget
+	tableColumnReorderTarget,
+	canDeleteRow,
+	canDeleteColumn
 } from '../../../editor-actions/table-context';
 
 export type TableMenuItem =
@@ -73,16 +75,12 @@ function columnGroup(
 			label: 'Move column right',
 			enabled: tableColumnReorderTarget(colIdx, 1, colCount) !== null
 		},
-		{ kind: 'action', action: 'deleteColumn', label: 'Delete column', enabled: colCount > 1 },
+		{
+			kind: 'action',
+			action: 'deleteColumn',
+			label: 'Delete column',
+			enabled: canDeleteColumn(colCount)
+		},
 		{ kind: 'alignment', current: alignments[colIdx] }
 	];
-}
-
-// A header (row 0) delete only needs a second row; a body delete also needs a
-// second body row, since deleting the last body row would leave a header-only
-// table. Mirrors the deleteRow wrapper in editor-actions/table-context.
-function canDeleteRow(rowIdx: number, rowCount: number): boolean {
-	if (rowCount <= 1) return false;
-	const bodyCount = rowCount - 1;
-	return rowIdx === 0 || bodyCount > 1;
 }
