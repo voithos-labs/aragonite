@@ -29,6 +29,7 @@
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SEARCH_KEY,
+		REVEAL_ANCHOR_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		WIDGET_SELECTION_KEY,
@@ -41,6 +42,7 @@
 		type SearchState
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
+	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -137,6 +139,7 @@
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
+	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
 	// getSelection is function-hoisted below — callback reads the fresh snapshot each time.
@@ -239,6 +242,24 @@
 		};
 		editorEl.addEventListener('click', handleClick);
 		return () => editorEl?.removeEventListener('click', handleClick);
+	});
+
+	// Clear the reveal anchor on the next user-intent gesture in the document, so it
+	// holds the target only through the post-reveal settle and yields the moment the
+	// user takes over. NOT on `scroll` — a programmatic correctAnchor scrollTop write
+	// itself fires `scroll` and would self-clear the anchor mid-settle.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const clear = () => revealAnchor.clear();
+		root.addEventListener('keydown', clear);
+		root.addEventListener('pointerdown', clear);
+		root.addEventListener('wheel', clear, { passive: true });
+		return () => {
+			root.removeEventListener('keydown', clear);
+			root.removeEventListener('pointerdown', clear);
+			root.removeEventListener('wheel', clear);
+		};
 	});
 
 	$effect(() => {
@@ -382,6 +403,10 @@
 		// also covers the mounted-but-scrolled-out case. getBlockElByPath resolves
 		// the same path revealPath consumed; `?.` degrades to no-scroll otherwise.
 		reveal: async (p) => {
+			// Hold this target's screen position through the band's async image-decode
+			// churn (cleared on the next user gesture) so the reveal scroll isn't
+			// clamped off it — see cursor/reveal-anchor.ts.
+			revealAnchor.set(p);
 			await focus.revealPath(p);
 			getBlockElByPath(p)?.scrollIntoView({ block: 'nearest' });
 		},
@@ -422,6 +447,7 @@
 	setContext(REORDER_ACTION_KEY, reorder);
 	setContext(REORDER_ANNOUNCE_KEY, announceReorder);
 	setContext(STICKY_COLUMN_KEY, stickyColumn);
+	setContext(REVEAL_ANCHOR_KEY, revealAnchor);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(SEARCH_KEY, searchState);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
