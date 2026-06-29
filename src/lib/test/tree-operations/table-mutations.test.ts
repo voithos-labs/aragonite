@@ -5,6 +5,7 @@ import {
 	insertEmptyColumn,
 	deleteRow,
 	deleteColumn,
+	moveColumn,
 	cycleAlignment
 } from '../../tree-operations/table-mutations';
 import type { TableMetadata, TableRowMetadata } from '../../core/nodes';
@@ -91,6 +92,26 @@ describe('deleteColumn', () => {
 		expect((table.metadata as TableMetadata).alignments).toEqual(['left', 'right']);
 		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', 'C']);
 		expect(changes).toEqual(table.children!.map(() => ({ op: 'delete', at: 1, count: 1 })));
+	});
+});
+
+describe('moveColumn', () => {
+	it('permutes cells in every row and the alignments array, preserving columnCount', () => {
+		const table = parseTable('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n');
+		const changes = moveColumn(table, 0, 2);
+		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['B', 'C', 'A']);
+		expect(table.children![1].children!.map((c) => c.raw)).toEqual(['2', '3', '1']);
+		expect((table.metadata as TableMetadata).alignments).toEqual(['center', 'right', 'left']);
+		expect((table.metadata as TableMetadata).columnCount).toBe(3);
+		expect(changes).toHaveLength(2);
+		expect(changes.every((c) => c.op === 'replace')).toBe(true);
+	});
+
+	it('is a noop per row when from === to', () => {
+		const table = parseTable('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const changes = moveColumn(table, 1, 1);
+		expect(changes.every((c) => c.op === 'noop')).toBe(true);
+		expect(table.children![0].children!.map((c) => c.raw)).toEqual(['A', 'B']);
 	});
 });
 
