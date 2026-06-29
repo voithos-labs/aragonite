@@ -43,6 +43,9 @@
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
+	import TableGrip from './TableGrip.svelte';
+	import TableActionMenu from './TableActionMenu.svelte';
+	import { tableMenuItems } from './table-menu-model';
 
 	let {
 		node,
@@ -239,6 +242,40 @@
 	};
 
 	setContext(TABLE_CONTEXT_KEY, ctx);
+
+	// ── Column affordance menu ─────────────────────────────────────────────
+
+	const columnIndices = $derived(Array.from({ length: columnCount }, (_, c) => c));
+
+	let columnMenu = $state<{ colIdx: number; x: number; y: number } | null>(null);
+
+	const columnMenuItems = $derived(
+		columnMenu
+			? tableMenuItems(
+					{ colIdx: columnMenu.colIdx },
+					{ rowCount, colCount: columnCount },
+					meta.alignments ?? []
+				)
+			: []
+	);
+
+	function openColumnMenu(colIdx: number, e: MouseEvent): void {
+		const grip = e.currentTarget as HTMLElement | null;
+		const rect = grip?.getBoundingClientRect();
+		columnMenu = {
+			colIdx,
+			x: rect ? rect.left : e.clientX,
+			y: rect ? rect.bottom : e.clientY
+		};
+	}
+
+	async function runColumnAction(action: string): Promise<void> {
+		const target = columnMenu;
+		if (!target) return;
+		const run = ctx[action as keyof TableContext] as (arg: number) => Promise<void>;
+		await run(target.colIdx);
+		columnMenu = null;
+	}
 
 	// ── focusout: reset internal sticky when focus leaves the table ────────
 
@@ -445,6 +482,9 @@
 	role="table"
 	style:grid-template-columns={trackTemplate}
 >
+	{#each columnIndices as colIdx (colIdx)}
+		<TableGrip axis="column" onActivate={(e) => openColumnMenu(colIdx, e)} />
+	{/each}
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}
@@ -468,6 +508,15 @@
 	{/each}
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
+	{/if}
+	{#if columnMenu}
+		<TableActionMenu
+			items={columnMenuItems}
+			x={columnMenu.x}
+			y={columnMenu.y}
+			onaction={runColumnAction}
+			onclose={() => (columnMenu = null)}
+		/>
 	{/if}
 </div>
 

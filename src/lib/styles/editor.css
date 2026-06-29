@@ -317,3 +317,14 @@
 :where(.editor) .vr-spacer {
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
 }
+
+/* Table affordance grips: revealed only while the table is hovered (pure CSS, no
+   per-grip reactive state — mirrors the block drag handle). The grip's own
+   <style> holds the at-rest opacity:0/pointer-events:none, so a grip never
+   intercepts a caret click until the table is hovered. Covers row grips too so
+   the row-axis affordance inherits the same reveal. */
+:where(.editor) [role='table']:hover [data-table-col-grip],
+:where(.editor) [role='table']:hover [data-table-row-grip] {
+	opacity: 1;
+	pointer-events: auto;
+}
