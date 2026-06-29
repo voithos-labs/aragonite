@@ -497,19 +497,19 @@
 	role="table"
 	style:grid-template-columns={trackTemplate}
 >
-	<!-- Occupies the zero-width row-grip gutter (col 1) so the column grips align to
-	     their columns (cols 2..N+1), not the gutter. Carries no grip attribute. -->
-	<span class="table-grip-corner" aria-hidden="true"></span>
-	{#each columnIndices as colIdx (colIdx)}
+	<!-- Corner occupies the zero-width row-grip gutter (col 1) so the column grips align
+	     to their columns (cols 2..N+1), not the gutter; carries no grip attribute. The
+	     grid's block boundaries below are kept whitespace-adjacent: a stray text node
+	     directly under .table-block joins the raw-offset walk and shifts a parked
+	     cross-block caret (cursor/widget-offset.ts; mirrors TableRowBlock). -->
+	<span class="table-grip-corner" aria-hidden="true"></span>{#each columnIndices as colIdx (colIdx)}
 		<TableGrip axis="column" onActivate={(e) => openMenu('column', colIdx, e)} />
-	{/each}
-	{#if win.active}
+	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
-	{/if}
-	<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
-	     index (bounds.start + localIndex), never the local loop index. When
-	     inactive, bounds are {0, rowCount} so rowIdx === the loop index. -->
-	{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
+	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
+		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
+		     index (bounds.start + localIndex), never the local loop index. When
+		     inactive, bounds are {0, rowCount} so rowIdx === the loop index. -->
 		{@const rowIdx = bounds.start + localIndex}
 		<TableRowBlock
 			node={rowNode}
@@ -524,11 +524,9 @@
 			getRef={getRowRef}
 			onOpenRowMenu={(r, e) => openMenu('row', r, e)}
 		/>
-	{/each}
-	{#if win.active}
+	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
-	{/if}
-	{#if menu}
+	{/if}{#if menu}
 		<TableActionMenu
 			items={menuItems}
 			x={menu.x}
