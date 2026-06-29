@@ -42,6 +42,21 @@ export function tableRowReorderTarget(
 	return to;
 }
 
+/**
+ * Destination column index for a column reorder, or null when the move is a
+ * no-op at a boundary. Unlike rows, columns have no fixed header, so every
+ * index is a valid source and target and clamping spans the full range.
+ */
+export function tableColumnReorderTarget(
+	colIdx: number,
+	dir: -1 | 1,
+	colCount: number
+): number | null {
+	const to = colIdx + dir;
+	if (to < 0 || to > colCount - 1) return null;
+	return to;
+}
+
 export interface TableMutationsContextDeps {
 	get node(): CstNode;
 	get index(): number;
