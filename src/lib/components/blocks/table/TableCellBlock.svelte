@@ -564,7 +564,15 @@
 		if (action === 'paste') {
 			stickyColumn.reset();
 			el.focus();
-			const text = normalizeLineEndings(await navigator.clipboard.readText());
+			let raw: string;
+			try {
+				// Fired un-awaited from the menu onclick, so a denied/failed clipboard
+				// read would surface as an unhandled rejection; degrade to a no-op.
+				raw = await navigator.clipboard.readText();
+			} catch {
+				return;
+			}
+			const text = normalizeLineEndings(raw);
 			if (text) await applyCellPaste(text, sel);
 			return;
 		}
