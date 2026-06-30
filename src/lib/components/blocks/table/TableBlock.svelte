@@ -46,7 +46,7 @@
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
-	import { tableMenuItems } from './table-menu-model';
+	import { tableMenuItems, type ClipboardAction } from './table-menu-model';
 	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
@@ -258,11 +258,21 @@
 
 	type MenuAxis = 'row' | 'column';
 	type MenuTarget = { rowIdx?: number; colIdx?: number };
-	let menu = $state<{ target: MenuTarget; x: number; y: number } | null>(null);
+	// clipboardSel is the cell's raw selection captured at right-click, before the
+	// menu steals focus — null for grip menus and for an empty cell with no caret.
+	type CellSelection = { start: number; end: number };
+	let menu = $state<{
+		target: MenuTarget;
+		x: number;
+		y: number;
+		clipboardSel: CellSelection | null;
+	} | null>(null);
 
 	const menuItems = $derived(
 		menu
-			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [])
+			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [], {
+					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end
+				})
 			: []
 	);
 
@@ -271,32 +281,52 @@
 		const rect = grip?.getBoundingClientRect();
 		const target: MenuTarget = axis === 'column' ? { colIdx: index } : { rowIdx: index };
 		if (!rect) {
-			menu = { target, x: e.clientX, y: e.clientY };
+			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
 			return;
 		}
 		// Column grip sits atop its column → drop below it; row grip sits in the left
 		// gutter → open beside it so the menu clears the table's left edge.
 		menu =
 			axis === 'column'
-				? { target, x: rect.left, y: rect.bottom }
-				: { target, x: rect.right, y: rect.top };
+				? { target, x: rect.left, y: rect.bottom, clipboardSel: null }
+				: { target, x: rect.right, y: rect.top, clipboardSel: null };
+	}
+
+	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
+		return rowRefAt(rowIdx)?.getBlockComponentByPath?.([colIdx]) ?? null;
 	}
 
 	// Right-click anywhere in a cell opens the both-axes menu (row group + column
-	// group). Only preventDefault when actually over a cell, so a right-click in the
-	// table's padding gaps keeps the native menu.
+	// group + clipboard group). Only preventDefault when actually over a cell, so a
+	// right-click in the table's padding gaps keeps the native menu. The cell's
+	// selection is captured now, before clicking a menu item moves focus off it.
 	function openCellMenu(e: MouseEvent): void {
 		if (!tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
 		if (!cell) return;
 		e.preventDefault();
-		menu = { target: { rowIdx: cell.rowIdx, colIdx: cell.colIdx }, x: e.clientX, y: e.clientY };
+		const clipboardSel = cellRefAt(cell.rowIdx, cell.colIdx)?.getSelectionOffsets?.() ?? null;
+		menu = {
+			target: { rowIdx: cell.rowIdx, colIdx: cell.colIdx },
+			x: e.clientX,
+			y: e.clientY,
+			clipboardSel
+		};
 	}
 
 	async function runAction(action: CellShortcutAction, index: number): Promise<void> {
 		if (!menu) return;
 		await ctx[action](index);
 		menu = null;
+	}
+
+	async function runClipboard(action: ClipboardAction): Promise<void> {
+		if (!menu) return;
+		const { rowIdx, colIdx } = menu.target;
+		const sel = menu.clipboardSel ?? { start: 0, end: 0 };
+		menu = null;
+		if (rowIdx == null || colIdx == null) return;
+		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
 	}
 
 	// ── focusout: reset internal sticky when focus leaves the table ────────
@@ -540,6 +570,7 @@
 			x={menu.x}
 			y={menu.y}
 			onaction={runAction}
+			onclipboard={runClipboard}
 			onclose={() => (menu = null)}
 		/>
 	{/if}
