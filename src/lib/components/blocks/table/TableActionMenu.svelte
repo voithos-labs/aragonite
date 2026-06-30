@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TableMenuItem } from './table-menu-model';
+	import type { TableMenuItem, ClipboardAction } from './table-menu-model';
 	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
@@ -7,12 +7,14 @@
 		x,
 		y,
 		onaction,
+		onclipboard,
 		onclose
 	}: {
 		items: TableMenuItem[];
 		x: number;
 		y: number;
 		onaction: (action: CellShortcutAction, index: number) => void;
+		onclipboard: (action: ClipboardAction) => void;
 		onclose: () => void;
 	} = $props();
 
@@ -56,6 +58,17 @@
 				disabled={!item.enabled}
 				aria-disabled={!item.enabled}
 				onclick={() => onaction(item.action, item.index)}
+			>
+				{item.label}
+			</button>
+		{:else if item.kind === 'clipboard'}
+			<button
+				type="button"
+				role="menuitem"
+				class="table-action-menu-item"
+				disabled={!item.enabled}
+				aria-disabled={!item.enabled}
+				onclick={() => onclipboard(item.action)}
 			>
 				{item.label}
 			</button>
