@@ -148,23 +148,27 @@ test.describe('table block: column affordance menu', () => {
 		await expect(align.locator('.alignment-segment.active')).toHaveText('C');
 	});
 
-	test('the alignment control sets a column to center', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+	test('the alignment control sets the targeted (non-first) column to center', async ({ page }) => {
+		await editor.loadContent('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		await page.hover('[role="table"]');
-		await page.locator('[data-table-col-grip]').nth(0).click();
+		await page.locator('[data-table-col-grip]').nth(1).click(); // column B
 		await page.getByRole('button', { name: 'Center' }).click();
 
-		await editor.bridge.waitForSourceMatches(/\| :-+: \|/); // column A delimiter centered
+		// Full-row anchor: only B is `:-+:`; A and C stay `-+`, so the test fails if
+		// alignment routes to column 0 or 2 instead of the targeted column 1.
+		await editor.bridge.waitForSourceMatches(/^\| -+ \| :-+: \| -+ \|$/m);
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 
-	test('the alignment control sets a column to right', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+	test('the alignment control sets the targeted (non-first) column to right', async ({ page }) => {
+		await editor.loadContent('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		await page.hover('[role="table"]');
-		await page.locator('[data-table-col-grip]').nth(0).click();
+		await page.locator('[data-table-col-grip]').nth(1).click(); // column B
 		await page.getByRole('button', { name: 'Right' }).click();
 
-		await editor.bridge.waitForSourceMatches(/\| -+: \|/); // column A delimiter right-aligned
+		// Full-row anchor: only B is `-+:`; A and C stay `-+`, so the test fails if
+		// alignment routes to column 0 or 2 instead of the targeted column 1.
+		await editor.bridge.waitForSourceMatches(/^\| -+ \| -+: \| -+ \|$/m);
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 });
