@@ -33,6 +33,7 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
+	import { cellAtPoint } from './cell-pointer';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
@@ -256,39 +257,45 @@
 	const columnIndices = $derived(Array.from({ length: columnCount }, (_, c) => c));
 
 	type MenuAxis = 'row' | 'column';
-	let menu = $state<{ axis: MenuAxis; index: number; x: number; y: number } | null>(null);
+	type MenuTarget = { rowIdx?: number; colIdx?: number };
+	let menu = $state<{ target: MenuTarget; x: number; y: number } | null>(null);
 
 	const menuItems = $derived(
 		menu
-			? tableMenuItems(
-					menu.axis === 'column' ? { colIdx: menu.index } : { rowIdx: menu.index },
-					{ rowCount, colCount: columnCount },
-					meta.alignments ?? []
-				)
+			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [])
 			: []
 	);
 
 	function openMenu(axis: MenuAxis, index: number, e: MouseEvent): void {
 		const grip = e.currentTarget as HTMLElement | null;
 		const rect = grip?.getBoundingClientRect();
+		const target: MenuTarget = axis === 'column' ? { colIdx: index } : { rowIdx: index };
 		if (!rect) {
-			menu = { axis, index, x: e.clientX, y: e.clientY };
+			menu = { target, x: e.clientX, y: e.clientY };
 			return;
 		}
 		// Column grip sits atop its column → drop below it; row grip sits in the left
 		// gutter → open beside it so the menu clears the table's left edge.
 		menu =
 			axis === 'column'
-				? { axis, index, x: rect.left, y: rect.bottom }
-				: { axis, index, x: rect.right, y: rect.top };
+				? { target, x: rect.left, y: rect.bottom }
+				: { target, x: rect.right, y: rect.top };
 	}
 
-	async function runAction(action: CellShortcutAction): Promise<void> {
-		const target = menu;
-		if (!target) return;
-		// Column actions take colIdx, row actions take rowIdx; the menu's items are
-		// scoped to one axis, so `index` is the right argument for either.
-		await ctx[action](target.index);
+	// Right-click anywhere in a cell opens the both-axes menu (row group + column
+	// group). Only preventDefault when actually over a cell, so a right-click in the
+	// table's padding gaps keeps the native menu.
+	function openCellMenu(e: MouseEvent): void {
+		if (!tableEl) return;
+		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
+		if (!cell) return;
+		e.preventDefault();
+		menu = { target: { rowIdx: cell.rowIdx, colIdx: cell.colIdx }, x: e.clientX, y: e.clientY };
+	}
+
+	async function runAction(action: CellShortcutAction, index: number): Promise<void> {
+		if (!menu) return;
+		await ctx[action](index);
 		menu = null;
 	}
 
@@ -496,6 +503,7 @@
 	class="table-block"
 	role="table"
 	style:grid-template-columns={trackTemplate}
+	oncontextmenu={openCellMenu}
 >
 	<!-- Corner occupies the zero-width row-grip gutter (col 1) so the column grips align
 	     to their columns (cols 2..N+1), not the gutter; carries no grip attribute. The
