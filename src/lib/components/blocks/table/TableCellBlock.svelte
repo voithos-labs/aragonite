@@ -63,6 +63,7 @@
 	import { selectWholeDocument } from '../../../selection/keyboard-extend';
 	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
 	import { intraTableRectPayload } from './cell-clipboard';
+	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
 		handleCellShiftClick,
@@ -240,7 +241,9 @@
 			getSelectedText,
 			setSelection,
 			measurePartialRects,
-			runCommand
+			runCommand,
+			getSelectionOffsets,
+			applyMenuClipboard
 		};
 		return publishRefSlot(index, self, setRef, getRef);
 	});
@@ -484,18 +487,15 @@
 
 		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
 
-		// Intra-cell: slice node.raw at the selection, write the slice, and
-		// commit the truncation through blockEdit so the CST and undo stack
-		// stay in step. The native deleteByCut path would mutate the DOM
-		// out from under the CST and leave a stale snapshot anchor.
+		// Intra-cell: write the raw slice synchronously (clipboardData closes after
+		// the event), then truncate via deleteCellRange. The native deleteByCut path
+		// would mutate the DOM out from under the CST and leave a stale snapshot anchor.
 		if (!el) return;
 		const offsets = cursor.getRawSelection();
 		if (!offsets || offsets.start === offsets.end) return;
 		const display = trimTrailingLineEnding(node.raw);
 		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-		const newDisplay = display.slice(0, offsets.start) + display.slice(offsets.end);
-		blockEdit.updateBlockContent(index, newDisplay, offsets.start, offsets.start);
-		pendingCursorOffset = offsets.start;
+		deleteCellRange(offsets.start, offsets.end);
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
@@ -508,25 +508,72 @@
 		if (!pastedText) return;
 
 		const selOffsets = cursor.getRawSelection();
-		const offset = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
+		const start = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
+		await applyCellPaste(pastedText, { start, end: selOffsets ? selOffsets.end : start });
+	}
 
+	// ── Shared mutation primitives (event handlers + right-click menu) ───────
+
+	function deleteCellRange(start: number, end: number): void {
+		const display = trimTrailingLineEnding(node.raw);
+		const newDisplay = display.slice(0, start) + display.slice(end);
+		blockEdit.updateBlockContent(index, newDisplay, start, start);
+		pendingCursorOffset = start;
+	}
+
+	async function applyCellPaste(
+		pastedText: string,
+		sel: { start: number; end: number }
+	): Promise<void> {
 		const result = await pasteDispatch(
 			{
 				pastedText,
 				targetPath: myPath,
-				offset,
-				preDelete: selOffsets ? { start: selOffsets.start, end: selOffsets.end } : undefined
+				offset: sel.start,
+				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
 			},
-			{
-				doc: getDoc(),
-				blockEdit,
-				controller: pasteCoordinator
-			}
+			{ doc: getDoc(), blockEdit, controller: pasteCoordinator }
 		);
+		if (result.inlineCaretOffset !== undefined) pendingCursorOffset = result.inlineCaretOffset;
+	}
 
-		if (result.inlineCaretOffset !== undefined) {
-			pendingCursorOffset = result.inlineCaretOffset;
+	// ── Right-click menu clipboard (no ClipboardEvent) ──────────────────────
+	//
+	// Copy/Cut reuse the native copy path: restore the captured range and let
+	// execCommand('copy') fire onCopy (sync e.clipboardData write — Tauri-safe,
+	// unlike navigator.clipboard.writeText). execCommand('cut') can't be reused —
+	// onCut's clipboard write trails an await — so Cut copies then deletes via the
+	// shared primitive. Paste has no sync browser equivalent, so it reads through
+	// navigator.clipboard.
+
+	function getSelectionOffsets(): { start: number; end: number } | null {
+		const range = cursor.getRawSelection();
+		if (range) return range;
+		const caret = cursor.getRaw();
+		return caret === null ? null : { start: caret, end: caret };
+	}
+
+	async function applyMenuClipboard(
+		action: ClipboardAction,
+		sel: { start: number; end: number }
+	): Promise<void> {
+		if (!el) return;
+		// Clicking the menu item moved focus off the cell, so every branch refocuses
+		// it before mutating — copy/cut so execCommand acts on the restored range,
+		// paste so the caret lands in a focused cell and typing continues (native).
+		if (action === 'paste') {
+			stickyColumn.reset();
+			el.focus();
+			const text = normalizeLineEndings(await navigator.clipboard.readText());
+			if (text) await applyCellPaste(text, sel);
+			return;
 		}
+		if (sel.start === sel.end) return;
+		stickyColumn.reset();
+		el.focus();
+		setSelection(sel.start, sel.end);
+		document.execCommand('copy');
+		if (action === 'cut') deleteCellRange(sel.start, sel.end);
 	}
 
 	function onFocus(): void {

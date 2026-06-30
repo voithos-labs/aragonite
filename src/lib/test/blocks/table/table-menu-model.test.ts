@@ -154,6 +154,73 @@ describe('tableMenuItems: action items carry their own axis index', () => {
 	});
 });
 
+describe('tableMenuItems: clipboard group', () => {
+	type ClipboardItem = Extract<TableMenuItem, { kind: 'clipboard' }>;
+	const clipActions = ['cut', 'copy', 'paste'] as const;
+	const clipItem = (
+		items: TableMenuItem[],
+		action: (typeof clipActions)[number]
+	): ClipboardItem | undefined =>
+		items.find((i): i is ClipboardItem => i.kind === 'clipboard' && i.action === action);
+
+	it('prepends Cut/Copy/Paste then a separator for a cell target, ahead of the row group', () => {
+		const items = tableMenuItems(
+			{ rowIdx: 1, colIdx: 0 },
+			{ rowCount: 3, colCount: 2 },
+			['none', 'none'],
+			{ hasSelection: true }
+		);
+		for (const action of clipActions) expect(clipItem(items, action)).toBeDefined();
+		const lastClip = items.findIndex((i) => i.kind === 'clipboard' && i.action === 'paste');
+		const firstSep = items.findIndex((i) => i.kind === 'separator');
+		const rowAction = items.findIndex((i) => i.kind === 'action' && i.action === 'deleteRow');
+		expect(lastClip).toBeLessThan(firstSep);
+		expect(firstSep).toBeLessThan(rowAction);
+	});
+
+	it('disables Cut/Copy without a selection but keeps Paste enabled', () => {
+		const items = tableMenuItems(
+			{ rowIdx: 1, colIdx: 0 },
+			{ rowCount: 3, colCount: 2 },
+			['none', 'none'],
+			{ hasSelection: false }
+		);
+		expect(clipItem(items, 'cut')?.enabled).toBe(false);
+		expect(clipItem(items, 'copy')?.enabled).toBe(false);
+		expect(clipItem(items, 'paste')?.enabled).toBe(true);
+	});
+
+	it('enables Cut/Copy with a selection', () => {
+		const items = tableMenuItems(
+			{ rowIdx: 1, colIdx: 0 },
+			{ rowCount: 3, colCount: 2 },
+			['none', 'none'],
+			{ hasSelection: true }
+		);
+		expect(clipItem(items, 'cut')?.enabled).toBe(true);
+		expect(clipItem(items, 'copy')?.enabled).toBe(true);
+	});
+
+	it('omits clipboard items for single-axis grip targets even when clipboard info is passed', () => {
+		const rowItems = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none'], {
+			hasSelection: true
+		});
+		const colItems = tableMenuItems({ colIdx: 0 }, { rowCount: 3, colCount: 2 }, ['none', 'none'], {
+			hasSelection: true
+		});
+		expect(rowItems.some((i) => i.kind === 'clipboard')).toBe(false);
+		expect(colItems.some((i) => i.kind === 'clipboard')).toBe(false);
+	});
+
+	it('omits clipboard items for a cell target when no clipboard info is passed', () => {
+		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
+			'none',
+			'none'
+		]);
+		expect(items.some((i) => i.kind === 'clipboard')).toBe(false);
+	});
+});
+
 describe('tableMenuItems: group selection by target shape', () => {
 	it('a row-only target emits the row group with no column items or separator', () => {
 		const items = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none']);

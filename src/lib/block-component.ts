@@ -143,6 +143,20 @@ export interface BlockComponent {
 	 * declare a keymap implement this; others omit it.
 	 */
 	runCommand?(id: import('./schema/commands').CommandId, arg?: number): boolean;
+	/**
+	 * Current raw-offset selection in an editable leaf (table cell), collapsed
+	 * caret returned as `{start: n, end: n}`. Captured before a right-click menu
+	 * steals focus so a later clipboard action can restore the exact range.
+	 */
+	getSelectionOffsets?(): { start: number; end: number } | null;
+	/**
+	 * Run a clipboard action from the table cell's right-click menu against the
+	 * offsets captured at menu-open (focus/selection may have moved since).
+	 */
+	applyMenuClipboard?(
+		action: 'cut' | 'copy' | 'paste',
+		sel: { start: number; end: number }
+	): Promise<void>;
 	readonly editable: boolean;
 	readonly focusable: boolean;
 }
