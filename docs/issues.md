@@ -59,14 +59,16 @@ Row drag clamps a body row to `[1, rowCount-1]` (it can't displace the fixed hea
 
 ## Virtual rendering
 
-### Collapsing a Ctrl+Shift+End list selection to start lands the caret in the wrong item
+### Top-level `revealPath` does not drop a stale off-window block ref
 
-**Severity:** minor (caret placement; pre-existing, not from the table work)
-**Files:** `src/lib/e2e/tests/perf/virtual-rendering.spec.ts:516` (failing test); cross-block selection collapse-to-start path
+**Severity:** minor (latent; no known user-facing repro today)
+**Files:** `src/lib/components/Editor.svelte` (`revealPath`)
 
-After Ctrl+Shift+End selects to the end of a long (windowed) list, collapsing to start lands the caret in the focus item rather than the anchor item — a marker typed at "start" appears in the wrong list item. The e2e fails on `main` (`6a4bb54`) as well, so it predates and is unrelated to the table-affordances work.
+The container `revealByPath` and `TableBlock` both gate their reveal on `isStale`/`dropRef`, because a child scrolled off-window can leave a stale ref in its slot (`publishRefSlot`'s cleanup is conditional, by design — it errs toward not-clearing to avoid stomping a sibling's just-written slot). The top-level `revealPath` (`Editor.svelte`) passes `isInWindow` but not `isStale`/`dropRef`. If a top-level block's slot went stale, the reveal would skip the scroll: a leaf target degrades to no-caret, but a stale top-level _container_ target would descend into a detached ref and could hang the editor — the same class as the now-fixed list collapse-to-start.
 
-**Why deferred:** needs its own investigation of the collapse-to-start path under windowing; surfaced while running the table-affordances gate.
+The fix is the same two lines already applied to the container shim (`dropRef: (i) => { blockRefs[i] = undefined; }` and `isStale: (i) => !topWindowing.isInWindow(i)`); `dropRef` is already optional on `RevealChildOptions`, so no signature change is needed.
+
+**Why deferred:** the staleness is a non-deterministic cleanup race. A multi-top-block windowed repro (small list at index 0, then thousands of paragraphs, collapse-to-start after scrolling block 0 off-window) confirms the top-level block does unmount, but its slot cleared correctly every run — the race that leaves a stale slot reproduces reliably only in the inner list scope. So a trustworthy regression guard is the blocker, not the fix. Needs a deterministic way to force a stale top-level slot before the two-line fix lands with a guard.
 
 ## Documentation
 
