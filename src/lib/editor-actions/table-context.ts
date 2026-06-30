@@ -95,6 +95,7 @@ export type TableMutationsContext = Pick<
 	| 'insertColumnRight'
 	| 'deleteRow'
 	| 'deleteColumn'
+	| 'reorderRowTo'
 	| 'moveRowUp'
 	| 'moveRowDown'
 	| 'moveColumnLeft'
@@ -180,11 +181,10 @@ export function createTableMutationsContext(
 		});
 	}
 
-	async function moveRow(rowIdx: number, dir: -1 | 1): Promise<void> {
+	async function reorderRowTo(from: number, to: number): Promise<void> {
+		if (from === to) return;
 		const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
 		const rowCount = node.children?.length ?? 0;
-		const to = tableRowReorderTarget(rowIdx, dir, rowCount);
-		if (to === null) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// column now; the generic reorder afterTick would land at column 0.
 		const col = focusedCell?.colIdx ?? 0;
@@ -198,16 +198,23 @@ export function createTableMutationsContext(
 				// rows must be unshared before the write — reorderChildren only permutes
 				// references (no unshare, unlike reorderChildrenWithTrivia).
 				ensureUnsharedChildren(scope.node, scope.sharing);
-				const change = reorderChildren(scope.node.children!, rowIdx, to);
+				const change = reorderChildren(scope.node.children!, from, to);
 				rebuildTableRaw(scope.node);
 				return change;
 			},
-			op: { kind: 'tableReorderRow', detail: { from: rowIdx, to }, eventPath: [index, to] },
+			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: [index, to] },
 			afterTick: () => {
 				focusCell(to, col, 'start');
 				deps.announceReorder(`Moved row to position ${to} of ${rowCount - 1}`);
 			}
 		});
+	}
+
+	async function moveRow(rowIdx: number, dir: -1 | 1): Promise<void> {
+		const rowCount = deps.node.children?.length ?? 0;
+		const to = tableRowReorderTarget(rowIdx, dir, rowCount);
+		if (to === null) return;
+		await reorderRowTo(rowIdx, to);
 	}
 
 	async function moveColumn(colIdx: number, dir: -1 | 1): Promise<void> {
@@ -236,6 +243,7 @@ export function createTableMutationsContext(
 		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
 		insertColumnLeft: (colIdx) => insertColumn(colIdx, 'left'),
 		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
+		reorderRowTo,
 		moveRowUp: (rowIdx) => moveRow(rowIdx, -1),
 		moveRowDown: (rowIdx) => moveRow(rowIdx, 1),
 		moveColumnLeft: (colIdx) => moveColumn(colIdx, -1),

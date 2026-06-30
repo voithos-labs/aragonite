@@ -284,6 +284,8 @@ export interface TableContext {
 	/** Move a body row up/down among body rows. The header row is fixed (no-op on it). */
 	moveRowUp(rowIdx: number): Promise<void>;
 	moveRowDown(rowIdx: number): Promise<void>;
+	/** Move a body row to an arbitrary target index (drag reorder); no-op if from === to. */
+	reorderRowTo(from: number, to: number): Promise<void>;
 	/** Move a column left/right; no-op at the first/last column boundary. */
 	moveColumnLeft(colIdx: number): Promise<void>;
 	moveColumnRight(colIdx: number): Promise<void>;
