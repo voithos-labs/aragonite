@@ -38,6 +38,22 @@ async function dragRowGripPastNext(page: Page): Promise<void> {
 	await dragGripToCell(page, 1, 4, (b) => b.y + b.height - 2);
 }
 
+// Press a body-row grip, cross the move threshold, then release BACK on the same
+// grip. Mirrors dragGripToCell, but the drop lands on the origin grip so a click
+// still fires — the recognized-drag flag is what must suppress the menu.
+async function dragGripAndReleaseOnSelf(page: Page, gripNth: number): Promise<void> {
+	await page.hover('[role="table"]');
+	const grip = await page.locator('[data-table-row-grip]').nth(gripNth).boundingBox();
+	if (!grip) throw new Error('drag-reorder-row: missing grip geometry');
+	const cx = grip.x + grip.width / 2;
+	const cy = grip.y + grip.height / 2;
+	await page.mouse.move(cx, cy);
+	await page.mouse.down();
+	await page.mouse.move(cx, cy + 30, { steps: 8 }); // well past the 4px drag threshold
+	await page.mouse.move(cx, cy, { steps: 8 });
+	await page.mouse.up();
+}
+
 test.describe('table block: mouse drag row reorder', () => {
 	test('dragging a body-row grip past the next row reorders (insert semantics)', async ({
 		page
@@ -125,5 +141,14 @@ test.describe('table block: mouse drag row reorder', () => {
 		await page.hover('[role="table"]');
 		await page.locator('[data-table-row-grip]').nth(1).click();
 		await expect(page.getByRole('menuitem', { name: /delete row/i })).toBeVisible();
+	});
+
+	test('a drag released back on the same grip does not open the menu', async ({ page }) => {
+		await editor.loadContent(T);
+		await dragGripAndReleaseOnSelf(page, 1);
+		// The insertion line clears in the same mouseup flush a menu would mount in,
+		// so once it's gone an erroneously-opened menu would already be in the DOM.
+		await expect(page.locator('.table-reorder-line')).toHaveCount(0);
+		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 });

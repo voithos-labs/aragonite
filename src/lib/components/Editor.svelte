@@ -431,7 +431,12 @@
 	// shortcut and the bar's chevron share one source of truth.
 	let replaceExpanded = $state(false);
 
-	const announceReorder = (message: string) => {
+	const announceReorder = async (message: string) => {
+		// Clear first so a repeated identical message still changes the live region's
+		// text node — Svelte skips the DOM write on a ===-equal assignment, which
+		// would otherwise drop the second of two identical announcements.
+		reorderAnnouncement = '';
+		await tick();
 		reorderAnnouncement = message;
 	};
 	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
