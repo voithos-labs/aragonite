@@ -9,7 +9,8 @@
 		onaction,
 		onclipboard,
 		onalign,
-		onclose
+		onclose,
+		onescape
 	}: {
 		items: TableMenuItem[];
 		x: number;
@@ -18,19 +19,29 @@
 		onclipboard: (action: ClipboardAction) => void;
 		onalign: (alignment: 'left' | 'center' | 'right') => void;
 		onclose: () => void;
+		onescape: () => void;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
+
+	// Move focus into the menu on open so it's keyboard-operable; the first enabled
+	// item is the entry point (disabled items are aria-disabled, never focus stops).
+	$effect(() => {
+		if (menuEl) focusStop(0);
+	});
 
 	$effect(() => {
 		const onPointerDown = (e: PointerEvent) => {
 			if (menuEl && e.target instanceof Node && menuEl.contains(e.target)) return;
 			onclose();
 		};
+		// Document-level so Escape closes even if focus drifted off a stop. Escape
+		// restores focus to the originating cell (via onescape); an outside-click
+		// onclose does not, so a click elsewhere isn't yanked back to the cell.
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') {
 				e.preventDefault();
-				onclose();
+				onescape();
 			}
 		};
 		document.addEventListener('pointerdown', onPointerDown, true);
@@ -40,6 +51,78 @@
 			document.removeEventListener('keydown', onKeyDown, true);
 		};
 	});
+
+	// ── Roving focus (ARIA menu pattern) ────────────────────────────────────
+	//
+	// Up/Down (and Tab, trapped) step through every enabled item and the three
+	// alignment segments; Left/Right hop within the alignment trio. Enter/Space
+	// fall through to native <button> activation, so the click handlers run once.
+
+	function focusableStops(): HTMLElement[] {
+		if (!menuEl) return [];
+		return Array.from(
+			menuEl.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled]), .alignment-segment')
+		);
+	}
+
+	function focusStop(index: number): void {
+		const stops = focusableStops();
+		if (stops.length === 0) return;
+		const n = stops.length;
+		stops[((index % n) + n) % n].focus();
+	}
+
+	function activeStopIndex(stops: HTMLElement[]): number {
+		return document.activeElement instanceof HTMLElement
+			? stops.indexOf(document.activeElement)
+			: -1;
+	}
+
+	function onMenuKeyDown(e: KeyboardEvent): void {
+		const stops = focusableStops();
+		if (stops.length === 0) return;
+		const current = activeStopIndex(stops);
+		const last = stops.length - 1;
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				focusStop(current === -1 ? 0 : current + 1);
+				return;
+			case 'ArrowUp':
+				e.preventDefault();
+				focusStop(current === -1 ? last : current - 1);
+				return;
+			case 'Home':
+				e.preventDefault();
+				focusStop(0);
+				return;
+			case 'End':
+				e.preventDefault();
+				focusStop(last);
+				return;
+			case 'Tab':
+				e.preventDefault();
+				if (e.shiftKey) focusStop(current === -1 ? last : current - 1);
+				else focusStop(current === -1 ? 0 : current + 1);
+				return;
+			case 'ArrowRight':
+			case 'ArrowLeft':
+				moveWithinAlignment(e);
+				return;
+		}
+	}
+
+	function moveWithinAlignment(e: KeyboardEvent): void {
+		if (!menuEl) return;
+		const segments = Array.from(menuEl.querySelectorAll<HTMLElement>('.alignment-segment'));
+		const i =
+			document.activeElement instanceof HTMLElement ? segments.indexOf(document.activeElement) : -1;
+		if (i === -1) return;
+		e.preventDefault();
+		const n = segments.length;
+		const delta = e.key === 'ArrowRight' ? 1 : -1;
+		segments[(((i + delta) % n) + n) % n].focus();
+	}
 
 	// 'none' renders identically to 'left' (see table-menu-model / alignment cycle),
 	// so the left segment reads as active for both. Visible text stays L/C/R; the
@@ -51,12 +134,21 @@
 	] as const;
 </script>
 
-<div bind:this={menuEl} class="table-action-menu" role="menu" style:left="{x}px" style:top="{y}px">
+<div
+	bind:this={menuEl}
+	class="table-action-menu"
+	role="menu"
+	tabindex="-1"
+	style:left="{x}px"
+	style:top="{y}px"
+	onkeydown={onMenuKeyDown}
+>
 	{#each items as item}
 		{#if item.kind === 'action'}
 			<button
 				type="button"
 				role="menuitem"
+				tabindex="-1"
 				class="table-action-menu-item"
 				disabled={!item.enabled}
 				aria-disabled={!item.enabled}
@@ -68,6 +160,7 @@
 			<button
 				type="button"
 				role="menuitem"
+				tabindex="-1"
 				class="table-action-menu-item"
 				disabled={!item.enabled}
 				aria-disabled={!item.enabled}
@@ -86,6 +179,7 @@
 						type="button"
 						class="alignment-segment"
 						class:active
+						tabindex="-1"
 						aria-label={seg.name}
 						aria-pressed={active}
 						onclick={() => onalign(seg.value)}>{seg.label}</button
