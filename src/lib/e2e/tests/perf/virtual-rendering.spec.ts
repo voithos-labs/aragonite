@@ -525,18 +525,25 @@ test('collapsing a Ctrl+Shift+End list selection to start lands the caret in the
 		() => (window as any).__test.getDocument().children[0].children.length
 	);
 
-	// The list windows, and its mirror of the table collapse-to-start test guards the
-	// SAME regressions for a list scope: the caret lands in the anchor item (not the
-	// focus item) and the body survives the collapse. Item 0 stays in-window here —
-	// unlike the table, Ctrl+Shift+End leaves the list scroll untouched (the doc-edge
-	// reveal only scrolls for cell-coordinate focus), so the off-window reveal half is
-	// out of keyboard reach. The canonical revealByPath's in-window path is the one
-	// exercised, and its windowed-mount loop is unit-covered in revealChildOrWait.
+	// The list windows, and this mirrors the table collapse-to-start test for a list
+	// scope: the caret lands in the anchor item (not the focus item) and the body
+	// survives the collapse. Ctrl+Shift+End scrolls the window to the doc-end focus,
+	// so the anchor (item 0) is windowed OUT by collapse time — and its slot holds a
+	// stale ref, the conditional-cleanup leftover. Collapse-to-start must drop that
+	// stale ref and scroll the anchor back in to mount it; a reveal that trusted the
+	// stale slot would skip the scroll and hang, stranding the caret at the focus end.
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	await editor.clickBlockAtPath([0, 0, 0], 0);
 	await page.keyboard.press('Control+Shift+End');
 	await editor.waitForCrossBlock(true);
+	// The doc-end reveal scrolled the anchor off-window: it is unmounted now, so the
+	// collapse below must re-reveal it rather than place the caret in a mounted block.
+	expect(
+		await page.evaluate(() =>
+			document.querySelector(`[data-block-path='${JSON.stringify([0, 0, 0])}']`)
+		)
+	).toBeNull();
 
 	// ArrowLeft collapses the cross-block selection to its start (the row-0 anchor
 	// item). waitForCrossBlock(false) before typing: the collapse is async, so typing
