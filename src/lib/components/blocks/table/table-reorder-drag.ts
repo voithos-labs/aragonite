@@ -8,11 +8,14 @@
  * never reports a drag, so the grip's affordance menu still opens. The caller
  * is responsible for not starting a drag on the fixed header row.
  *
- * Core targeting only — the drop gap resolves against the currently-mounted
- * rows. Autoscroll + off-window (windowed-table) targeting are a later layer.
+ * Off-window aware: geometry reports each mounted row's ABSOLUTE index, so the
+ * drop gap resolves correctly under row windowing; pointer-edge autoscroll mounts
+ * off-window rows so they become reachable drop targets (rAF loop, mirroring
+ * editor-actions/reorder-drag.ts).
  */
 
 import { rowDropIndex } from './table-drop-target';
+import { createAutoScroll } from '../../../selection/autoscroll';
 
 export interface RowReorderLine {
 	left: number;
@@ -23,6 +26,13 @@ export interface RowReorderLine {
 export interface RowReorderGeometry {
 	/** Viewport-Y boundaries of the mounted rows: each row's top, plus the last row's bottom. */
 	rowEdges: number[];
+	/**
+	 * Absolute gap index for each `rowEdges` entry — a mounted row's top is the gap
+	 * before that row; the trailing entry is the gap after the last mounted row. Lets
+	 * the drop map a local edge to a body position even when the window has scrolled
+	 * past row 0, where local index no longer equals absolute index.
+	 */
+	gapIndices: number[];
 	/** Viewport-left and width of the table, for the insertion line's horizontal span. */
 	left: number;
 	width: number;
@@ -30,8 +40,11 @@ export interface RowReorderGeometry {
 
 export interface RowReorderDragContext {
 	fromRowIdx: number;
-	rowCount: number;
+	/** Live total row count — read each move so the header clamp tracks edits/re-slices. */
+	getRowCount(): number;
 	getGeometry(): RowReorderGeometry | null;
+	/** The element row-windowing scrolls (editor root); autoscrolled to mount off-window rows. */
+	getScrollContainer(): HTMLElement | null;
 	setLine(line: RowReorderLine | null): void;
 	/** Marks the gesture a drag (not a click) so the grip's menu stays closed. */
 	onDragRecognized(): void;
@@ -54,14 +67,29 @@ export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragConte
 	function process(clientY: number): void {
 		const geom = ctx.getGeometry();
 		if (!geom) return;
-		// Body gaps only: gap 0 sits above the fixed header, so the line never paints
-		// there and the dragged row can't land above row 1.
-		const gap = Math.max(1, rowDropIndex(clientY, geom.rowEdges));
-		ctx.setLine({ left: geom.left, top: geom.rowEdges[gap], width: geom.width });
+		// rowDropIndex gives the LOCAL edge among mounted rows; gapIndices maps it to
+		// the absolute gap so a window scrolled past row 0 still targets the right row.
+		let edge = rowDropIndex(clientY, geom.rowEdges);
+		// Never land above the fixed header (gap 0). Only reachable when row 0 is
+		// mounted; once it windows out every mounted gap is already >= 1.
+		if (geom.gapIndices[edge] < 1) edge = Math.min(edge + 1, geom.gapIndices.length - 1);
+		const gap = geom.gapIndices[edge];
+		ctx.setLine({ left: geom.left, top: geom.rowEdges[edge], width: geom.width });
 		// Insert semantics: removing the dragged row shifts later slots down by one.
 		const target = gap <= ctx.fromRowIdx ? gap : gap - 1;
-		dropTo = Math.max(1, Math.min(target, ctx.rowCount - 1));
+		dropTo = Math.max(1, Math.min(target, ctx.getRowCount() - 1));
 	}
+
+	const autoScroll = createAutoScroll({
+		getPointer: () => pending,
+		getTargets: () => {
+			const sc = ctx.getScrollContainer();
+			return sc ? [sc] : [];
+		},
+		onScrolled: () => {
+			if (pending) process(pending.clientY);
+		}
+	});
 
 	function onMove(e: PointerEvent): void {
 		if (!dragging) {
@@ -76,7 +104,9 @@ export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragConte
 		if (rafId !== null) return;
 		rafId = requestAnimationFrame(() => {
 			rafId = null;
-			if (pending) process(pending.clientY);
+			if (!pending) return;
+			process(pending.clientY);
+			autoScroll.maybeStart();
 		});
 	}
 
@@ -90,6 +120,7 @@ export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragConte
 		document.removeEventListener('keydown', onKey, true);
 		ctx.lifetimeSignal?.removeEventListener('abort', onCancel);
 		if (rafId !== null) cancelAnimationFrame(rafId);
+		autoScroll.dispose();
 		document.body.style.userSelect = '';
 		ctx.setLine(null);
 		pending = null;
