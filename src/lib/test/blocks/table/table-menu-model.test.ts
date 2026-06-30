@@ -112,6 +112,48 @@ describe('tableMenuItems: inserts and alignment', () => {
 	});
 });
 
+describe('tableMenuItems: action items carry their own axis index', () => {
+	const rowActions: CellShortcutAction[] = [
+		'insertRowAbove',
+		'insertRowBelow',
+		'moveRowUp',
+		'moveRowDown',
+		'deleteRow'
+	];
+	const colActions: CellShortcutAction[] = [
+		'insertColumnLeft',
+		'insertColumnRight',
+		'moveColumnLeft',
+		'moveColumnRight',
+		'deleteColumn'
+	];
+
+	// A both-axes cell menu mixes the groups, so the dispatcher routes each item by
+	// its own index — row actions to rowIdx, column actions to colIdx — not one
+	// shared target. Distinct rowIdx/colIdx catch a crossed-wires regression.
+	it('routes a both-axes cell target by group: rowIdx for rows, colIdx for columns', () => {
+		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
+			'none',
+			'none'
+		]);
+		for (const action of rowActions) expect(actionItem(items, action)?.index).toBe(1);
+		for (const action of colActions) expect(actionItem(items, action)?.index).toBe(0);
+	});
+
+	it('stamps every action with the lone axis index for a single-axis grip target', () => {
+		const rowItems = tableMenuItems({ rowIdx: 2 }, { rowCount: 4, colCount: 2 }, ['none', 'none']);
+		for (const action of rowActions) expect(actionItem(rowItems, action)?.index).toBe(2);
+		const colItems = tableMenuItems({ colIdx: 3 }, { rowCount: 2, colCount: 5 }, [
+			'none',
+			'none',
+			'none',
+			'none',
+			'none'
+		]);
+		for (const action of colActions) expect(actionItem(colItems, action)?.index).toBe(3);
+	});
+});
+
 describe('tableMenuItems: group selection by target shape', () => {
 	it('a row-only target emits the row group with no column items or separator', () => {
 		const items = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none']);

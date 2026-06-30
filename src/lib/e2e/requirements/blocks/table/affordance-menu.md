@@ -18,6 +18,13 @@ menu's action items dispatch the committed table mutations.
 - Row grip → "Insert row below"/"Insert row above" adds a body row after/before the grip's row.
 - The row menu lists the row actions only (no alignment control — alignment is column-scoped).
 
+## Cell right-click menu (both axes)
+
+- Right-clicking anywhere in a cell opens the menu showing both the row group and the column group (a cell knows both axes).
+- Right-click → "Delete column" removes the clicked cell's column (routed by the clicked colIdx, independent of any row action).
+- Right-click → "Delete row" removes the clicked cell's row (routed by the clicked rowIdx, independent of any column action).
+- Right-clicking outside the table (e.g. a paragraph) does not open the affordance menu — the contextmenu handler is scoped to the table grid, and only suppresses the native menu when the pointer is over a cell.
+
 ## Edge cases
 
 - "Delete column" is disabled (cannot be activated) when only one column remains.

@@ -12,7 +12,7 @@
 		items: TableMenuItem[];
 		x: number;
 		y: number;
-		onaction: (action: CellShortcutAction) => void;
+		onaction: (action: CellShortcutAction, index: number) => void;
 		onclose: () => void;
 	} = $props();
 
@@ -55,7 +55,7 @@
 				class="table-action-menu-item"
 				disabled={!item.enabled}
 				aria-disabled={!item.enabled}
-				onclick={() => onaction(item.action)}
+				onclick={() => onaction(item.action, item.index)}
 			>
 				{item.label}
 			</button>
