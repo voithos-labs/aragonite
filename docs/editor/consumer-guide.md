@@ -102,7 +102,7 @@ Optional props customize URL/image handling and editor affordances:
 
 ## Keyboard shortcuts
 
-These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linux and Cmd on macOS. Table editing is keyboard-only today (visual hover controls are roadmapped). Per-block chords can be rebound or disabled via the `keybindings` prop.
+These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linux and Cmd on macOS. Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste) — Shift+F10 or the Context Menu key opens it from the keyboard. Per-block chords can be rebound or disabled via the `keybindings` prop.
 
 | Action                     | Chord                                            |
 | -------------------------- | ------------------------------------------------ |
@@ -127,7 +127,10 @@ These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linu
 | Delete row                 | `Mod+Shift+Backspace`                            |
 | Delete column              | `Alt+Shift+Backspace`                            |
 | Move row up / down         | `Alt+↑` / `Alt+↓`                                |
+| Move column left / right   | `Alt+←` / `Alt+→`                                |
 | Cycle column alignment     | `Mod+Shift+A`                                    |
+
+**Menu clipboard caveats.** The right-click menu's Cut/Copy write the cell's _rendered_ text, which differs from keyboard `Mod+X`'s raw-source slice for a cell holding an inline widget (e.g. a literal `<br>`). Menu Paste reads through `navigator.clipboard.readText()` — the one clipboard path not yet proven on the Tauri/wry webview; keyboard `Mod+V` is unaffected.
 
 ## Events
 

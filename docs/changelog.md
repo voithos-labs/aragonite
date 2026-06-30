@@ -2,6 +2,15 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.2 — Table mouse affordances
+
+Pointer and contextual-menu editing for tables, pairing with the keyboard chords so table editing is no longer keyboard-only.
+
+- **Hover grips + drag reorder** — hovering a row or column reveals a grip; dragging it reorders that row or column (a single insertion line, autoscroll to reach off-window rows and wide-table columns, one commit on release), and clicking it opens a row/column action menu.
+- **Contextual menu** — the grip menu and a right-click on any cell open the same menu: insert/delete row and column, L/C/R column alignment, and cut/copy/paste for a cell. It also opens from the keyboard via Shift+F10 / the Context Menu key.
+- **Keyboard column reorder** — Alt+←/→ moves the focused column one slot, mirroring the Alt+↑/↓ row reorder.
+- **Menu nav + announcements** — full arrow / Home / End / Esc keyboard navigation of the menu, with screen-reader announcements. Two caveats noted in the consumer guide: menu Cut/Copy write rendered cell text (vs. the keyboard raw-source slice), and menu Paste depends on `navigator.clipboard.readText()`.
+
 ### 0.9.1 — Pre-1.0 polish: theming for extraction, consumer docs, hygiene
 
 Module-readiness polish ahead of the standalone-repo extraction.
