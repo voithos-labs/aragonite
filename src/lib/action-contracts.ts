@@ -286,6 +286,8 @@ export interface TableContext {
 	moveRowDown(rowIdx: number): Promise<void>;
 	/** Move a body row to an arbitrary target index (drag reorder); no-op if from === to. */
 	reorderRowTo(from: number, to: number): Promise<void>;
+	/** Move a column to an arbitrary target index (drag reorder); no-op if from === to. */
+	reorderColumnTo(from: number, to: number): Promise<void>;
 	/** Move a column left/right; no-op at the first/last column boundary. */
 	moveColumnLeft(colIdx: number): Promise<void>;
 	moveColumnRight(colIdx: number): Promise<void>;
