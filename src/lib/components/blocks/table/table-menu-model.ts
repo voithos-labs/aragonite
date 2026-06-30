@@ -13,24 +13,43 @@ import {
 	canDeleteColumn
 } from '../../../editor-actions/table-context';
 
+export type ClipboardAction = 'cut' | 'copy' | 'paste';
+
 export type TableMenuItem =
 	// `index` is the action's own axis index (rowIdx for row-group actions, colIdx
 	// for column-group actions), so a both-axes cell menu can route each item to the
 	// right coordinate without the dispatcher tracking which group it came from.
 	| { kind: 'action'; action: CellShortcutAction; label: string; enabled: boolean; index: number }
+	| { kind: 'clipboard'; action: ClipboardAction; label: string; enabled: boolean }
 	| { kind: 'alignment'; current: TableAlignment }
 	| { kind: 'separator' };
 
 export function tableMenuItems(
 	target: { rowIdx?: number; colIdx?: number },
 	dims: { rowCount: number; colCount: number },
-	alignments: TableAlignment[]
+	alignments: TableAlignment[],
+	// Present only for a cell right-click (both axes); drives the clipboard group,
+	// which grip menus never show.
+	clipboard?: { hasSelection: boolean }
 ): TableMenuItem[] {
 	const items: TableMenuItem[] = [];
+	const isCell = target.rowIdx != null && target.colIdx != null;
+	if (isCell && clipboard)
+		items.push(...clipboardGroup(clipboard.hasSelection), { kind: 'separator' });
 	if (target.rowIdx != null) items.push(...rowGroup(target.rowIdx, dims.rowCount));
-	if (target.rowIdx != null && target.colIdx != null) items.push({ kind: 'separator' });
+	if (isCell) items.push({ kind: 'separator' });
 	if (target.colIdx != null) items.push(...columnGroup(target.colIdx, dims.colCount, alignments));
 	return items;
+}
+
+// Cut/Copy act on the cell's selection, so they're inert without one; Paste always
+// applies (clipboard contents aren't readable synchronously to gate it).
+function clipboardGroup(hasSelection: boolean): TableMenuItem[] {
+	return [
+		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasSelection },
+		{ kind: 'clipboard', action: 'copy', label: 'Copy', enabled: hasSelection },
+		{ kind: 'clipboard', action: 'paste', label: 'Paste', enabled: true }
+	];
 }
 
 function rowGroup(rowIdx: number, rowCount: number): TableMenuItem[] {
