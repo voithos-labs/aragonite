@@ -3,8 +3,8 @@
 A subtle, document-like mouse affordance: row grips (left gutter) and column grips
 (top edge) are invisible at rest and reveal on table hover. Clicking a grip opens a
 contextual action menu anchored at the grip — the column menu lists column actions
-plus an inert L/C/R alignment control; the row menu lists row actions only. The
-menu's action items dispatch the committed table mutations.
+plus an L/C/R alignment control; the row menu lists row actions only. The menu's
+action items dispatch the committed table mutations.
 
 ## Happy paths
 
@@ -13,6 +13,7 @@ menu's action items dispatch the committed table mutations.
 - Column grip → "Insert column left" adds an empty column before the grip's column.
 - Column grip → "Delete column" removes the grip's column when at least two columns remain.
 - The column menu lists the column actions (insert left/right, move left/right, delete) plus an alignment control reflecting the column's current alignment.
+- Column grip → alignment control: clicking a segment (L/C/R) sets that column's alignment and closes the menu — Center serializes the delimiter to `:---:`, Right to `---:`.
 - Hovering the table reveals one row grip per row (header + body rows; the delimiter line is not a row); clicking a grip opens the menu for that row.
 - Row grip → "Delete row" removes that body row.
 - Row grip → "Insert row below"/"Insert row above" adds a body row after/before the grip's row.
@@ -51,4 +52,4 @@ menu's action items dispatch the committed table mutations.
 ## Notes
 
 - Row grips live in a zero-width leading gutter track; the grid stays unshifted so caret geometry is untouched (the grip's dots overflow into the first cell's left padding).
-- Full menu keyboard navigation and the alignment control's wiring are later tasks; this slice covers mouse open/close + row/column action dispatch.
+- Full menu keyboard navigation is a later task; this slice covers mouse open/close, row/column action dispatch, and the column alignment control.
