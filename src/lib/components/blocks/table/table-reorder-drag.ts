@@ -1,21 +1,27 @@
 /**
- * Pointer drag-to-reorder for table BODY rows. Started from a row grip's
+ * Pointer drag-to-reorder for table rows and columns. Started from a grip's
  * pointerdown; document-level listeners track the pointer, paint a single
- * insertion line (no tree mutation, no reflow), and commit ONE row move on
- * release. Mirrors editor-actions/reorder-drag.ts's lifecycle.
+ * insertion line (no tree mutation, no reflow), and commit ONE move on release.
+ * Mirrors editor-actions/reorder-drag.ts's lifecycle.
  *
  * A gesture under the move threshold is a CLICK, not a drag: the controller
- * never reports a drag, so the grip's affordance menu still opens. The caller
- * is responsible for not starting a drag on the fixed header row.
+ * never reports a drag, so the grip's affordance menu still opens.
  *
- * Off-window aware: geometry reports each mounted row's ABSOLUTE index, so the
- * drop gap resolves correctly under row windowing; pointer-edge autoscroll mounts
- * off-window rows so they become reachable drop targets (rAF loop, mirroring
- * editor-actions/reorder-drag.ts).
+ * Rows and columns diverge in their geometry, not their lifecycle. Rows are
+ * windowed and sit under a fixed header (the caller blocks header drags; the row
+ * path reports each mounted row's ABSOLUTE index and autoscrolls to mount
+ * off-window drop targets). Columns are neither windowed nor header-fixed, so an
+ * edge index maps straight to a column index — every column is movable, and
+ * wide-table horizontal autoscroll is a separate layer.
  */
 
-import { rowDropIndex } from './table-drop-target';
+import { rowDropIndex, columnDropIndex } from './table-drop-target';
 import { createAutoScroll } from '../../../selection/autoscroll';
+
+// Past this much pointer travel the gesture is a drag, not a menu-opening click.
+const DRAG_THRESHOLD_PX = 4;
+
+// ── Row drag ────────────────────────────────────────────────────────────────
 
 export interface RowReorderLine {
 	left: number;
@@ -52,9 +58,6 @@ export interface RowReorderDragContext {
 	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
 	lifetimeSignal?: AbortSignal;
 }
-
-// Past this much pointer travel the gesture is a drag, not a menu-opening click.
-const DRAG_THRESHOLD_PX = 4;
 
 export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragContext): void {
 	const startX = down.clientX;
@@ -134,6 +137,117 @@ export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragConte
 		const wasDragging = dragging;
 		teardown();
 		if (wasDragging && to !== null && to !== ctx.fromRowIdx) ctx.commit(ctx.fromRowIdx, to);
+	}
+	function onUp(): void {
+		commitDrop();
+	}
+	function onCancel(): void {
+		teardown();
+	}
+	function onKey(e: KeyboardEvent): void {
+		if (e.key === 'Escape') teardown();
+	}
+
+	// Disabled up front (not at threshold): a native text selection can begin from
+	// the empty grip before the first qualifying move, which would survive the drag.
+	document.body.style.userSelect = 'none';
+	document.addEventListener('pointermove', onMove);
+	document.addEventListener('pointerup', onUp);
+	document.addEventListener('pointercancel', onCancel);
+	document.addEventListener('keydown', onKey, true);
+	ctx.lifetimeSignal?.addEventListener('abort', onCancel, { once: true });
+}
+
+// ── Column drag ───────────────────────────────────────────────────────────────
+
+export interface ColumnReorderLine {
+	left: number;
+	top: number;
+	height: number;
+}
+
+export interface ColumnReorderGeometry {
+	/** Viewport-X boundaries of the columns: each column's left, plus the last column's right. */
+	colEdges: number[];
+	/** Viewport-top and height of the table, for the insertion line's vertical span. */
+	top: number;
+	height: number;
+}
+
+export interface ColumnReorderDragContext {
+	fromColIdx: number;
+	/** Live total column count — read each move so the clamp tracks edits. */
+	getColCount(): number;
+	getGeometry(): ColumnReorderGeometry | null;
+	setLine(line: ColumnReorderLine | null): void;
+	/** Marks the gesture a drag (not a click) so the grip's menu stays closed. */
+	onDragRecognized(): void;
+	commit(from: number, to: number): void;
+	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
+	lifetimeSignal?: AbortSignal;
+}
+
+export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDragContext): void {
+	const startX = down.clientX;
+	const startY = down.clientY;
+	let dragging = false;
+	let dropTo: number | null = null;
+	let pending: { clientX: number } | null = null;
+	let rafId: number | null = null;
+
+	function process(clientX: number): void {
+		const geom = ctx.getGeometry();
+		if (!geom) return;
+		// Columns aren't windowed and have no fixed header, so the edge index IS the
+		// drop gap — no gap remap, no leading clamp like the row path.
+		const gap = columnDropIndex(clientX, geom.colEdges);
+		ctx.setLine({ left: geom.colEdges[gap], top: geom.top, height: geom.height });
+		// Insert semantics: removing the dragged column shifts later slots left by one.
+		const target = gap <= ctx.fromColIdx ? gap : gap - 1;
+		dropTo = Math.max(0, Math.min(target, ctx.getColCount() - 1));
+	}
+
+	function onMove(e: PointerEvent): void {
+		if (!dragging) {
+			const moved =
+				Math.abs(e.clientX - startX) >= DRAG_THRESHOLD_PX ||
+				Math.abs(e.clientY - startY) >= DRAG_THRESHOLD_PX;
+			if (!moved) return;
+			dragging = true;
+			ctx.onDragRecognized();
+		}
+		pending = { clientX: e.clientX };
+		if (rafId !== null) return;
+		rafId = requestAnimationFrame(() => {
+			rafId = null;
+			if (!pending) return;
+			process(pending.clientX);
+		});
+	}
+
+	let done = false;
+	function teardown(): void {
+		if (done) return;
+		done = true;
+		document.removeEventListener('pointermove', onMove);
+		document.removeEventListener('pointerup', onUp);
+		document.removeEventListener('pointercancel', onCancel);
+		document.removeEventListener('keydown', onKey, true);
+		ctx.lifetimeSignal?.removeEventListener('abort', onCancel);
+		if (rafId !== null) cancelAnimationFrame(rafId);
+		document.body.style.userSelect = '';
+		ctx.setLine(null);
+		pending = null;
+	}
+
+	function commitDrop(): void {
+		// A release before the coalescing rAF runs would otherwise commit a stale
+		// dropTo (or none) — flush the last move first.
+		if (rafId !== null && pending) process(pending.clientX);
+		const to = dropTo;
+		const wasDragging = dragging;
+		teardown();
+		if (wasDragging && to !== null && to !== ctx.fromColIdx) ctx.commit(ctx.fromColIdx, to);
 	}
 	function onUp(): void {
 		commitDrop();
