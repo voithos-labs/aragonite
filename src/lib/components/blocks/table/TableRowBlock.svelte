@@ -38,7 +38,8 @@
 		myPath = [],
 		setRef,
 		getRef,
-		onOpenRowMenu
+		onOpenRowMenu,
+		onRowGripPointerDown
 	}: {
 		node: CstNode;
 		index: number;
@@ -51,6 +52,7 @@
 		setRef?: (i: number, r: BlockComponent | undefined) => void;
 		getRef?: (i: number) => BlockComponent | undefined;
 		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
+		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -204,6 +206,7 @@
 	<TableGrip
 		axis="row"
 		onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
+		onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
 	/>{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
