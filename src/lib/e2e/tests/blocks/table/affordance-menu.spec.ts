@@ -147,6 +147,26 @@ test.describe('table block: column affordance menu', () => {
 		const align = page.getByRole('group', { name: 'Column alignment' });
 		await expect(align.locator('.alignment-segment.active')).toHaveText('C');
 	});
+
+	test('the alignment control sets a column to center', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		await page.hover('[role="table"]');
+		await page.locator('[data-table-col-grip]').nth(0).click();
+		await page.getByRole('button', { name: 'Center' }).click();
+
+		await editor.bridge.waitForSourceMatches(/\| :-+: \|/); // column A delimiter centered
+		await expect(page.getByRole('menu')).toHaveCount(0);
+	});
+
+	test('the alignment control sets a column to right', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		await page.hover('[role="table"]');
+		await page.locator('[data-table-col-grip]').nth(0).click();
+		await page.getByRole('button', { name: 'Right' }).click();
+
+		await editor.bridge.waitForSourceMatches(/\| -+: \|/); // column A delimiter right-aligned
+		await expect(page.getByRole('menu')).toHaveCount(0);
+	});
 });
 
 test.describe('table block: row affordance menu', () => {

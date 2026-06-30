@@ -8,6 +8,7 @@
 		y,
 		onaction,
 		onclipboard,
+		onalign,
 		onclose
 	}: {
 		items: TableMenuItem[];
@@ -15,6 +16,7 @@
 		y: number;
 		onaction: (action: CellShortcutAction, index: number) => void;
 		onclipboard: (action: ClipboardAction) => void;
+		onalign: (alignment: 'left' | 'center' | 'right') => void;
 		onclose: () => void;
 	} = $props();
 
@@ -40,11 +42,12 @@
 	});
 
 	// 'none' renders identically to 'left' (see table-menu-model / alignment cycle),
-	// so the left segment reads as active for both.
+	// so the left segment reads as active for both. Visible text stays L/C/R; the
+	// accessible name carries the full word so screen readers and tests can target it.
 	const alignmentSegments = [
-		{ value: 'left', label: 'L' },
-		{ value: 'center', label: 'C' },
-		{ value: 'right', label: 'R' }
+		{ value: 'left', label: 'L', name: 'Left' },
+		{ value: 'center', label: 'C', name: 'Center' },
+		{ value: 'right', label: 'R', name: 'Right' }
 	] as const;
 </script>
 
@@ -77,10 +80,15 @@
 		{:else}
 			<div class="table-action-menu-alignment" role="group" aria-label="Column alignment">
 				{#each alignmentSegments as seg}
-					<span
+					{@const active =
+						item.current === seg.value || (seg.value === 'left' && item.current === 'none')}
+					<button
+						type="button"
 						class="alignment-segment"
-						class:active={item.current === seg.value ||
-							(seg.value === 'left' && item.current === 'none')}>{seg.label}</span
+						class:active
+						aria-label={seg.name}
+						aria-pressed={active}
+						onclick={() => onalign(seg.value)}>{seg.label}</button
 					>
 				{/each}
 			</div>
@@ -142,7 +150,13 @@
 		text-align: center;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
+		background: transparent;
+		font: inherit;
 		color: var(--color-ui-muted, #a4a4a4);
+		cursor: pointer;
+	}
+	.alignment-segment:hover {
+		background: var(--color-ui-faint, rgba(100, 150, 255, 0.14));
 	}
 	.alignment-segment.active {
 		color: var(--color-accent, #567b67);
