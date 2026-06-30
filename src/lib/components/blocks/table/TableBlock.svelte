@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, getContext, untrack } from 'svelte';
+	import { setContext, getContext, untrack, tick } from 'svelte';
 	import type {
 		BlockEditActions,
 		CellPosition,
@@ -320,6 +320,36 @@
 			y: e.clientY,
 			clipboardSel
 		};
+	}
+
+	// Keyboard equivalent of the cell right-click: Shift+F10 / ContextMenu on a
+	// focused cell opens the both-axes menu at that cell. The event bubbles up from
+	// the cell; preventDefault suppresses the native context menu the key triggers.
+	function onTableKeyDown(e: KeyboardEvent): void {
+		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
+		if (!opensMenu || !focusedCell) return;
+		e.preventDefault();
+		const { rowIdx, colIdx } = focusedCell;
+		const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
+		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
+		menu = {
+			target: { rowIdx, colIdx },
+			x: rect ? rect.left : 0,
+			y: rect ? rect.bottom : 0,
+			clipboardSel
+		};
+	}
+
+	// Escape restores focus to the originating cell (cell menus only; grip menus
+	// have no caret to return to). Caret lands where it was, via focusCell's offset
+	// path — a bare el.focus() on a contenteditable doesn't seat a typeable caret.
+	async function closeMenuRestoringFocus(): Promise<void> {
+		const target = menu?.target;
+		const offset = menu?.clipboardSel?.start ?? 'start';
+		menu = null;
+		if (target?.rowIdx == null || target?.colIdx == null) return;
+		await tick();
+		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
 	async function runAction(action: CellShortcutAction, index: number): Promise<void> {
@@ -649,6 +679,7 @@
 	role="table"
 	style:grid-template-columns={trackTemplate}
 	oncontextmenu={openCellMenu}
+	onkeydown={onTableKeyDown}
 >
 	<!-- Corner occupies the zero-width row-grip gutter (col 1) so the column grips align
 	     to their columns (cols 2..N+1), not the gutter; carries no grip attribute. The
@@ -699,6 +730,7 @@
 			onclipboard={runClipboard}
 			onalign={runAlign}
 			onclose={() => (menu = null)}
+			onescape={closeMenuRestoringFocus}
 		/>
 	{/if}{#if dragLine}
 		<div
