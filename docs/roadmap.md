@@ -18,7 +18,23 @@ The v1.0 milestone ships the editor as a polished, GFM-complete, scale-proven, p
 - **Library packaging** — `svelte-package` build with a published `exports` map (`import { Editor } from 'aragonite'`), `svelte` + `highlight.js` as peer/deps, and a verified `npm pack` artifact. (The repo is already structured for this: `src/lib` is the package, `src/routes` the demo app.)
 - **Scale gate** — `perf:check` gates the 10MB keystroke latency of every renderable shape (flat + single-container, all O(viewport)) against the committed baseline; the prod build is the reference for the "efficient on large docs" claim. The intra-block single-giant-paragraph axis stays recorded-not-gated (O(paragraph length) span rebuild); an extreme flat document's multi-second load stays accept-documented (O(node-count) reactive-tree materialization, mount still windowed).
 
+### Hardening & de-risking (near-term, cheap, high-leverage)
+
+Two liabilities dominate — intrinsic complexity and an unvalidated plugin moat — and these cap both without paying to remove either. Ordered by leverage:
+
+- **Invariant guards over invariant docs.** The load-bearing risk is silent state corruption from contracts the types can't express (a stray text node vs the raw-offset walk, stale windowed refs, getters-not-values, bytes-scoped aliasing). Posture: turn every such class into a guard that fails at the gate, not in a vault — the `.table-block` whitespace guard in `affordance-menu.spec.ts` is the template. Cap the downside; don't simplify (the complexity is essential). See `docs/design/editor/invariants.md`.
+- **Plugin-seam validation spike.** Build ONE real extension (a callout block or a KaTeX inline widget) through the intended public seams only — not the plugin system. `plugin-contract.md` is a frozen foundation 1.0 builds on; a leaked seam (e.g. the selection layer's `kind === 'table'` hardcoding, § 1.2) costs an afternoon to find now versus a 2.0 break at 1.2. Ongoing form: build the next real feature through the seams to dogfood the contract.
+- **Shard the CI e2e.** The battery is ~20 min wall-clock and gates every PR; split the Playwright projects across a parallel job matrix. Config, not a project — pays every PR forever.
+
 Already in place (see changelog): GFM Section 1+2 coverage, a documented + versioned public API, editor-owned theme assets, consumer docs, the block-kind schema surface, and a keybinding-override surface.
+
+## Deliberately deferred (non-goals, for now)
+
+Stated so they aren't "fixed" by reflex — each is a conscious defer, not an oversight:
+
+- **No broad "simplify the editor" refactor.** The CST / reactivity / windowing complexity is load-bearing (it buys raw-as-truth + windowing + atomic widgets); a simplify pass trades earned round-trip and reactivity correctness for marginal legibility. Contain via guards (above), don't excise.
+- **Don't chase the documented perf cliffs.** O(node-count) load and O(length) single-giant-paragraph editing are accept-documented in `docs/perf/performance.md`; the lever (lazy/shallow proxying) waits for a workload that needs it. Keep public claims honest (gated vs aspirational) rather than closing the cliffs prematurely.
+- **Drag-lifecycle extraction is opportunistic.** The near-identical row/column table drag controllers (tracked in `docs/issues.md`) get a shared lifecycle when next in that code, not as a standalone errand.
 
 ## Post-1.0 sketch
 
