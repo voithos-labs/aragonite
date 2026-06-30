@@ -43,7 +43,7 @@
 
 	// 'none' renders identically to 'left' (see table-menu-model / alignment cycle),
 	// so the left segment reads as active for both. Visible text stays L/C/R; the
-	// accessible name carries the full word so screen readers and tests can target it.
+	// accessible name carries the full word so screen readers can target it.
 	const alignmentSegments = [
 		{ value: 'left', label: 'L', name: 'Left' },
 		{ value: 'center', label: 'C', name: 'Center' },
