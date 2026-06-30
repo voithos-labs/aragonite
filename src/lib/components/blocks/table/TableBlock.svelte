@@ -337,6 +337,13 @@
 		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
 	}
 
+	async function runAlign(alignment: 'left' | 'center' | 'right'): Promise<void> {
+		const colIdx = menu?.target.colIdx;
+		if (colIdx == null) return;
+		await ctx.setColumnAlignment(colIdx, alignment);
+		menu = null;
+	}
+
 	// ── Row drag reorder ───────────────────────────────────────────────────
 
 	let dragLine = $state<RowReorderLine | null>(null);
@@ -690,6 +697,7 @@
 			y={menu.y}
 			onaction={runAction}
 			onclipboard={runClipboard}
+			onalign={runAlign}
 			onclose={() => (menu = null)}
 		/>
 	{/if}{#if dragLine}
