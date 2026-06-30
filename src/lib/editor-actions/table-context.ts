@@ -123,7 +123,10 @@ export function createTableMutationsContext(
 				return { op: 'insert', at: insertAt, count: 1 };
 			},
 			op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: [index, insertAt] },
-			afterTick: () => focusCell(insertAt, 0, 'start')
+			afterTick: () => {
+				focusCell(insertAt, 0, 'start');
+				deps.announceReorder('Inserted row');
+			}
 		});
 	}
 
@@ -178,6 +181,7 @@ export function createTableMutationsContext(
 			afterTick: () => {
 				const targetRow = focusedCell?.rowIdx ?? 0;
 				focusCell(targetRow, insertAt, 'start');
+				deps.announceReorder('Inserted column');
 			}
 		});
 	}
@@ -273,6 +277,7 @@ export function createTableMutationsContext(
 				},
 				op: { kind: 'tableDeleteRow', detail: { rowIdx }, eventPath: [index, rowIdx] },
 				afterTick: () => {
+					deps.announceReorder('Deleted row');
 					// Read through `deps.node`: the captured `node` is the pre-commit
 					// object the snapshot still shares (copy-on-write leaves it unmutated),
 					// so its child count is stale after the delete.
@@ -294,6 +299,7 @@ export function createTableMutationsContext(
 				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
 				afterTick: () => {
+					deps.announceReorder('Deleted column');
 					// deps.node, not the stale pre-commit capture — see deleteRow.
 					const newColumnCount = metadataOf(deps.node, 'table').columnCount;
 					if (newColumnCount === 0) return;
