@@ -11,8 +11,8 @@
  * windowed and sit under a fixed header (the caller blocks header drags; the row
  * path reports each mounted row's ABSOLUTE index and autoscrolls to mount
  * off-window drop targets). Columns are neither windowed nor header-fixed, so an
- * edge index maps straight to a column index — every column is movable, and
- * wide-table horizontal autoscroll is a separate layer.
+ * edge index maps straight to a column index and every column is movable; a wide
+ * table's horizontal autoscroll only brings clipped columns into view (no mount).
  */
 
 import { rowDropIndex, columnDropIndex } from './table-drop-target';
@@ -179,6 +179,8 @@ export interface ColumnReorderDragContext {
 	/** Live total column count — read each move so the clamp tracks edits. */
 	getColCount(): number;
 	getGeometry(): ColumnReorderGeometry | null;
+	/** The `.table-block` overflow-x element; autoscrolled to reveal clipped columns. */
+	getScrollContainer(): HTMLElement | null;
 	setLine(line: ColumnReorderLine | null): void;
 	/** Marks the gesture a drag (not a click) so the grip's menu stays closed. */
 	onDragRecognized(): void;
@@ -192,7 +194,7 @@ export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDra
 	const startY = down.clientY;
 	let dragging = false;
 	let dropTo: number | null = null;
-	let pending: { clientX: number } | null = null;
+	let pending: { clientX: number; clientY: number } | null = null;
 	let rafId: number | null = null;
 
 	function process(clientX: number): void {
@@ -207,6 +209,20 @@ export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDra
 		dropTo = Math.max(0, Math.min(target, ctx.getColCount() - 1));
 	}
 
+	const autoScroll = createAutoScroll({
+		axis: 'horizontal',
+		getPointer: () => pending,
+		getTargets: () => {
+			const sc = ctx.getScrollContainer();
+			return sc ? [sc] : [];
+		},
+		// Clipped columns' rects shift as the container scrolls; re-process so the
+		// drop gap and insertion line track the columns now in view.
+		onScrolled: () => {
+			if (pending) process(pending.clientX);
+		}
+	});
+
 	function onMove(e: PointerEvent): void {
 		if (!dragging) {
 			const moved =
@@ -216,12 +232,13 @@ export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDra
 			dragging = true;
 			ctx.onDragRecognized();
 		}
-		pending = { clientX: e.clientX };
+		pending = { clientX: e.clientX, clientY: e.clientY };
 		if (rafId !== null) return;
 		rafId = requestAnimationFrame(() => {
 			rafId = null;
 			if (!pending) return;
 			process(pending.clientX);
+			autoScroll.maybeStart();
 		});
 	}
 
@@ -235,6 +252,7 @@ export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDra
 		document.removeEventListener('keydown', onKey, true);
 		ctx.lifetimeSignal?.removeEventListener('abort', onCancel);
 		if (rafId !== null) cancelAnimationFrame(rafId);
+		autoScroll.dispose();
 		document.body.style.userSelect = '';
 		ctx.setLine(null);
 		pending = null;
