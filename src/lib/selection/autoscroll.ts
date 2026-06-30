@@ -12,6 +12,12 @@ export interface AutoScrollDeps {
 	getTargets: (clientX: number, clientY: number) => HTMLElement[];
 	onScrolled?: () => void;
 	threshold?: number;
+	/**
+	 * Restrict scrolling to one axis (default both). The column reorder drag pins
+	 * the pointer in the table's top band, where unrestricted vertical evaluation
+	 * would spin the loop on a `.table-block` that only scrolls horizontally.
+	 */
+	axis?: 'horizontal' | 'vertical' | 'both';
 }
 
 export interface AutoScrollHandle {
@@ -21,14 +27,17 @@ export interface AutoScrollHandle {
 
 export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 	const threshold = deps.threshold ?? DEFAULT_THRESHOLD;
+	const axis = deps.axis ?? 'both';
 	let rafId: number | null = null;
 
 	function dxFor(rect: DOMRect, x: number): number {
+		if (axis === 'vertical') return 0;
 		if (x < rect.left + threshold) return -((rect.left + threshold - x) / 2);
 		if (x > rect.right - threshold) return (x - (rect.right - threshold)) / 2;
 		return 0;
 	}
 	function dyFor(rect: DOMRect, y: number): number {
+		if (axis === 'horizontal') return 0;
 		if (y < rect.top + threshold) return -((rect.top + threshold - y) / 2);
 		if (y > rect.bottom - threshold) return (y - (rect.bottom - threshold)) / 2;
 		return 0;

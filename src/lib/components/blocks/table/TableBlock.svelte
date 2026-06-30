@@ -403,8 +403,8 @@
 
 	// Columns aren't windowed, so every column cell is mounted; read the first
 	// MOUNTED row (row 0 may window out — VR-K1) for the shared track geometry.
-	// Client coords match the position:fixed insertion line. Tables that fit
-	// horizontally only — wide-table autoscroll is a later layer.
+	// Client coords match the position:fixed insertion line. Re-read live each
+	// move, so a horizontal-autoscroll shift of the clipped columns is reflected.
 	function columnReorderGeometry() {
 		if (!tableEl || rowCount === 0 || columnCount === 0) return null;
 		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx]');
@@ -427,6 +427,9 @@
 			fromColIdx: colIdx,
 			getColCount: () => columnCount,
 			getGeometry: columnReorderGeometry,
+			// `.table-block` (tableEl) is itself the overflow-x container; autoscrolled
+			// to reveal columns clipped off a wide table's edge.
+			getScrollContainer: () => tableEl ?? null,
 			setLine: (line) => (columnDragLine = line),
 			onDragRecognized: () => (suppressColumnGripClick = true),
 			commit: (from, to) => void mutations.reorderColumnTo(from, to),
