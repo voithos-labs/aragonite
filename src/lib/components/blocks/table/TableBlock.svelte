@@ -340,25 +340,32 @@
 	// rather than consumed on click — a stale `true` can't swallow a later menu.
 	let suppressRowGripClick = false;
 
-	// Rows are `display: contents` (no box); measure each row's first cell, whose
-	// border-box spans the grid row track. Viewport coords match the pointer and
-	// the fixed-position insertion line.
+	// Rows are `display: contents` (no box); measure each MOUNTED row's first cell,
+	// whose border-box spans the grid row track. Carries each row's ABSOLUTE index
+	// (data-table-row-idx) so the drop maps a mounted edge to a body position under
+	// row windowing. Re-read live each move, so an autoscroll re-slice is reflected.
 	function rowReorderGeometry() {
 		if (!tableEl || rowCount === 0) return null;
 		const rowEls = tableEl.querySelectorAll(':scope > [data-table-row-idx]');
 		const rowEdges: number[] = [];
+		const gapIndices: number[] = [];
 		let lastBottom = 0;
+		let lastIdx = -1;
 		for (const rowEl of rowEls) {
 			const cell = rowEl.querySelector(':scope > .table-cell') as HTMLElement | null;
 			if (!cell) continue;
 			const rect = cell.getBoundingClientRect();
+			const idx = Number(rowEl.getAttribute('data-table-row-idx'));
 			rowEdges.push(rect.top);
+			gapIndices.push(idx);
 			lastBottom = rect.bottom;
+			lastIdx = idx;
 		}
 		if (rowEdges.length === 0) return null;
 		rowEdges.push(lastBottom);
+		gapIndices.push(lastIdx + 1);
 		const tableRect = tableEl.getBoundingClientRect();
-		return { rowEdges, left: tableRect.left, width: tableRect.width };
+		return { rowEdges, gapIndices, left: tableRect.left, width: tableRect.width };
 	}
 
 	function onRowGripPointerDown(rowIdx: number, e: PointerEvent): void {
@@ -370,8 +377,12 @@
 		if (rowIdx === 0) return;
 		startRowReorderDrag(e, {
 			fromRowIdx: rowIdx,
-			rowCount,
+			getRowCount: () => rowCount,
 			getGeometry: rowReorderGeometry,
+			// Row windowing scrolls the editor root (its getScrollEl); autoscroll must move
+			// that exact element so off-window rows mount. Not nearestScrollContainer, which
+			// counts overflow:hidden — a no-op autoscroll target (scroll-ancestors.ts header).
+			getScrollContainer: getEditorRoot,
 			setLine: (line) => (dragLine = line),
 			onDragRecognized: () => (suppressRowGripClick = true),
 			commit: (from, to) => void mutations.reorderRowTo(from, to),
