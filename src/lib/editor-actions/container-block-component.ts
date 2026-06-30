@@ -71,16 +71,22 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		async revealByPath(path: number[]): Promise<BlockComponent | null> {
 			if (path.length === 0) return null;
 			const [head, ...rest] = path;
-			// No isStale: a windowed each keyed by absolute index clears its slot on
-			// unmount, so an off-window child's slot is already undefined here — the
-			// !getRef gate fires and revealChild runs. TableBlock passes isStale
-			// because its slots can hold a detached ref off-window (see its revealByPath).
+			// A child scrolled off-window can leave a stale (detached) ref in this
+			// scope's slot: publishRefSlot's cleanup is conditional, so slot truthiness
+			// is a cache, not a mount oracle. Gate the scroll on the live window bounds
+			// (isStale) and clear the detached ref (dropRef) so the mount-wait resolves
+			// on the FRESH child. Without this, collapsing a cross-block selection back
+			// onto an off-window anchor item skips the scroll, descends into the stale
+			// ref, and hangs the reveal — leaving the caret stranded at the focus end.
+			const isInWindow = deps.isInWindow;
 			if (deps.revealChild) {
 				await revealChildOrWait(head, {
 					childCount: deps.nodeChildrenLength,
 					getRef: (i) => deps.innerBlockRefs[i],
+					dropRef: (i) => (deps.innerBlockRefs[i] = undefined),
 					revealChild: deps.revealChild,
-					isInWindow: deps.isInWindow
+					isStale: isInWindow ? (i) => !isInWindow(i) : undefined,
+					isInWindow
 				});
 			}
 			const ref = deps.innerBlockRefs[head];
