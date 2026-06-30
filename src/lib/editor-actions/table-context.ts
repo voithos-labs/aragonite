@@ -98,6 +98,7 @@ export type TableMutationsContext = Pick<
 	| 'reorderRowTo'
 	| 'moveRowUp'
 	| 'moveRowDown'
+	| 'reorderColumnTo'
 	| 'moveColumnLeft'
 	| 'moveColumnRight'
 	| 'cycleAlignment'
@@ -217,11 +218,10 @@ export function createTableMutationsContext(
 		await reorderRowTo(rowIdx, to);
 	}
 
-	async function moveColumn(colIdx: number, dir: -1 | 1): Promise<void> {
+	async function reorderColumnTo(from: number, to: number): Promise<void> {
+		if (from === to) return;
 		const { node, focusCell, focusedCell } = deps;
 		const columnCount = metadataOf(node, 'table').columnCount;
-		const to = tableColumnReorderTarget(colIdx, dir, columnCount);
-		if (to === null) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// row now; the column edit's afterTick would otherwise land at row 0.
 		const row = focusedCell?.rowIdx ?? 0;
@@ -229,13 +229,20 @@ export function createTableMutationsContext(
 		// permutation + alignment splice) via rebuildOwnedContainer — same as
 		// insert/delete; the tree-op only permutes references.
 		await commitColumnEdit({
-			mutateColumns: (table) => mutMoveColumn(table, colIdx, to),
-			op: { kind: 'tableReorderColumn', detail: { from: colIdx, to } },
+			mutateColumns: (table) => mutMoveColumn(table, from, to),
+			op: { kind: 'tableReorderColumn', detail: { from, to } },
 			afterTick: () => {
 				focusCell(row, to, 'start');
 				deps.announceReorder(`Moved column to position ${to + 1} of ${columnCount}`);
 			}
 		});
+	}
+
+	async function moveColumn(colIdx: number, dir: -1 | 1): Promise<void> {
+		const columnCount = metadataOf(deps.node, 'table').columnCount;
+		const to = tableColumnReorderTarget(colIdx, dir, columnCount);
+		if (to === null) return;
+		await reorderColumnTo(colIdx, to);
 	}
 
 	return {
@@ -246,6 +253,7 @@ export function createTableMutationsContext(
 		reorderRowTo,
 		moveRowUp: (rowIdx) => moveRow(rowIdx, -1),
 		moveRowDown: (rowIdx) => moveRow(rowIdx, 1),
+		reorderColumnTo,
 		moveColumnLeft: (colIdx) => moveColumn(colIdx, -1),
 		moveColumnRight: (colIdx) => moveColumn(colIdx, 1),
 
