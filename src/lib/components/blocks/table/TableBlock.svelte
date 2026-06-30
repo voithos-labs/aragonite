@@ -17,6 +17,7 @@
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
+		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		REORDER_ANNOUNCE_KEY,
@@ -43,6 +44,7 @@
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
+	import { startRowReorderDrag, type RowReorderLine } from './table-reorder-drag';
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
@@ -68,6 +70,7 @@
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
 	const announceReorder = getContext<ReorderAnnounce>(REORDER_ANNOUNCE_KEY);
+	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -329,6 +332,53 @@
 		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
 	}
 
+	// ── Row drag reorder ───────────────────────────────────────────────────
+
+	let dragLine = $state<RowReorderLine | null>(null);
+	// Plain let: read only in the grip's pointer/click handlers. A drag that ends
+	// off the grip fires no click, so this is reset on every grip pointerdown
+	// rather than consumed on click — a stale `true` can't swallow a later menu.
+	let suppressRowGripClick = false;
+
+	// Rows are `display: contents` (no box); measure each row's first cell, whose
+	// border-box spans the grid row track. Viewport coords match the pointer and
+	// the fixed-position insertion line.
+	function rowReorderGeometry() {
+		if (!tableEl || rowCount === 0) return null;
+		const rowEls = tableEl.querySelectorAll(':scope > [data-table-row-idx]');
+		const rowEdges: number[] = [];
+		let lastBottom = 0;
+		for (const rowEl of rowEls) {
+			const cell = rowEl.querySelector(':scope > .table-cell') as HTMLElement | null;
+			if (!cell) continue;
+			const rect = cell.getBoundingClientRect();
+			rowEdges.push(rect.top);
+			lastBottom = rect.bottom;
+		}
+		if (rowEdges.length === 0) return null;
+		rowEdges.push(lastBottom);
+		const tableRect = tableEl.getBoundingClientRect();
+		return { rowEdges, left: tableRect.left, width: tableRect.width };
+	}
+
+	function onRowGripPointerDown(rowIdx: number, e: PointerEvent): void {
+		// Reset before any bail: a prior drag released off the grip leaves no click
+		// to consume the flag, so resetting here is what keeps it from sticking.
+		suppressRowGripClick = false;
+		// The header row is positionally fixed (mirrors the keyboard no-op); its
+		// grip stays click-only — no drag, no line.
+		if (rowIdx === 0) return;
+		startRowReorderDrag(e, {
+			fromRowIdx: rowIdx,
+			rowCount,
+			getGeometry: rowReorderGeometry,
+			setLine: (line) => (dragLine = line),
+			onDragRecognized: () => (suppressRowGripClick = true),
+			commit: (from, to) => void mutations.reorderRowTo(from, to),
+			lifetimeSignal: editorLifetime
+		});
+	}
+
 	// ── focusout: reset internal sticky when focus leaves the table ────────
 
 	$effect(() => {
@@ -560,7 +610,11 @@
 			myPath={[...myPath, rowIdx]}
 			setRef={setRowRef}
 			getRef={getRowRef}
-			onOpenRowMenu={(r, e) => openMenu('row', r, e)}
+			onOpenRowMenu={(r, e) => {
+				if (suppressRowGripClick) return;
+				openMenu('row', r, e);
+			}}
+			{onRowGripPointerDown}
 		/>
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>
@@ -573,6 +627,11 @@
 			onclipboard={runClipboard}
 			onclose={() => (menu = null)}
 		/>
+	{/if}{#if dragLine}
+		<div
+			class="table-reorder-line"
+			style="left:{dragLine.left}px;top:{dragLine.top}px;width:{dragLine.width}px"
+		></div>
 	{/if}
 </div>
 
@@ -593,6 +652,17 @@
 	/* Zero-height so the corner + column-grip band (grid row 1) adds no visible row. */
 	.table-grip-corner {
 		height: 0;
+	}
+	/* Drag overlay: viewport-fixed (rect from getBoundingClientRect / pointer client
+	   coords); pointer-events:none so it never intercepts the drag's own pointer
+	   stream. A single subtle line, not a band — a document should feel like a document. */
+	.table-reorder-line {
+		position: fixed;
+		height: 2px;
+		background: var(--md-reorder-indicator);
+		border-radius: 2px;
+		pointer-events: none;
+		z-index: 20;
 	}
 	/* Webkit fallback for older Chromium. */
 	.table-block::-webkit-scrollbar {

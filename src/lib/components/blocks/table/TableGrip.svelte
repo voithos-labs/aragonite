@@ -1,16 +1,21 @@
 <script lang="ts">
 	let {
 		axis,
-		onActivate
+		onActivate,
+		onpointerdown
 	}: {
 		axis: 'row' | 'column';
 		onActivate: (e: MouseEvent) => void;
+		onpointerdown?: (e: PointerEvent) => void;
 	} = $props();
 
 	function handlePointerDown(e: PointerEvent): void {
 		// Keep the grip's own pointer stream off the editor's selection/focus
-		// handlers; the affordance opens a menu, it doesn't place a caret.
+		// handlers; the affordance opens a menu, it doesn't place a caret. A drag
+		// reorder (row axis) starts from the same stream — kept below the click
+		// threshold a plain click still opens the menu.
 		e.stopPropagation();
+		onpointerdown?.(e);
 	}
 </script>
 
