@@ -14,6 +14,12 @@ are a separate layer.
 
 - Dragging the first body-row grip down past the next body row reorders with
   insert semantics: the dragged row lands where the line showed.
+- Dragging a body-row grip up onto an earlier row reorders upward (the
+  `gap <= from` branch — mirrors the keyboard Alt+ArrowUp case).
+- Dragging a middle row down past the last row lands it at the table's end
+  (target clamps to the last body position).
+- A single insertion line appears at the drop gap during the drag and clears on
+  release.
 - After a drag the caret is usable in the moved row (typing lands a marker).
 
 ## Edge cases
