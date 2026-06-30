@@ -44,7 +44,12 @@
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
-	import { startRowReorderDrag, type RowReorderLine } from './table-reorder-drag';
+	import {
+		startRowReorderDrag,
+		startColumnReorderDrag,
+		type RowReorderLine,
+		type ColumnReorderLine
+	} from './table-reorder-drag';
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
@@ -390,6 +395,45 @@
 		});
 	}
 
+	// ── Column drag reorder ─────────────────────────────────────────────────
+
+	let columnDragLine = $state<ColumnReorderLine | null>(null);
+	// Plain let, reset on every grip pointerdown — see suppressRowGripClick.
+	let suppressColumnGripClick = false;
+
+	// Columns aren't windowed, so every column cell is mounted; read the first
+	// MOUNTED row (row 0 may window out — VR-K1) for the shared track geometry.
+	// Client coords match the position:fixed insertion line. Tables that fit
+	// horizontally only — wide-table autoscroll is a later layer.
+	function columnReorderGeometry() {
+		if (!tableEl || rowCount === 0 || columnCount === 0) return null;
+		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx]');
+		if (!firstRowEl) return null;
+		const cells = firstRowEl.querySelectorAll(':scope > .table-cell');
+		if (cells.length === 0) return null;
+		const colEdges: number[] = [];
+		for (const cell of cells) colEdges.push((cell as HTMLElement).getBoundingClientRect().left);
+		const lastCell = cells[cells.length - 1] as HTMLElement;
+		colEdges.push(lastCell.getBoundingClientRect().right);
+		const tableRect = tableEl.getBoundingClientRect();
+		return { colEdges, top: tableRect.top, height: tableRect.height };
+	}
+
+	function onColumnGripPointerDown(colIdx: number, e: PointerEvent): void {
+		// Reset before any bail: a prior drag released off the grip leaves no click
+		// to consume the flag, so resetting here is what keeps it from sticking.
+		suppressColumnGripClick = false;
+		startColumnReorderDrag(e, {
+			fromColIdx: colIdx,
+			getColCount: () => columnCount,
+			getGeometry: columnReorderGeometry,
+			setLine: (line) => (columnDragLine = line),
+			onDragRecognized: () => (suppressColumnGripClick = true),
+			commit: (from, to) => void mutations.reorderColumnTo(from, to),
+			lifetimeSignal: editorLifetime
+		});
+	}
+
 	// ── focusout: reset internal sticky when focus leaves the table ────────
 
 	$effect(() => {
@@ -602,7 +646,14 @@
 	     directly under .table-block joins the raw-offset walk and shifts a parked
 	     cross-block caret (cursor/widget-offset.ts; mirrors TableRowBlock). -->
 	<span class="table-grip-corner" aria-hidden="true"></span>{#each columnIndices as colIdx (colIdx)}
-		<TableGrip axis="column" onActivate={(e) => openMenu('column', colIdx, e)} />
+		<TableGrip
+			axis="column"
+			onActivate={(e) => {
+				if (suppressColumnGripClick) return;
+				openMenu('column', colIdx, e);
+			}}
+			onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
+		/>
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
@@ -643,6 +694,11 @@
 			class="table-reorder-line"
 			style="left:{dragLine.left}px;top:{dragLine.top}px;width:{dragLine.width}px"
 		></div>
+	{/if}{#if columnDragLine}
+		<div
+			class="table-reorder-line-vertical"
+			style="left:{columnDragLine.left}px;top:{columnDragLine.top}px;height:{columnDragLine.height}px"
+		></div>
 	{/if}
 </div>
 
@@ -666,14 +722,21 @@
 	}
 	/* Drag overlay: viewport-fixed (rect from getBoundingClientRect / pointer client
 	   coords); pointer-events:none so it never intercepts the drag's own pointer
-	   stream. A single subtle line, not a band — a document should feel like a document. */
-	.table-reorder-line {
+	   stream. A single subtle line, not a band — a document should feel like a
+	   document. Horizontal marks a row gap; vertical marks a column gap. */
+	.table-reorder-line,
+	.table-reorder-line-vertical {
 		position: fixed;
-		height: 2px;
 		background: var(--md-reorder-indicator);
 		border-radius: 2px;
 		pointer-events: none;
 		z-index: 20;
+	}
+	.table-reorder-line {
+		height: 2px;
+	}
+	.table-reorder-line-vertical {
+		width: 2px;
 	}
 	/* Webkit fallback for older Chromium. */
 	.table-block::-webkit-scrollbar {
