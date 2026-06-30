@@ -37,6 +37,8 @@ are a separate layer.
   grip, move past the threshold, release over the destination row.
 - A plain grip click (press/release without crossing the threshold) opens the
   affordance menu instead of reordering.
+- A drag that crosses the threshold and releases back on its origin grip does
+  not open the menu — the recognized-drag flag suppresses the trailing click.
 
 ## Accessibility
 
