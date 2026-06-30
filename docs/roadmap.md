@@ -14,8 +14,6 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 The v1.0 milestone ships the editor as a polished, GFM-complete, scale-proven, plugin-ready standalone library. With the extraction to this repo done, the remaining pre-1.0 work is:
 
-- **Table-row drag** — a hover drag handle for table body rows, completing the row-reorder affordance the block-drag handle gives top-level blocks (keyboard row reorder shipped 0.8.9). Rows render outside the generic block-host drag path, so this needs a table-specific handle + drop hit-test. Feedback-driven.
-- **Table hover affordances** — on-hover row/column insert/delete controls so table editing isn't keyboard-only (the chords ship today and are documented in the consumer guide). Pairs with table-row drag; feedback-driven.
 - **`/test/editor` demo polish** — the route is the demo surface someone cloning the repo runs to see the editor without touching anything else.
 - **Library packaging** — `svelte-package` build with a published `exports` map (`import { Editor } from 'aragonite'`), `svelte` + `highlight.js` as peer/deps, and a verified `npm pack` artifact. (The repo is already structured for this: `src/lib` is the package, `src/routes` the demo app.)
 - **Scale gate** — `perf:check` gates the 10MB keystroke latency of every renderable shape (flat + single-container, all O(viewport)) against the committed baseline; the prod build is the reference for the "efficient on large docs" claim. The intra-block single-giant-paragraph axis stays recorded-not-gated (O(paragraph length) span rebuild); an extreme flat document's multi-second load stays accept-documented (O(node-count) reactive-tree materialization, mount still windowed).
