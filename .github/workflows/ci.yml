@@ -4,7 +4,9 @@ on:
     branches: [main]
   pull_request:
 
-# Two parallel jobs: the fast static+unit gate, and the Playwright e2e battery.
+# Three parallel jobs: the fast static+unit gate, the Playwright e2e battery, and
+# the external-consumer realism gate (packs the library, installs the tarball into
+# examples/consumer, and runs its SSR-no-crash + hydration smoke).
 # e2e runs every project (blocks, selection, sticky-column, a11y, search, vr,
 # simulation, perf-dev) via the dev webServer the playwright config starts.
 jobs:
@@ -32,3 +34,14 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  consumer-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/consumer-smoke.mjs
