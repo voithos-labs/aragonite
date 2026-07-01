@@ -12,8 +12,9 @@ import { EditorPage } from '../../editor-page';
  *
  * Gate 2 — reserved-index-0 structural ops. The merge walk targets the last
  *   BODY child (never the title); an interior Backspace against the not-mergeable
- *   title moves focus instead of merging; title-start Backspace and Enter-in-title
- *   are characterized.
+ *   title moves focus instead of merging; typing keeps the note-title kind
+ *   (contextDependentKind); title-start Backspace, Enter-in-title, and a
+ *   range-delete ending in the title are characterized.
  */
 class PluginsPage extends EditorPage {
 	async gotoPlugins() {
@@ -167,9 +168,9 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.waitForCrossBlock(true);
 
 		// Collapse to the focus edge (the title), then type — the character must land
-		// in the child-0 leaf, proving it is a real caret target. (Editing reparses
-		// the kind away from note-title; that downgrade is characterized separately —
-		// selection parity is about the caret reaching path [1, 0], not the kind.)
+		// in the child-0 leaf, proving it is a real caret target. (The note-title kind
+		// survives the edit via contextDependentKind, characterized separately — this
+		// gate is about the caret reaching path [1, 0].)
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('Z');
@@ -273,7 +274,7 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2 (characterized): typing into the title reparses it away from note-title', async ({
+	test('Gate 2: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
@@ -281,16 +282,40 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains(':::note TitleX');
 
-		// updateNodeContent re-derives kind from raw on every content commit. A bare
-		// title line reparses to paragraph, so the FIRST keystroke downgrades the
-		// chrome. tableCell (a context-dependent kind with no recognizer) dodges this
-		// via an explicit skip in updateNodeContent; reserved chrome needs the same
-		// carve-out. The title still renders in the opener line (rebuildRaw reads
-		// child-0 raw regardless of kind), so selection parity is unaffected.
+		// note-title is registered via registerChromeLeaf, so it carries
+		// contextDependentKind. updateNodeContent honors that flag: a content commit
+		// writes raw and keeps the kind instead of re-deriving it from the bare title
+		// line (which has no recognizer and would downgrade to paragraph).
 		const note = await readNote(page, 1);
-		expect(note.childKinds[0]).toBe('paragraph');
+		expect(note.childKinds[0]).toBe('note-title');
 		expect(note.childTexts[0]).toBe('TitleX');
 		expect(await editor.bridge.getSource()).toContain(':::note TitleX');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('characterized: Delete over a cross-block selection ending in the title', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.focusBlock(0, 2);
+		await page.keyboard.press('Shift+End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+
+		// CHARACTERIZATION (adviser finding — reserved-child-0 is a convention, not a
+		// contract): rangeDelete treats the title as an ordinary end-leaf and deletes
+		// it outright, then rebuildCalloutRaw positionally hoists the first BODY
+		// paragraph ("Body") into the opener line. The title text is lost and "Body"
+		// becomes the title. Pinned to the observed post-state — NOT a fixed behavior;
+		// the fix is the deferred reserved-chrome contract (a red/green baseline for it).
+		const note = await readNote(page, 1);
+		expect(note.rootCount).toBe(2);
+		expect(note.childCount).toBe(1);
+		expect(note.childKinds).toEqual(['paragraph']);
+		expect(note.childTexts).toEqual(['Body']);
+		expect(note.raw).toBe(':::note Body\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

@@ -5,8 +5,8 @@
  *
  * The title lives in the opener line (`:::note My Title`) yet is a real CST
  * child at index 0, so `strip(raw) !== serialize(children)`. That is why the
- * callout declares a non-`strip` (`'grid'`) container contract: it opts out of
- * `checkStaleRaw`'s byte-level round-trip guard (an accepted Fork-A tradeoff).
+ * callout declares an `'opaque'` container contract: `raw` is authoritative
+ * (not a strip-decomposition), exempt from `checkStaleRaw`'s byte-level guard.
  * `rebuildRaw` re-emits the title into the opener line from child 0.
  */
 
@@ -14,6 +14,7 @@ import {
 	declarePluginKind,
 	registerBlockKind,
 	registerBlockOpener,
+	registerChromeLeaf,
 	isBlockKindRegistered,
 	setPluginMetadata,
 	getPluginMetadata
@@ -36,18 +37,17 @@ interface CalloutMetadata {
 	calloutType: string;
 }
 
-// The title reuses TextEditableBlock's surface (see register.ts); this keymap is
-// what that surface's runCommand can execute. Enter → `block.split` is a
-// deliberate, characterized choice: it splits the title into two `note-title`
-// rows. A "descend into the body" Enter would need either a plugin-minted
-// command (the closed CommandId union forbids it today) or a wrapper component —
-// out of the spike's one-import scope. See the Fork-A findings report (Gate 2c).
-const TITLE_KEYMAP: KeyBinding[] = [
+// The title runs on the `registerChromeLeaf` surface (TextEditableBlock); this
+// keymap is what that surface's runCommand can execute. Enter → `block.split` is
+// a deliberate, characterized choice: it splits the title into two rows. A
+// "descend into the body" Enter would need a plugin-minted command (the closed
+// CommandId union forbids it today). No `format.toggle*` chords: the chrome leaf
+// is `supportsInline: false`, so those commands would insert literal `**`/`*` — a
+// keymap must not advertise commands the render path can't honor.
+export const TITLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Backspace', command: 'block.mergePrev' },
-	{ chord: 'Delete', command: 'block.mergeNext' },
-	{ chord: 'Mod+B', command: 'format.toggleStrong' },
-	{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
+	{ chord: 'Delete', command: 'block.mergeNext' }
 ];
 
 function makeTitleChild(text: string): CstNode {
@@ -79,27 +79,17 @@ export function registerCalloutKind(): void {
 		editable: true,
 		isContainer: true,
 		supportsInline: false,
-		// Non-`strip`: child-0 chrome puts the title in the opener line, breaking
-		// `strip(raw) === serialize(children)`. `'grid'` is the only non-strip enum
-		// value, so it doubles as the checkStaleRaw escape hatch here.
-		containerContract: 'grid',
+		// Child-0 chrome puts the title in the opener line, breaking
+		// `strip(raw) === serialize(children)`. `'opaque'` marks raw authoritative
+		// and exempts the container from checkStaleRaw's byte-check.
+		containerContract: 'opaque',
 		rebuildRaw: rebuildCalloutRaw,
 		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 	});
 
-	// Reserved-child-0 chrome. `not-mergeable` keeps body prose from merging into
-	// the title: the deepest-leaf merge walk descends into the LAST child, and an
-	// interior Backspace against a not-mergeable prev falls to move-focus rather
-	// than a text join. `supportsInline: false` keeps the leaf off the reactive
-	// inline-cache path — the title is plain editable text, and selection parity
-	// needs no prose-ness.
-	registerBlockKind(noteTitle, {
-		mergeRole: 'not-mergeable',
-		editable: true,
-		isContainer: false,
-		supportsInline: false,
-		keymap: TITLE_KEYMAP
-	});
+	// Reserved-child-0 chrome via the public seam: no `$lib` component import, and
+	// the leaf is kind-sticky (contextDependentKind) so typing keeps `note-title`.
+	registerChromeLeaf(noteTitle, { blockClass: 'note-title', keymap: TITLE_KEYMAP });
 
 	registerBlockOpener(note, {
 		priority: 45, // between blockquote (40) and list (50); ::: is claimed by no built-in
