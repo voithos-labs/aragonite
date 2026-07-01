@@ -28,14 +28,6 @@ Two liabilities dominate — intrinsic complexity and an unvalidated plugin moat
 
 Already in place (see changelog): GFM Section 1+2 coverage, a documented + versioned public API, editor-owned theme assets, consumer docs, the block-kind schema surface, and a keybinding-override surface.
 
-## Deliberately deferred (non-goals, for now)
-
-Stated so they aren't "fixed" by reflex — each is a conscious defer, not an oversight:
-
-- **No broad "simplify the editor" refactor.** The CST / reactivity / windowing complexity is load-bearing (it buys raw-as-truth + windowing + atomic widgets); a simplify pass trades earned round-trip and reactivity correctness for marginal legibility. Contain via guards (above), don't excise.
-- **Don't chase the documented perf cliffs.** O(node-count) load and O(length) single-giant-paragraph editing are accept-documented in `docs/perf/performance.md`; the lever (lazy/shallow proxying) waits for a workload that needs it. Keep public claims honest (gated vs aspirational) rather than closing the cliffs prematurely.
-- **Drag-lifecycle extraction is opportunistic.** The near-identical row/column table drag controllers (tracked in `docs/issues.md`) get a shared lifecycle when next in that code, not as a standalone errand.
-
 ## Post-1.0 sketch
 
 Subject to reconsideration after v1 ships.
