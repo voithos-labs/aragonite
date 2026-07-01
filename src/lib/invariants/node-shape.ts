@@ -129,6 +129,30 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 	);
 }
 
+/**
+ * Opaque containers escape the strip byte-check, but their plugin-authored
+ * rebuildRaw must still be a fixpoint over the committed state: re-running it on
+ * a probe clone must reproduce `raw` byte-for-byte. Catches the same
+ * children-mutated-without-rebuild staleness class that checkStaleRaw catches
+ * for strip containers — the one contract that otherwise has no byte-level
+ * guard. The shallow-spread probe isolates rebuildRaw's `raw` write from the
+ * committed node (it reads children/metadata/inner trivia, which the spread
+ * shares by reference, and writes only `raw`).
+ */
+export function checkOpaqueRawFixpoint(node: CstNode): InvariantViolation | null {
+	const descriptor = getBlockKindDescriptor(node.kind);
+	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
+
+	const probe = { ...node };
+	descriptor.rebuildRaw(probe);
+	if (probe.raw === node.raw) return null;
+	return {
+		code: 'opaque-raw-fixpoint',
+		message: `${node.kind} opaque raw is not the rebuildRaw fixpoint`,
+		detail: { kind: node.kind, raw: clampForDetail(node.raw), rebuilt: clampForDetail(probe.raw) }
+	};
+}
+
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
 
 /**
