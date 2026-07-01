@@ -130,27 +130,70 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 }
 
 /**
- * Opaque containers escape the strip byte-check, but their plugin-authored
- * rebuildRaw must still be a fixpoint over the committed state: re-running it on
- * a probe clone must reproduce `raw` byte-for-byte. Catches the same
- * children-mutated-without-rebuild staleness class that checkStaleRaw catches
- * for strip containers — the one contract that otherwise has no byte-level
- * guard. The shallow-spread probe isolates rebuildRaw's `raw` write from the
- * committed node (it reads children/metadata/inner trivia, which the spread
- * shares by reference, and writes only `raw`).
+ * Opaque containers escape the strip byte-check, but the same
+ * children-mutated-without-rebuild staleness class must still be caught. `raw`
+ * can never be byte-compared against a rebuildRaw output: a faithful parse may
+ * be non-canonical (`:::x  y` stored verbatim where the rebuilder emits
+ * `:::x y`) — the same false-fire class the strip check's header documents.
+ * Compare through the parse channel instead: re-parse `raw` and diff the
+ * reparsed children-bytes against the live ones with checkStaleRaw's tolerance
+ * machinery, so only genuine drift fires.
+ *
+ * Bails when `raw` does not reparse standalone to exactly one block of this
+ * kind — validation needs the kind's opener registered (a test kind without
+ * one reparses to a paragraph and must not fire).
  */
-export function checkOpaqueRawFixpoint(node: CstNode): InvariantViolation | null {
+export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
+	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
+
+	const blocks = parse(node.raw).children;
+	if (blocks.length !== 1 || blocks[0].kind !== node.kind) return null;
+
+	if (!rawFaithful(blocks[0], node)) {
+		return {
+			code: 'opaque-stale-raw',
+			message: `${node.kind} opaque raw is stale relative to its children`,
+			detail: { kind: node.kind, raw: clampForDetail(node.raw) }
+		};
+	}
+	return null;
+}
+
+/**
+ * The staleness check above trusts a single reparse of `raw`; that trust
+ * requires the plugin-authored rebuildRaw to be deterministic over the
+ * committed state. Two probe rebuilds are compared to each other — never to
+ * `node.raw`, which a faithful non-canonical parse legally differs from.
+ */
+export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation | null {
 	const descriptor = getBlockKindDescriptor(node.kind);
 	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
 
-	const probe = { ...node };
-	descriptor.rebuildRaw(probe);
-	if (probe.raw === node.raw) return null;
+	const first = probeRebuild(node, descriptor.rebuildRaw);
+	const second = probeRebuild(node, descriptor.rebuildRaw);
+	if (first === second) return null;
 	return {
-		code: 'opaque-raw-fixpoint',
-		message: `${node.kind} opaque raw is not the rebuildRaw fixpoint`,
-		detail: { kind: node.kind, raw: clampForDetail(node.raw), rebuilt: clampForDetail(probe.raw) }
+		code: 'opaque-rebuild-nondeterministic',
+		message: `${node.kind} rebuildRaw emitted different bytes over identical committed state`,
+		detail: { kind: node.kind, first: clampForDetail(first), second: clampForDetail(second) }
 	};
+}
+
+/**
+ * rebuildRaw's contract is to read children/metadata/inner trivia and write
+ * only `raw`. The probe isolates that write and additionally copies the
+ * children array and metadata record, shielding the live node from a
+ * misbehaving rebuilder's cheap structural writes (splice/push, metadata
+ * fields). Child NODES stay shared by reference — defending field writes on
+ * them would need a per-commit deep clone, which isn't worth a contract breach
+ * this unlikely.
+ */
+function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
+	const probe = { ...node };
+	if (probe.children) probe.children = [...probe.children];
+	if (probe.metadata) probe.metadata = { ...probe.metadata };
+	rebuildRaw(probe);
+	return probe.raw;
 }
 
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────

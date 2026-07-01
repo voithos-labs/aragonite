@@ -43,7 +43,9 @@ export interface BlockKindDescriptor {
 	 * lives in the container's own raw, e.g. a title in the opener line); exempt
 	 * from the stale-raw byte-check like `'grid'`, but NOT coordinate-addressed.
 	 * Its `rebuildRaw` must be deterministic over children/metadata/inner trivia —
-	 * a DEV fixpoint check re-runs it on a probe clone and enforces byte-equality.
+	 * a DEV probe re-runs it twice and compares the outputs (never against `raw`,
+	 * which a faithful non-canonical parse legally differs from); a separate DEV
+	 * check reparses `raw` to catch children mutated without a rebuild.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
 	/**
