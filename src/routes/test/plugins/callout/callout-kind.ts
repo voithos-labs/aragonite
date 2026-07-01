@@ -11,7 +11,7 @@ import { parse } from '$lib/core/parser';
 import { concatChildren } from '$lib/core/serializer';
 import type { AnyBlockKind, BlockMetadata, CstNode } from '$lib/core/nodes';
 
-const NOTE = 'note';
+export const NOTE = 'note';
 const OPEN = /^:::(\w+)\s*$/;
 const CLOSE = /^:::\s*$/;
 
