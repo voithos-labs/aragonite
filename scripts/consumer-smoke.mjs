@@ -13,10 +13,12 @@ const withDeps = process.platform === 'linux' ? '--with-deps ' : '';
 
 run('npm run package');
 run('npm pack');
+run('node scripts/verify-pack.mjs'); // published paths present AND no test files ship
 // Force a fresh extract — npm may reuse a cached copy for an unchanged version,
 // which would make an edit → repack loop test stale bits.
 rmSync('examples/consumer/node_modules/aragonite', { recursive: true, force: true });
 run('npm install', { cwd: 'examples/consumer' });
+run('npm run check', { cwd: 'examples/consumer' }); // public entry points type-resolve from outside
 run('npm run build', { cwd: 'examples/consumer' }); // bundle + exports validation
 run(`npx playwright install ${withDeps}chromium`, { cwd: 'examples/consumer' });
 run('npm test', { cwd: 'examples/consumer' }); // request-time SSR no-crash + hydration gate
