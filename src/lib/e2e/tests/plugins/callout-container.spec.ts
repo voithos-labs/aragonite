@@ -19,11 +19,16 @@ interface CalloutState {
 	kind: string;
 	childCount: number;
 	childTexts: string[];
+	// The callout node's OWN raw — the value rebuildCalloutRaw must regenerate from
+	// children after every structural edit. childTexts (leaf raws, edited directly)
+	// and roundTripStable (self-consistency of the emitted source) both stay green on
+	// a stale container raw; only this asserts the rebuild actually ran.
+	raw: string;
 }
 
 // Read the callout by CST path through the bridge: document root child [0] is the
 // callout; its children are the paragraphs the edits must move. Trailing newlines
-// are stripped so assertions read as the visible text.
+// are stripped so childTexts read as the visible text.
 async function readCallout(page: Page): Promise<CalloutState> {
 	return page.evaluate(() => {
 		const doc = (window as any).__test.getDocument();
@@ -34,7 +39,8 @@ async function readCallout(page: Page): Promise<CalloutState> {
 			childCount: note?.children?.length ?? 0,
 			childTexts: (note?.children ?? []).map((c: { raw?: string }) =>
 				(c.raw ?? '').replace(/\n+$/, '')
-			)
+			),
+			raw: note?.raw ?? ''
 		};
 	});
 }
@@ -54,7 +60,8 @@ async function waitForCallout(
 				childCount: note?.children?.length ?? 0,
 				childTexts: (note?.children ?? []).map((c: { raw?: string }) =>
 					(c.raw ?? '').replace(/\n+$/, '')
-				)
+				),
+				raw: note?.raw ?? ''
 			};
 			return new Function('s', `return (${predSrc})(s);`)(state);
 		},
@@ -109,6 +116,12 @@ test.describe('plugin container: :::note callout editability', () => {
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(2);
 		expect(afterSplitTyping.childTexts).toEqual(['First one', 'two']);
+		// The callout's own raw was rebuilt from BOTH children — 'two' only reaches
+		// raw if rebuildCalloutRaw ran (a stale raw would still read ':::note\nFirst\n:::').
+		// The lazy-continuation shape (single \n between the paragraphs, no blank line)
+		// matches the built-in blockquote's split-at-end serialization exactly.
+		expect(afterSplitTyping.raw).toBe(':::note\nFirst one\ntwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note\nFirst one\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
@@ -119,6 +132,8 @@ test.describe('plugin container: :::note callout editability', () => {
 		const afterMerge = await waitForCallout(page, (s) => s.childCount === 1);
 		expect(afterMerge.rootCount).toBe(1);
 		expect(afterMerge.childTexts).toEqual(['First onetwo']);
+		expect(afterMerge.raw).toBe(':::note\nFirst onetwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note\nFirst onetwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
