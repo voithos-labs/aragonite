@@ -62,4 +62,19 @@
 		line-height: 1.4;
 		color: var(--color-text-secondary, #888);
 	}
+
+	/* Reserved child-0 chrome: the `note-title` leaf, CSS-promoted to a title row
+	   above the body. It stays a real block inside the sole `.block-list`, so
+	   selection/windowing treat it as an ordinary child (Fork-A spike). */
+	.callout-block :global(.note-title) {
+		font-weight: 600;
+		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+		margin-bottom: 4px;
+		padding-bottom: 4px;
+	}
+	.callout-block :global(.note-title:empty)::before {
+		content: 'Title';
+		color: var(--color-ui-dulled, #afb1b3);
+		pointer-events: none;
+	}
 </style>

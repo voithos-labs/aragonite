@@ -86,71 +86,72 @@ test.describe('plugin container: :::note callout editability', () => {
 	test('type, split, merge, and undo mutate the callout children, never the root', async ({
 		page
 	}) => {
-		// Seed parsed as a real container, not a fallback paragraph.
+		// Seed parsed as a real container, not a fallback paragraph. Child 0 is the
+		// reserved editable title (Fork-A spike); the body paragraph follows it.
 		let state = await readCallout(page);
 		expect(state.kind).toBe('note');
 		expect(state.rootCount).toBe(1);
-		expect(state.childCount).toBe(1);
-		expect(state.childTexts).toEqual(['First']);
+		expect(state.childCount).toBe(2);
+		expect(state.childTexts).toEqual(['Title', 'First']);
 
-		// Type into the callout's paragraph.
-		await page.locator('.callout-block [contenteditable="true"]').first().click();
+		// Type into the callout's body paragraph (child 1, NOT the title row).
+		await page.locator('.callout-block [contenteditable="true"]', { hasText: /^First$/ }).click();
 		await page.keyboard.press('End');
 		await editor.typeText(' one');
-		state = await waitForCallout(page, (s) => s.childTexts[0] === 'First one');
+		state = await waitForCallout(page, (s) => s.childTexts[1] === 'First one');
 		expect(state.rootCount).toBe(1);
-		expect(state.childCount).toBe(1);
+		expect(state.childCount).toBe(2);
 		await editor.waitForUndoBatchFlush();
 
-		// Split: Enter mid-callout must add a SECOND child to the callout — a broken
+		// Split: Enter mid-body must add a THIRD child to the callout — a broken
 		// container would instead grow the document root (rootCount === 2).
 		await page.keyboard.press('Enter');
-		state = await waitForCallout(page, (s) => s.childCount === 2);
+		state = await waitForCallout(page, (s) => s.childCount === 3);
 		expect(state.rootCount).toBe(1);
-		expect(state.childTexts[0]).toBe('First one');
+		expect(state.childTexts[1]).toBe('First one');
 		expect(await roundTripStable(page)).toBe(true);
 
-		// Type into the new second child.
+		// Type into the new body child.
 		await editor.typeText('two');
-		const afterSplitTyping = await waitForCallout(page, (s) => s.childTexts[1] === 'two');
+		const afterSplitTyping = await waitForCallout(page, (s) => s.childTexts[2] === 'two');
 		expect(afterSplitTyping.rootCount).toBe(1);
-		expect(afterSplitTyping.childCount).toBe(2);
-		expect(afterSplitTyping.childTexts).toEqual(['First one', 'two']);
-		// The callout's own raw was rebuilt from BOTH children — 'two' only reaches
-		// raw if rebuildCalloutRaw ran (a stale raw would still read ':::note\nFirst\n:::').
-		// The lazy-continuation shape (single \n between the paragraphs, no blank line)
-		// matches the built-in blockquote's split-at-end serialization exactly.
-		expect(afterSplitTyping.raw).toBe(':::note\nFirst one\ntwo\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(':::note\nFirst one\ntwo\n:::\n');
+		expect(afterSplitTyping.childCount).toBe(3);
+		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
+		// The callout's own raw was rebuilt from ALL children — the title reaches the
+		// opener line and 'two' the body only if rebuildCalloutRaw ran (a stale raw
+		// would still read ':::note Title\nFirst\n:::'). The lazy-continuation shape
+		// (single \n between the body paragraphs) matches blockquote split-at-end.
+		expect(afterSplitTyping.raw).toBe(':::note Title\nFirst one\ntwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst one\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
-		// Merge: caret to the start of the second child (real Home), then Backspace
-		// folds it back into the first — one child again, still inside the callout.
+		// Merge: caret to the start of the last child (real Home), then Backspace
+		// folds it back into the previous body paragraph — never into the title.
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
-		const afterMerge = await waitForCallout(page, (s) => s.childCount === 1);
+		const afterMerge = await waitForCallout(page, (s) => s.childCount === 2);
 		expect(afterMerge.rootCount).toBe(1);
-		expect(afterMerge.childTexts).toEqual(['First onetwo']);
-		expect(afterMerge.raw).toBe(':::note\nFirst onetwo\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(':::note\nFirst onetwo\n:::\n');
+		expect(afterMerge.childTexts).toEqual(['Title', 'First onetwo']);
+		expect(afterMerge.raw).toBe(':::note Title\nFirst onetwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst onetwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
-		// Undo the merge → back to the captured two-child split state, uncorrupted.
+		// Undo the merge → back to the captured three-child split state, uncorrupted.
 		await editor.undo();
-		const undoneMerge = await waitForCallout(page, (s) => s.childCount === 2);
+		const undoneMerge = await waitForCallout(page, (s) => s.childCount === 3);
 		expect(undoneMerge.rootCount).toBe(1);
 		expect(undoneMerge.childTexts).toEqual(afterSplitTyping.childTexts);
 		// Undo restored the container's own raw, not just the leaf children.
 		expect(undoneMerge.raw).toBe(afterSplitTyping.raw);
 		expect(await roundTripStable(page)).toBe(true);
 
-		// Undo the "two" typing → the second child loses its text, root untouched.
+		// Undo the "two" typing → the last body child loses its text, root untouched.
 		await editor.undo();
-		const undoneTyping = await waitForCallout(page, (s) => s.childTexts[1] === '');
+		const undoneTyping = await waitForCallout(page, (s) => s.childTexts[2] === '');
 		expect(undoneTyping.rootCount).toBe(1);
-		expect(undoneTyping.childCount).toBe(2);
+		expect(undoneTyping.childCount).toBe(3);
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });
