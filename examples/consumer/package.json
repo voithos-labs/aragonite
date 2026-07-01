@@ -1,0 +1,22 @@
+{
+	"name": "aragonite-consumer",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"build": "vite build",
+		"preview": "vite preview --port 4180 --strictPort"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-node": "^5.0.0",
+		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"typescript": "~5.6.2",
+		"vite": "^6.0.3"
+	},
+	"dependencies": {
+		"aragonite": "file:../../aragonite-0.9.1.tgz"
+	}
+}
