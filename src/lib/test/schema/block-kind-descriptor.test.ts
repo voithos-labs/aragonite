@@ -130,7 +130,7 @@ describe('renderImagesAsWidgets descriptor flag', () => {
 	});
 });
 
-describe('containerContract — strip vs grid container shape', () => {
+describe('containerContract — strip / grid / opaque container-shape union', () => {
 	const STRIP: BlockKind[] = ['blockquote', 'list', 'listItem'];
 	const GRID: BlockKind[] = ['table', 'tableRow'];
 
