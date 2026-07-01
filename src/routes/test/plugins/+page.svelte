@@ -9,7 +9,7 @@
 	// ordering breaks, the editability gate silently tests a paragraph instead.
 	registerCallout();
 
-	const SEED = ':::note\nFirst\n:::\n';
+	const SEED = ':::note Title\nFirst\n:::\n';
 
 	let source = $state(SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
