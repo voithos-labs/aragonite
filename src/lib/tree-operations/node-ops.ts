@@ -27,6 +27,7 @@ import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
@@ -246,10 +247,10 @@ export function updateNodeContent(
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
-	// tableCell is context-dependent — `parse("foo")` produces a paragraph,
-	// not a cell. The row's rebuildRaw owns the surrounding `| ... |` shape,
-	// so cells just carry their inner text.
-	if (oldKind === 'tableCell') {
+	// A context-dependent kind (tableCell, plugin chrome) has no standalone
+	// recognizer, so reparsing would downgrade it. Its container's rebuildRaw
+	// owns the surrounding syntax; keep the kind and just write raw.
+	if (getBlockKindDescriptor(oldKind).contextDependentKind) {
 		node.raw = newText;
 		return { op: 'noop' };
 	}
