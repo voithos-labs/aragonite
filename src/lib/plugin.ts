@@ -14,6 +14,7 @@ export type { BlockKindDescriptor, MergeRole, UnwrapRole } from './schema/block-
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';
 export type { BlockComponentEntry } from './schema/block-component-registry';
+export type { BlockComponent } from './block-component';
 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
@@ -46,3 +47,5 @@ export type {
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin-container';
+export { registerChromeLeaf } from './editor-actions/plugin-chrome-leaf';
+export type { ChromeLeafOptions } from './editor-actions/plugin-chrome-leaf';
