@@ -42,6 +42,13 @@ export interface BlockKindDescriptor {
 	 */
 	containerContract?: 'strip' | 'grid';
 	/**
+	 * True when the kind has no standalone line recognizer, so `parse(raw)` would
+	 * NOT reproduce it (tableCell → paragraph; plugin chrome → paragraph). Its
+	 * container's rebuildRaw owns the surrounding syntax; a content edit keeps the
+	 * kind and just writes `raw`, instead of re-deriving kind and downgrading it.
+	 */
+	contextDependentKind?: boolean;
+	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
 	 * block is this kind merges into a same-kind ancestor instead of nesting
 	 * as a sub-container. Absent = always nest (default structural path).
@@ -309,6 +316,7 @@ registerBlockKind('tableCell', {
 	editable: true,
 	isContainer: false,
 	supportsInline: true,
+	contextDependentKind: true,
 	getContentRange: tableCellContentRange,
 	renderImagesAsWidgets: false,
 	keymap: [
