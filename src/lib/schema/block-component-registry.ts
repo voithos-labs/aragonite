@@ -49,6 +49,15 @@ export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | und
 	return registry.get(kind);
 }
 
+/**
+ * Probe by name whether a component is registered. `registerBlockComponent`
+ * throws on duplicate, so a plugin registering idempotently (HMR / re-import)
+ * guards on this. Accepts a plain name so callers needn't pre-brand the kind.
+ */
+export function isBlockComponentRegistered(kind: string): boolean {
+	return registry.has(kind as AnyBlockKind);
+}
+
 /** Test-only. Removes every non-built-in component entry; built-ins survive. */
 export function __removePluginComponentsForTests(): void {
 	for (const kind of registry.keys()) {
