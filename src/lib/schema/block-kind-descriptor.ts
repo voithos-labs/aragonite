@@ -200,6 +200,15 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 	return registry.get(kind);
 }
 
+/**
+ * Probe by name whether a kind descriptor exists. `registerBlockKind` throws on
+ * duplicate, so a plugin registering idempotently (HMR / re-import) guards on
+ * this. Accepts a plain name so callers needn't pre-brand an unminted kind.
+ */
+export function isBlockKindRegistered(kind: string): boolean {
+	return registry.has(kind as AnyBlockKind);
+}
+
 /** Every kind currently registered. Caller must not mutate. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
 	return Array.from(registry.keys());
