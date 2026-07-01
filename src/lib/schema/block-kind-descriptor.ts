@@ -36,11 +36,14 @@ export interface BlockKindDescriptor {
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).
 	 * `'strip'` — `raw` is outer syntax around a strip-and-recurse decomposition,
-	 * so `strip(raw) === serialize(children)` holds (blockquote/list/listItem).
-	 * `'grid'` — cells parse straight from `raw`, so that invariant does NOT hold
-	 * and the container is exempt from the stale-raw check (table/tableRow).
+	 * so `strip(raw) === serialize(children)` (blockquote/list/listItem).
+	 * `'grid'` — cells parse straight from `raw`; the invariant does NOT hold and
+	 * the container is coordinate-addressed (table/tableRow).
+	 * `'opaque'` — `raw` is authoritative and not a strip-decomposition (chrome
+	 * lives in the container's own raw, e.g. a title in the opener line); exempt
+	 * from the stale-raw byte-check like `'grid'`, but NOT coordinate-addressed.
 	 */
-	containerContract?: 'strip' | 'grid';
+	containerContract?: 'strip' | 'grid' | 'opaque';
 	/**
 	 * True when the kind has no standalone line recognizer, so `parse(raw)` would
 	 * NOT reproduce it (tableCell → paragraph; plugin chrome → paragraph). Its
