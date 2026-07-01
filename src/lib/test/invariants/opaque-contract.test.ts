@@ -1,10 +1,94 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { checkStaleRaw, checkOpaqueRawFixpoint } from '../../invariants/node-shape';
+import { checkStaleRaw, checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
+import { registerBlockOpener } from '../../schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { parse } from '../../core/parser';
 import { concatChildren } from '../../core/serializer';
-import type { CstNode } from '../../core/nodes';
+import { trimTrailingLineEnding } from '../../core/lines';
+import type { AnyBlockKind, CstNode } from '../../core/nodes';
+
+// ── Callout-shaped opaque kind with a registered opener ────────────────────
+// `::note Title` carries a chrome title child at index 0, so
+// `strip(raw) !== serialize(children)`. The opener accepts extra whitespace
+// (`::note  Title`) and stores raw verbatim — a faithful, NON-canonical
+// parse — while the rebuilder always emits a single space.
+
+const OPEN = /^::note(?:[ \t]+(.*\S))?[ \t]*$/;
+const CLOSE = /^::$/;
+
+function rebuildNoteRaw(node: CstNode): void {
+	const children = node.children ?? [];
+	const title = trimTrailingLineEnding(children[0]?.raw ?? '');
+	const inner =
+		(node.innerPrefix ?? '') + concatChildren(children.slice(1)) + (node.innerSuffix ?? '');
+	node.raw = `${title ? `::note ${title}` : '::note'}\n${inner}::\n`;
+}
+
+function registerNoteKind(): AnyBlockKind {
+	const note = declarePluginKind('spec-note');
+	const title = declarePluginKind('spec-note-title');
+	registerBlockKind(title, {
+		mergeRole: 'not-mergeable',
+		editable: true,
+		isContainer: false,
+		supportsInline: false,
+		contextDependentKind: true
+	});
+	registerBlockKind(note, {
+		mergeRole: 'container',
+		editable: true,
+		isContainer: true,
+		supportsInline: false,
+		containerContract: 'opaque',
+		rebuildRaw: rebuildNoteRaw
+	});
+	registerBlockOpener(note, {
+		priority: 45,
+		interruptsParagraph: false,
+		tryOpen(ctx) {
+			const opener = ctx.line.text.match(OPEN);
+			if (!opener) return null;
+			let i = ctx.index + 1;
+			while (i < ctx.end && !CLOSE.test(ctx.lines[i].text)) i++;
+			if (i >= ctx.end) return null;
+			const body = parse(
+				ctx.lines
+					.slice(ctx.index + 1, i)
+					.map((l) => l.raw)
+					.join('')
+			);
+			const raw = ctx.lines
+				.slice(ctx.index, i + 1)
+				.map((l) => l.raw)
+				.join('');
+			const titleChild: CstNode = {
+				kind: title,
+				leadingTrivia: '',
+				raw: opener[1] ? `${opener[1]}\n` : '\n'
+			};
+			return {
+				node: {
+					kind: note,
+					leadingTrivia: ctx.leadingTrivia,
+					raw,
+					innerPrefix: body.prefix,
+					children: [titleChild, ...body.children],
+					innerSuffix: body.suffix
+				},
+				nextIndex: i + 1
+			};
+		}
+	});
+	return note;
+}
+
+function parseNote(source: string): CstNode {
+	return parse(source).children[0];
+}
+
+// ── checkStaleRaw exemption ─────────────────────────────────────────────────
 
 describe('containerContract opaque — checkStaleRaw exemption', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
@@ -30,55 +114,67 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 	});
 });
 
-describe('checkOpaqueRawFixpoint (opaque containers)', () => {
+// ── checkOpaqueStaleRaw ─────────────────────────────────────────────────────
+
+describe('checkOpaqueStaleRaw (opaque containers)', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	function registerOpaque(name: string) {
-		const kind = declarePluginKind(name);
+	// The regression pin for the byte-fixpoint false-fire: a faithful parse may
+	// be non-canonical (double space stored verbatim), so raw must never be
+	// byte-compared against a rebuild output.
+	it('passes for a faithful non-canonical parse whose rebuild would emit different bytes', () => {
+		const note = registerNoteKind();
+		const node = parseNote('::note  Title\nbody\n::\n');
+		expect(node.kind).toBe(note);
+
+		const probe = { ...node };
+		rebuildNoteRaw(probe);
+		expect(probe.raw).not.toBe(node.raw);
+
+		expect(checkOpaqueStaleRaw(node)).toBeNull();
+	});
+
+	it('passes after a child mutation followed by a rebuild', () => {
+		registerNoteKind();
+		const node = parseNote('::note Title\nbody\n::\n');
+		node.children![1].raw = 'CHANGED\n';
+		rebuildNoteRaw(node);
+		expect(checkOpaqueStaleRaw(node)).toBeNull();
+	});
+
+	it('fires when a body child mutated without a rebuild', () => {
+		registerNoteKind();
+		const node = parseNote('::note Title\nbody\n::\n');
+		node.children![1].raw = 'CHANGED\n';
+		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+	});
+
+	it('fires when the opener-line title chrome mutated without a rebuild', () => {
+		registerNoteKind();
+		const node = parseNote('::note Title\nbody\n::\n');
+		node.children![0].raw = 'Renamed\n';
+		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+	});
+
+	// The check can only validate kinds whose raw reparses standalone to the
+	// same kind; without a registered opener the raw reparses to a paragraph,
+	// so even genuinely stale children must not fire.
+	it('bails for a kind whose raw does not reparse standalone (no opener)', () => {
+		const kind = declarePluginKind('spec-openerless');
 		registerBlockKind(kind, {
 			mergeRole: 'container',
 			editable: true,
 			isContainer: true,
 			supportsInline: false,
 			containerContract: 'opaque',
-			rebuildRaw: (node) => {
-				node.raw = `::x\n${concatChildren(node.children ?? [])}::\n`;
-			}
+			rebuildRaw: () => {}
 		});
-		return kind;
-	}
-
-	it('passes when raw is the rebuild fixpoint', () => {
-		const kind = registerOpaque('spec-fix-ok');
-		const node: CstNode = {
-			kind,
-			leadingTrivia: '',
-			raw: '::x\nbody\n::\n',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
-		};
-		expect(checkOpaqueRawFixpoint(node)).toBeNull();
-	});
-
-	it('fires when children mutated without a rebuild (stale opaque raw)', () => {
-		const kind = registerOpaque('spec-fix-stale');
 		const node: CstNode = {
 			kind,
 			leadingTrivia: '',
 			raw: '::x\nbody\n::\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'CHANGED\n' }]
 		};
-		expect(checkOpaqueRawFixpoint(node)?.code).toBe('opaque-raw-fixpoint');
-	});
-
-	it('is pure — the probe rebuild never mutates the committed node', () => {
-		const kind = registerOpaque('spec-fix-pure');
-		const node: CstNode = {
-			kind,
-			leadingTrivia: '',
-			raw: '::x\nbody\n::\n',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'CHANGED\n' }]
-		};
-		checkOpaqueRawFixpoint(node);
-		expect(node.raw).toBe('::x\nbody\n::\n');
+		expect(checkOpaqueStaleRaw(node)).toBeNull();
 	});
 });
