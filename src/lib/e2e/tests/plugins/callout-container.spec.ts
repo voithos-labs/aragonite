@@ -142,6 +142,8 @@ test.describe('plugin container: :::note callout editability', () => {
 		const undoneMerge = await waitForCallout(page, (s) => s.childCount === 2);
 		expect(undoneMerge.rootCount).toBe(1);
 		expect(undoneMerge.childTexts).toEqual(afterSplitTyping.childTexts);
+		// Undo restored the container's own raw, not just the leaf children.
+		expect(undoneMerge.raw).toBe(afterSplitTyping.raw);
 		expect(await roundTripStable(page)).toBe(true);
 
 		// Undo the "two" typing → the second child loses its text, root untouched.
