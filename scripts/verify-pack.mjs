@@ -1,5 +1,6 @@
-// Packs the library and asserts the tarball contains every published path.
-// Run after `npm run package`. Exits non-zero (with the missing list) on any gap.
+// Packs the library and gates the tarball: every published path must be present,
+// and no test/e2e/spec file may ship. Run after `npm run package`. Exits non-zero
+// (with the offending list) on either failure.
 import { execSync } from 'node:child_process';
 
 // `npm pack --json` reports files[].path relative to the package root (e.g.
@@ -7,6 +8,8 @@ import { execSync } from 'node:child_process';
 const REQUIRED = [
 	'dist/index.js',
 	'dist/index.d.ts',
+	'dist/plugin.js',
+	'dist/plugin.d.ts',
 	'dist/components/Editor.svelte',
 	'dist/styles/editor.css',
 	'dist/styles/editor-theme.css'
@@ -23,6 +26,16 @@ if (missing.length) {
 	console.error('verify-pack: tarball missing required paths:\n  ' + missing.join('\n  '));
 	process.exit(1);
 }
+
+const FORBIDDEN = files.filter((p) => /(^|\/)(test|e2e)\//.test(p) || /\.(test|spec)\./.test(p));
+if (FORBIDDEN.length) {
+	console.error(
+		`verify-pack: tarball ships ${FORBIDDEN.length} test/e2e file(s), e.g.:\n  ` +
+			FORBIDDEN.slice(0, 5).join('\n  ')
+	);
+	process.exit(1);
+}
+
 console.log(
 	`verify-pack: OK (${files.length} files, all ${REQUIRED.length} required paths present)`
 );
