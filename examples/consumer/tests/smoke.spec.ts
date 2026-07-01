@@ -14,11 +14,13 @@ test('editor hydrates with no console/page errors and accepts a keystroke', asyn
 	page.on('pageerror', (e) => errors.push(String(e)));
 
 	await page.goto('/');
-	const block = page.locator('[contenteditable="true"]').first();
+	// The seed doc has two editable blocks (heading + paragraph); target the
+	// paragraph by its text so the keystroke lands there, not in the heading.
+	const block = page.locator('[contenteditable="true"]', { hasText: 'Type here' });
 	await block.click();
 	await block.press('End');
 	await page.keyboard.type('X');
-	await expect(block).toContainText('Type hereX'); // hydrated + interactive
+	await expect(block).toContainText('Type here.X'); // hydrated + interactive
 
 	// Two Svelte copies (peer-dedup failure) or a hydration mismatch surface here.
 	expect(errors, `unexpected console/page errors:\n${errors.join('\n')}`).toEqual([]);
