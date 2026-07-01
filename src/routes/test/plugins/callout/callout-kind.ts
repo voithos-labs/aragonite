@@ -44,7 +44,7 @@ interface CalloutMetadata {
 // CommandId union forbids it today). No `format.toggle*` chords: the chrome leaf
 // is `supportsInline: false`, so those commands would insert literal `**`/`*` — a
 // keymap must not advertise commands the render path can't honor.
-export const TITLE_KEYMAP: KeyBinding[] = [
+const TITLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Backspace', command: 'block.mergePrev' },
 	{ chord: 'Delete', command: 'block.mergeNext' }
