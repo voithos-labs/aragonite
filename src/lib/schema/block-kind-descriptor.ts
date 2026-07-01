@@ -42,6 +42,8 @@ export interface BlockKindDescriptor {
 	 * `'opaque'` — `raw` is authoritative and not a strip-decomposition (chrome
 	 * lives in the container's own raw, e.g. a title in the opener line); exempt
 	 * from the stale-raw byte-check like `'grid'`, but NOT coordinate-addressed.
+	 * Its `rebuildRaw` must be deterministic over children/metadata/inner trivia —
+	 * a DEV fixpoint check re-runs it on a probe clone and enforces byte-equality.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
 	/**
