@@ -5,9 +5,11 @@
 	"scripts": {
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"build": "vite build",
-		"preview": "vite preview --port 4180 --strictPort"
+		"preview": "vite preview --port 4180 --strictPort",
+		"test": "playwright test"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-node": "^5.0.0",
 		"@sveltejs/kit": "^2.55.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
