@@ -4,6 +4,14 @@
 	"description": "CST block editor for GFM Markdown",
 	"type": "module",
 	"license": "MIT",
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"sideEffects": [
+		"**/*.css"
+	],
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -44,10 +52,14 @@
 		"test:e2e:search": "playwright test --project=e2e-search",
 		"test:e2e:vr": "playwright test --project=e2e-vr",
 		"format": "prettier --write .",
-		"lint": "prettier --check ."
+		"lint": "prettier --check .",
+		"package": "svelte-kit sync && svelte-package",
+		"prepack": "npm run package"
 	},
 	"dependencies": {
-		"highlight.js": "^11.11.1",
+		"highlight.js": "^11.11.1"
+	},
+	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
@@ -55,6 +67,7 @@
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/package": "^2.5.8",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@types/node": "^22.19.20",
 		"@vitest/browser": "^4.1.4",
@@ -62,6 +75,7 @@
 		"jsdom": "^29.0.2",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
+		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"typescript": "~5.6.2",
 		"vite": "^6.0.3",
