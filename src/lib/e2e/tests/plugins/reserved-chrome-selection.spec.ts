@@ -78,11 +78,27 @@ const FIXTURE = 'Above\n\n:::note Title\nBody\n:::\n';
 
 test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => {
 	let editor: PluginsPage;
+	// The opaque-container invariants (opaque-stale-raw, opaque-rebuild-
+	// nondeterministic) emit `[invariant:…]` console warnings — a channel the
+	// structured `error` event (capturedErrors) does not carry. Watch it so a
+	// stale-raw / nondeterministic-rebuild violation on this page fails the gate
+	// instead of passing silently.
+	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
+		invariantWarnings = [];
+		page.on('console', (m) => {
+			const type = m.type();
+			if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
+				invariantWarnings.push(`${type}: ${m.text()}`);
+		});
 		await editor.gotoPlugins();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
+	});
+
+	test.afterEach(() => {
+		expect(invariantWarnings).toEqual([]);
 	});
 
 	test('substrate: the title parses as a reserved child-0 note-title leaf', async ({ page }) => {
@@ -272,6 +288,16 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(note.childTexts[0]).toBe('Title');
 		expect(note.childTexts[1]).toBe('');
 		expect(await capturedErrors(page)).toEqual([]);
+
+		// PINNED DEFECT (reserved-chrome gap): child 0 is now a plain paragraph, but
+		// rebuildCalloutRaw still hoists its text into the opener line, so the raw no
+		// longer reparses to the live children — genuine drift the opaque-stale-raw
+		// guard is right to flag. Pinned as the defect's red/green baseline and consumed
+		// so the shared afterEach stays a clean gate for every non-defect gesture; the
+		// deferred reserved-chrome contract is the fix.
+		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(1);
+		expect(invariantWarnings[0]).toContain('[invariant:opaque-stale-raw]');
+		invariantWarnings.length = 0;
 	});
 
 	test('Gate 2: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
@@ -310,6 +336,8 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		// paragraph ("Body") into the opener line. The title text is lost and "Body"
 		// becomes the title. Pinned to the observed post-state — NOT a fixed behavior;
 		// the fix is the deferred reserved-chrome contract (a red/green baseline for it).
+		// The defect is semantic, not a byte-fixpoint break: rebuildCalloutRaw still
+		// leaves raw faithful to children, so the afterEach invariant watch stays silent.
 		const note = await readNote(page, 1);
 		expect(note.rootCount).toBe(2);
 		expect(note.childCount).toBe(1);
