@@ -158,6 +158,21 @@ export function metadataOf<K extends keyof BlockMetadataByKind>(
 	return node.metadata as BlockMetadataByKind[K];
 }
 
+/**
+ * Store/read a plugin kind's own metadata shape. `BlockMetadata` is a closed
+ * union over the built-in kinds with no plugin arm, so bridging a plugin's
+ * shape needs a cast; this accessor pair is the one place it lives, mirroring
+ * `metadataOf` for built-ins. Keep the stored shape primitive-valued — the
+ * one-level undo clone (invariant G1.6) shallow-copies metadata.
+ */
+export function setPluginMetadata<T>(node: CstNode, data: T): void {
+	node.metadata = data as unknown as BlockMetadata;
+}
+
+export function getPluginMetadata<T>(node: CstNode): T | undefined {
+	return node.metadata as unknown as T | undefined;
+}
+
 // ── Inline Node Types ──────────────────────────────────────────────────────
 
 export type InlineNodeKind =

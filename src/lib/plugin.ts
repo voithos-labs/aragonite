@@ -22,3 +22,27 @@ export type { BlockOpener, OpenContext } from './schema/block-openers';
 // ── Command registry ─────────────────────────────────────────────────────────
 export { registerCommand } from './schema/commands';
 export type { CommandId, GlobalCommandContext } from './schema/commands';
+
+// ── CST node access ────────────────────────────────────────────────────────────
+export type { CstNode } from './core/nodes';
+// Typed plugin metadata: store/read a plugin kind's own shape without casting
+// through the built-in `BlockMetadata` union at the call site.
+export { setPluginMetadata, getPluginMetadata } from './core/nodes';
+
+// ── Idempotent-registration probes ─────────────────────────────────────────────
+// The register-once registries throw on duplicate; a plugin re-registers safely
+// (HMR / re-import) by guarding on these.
+export { isBlockKindRegistered } from './schema/block-kind-descriptor';
+export { isBlockComponentRegistered } from './schema/block-component-registry';
+
+// ── Container-authoring surface (pre-freeze / unstable) ─────────────────────────
+// Being refined against real plugin blocks until the open-source release — NOT
+// yet frozen; shape may change. Lets a plugin build an editable nested container
+// as thinly as the built-in blockquote, without touching any editor context key.
+export { default as BlockList } from './components/BlockList.svelte';
+export { createContainerBlock } from './editor-actions/plugin-container';
+export type {
+	ContainerBlock,
+	ContainerBlockDeps,
+	ContainerBlockListProps
+} from './editor-actions/plugin-container';
