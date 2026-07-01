@@ -5,11 +5,17 @@
  * container byte-for-byte before any component exists.
  */
 
-import { declarePluginKind, registerBlockKind, registerBlockOpener } from '$lib/plugin';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import {
+	declarePluginKind,
+	registerBlockKind,
+	registerBlockOpener,
+	isBlockKindRegistered,
+	setPluginMetadata,
+	getPluginMetadata
+} from '$lib/plugin';
 import { parse } from '$lib/core/parser';
-import { concatChildren } from '$lib/core/serializer';
-import type { AnyBlockKind, BlockMetadata, CstNode } from '$lib/core/nodes';
+import { serialize } from '$lib/core/serializer';
+import type { CstNode } from '$lib/core/nodes';
 
 export const NOTE = 'note';
 const OPEN = /^:::(\w+)\s*$/;
@@ -19,13 +25,6 @@ interface CalloutMetadata {
 	calloutType: string;
 }
 
-// `BlockMetadata` is a closed union over the built-in kinds with no plugin
-// extension seam, so a plugin storing its own metadata has to cast through it.
-// Values stay primitive to survive the one-level undo clone (invariant G1.6).
-function calloutMetadata(calloutType: string): BlockMetadata {
-	return { calloutType } as unknown as BlockMetadata;
-}
-
 /**
  * Reconstruct `raw` from children after a structural edit. The opener sets `raw`
  * verbatim on parse (so round-trip never calls this); it matters only when the
@@ -33,15 +32,17 @@ function calloutMetadata(calloutType: string): BlockMetadata {
  * the `'strip'` container contract.
  */
 export function rebuildCalloutRaw(node: CstNode): void {
-	const type = (node.metadata as CalloutMetadata | undefined)?.calloutType ?? NOTE;
-	const inner =
-		(node.innerPrefix ?? '') + concatChildren(node.children ?? []) + (node.innerSuffix ?? '');
+	const type = getPluginMetadata<CalloutMetadata>(node)?.calloutType ?? NOTE;
+	const inner = serialize({
+		prefix: node.innerPrefix ?? '',
+		children: node.children ?? [],
+		suffix: node.innerSuffix ?? ''
+	});
 	node.raw = `:::${type}\n${inner}:::\n`;
 }
 
 export function registerCalloutKind(): void {
-	// The guard runs before the kind is minted, so the lookup casts the raw name.
-	if (tryGetBlockKindDescriptor(NOTE as AnyBlockKind)) return; // idempotent for HMR / re-import
+	if (isBlockKindRegistered(NOTE)) return; // idempotent for HMR / re-import
 	const note = declarePluginKind(NOTE);
 
 	registerBlockKind(note, {
@@ -79,11 +80,11 @@ export function registerCalloutKind(): void {
 				kind: note,
 				leadingTrivia: ctx.leadingTrivia,
 				raw,
-				metadata: calloutMetadata(opener[1]),
 				innerPrefix: inner.prefix,
 				children: inner.children,
 				innerSuffix: inner.suffix
 			};
+			setPluginMetadata<CalloutMetadata>(node, { calloutType: opener[1] });
 			return { node, nextIndex: i + 1 };
 		}
 	});
