@@ -12,7 +12,7 @@ import {
 	checkOpenerRegistry,
 	checkKeymapCoherence
 } from './registry';
-import { checkStaleRaw, checkCategoryFields } from './node-shape';
+import { checkStaleRaw, checkOpaqueRawFixpoint, checkCategoryFields } from './node-shape';
 import { checkContentRange } from './descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
@@ -25,6 +25,7 @@ import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity
 export function assertCommittedNodes(nodes: CstNode[]): void {
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node));
+		assertInvariant('opaque-raw-fixpoint', () => checkOpaqueRawFixpoint(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
 	}
