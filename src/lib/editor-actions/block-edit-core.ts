@@ -26,7 +26,8 @@ import {
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
-	stampStructuralChange
+	stampStructuralChange,
+	type StructuralChange
 } from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import type { UndoEntryMode } from '../action-contracts';
@@ -34,6 +35,7 @@ import type { CommitScope } from './block-edit-scope';
 
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
+	descendToBody(i: number): Promise<void>;
 	mergeWithPreviousInterior(i: number): Promise<void>;
 	mergeWithNextInterior(i: number): Promise<void>;
 	deleteInterior(i: number): Promise<void>;
@@ -78,6 +80,31 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
 					const change = performSplit({ children: view.children }, i, offset);
+					stampStructuralChange(view.children, change, view.sharing);
+					return change;
+				},
+				afterTick: () => scope.refAt(i + 1)?.focus(0)
+			});
+		},
+
+		async descendToBody(i) {
+			const children = scope.children();
+			// A body child already exists: pure focus move, no document change and no
+			// undo entry. An absent ref (windowed-out or a collapsed body) no-ops the
+			// focus, leaving the caret put — the load-bearing collapsed-body fallback.
+			if (i + 1 < children.length) {
+				scope.refAt(i + 1)?.focus(0);
+				return;
+			}
+			// Chrome is the only child: mint an empty body paragraph after it, then focus.
+			await scope.commit({
+				snapshot: { index: i, offset: 0 },
+				eventTarget: i + 1,
+				op: { kind: 'appendBlock' },
+				mutate: (view) => {
+					const body: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+					view.children.splice(i + 1, 0, body);
+					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},

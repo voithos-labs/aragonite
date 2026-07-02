@@ -39,7 +39,8 @@ export const BLOCK_COMMAND_IDS = [
 	'list.unindent',
 	'cell.enter',
 	'cell.tab',
-	'cell.shiftTab'
+	'cell.shiftTab',
+	'chrome.descendToBody'
 ] as const;
 export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
 export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];

@@ -22,6 +22,13 @@ export type UndoEntryMode = 'own' | 'join';
 
 export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
+	/**
+	 * Reserved-chrome Enter gesture: move the caret from the chrome leaf at
+	 * `blockIndex` into the first body child, minting an empty paragraph when the
+	 * chrome is the container's only child. A body whose ref is off-window leaves
+	 * the caret put (the key is still consumed).
+	 */
+	descendToBody(blockIndex: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;

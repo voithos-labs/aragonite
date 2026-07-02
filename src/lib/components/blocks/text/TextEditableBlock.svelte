@@ -315,6 +315,9 @@
 			case 'block.split':
 				blockEdit.splitBlock(index, offset);
 				return true;
+			case 'chrome.descendToBody':
+				blockEdit.descendToBody(index);
+				return true;
 			case 'block.hardBreak': {
 				// GFM hard line break — trailing backslash before the newline.
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
