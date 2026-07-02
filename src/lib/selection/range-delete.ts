@@ -20,6 +20,7 @@ import {
 	rebuildUnsharedChain
 } from '../tree-operations/unshare';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
+import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ export function rangeDelete(
 
 	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
 		return tableAwareRangeDelete(doc, start, end, sharing);
+	}
+	if (involvesReservedChrome(doc, start, end)) {
+		return chromeAwareRangeDelete(doc, start, end, sharing);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;

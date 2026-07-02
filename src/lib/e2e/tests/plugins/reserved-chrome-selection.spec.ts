@@ -14,9 +14,12 @@ import { EditorPage } from '../../editor-page';
  *   BODY child (never the title); an interior Backspace against the not-mergeable
  *   title moves focus instead of merging; typing keeps the note-title kind
  *   (contextDependentKind); Enter in the title descends into the body (chrome is
- *   single-line — it never splits); title-start Backspace is a safe no-op; a
- *   range-delete ending in the title remains characterized until the rangeDelete
- *   wall lands.
+ *   single-line — it never splits); title-start Backspace is a safe no-op.
+ *
+ * Gate 4 — the rangeDelete chrome wall. Nothing merges across the note's wall:
+ *   outside endpoints truncate in place, covered chrome clears (never
+ *   node-deletes), and the container dies only when the range consumes its
+ *   whole subtree from outside. Body-only ranges stay on the generic path.
  */
 class PluginsPage extends EditorPage {
 	async gotoPlugins() {
@@ -360,38 +363,6 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('characterized: Delete over a cross-block selection ending in the title', async ({
-		page
-	}) => {
-		await editor.loadContent(FIXTURE);
-		await editor.focusBlock(0, 2);
-		await page.keyboard.press('Shift+End');
-		await page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Delete');
-		await editor.waitForCrossBlock(false);
-
-		// CHARACTERIZATION (reserved-child-0 is a convention, not yet a contract):
-		// rangeDelete treats the title as an ordinary end-leaf and deletes it outright,
-		// then rebuildCalloutRaw positionally hoists the first BODY paragraph ("Body")
-		// into the opener line. The title text is lost and "Body" becomes the title.
-		// Pinned to the observed post-state — the reserved-chrome contract (Task 4) is
-		// the fix. The corruption is byte-faithful (opaque-stale-raw stays silent) but
-		// semantic: child 0 is no longer the note-title chrome, which the G1.14
-		// reserved-chrome-slot guard flags — pinned and consumed below.
-		const note = await readNote(page, 1);
-		expect(note.rootCount).toBe(2);
-		expect(note.childCount).toBe(1);
-		expect(note.childKinds).toEqual(['paragraph']);
-		expect(note.childTexts).toEqual(['Body']);
-		expect(note.raw).toBe(':::note Body\n:::\n');
-		expect(await capturedErrors(page)).toEqual([]);
-
-		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(1);
-		expect(invariantWarnings[0]).toContain('[invariant:reserved-chrome-slot]');
-		invariantWarnings.length = 0;
-	});
-
 	test('Gate 2e: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits', async ({
 		page
 	}) => {
@@ -408,6 +379,164 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		const note = await readNote(page, 1);
 		expect(note.childKinds[0]).toBe('note-title'); // chrome row still index 0
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// ── Gate 4 — rangeDelete chrome wall ─────────────────────────────────────
+
+	// Two body children so in-place truncation is distinguishable from an upward
+	// merge, plus a trailing paragraph as an outside end anchor.
+	const WALL_FIXTURE = 'Above\n\n:::note Title\nBody1\n\nBody2\n:::\n\nBelow\n';
+
+	test('Gate 4a: Delete over a selection covering the whole title clears the chrome, never deleting it', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.dragFromTo([0], 2, [1, 0], 5);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains(':::note\n');
+
+		// The wall rule: "Above" keeps its head as its own paragraph, the fully
+		// covered title survives as an EMPTY note-title (cleared, not deleted),
+		// and the body never hoists into the opener line.
+		const note = await readNote(page, 1);
+		expect(note.rootCount).toBe(2);
+		expect(note.childCount).toBe(2);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['', 'Body']);
+		expect(note.raw).toBe(':::note\nBody\n:::\n');
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::note\nBody\n:::\n');
+		expect(await capturedErrors(page)).toEqual([]);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains(':::note Title');
+		expect(await editor.bridge.getSource()).toBe(FIXTURE);
+	});
+
+	test('Gate 4a (gesture parity): the historical Delete-into-title keyboard gesture no longer corrupts the chrome', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.focusBlock(0, 2);
+		await page.keyboard.press('Shift+End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('Ab\n');
+
+		// Sticky column lands the focus at title offset 0, so the range covers no
+		// title text: the wall truncates "Above" in place and leaves the chrome
+		// intact — where the pre-contract path deleted the title node and hoisted
+		// "Body" into the opener line.
+		const note = await readNote(page, 1);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['Title', 'Body']);
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::note Title\nBody\n:::\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 4b: partial title coverage keeps the tail in the chrome, never merged upward', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.dragFromTo([0], 2, [1, 0], 3);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains(':::note le');
+
+		const note = await readNote(page, 1);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['le', 'Body']);
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::note le\nBody\n:::\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 4c: chrome-between — start truncates, chrome clears, end body child keeps its tail in place', async ({
+		page
+	}) => {
+		await editor.loadContent(WALL_FIXTURE);
+		await editor.dragFromTo([0], 2, [1, 1], 2);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('dy1');
+
+		const note = await readNote(page, 1);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph', 'paragraph']);
+		expect(note.childTexts).toEqual(['', 'dy1', 'Body2']);
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::note\ndy1\n\nBody2\n:::\n\nBelow\n');
+		expect(await stateConsistencyViolations(page)).toEqual([]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 4d: start-in-chrome — title keeps its head, body deletes, container survives title-only', async ({
+		page
+	}) => {
+		await editor.loadContent(WALL_FIXTURE);
+		await editor.dragFromTo([1, 0], 3, [2], 3);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains(':::note Tit');
+
+		const note = await readNote(page, 1);
+		expect(note.childCount).toBe(1);
+		expect(note.childKinds).toEqual(['note-title']);
+		expect(note.childTexts).toEqual(['Tit']);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::note Tit\n:::\n\now\n');
+		expect(await activeBlockPath(page)).toEqual([1, 0]);
+		expect(await capturedErrors(page)).toEqual([]);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('Body1');
+		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
+	});
+
+	test('Gate 4e: a range strictly around the container still deletes it as a unit', async ({
+		page
+	}) => {
+		await editor.loadContent(WALL_FIXTURE);
+		await editor.dragFromTo([0], 5, [2], 3);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains(':::note');
+
+		expect(await editor.bridge.getSource()).toBe('Aboveow\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test("Gate 4f: a range ending exactly at the container's last byte also deletes it as a unit", async ({
+		page
+	}) => {
+		await editor.loadContent(WALL_FIXTURE);
+		await editor.dragFromTo([0], 5, [1, 2], 5);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceNotContains(':::note');
+
+		expect(await editor.bridge.getSource()).toBe('Above\n\nBelow\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 4g: a body-only range never fires the wall — type-over merges exactly like a blockquote', async ({
+		page
+	}) => {
+		await editor.loadContent(WALL_FIXTURE);
+		await editor.dragFromTo([1, 1], 2, [1, 2], 3);
+		await editor.typeSlowly('Z');
+		await editor.bridge.waitForSourceContains('BoZy2');
+
+		const note = await readNote(page, 1);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['Title', 'BoZy2']);
+
+		// Same gesture over an undeclared container: the generic path handles both
+		// identically, proving the gate is scoped to declared chrome.
+		await editor.loadContent('Above\n\n> Body1\n>\n> Body2\n\nBelow\n');
+		await editor.dragFromTo([1, 0], 2, [1, 1], 3);
+		await editor.typeSlowly('Z');
+		await editor.bridge.waitForSourceContains('BoZy2');
+		expect((await readNote(page, 1)).childTexts).toEqual(['BoZy2']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });
