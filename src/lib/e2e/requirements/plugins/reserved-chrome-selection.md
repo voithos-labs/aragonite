@@ -23,8 +23,21 @@ via `window.__test`, not visuals.
 - Enter-in-title with a title-only callout: mints an empty body paragraph, focuses it, and typing lands in it
 - descend undo-cleanliness: descend onto an existing body commits nothing — a single Ctrl+Z afterwards reverts the edit made BEFORE the descend
 - typing-in-title: keeps the `note-title` kind (contextDependentKind); the typed title re-renders in the opener line
-- range-delete ending in the title (characterized): the title node is deleted and the first body paragraph is hoisted into the opener line — flipped by the reserved-chrome rangeDelete wall
 - windowing: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits
+
+## Gate 4 — rangeDelete chrome wall (must pass)
+
+Nothing merges across the note's wall: outside endpoints truncate in place,
+covered chrome clears (never node-deletes), and the container dies only when
+the range consumes its whole subtree from outside.
+
+- full title coverage: Delete over a selection from the paragraph above through the whole title clears the chrome to an EMPTY note-title — the body never hoists into the opener line; undo restores byte-for-byte
+- gesture parity: the historical Delete-into-title keyboard gesture (whose sticky column lands at title offset 0) truncates the paragraph above and leaves the chrome intact
+- partial title coverage: the title keeps its uncovered tail in the chrome leaf, never merged into the paragraph above
+- chrome-between: a selection from above the callout into a body child truncates the start in place, clears the chrome, and keeps the end body child's tail in place (later body children untouched)
+- start-in-chrome, end outside: the title keeps its head, all body children delete, the container survives title-only, and the outside end block keeps its tail in place
+- whole-subtree coverage (both variants): a range strictly around the container, and a range ending exactly at its last byte, both delete the container as one unit — no invariant fires on the detached node
+- gate tightness: a body-only range inside the callout stays on the generic path — type-over merges the two body paragraphs exactly like the same gesture in a blockquote
 
 ## User interactions
 
