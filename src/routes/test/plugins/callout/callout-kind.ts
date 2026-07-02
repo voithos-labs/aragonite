@@ -84,6 +84,7 @@ export function registerCalloutKind(): void {
 		// and exempts the container from checkStaleRaw's byte-check.
 		containerContract: 'opaque',
 		rebuildRaw: rebuildCalloutRaw,
+		reservedChrome: { kind: noteTitle },
 		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 	});
 

@@ -2,6 +2,7 @@ import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
@@ -194,6 +195,28 @@ function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): stri
 	if (probe.metadata) probe.metadata = { ...probe.metadata };
 	rebuildRaw(probe);
 	return probe.raw;
+}
+
+// ── G1.14: reserved-chrome slot ───────────────────────────────────────────────
+
+/**
+ * G1.14 — a container declaring `reservedChrome` always holds a chrome leaf of
+ * the declared kind at child 0. The wall/backfill machinery must never empty the
+ * slot or replace it with another kind; firing here means an op deleted or
+ * downgraded the chrome instead of clearing it. Self-filtering: non-declaring
+ * kinds are exempt.
+ */
+export function checkReservedChromeSlot(node: CstNode): InvariantViolation | null {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	if (chromeKind === undefined) return null;
+
+	const child0 = node.children?.[0];
+	if (child0?.kind === chromeKind) return null;
+	return {
+		code: 'reserved-chrome-slot',
+		message: `${node.kind}: child 0 must be reserved chrome "${chromeKind}", found "${child0?.kind ?? 'none'}"`,
+		detail: { kind: node.kind, expected: chromeKind, found: child0?.kind ?? null }
+	};
 }
 
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
