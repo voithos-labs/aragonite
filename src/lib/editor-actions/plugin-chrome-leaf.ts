@@ -15,6 +15,8 @@
 import { registerBlockKind, type MergeRole } from '../schema/block-kind-descriptor';
 import { registerBlockComponent, defineBlockComponent } from '../schema/block-component-registry';
 import { normalizeChord, type KeyBinding } from '../schema/keybindings';
+import { registerPasteSurface } from '../tree-operations/paste-surfaces';
+import { defaultInlineHook } from '../tree-operations/paste/hooks';
 import type { AnyBlockKind } from '../core/nodes';
 import TextEditableBlock from '../components/blocks/text/TextEditableBlock.svelte';
 
@@ -57,4 +59,8 @@ export function registerChromeLeaf(kind: AnyBlockKind, opts: ChromeLeafOptions =
 		kind,
 		defineBlockComponent(TextEditableBlock, () => ({ blockClass: opts.blockClass }))
 	);
+	// Inline-only surface: no structural hooks, so `surfaceForcesInline` holds if a
+	// paste ever reaches surface resolution — defense behind the dispatch gate that
+	// already flattens chrome pastes.
+	registerPasteSurface({ kind, onInlinePaste: defaultInlineHook });
 }
