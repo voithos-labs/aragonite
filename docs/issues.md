@@ -46,6 +46,44 @@ The action menu and the commit wrappers now share `canDeleteRow`/`canDeleteColum
 
 **Why deferred:** `selection/` may not import `editor-actions/`, so a true three-way unification needs the predicates relocated down to `tree-operations/table-mutations.ts` (the layer all three import) plus a selection range-delete e2e re-run — a deliberate cross-layer move.
 
+## Plugin containers
+
+### Chrome wall does not cover a range from prose into a table nested in a container body
+
+**Severity:** minor (dev-loud, undo-recoverable; needs a chrome container whose body holds a table)
+**Files:** `src/lib/selection/range-delete.ts` (dispatch order), `src/lib/selection/range-delete-table.ts` (`deleteFromProseIntoTable`), `src/lib/selection/range-delete-chrome.ts`
+
+`involvesTable` dispatches before `involvesReservedChrome`, so a cross-block range from prose into a table nested inside a `reservedChrome` container's body takes `deleteFromProseIntoTable`. Its between-subtree branch node-deletes the chrome leaf instead of clearing it; the container's `rebuildRaw` then hoists the new child 0 and G1.14 fires — dev-loud and undo-recoverable, not a silent corruption.
+
+**Why deferred:** the fix needs a designed chrome×table range-delete composition — table endpoints carry cell coordinates while the chrome branch asserts char offsets, so the two dispatchers cannot simply reorder. Owned by the details cycle, whose bodies will contain tables.
+
+### Collapsed title-only descend mints an invisible body paragraph
+
+**Severity:** minor (latent; unreachable until a collapsible container ships)
+**Files:** `src/lib/editor-actions/block-edit-core.ts` (`descendToBody`)
+
+`descendToBody`'s mint branch (chrome is the only child) commits an empty body paragraph plus an undo entry unconditionally — unlike the focus-move branch, it is not gated on the body slot being mountable. In a collapsed (`{#if open}`) title-only container, Enter in the title would mint an invisible empty paragraph and a dead undo entry.
+
+**Why deferred:** no collapsible container exists yet, so the branch cannot be reached. Design the mountability gate alongside the details cycle's collapse model.
+
+### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
+
+**Severity:** trivial (plugin misuse; unreachable via seam defaults)
+**Files:** `src/lib/editor-actions/plugin-chrome-leaf.ts` (chrome keymap), `src/lib/editor-actions/block-edit-core.ts` (`split`)
+
+The chrome keymap binds Enter to `chrome.descendToBody` by default. A plugin that rebinds it to `block.split` gets a noop split — the chrome is single-line, so nothing structurally changes — through a commit that still pushes an undo entry.
+
+**Why deferred:** reachable only by a plugin overriding the documented single-line chrome contract; not worth a guard until a real consumer needs `block.split` on chrome.
+
+### Undo-restore e2e has a latent read window under CPU load
+
+**Severity:** trivial (CI-flake awareness; passes in isolation and every clean run)
+**Files:** `src/lib/e2e/tests/plugins/reserved-chrome-selection.spec.ts` (Gate 1 undo-restore)
+
+The Gate-1 undo-restore e2e once observed `readNote` seeing a childless note after `waitForSourceContains` had already passed, under concurrent CPU load — the source-bytes wait won the race a beat before the CST children re-materialized. It passed in isolation and in every clean run since.
+
+**Why deferred:** a non-deterministic read window under CPU contention, not a product bug, with no reliable repro. Awareness only; revisit if it recurs in CI.
+
 ## Test coverage
 
 ### Dragging a body row into the header region has no direct e2e

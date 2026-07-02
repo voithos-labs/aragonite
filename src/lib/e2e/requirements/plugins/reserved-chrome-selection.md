@@ -39,6 +39,16 @@ the range consumes its whole subtree from outside.
 - whole-subtree coverage (both variants): a range strictly around the container, and a range ending exactly at its last byte, both delete the container as one unit — no invariant fires on the detached node
 - gate tightness: a body-only range inside the callout stays on the generic path — type-over merges the two body paragraphs exactly like the same gesture in a blockquote
 
+## Gate 5 — paste into the title (must pass)
+
+The chrome leaf is single-line by serialization, so any paste whose target is the
+reserved chrome is forced inline ahead of the container-paste family: the clipboard
+flattens to one line spliced at the caret, the chrome stays a single node, and the
+container family never fires.
+
+- multi-block clipboard: pasting a two-paragraph clipboard into the title splices its text inline at the caret with the paragraph break collapsed to a single space — the chrome stays one note-title node (never splits into paragraphs) and the container-paste family never fires
+- CRLF paragraph break: a Windows clipboard's `\r\n\r\n` break collapses to a single space, not two — each run flattens once, so the pasted title carries no doubled whitespace
+
 ## User interactions
 
-- Shift+End, Shift+ArrowDown, pointer drag, ArrowRight, Backspace, Enter, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape
+- Shift+End, Shift+ArrowDown, pointer drag, ArrowRight, Backspace, Enter, Ctrl+V, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape
