@@ -16,6 +16,7 @@ import {
 	checkStaleRaw,
 	checkOpaqueStaleRaw,
 	checkOpaqueRebuildDeterminism,
+	checkReservedChromeSlot,
 	checkCategoryFields
 } from './node-shape';
 import { checkContentRange } from './descriptor';
@@ -32,6 +33,7 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 		assertInvariant('stale-raw', () => checkStaleRaw(node));
 		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node));
 		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
+		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
 	}
