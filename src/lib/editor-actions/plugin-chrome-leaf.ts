@@ -8,24 +8,40 @@
  * stays off (inline-bearing chrome is an open pre-freeze question — the
  * off-window inline-cache issue). NOT the general Tier-2a editable leaf (a
  * recognizer-backed standalone kind) — that seam is separate and later.
- * Intended composition (target shape, not built yet): the container DECLARES
- * its chrome kind (a reserved-chrome capability on the descriptor or
- * createContainerBlock), and this seam supplies the leaf. Pre-freeze.
+ * Composition: the container declares its chrome via `reservedChrome` on its
+ * descriptor; this seam supplies the leaf. Pre-freeze.
  */
 
 import { registerBlockKind, type MergeRole } from '../schema/block-kind-descriptor';
 import { registerBlockComponent, defineBlockComponent } from '../schema/block-component-registry';
-import type { KeyBinding } from '../schema/keybindings';
+import { normalizeChord, type KeyBinding } from '../schema/keybindings';
 import type { AnyBlockKind } from '../core/nodes';
 import TextEditableBlock from '../components/blocks/text/TextEditableBlock.svelte';
 
 export interface ChromeLeafOptions {
 	/** CSS class on the leaf's surface, for chrome styling. */
 	blockClass?: string;
-	/** Chord→command overrides for this leaf. */
+	/** Chord→command overrides: a binding replaces the seam default for its chord; defaults fill the rest. */
 	keymap?: KeyBinding[];
 	/** Defaults to 'not-mergeable' (chrome: body prose cannot merge into it). */
 	mergeRole?: MergeRole;
+}
+
+// Chrome is single-line by serialization, so Enter descends into the body
+// instead of splitting; Backspace/Delete take the ordinary merge walk.
+const CHROME_DEFAULT_KEYMAP: KeyBinding[] = [
+	{ chord: 'Enter', command: 'chrome.descendToBody' },
+	{ chord: 'Backspace', command: 'block.mergePrev' },
+	{ chord: 'Delete', command: 'block.mergeNext' }
+];
+
+function mergeChromeKeymap(overrides: KeyBinding[] | undefined): KeyBinding[] {
+	if (!overrides?.length) return [...CHROME_DEFAULT_KEYMAP];
+	const overridden = new Set(overrides.map((b) => normalizeChord(b.chord)));
+	return [
+		...overrides,
+		...CHROME_DEFAULT_KEYMAP.filter((b) => !overridden.has(normalizeChord(b.chord)))
+	];
 }
 
 export function registerChromeLeaf(kind: AnyBlockKind, opts: ChromeLeafOptions = {}): void {
@@ -35,7 +51,7 @@ export function registerChromeLeaf(kind: AnyBlockKind, opts: ChromeLeafOptions =
 		isContainer: false,
 		supportsInline: false,
 		contextDependentKind: true,
-		keymap: opts.keymap
+		keymap: mergeChromeKeymap(opts.keymap)
 	});
 	registerBlockComponent(
 		kind,

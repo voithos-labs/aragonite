@@ -13,8 +13,10 @@ import { EditorPage } from '../../editor-page';
  * Gate 2 — reserved-index-0 structural ops. The merge walk targets the last
  *   BODY child (never the title); an interior Backspace against the not-mergeable
  *   title moves focus instead of merging; typing keeps the note-title kind
- *   (contextDependentKind); title-start Backspace, Enter-in-title, and a
- *   range-delete ending in the title are characterized.
+ *   (contextDependentKind); Enter in the title descends into the body (chrome is
+ *   single-line — it never splits); title-start Backspace is a safe no-op; a
+ *   range-delete ending in the title remains characterized until the rangeDelete
+ *   wall lands.
  */
 class PluginsPage extends EditorPage {
 	async gotoPlugins() {
@@ -267,19 +269,16 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2c (intermediate): Enter in the title no-ops the split and advances into the body', async ({
+	test('Gate 2c: Enter at the end of the title descends into the body, never splitting the chrome', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 
-		// Task-2 machinery, pre-rebind: Enter still routes to block.split, but the
-		// splitNode guard no-ops on the note-title (contextDependentKind — no
-		// standalone recognizer), so the chrome is neither split nor reparsed. The
-		// commit's afterTick still advances focus to i+1, so the caret lands in the
-		// body child. Task 3 rebinds Enter to chrome.descendToBody, dropping this
-		// dead no-op commit and owning the descend directly.
+		// The reserved-chrome contract: chrome is single-line by serialization, so
+		// Enter routes to chrome.descendToBody (the registerChromeLeaf default) —
+		// a pure focus move into the first body child, no split, no commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
 		const note = await readNote(page, 1);
@@ -287,12 +286,62 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
 		expect(note.childTexts).toEqual(['Title', 'Body']);
 		expect(note.raw).toBe(':::note Title\nBody\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(FIXTURE);
+
+		// The caret landed at body offset 0: a typed character heads the body text.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('XBody');
+		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'XBody']);
 		expect(await capturedErrors(page)).toEqual([]);
-		// The chrome slot holds, so the shared afterEach `[invariant:` gate stays clean —
-		// no pin-and-consume needed now that the split defect no longer reproduces.
 	});
 
-	test('Gate 2: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
+	test('Gate 2c (empty body): Enter in a title-only callout mints and focuses an empty body paragraph', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n:::note Title\n:::\n');
+		const seed = await readNote(page, 1);
+		expect(seed.childCount).toBe(1);
+		expect(seed.childKinds).toEqual(['note-title']);
+
+		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await page.keyboard.press('Enter');
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
+
+		const note = await readNote(page, 1);
+		expect(note.childCount).toBe(2);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['Title', '']);
+
+		// The minted paragraph is a live caret target, not just a CST splice.
+		await editor.typeText('New body');
+		await editor.bridge.waitForSourceContains('New body');
+		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'New body']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 2c (undo): descend commits nothing — one undo reverts the edit made before it', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.focusBlockAtPath([1, 1], 4); // end of "Body"
+		await editor.typeText('Q');
+		await editor.bridge.waitForSourceContains('BodyQ');
+		await editor.waitForUndoBatchFlush();
+
+		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await page.keyboard.press('Enter');
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
+
+		// Descend on an existing body is a pure focus move: were it to push a dead
+		// undo entry, this single undo would consume it and "BodyQ" would survive.
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('BodyQ');
+		const note = await readNote(page, 1);
+		expect(note.childTexts).toEqual(['Title', 'Body']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 2d: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
@@ -343,7 +392,7 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		invariantWarnings.length = 0;
 	});
 
-	test('Gate 2d: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits', async ({
+	test('Gate 2e: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);

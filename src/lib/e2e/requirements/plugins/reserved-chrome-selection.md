@@ -19,8 +19,11 @@ via `window.__test`, not visuals.
 - merge walk: Backspace at the start of the block AFTER the callout merges into the last BODY child, never the title
 - first body-child Backspace: at the start of child 1, the not-mergeable title refuses the merge; focus moves to the title, the tree is unchanged (body prose never enters chrome)
 - title Backspace-at-start: a safe no-op (the lift strategy is blockquote-hardcoded and declines for the callout)
-- Enter-in-title (characterized): splits the title and reparses both halves to paragraphs — the chrome kind is lost
-- typing-in-title (characterized): the first keystroke reparses `note-title` to `paragraph`; the title still renders in the opener line
+- Enter-in-title: descends into the first body child at offset 0 — the chrome never splits, the document and raw are untouched
+- Enter-in-title with a title-only callout: mints an empty body paragraph, focuses it, and typing lands in it
+- descend undo-cleanliness: descend onto an existing body commits nothing — a single Ctrl+Z afterwards reverts the edit made BEFORE the descend
+- typing-in-title: keeps the `note-title` kind (contextDependentKind); the typed title re-renders in the opener line
+- range-delete ending in the title (characterized): the title node is deleted and the first body paragraph is hoisted into the opener line — flipped by the reserved-chrome rangeDelete wall
 - windowing: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits
 
 ## User interactions
