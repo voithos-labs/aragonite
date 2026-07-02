@@ -78,6 +78,14 @@ export function splitNode(
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const node = parent.children[blockIndex];
+
+	// A context-dependent kind (tableCell, container chrome) has no standalone
+	// recognizer — reparseAsNode would destroy BOTH halves, and chrome is
+	// single-line by serialization (its bytes live in the container's opener
+	// line), so a split is unrepresentable. No-op; the Enter gesture routes to
+	// chrome.descendToBody instead. Also shields the list-context split caller.
+	if (getBlockKindDescriptor(node.kind).contextDependentKind) return { op: 'noop' };
+
 	const rawText = node.raw;
 
 	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
