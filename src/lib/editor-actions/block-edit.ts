@@ -34,6 +34,7 @@ export function createBlockEditActions(
 		// ── Structural split / merge / delete (shared core) ───────────────────
 
 		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),
+		descendToBody: (blockIndex) => core.descendToBody(blockIndex),
 
 		async mergeWithPrevious(blockIndex) {
 			deps.stickyColumn.reset();

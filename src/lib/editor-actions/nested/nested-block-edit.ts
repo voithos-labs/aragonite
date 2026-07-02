@@ -39,6 +39,11 @@ export function createNestedBlockEdit(
 			await core.split(innerIndex, offset);
 		},
 
+		async descendToBody(innerIndex) {
+			if (!deps.node.children) return;
+			await core.descendToBody(innerIndex);
+		},
+
 		async mergeWithPrevious(innerIndex) {
 			if (!deps.node.children) return;
 

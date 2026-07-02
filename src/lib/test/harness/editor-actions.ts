@@ -62,6 +62,7 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 export function makeStubBlockEdit(): BlockEditActions {
 	return {
 		splitBlock: vi.fn(),
+		descendToBody: vi.fn(),
 		mergeWithPrevious: vi.fn(),
 		mergeWithNext: vi.fn(),
 		deleteBlock: vi.fn(),
