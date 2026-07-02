@@ -150,7 +150,7 @@ export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 	const blocks = parse(node.raw).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) return null;
 
-	if (!rawFaithful(blocks[0], node)) {
+	if (!opaqueRawFaithful(blocks[0], node)) {
 		return {
 			code: 'opaque-stale-raw',
 			message: `${node.kind} opaque raw is stale relative to its children`,
@@ -158,6 +158,36 @@ export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 		};
 	}
 	return null;
+}
+
+/**
+ * Chrome-aware faithfulness: a reservedChrome child's bytes live in the
+ * container's opener line, not its inner bytes, so a reparse mints the chrome
+ * BEFORE any body trivia while the live tree may legally hold an
+ * unrepresentable transient blank (the empty body paragraph the descend
+ * gesture mints) AFTER it. Interleaving the chrome raw into the inner-byte
+ * stream false-fires on that state — compare the chrome raw positionally and
+ * the body bytes as a unit instead; drift on either side still fires. A
+ * missing/displaced slot is G1.14's finding, not staleness — fall through to
+ * the plain comparison.
+ */
+function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	const liveChrome = node.children?.[0];
+	const reparsedChrome = reparsed.children?.[0];
+	if (
+		chromeKind === undefined ||
+		liveChrome?.kind !== chromeKind ||
+		reparsedChrome?.kind !== chromeKind
+	) {
+		return rawFaithful(reparsed, node);
+	}
+
+	if (liveChrome.raw !== reparsedChrome.raw) return false;
+	return rawFaithful(
+		{ ...reparsed, children: reparsed.children!.slice(1) },
+		{ ...node, children: node.children!.slice(1) }
+	);
 }
 
 /**
