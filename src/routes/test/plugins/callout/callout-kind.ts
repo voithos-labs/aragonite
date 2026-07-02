@@ -22,7 +22,6 @@ import {
 import { parse } from '$lib/core/parser';
 import { concatChildren } from '$lib/core/serializer';
 import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { KeyBinding } from '$lib/schema/keybindings';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
 export const NOTE = 'note';
@@ -36,19 +35,6 @@ const CLOSE = /^:::\s*$/;
 interface CalloutMetadata {
 	calloutType: string;
 }
-
-// The title runs on the `registerChromeLeaf` surface (TextEditableBlock); this
-// keymap is what that surface's runCommand can execute. Enter → `block.split` is
-// a deliberate, characterized choice: it splits the title into two rows. A
-// "descend into the body" Enter would need a plugin-minted command (the closed
-// CommandId union forbids it today). No `format.toggle*` chords: the chrome leaf
-// is `supportsInline: false`, so those commands would insert literal `**`/`*` — a
-// keymap must not advertise commands the render path can't honor.
-const TITLE_KEYMAP: KeyBinding[] = [
-	{ chord: 'Enter', command: 'block.split' },
-	{ chord: 'Backspace', command: 'block.mergePrev' },
-	{ chord: 'Delete', command: 'block.mergeNext' }
-];
 
 function makeTitleChild(text: string): CstNode {
 	return { kind: NOTE_TITLE as AnyBlockKind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' };
@@ -88,9 +74,10 @@ export function registerCalloutKind(): void {
 		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 	});
 
-	// Reserved-child-0 chrome via the public seam: no `$lib` component import, and
-	// the leaf is kind-sticky (contextDependentKind) so typing keeps `note-title`.
-	registerChromeLeaf(noteTitle, { blockClass: 'note-title', keymap: TITLE_KEYMAP });
+	// Reserved-child-0 chrome via the public seam: no `$lib` component import, the
+	// leaf is kind-sticky (contextDependentKind) so typing keeps `note-title`, and
+	// the seam's default keymap applies (Enter descends; Backspace/Delete merge).
+	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
 
 	registerBlockOpener(note, {
 		priority: 45, // between blockquote (40) and list (50); ::: is claimed by no built-in

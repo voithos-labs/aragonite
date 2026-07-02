@@ -26,7 +26,7 @@ function rebuildNoteRaw(node: CstNode): void {
 	node.raw = `${title ? `::note ${title}` : '::note'}\n${inner}::\n`;
 }
 
-function registerNoteKind(): AnyBlockKind {
+function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind {
 	const note = declarePluginKind('spec-note');
 	const title = declarePluginKind('spec-note-title');
 	registerBlockKind(title, {
@@ -42,7 +42,8 @@ function registerNoteKind(): AnyBlockKind {
 		isContainer: true,
 		supportsInline: false,
 		containerContract: 'opaque',
-		rebuildRaw: rebuildNoteRaw
+		rebuildRaw: rebuildNoteRaw,
+		...(opts.declareChrome ? { reservedChrome: { kind: title } } : {})
 	});
 	registerBlockOpener(note, {
 		priority: 45,
@@ -153,6 +154,36 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');
 		node.children![0].raw = 'Renamed\n';
+		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+	});
+
+	// ── Declared reservedChrome: chrome bytes live in the opener line ────────
+	// A reparse mints the chrome child BEFORE any body trivia, while the live
+	// tree can legally hold an unrepresentable transient blank (the empty body
+	// paragraph the Enter/descend gesture mints) AFTER it — so the chrome raw is
+	// compared positionally and the body bytes as a unit, never interleaved.
+
+	it('passes for a declared-chrome container holding a transient empty body paragraph', () => {
+		registerNoteKind({ declareChrome: true });
+		const node = parseNote('::note Title\n::\n');
+		expect(node.children).toHaveLength(1);
+
+		node.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		rebuildNoteRaw(node);
+		expect(checkOpaqueStaleRaw(node)).toBeNull();
+	});
+
+	it('still fires on title-chrome drift when chrome is declared', () => {
+		registerNoteKind({ declareChrome: true });
+		const node = parseNote('::note Title\nbody\n::\n');
+		node.children![0].raw = 'Renamed\n';
+		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+	});
+
+	it('still fires on body drift when chrome is declared', () => {
+		registerNoteKind({ declareChrome: true });
+		const node = parseNote('::note Title\nbody\n::\n');
+		node.children![1].raw = 'CHANGED\n';
 		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
 	});
 
