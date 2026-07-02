@@ -4,6 +4,7 @@ import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
 import { involvesReservedChrome } from '../../selection/range-delete-chrome';
 import { createSharingState } from '../../tree-operations/sharing';
+import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -24,7 +25,10 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 }
 
 function registerCallout() {
+	// registerChromeLeaf (inside registerCalloutKind) registers a paste surface;
+	// the schema reset alone leaves it orphaned, so a re-register would collide.
 	__resetSchemaRegistriesForTests();
+	__resetPasteSurfacesForTests();
 	registerCalloutKind();
 }
 
@@ -108,6 +112,41 @@ describe('chrome wall — rangeDelete post-states', () => {
 		// One splice, not an empty-then-cascade: the detached node keeps its
 		// children so a commit scope holding it stays invariant-clean.
 		expect(note.children?.length).toBe(3);
+	});
+
+	// Deliberate degenerate (not a bug): when the end endpoint fully covers a
+	// surviving body child, the wall truncates it in place to an empty paragraph
+	// rather than node-deleting it (the generic path would delete). The wall's
+	// in-place rule is what keeps the chrome/body boundary from merging; a
+	// fully-covered survivor is its degenerate case, pinned here so a future
+	// "tidy up the empty paragraph" change trips this test first.
+	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
+		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
+		expect(source).toBe('Ab\n\n:::note\n\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual([
+			'note-title',
+			'paragraph',
+			'paragraph'
+		]);
+		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
+	});
+
+	// G1.9 regression guard for T4's clear-write unshare: the covered chrome must
+	// clear through an unshared COPY, never the snapshot-shared node. Marking a
+	// snapshot BEFORE the delete makes the parsed title count as shared; if the
+	// clear loop dropped its unshare, `chrome.raw = '\n'` would corrupt the raw an
+	// undo entry still references. `getSource` reads the container's authoritative
+	// raw and is blind to this — assert the child node directly.
+	it('clears covered chrome without corrupting the snapshot-shared title node', () => {
+		const doc = parse(FIXTURE);
+		const snapshotTitle = doc.children[1].children![0];
+		expect(snapshotTitle.raw).toBe('Title\n');
+
+		const sharing = createSharingState();
+		sharing.markSnapshotTaken();
+		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing);
+
+		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
 

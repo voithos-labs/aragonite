@@ -3,6 +3,7 @@ import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import { listRegisteredOpeners } from '../schema/block-openers';
 import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
@@ -140,15 +141,25 @@ function stripContainerChildren(node: CstNode): CstNode[] {
  * reparsed children-bytes against the live ones with checkStaleRaw's tolerance
  * machinery, so only genuine drift fires.
  *
- * Bails when `raw` does not reparse standalone to exactly one block of this
- * kind — validation needs the kind's opener registered (a test kind without
- * one reparses to a paragraph and must not fire).
+ * When `raw` does not reparse standalone to exactly one block of this kind, the
+ * outcome splits on the opener registry: a kind WITH a registered opener has
+ * genuinely drifted (its raw no longer matches any shape the opener recognizes)
+ * and fires; a kind WITHOUT one has no standalone recognizer, so even stale
+ * children cannot be validated and it bails (a test kind whose raw reparses to a
+ * paragraph must not fire).
  */
 export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
 	const blocks = parse(node.raw).children;
-	if (blocks.length !== 1 || blocks[0].kind !== node.kind) return null;
+	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
+		if (!listRegisteredOpeners().some((o) => o.kind === node.kind)) return null;
+		return {
+			code: 'opaque-stale-raw',
+			message: `${node.kind} opaque raw no longer reparses to its own kind`,
+			detail: { kind: node.kind, reason: 'reparse-diverges', raw: clampForDetail(node.raw) }
+		};
+	}
 
 	if (!opaqueRawFaithful(blocks[0], node)) {
 		return {

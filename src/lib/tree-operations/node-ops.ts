@@ -28,6 +28,7 @@ import { trimTrailingLineEnding } from '../core/lines';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
@@ -315,6 +316,12 @@ export function ensureEditableContainers(node: CstNode): void {
 	if (node.children !== undefined) {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header
+			const chromeKind = reservedChromeKindOf(node.kind);
+			// A chrome-declaring container must re-mint its child-0 leaf too, or the
+			// backfilled paragraph would occupy the reserved slot and violate G1.14.
+			if (chromeKind !== undefined) {
+				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' });
+			}
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 			// The synthesized paragraph's '\n' already represents the trailing
 			// blank that parseBlocks routed into innerPrefix when there were no
