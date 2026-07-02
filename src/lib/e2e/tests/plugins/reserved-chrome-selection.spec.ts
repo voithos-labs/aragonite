@@ -267,39 +267,29 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2c (characterized): Enter in the title splits AND reparses it to paragraphs', async ({
+	test('Gate 2c (intermediate): Enter in the title no-ops the split and advances into the body', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
-		await editor.waitForBlockHostCount(5); // Above + callout + 3 callout children
 
-		// Two characterized costs compound here:
-		//  1. Reused TextEditableBlock binds Enter -> block.split (the closed CommandId
-		//     union has no "descend to body" command), so the title splits.
-		//  2. splitNode reparses each half; a bare title line has no recognizer, so
-		//     BOTH halves fall to paragraph — the reserved chrome kind is lost.
+		// Task-2 machinery, pre-rebind: Enter still routes to block.split, but the
+		// splitNode guard no-ops on the note-title (contextDependentKind — no
+		// standalone recognizer), so the chrome is neither split nor reparsed. The
+		// commit's afterTick still advances focus to i+1, so the caret lands in the
+		// body child. Task 3 rebinds Enter to chrome.descendToBody, dropping this
+		// dead no-op commit and owning the descend directly.
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
+
 		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(3);
-		expect(note.childKinds).toEqual(['paragraph', 'paragraph', 'paragraph']);
-		expect(note.childTexts[0]).toBe('Title');
-		expect(note.childTexts[1]).toBe('');
+		expect(note.childCount).toBe(2);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['Title', 'Body']);
+		expect(note.raw).toBe(':::note Title\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
-
-		// PINNED DEFECT (reserved-chrome gap): child 0 is now a plain paragraph, so two
-		// guards fire — opaque-stale-raw (rebuildCalloutRaw hoists the text into the
-		// opener line, so raw no longer reparses to the live children) and G1.14
-		// reserved-chrome-slot (child 0 is no longer the note-title chrome). Pinned as
-		// the defect's red/green baseline and consumed so the shared afterEach stays a
-		// clean gate for every non-defect gesture; the reserved-chrome contract (Task 3)
-		// is the fix.
-		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(2);
-		expect(invariantWarnings.some((w) => w.includes('[invariant:opaque-stale-raw]'))).toBe(true);
-		expect(invariantWarnings.some((w) => w.includes('[invariant:reserved-chrome-slot]'))).toBe(
-			true
-		);
-		invariantWarnings.length = 0;
+		// The chrome slot holds, so the shared afterEach `[invariant:` gate stays clean —
+		// no pin-and-consume needed now that the split defect no longer reproduces.
 	});
 
 	test('Gate 2: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
