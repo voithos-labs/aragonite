@@ -80,7 +80,7 @@ export async function pasteDispatch(
 		isBlockNode(chromeParent) &&
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
-		const flattened = input.pastedText.replace(/\r?\n+/g, ' ').trim();
+		const flattened = input.pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete);
 		applyInlineResult(input.targetPath, result, ctx);

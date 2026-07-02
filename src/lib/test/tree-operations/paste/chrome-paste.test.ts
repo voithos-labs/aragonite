@@ -46,6 +46,26 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	return { container, chrome };
 }
 
+// One titled container: [0,0]=chrome leaf "Title", [0,1]=body paragraph "Body".
+function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): Document {
+	return {
+		kind: 'document',
+		prefix: '',
+		suffix: '',
+		children: [
+			{
+				kind: container,
+				leadingTrivia: '',
+				raw: ':::spec Title\nBody\n:::\n',
+				children: [
+					{ kind: chrome, leadingTrivia: '', raw: 'Title\n' },
+					{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
+				]
+			}
+		]
+	};
+}
+
 function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
@@ -78,22 +98,7 @@ describe('paste into a reserved-chrome leaf', () => {
 
 	it('flattens a multi-block clipboard inline, keeping the chrome one node', async () => {
 		const { container, chrome } = registerChromeContainer();
-		const doc: Document = {
-			kind: 'document',
-			prefix: '',
-			suffix: '',
-			children: [
-				{
-					kind: container,
-					leadingTrivia: '',
-					raw: ':::spec Title\nBody\n:::\n',
-					children: [
-						{ kind: chrome, leadingTrivia: '', raw: 'Title\n' },
-						{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
-					]
-				}
-			]
-		};
+		const doc = makeTitledContainerDoc(container, chrome);
 		const blockEdit = makeStubBlockEdit();
 
 		await pasteDispatch(
@@ -104,6 +109,22 @@ describe('paste into a reserved-chrome leaf', () => {
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
 		// Inline splice, not a structural split of the chrome node.
+		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
+	});
+
+	it('collapses a CRLF paragraph break to a single space (Windows clipboard)', async () => {
+		const { container, chrome } = registerChromeContainer();
+		const doc = makeTitledContainerDoc(container, chrome);
+		const blockEdit = makeStubBlockEdit();
+
+		await pasteDispatch(
+			{ pastedText: 'one\r\n\r\ntwo\r\n', targetPath: [0, 0], offset: 5 },
+			{ doc, blockEdit, controller: makeStubController() }
+		);
+
+		// A `\r\n\r\n` break is one run, not two — flattening per-`\n` double-spaces it.
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 
