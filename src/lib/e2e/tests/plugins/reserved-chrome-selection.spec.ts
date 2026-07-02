@@ -78,11 +78,9 @@ const FIXTURE = 'Above\n\n:::note Title\nBody\n:::\n';
 
 test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => {
 	let editor: PluginsPage;
-	// The opaque-container invariants (opaque-stale-raw, opaque-rebuild-
-	// nondeterministic) emit `[invariant:…]` console warnings — a channel the
+	// Commit-time invariants emit `[invariant:…]` console warnings — a channel the
 	// structured `error` event (capturedErrors) does not carry. Watch it so a
-	// stale-raw / nondeterministic-rebuild violation on this page fails the gate
-	// instead of passing silently.
+	// violation on this page fails the gate instead of passing silently.
 	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
@@ -289,14 +287,18 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(note.childTexts[1]).toBe('');
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// PINNED DEFECT (reserved-chrome gap): child 0 is now a plain paragraph, but
-		// rebuildCalloutRaw still hoists its text into the opener line, so the raw no
-		// longer reparses to the live children — genuine drift the opaque-stale-raw
-		// guard is right to flag. Pinned as the defect's red/green baseline and consumed
-		// so the shared afterEach stays a clean gate for every non-defect gesture; the
-		// deferred reserved-chrome contract is the fix.
-		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(1);
-		expect(invariantWarnings[0]).toContain('[invariant:opaque-stale-raw]');
+		// PINNED DEFECT (reserved-chrome gap): child 0 is now a plain paragraph, so two
+		// guards fire — opaque-stale-raw (rebuildCalloutRaw hoists the text into the
+		// opener line, so raw no longer reparses to the live children) and G1.14
+		// reserved-chrome-slot (child 0 is no longer the note-title chrome). Pinned as
+		// the defect's red/green baseline and consumed so the shared afterEach stays a
+		// clean gate for every non-defect gesture; the reserved-chrome contract (Task 3)
+		// is the fix.
+		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(2);
+		expect(invariantWarnings.some((w) => w.includes('[invariant:opaque-stale-raw]'))).toBe(true);
+		expect(invariantWarnings.some((w) => w.includes('[invariant:reserved-chrome-slot]'))).toBe(
+			true
+		);
 		invariantWarnings.length = 0;
 	});
 
@@ -330,14 +332,14 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
 
-		// CHARACTERIZATION (adviser finding — reserved-child-0 is a convention, not a
-		// contract): rangeDelete treats the title as an ordinary end-leaf and deletes
-		// it outright, then rebuildCalloutRaw positionally hoists the first BODY
-		// paragraph ("Body") into the opener line. The title text is lost and "Body"
-		// becomes the title. Pinned to the observed post-state — NOT a fixed behavior;
-		// the fix is the deferred reserved-chrome contract (a red/green baseline for it).
-		// The defect is semantic, not a byte-fixpoint break: rebuildCalloutRaw still
-		// leaves raw faithful to children, so the afterEach invariant watch stays silent.
+		// CHARACTERIZATION (reserved-child-0 is a convention, not yet a contract):
+		// rangeDelete treats the title as an ordinary end-leaf and deletes it outright,
+		// then rebuildCalloutRaw positionally hoists the first BODY paragraph ("Body")
+		// into the opener line. The title text is lost and "Body" becomes the title.
+		// Pinned to the observed post-state — the reserved-chrome contract (Task 4) is
+		// the fix. The corruption is byte-faithful (opaque-stale-raw stays silent) but
+		// semantic: child 0 is no longer the note-title chrome, which the G1.14
+		// reserved-chrome-slot guard flags — pinned and consumed below.
 		const note = await readNote(page, 1);
 		expect(note.rootCount).toBe(2);
 		expect(note.childCount).toBe(1);
@@ -345,6 +347,10 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(note.childTexts).toEqual(['Body']);
 		expect(note.raw).toBe(':::note Body\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
+
+		await expect.poll(() => invariantWarnings.length, { timeout: 2000 }).toBe(1);
+		expect(invariantWarnings[0]).toContain('[invariant:reserved-chrome-slot]');
+		invariantWarnings.length = 0;
 	});
 
 	test('Gate 2d: the reserved chrome row keeps BlockListState ids/refs in lockstep across edits', async ({

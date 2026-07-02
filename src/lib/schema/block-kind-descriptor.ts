@@ -56,6 +56,14 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
+	 * Declares child index 0 of this container as a reserved chrome leaf of the
+	 * given kind (a title/summary whose bytes live in the container's own raw —
+	 * e.g. the callout opener line). The machinery enforces: always present,
+	 * single-line, cleared-not-deleted by range ops, kind-stable. The chrome kind
+	 * itself is registered via registerChromeLeaf.
+	 */
+	reservedChrome?: { kind: AnyBlockKind };
+	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
 	 * block is this kind merges into a same-kind ancestor instead of nesting
 	 * as a sub-container. Absent = always nest (default structural path).
