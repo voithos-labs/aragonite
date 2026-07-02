@@ -472,6 +472,14 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::note\ndy1\n\nBody2\n:::\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
+
+		// The cleared chrome cleared through an unshared copy (G1.9), so undo restores
+		// the title at the CHILD level — not just the container's authoritative source
+		// bytes, which `getSource` reads and would show even with a corrupted title node.
+		await editor.undo();
+		await editor.bridge.waitForSourceContains(':::note Title');
+		expect((await readNote(page, 1)).childTexts[0]).toBe('Title');
+		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
 	test('Gate 4d: start-in-chrome — title keeps its head, body deletes, container survives title-only', async ({
@@ -489,6 +497,9 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(note.childTexts).toEqual(['Tit']);
 		expect(await editor.bridge.getSource()).toBe('Above\n\n:::note Tit\n:::\n\now\n');
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
+		// Children 3→1 is the harsher BlockListState case: ids/refs must stay in
+		// lockstep with the surviving children after the deep splice.
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
@@ -519,7 +530,16 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.bridge.waitForSourceNotContains(':::note');
 
 		expect(await editor.bridge.getSource()).toBe('Above\n\nBelow\n');
+		// Root splice removing the whole container: the top-level BlockListState
+		// stays in lockstep after the one-splice unit delete.
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
+
+		// One-splice unit delete undoes cleanly back to the full container, children intact.
+		await editor.undo();
+		await editor.bridge.waitForSourceContains(':::note Title');
+		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
+		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'Body1', 'Body2']);
 	});
 
 	test('Gate 4g: a body-only range never fires the wall — type-over merges exactly like a blockquote', async ({
@@ -541,6 +561,30 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.typeSlowly('Z');
 		await editor.bridge.waitForSourceContains('BoZy2');
 		expect((await readNote(page, 1)).childTexts).toEqual(['BoZy2']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Gate 4h: an inside-only selection over the whole callout empties it to a blank title + blank body', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		// Drag from the title start through the body end — an inside-only range that
+		// covers the entire subtree WITHOUT crossing the wall from outside. The wall
+		// keeps the container alive: the title clears in place and the fully-covered
+		// body truncates to an empty paragraph, so the reserved slot holds chrome (not
+		// a bare paragraph) and G1.14 stays satisfied — the delete-all end state.
+		await editor.dragFromTo([1, 0], 0, [1, 1], 4);
+		await page.keyboard.press('Delete');
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains(':::note\n');
+
+		const note = await readNote(page, 1);
+		expect(note.rootCount).toBe(2);
+		expect(note.childCount).toBe(2);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['', '']);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::note\n\n:::\n');
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
