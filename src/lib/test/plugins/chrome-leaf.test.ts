@@ -7,6 +7,7 @@ import {
 } from '../../schema/block-component-registry';
 import { registerChromeLeaf } from '../../editor-actions/plugin-chrome-leaf';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import type { KeyBinding } from '../../schema/keybindings';
 
 function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string> {
@@ -14,7 +15,12 @@ function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string>
 }
 
 describe('registerChromeLeaf', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
+	// registerChromeLeaf also registers a register-once paste surface; clear it so
+	// re-registering the same kind across cases doesn't throw.
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+	});
 
 	it('registers a context-dependent, not-mergeable editable chrome leaf + its component', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');

@@ -13,8 +13,9 @@
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
-import { nodeAt } from '../node-ops';
+import { isBlockNode, nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange } from '../paste-surfaces';
+import { isReservedChromeChild } from '../../schema/reserved-chrome';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
 import { defaultInlineHook, defaultStructuralHook } from './hooks';
@@ -68,6 +69,23 @@ export async function pasteDispatch(
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
+
+	// A reserved-chrome leaf (a container's title/summary at child 0) is single-
+	// line by serialization — its bytes live in the container's opener line. Force
+	// any paste there inline with flattened text, ahead of the container-paste
+	// family below, so a multi-block clipboard can never split the chrome node.
+	const chromeParent = nodeAt(ctx.doc, input.targetPath.slice(0, -1));
+	if (
+		chromeParent &&
+		isBlockNode(chromeParent) &&
+		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
+	) {
+		const flattened = input.pastedText.replace(/\r?\n+/g, ' ').trim();
+		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
+		const result = hook(targetNode, input.offset, flattened, input.preDelete);
+		applyInlineResult(input.targetPath, result, ctx);
+		return { inlineCaretOffset: result.caretOffset };
+	}
 
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,

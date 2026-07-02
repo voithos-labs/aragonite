@@ -20,6 +20,10 @@ import { EditorPage } from '../../editor-page';
  *   outside endpoints truncate in place, covered chrome clears (never
  *   node-deletes), and the container dies only when the range consumes its
  *   whole subtree from outside. Body-only ranges stay on the generic path.
+ *
+ * Gate 5 — paste into the title. A multi-block clipboard dropped in the title
+ *   flattens to a single line spliced at the caret; the chrome never splits and
+ *   the container-paste family never fires for it.
  */
 class PluginsPage extends EditorPage {
 	async gotoPlugins() {
@@ -537,6 +541,27 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.typeSlowly('Z');
 		await editor.bridge.waitForSourceContains('BoZy2');
 		expect((await readNote(page, 1)).childTexts).toEqual(['BoZy2']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// ── Gate 5 — paste into the title ────────────────────────────────────────
+
+	test('Gate 5: pasting a multi-block clipboard into the title flattens inline, one chrome node', async ({
+		page
+	}) => {
+		await editor.loadContent(FIXTURE);
+		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await page.evaluate(() => navigator.clipboard.writeText('x\n\ny'));
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains(':::note Titlex y');
+
+		// Newlines collapse to a single space; the chrome stays one note-title node
+		// instead of splitting into paragraphs.
+		const note = await readNote(page, 1);
+		expect(note.childCount).toBe(2);
+		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
+		expect(note.childTexts).toEqual(['Titlex y', 'Body']);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::note Titlex y\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });
