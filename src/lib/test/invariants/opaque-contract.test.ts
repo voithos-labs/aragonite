@@ -187,6 +187,34 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
 	});
 
+	// The chrome-aware comparison slices the chrome off and diffs the body bytes
+	// as a unit, so a body child added or removed without a rebuild still drifts
+	// the body-vs-raw byte match — the count mismatch alone must fire.
+	for (const mutation of ['added', 'removed'] as const) {
+		it(`fires when a body child is ${mutation} without a rebuild (chrome declared)`, () => {
+			registerNoteKind({ declareChrome: true });
+			const node = parseNote('::note Title\nbody\n::\n');
+			if (mutation === 'added') {
+				node.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: 'extra\n' });
+			} else {
+				node.children!.pop();
+			}
+			expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
+		});
+	}
+
+	// F4 bail split: a kind WITH a registered opener whose raw no longer reparses
+	// to that kind is genuine drift, not the openerless can't-validate case.
+	it('fires when a registered-opener kind reparses to a divergent kind', () => {
+		const note = registerNoteKind();
+		const node = parseNote('::note Title\nbody\n::\n');
+		expect(node.kind).toBe(note);
+		node.raw = 'just a paragraph now\n'; // reparses to paragraph, not note
+		const violation = checkOpaqueStaleRaw(node);
+		expect(violation?.code).toBe('opaque-stale-raw');
+		expect(violation?.detail).toMatchObject({ reason: 'reparse-diverges' });
+	});
+
 	// The check can only validate kinds whose raw reparses standalone to the
 	// same kind; without a registered opener the raw reparses to a paragraph,
 	// so even genuinely stale children must not fire.

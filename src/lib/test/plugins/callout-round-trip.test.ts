@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw
@@ -9,7 +10,10 @@ import {
 
 describe('callout kind round-trip', () => {
 	beforeEach(() => {
+		// registerCalloutKind registers a chrome-leaf paste surface; reset it too
+		// or the re-register collides with the orphaned entry.
 		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 
@@ -68,7 +72,10 @@ describe('callout kind round-trip', () => {
 // runs when the callout's children mutate (the title returns to the opener line).
 describe('callout rebuildRaw is the opener inverse', () => {
 	beforeEach(() => {
+		// registerCalloutKind registers a chrome-leaf paste surface; reset it too
+		// or the re-register collides with the orphaned entry.
 		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
 		registerCalloutKind();
 	});
 
