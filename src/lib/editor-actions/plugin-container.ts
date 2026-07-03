@@ -13,7 +13,12 @@
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
 import type BlockList from '../components/BlockList.svelte';
-import type { BlockEditActions, ContainerEditActions, FocusActions } from '../action-contracts';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions,
+	MoveFocusOptions
+} from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
@@ -89,6 +94,32 @@ export function gateDescendOnCollapse(
 	};
 }
 
+/**
+ * I-1 collapse gate for the interior `moveFocus`. While collapsed only the
+ * chrome row (child 0) is mounted, so a move targeting a body index dead-ends
+ * on the unmounted ref inside `dispatchMoveFocus` (its in-range branch finds no
+ * focusable block and returns). Route body targets past the container instead —
+ * the same exit an open container's past-end move takes. Upward moves and the
+ * chrome row itself keep the inner dispatch.
+ */
+export function gateMoveFocusOnCollapse(
+	isCollapsed: (() => boolean) | undefined,
+	moveWithin: FocusActions['moveFocus'],
+	parentFocus: FocusActions,
+	getIndex: () => number
+): FocusActions['moveFocus'] {
+	return async (innerIndex, position, options?: MoveFocusOptions) => {
+		if (innerIndex >= 1 && isCollapsed?.()) {
+			// Omit the options arg when unset so the common path stays a two-arg
+			// call, mirroring dispatchMoveFocus's own upward delegation.
+			if (options) await parentFocus.moveFocus(getIndex() + 1, position, options);
+			else await parentFocus.moveFocus(getIndex() + 1, position);
+			return;
+		}
+		await moveWithin(innerIndex, position, options);
+	};
+}
+
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -114,10 +145,11 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		controller
 	});
 
-	// Compose the M3 collapse gate onto the blockquote exit override: a collapsed
-	// container's chrome Enter must not mint an invisible body (§4). Both override
-	// the same `defaults`, so the blockquote's `splitBlock` and the gate's
-	// `descendToBody` coexist. For a non-collapsing container the gate is inert.
+	// Compose the collapse gates onto the blockquote exit override: a collapsed
+	// container's chrome Enter must not mint an invisible body (M3, §4), and its
+	// chrome ArrowDown/ArrowRight must exit past the unmounted body (I-1). All
+	// override the same `defaults`, so the blockquote's `splitBlock` and the two
+	// gates coexist. For a non-collapsing container the gates are inert.
 	const overrideFactory: NestedActionsOverrideFactory = (defaults) => {
 		const base = blockquoteOverrides(defaults);
 		return {
@@ -125,6 +157,14 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			blockEdit: {
 				...base.blockEdit,
 				descendToBody: gateDescendOnCollapse(deps.isCollapsed, defaults.blockEdit.descendToBody)
+			},
+			focus: {
+				moveFocus: gateMoveFocusOnCollapse(
+					deps.isCollapsed,
+					defaults.focus.moveFocus,
+					parentFocus,
+					() => deps.index
+				)
 			}
 		};
 	};
