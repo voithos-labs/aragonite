@@ -170,4 +170,32 @@ test.describe('plugin container: :::note callout editability', () => {
 		expect(undoneTyping.childCount).toBe(3);
 		expect(await roundTripStable(page)).toBe(true);
 	});
+
+	test('a cross-block copy ending mid-title pastes back as a real note, not bare text', async ({
+		page
+	}) => {
+		await editor.loadContent('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+
+		// Drag-select from the prose above into the middle of the title, then copy.
+		await editor.dragFromTo([0], 2, [1, 0], 3);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		await page.keyboard.press('Control+c');
+		await editor.waitForClipboardWrite();
+
+		// Paste into "Below": wrapper-less bytes would reparse to a paragraph; the
+		// synthesized closer makes them reparse to a second `:::note`.
+		await editor.clickBlock(2);
+		await editor.waitForCrossBlock(false);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains(':::note Tit');
+
+		const noteCount = await page.evaluate(
+			() =>
+				(window as any).__test
+					.getDocument()
+					.children.filter((c: { kind: string }) => c.kind === 'note').length
+		);
+		expect(noteCount).toBe(2);
+	});
 });

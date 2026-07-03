@@ -86,6 +86,29 @@ The Gate-1 undo-restore e2e once observed `readNote` seeing a childless note aft
 
 **Why deferred:** a non-deterministic read window under CPU contention, not a product bug, with no reliable repro. Awareness only; revisit if it recurs in CI.
 
+### Cross-block copy STARTING mid-chrome loses the container wrapper
+
+**Severity:** minor (clipboard fidelity; container kind lost on paste)
+**Files:** `src/lib/selection/clipboard-text.ts` (`collectCrossBlockText`)
+
+The closer-synthesis fix covers a copy whose END lands mid-chrome (title/summary): it
+synthesizes a chrome-only container and reparses to the same kind with an empty body. The
+mirror direction — a copy that STARTS mid-chrome and extends into the body (and possibly past
+the container) — is a distinct class the synthetic-chrome-only design cannot serve. The chrome
+tail emits wrapper-less and the selected body is collected flat, so no opener or closer wraps
+it. Repro: `collectCrossBlockText` from `:::note Ti|tle` into the body below yields
+`"tle\nBody1\n\nBody2\n\nBel"`, which reparses to three bare paragraphs — the `note` kind gone.
+
+**Fix direction:** a chrome-only synthetic node is semantically wrong here (empty body would
+strand the selected body as top-level blocks after the container). Faithful bytes need the
+chrome tail emitted as the container opener AND a synthesized closer injected where the walk
+exits the container — a `collectCrossBlockText` structural change (container-exit tracking),
+not the bounded closer-synthesis the END case uses.
+
+**Why deferred:** out of the Task-6 descope-hatched bound; the END direction is the shipped,
+reachable-today gesture. Fold the START direction into the 1.2 clipboard/hook family with the
+container-exit walk change.
+
 ## Test coverage
 
 ### Dragging a body row into the header region has no direct e2e

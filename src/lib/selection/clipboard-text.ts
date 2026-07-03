@@ -11,6 +11,8 @@ import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
+import { isReservedChromeChild } from '../schema/reserved-chrome';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -81,7 +83,10 @@ export function collectCrossBlockText(
 		endHead = emitTablePortion(endNode, 0, end.offset + 1);
 	} else {
 		const endOffset = assertCharOffset(end, 'collectCrossBlockText:end');
-		if (endOffset === displayLength(endRaw) && end.path.length > 1) {
+		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endRaw, endOffset) : null;
+		if (chromeBytes !== null) {
+			endHead = chromeBytes;
+		} else if (endOffset === displayLength(endRaw) && end.path.length > 1) {
 			const promoted = promoteToContainer(doc, end.path, start.path, 'end');
 			if (promoted) {
 				effectiveEndPath = promoted.path;
@@ -208,6 +213,54 @@ function endPartialWithContainerMarker(
 
 	const prefix = parentRaw.slice(0, parentRaw.length - endRaw.length);
 	return prefix + endRaw.slice(0, end.offset);
+}
+
+/**
+ * Bytes for a copy endpoint that lands inside a container's reserved chrome (a
+ * title/summary whose syntax lives in the container's own raw). The generic
+ * raw.slice emits wrapper-less bytes that reparse to a bare paragraph — the kind
+ * lost on paste — and the marker-recovery seam above can't help (it derives the
+ * prefix by suffix arithmetic and gates on a single body child, which no chrome
+ * container with a body satisfies). Instead synthesize a chrome-only container —
+ * truncated chrome raw, empty body, the live node's metadata — and run the
+ * kind's own rebuildRaw, yielding canonical reparseable bytes (`:::note Ti\n:::\n`)
+ * generically off the chrome predicate. The gesture means "copy into a title" →
+ * a container with that title and an empty body.
+ *
+ * rebuildRaw reads metadata read-only (rebuildCalloutRaw / rebuildDetailsRaw read
+ * `calloutType`/`open` and write only `raw`), so handing it the live metadata
+ * reference is safe; the synthetic node is never inserted into the tree.
+ */
+function endChromeContainerBytes(
+	doc: Document,
+	end: SelectionPoint,
+	endRaw: string,
+	endOffset: number
+): string | null {
+	const childIndex = end.path[end.path.length - 1];
+	const parent = nodeAt(doc, end.path.slice(0, -1));
+	if (!parent || !isBlockNode(parent) || !isReservedChromeChild(parent, childIndex)) return null;
+
+	const rebuildRaw = getBlockKindDescriptor(parent.kind).rebuildRaw;
+	if (!rebuildRaw) return null;
+
+	const synthetic: CstNode = {
+		kind: parent.kind,
+		leadingTrivia: '',
+		raw: '',
+		metadata: parent.metadata,
+		innerPrefix: '',
+		innerSuffix: '',
+		children: [
+			{
+				kind: parent.children![childIndex].kind,
+				leadingTrivia: '',
+				raw: endRaw.slice(0, endOffset)
+			}
+		]
+	};
+	rebuildRaw(synthetic);
+	return synthetic.raw;
 }
 
 /**
