@@ -227,9 +227,11 @@ function endPartialWithContainerMarker(
  * generically off the chrome predicate. The gesture means "copy into a title" →
  * a container with that title and an empty body.
  *
- * rebuildRaw reads metadata read-only (rebuildCalloutRaw / rebuildDetailsRaw read
- * `calloutType`/`open` and write only `raw`), so handing it the live metadata
- * reference is safe; the synthetic node is never inserted into the tree.
+ * rebuildRaw is contractually read-only over metadata (rebuildCalloutRaw /
+ * rebuildDetailsRaw read `calloutType`/`open` and write only `raw`), but here it
+ * is plugin code fed a node aliasing the LIVE tree — shallow-copy the metadata
+ * (primitive-valued by the G1.6 convention) so a misbehaving plugin cannot write
+ * through the clipboard path into the document.
  */
 function endChromeContainerBytes(
 	doc: Document,
@@ -248,7 +250,7 @@ function endChromeContainerBytes(
 		kind: parent.kind,
 		leadingTrivia: '',
 		raw: '',
-		metadata: parent.metadata,
+		metadata: parent.metadata ? { ...parent.metadata } : parent.metadata,
 		innerPrefix: '',
 		innerSuffix: '',
 		children: [
