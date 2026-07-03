@@ -2,6 +2,23 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.4 — Plugin authoring: containers, editable chrome, the reserved-chrome contract
+
+The first real plugin-authoring surfaces, exposed **pre-freeze** on the `aragonite/plugin` subpath and dogfooded by a `:::note` callout dev-harness plugin (`/test/plugins`). Design records: `docs/design/editor/plugin-contract.md` (pre-freeze surface + boundary), `docs/issues.md` § Plugin containers (known deferrals).
+
+- **Container authoring** — `createContainerBlock` wires a nested-`BlockList` plugin container (list state, ancestor contexts, nested actions, windowing, the `BlockComponent` surface) in one factory, so a plugin container is as thin as the built-in blockquote. Plus typed plugin metadata accessors and idempotent-registration probes.
+- **Editable chrome** — `registerChromeLeaf` registers a container's editable title/summary leaf in one call, with a default keymap (Enter descends to the body; chord-keyed caller overrides). `contextDependentKind` makes recognizer-less kinds keep their kind through content edits (generalizing the hardcoded tableCell skip); `containerContract: 'opaque'` names containers whose raw is authoritative rather than a strip decomposition.
+- **The reserved-chrome contract** — a container declares its chrome slot (`reservedChrome` on its descriptor) and the machinery enforces it: **always present** (backfill re-mints the chrome kind), **single-line** (unsplittable; the built-in `chrome.descendToBody` Enter; paste flattens inline ahead of the container-paste family), **cleared, never node-deleted** by cross-block ranges (a chrome wall in range deletion — nothing merges raw across the container boundary), and **kind-stable**. Validated by a selection spike first: chrome modeled as a real child node inherits cross-block selection, caret, and undo natively, with zero selection-layer changes.
+- **Guards** — new dev invariants for opaque-container staleness, rebuild determinism, and the chrome slot; the plugins e2e project now fails on any dev-invariant fire. One known composition gap (table endpoints bypass the chrome wall) is logged and owned by the `details` cycle.
+
+### 0.9.3 — Library packaging + external consumer harness
+
+The editor became an installable package, proven from outside the repo.
+
+- **Packaging** — `svelte-package` build with an `exports` map covering the component barrel, the `aragonite/plugin` subpath, and the theme CSS; `svelte` as a peer dependency; the dist pruned of test files; a verified `npm pack` artifact.
+- **External consumer harness** — a durable `examples/consumer` SvelteKit app installs the packed tarball (not `$lib`) and imports only public entry points; the editor server-renders and hydrates cleanly.
+- **CI `consumer-smoke`** — packs, installs, type-checks, SSR-builds, and smoke-tests the consumer on every PR, making the public API's from-outside usability a standing gate.
+
 ### 0.9.2 — Table mouse affordances
 
 Pointer and contextual-menu editing for tables, pairing with the keyboard chords so table editing is no longer keyboard-only.
