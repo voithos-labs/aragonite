@@ -20,8 +20,9 @@ round-trip fidelity. This gate is behavioral: it asserts the CST read by path vi
 - undo after merge: Ctrl+Z restores the three-child split state captured before the merge
 - undo after split-typing: a second Ctrl+Z steps back to the state captured before the last text was typed
 - round-trip stays stable: after every structural edit the document still serializes byte-for-byte (the non-strip callout rebuilds its own raw, title included)
+- cross-block copy ending mid-title: drag-selecting from the prose above into the middle of the title and copying synthesizes closer bytes — pasting below yields a second real `note` container, not bare paragraphs
 
 ## User interactions
 
 - click into callout body, End, type: real keyboard input lands in the callout body child, not the title
-- Enter / Home+Backspace / Ctrl+Z are real keystrokes, each asserted against the CST read by path (`[0]`, `[0,n]`) — not the DOM
+- Enter / Home+Backspace / Ctrl+Z / drag-select + copy + paste are real keystrokes and pointer events, each asserted against the CST read by path (`[0]`, `[0,n]`) — not the DOM
