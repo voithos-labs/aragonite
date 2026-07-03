@@ -88,6 +88,9 @@ export function registerDetailsKind(): void {
 
 	registerBlockOpener(details, {
 		priority: 65, // before htmlBlock (70), which else claims `<details>` as a type-6 block
+		// defensive parity, not current behavior: htmlBlock@70's type-6 interrupt
+		// already covers the canonical opener and details wins the re-dispatch at 65 —
+		// this guards against a future priority/interrupt regression.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
