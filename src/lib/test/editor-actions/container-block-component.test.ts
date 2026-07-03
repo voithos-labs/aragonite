@@ -67,6 +67,37 @@ describe('createContainerBlockComponent', () => {
 		expect(() => container([]).focus(0)).not.toThrow();
 	});
 
+	// Collapse clamp: the body is unmounted, so a walk-in from below (which targets
+	// the last child) must land on the summary (child 0), never the absent last ref.
+	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return refs;
+			},
+			get nodeChildrenLength() {
+				return refs.length;
+			},
+			get node() {
+				return listNode(refs.length);
+			},
+			isCollapsed: () => true
+		});
+	}
+
+	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
+		const refs = [makeRef(), makeRef()];
+		collapsedContainer(refs).focus(FOCUS_LAST_START);
+		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].focus).not.toHaveBeenCalled();
+	});
+
+	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
+		const refs = [makeRef(), makeRef()];
+		collapsedContainer(refs).focus(3);
+		expect(refs[0].focus).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].focus).not.toHaveBeenCalled();
+	});
+
 	it('focusAtColumn is a no-op when no children', () => {
 		expect(() => container([]).focusAtColumn?.(100, 'above')).not.toThrow();
 	});

@@ -29,7 +29,11 @@ import { useContainerWindowing } from '../reactivity/use-container-windowing.sve
 import { createBlockquoteOverrides } from './blockquote-overrides';
 import { createContainerBlockComponent } from './container-block-component';
 import type { UndoController } from './deps';
-import { createStandardNestedActions, setNestedActionsContexts } from './nested/nested-actions';
+import {
+	createStandardNestedActions,
+	setNestedActionsContexts,
+	type NestedActionsOverrideFactory
+} from './nested/nested-actions';
 
 /**
  * Reactive inputs the host component feeds in as getters (Design Rule 5): each is
@@ -59,6 +63,29 @@ export interface ContainerBlock {
 	blockListProps: ContainerBlockListProps;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: BlockComponent;
+	/**
+	 * Commit a shallow metadata patch on THIS container node as one undoable
+	 * entry, round-tripping through the kind's `rebuildRaw`. `afterTick` runs
+	 * once the commit's DOM has settled — a collapse toggle moves the orphaned
+	 * body caret to the chrome row here (the clamp kills the window pin).
+	 */
+	updateOwnMetadata(patch: Record<string, unknown>, afterTick?: () => void): void | Promise<void>;
+}
+
+/**
+ * M3 collapse gate for a chrome leaf's Enter → `descendToBody`. While the
+ * container is collapsed its body children are unmounted, so descending would
+ * mint an invisible body paragraph (the existing-body branch already no-ops on
+ * the unmounted ref). Consume the key and change nothing; delegate otherwise.
+ */
+export function gateDescendOnCollapse(
+	isCollapsed: (() => boolean) | undefined,
+	descend: (innerIndex: number) => void | Promise<void>
+): (innerIndex: number) => Promise<void> {
+	return async (innerIndex) => {
+		if (isCollapsed?.()) return;
+		await descend(innerIndex);
+	};
 }
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
@@ -69,6 +96,37 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 
 	const listState = createBlockListState(() => deps.node);
+
+	const blockquoteOverrides = createBlockquoteOverrides({
+		get index() {
+			return deps.index;
+		},
+		get node() {
+			return deps.node;
+		},
+		get path() {
+			return deps.path;
+		},
+		state: listState,
+		parentBlockEdit,
+		parentFocus,
+		controller
+	});
+
+	// Compose the M3 collapse gate onto the blockquote exit override: a collapsed
+	// container's chrome Enter must not mint an invisible body (§4). Both override
+	// the same `defaults`, so the blockquote's `splitBlock` and the gate's
+	// `descendToBody` coexist. For a non-collapsing container the gate is inert.
+	const overrideFactory: NestedActionsOverrideFactory = (defaults) => {
+		const base = blockquoteOverrides(defaults);
+		return {
+			...base,
+			blockEdit: {
+				...base.blockEdit,
+				descendToBody: gateDescendOnCollapse(deps.isCollapsed, defaults.blockEdit.descendToBody)
+			}
+		};
+	};
 
 	const bundle = createStandardNestedActions(
 		listState,
@@ -89,21 +147,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				containerEdit: parentContainerEdit
 			}
 		},
-		createBlockquoteOverrides({
-			get index() {
-				return deps.index;
-			},
-			get node() {
-				return deps.node;
-			},
-			get path() {
-				return deps.path;
-			},
-			state: listState,
-			parentBlockEdit,
-			parentFocus,
-			controller
-		})
+		overrideFactory
 	);
 
 	setNestedActionsContexts(bundle);
@@ -130,7 +174,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return deps.node;
 		},
 		revealChild: windowing.revealChild,
-		isInWindow: windowing.isInWindow
+		isInWindow: windowing.isInWindow,
+		isCollapsed: deps.isCollapsed
 	});
 
 	const blockListProps: ContainerBlockListProps = {
@@ -151,5 +196,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		reorderable: true
 	};
 
-	return { blockListProps, containerApi };
+	return {
+		blockListProps,
+		containerApi,
+		updateOwnMetadata: (patch, afterTick) =>
+			parentBlockEdit.updateBlockMetadata(deps.index, patch, { afterTick })
+	};
 }
