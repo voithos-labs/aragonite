@@ -49,12 +49,14 @@ export interface BlockEditActions {
 	 * state as metadata rather than raw syntax (task checkboxes, etc.) — NOT
 	 * for raw-driven metadata like heading level (change via updateBlockContent).
 	 *
-	 * Patch is shallow-merged. Empty patch is a no-op.
+	 * Patch is shallow-merged. Empty patch is a no-op. `afterTick` runs once the
+	 * commit's DOM has settled — the post-commit caret hook (a collapse toggle
+	 * moves the orphaned body caret to its chrome row here).
 	 */
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
 	): void | Promise<void>;
 	/**
 	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste

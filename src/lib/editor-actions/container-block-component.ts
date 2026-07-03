@@ -26,6 +26,10 @@ export interface ContainerBlockComponentDeps {
 	/** True iff `index` is in this scope's current window; lets the reveal degrade
 	 *  instead of hanging when a scroll missed (VR-5). */
 	readonly isInWindow?: (index: number) => boolean;
+	/** Collapse clamp — while true only the chrome row (child 0) is mounted, so a
+	 *  focus extremum entering the container clamps to it instead of no-oping on
+	 *  an unmounted last child (the caret-walk-into-collapsed rule). */
+	readonly isCollapsed?: () => boolean;
 }
 
 export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): BlockComponent {
@@ -34,13 +38,15 @@ export function createContainerBlockComponent(deps: ContainerBlockComponentDeps)
 		focusable: true,
 		focus(offset: number) {
 			if (deps.nodeChildrenLength === 0) return;
+			// Collapsed: only child 0 (the chrome row) is mounted, so a walk-in from
+			// below — which targets the last child — clamps to it rather than no-oping
+			// on the unmounted ref.
+			const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
 			if (offset === FOCUS_LAST_START) {
-				const last = deps.nodeChildrenLength - 1;
 				deps.innerBlockRefs[last]?.focus(FOCUS_LAST_START);
 			} else if (offset === 0) {
 				deps.innerBlockRefs[0]?.focus(0);
 			} else {
-				const last = deps.nodeChildrenLength - 1;
 				deps.innerBlockRefs[last]?.focus(CURSOR_END);
 			}
 		},

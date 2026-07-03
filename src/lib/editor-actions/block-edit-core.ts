@@ -42,7 +42,7 @@ export interface BlockEditCore {
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
 	): Promise<void>;
 	replaceBlock(
 		i: number,
@@ -216,7 +216,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// ceremony's rebuild concatenates fresh raw.
 					rebuildOwnedContainer(node, view.sharing);
 					return { op: 'noop' };
-				}
+				},
+				afterTick: options?.afterTick
 			});
 		},
 

@@ -105,6 +105,33 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
+	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+
+		const afterTick = vi.fn(() => {
+			// The commit is complete when afterTick fires: metadata is already live.
+			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
+		});
+		await actions.updateBlockMetadata(0, { taskChecked: true }, { afterTick });
+
+		expect(afterTick).toHaveBeenCalledOnce();
+	});
+
+	it('skips afterTick when the patch is empty (no commit runs)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+
+		const afterTick = vi.fn();
+		await actions.updateBlockMetadata(0, {}, { afterTick });
+
+		expect(afterTick).not.toHaveBeenCalled();
+	});
+
 	it('shallow-merge preserves untouched fields', async () => {
 		// Regression guard: a switch to `node.metadata = metadata` (no spread) would fail this.
 		const node = makeNode('list-item', '- [ ] task\n', {
