@@ -23,10 +23,13 @@ the serialized bytes, and the mounted block-host count.
 - M3 — no invisible mint: Enter in a COLLAPSED, summary-only details is a no-op — the caret stays, nothing is minted, and no undo entry is pushed (a prior text edit undoes in one step)
 - arrow-walk across a collapsed details: ArrowUp entering from the paragraph below lands the caret on the summary, never a silent no-op on the clamped-out last child
 - horizontal walk into a collapsed details: ArrowLeft at the start of the paragraph below routes through `focus(CURSOR_END)` toward the unmounted last child and must clamp to the summary, never no-op on the absent ref
+- vertical exit from a collapsed summary: ArrowDown in the collapsed summary delegates past the clamped-out body and lands on the paragraph below, never a silent dead-end on the unmounted ref
+- horizontal exit from a collapsed summary: ArrowRight at the summary's end delegates past the clamped-out body to the paragraph below
+- cross-block copy ending mid-summary: drag-selecting from the prose above into the middle of the summary and copying synthesizes closer bytes — pasting below yields a second `details` carrying the truncated summary and the live open flag
 
 ## User interactions
 
-- click toggle / Ctrl+Z / Enter / ArrowUp / ArrowLeft / typing are real keystrokes and pointer events, each asserted against the CST by path, the serialized bytes, or the block-host count
+- click toggle / Ctrl+Z / Enter / arrow keys / typing / drag-select + copy + paste are real keystrokes and pointer events, each asserted against the CST by path, the serialized bytes, or the block-host count
 - the disclosure toggle is a real keyboard-accessible `<button aria-expanded>`; a mouse toggle keeps the body caret (mousedown default suppressed) so the caret rule can observe it
 
 ## Error cases
