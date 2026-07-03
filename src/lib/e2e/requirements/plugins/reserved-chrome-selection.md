@@ -49,6 +49,20 @@ container family never fires.
 - multi-block clipboard: pasting a two-paragraph clipboard into the title splices its text inline at the caret with the paragraph break collapsed to a single space — the chrome stays one note-title node (never splits into paragraphs) and the container-paste family never fires
 - CRLF paragraph break: a Windows clipboard's `\r\n\r\n` break collapses to a single space, not two — each run flattens once, so the pasted title carries no doubled whitespace
 
+## Gate 6 — chrome wall × table branch (must pass)
+
+Ranges with a table endpoint dispatch to the table branch ahead of the chrome
+branch, so the wall rule must hold there too: covered chrome clears, chrome
+endpoints truncate in place, and a fully-consumed container unit-deletes.
+
+- substrate: a table in the callout body parses as a real child (title + table)
+- between (prose → body table cell): the title clears in place to an empty note-title, the table takes its whole-row-snap semantics, nothing hoists into the opener line; undo restores the title at the CHILD level
+- chrome-start endpoint (mid-title → body table cell): the title truncates by raw write — kind and node survive, no reparse-replacement; the caret stays in the title; undo restores at the child level
+- chrome-end endpoint (table above → mid-title): the title keeps its uncovered tail in the chrome leaf; the start table takes its row semantics
+- table → table across the wall: the strictly-between title clears, never node-deletes (shared deletion-collection coverage)
+- whole-subtree consumed via a table-involving range: the container dies as ONE splice, children intact — undo restores title and body together
+- known gap, out of this gate: whole-row-snap deletes leave the table's OWN row ids stale (pre-existing without chrome, `docs/issues.md` § Tables) — audits here exclude table-kind state
+
 ## User interactions
 
 - Shift+End, Shift+ArrowDown, pointer drag, ArrowRight, Backspace, Enter, Ctrl+V, Ctrl+Z are real gestures; assertions read the CST/selection by path, never the DOM shape

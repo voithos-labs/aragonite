@@ -46,16 +46,18 @@ The action menu and the commit wrappers now share `canDeleteRow`/`canDeleteColum
 
 **Why deferred:** `selection/` may not import `editor-actions/`, so a true three-way unification needs the predicates relocated down to `tree-operations/table-mutations.ts` (the layer all three import) plus a selection range-delete e2e re-run — a deliberate cross-layer move.
 
+## Tables
+
+### Cross-block whole-row-snap delete leaves the table's row ids stale
+
+**Severity:** minor (dev-audit-visible; no known user-facing repro)
+**Files:** `src/lib/selection/cross-block/ops.ts` (scope collection), table row `BlockListState`
+
+A cross-block delete whose whole-row snap removes table rows splices `table.children` without the table itself being a commit scope (`collectTouchedContainers` collects only strict ancestors of the endpoints), so `auditBlockListStateConsistency` reports the table's `ids` length stale against its children/refs. Reproducible on the plain editor with no plugin involved (paragraph → body-cell Delete). The Gate-6 chrome×table e2e audits exclude table-kind state for this reason.
+
+**Why deferred:** pre-existing and independent of the chrome wall; surfaced while testing the wall × table composition. Fixing it means teaching the cross-block commit to scope endpoint tables — a deliberate commit-machinery change to make under the table e2e battery, not a drive-by.
+
 ## Plugin containers
-
-### Chrome wall does not cover a range from prose into a table nested in a container body
-
-**Severity:** minor (dev-loud, undo-recoverable; needs a chrome container whose body holds a table)
-**Files:** `src/lib/selection/range-delete.ts` (dispatch order), `src/lib/selection/range-delete-table.ts` (`deleteFromProseIntoTable`), `src/lib/selection/range-delete-chrome.ts`
-
-`involvesTable` dispatches before `involvesReservedChrome`, so a cross-block range from prose into a table nested inside a `reservedChrome` container's body takes `deleteFromProseIntoTable`. Its between-subtree branch node-deletes the chrome leaf instead of clearing it; the container's `rebuildRaw` then hoists the new child 0 and G1.14 fires — dev-loud and undo-recoverable, not a silent corruption.
-
-**Why deferred:** the fix needs a designed chrome×table range-delete composition — table endpoints carry cell coordinates while the chrome branch asserts char offsets, so the two dispatchers cannot simply reorder. Owned by the details cycle, whose bodies will contain tables.
 
 ### Collapsed title-only descend mints an invisible body paragraph
 
