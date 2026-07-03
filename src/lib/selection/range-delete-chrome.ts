@@ -165,15 +165,18 @@ export function chromeAwareRangeDelete(
 	};
 }
 
-// ── Internal ────────────────────────────────────────────────────────────────
+// ── Wall primitives (shared with the table branch) ──────────────────────────
+// `involvesTable` dispatches before `involvesReservedChrome`, so ranges with a
+// table endpoint ride range-delete-table.ts — these primitives keep the wall
+// rule single-sourced across both branches.
 
-interface ChromeContainer {
+export interface ChromeContainer {
 	path: number[];
 	node: CstNode;
 }
 
 /** Deepest strict ancestor of `path` whose kind declares reservedChrome. */
-function nearestChromeContainer(doc: Document, path: number[]): ChromeContainer | null {
+export function nearestChromeContainer(doc: Document, path: number[]): ChromeContainer | null {
 	let found: ChromeContainer | null = null;
 	let children = doc.children;
 	for (let i = 0; i < path.length - 1; i++) {
@@ -187,7 +190,7 @@ function nearestChromeContainer(doc: Document, path: number[]): ChromeContainer 
 	return found;
 }
 
-function isChromeChild(container: ChromeContainer, leafPath: number[]): boolean {
+export function isChromeChild(container: ChromeContainer, leafPath: number[]): boolean {
 	return (
 		leafPath.length === container.path.length + 1 &&
 		isReservedChromeChild(container.node, leafPath[container.path.length])
@@ -200,24 +203,32 @@ function isChromeChild(container: ChromeContainer, leafPath: number[]): boolean 
  * block's visible text. With start outside, the whole subtree is covered and
  * the container dies as one unit.
  */
-function rangeConsumesContainer(container: ChromeContainer, end: SelectionPoint): boolean {
-	let node: CstNode = container.node;
-	for (let i = container.path.length; i < end.path.length; i++) {
-		const children = node.children ?? [];
-		if (end.path[i] !== children.length - 1) return false;
-		node = children[end.path[i]];
-	}
-	return end.offset >= displayLength(node.raw);
+export function rangeConsumesContainer(container: ChromeContainer, end: SelectionPoint): boolean {
+	const endNode = lastChildDescendant(container, end.path);
+	return endNode !== null && end.offset >= displayLength(endNode.raw);
 }
 
-function lineEndingOf(raw: string): string {
+/** The node at `path` when every step from the container is a last-child edge, else null. */
+export function lastChildDescendant(container: ChromeContainer, path: number[]): CstNode | null {
+	let node: CstNode = container.node;
+	for (let i = container.path.length; i < path.length; i++) {
+		const children = node.children ?? [];
+		if (path[i] !== children.length - 1) return null;
+		node = children[path[i]];
+	}
+	return node;
+}
+
+export function lineEndingOf(raw: string): string {
 	return raw.endsWith('\r\n') ? '\r\n' : '\n';
 }
 
 /** A truncated slice standing alone mid-document must stay line-terminated. */
-function terminateLine(text: string, sourceRaw: string): string {
+export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + lineEndingOf(sourceRaw);
 }
+
+// ── Internal ────────────────────────────────────────────────────────────────
 
 function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
 	const reparsed = parse(raw || '\n');
