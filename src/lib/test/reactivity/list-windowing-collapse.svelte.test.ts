@@ -81,6 +81,12 @@ describe('collapsed window substitution', () => {
 		cleanup();
 	});
 
+	it('serves a frozen result: one shared singleton backs every collapsed scope', () => {
+		const { windowing, cleanup } = setup(4, () => true);
+		expect(Object.isFrozen(windowing.window)).toBe(true);
+		cleanup();
+	});
+
 	it('is byte-identical to the no-option surface when isCollapsed returns false', () => {
 		for (const count of [4, 100]) {
 			const plain = setup(count);

@@ -97,13 +97,15 @@ export function shouldRemeasureOnResize(recorded: number | undefined, observed: 
 	return Math.abs(recorded - observed) >= 1;
 }
 
-const collapsedWindow: WindowResult = {
+// One shared result backs every collapsed scope — frozen so a consumer mutating
+// its window cannot silently corrupt sibling scopes through the singleton.
+const collapsedWindow: WindowResult = Object.freeze({
 	active: true,
 	start: 0,
 	end: 1,
 	topSpacerPx: 0,
 	bottomSpacerPx: 0
-};
+});
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// The id list index-aligned with the CURRENT `model`. Snapshotted (not read live)

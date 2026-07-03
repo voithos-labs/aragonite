@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { getPluginMetadata } from '../../core/nodes';
+import { getPluginMetadata, type AnyBlockKind } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { augmentBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind, DETAILS } from '../../../routes/test/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
 // A cross-block copy whose END lands inside a container's reserved chrome (title/
@@ -73,6 +74,26 @@ describe('cross-block copy ending in reserved chrome', () => {
 			expect(trimTrailingLineEnding(details!.children![0].raw)).toBe('Sum');
 		});
 	}
+
+	it('hands rebuildRaw a metadata copy: a plugin writing metadata cannot touch the live node', () => {
+		const kind = DETAILS as AnyBlockKind;
+		const original = getBlockKindDescriptor(kind).rebuildRaw!;
+		augmentBlockKind(kind, {
+			rebuildRaw: (node) => {
+				const meta = getPluginMetadata<Record<string, unknown>>(node);
+				if (meta) meta.rogue = true;
+				original(node);
+			}
+		});
+
+		const doc = parse(
+			'Above\n\n<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n'
+		);
+		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
+
+		expect(text).toContain('<details open>'); // the rogue wrapper still rebuilt
+		expect(getPluginMetadata<{ rogue?: boolean }>(doc.children[1])?.rogue).toBeUndefined();
+	});
 
 	// Regression pins: a non-chrome container endpoint (listItem / blockquote) must
 	// still recover its marker via the existing suffix-arithmetic path, untouched.
