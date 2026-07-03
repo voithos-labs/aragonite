@@ -1,14 +1,22 @@
-# Editor Plugin Contract (frozen foundation — exposed at 1.2)
+# Editor Plugin Contract
 
-## Status
+## Status — two freeze layers
 
-The **foundation** of the plugin-facing contract is frozen as of 0.8.3. "Frozen" means the
-shapes below will not change in a breaking way before external plugin code binds to them at
-1.2. Nothing here is re-exported from `index.ts` yet — 1.2 flips the exposure switch. The
-roadmap's 1.2 plugin surface (component registry replacing `BlockHost` dispatch, selection
-coordinate-addressing hooks, inline-widget editing registry, component-portal widget seam,
-`plugins` prop) is built _against_ this foundation; those hooks are not frozen here because
-adding them later is additive, not breaking (see the criterion).
+**1.0 is the plugin platform.** The contract has two layers with different freeze timing:
+
+- **Registration base — frozen since 0.8.3.** Node identity (`AnyBlockKind`), the
+  register-once/conflict-on-duplicate registry model, plugin-kind naming
+  (`declarePluginKind`), accessor-only inline content, and the `getEvents()` seam. These
+  shapes will not change in a breaking way.
+- **Authoring surface — exposed _pre-freeze_ on `aragonite/plugin`.** The container factory,
+  the chrome leaf + reserved-chrome contract, and their supporting descriptor fields (see
+  § The pre-freeze authoring surface). Built pre-1.0, refined against real consumers, and
+  **frozen only at the public open-source release** — after at least two real container
+  consumers, the in-repo dogfood extensions, and an internal limestone integration validate
+  it. Until the release cut, these shapes may change without notice; nothing external binds.
+
+The plugin DX system (`plugins` prop, manifest, scaffold, hot-reload, reference fleet) stays
+post-1.0 — see the roadmap.
 
 ## Why freeze now
 
@@ -32,6 +40,11 @@ event payload, for instance, never breaks a _receiver_ — so an event-payload e
 additive-later even though it sounds like a contract change.
 
 ## Decision table
+
+> Historical record of the 0.8.3 freeze scoping. Where a row says "1.2", the
+> 1.0-as-plugin-platform pivot since moved the _authoring_ pieces (container contract,
+> command mint, inline-widget editing registry) to pre-1.0; the _DX system_ stays 1.2. The
+> verdict logic itself is unchanged.
 
 | Surface                                                                  | Verdict              | In the freeze?                          | Reason                                                                                                                                                                                            |
 | ------------------------------------------------------------------------ | -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -169,10 +182,11 @@ members can be added later without breaking a receiver. They need no change for 
   `'subscriber' | 'render' | 'commit'` and `error: unknown` (correct for a boundary). Routed
   through the `error` event channel with a recursion guard.
 
-## Target shapes (designed; built and exposed at 1.2)
+## Target shapes (designed ahead)
 
-Sketched here so 1.2 builds toward a known direction. None is frozen: each is additive, and the
-shapes want validation against the 1.2 reference plugins before they settle.
+Sketched so later work builds toward a known direction. None is frozen: each is additive. The
+plugin-op vocabulary extension is the pre-1.0 command mint's territory; the plugin object /
+`plugins` prop ships with the 1.2 DX system.
 
 - **Plugin object + `plugins` prop.** A plugin is an identified unit that performs its global
   registrations. Direction: a declarative manifest (the framework owns registration order and
@@ -204,18 +218,75 @@ When added, it is an additive field, designed against its real consumer.
 
 ## Explicitly excluded
 
-- **0.8.2 inline-parser stage hook** — deferred to its real 1.2 inline-widget editing registry /
-  1.3 inline-syntax consumer. Widget-ness is a render+model decision, not a parse one, so the
-  hook has no built-in to validate it.
+- **0.8.2 inline-parser stage hook** — deferred to the inline-widget editing registry (now
+  pre-1.0) / its 1.3 inline-syntax consumer. Widget-ness is a render+model decision, not a
+  parse one, so the hook has no built-in to validate it.
 - **Per-hook 1.2 seams** — selection coordinate-addressing, inline-widget editing registry,
   component-portal widget seam, the component registry replacing `BlockHost` dispatch. All
   additive over this foundation.
 - **Runtime unregister / replace** — Plugin System II.
 
+## The pre-freeze authoring surface (1.0)
+
+Everything a plugin author reaches today comes through the `aragonite/plugin` subpath:
+
+- **Registration base (frozen):** kind declaration, descriptor/component/opener registration,
+  idempotent-registration probes, typed per-node plugin metadata.
+- **Container authoring:** a factory that wires a nested-`BlockList` container (list state,
+  ancestor contexts, nested actions, windowing, the `BlockComponent` surface) so a plugin
+  container is as thin as the built-in blockquote.
+- **Editable chrome:** one call registers a container's title/summary leaf with a default
+  keymap (Enter descends to the body; chord-keyed overrides). The container _declares_ its
+  chrome slot on its descriptor, and the machinery enforces the **reserved-chrome contract**:
+  the slot is always present, single-line (unsplittable; paste flattens inline), cleared —
+  never node-deleted — by destructive ranges, and kind-stable through every edit.
+- **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
+  through edits), and an opaque container contract (raw is authoritative, not a strip
+  decomposition), both invariant-guarded.
+- **Planned pre-1.0** (roadmap): plugin-minted command ids; the inline-widget editing
+  registry (atomic caret-addressed inline plugins — KaTeX is the driving consumer).
+
+## Editable-content tiers
+
+Every mechanism for plugin content that is _itself editable_ falls in one of three tiers,
+each bound to a CST guarantee (prior-art record: the plugin-system research doc):
+
+| Tier          | Shape                                                                      | Status                    |
+| ------------- | -------------------------------------------------------------------------- | ------------------------- |
+| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog | shipped                   |
+| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns         | shipped                   |
+| Atomic widget | opaque non-text embed, caret-addressable at its edges                      | pre-1.0 (inline registry) |
+
+A _general_ editable leaf (recognizer-backed standalone text block) is deliberately post-1.0;
+the chrome leaf is narrower on purpose. **Rejected permanently:** nested-editor interiors (a
+second editor state serialized as a blob) — they break byte-lossless round-trip.
+
+## What a plugin may and may not do
+
+The boundary, condensed; the invariant catalog (`docs/design/editor/invariants.md`) is the
+enforcement record.
+
+A plugin **may**: register kinds/components/openers (once — duplicates throw); declare
+`rebuildRaw` and have the commit ceremony invoke it; build containers and chrome through the
+factories; store primitive per-node metadata; commit metadata through the sanctioned update
+path; contribute per-kind keymaps over the command vocabulary; render as an unknown kind and
+degrade safely.
+
+A plugin **may not**: treat its DOM as authoritative or mutate the tree from the view layer
+(boundary events flow up; the CST wins); write bytes through node references captured before
+a commit (copy-on-write); pass reactive CST state by value across module boundaries (getters
+only); invent merge-role/unwrap/container-contract values (closed enums); silently override a
+built-in or another plugin's registration.
+
+Most of the boundary is enforced by **shape** (the factories never expose raw context keys or
+mutation handles) and the rest by **dev-mode invariants** that tree-shake out of production —
+so plugin development against a production build gets no signal. **Develop plugins against a
+dev build.**
+
 ## Enforcement
 
 The contract's load-bearing rules are guarded by the invariant catalog
 (`docs/design/editor/invariants.md`): kind-table completeness, opener coherence, and keymap
-coherence already exist as bootstrap invariants. The freeze adds guards that a plugin-kind node
-survives the render/measure/serialize path without a built-in assumption firing, and that
-duplicate registration throws.
+coherence at bootstrap; opaque-container staleness, rebuild determinism, and the reserved-chrome
+slot at every commit; duplicate registration throws at the call site. The plugins e2e project
+fails on any dev-invariant fire.
