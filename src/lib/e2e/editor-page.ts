@@ -239,7 +239,6 @@ export class EditorPage {
 	 */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
-		if (!point) throw new Error('clickBlockAtPath: could not resolve point');
 		await this.page.mouse.click(point.x, point.y);
 		await this.waitForRenderFlush();
 	}
@@ -289,7 +288,6 @@ export class EditorPage {
 	): Promise<void> {
 		const start = await this.pointForOffset(startPath, startOffset);
 		const end = await this.pointForOffset(endPath, endOffset);
-		if (!start || !end) throw new Error('dragFromTo: could not resolve block offsets');
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -314,7 +312,6 @@ export class EditorPage {
 		const start = await this.pointForOffset(startPath, startOffset);
 		const mid = await this.pointForOffset(midPath, midOffset);
 		const end = await this.pointForOffset(endPath, endOffset);
-		if (!start || !mid || !end) throw new Error('dragFromToThenTo: could not resolve offsets');
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -337,18 +334,15 @@ export class EditorPage {
 
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
-		if (!point) throw new Error('shiftClickBlock: could not resolve point');
 		await this.page.keyboard.down('Shift');
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.up('Shift');
 		await this.waitForRenderFlush();
 	}
 
-	private async pointForOffset(
-		path: number[],
-		offset: number
-	): Promise<{ x: number; y: number } | null> {
-		return this.page.evaluate(
+	/** Pixel point of a raw-semantic offset inside any `data-block-path` block. */
+	async pointForOffset(path: number[], offset: number): Promise<{ x: number; y: number }> {
+		const point = await this.page.evaluate(
 			({ path, offset }) => {
 				const wrapper = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
@@ -382,6 +376,10 @@ export class EditorPage {
 			},
 			{ path, offset }
 		);
+		if (!point) {
+			throw new Error(`pointForOffset: could not resolve ${JSON.stringify(path)} @ ${offset}`);
+		}
+		return point;
 	}
 
 	async getCaretPixelX(): Promise<number> {
