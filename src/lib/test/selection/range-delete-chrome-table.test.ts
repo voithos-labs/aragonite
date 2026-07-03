@@ -101,6 +101,26 @@ describe('chrome wall × table branch — table endpoint outside the container',
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
+	// G1.9 regression guard for the chrome-END truncate: the 6c twin writes the
+	// kept tail into the title's raw IN PLACE, relying on the branch-entry
+	// `ensureUnsharedPath(end.path)`. Marking a snapshot BEFORE the delete makes
+	// the parsed title count as shared; if that entry unshare narrowed, the raw
+	// write would land on the snapshot node an undo entry still references.
+	// serialize() reads the container's authoritative raw and is blind to this —
+	// assert the child node directly, mutation-verified against the live copy.
+	it('chrome-end truncate writes an unshared copy, never the snapshot-shared title node', () => {
+		const doc = parse(TBL_ABOVE_FIXTURE);
+		const snapshotTitle = doc.children[1].children![0];
+		expect(snapshotTitle.raw).toBe('Title\n');
+
+		const sharing = createSharingState();
+		sharing.markSnapshotTaken();
+		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing);
+
+		expect(newDoc.children[1].children![0].raw).toBe('le\n');
+		expect(snapshotTitle.raw).toBe('Title\n');
+	});
+
 	it('table → table across the wall: the between chrome clears via the shared collection', () => {
 		const { doc, source, caret } = run(TBL_BOTH_FIXTURE, point([0], 2), point([1, 1], 1));
 		expect(source).toBe(
