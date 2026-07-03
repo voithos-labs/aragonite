@@ -8,7 +8,8 @@ import {
 	collectInvariantWarnings,
 	OPEN,
 	SUMMARY_ONLY,
-	CLOSED_WITH_BELOW
+	CLOSED_WITH_BELOW,
+	OPEN_WITH_BELOW
 } from './details-helpers';
 
 /**
@@ -171,12 +172,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	// fixme: pins the collapse-unaware cross-boundary merge (docs/issues.md §
-	// "Plugin containers"). The parent scope's merge walk descends into the
-	// clamped-out body ("Hidden" becomes "HiddenBelow", invisible; caret lost);
-	// the fix needs a collapse probe on the merge walker — a schema-surface
-	// decision pending sign-off. Flip to `test` when the gate lands.
-	test.fixme('Backspace below a collapsed details does not merge into the hidden body', async ({
+	test('Backspace below a collapsed details does not merge into the hidden body', async ({
 		page
 	}) => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
@@ -189,6 +185,27 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		await expect(page.getByText('Below')).toBeVisible();
+
+		// Typing appends at "Sum|" — the live-caret proof the focus-move landed at
+		// the summary's END, not its start.
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('<summary>SumX</summary>');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Backspace below an OPEN details merges into the last body child', async ({ page }) => {
+		await editor.loadContent(OPEN_WITH_BELOW);
+		await editor.focusBlockAtPath([1], 0); // start of "Below"
+
+		// The collapse probe must not over-fire: an open details keeps the normal
+		// deep-leaf merge, "Below" joining "Body" with the caret at the join point.
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('BodyBelow');
+		expect(await editor.bridge.getSource()).toBe(
+			'<details open>\n<summary>Sum</summary>\n\nBodyBelow\n\n</details>\n'
+		);
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 1]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

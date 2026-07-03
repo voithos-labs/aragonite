@@ -1,15 +1,16 @@
 <script lang="ts">
 	// The `<details>` collapsible on `createContainerBlock` — the same public seam
-	// the callout uses, plus a disclosure toggle and the collapse clamp. `open` is
-	// metadata; `isCollapsed` reads it through the LIVE node getter so a toggle (or
+	// the callout uses, plus a disclosure toggle and the collapse clamp.
+	// Collapse-ness has ONE definition: the descriptor's `reservedChrome.isCollapsed`
+	// probe, read here via `isCollapsedContainer` on the LIVE node so a toggle (or
 	// its undo) re-renders the mounted body reactively.
-	import { BlockList, createContainerBlock, getPluginMetadata, type CstNode } from '$lib/plugin';
+	import { BlockList, createContainerBlock, isCollapsedContainer, type CstNode } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	const open = $derived(getPluginMetadata<{ open: boolean }>(node)?.open ?? false);
+	const open = $derived(!isCollapsedContainer(node));
 
 	const { blockListProps, containerApi, updateOwnMetadata } = createContainerBlock({
 		get node() {
@@ -22,11 +23,11 @@
 			return myPath;
 		},
 		getBoxEl: () => boxEl,
-		isCollapsed: () => !getPluginMetadata<{ open: boolean }>(node)?.open
+		isCollapsed: () => isCollapsedContainer(node)
 	});
 
 	function toggle() {
-		const isOpen = getPluginMetadata<{ open: boolean }>(node)?.open ?? false;
+		const isOpen = open;
 		// Collapsing while the caret sits in a body child orphans it — the clamp
 		// unmounts the body and kills the window pin — so move it to the summary in
 		// the commit's afterTick. Read the caret BEFORE the commit; the toggle's
