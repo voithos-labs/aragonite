@@ -23,11 +23,17 @@ import {
  * of magnitude under it so viewport-width variance can't flake the assertion.
  *
  * MATERIALITY (judged NOT material — record + guard, no fix): the drift is
- * absorbed by the existing scroll-anchor correction (the `does not teleport on a
- * mid-jump` test below), the same machinery the VR suite proves for lists /
- * tables / blockquotes where estimate ≠ measured. A bounded fix — an open-aware
- * height hook the oracle consults — is a pre-freeze DESCRIPTOR widening; deferred
- * to the controller rather than built here.
+ * absorbed by the editor's scroll-anchor correction (`correctAnchor` in
+ * list-windowing), the sign-symmetric, scope-generic machinery the VR suite's
+ * anchor tests already prove where estimate ≠ measured — the top-level `deep jump
+ * ... holds the viewport via scroll-anchor correction (VR-2)` and its nested-scope
+ * twin. A dedicated details mid-jump test is not carried here: this fixture's real
+ * measured height (~2416px) is shorter than a viewport, so a jump to the estimated
+ * middle lands past the true end and settles at the top via the browser's scrollTop
+ * clamp — a clamp, not the anchor correction (verified: the settle is byte-identical
+ * with `correctAnchor` neutered), so any local mid-jump assertion is vacuous. A
+ * bounded fix — an open-aware height hook the oracle consults — is a pre-freeze
+ * DESCRIPTOR widening; deferred to the controller rather than built here.
  */
 
 // The over-estimate is real but the load-time window mounts a handful of details;
@@ -112,43 +118,5 @@ test.describe('plugin container: <details> height-oracle drift at scale', () => 
 		// Correctness holds under the drift: no desync, no render throw.
 		expect(await auditRealDesyncs(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
-	});
-
-	test('the drift does not teleport the viewport on a mid-jump (absorbed, not material)', async ({
-		page
-	}) => {
-		await editor.loadContent(collapsedDetailsDoc(COUNT));
-		expect(await topLevelSpacerCount(page)).toBeGreaterThan(0);
-
-		// Jump into the middle: a fresh window of over-estimated details mounts and
-		// measures smaller, mutating heights around the anchor. The scroll-anchor
-		// correction must hold the top-of-viewport details in place.
-		const scrollHeight = await editorScrollHeight(page);
-		await editor.scrollEditorTo(Math.round(scrollHeight / 2));
-
-		const before = await page.evaluate(() => {
-			const editorEl = document.querySelector('.editor') as HTMLElement;
-			const top = editorEl.getBoundingClientRect().top;
-			const hosts = Array.from(
-				document.querySelectorAll('[data-block-path]:not([data-block-path*=","])')
-			) as HTMLElement[];
-			for (const host of hosts) {
-				const rect = host.getBoundingClientRect();
-				if (rect.bottom > top + 1)
-					return { path: host.getAttribute('data-block-path'), top: rect.top };
-			}
-			return null;
-		});
-		expect(before).not.toBeNull();
-
-		await editor.waitForRenderFlush();
-
-		const afterTop = await page.evaluate((path) => {
-			const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
-			return host ? host.getBoundingClientRect().top : null;
-		}, before!.path);
-		expect(afterTop).not.toBeNull();
-		// The over-estimate is absorbed — the anchored details does not teleport.
-		expect(Math.abs(afterTop! - before!.top)).toBeLessThan(200);
 	});
 });
