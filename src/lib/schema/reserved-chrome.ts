@@ -17,3 +17,12 @@ export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind 
 export function isReservedChromeChild(container: CstNode, childIndex: number): boolean {
 	return childIndex === 0 && reservedChromeKindOf(container.kind) !== undefined;
 }
+
+/**
+ * True only when the node's kind declares a `reservedChrome.isCollapsed` probe
+ * and it reports this node collapsed. Kinds without a probe are never collapsed.
+ */
+export function isCollapsedContainer(node: CstNode): boolean {
+	const probe = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.isCollapsed;
+	return probe !== undefined && probe(node);
+}

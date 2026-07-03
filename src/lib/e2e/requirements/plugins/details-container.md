@@ -25,6 +25,8 @@ the serialized bytes, and the mounted block-host count.
 - horizontal walk into a collapsed details: ArrowLeft at the start of the paragraph below routes through `focus(CURSOR_END)` toward the unmounted last child and must clamp to the summary, never no-op on the absent ref
 - vertical exit from a collapsed summary: ArrowDown in the collapsed summary delegates past the clamped-out body and lands on the paragraph below, never a silent dead-end on the unmounted ref
 - horizontal exit from a collapsed summary: ArrowRight at the summary's end delegates past the clamped-out body to the paragraph below
+- Backspace below a collapsed details: the cross-boundary merge walk stops at the summary chrome — the source stays byte-identical, nothing enters the hidden body, the block below stays visible, and the caret lands at the summary's END (typing appends after the summary text)
+- Backspace below an OPEN details merges normally: the block below joins the last body child at the join point (the collapse probe never fires on an open container)
 - cross-block copy ending mid-summary: drag-selecting from the prose above into the middle of the summary and copying synthesizes closer bytes — pasting below yields a second `details` carrying the truncated summary and the live open flag
 
 ## User interactions

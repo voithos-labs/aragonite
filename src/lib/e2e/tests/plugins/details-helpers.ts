@@ -108,6 +108,8 @@ export const OPEN = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</det
 export const SUMMARY_ONLY = '<details>\n<summary>Sum</summary>\n</details>\n';
 export const CLOSED_WITH_BELOW =
 	'<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n\nBelow\n';
+export const OPEN_WITH_BELOW =
+	'<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n\nBelow\n';
 
 // Scroll-height of the editor's internal scroll container — the observable the
 // height oracle's per-block estimates sum into. Drifts when unmounted blocks are
