@@ -3,15 +3,28 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import { installTestProbes } from '../editor/test-probes';
 	import { registerCallout } from './callout/register';
+	import { registerDetails } from './details/register';
 
-	// Runs before the child <Editor> mounts and parses `source`, so `:::note`
-	// resolves to the plugin container kind rather than a plain paragraph. If this
-	// ordering breaks, the editability gate silently tests a paragraph instead.
+	// Runs before the child <Editor> mounts and parses `source`, so `:::note` /
+	// `<details>` resolve to their plugin container kinds rather than plain prose.
+	// If this ordering breaks, the editability gate silently tests a paragraph.
 	registerCallout();
+	registerDetails();
 
-	const SEED = ':::note Title\nFirst\n:::\n';
+	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
+	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
-	let source = $state(SEED);
+	// The callout is the default document (the landed callout e2e read it directly);
+	// `?seed=details` swaps in the details seed for the Task 4-5 collapse route,
+	// leaving the default document — and those tests — untouched.
+	function initialSource(): string {
+		if (typeof window === 'undefined') return CALLOUT_SEED;
+		return new URLSearchParams(window.location.search).get('seed') === 'details'
+			? DETAILS_SEED
+			: CALLOUT_SEED;
+	}
+
+	let source = $state(initialSource());
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
 
