@@ -29,9 +29,14 @@ behavior.
 
 ## Material judgment (absorbed)
 
-- mid-jump stability: jumping into the middle of the run mounts a fresh window of
-  over-estimated details that measure smaller; the scroll-anchor correction holds
-  the top-of-viewport details in place rather than teleporting the viewport
+- anchor absorption is NOT re-proven here: `correctAnchor` is sign-symmetric and
+  scope-generic, so the VR suite's general anchor tests (the top-level `deep jump …
+holds the viewport via scroll-anchor correction (VR-2)` and its nested-scope twin)
+  already prove the over-estimate is absorbed. A local details mid-jump assertion is
+  vacuous with this fixture: the real measured height (~2416px) is shorter than a
+  viewport, so a jump to the estimated middle lands past the true end and settles at
+  the top via the browser's scrollTop clamp — a clamp, not the anchor correction
+  (byte-identical with `correctAnchor` neutered)
 
 ## Error cases
 

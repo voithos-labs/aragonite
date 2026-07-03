@@ -9,15 +9,18 @@ import {
 } from './details-helpers';
 
 /**
- * The reveal-into-collapsed degrade (spec §4). Searching for text that lives in
- * a clamped-out body child drives the real reveal path
- * (`revealPath` → container `revealByPath` → `revealChildOrWait`) with the
- * clamp-aware `isInWindow`. That guard is load-bearing: unclamped, the reveal
- * awaits a mount the collapsed body can never produce and hangs a promise
- * forever (VR-5; termination is unit-proven in `reveal-child-or-wait.test.ts`).
- * This gate proves the observable half — the reveal DEGRADES: it neither mounts
- * the body nor mutates `open` (auto-expand is rejected — reveal must never edit
- * the document), and the summary stays the sole accessible surface.
+ * The reveal-into-collapsed degrade (spec §4). Searching for text that lives in a
+ * clamped-out body child drives the real reveal path
+ * (`revealPath` → container `revealByPath` → `revealChildOrWait`) against a
+ * collapsed details. This e2e is NOT the no-hang proof: it stays green with the
+ * `isInWindow` clamp neutered, because the render-window and `revealChild` clamps
+ * enforce these assertions on their own. The no-hang seam (a reveal into a body the
+ * collapse clamp can never mount must terminate, not await a mount forever — VR-5)
+ * is unit-covered — the collapse clamp in `list-windowing-collapse.svelte.test.ts`
+ * and reveal termination in `reveal-child-or-wait.test.ts`. What this gate proves is
+ * the OBSERVABLE, non-mutating degrade on the real search path: the reveal neither
+ * mounts the body nor mutates `open` (auto-expand is rejected — reveal must never
+ * edit the document), and the summary stays the sole accessible surface.
  */
 
 // A closed details whose body holds a needle found only there, plus a sibling

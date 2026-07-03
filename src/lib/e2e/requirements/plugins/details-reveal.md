@@ -3,11 +3,14 @@
 Spec §4's reveal rule: a reveal/focus operation targeting a body child that the
 collapse clamp has unmounted must degrade to the summary WITHOUT mutating the
 document. Auto-expand is rejected — `open` is serialized bytes, so expanding on
-mere reveal (e.g. search navigation) would edit the document. The clamp-aware
-`isInWindow` is what makes the reveal degrade instead of awaiting a mount the
-collapsed body can never produce (the VR-5 hang; termination itself is proven in
-the `reveal-child-or-wait` unit suite). This gate proves the observable degrade
-through the real search path.
+mere reveal (e.g. search navigation) would edit the document. The no-hang seam (a
+reveal into a body the clamp can never mount must terminate rather than await a
+mount forever — the VR-5 hang) is unit-covered, not proven here: the collapse clamp
+in `list-windowing-collapse.svelte.test.ts` and reveal termination in
+`reveal-child-or-wait.test.ts`. This gate stays green with the `isInWindow` clamp
+neutered (the render-window and `revealChild` clamps enforce its assertions), so it
+proves the OBSERVABLE, non-mutating degrade on the real search path — not the
+no-hang.
 
 ## Happy paths
 
