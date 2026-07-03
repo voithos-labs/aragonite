@@ -1,7 +1,9 @@
-// The plugins harness drives the CST contenteditable editor — a client-only
-// surface. Under SSR, a container whose chrome adds a real focusable element
-// (the `<details>` toggle) beside its BlockList perturbs the hydration walk of
-// the contenteditable subtree and the block errors into its render boundary; the
-// sole-child pseudo-element trick the callout uses only sidesteps the symptom.
-// The editor renders identically client-side, so disable SSR for the harness.
-export const ssr = false;
+import type { PageLoad } from './$types';
+
+// Resolve the seed in a universal load, not a `typeof window` guard in the
+// component: the server and client then read the same `?seed`, so the harness
+// SSRs and hydrates one identical document instead of diverging into a
+// hydration mismatch.
+export const load: PageLoad = ({ url }) => {
+	return { seed: url.searchParams.get('seed') };
+};
