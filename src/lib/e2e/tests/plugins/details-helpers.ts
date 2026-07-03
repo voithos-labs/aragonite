@@ -125,9 +125,11 @@ export async function scrollThrough(page: Page, editor: DetailsPage): Promise<vo
 		const el = document.querySelector('.editor') as HTMLElement;
 		return { viewport: el.clientHeight, scrollHeight: el.scrollHeight };
 	});
+	// Precondition, not postcondition: a zero scroll height means there is nothing to
+	// pass over, so guard it before the loop consumes it.
+	expect(scrollHeight).toBeGreaterThan(0);
 	const step = Math.max(1, Math.round(viewport * 0.6));
 	for (let top = 0; top < scrollHeight; top += step) await editor.scrollEditorTo(top);
 	await editor.scrollEditorTo(scrollHeight);
 	await editor.scrollEditorTo(0);
-	expect(scrollHeight).toBeGreaterThan(0);
 }
