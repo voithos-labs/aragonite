@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { Editor } from '$lib';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
 	import { registerCallout } from './callout/register';
 	import { registerDetails } from './details/register';
+
+	let { data }: { data: PageData } = $props();
 
 	// Runs before the child <Editor> mounts and parses `source`, so `:::note` /
 	// `<details>` resolve to their plugin container kinds rather than plain prose.
@@ -14,17 +17,13 @@
 	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
-	// The callout is the default document (the landed callout e2e read it directly);
-	// `?seed=details` swaps in the details seed for the Task 4-5 collapse route,
-	// leaving the default document — and those tests — untouched.
-	function initialSource(): string {
-		if (typeof window === 'undefined') return CALLOUT_SEED;
-		return new URLSearchParams(window.location.search).get('seed') === 'details'
-			? DETAILS_SEED
-			: CALLOUT_SEED;
-	}
-
-	let source = $state(initialSource());
+	// The callout is the default document (the landed callout e2e reads it directly);
+	// `?seed=details` swaps in the details seed for the collapse route. The seed
+	// arrives via the load data, so the server and client render the same document.
+	// One-time snapshot: the harness never re-navigates client-side, and the test
+	// probes then own `source`.
+	// svelte-ignore state_referenced_locally
+	let source = $state(data.seed === 'details' ? DETAILS_SEED : CALLOUT_SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
 
