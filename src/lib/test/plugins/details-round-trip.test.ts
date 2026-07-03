@@ -154,6 +154,16 @@ describe('details rebuildRaw is the opener inverse', () => {
 		expect(details.raw).toBe(src);
 	});
 
+	// Summary padding survives rebuild only because the extraction trims the
+	// trailing line ending alone; `.trim()` would strip the interior spaces and
+	// drift the header line. This is the sole input where the two diverge.
+	it('preserves interior summary padding, trimming only the line ending', () => {
+		const src = '<details>\n<summary>  Padded  </summary>\n\nBody\n\n</details>\n';
+		const details = parse(src).children[0];
+		rebuildDetailsRaw(details);
+		expect(details.raw).toBe(src);
+	});
+
 	it('is deterministic across repeated rebuilds (G1.13)', () => {
 		const details = parse(OPEN_SRC).children[0];
 		rebuildDetailsRaw(details);
