@@ -59,15 +59,6 @@ A cross-block delete whose whole-row snap removes table rows splices `table.chil
 
 ## Plugin containers
 
-### Backspace below a collapsed container merges into the hidden body
-
-**Severity:** major (text vanishes into the clamped-out body and the caret is lost; undo-recoverable, byte-faithful)
-**Files:** `src/lib/editor-actions/block-edit-core.ts` (`mergeWithPreviousInterior`), `src/lib/schema/merge-rules.ts` (`findMergeTarget` / `walkToDeepestMergeLeaf`)
-
-Backspace at the start of the block after a collapsed `<details>` runs the parent scope's merge, whose walker descends last-child-wise to the deepest prose leaf — the clamped-out body ("Hidden" becomes "HiddenBelow", invisible) — and the post-merge `focusByPath` no-ops on the unmounted ref, stranding the caret. The walk is a pure CST decision made before any component is consulted, so the container factory's override channel (which wraps only interior contexts) cannot see it; the same class recurs for a collapsed container nested as the last body child of an open one.
-
-**Fix direction:** teach the merge walker to decline descending into a collapsed reserved-chrome container via a declaration-driven collapse probe (the `schema/reserved-chrome.ts` pattern). The existing null-target fallback then focuses the container end, which the collapse clamp lands on the summary — the interior not-mergeable-title rule mirrored across the boundary, with no mutation. Pinned by a `test.fixme` in `details-container.spec.ts`; the probe is a schema-surface addition pending sign-off (pre-freeze plugin contract).
-
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
 
 **Severity:** trivial (plugin misuse; unreachable via seam defaults)

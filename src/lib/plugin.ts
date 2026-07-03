@@ -49,3 +49,6 @@ export type {
 } from './editor-actions/plugin-container';
 export { registerChromeLeaf } from './editor-actions/plugin-chrome-leaf';
 export type { ChromeLeafOptions } from './editor-actions/plugin-chrome-leaf';
+// Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
+// collapse getter and the model-layer walks share one definition.
+export { isCollapsedContainer } from './schema/reserved-chrome';

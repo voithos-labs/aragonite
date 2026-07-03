@@ -62,7 +62,16 @@ export interface BlockKindDescriptor {
 	 * single-line, cleared-not-deleted by range ops, kind-stable. The chrome kind
 	 * itself is registered via registerChromeLeaf.
 	 */
-	reservedChrome?: { kind: AnyBlockKind };
+	reservedChrome?: {
+		kind: AnyBlockKind;
+		/**
+		 * How the machinery reads this container's collapsed state — a PURE model
+		 * probe (node in, bool out; no DOM, no component state). Absent = never
+		 * collapsed. Collapse-aware walks (e.g. the Backspace merge walker) stop
+		 * at the chrome leaf instead of reaching into the clamped-out body.
+		 */
+		isCollapsed?: (node: CstNode) => boolean;
+	};
 	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
 	 * block is this kind merges into a same-kind ancestor instead of nesting

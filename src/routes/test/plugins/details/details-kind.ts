@@ -80,7 +80,10 @@ export function registerDetailsKind(): void {
 		supportsInline: false,
 		containerContract: 'opaque',
 		rebuildRaw: rebuildDetailsRaw,
-		reservedChrome: { kind: detailsSummary },
+		reservedChrome: {
+			kind: detailsSummary,
+			isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
+		},
 		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 	});
 
