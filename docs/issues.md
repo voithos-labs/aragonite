@@ -59,14 +59,14 @@ A cross-block delete whose whole-row snap removes table rows splices `table.chil
 
 ## Plugin containers
 
-### Collapsed title-only descend mints an invisible body paragraph
+### Backspace below a collapsed container merges into the hidden body
 
-**Severity:** minor (latent; unreachable until a collapsible container ships)
-**Files:** `src/lib/editor-actions/block-edit-core.ts` (`descendToBody`)
+**Severity:** major (text vanishes into the clamped-out body and the caret is lost; undo-recoverable, byte-faithful)
+**Files:** `src/lib/editor-actions/block-edit-core.ts` (`mergeWithPreviousInterior`), `src/lib/schema/merge-rules.ts` (`findMergeTarget` / `walkToDeepestMergeLeaf`)
 
-`descendToBody`'s mint branch (chrome is the only child) commits an empty body paragraph plus an undo entry unconditionally — unlike the focus-move branch, it is not gated on the body slot being mountable. In a collapsed (`{#if open}`) title-only container, Enter in the title would mint an invisible empty paragraph and a dead undo entry.
+Backspace at the start of the block after a collapsed `<details>` runs the parent scope's merge, whose walker descends last-child-wise to the deepest prose leaf — the clamped-out body ("Hidden" becomes "HiddenBelow", invisible) — and the post-merge `focusByPath` no-ops on the unmounted ref, stranding the caret. The walk is a pure CST decision made before any component is consulted, so the container factory's override channel (which wraps only interior contexts) cannot see it; the same class recurs for a collapsed container nested as the last body child of an open one.
 
-**Why deferred:** no collapsible container exists yet, so the branch cannot be reached. Design the mountability gate alongside the details cycle's collapse model.
+**Fix direction:** teach the merge walker to decline descending into a collapsed reserved-chrome container via a declaration-driven collapse probe (the `schema/reserved-chrome.ts` pattern). The existing null-target fallback then focuses the container end, which the collapse clamp lands on the summary — the interior not-mergeable-title rule mirrored across the boundary, with no mutation. Pinned by a `test.fixme` in `details-container.spec.ts`; the probe is a schema-surface addition pending sign-off (pre-freeze plugin contract).
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
 
