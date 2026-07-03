@@ -633,11 +633,22 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 	}
 
 	// Whole-row-snap deletes leave the table's OWN row ids stale — a pre-existing
-	// gap reproducible without chrome (docs/issues.md § Tables). Audit everything
-	// but that known staleness so the container's state stays guarded.
+	// gap reproducible without chrome (docs/issues.md § Tables): refs track the
+	// rendered rows so they shrink with children, while the unscoped ids array
+	// lags longer. Tolerate ONLY that exact signature; any other table-state
+	// desync still fails, so the exclusion can't mask a real regression.
 	async function nonTableStateViolations(page: Page): Promise<unknown[]> {
-		const violations = (await stateConsistencyViolations(page)) as Array<{ kind?: string }>;
-		return violations.filter((v) => v.kind !== 'table');
+		const violations = (await stateConsistencyViolations(page)) as Array<{
+			kind?: string;
+			childrenLen: number;
+			idsLen: number;
+			refsLen: number;
+		}>;
+		return violations.filter((v) => {
+			if (v.kind !== 'table') return true;
+			const knownStaleRowIds = v.refsLen === v.childrenLen && v.idsLen > v.childrenLen;
+			return !knownStaleRowIds;
+		});
 	}
 
 	async function dragPoints(
