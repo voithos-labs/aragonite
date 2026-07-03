@@ -164,4 +164,36 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect((await readDetails(page, 0)).childTexts).toEqual(['SummaryZ', 'qBody']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
+
+	test('a cross-block copy ending mid-summary pastes back as a real details, open flag intact', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'Above\n\n<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\nBelow\n'
+		);
+
+		// Drag-select from the prose above into the middle of the summary, then copy.
+		await editor.dragFromTo([0], 2, [1, 0], 3);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		await page.keyboard.press('Control+c');
+		await editor.waitForClipboardWrite();
+
+		// Paste into "Below": the synthesized closer makes the bytes reparse to a
+		// second `<details>` carrying the truncated summary and the live open flag.
+		await editor.clickBlock(2);
+		await editor.waitForCrossBlock(false);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('<summary>Sum</summary>');
+
+		const pasted = await page.evaluate(() => {
+			const notes = (window as any).__test
+				.getDocument()
+				.children.filter((c: { kind: string }) => c.kind === 'details');
+			return { count: notes.length, lastRaw: notes[notes.length - 1]?.raw ?? '' };
+		});
+		expect(pasted.count).toBe(2);
+		expect(pasted.lastRaw).toContain('<details open>');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
 });
