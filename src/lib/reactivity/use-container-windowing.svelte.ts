@@ -30,6 +30,8 @@ export interface ContainerWindowingOpts {
 	getOwnEl?: () => HTMLElement | null;
 	/** True when this scope's DIRECT children are `BlockHost`s (editor / blockquote / list-item) → shadow the leaf channel. False for direct-`{#each}` scopes (list / table). */
 	provideLeafChannel: boolean;
+	/** Collapse clamp — while true this scope mounts only its chrome row (child 0). See `ListWindowingDeps.isCollapsed`. */
+	isCollapsed?: () => boolean;
 }
 
 /**
@@ -69,6 +71,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
+		isCollapsed: opts.isCollapsed,
 		// A fling can outrun the deferred window recompute by more than the overscan
 		// band, briefly painting an empty spacer (VR-8). 6 widens the band without
 		// breaching the mounted-set ceiling (the < 60 flat e2e bound is the guard); a

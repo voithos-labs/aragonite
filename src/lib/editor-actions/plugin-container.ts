@@ -42,6 +42,10 @@ export interface ContainerBlockDeps {
 	get index(): number;
 	get path(): number[];
 	getBoxEl(): HTMLElement | undefined;
+	/** Collapse clamp — while true only the chrome row (child 0) mounts; body children
+	 *  genuinely unmount. Read live (typically off this node's metadata) so a toggle or
+	 *  its undo re-renders reactively. */
+	isCollapsed?: () => boolean;
 }
 
 /** The `BlockList` props the host spreads onto its rendered `<BlockList>`. */
@@ -111,7 +115,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		getChildIds: () => listState.innerBlockIds,
 		getListEl: () => deps.getBoxEl()?.querySelector(':scope > .block-list') ?? null,
 		getOwnEl: () => deps.getBoxEl()?.closest('.block-host') ?? null,
-		provideLeafChannel: true
+		provideLeafChannel: true,
+		isCollapsed: deps.isCollapsed
 	});
 
 	const containerApi = createContainerBlockComponent({
