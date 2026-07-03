@@ -1,5 +1,15 @@
-import { test, expect, type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { test, expect } from '@playwright/test';
+import {
+	DetailsPage,
+	readDetails,
+	activeBlockPath,
+	bodyHostCount,
+	capturedErrors,
+	collectInvariantWarnings,
+	OPEN,
+	SUMMARY_ONLY,
+	CLOSED_WITH_BELOW
+} from './details-helpers';
 
 /**
  * WS-B Cycle 2 — the `<details>` collapsible, the second reserved-chrome
@@ -9,80 +19,13 @@ import { EditorPage } from '../../editor-page';
  * decided caret rules — asserted against the CST by path, the serialized
  * bytes, and the mounted body-host count.
  */
-class PluginsPage extends EditorPage {
-	async gotoDetails() {
-		await this.page.goto('/test/plugins?seed=details');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
-interface DetailsState {
-	rootCount: number;
-	kind: string;
-	childCount: number;
-	childKinds: string[];
-	childTexts: string[];
-	raw: string;
-}
-
-async function readDetails(page: Page, index: number): Promise<DetailsState> {
-	return page.evaluate((i) => {
-		const doc = (window as any).__test.getDocument();
-		const d = doc.children[i];
-		return {
-			rootCount: doc.children.length,
-			kind: d?.kind ?? '',
-			childCount: d?.children?.length ?? 0,
-			childKinds: (d?.children ?? []).map((c: { kind?: string }) => c.kind ?? ''),
-			childTexts: (d?.children ?? []).map((c: { raw?: string }) =>
-				(c.raw ?? '').replace(/\n+$/, '')
-			),
-			raw: d?.raw ?? ''
-		};
-	}, index);
-}
-
-// CST path of the block holding the DOM caret — the oracle for "the caret landed".
-async function activeBlockPath(page: Page): Promise<number[] | null> {
-	return page.evaluate(() => {
-		const el = document.activeElement?.closest('[data-block-path]');
-		const attr = el?.getAttribute('data-block-path');
-		return attr ? (JSON.parse(attr) as number[]) : null;
-	});
-}
-
-// Body children mount as `.block-host`s inside the box; the count drops to the
-// lone summary host when collapsed — the observable proof the clamp unmounted.
-async function bodyHostCount(page: Page): Promise<number> {
-	return page.evaluate(() => document.querySelectorAll('.details-block .block-host').length);
-}
-
-async function capturedErrors(page: Page): Promise<string[]> {
-	return page.evaluate(() => (window as any).__test.getCapturedErrors());
-}
-
-const OPEN = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
-const SUMMARY_ONLY = '<details>\n<summary>Sum</summary>\n</details>\n';
-const CLOSED_WITH_BELOW = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n\nBelow\n';
-
 test.describe('plugin container: <details> collapsible', () => {
-	let editor: PluginsPage;
-	// Opaque-container + state-consistency guards emit `[invariant:…]` console
-	// warnings — a channel the structured error event doesn't carry. Watch it so a
-	// clamp-driven violation fails the gate instead of passing silently.
+	let editor: DetailsPage;
 	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
-		editor = new PluginsPage(page);
-		invariantWarnings = [];
-		page.on('console', (m) => {
-			const type = m.type();
-			if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
-				invariantWarnings.push(`${type}: ${m.text()}`);
-		});
+		editor = new DetailsPage(page);
+		invariantWarnings = collectInvariantWarnings(page);
 		await editor.gotoDetails();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
