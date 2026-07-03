@@ -148,6 +148,50 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('ArrowDown from a collapsed summary exits below the container', async ({ page }) => {
+		await editor.loadContent(CLOSED_WITH_BELOW);
+		expect(await bodyHostCount(page)).toBe(1); // body clamped out
+		await editor.focusBlockAtPath([0, 0], 3); // end of "Sum"
+
+		// The move targets the unmounted body child; it must delegate past the
+		// container to "Below", not silently dead-end on the absent ref.
+		await page.keyboard.press('ArrowDown');
+		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('ArrowRight at the end of a collapsed summary exits below the container', async ({
+		page
+	}) => {
+		await editor.loadContent(CLOSED_WITH_BELOW);
+		await editor.focusBlockAtPath([0, 0], 3); // end of "Sum"
+
+		await page.keyboard.press('ArrowRight');
+		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// fixme: pins the collapse-unaware cross-boundary merge (docs/issues.md §
+	// "Plugin containers"). The parent scope's merge walk descends into the
+	// clamped-out body ("Hidden" becomes "HiddenBelow", invisible; caret lost);
+	// the fix needs a collapse probe on the merge walker — a schema-surface
+	// decision pending sign-off. Flip to `test` when the gate lands.
+	test.fixme('Backspace below a collapsed details does not merge into the hidden body', async ({
+		page
+	}) => {
+		await editor.loadContent(CLOSED_WITH_BELOW);
+		await editor.focusBlockAtPath([1], 0); // start of "Below"
+
+		// The cross-boundary merge walk must not write into the clamped-out body:
+		// no mutation, caret to the summary end (the interior not-mergeable-title
+		// rule, mirrored across the container boundary).
+		await page.keyboard.press('Backspace');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('summary editing round-trips and Enter descends into the body (inherited chrome)', async ({
 		page
 	}) => {
