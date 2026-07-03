@@ -2,6 +2,17 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.5 — Details/collapsible: the second chrome consumer + first-class collapse
+
+The `details`/collapsible dev-harness plugin validated the reserved-chrome contract as its second real consumer — zero internal reach-ins for the component, SSR + hydration clean with interactive chrome — and collapse landed as first-class machinery.
+
+- **The `<details>` kind** — a narrow canonical form claimed ahead of the htmlBlock opener (non-canonical HTML declines back to it), the summary as a chrome child, and `open` metadata round-tripping `<details>` ↔ `<details open>` byte-for-byte.
+- **Collapse is a windowing clamp** — a collapsed container renders only its chrome row through the existing windowing machinery: the body genuinely unmounts (O(viewport) preserved), and reveal into a collapsed body degrades to the summary _without editing the document_.
+- **A declared collapse probe** — `reservedChrome.isCollapsed` on the container descriptor makes every child-adjacency operation collapse-aware as a class: merge-from-below stops at the chrome instead of writing into the hidden body, arrows exit the summary, and Enter cannot mint invisible paragraphs.
+- **Chrome × table composition closed** — cross-block ranges involving tables inside a chrome container's body now honor the chrome wall (clear, never delete); a latent identity bug in the table branch's nested-endpoint path was fixed in the same pass.
+- **Clipboard** — a cross-block copy ending mid-title/summary now emits reparseable container bytes via the kind's own raw rebuild over a synthetic chrome node (the start-in-chrome direction is recorded for the post-1.0 clipboard generalization).
+- **Promotion finding** — both consumers independently need the same three core helpers (`parse`, child serialization, line-ending trim); they are promotion candidates for the plugin surface when the tarball gate forces the decision.
+
 ### 0.9.4 — Plugin authoring: containers, editable chrome, the reserved-chrome contract
 
 The first real plugin-authoring surfaces, exposed **pre-freeze** on the `aragonite/plugin` subpath and dogfooded by a `:::note` callout dev-harness plugin (`/test/plugins`). Design records: `docs/design/editor/plugin-contract.md` (pre-freeze surface + boundary), `docs/issues.md` § Plugin containers (known deferrals).
