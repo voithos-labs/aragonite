@@ -124,7 +124,7 @@ Follow the forge-\* conventions (style, docs, tests, review) where the toolchain
 
 Any dispatched subagent (via the `Agent` tool) must invoke the `forge-style`, `forge-docs`, and `forge-tests` skills at the start of its task and enforce them in every file it touches — including improving pre-existing verbose comments that fall in its path. Subagent briefs must name these three skills explicitly.
 
-**Run dispatched subagents on opus 4.8.** Weaker models stall on multi-step editor work and produce unreliable reactivity / invariant changes; recheck any work a weaker model produced before trusting it.
+**Run dispatched subagents on opus 4.8 or fable 5.** For complex tasks, use fable 5, for simpler tasks, use opus 4.8.
 
 **The controller (dispatching session) owns long-running processes** — the full e2e batteries, the perf gate, and the simulation suite. A subagent dies on a multi-minute stream-idle timeout whether it is parked on a background run or grinding a long active dispatch, so keep each dispatch bounded and run the long gates from the controller.
 
