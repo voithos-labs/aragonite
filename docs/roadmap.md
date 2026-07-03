@@ -16,15 +16,14 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 Remaining work, ordered:
 
-1. **`details`/collapsible** — the second real container consumer (the freeze's ≥2-consumer gate). Owns the chrome×table range composition, the collapse × chrome × windowing interaction (`docs/issues.md` § Plugin containers), and the cross-wall clipboard byte-fix.
-2. **Command mint** — plugin-minted command ids over the existing register-once registry. Drivers: a `callout.setKind`-style command and chrome keymap overrides.
+1. **Command mint** — plugin-minted command ids over the existing register-once registry. Drivers: a `callout.setKind`-style command and chrome keymap overrides.
+2. **Registry hardening — before limestone binds.** Duplicate-registration guard on the inline-widget registry, own-kind-only `augmentBlockKind`, an opener late-registration policy, and a bootstrap coherence check for `reservedChrome` declarations.
 3. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving consumer.
-4. **Registry hardening — before limestone binds.** Duplicate-registration guard on the inline-widget registry, own-kind-only `augmentBlockKind`, an opener late-registration policy, and a bootstrap coherence check for `reservedChrome` declarations.
-5. **Tarball-gate the extensions** — every dogfood extension builds and runs through the packed tarball in `examples/consumer`.
-6. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-7. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays every PR.
-8. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-9. **Freeze cut at release** — final contract reconciliation; the pre-freeze labels come off.
+4. **Tarball-gate the extensions** — every dogfood extension builds and runs through the packed tarball in `examples/consumer`; forces the pending promotion of the core helpers both consumers need onto `aragonite/plugin`.
+5. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
+6. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays every PR.
+7. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood extensions, a theme toggle, prop toggles; keep and polish the debug panel.
+8. **Freeze cut at release** — final contract reconciliation; the pre-freeze labels come off; pending owner decisions land (open-state-aware height estimation for collapsed containers).
 
 **Standing posture: invariant guards over invariant docs.** Every load-bearing contract the types can't express becomes a guard that fails at the gate, not in a vault. The complexity is essential — cap the downside, don't simplify.
 
