@@ -42,9 +42,10 @@
 
 <style>
 	/* Chrome is the only divergence from the built-in blockquote. The icon is a
-	   positioned pseudo-element so BlockList stays the box's sole child element —
-	   createContainerBlock's `:scope > .block-list` windowing lookup depends on
-	   that adjacency. */
+	   positioned pseudo-element rather than a real element — a style choice, not a
+	   requirement: the `:scope > .block-list` windowing lookup only needs BlockList
+	   to stay a DIRECT child, not the sole one (DetailsBlock puts a real button
+	   sibling beside it). */
 	.callout-block {
 		position: relative;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);

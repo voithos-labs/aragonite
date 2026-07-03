@@ -39,7 +39,8 @@ import {
  * Reactive inputs the host component feeds in as getters (Design Rule 5): each is
  * re-read live so a parent structural op or undo replacement is observed, never
  * snapshotted. `getBoxEl` returns the component's chrome box — the element whose
- * sole `.block-list` child the windowing lookups walk.
+ * direct `.block-list` child the windowing lookups walk (`:scope > .block-list`,
+ * so chrome siblings beside the list are fine; it need not be the sole child).
  */
 export interface ContainerBlockDeps {
 	get node(): CstNode;
