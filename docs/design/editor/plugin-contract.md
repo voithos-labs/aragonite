@@ -240,6 +240,12 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   chrome slot on its descriptor, and the machinery enforces the **reserved-chrome contract**:
   the slot is always present, single-line (unsplittable; paste flattens inline), cleared —
   never node-deleted — by destructive ranges, and kind-stable through every edit.
+- **Collapsible containers:** the declaration optionally carries a pure collapse probe
+  (`isCollapsed` over the node); from that one declaration, every child-adjacency operation —
+  merge from below, focus walks in and out, Enter-descend, reveal — is collapse-aware, and the
+  container factory clamps its window to the chrome row (the body genuinely unmounts). The
+  factory also returns a metadata-commit handle (`updateOwnMetadata`) for behavioral fields
+  like a collapsible's open state — merged, raw-rebuilt, and undoable in one commit.
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
   through edits), and an opaque container contract (raw is authoritative, not a strip
   decomposition), both invariant-guarded.
