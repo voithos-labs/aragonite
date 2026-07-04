@@ -6,13 +6,14 @@
  */
 
 import { CURSOR_END } from '../../block-component';
-import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import { normalizeItemMarkerToList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
@@ -97,6 +98,22 @@ function hasSingleParagraphChild(node: CstNode): boolean {
 	return !!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph';
 }
 
+/**
+ * Template pasted items' bullet glyph to a matching unordered `list` ancestor
+ * before they splice in, so a `*`/`+` paste into a `- ` list serializes as one
+ * list to reference parsers, not two. Markers are set on the not-yet-spliced
+ * items — Svelte-5's precompute-before-splice discipline (see `list-absorb`).
+ *
+ * Scoped to unordered lists: `matchesAncestor` requires equal ordered flags, so
+ * an unordered ancestor only ever receives unordered items; ordered ancestors
+ * keep the pasted numbering, and non-list containers (blockquote) have no
+ * listItem markers to touch.
+ */
+function normalizePastedListMarkers(items: CstNode[], outer: CstNode): void {
+	if (outer.kind !== 'list' || metadataOf(outer, 'list')?.ordered) return;
+	for (const item of items) normalizeItemMarkerToList(item, outer);
+}
+
 export async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
 	ctx: PasteDispatchContext
@@ -110,6 +127,8 @@ export async function applyContainerMatchingPaste(
 		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx);
 		return;
 	}
+
+	normalizePastedListMarkers(unwrap.items, outer);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
@@ -164,6 +183,9 @@ async function applyContainerMatchingMerge(
 	const firstItemText = trimTrailingLineEnding(firstLeaf.raw);
 
 	const remainingItems = unwrap.items.slice(1);
+	// The first item's content merges into the target leaf (keeping its marker);
+	// only the trailing siblings splice in, so only those need the glyph adopted.
+	normalizePastedListMarkers(remainingItems, outer);
 
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({

@@ -6,6 +6,7 @@ import {
 	registerBlockComponent,
 	isBlockComponentRegistered
 } from '../../schema/block-component-registry';
+import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 
 const fakeComponent = (() => {}) as unknown as Parameters<typeof defineBlockComponent>[0];
@@ -19,6 +20,7 @@ describe('registration probes', () => {
 		expect(isBlockKindRegistered('paragraph')).toBe(true);
 		expect(isBlockKindRegistered('nope')).toBe(false);
 		expect(isBlockComponentRegistered('nope')).toBe(false);
+		expect(isBlockOpenerRegistered('nope')).toBe(false);
 	});
 
 	it('flips from false to true across a plugin kind registration', () => {
@@ -37,5 +39,12 @@ describe('registration probes', () => {
 		expect(isBlockComponentRegistered('probeComponent')).toBe(false);
 		registerBlockComponent(kind, defineBlockComponent(fakeComponent));
 		expect(isBlockComponentRegistered('probeComponent')).toBe(true);
+	});
+
+	it('flips from false to true across a plugin opener registration', () => {
+		const kind = declarePluginKind('probeOpener');
+		expect(isBlockOpenerRegistered('probeOpener')).toBe(false);
+		registerBlockOpener(kind, { priority: 100, tryOpen: () => null, interruptsParagraph: false });
+		expect(isBlockOpenerRegistered('probeOpener')).toBe(true);
 	});
 });

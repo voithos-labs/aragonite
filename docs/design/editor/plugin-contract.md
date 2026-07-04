@@ -232,8 +232,8 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
 
 - **Registration base (frozen):** kind declaration (plus `declaredPluginKind`, the checked
   accessor that recovers a declared brand in another module without a cast), descriptor /
-  component / opener registration, idempotent-registration probes for kind and component
-  registration, typed per-node plugin metadata.
+  component / opener registration, idempotent-registration probes for kind, component, and
+  opener registration, typed per-node plugin metadata.
 - **Opener + serialize helpers:** `parse` (body → `Document`), `serializeChildren` (join child
   bytes), and `trimTrailingLineEnding` (CRLF-correct display text) — the recognizer and
   serializer halves an opener and `rebuildRaw` need, promoted off `core/` deep paths so the
