@@ -427,7 +427,7 @@ Snapshots share structure with the live tree: an entry references the live nodes
 - Before every clipboard operation (cut, paste)
 - Text input is batched: consecutive keystrokes in the same block group into one entry, broken by pauses, focus changes, or structural operations
 
-The snapshot's selection path is read live from the focused leaf via `getCursorPosition` walks (top-level → row → cell, etc.), so undo lands the caret on the exact leaf that was being typed in — including inside nested containers (table cells, list items, lists-in-blockquotes). The caller-supplied offset overrides the live (post-edit) offset on that leaf to preserve the pre-edit position. When no ref reports a cursor (headless harness), the path falls back to `[blockIndex]`.
+The snapshot's selection path is read live from the focused leaf via `getCursorPosition` walks (top-level → row → cell, etc.), so undo lands the caret on the exact leaf that was being typed in — including inside nested containers (table cells, list items, lists-in-blockquotes). The caller-supplied offset overrides the live (post-edit) offset on that leaf to preserve the pre-edit position. When no ref reports a cursor (headless harness, handle drags, menu-driven ops), the path falls back to the commit's declared doc-absolute restore coordinate — minted by the commit scope, so it resolves to the operated child, not a scope-local index.
 
 ### Behavior
 
@@ -449,7 +449,7 @@ All three entry points delegate to one internal commit helper that owns the full
 
 The editor component exposes an observer-pattern event surface via its `getEvents()` accessor. Three channels:
 
-- **`edit`** — fires after every commit. Payload is the `EditEvent` discriminated union (`editor-events.ts`), keyed by `op` over the `OperationKind` enum: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`.
+- **`edit`** — fires after every commit. Payload is the `EditEvent` discriminated union (`editor-events.ts`), keyed by `op` over the `OperationKind` enum: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`. `path` is doc-absolute for every op — including `input` (the edited leaf) and nested container ops — and resolves from the document root to the operated node (or the one-past-end slot an append creates). Column-shaped table ops target the table; the column index rides in `detail`.
 - **`selectionChange`** — fires whenever the selection state changes. Payload is the selection snapshot or `null`.
 - **`error`** — fires on a failure the editor contains rather than propagates, as an `EditorError` discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently dropped), a `render` throw (caught by the per-`BlockHost` `<svelte:boundary>`, which degrades that block to a recoverable fallback while its siblings survive), or a `commit` throw (the commit ceremony rolls the undo/redo stacks back to their pre-commit state before reporting). One seam for a consumer to surface or log every contained failure.
 

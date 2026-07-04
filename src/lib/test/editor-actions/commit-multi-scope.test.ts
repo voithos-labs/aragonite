@@ -25,7 +25,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
 				return [{ op: 'insert', at: 2, count: 1 }];
@@ -60,7 +60,7 @@ describe('commitMultiScope', () => {
 				{ node: deps.doc.children[0], state: stateA, path: [0] },
 				{ node: deps.doc.children[1], state: stateB, path: [1] }
 			],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scopeA, scopeB]) => {
 				scopeA.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- d\n' });
 				scopeB.children.splice(1, 1);
@@ -90,7 +90,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: before, state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.splice(0, 1);
 				return [{ op: 'delete', at: 0, count: 1 }];
@@ -124,7 +124,7 @@ describe('commitMultiScope', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { blockIndex: 0, offset: 0 },
+				snapshot: { path: [0], offset: 0 },
 				mutate: () => [{ op: 'noop' }]
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 1 changes for 2 scopes');
@@ -140,7 +140,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: () => [{ op: 'noop' }],
 			op: { kind: 'delete', eventPath: [0] }
 		});
@@ -157,7 +157,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
 				const original = scope.children[0];
 				scope.children.splice(0, 1, original, {

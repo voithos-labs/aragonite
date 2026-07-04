@@ -144,7 +144,7 @@ Subscribe to the observer surface via `editor.getEvents()`. Three channels:
 
 Payload envelopes (the per-op arms change; read the source type rather than enumerating them here):
 
-- **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op` (the operation kind). `detail` is the per-op payload defined in `schema/operations.ts`.
+- **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op` (the operation kind). `path` is doc-absolute for every op — nested ops and the typing flush included — and resolves from the document root to the operated node. `detail` is the per-op payload defined in `schema/operations.ts`.
 - **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
 - **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit` and `context` carries the block path or op kind when known.
 

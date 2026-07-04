@@ -85,7 +85,9 @@ describe('block-edit core — shared structural decisions', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — the not-editable-merge eventPath watch-point.
+		// The deleted neighbor (i-1), not i — both scope factories mint the
+		// emitted event path from this target (top-level parity pinned in
+		// top-level-event-paths.test.ts).
 		expect(commits[0].eventTarget).toBe(0);
 	});
 

@@ -24,15 +24,23 @@ import type {
 	EditorActionsDeps,
 	UndoController
 } from '../deps';
-import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
-import type { OpDescriptor } from '../../schema/operations';
+import type {
+	CommitMultiScopeArgs,
+	CommitSnapshotArg,
+	MultiScopeTarget
+} from '../../action-contracts';
+import type { ScopedOpDescriptor } from '../../schema/operations';
 import { toEditEvent } from '../../editor-events';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { assertCommittedNodes, assertUndoTopIntegrity } from '../../invariants/install';
+import {
+	assertCommitPaths,
+	assertCommittedNodes,
+	assertUndoTopIntegrity
+} from '../../invariants/install';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import {
 	docByteLength,
@@ -131,7 +139,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// Path from the live focused leaf; offset from the caller (pre-edit). The
 	// live cursor is post-edit but its path still points at the same leaf.
-	function pushUndoSnapshotAt(blockIndex: number, offset: number): void {
+	function pushTypingSnapshot(leafPath: number[], offset: number): void {
 		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
 		const liveIsCollapsed =
 			!!live &&
@@ -139,7 +147,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			live.anchor.offset === live.focus.offset;
 		const selection = liveIsCollapsed
 			? collapsedSelectionAtPath(live.anchor.path, offset)
-			: collapsedSelectionAt(blockIndex, offset);
+			: collapsedSelectionAtPath(leafPath, offset);
 		deps.undoManager.push({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
@@ -149,11 +157,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	const textBatch = createTextBatch({
-		pushSnapshot: pushUndoSnapshotAt,
-		emitInput: (blockIndex, byteLength) =>
+		pushSnapshot: pushTypingSnapshot,
+		emitInput: (leafPath, byteLength) =>
 			deps.events.emit('edit', {
 				op: 'input',
-				path: [blockIndex],
+				path: leafPath,
 				detail: { byteLength },
 				timestamp: Date.now()
 			})
@@ -174,7 +182,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	type CommitArgs =
 		| {
 				kind: 'document';
-				snapshot: { blockIndex: number; offset: number } | 'skip';
+				snapshot: CommitSnapshotArg;
 				/**
 				 * Mutate `children` in place; return a StructuralChange describing the
 				 * array-shape mutation. The primitive auto-syncs ids/refs from the
@@ -182,8 +190,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				 */
 				mutate: (children: CstNode[]) => StructuralChange;
 				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
-				op?: OpDescriptor;
-				eventPath: number[];
+				op?: ScopedOpDescriptor;
 				afterTick?: () => void;
 				/**
 				 * Nodes for the dev invariant check when the StructuralChange doesn't
@@ -194,7 +201,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		  }
 		| {
 				kind: 'container';
-				snapshot: { blockIndex: number; offset: number } | 'skip';
+				snapshot: CommitSnapshotArg;
 				/**
 				 * Apply the inner mutation directly to container state. Callbacks own
 				 * their own scope copies + atomic publish back to node.children and
@@ -204,8 +211,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				mutate: () => void;
 				/** Post-mutation reactivity nudge (e.g. doc.children = [...doc.children]). */
 				publish: () => void;
-				op?: OpDescriptor;
-				eventPath: number[];
+				op?: ScopedOpDescriptor;
 				afterTick?: () => void;
 				/**
 				 * Directly-mutated containers (innermost scopes) for the dev invariant
@@ -225,21 +231,25 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
 
+		if (import.meta.env.DEV) {
+			// Pre-mutate: both declared coordinates must be doc-absolute — a
+			// scope-local index leaking in fails here, not at some distant undo.
+			assertCommitPaths(
+				deps.doc,
+				args.snapshot === 'skip' ? null : args.snapshot.path,
+				args.op?.eventPath ?? null
+			);
+		}
+
 		// Capture before the push so a throwing mutation can roll both stacks
 		// back. Wholesale restore (not a pop) because push may evict the oldest
 		// at cap.
 		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
 		if (args.snapshot !== 'skip') {
-			// With no live caret (e.g. a handle drag) the snapshot synthesizes a
-			// restore path. A container edit's coordinate is child-relative, so
-			// prefix it with the container's eventPath; a document edit's is already
-			// a top-level index. (When a caret IS live — every keyboard path — it
+			// With no live caret (e.g. a handle drag) the snapshot restores to the
+			// declared coordinate. (When a caret IS live — every keyboard path — it
 			// wins and this fallback is unused.)
-			const fallbackPath =
-				args.kind === 'container'
-					? [...args.eventPath, args.snapshot.blockIndex]
-					: [args.snapshot.blockIndex];
-			pushUndoSnapshotPath(fallbackPath, args.snapshot.offset);
+			pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
 		}
 
 		// The container branch mutates the live tree in place (its scope views
@@ -288,7 +298,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			deps.events.emit('error', {
 				origin: 'commit',
 				error: err,
-				context: { op: args.op?.kind, path: args.eventPath }
+				context: { op: args.op?.kind, path: args.op?.eventPath }
 			});
 			// Loud for developers; production swallows so a single failed mutation
 			// doesn't kill the editor (the tree stays intact: the document branch
@@ -298,7 +308,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 
 		if (args.op) {
-			deps.events.emit('edit', toEditEvent(args.op, args.eventPath, Date.now()));
+			deps.events.emit('edit', toEditEvent(args.op, args.op.eventPath, Date.now()));
 		}
 
 		await tick();
@@ -310,10 +320,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	async function commitStructural(args: CommitStructuralArgs): Promise<void> {
 		const { snapshot, mutate, op, afterTick, touchedNodes } = args;
-		// eventPath derives from the snapshot when one is pushed; 'skip' means a
-		// caller already owns the event path, so fall back to [] when no snapshot
-		// coordinate is available.
-		const eventPath = snapshot === 'skip' ? [] : [snapshot.blockIndex];
 		await __commit({
 			kind: 'document',
 			snapshot,
@@ -324,7 +330,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				deps.setBlockRefs(refs);
 			},
 			op,
-			eventPath,
 			afterTick,
 			touchedNodes
 		});
@@ -464,7 +469,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				deps.doc.children = [...deps.doc.children];
 			},
 			op,
-			eventPath: op?.eventPath ?? [],
 			afterTick,
 			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
 			touchedNodes: () =>

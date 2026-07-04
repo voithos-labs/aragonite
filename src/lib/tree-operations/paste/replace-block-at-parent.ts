@@ -59,7 +59,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	await controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: undoEntry === 'join' ? 'skip' : { blockIndex: blockPath[0], offset: 0 },
+		snapshot: undoEntry === 'join' ? 'skip' : { path: blockPath.slice(), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
 			// Identity preservation only helps when the kind matches — different

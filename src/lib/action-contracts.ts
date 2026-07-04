@@ -8,7 +8,16 @@ import type { CstNode, TableAlignment } from './core/nodes';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { OpDescriptor, ScopedOpDescriptor } from './schema/operations';
+import type { ScopedOpDescriptor } from './schema/operations';
+
+/**
+ * No-caret caret-restore coordinate stored with a commit's undo snapshot:
+ * `path` is DOC-ABSOLUTE and must resolve in the pre-mutation tree. `'skip'`
+ * joins the caller's already-pushed entry (composite operations). The scope
+ * factories (`block-edit-scope.ts`) mint the path from local indices — call
+ * sites below a factory never compose absolute paths themselves.
+ */
+export type CommitSnapshotArg = { path: number[]; offset: number } | 'skip';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the
@@ -138,9 +147,9 @@ export interface MultiScopeTarget {
 export interface CommitMultiScopeArgs<
 	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
 > {
-	/** `scopes[0]` is the outermost — it drives the emitted event path. */
+	/** `scopes[0]` is the outermost — inner raws must be current before outer rebuilds. */
 	scopes: S;
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
 	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
 		readonly [K in keyof S]: StructuralChange;
@@ -150,9 +159,9 @@ export interface CommitMultiScopeArgs<
 }
 
 export interface CommitStructuralArgs {
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
-	op?: OpDescriptor;
+	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
 	touchedNodes?: CstNode[];
@@ -166,7 +175,7 @@ export interface CommitContainerStructuralArgs {
 		innerBlockIds: string[];
 		innerBlockRefs: (BlockComponent | undefined)[];
 	};
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
@@ -184,7 +193,8 @@ export interface CommitController {
 	pushUndoSnapshot(blockIndex: number, offset: number): void;
 	/** Snapshot whose no-caret fallback seeds a deep leaf path (e.g. a match nested in a list item). */
 	pushUndoSnapshotPath(path: number[], offset: number): void;
-	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
+	/** Debounced typing snapshot; `leafPath` is the edited leaf's doc-absolute path. */
+	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
@@ -202,14 +212,12 @@ export interface CommitController {
 
 export interface ContainerEditActions {
 	/**
-	 * Push a debounced undo snapshot for routine text input. `batchKey`
-	 * (when supplied) identifies the leaf block being typed in so focus
-	 * moves between sibling leaves inside one container break the undo
-	 * batch — without it, all siblings share the outer container's
-	 * blockIndex and one undo entry spans typing across multiple inner
-	 * blocks.
+	 * Push a debounced undo snapshot for routine text input. `leafPath` is the
+	 * edited leaf's doc-absolute path (it seeds the snapshot's no-caret restore
+	 * point and the batched `input` event). `batchKey` (the leaf's stable block
+	 * id, when supplied) breaks the batch on focus moves between sibling leaves.
 	 */
-	pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void;
+	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
 	 * Publish a raw change the caller made outside the commit primitive — a
 	 * `doc.children = [...doc.children]` reactivity nudge at the editor root,
@@ -231,18 +239,7 @@ export interface ContainerEditActions {
 	 * event + post-tick. `mutate` receives the OWNED container with its
 	 * working children attached — mutate through it, never through captures.
 	 */
-	commitContainer(args: {
-		containerNode: CstNode;
-		path: number[];
-		state: {
-			innerBlockIds: string[];
-			innerBlockRefs: (BlockComponent | undefined)[];
-		};
-		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (scope: ContainerScope) => StructuralChange;
-		op?: ScopedOpDescriptor;
-		afterTick?: () => void;
-	}): Promise<void>;
+	commitContainer(args: CommitContainerStructuralArgs): Promise<void>;
 }
 
 // ── List context ───────────────────────────────────────────────────────────

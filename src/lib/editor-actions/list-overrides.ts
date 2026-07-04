@@ -54,9 +54,9 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					containerNode: node,
 					path: deps.path,
 					state: deps.state,
-					snapshot: { blockIndex: index, offset: 0 },
+					snapshot: { path: [...deps.path, itemIndex], offset: 0 },
 					mutate: (scope) => performDelete({ children: scope.children }, itemIndex, scope.sharing),
-					op: { kind: 'delete', eventPath: [index, itemIndex] },
+					op: { kind: 'delete', eventPath: [...deps.path, itemIndex] },
 					afterTick: () => {
 						// Read through `deps.node`: the captured `node` is the pre-commit
 						// object the snapshot still shares, so its child count is stale by
@@ -75,11 +75,12 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				options?: { undoEntry?: UndoEntryMode }
 			): Promise<void> => {
 				const node = deps.node;
-				const index = deps.index;
 				if (!node.children || itemIndex < 0 || itemIndex >= node.children.length) return;
 
 				const snapshot =
-					options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: index, offset: 0 };
+					options?.undoEntry === 'join'
+						? ('skip' as const)
+						: { path: [...deps.path, itemIndex], offset: 0 };
 
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,
@@ -102,11 +103,11 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					},
 					op:
 						replacement.length === 0
-							? { kind: 'delete', eventPath: [index, itemIndex] }
+							? { kind: 'delete', eventPath: [...deps.path, itemIndex] }
 							: {
 									kind: 'replaceBlock',
 									detail: { count: replacement.length },
-									eventPath: [index, itemIndex]
+									eventPath: [...deps.path, itemIndex]
 								},
 					afterTick: () => {
 						if (focus && replacement.length > 0) {
