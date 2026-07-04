@@ -84,3 +84,17 @@ describe('G2.5 inline-tree offset partition', () => {
 		);
 	});
 });
+
+// Counterexamples the generator missed before its destinations could contain
+// backticks: a link destination terminating inside a code span made the link
+// end mid-span, leaving overlapping top-level siblings.
+describe('G2.5 pinned counterexamples', () => {
+	const cases = ['[a](u`)`)', '![a](u`)`)'];
+
+	for (const source of cases) {
+		it(`link destination ending inside a code span: ${JSON.stringify(source)}`, () => {
+			const nodes = parseInline(source, 0, source.length);
+			assertPartition(nodes, 0, source.length);
+		});
+	}
+});

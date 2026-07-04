@@ -46,6 +46,15 @@ describe('G2.4 textContent spine (widget-free)', () => {
 			PARAMS
 		);
 	});
+
+	// Pinned counterexample: a link destination terminating inside a code span
+	// once duplicated the straddled bytes in the rendered spine.
+	it('link destination ending inside a code span renders byte-exact', () => {
+		const source = '[a](u`)`)';
+		const nodes = parseInline(source, 0, source.length);
+		const container = renderToContainer(nodes, source);
+		expect(container.textContent).toBe(source);
+	});
 });
 
 // Atomic widgets contribute 0 textContent; their source bytes live in

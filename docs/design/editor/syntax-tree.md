@@ -152,20 +152,20 @@ Same approach for list items — strip the indentation/marker, parse inner conte
 
 All GFM block types are implemented and have their own node kinds:
 
-| Block Type                 | Kind                      | Notes                                                                    |
-| -------------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| ATX headings               | `heading`                 | `# ` through `###### `                                                   |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`                                            |
-| Paragraphs                 | `paragraph`               | Fallback for unstructured text                                           |
-| Fenced code blocks         | `fencedCode`              | ` ``` ` and `~~~` with info string                                       |
-| Indented code blocks       | `indentedCode`            | 4-space indent                                                           |
-| Blockquotes                | `blockquote`              | Container, recursive children                                            |
-| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes                                      |
-| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___` variants                                             |
-| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.                                             |
-| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                                                     |
-| Tables                     | `table`                   | GFM extension, pipe syntax                                               |
-| Unrecognized               | `unrecognized`            | Reserved catch-all; not parser-emitted today (paragraph is the fallback) |
+| Block Type                 | Kind                      | Notes                                                                                   |
+| -------------------------- | ------------------------- | --------------------------------------------------------------------------------------- |
+| ATX headings               | `heading`                 | `# ` through `###### `                                                                  |
+| Setext headings            | `setextHeading`           | Underline-style `===` / `---`                                                           |
+| Paragraphs                 | `paragraph`               | Fallback for unstructured text                                                          |
+| Fenced code blocks         | `fencedCode`              | ` ``` ` and `~~~` with info string                                                      |
+| Indented code blocks       | `indentedCode`            | 4-space indent                                                                          |
+| Blockquotes                | `blockquote`              | Container, recursive children                                                           |
+| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes                                                     |
+| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___` variants                                                            |
+| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, etc.                                                            |
+| Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`                                                                    |
+| Tables                     | `table`                   | GFM extension, pipe syntax; header/delimiter cell-count mismatch is not a table (§4.10) |
+| Unrecognized               | `unrecognized`            | Reserved catch-all; not parser-emitted today (paragraph is the fallback)                |
 
 ### Inline Syntax
 
