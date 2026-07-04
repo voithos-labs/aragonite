@@ -1,3 +1,5 @@
+import { tick } from 'svelte';
+
 /**
  * Replaces `bind:this={refs[i]}` in a keyed each — Svelte 5's bind:this
  * doesn't re-target when iteration index shifts. Cleanup is conditional
@@ -73,26 +75,35 @@ const MAX_MOUNT_REWAITS = 64;
  * container reveal and TableBlock's hand-rolled one so the "is this slot a live
  * mount" gate lives in one place.
  *
- * Termination (VR-5): the mount-wait is woken ONLY by a same-index mount, so a
- * scroll that missed (a stale model at call time left the target outside the
- * recomputed window) would wait forever. After the scroll, prove the target is in
- * the recomputed window; if it provably isn't, the awaited mount can never come —
- * return so the caller degrades (operate on path state, skip DOM placement) instead
- * of hanging. The per-wake cap covers spurious cross-level wakes.
+ * Termination (VR-5): the mount-wait is woken ONLY by a same-index mount, so any
+ * target whose mount never fires would wait forever — a scroll that missed (stale
+ * model left the target outside the recomputed window) or a mounted child that
+ * never publishes (failed-render boundary). Windowing callers therefore never
+ * enter the open-ended wait: off-window degrades immediately, in-window waits one
+ * mount flush then degrades. Callers degrade by operating on path state and
+ * skipping DOM placement. The per-wake cap covers spurious cross-level wakes for
+ * the non-windowing wait.
  */
 export async function revealChildOrWait(index: number, opts: RevealChildOptions): Promise<void> {
 	const stale = opts.isStale?.(index) ?? false;
-	if (index < opts.childCount && (stale || !opts.getRef(index))) {
-		if (stale) opts.dropRef?.(index);
-		await opts.revealChild(index);
-		// Already present (a same-flush mount), or membership is unknowable (a
-		// non-windowing caller omits isInWindow) → fall through to the bounded wait.
+	if (index >= opts.childCount || (!stale && opts.getRef(index))) return;
+	if (stale) opts.dropRef?.(index);
+	await opts.revealChild(index);
+	if (opts.getRef(index)) return;
+	if (opts.isInWindow) {
 		// Provably outside the recomputed window → the mount can't fire; degrade now.
-		if (!opts.getRef(index) && opts.isInWindow?.(index) === false) return;
-		let rewaits = 0;
-		while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
-			await whenRefMounted(index, () => !!opts.getRef(index));
-		}
+		if (!opts.isInWindow(index)) return;
+		// In-window, the mount flush is at most one tick away. A target still
+		// unpublished after it never will be — a failed-render boundary leaves
+		// bind:this unset and resolves no waiter — so degrade rather than park
+		// on a wait nothing can wake.
+		await tick();
+		return;
+	}
+	// Membership is unknowable (a non-windowing caller): bounded mount-wait.
+	let rewaits = 0;
+	while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
+		await whenRefMounted(index, () => !!opts.getRef(index));
 	}
 }
 

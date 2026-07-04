@@ -16,9 +16,9 @@ import {
 	extendFocusToPreviousBlock,
 	extendFocusToDocEdge,
 	selectWholeDocument,
-	scrollFocusBlockIntoView,
-	cellEndpointDeepPath
+	scrollFocusBlockIntoView
 } from '../keyboard-extend';
+import { cellEndpointDeepPath } from '../table-endpoint-snap';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
 
@@ -85,12 +85,10 @@ async function handleCrossBlockActive(
 	// stale single-block raw while the cross-block selection visually persists.
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		// Reveal at the delete's own caret, not a pre-delete start path. rangeDelete
-		// returns the authoritative post-delete position against the merged tree; for a
-		// table endpoint that is the deep [table,row,col] cell whose runCommand exists.
-		// The old code revealed selection.start.path, which for a table is [tableIdx] —
-		// the table wrapper, which has no runCommand, so the command was silently
-		// dropped after the destructive delete.
+		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete
+		// returns the authoritative post-delete position against the merged tree, and
+		// for a table endpoint that is the deep [table,row,col] cell whose runCommand
+		// exists — the pre-delete [tableIdx] path is the wrapper, which has none.
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		const collapsedCaret = await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();

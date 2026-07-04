@@ -8,7 +8,7 @@ import type { Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint, SelectionDragStart } from './primitives';
 import { normalize } from './primitives';
-import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
+import { normalizeTableEndpoint, snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { pathsEqual } from './path-math';
 
 // ── Public factory ──────────────────────────────────────────────────────────
@@ -22,9 +22,10 @@ export interface SelectionStateOptions {
 	onChange?: () => void;
 	/**
 	 * Document accessor. When present, `isCustomRendered` can detect
-	 * intra-table multi-cell selections (same path, distinct offsets on a
-	 * table/tableRow/tableCell node). Absent in test harnesses that only
-	 * exercise cross-block semantics — `isCustomRendered` then mirrors
+	 * intra-table multi-cell selections (same path, distinct cell offsets on
+	 * a table node — endpoint normalization guarantees table selections
+	 * address the wrapper, never a row/cell). Absent in test harnesses that
+	 * only exercise cross-block semantics — `isCustomRendered` then mirrors
 	 * `isCrossBlock`.
 	 */
 	getDoc?: () => Document;
@@ -101,8 +102,7 @@ class SelectionStateImpl implements SelectionState {
 		if (anchor.offset === focus.offset) return false;
 		const node = nodeAt(getDoc(), anchor.path);
 		if (!node) return false;
-		const kind = node.kind;
-		return kind === 'table' || kind === 'tableRow' || kind === 'tableCell';
+		return node.kind === 'table';
 	}
 
 	get start(): SelectionPoint | null {
@@ -135,8 +135,8 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
-		this.#anchor = anchor;
-		this.#focus = focus;
+		this.#anchor = this.#normalizePoint(anchor);
+		this.#focus = this.#normalizePoint(focus);
 		this.#onChange?.();
 	}
 
@@ -144,8 +144,21 @@ class SelectionStateImpl implements SelectionState {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		this.#focus = point;
+		this.#focus = this.#normalizePoint(point);
 		this.#onChange?.();
+	}
+
+	// The one place every entry path (keyboard, shift-click, drag, select-all,
+	// undo restore) funnels through, so a table endpoint can never be stored as
+	// a deep cell path with a char offset — the shape that routes rangeDelete
+	// down the generic branch and corrupts the grid. Idempotent: an
+	// already-normalized point (cellCoordinate, or any non-table path) passes
+	// through unchanged. Harnesses without getDoc keep raw points, mirroring
+	// the snap fallback in #normalizedSnapped.
+	#normalizePoint(point: SelectionPoint): SelectionPoint {
+		const getDoc = this.#getDoc;
+		if (!getDoc || point.cellCoordinate) return point;
+		return normalizeTableEndpoint(getDoc(), point.path, point.offset);
 	}
 
 	collapse(): void {

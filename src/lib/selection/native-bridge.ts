@@ -106,8 +106,8 @@ export function readCurrentSelection(
 ): EditorSelection | null {
 	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
 		return {
-			anchor: { path: selectionState.anchor.path.slice(), offset: selectionState.anchor.offset },
-			focus: { path: selectionState.focus.path.slice(), offset: selectionState.focus.offset }
+			anchor: copySelectionPoint(selectionState.anchor),
+			focus: copySelectionPoint(selectionState.focus)
 		};
 	}
 	for (let i = 0; i < blockRefs.length; i++) {
@@ -130,6 +130,14 @@ export function readCurrentSelection(
 		}
 	}
 	return null;
+}
+
+// cellCoordinate must survive the snapshot copy: a restored table endpoint
+// without it skips the whole-row snap and the deep-cell collapse routing.
+function copySelectionPoint(point: SelectionPoint): SelectionPoint {
+	const copy: SelectionPoint = { path: point.path.slice(), offset: point.offset };
+	if (point.cellCoordinate) copy.cellCoordinate = true;
+	return copy;
 }
 
 /**
@@ -156,7 +164,7 @@ export function applySelectionToDom(
 	}
 
 	// isCustomRendered checks the doc node at the path: same-path different-
-	// offset on a table/row/cell means cell-index selection, not char range.
+	// offset on a table wrapper means cell-index selection, not char range.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	if (selectionState.isCustomRendered) {
 		// Park caret in the focus block as a paste/key-dispatch anchor; without

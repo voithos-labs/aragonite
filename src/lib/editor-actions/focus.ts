@@ -7,6 +7,7 @@ import type { FocusActions, MoveFocusOptions } from '../action-contracts';
 import type { FocusPosition } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { EditorActionsDeps, UndoController } from './deps';
+import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 
 export function createFocusActions(
@@ -43,7 +44,14 @@ export function createFocusActions(
 				return;
 			}
 			const block = await deps.revealPath([blockIndex]);
-			if (!block?.focusable) return;
+			if (!block?.focusable) {
+				// A refless (failed-render) or non-focusable block must not dead-end
+				// the move — skip it in the move's direction (editor.md § Focus
+				// Traversal). Recursion terminates at the doc edges above.
+				const step = traversalStep(position);
+				if (step !== 0) await this.moveFocus(blockIndex + step, position, options);
+				return;
+			}
 
 			await consumeStickyLanding(block, blockIndex, position, deps.stickyColumn, (i) =>
 				this.moveFocus(i, position, options)
