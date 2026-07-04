@@ -32,6 +32,7 @@ import {
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import type { UndoEntryMode } from '../action-contracts';
 import type { CommitScope } from './block-edit-scope';
+import { mergedElseFocusPrevious } from './merge-fallback';
 
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
@@ -142,13 +143,11 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: () => {
-					if (!mergeResult) {
-						scope.refAt(i - 1)?.focus(CURSOR_END);
-						return;
-					}
 					const ref = scope.refAt(i - 1);
-					if (mergeResult.targetPath.length === 0) ref?.focus(mergeResult.joinOffset);
-					else ref?.focusByPath?.(mergeResult.targetPath, mergeResult.joinOffset);
+					const merged = mergedElseFocusPrevious(mergeResult, ref);
+					if (!merged) return;
+					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
+					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
 				}
 			});
 		},

@@ -8,10 +8,18 @@
 		FOCUS_KEY,
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
-		type KeybindingOverridesGetter
+		REORDER_ACTION_KEY,
+		type KeybindingOverridesGetter,
+		type ReorderAction
 	} from '../../editor-keys';
 	import { eventToChord } from '../../schema/keybindings';
-	import { resolveBinding, getCommand, isEditorGlobalChord } from '../../schema/commands';
+	import {
+		resolveBinding,
+		getCommand,
+		isEditorGlobalChord,
+		dispatchKeyCommand,
+		type CommandId
+	} from '../../schema/commands';
 	import { displayLength } from '../../core/lines';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -20,6 +28,7 @@
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
+	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 	let el: HTMLDivElement | undefined = $state();
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -35,7 +44,20 @@
 		if (!el || document.activeElement !== el) return null;
 		return 0;
 	}
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+
+	export function runCommand(id: CommandId): boolean {
+		switch (id) {
+			case 'block.moveUp':
+				reorder.nudgeReorderUnit(myPath, -1);
+				return true;
+			case 'block.moveDown':
+				reorder.nudgeReorderUnit(myPath, 1);
+				return true;
+			default:
+				return false;
+		}
+	}
+	void ({ editable, focusable, focus, getCursorOffset, runCommand } satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
@@ -47,6 +69,16 @@
 			e.preventDefault();
 			const binding = resolveBinding(chord, node.kind, keybindingOverrides());
 			if (binding) getCommand(binding.command)?.({ history });
+			return;
+		}
+
+		// Kind keymap (Alt+↑/↓ reorder) before the plain-arrow navigation below,
+		// which is guarded on no-modifier so a modified arrow never falls through.
+		if (
+			chord &&
+			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+		) {
+			e.preventDefault();
 			return;
 		}
 
@@ -62,25 +94,27 @@
 			return;
 		}
 
-		if (e.key === 'ArrowUp') {
+		const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
+
+		if (e.key === 'ArrowUp' && plainArrow) {
 			e.preventDefault();
 			focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 			return;
 		}
 
-		if (e.key === 'ArrowLeft') {
+		if (e.key === 'ArrowLeft' && plainArrow) {
 			e.preventDefault();
 			focusActions.moveFocus(index - 1, 'end');
 			return;
 		}
 
-		if (e.key === 'ArrowDown') {
+		if (e.key === 'ArrowDown' && plainArrow) {
 			e.preventDefault();
 			focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 			return;
 		}
 
-		if (e.key === 'ArrowRight') {
+		if (e.key === 'ArrowRight' && plainArrow) {
 			e.preventDefault();
 			focusActions.moveFocus(index + 1, 'start');
 			return;
