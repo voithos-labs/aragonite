@@ -81,6 +81,14 @@
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
+	// A column reorder permutes each row's cells (and their childIds) while leaving
+	// columnCount and widthVersion untouched, so it alone can't invalidate the
+	// monotonic width floors. The header row's cell-id order tracks the column
+	// order: it permutes on a reorder but is stable across row-window slides
+	// (childIds are CST fields, mounting-independent) and content edits (cell ids
+	// persist). Folded into the measure epoch below.
+	const columnStructureToken = $derived((node.children?.[0]?.childIds ?? []).join(','));
+
 	// Plain `let`, not $state: writes happen during keyed-each reconcile via
 	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.
 	let internalStickyColumn: number | null = null;
@@ -160,7 +168,7 @@
 	// the floor and only bumps state on an increase, so it settles rather than spinning.
 	$effect(() => {
 		void win;
-		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}`;
+		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}:${columnStructureToken}`;
 		untrack(() => {
 			if (epoch !== measuredColumnEpoch) {
 				measuredColumnEpoch = epoch;

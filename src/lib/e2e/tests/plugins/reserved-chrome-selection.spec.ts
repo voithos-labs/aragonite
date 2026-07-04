@@ -131,10 +131,11 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		await editor.bridge.waitForSourceContains(':::note Title!');
 		await editor.waitForUndoBatchFlush();
 
+		// Poll the CST child text, not the source bytes: this Gate-1 epilogue is where
+		// the source-bytes wait once won the race a beat before the title child
+		// re-materialized, so readNote saw a childless note.
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title\n');
-		const note = await readNote(page, 1);
-		expect(note.childTexts[0]).toBe('Title');
+		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		// Undo's selection restore returns the caret to the title leaf.
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);

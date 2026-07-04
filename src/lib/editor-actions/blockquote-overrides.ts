@@ -36,7 +36,7 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 				const isEmpty = child.kind === 'paragraph' && child.raw.trim() === '';
 				if (isLastChild && isEmpty) {
 					if (node.children.length <= 1) {
-						parentBlockEdit.splitBlock(index, displayLength(node.raw));
+						await parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
 						// The primitive's spine rebuild refreshes this quote's raw AND
 						// its ancestors' (a nested quote's own rebuild alone would

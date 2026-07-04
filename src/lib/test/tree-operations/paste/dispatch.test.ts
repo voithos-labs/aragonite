@@ -129,7 +129,6 @@ function makeStubController(): UndoController & PasteCommitCoordinator {
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
 		collapsedSelectionAt: vi.fn(),
-		clearDebouncedCheckpoint: vi.fn(),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode
 	} as unknown as UndoController & PasteCommitCoordinator;

@@ -9,12 +9,12 @@
  * measuring around a real text node always returns a valid rect.
  */
 
+import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
+
 // Cursor counts as on the boundary line when its Y is within this fraction of a
 // line height of the first/last line's Y — sub-line so sub/superscript or
 // inline-image jitter on the same line doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
-// CSS `line-height: normal` parses to NaN; fall back to a sane pixel height.
-const FALLBACK_LINE_HEIGHT = 20;
 
 export function getRangeTop(range: Range): number | null {
 	const rects = range.getClientRects();

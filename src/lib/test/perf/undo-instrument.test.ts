@@ -52,7 +52,7 @@ describe('undo snapshot instrumentation', () => {
 		const controller = createUndoController(deps);
 
 		controller.pushUndoSnapshotDebounced([0], 1);
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 
 		const snap = perfSnapshot();
 		expect(snap.snapshotCount).toBe(1);

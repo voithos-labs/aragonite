@@ -40,7 +40,10 @@
 	} = $props();
 
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const dragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY)?.() ?? false;
+	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
+	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
+	// that window in and out after the change, not just those mounted at mount.
+	const dragHandles = $derived(getDragHandles?.() ?? false);
 
 	let myPath = $derived([...parentPath, index]);
 
