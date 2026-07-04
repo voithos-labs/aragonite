@@ -28,14 +28,17 @@ export function createFocusActions(
 				// primitive so the append participates in undo history and edit
 				// events like every other structural mutation.
 				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
+				// The appended slot (one past the end) is the coordinate for both the
+				// event and the restore fallback — it names the block this op creates.
+				const appendPath = [deps.doc.children.length];
 				await controller.commitStructural({
-					snapshot: { blockIndex: deps.doc.children.length, offset: 0 },
+					snapshot: { path: appendPath, offset: 0 },
 					mutate: (children) => {
 						const at = children.length;
 						children.push(newBlock);
 						return { op: 'insert', at, count: 1 };
 					},
-					op: { kind: 'appendBlock' },
+					op: { kind: 'appendBlock', eventPath: appendPath },
 					afterTick: () => {
 						const lastIdx = deps.doc.children.length - 1;
 						deps.blockRefs[lastIdx]?.focus(0);

@@ -4,8 +4,9 @@
  * pure and unaware of the channel.
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { assertInvariant } from './assert';
+import { checkCommitPathAddressable } from './commit-paths';
 import {
 	checkRegistryCompleteness,
 	checkIsContainerIffRebuildRaw,
@@ -36,6 +37,28 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
+	}
+}
+
+/**
+ * Pre-mutate commit-seam check: both declared commit coordinates must be
+ * doc-absolute (see invariants/commit-paths.ts). Null skips a coordinate the
+ * commit doesn't carry ('skip' snapshot, op-less commit).
+ */
+export function assertCommitPaths(
+	doc: Document,
+	snapshotPath: number[] | null,
+	eventPath: number[] | null
+): void {
+	if (snapshotPath) {
+		assertInvariant('commit-path-dialect', () =>
+			checkCommitPathAddressable(doc, snapshotPath, 'snapshot.path')
+		);
+	}
+	if (eventPath) {
+		assertInvariant('commit-path-dialect', () =>
+			checkCommitPathAddressable(doc, eventPath, 'eventPath')
+		);
 	}
 }
 

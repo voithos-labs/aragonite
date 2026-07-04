@@ -80,7 +80,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			await deps.controller.commitMultiScope({
 				scopes,
-				snapshot: { blockIndex: deps.index, offset: 0 },
+				snapshot: { path: [...deps.path, itemIndex], offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
@@ -120,7 +120,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'indentItem', itemIndex },
-					eventPath: [deps.index]
+					eventPath: [...deps.path]
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
@@ -159,7 +159,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			await deps.controller.commitMultiScope({
 				scopes: [{ node, state: deps.state, path: deps.path }],
-				snapshot: { blockIndex: deps.index, offset: 0 },
+				snapshot: { path: [...deps.path], offset: 0 },
 				mutate: ([scope]) => {
 					const sharing = scope.sharing;
 					sharing.stamp(newItem!);
@@ -170,7 +170,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'appendBlock',
 					detail: { itemIndex },
-					eventPath: [deps.index]
+					eventPath: [...deps.path]
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
@@ -195,7 +195,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					{ node: outerList, state: deps.state, path: deps.path },
 					{ node: item, state: itemState, path: [...deps.path, itemIndex] }
 				],
-				snapshot: { blockIndex: deps.index, offset },
+				// The true pre-edit caret: `offset` sits inside the split leaf.
+				snapshot: { path: [...deps.path, itemIndex, innerIndex], offset },
 				mutate: ([outerScope, itemScope]) => {
 					const sharing = outerScope.sharing;
 					const itemChildren = itemScope.children;
@@ -237,7 +238,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'split',
 					detail: { at: offset, itemIndex, innerIndex },
-					eventPath: [deps.index]
+					eventPath: [...deps.path]
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
@@ -286,7 +287,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			await deps.controller.commitMultiScope({
 				scopes,
-				snapshot: { blockIndex: deps.index, offset: 0 },
+				// The promoted item's pre-move path (its nested-list slot).
+				snapshot: {
+					path: [...deps.path, parentItemIdx, nestedIdxInParent, nestedItemIdx],
+					offset: 0
+				},
 				mutate: (scopeViews) => {
 					const outerScope = scopeViews[0];
 					const nestedScope = scopeViews[1];
@@ -334,7 +339,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
-					eventPath: [deps.index]
+					eventPath: [...deps.path]
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);

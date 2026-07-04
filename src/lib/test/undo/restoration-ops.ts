@@ -322,9 +322,6 @@ async function runTableOp(
 		get node() {
 			return h.deps.doc.children[tableIndex];
 		},
-		get index() {
-			return tableIndex;
-		},
 		get myPath() {
 			return [tableIndex];
 		},

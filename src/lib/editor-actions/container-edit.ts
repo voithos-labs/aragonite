@@ -15,9 +15,9 @@ export function createContainerEditActions(
 	controller: UndoController
 ): ContainerEditActions {
 	return {
-		pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void {
+		pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void {
 			deps.stickyColumn.reset();
-			controller.pushUndoSnapshotDebounced(blockIndex, offset, batchKey);
+			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
 		},
 
 		nudgeReactivity(): void {

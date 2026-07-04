@@ -175,7 +175,7 @@ async function commitPureTopLevelDelete(
 	const snapshot =
 		options?.undoEntry === 'join'
 			? ('skip' as const)
-			: { blockIndex: start.path[0], offset: start.offset };
+			: { path: start.path.slice(), offset: start.offset };
 
 	await ctx.controller.commitStructural({
 		snapshot,
@@ -188,7 +188,7 @@ async function commitPureTopLevelDelete(
 			ctx.selection.collapse();
 			return topLevelStructuralChange(start.path, end.path, beforeLen, afterLen);
 		},
-		op: { kind: 'delete', detail: { crossBlock: true } },
+		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 
@@ -232,8 +232,10 @@ async function commitCrossContainerDelete(
 
 	await ctx.controller.commitMultiScope({
 		scopes,
+		// The selection start survives the delete (start-wins collapse), so its
+		// deep path is a resolving restore coordinate.
 		snapshot:
-			options?.undoEntry === 'join' ? 'skip' : { blockIndex: start.path[0], offset: start.offset },
+			options?.undoEntry === 'join' ? 'skip' : { path: start.path.slice(), offset: start.offset },
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
 			// Read lengths BEFORE mutation. Paths go stale as rangeDelete

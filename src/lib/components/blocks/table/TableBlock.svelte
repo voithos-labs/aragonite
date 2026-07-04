@@ -206,9 +206,6 @@
 		get node() {
 			return node;
 		},
-		get index() {
-			return index;
-		},
 		get myPath() {
 			return myPath;
 		},

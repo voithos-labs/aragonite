@@ -51,7 +51,7 @@ describe('undo snapshot instrumentation', () => {
 		const { deps, doc } = makeEditorActionsDeps([para('hi\n')]);
 		const controller = createUndoController(deps);
 
-		controller.pushUndoSnapshotDebounced(0, 1);
+		controller.pushUndoSnapshotDebounced([0], 1);
 		controller.clearDebouncedCheckpoint();
 
 		const snap = perfSnapshot();

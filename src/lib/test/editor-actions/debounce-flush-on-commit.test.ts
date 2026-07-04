@@ -22,7 +22,7 @@ describe('debounce flush on structural commit (B4)', () => {
 
 		// Simulate 5 keystrokes in block 0 — each call extends the batch.
 		for (let i = 0; i < 5; i++) {
-			controller.pushUndoSnapshotDebounced(0, i);
+			controller.pushUndoSnapshotDebounced([0], i);
 		}
 
 		// No input event yet — debounce hasn't fired.
