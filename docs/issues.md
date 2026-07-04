@@ -35,7 +35,7 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 `startRowReorderDrag` and `startColumnReorderDrag` are ~98-line near-identical controllers — teardown / commit-on-release / pointermove / pointerup / cancel / key handling and listener registration are byte-identical; only the per-axis `process()`, the axis, and the insertion-line shape differ. The cross-block `editor-actions/reorder-drag.ts` is a third drag controller but diverges enough (delegated capture-phase install, ghost label, no drag threshold) that folding it in would leak.
 
-**Why deferred:** a pure refactor with no functional gain and real divergences; do it as its own commit gated on the full row + column + windowed + wide-table drag e2e. Clean seam: one `startTableReorderDrag(down, { process, axis, getScrollContainer, setLine, commit, fromIdx, onDragRecognized, lifetimeSignal })`, with the row/column files reduced to geometry + `process`.
+**Why deferred:** a pure refactor with no functional gain and real divergences; do it as its own commit gated on the full row + column + windowed + wide-table drag e2e. Clean seam (validated against the live code by the 2026-07 review, with two amendments): `process` must RETURN `{ line, dropTo }` rather than mutate closure state — which also makes the axis clamps pure-testable — and the `axis` param is only the autoscroll axis (name it `autoScrollAxis`). The header-clamp now has a direct controller-level unit test (`table-reorder-drag-clamp.test.ts`), so the refactor's clamp behavior is pinned in advance. A `pointerId` filter on `onUp` (both controllers commit on any pointerup today) is a real fix to land as its own guarded change, not silently inside the refactor.
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
@@ -55,6 +55,17 @@ The action menu and the commit wrappers now share `canDeleteRow`/`canDeleteColum
 
 **Why deferred:** `selection/` may not import `editor-actions/`, so a true three-way unification needs the predicates relocated down to `tree-operations/table-mutations.ts` (the layer all three import) plus a selection range-delete e2e re-run — a deliberate cross-layer move.
 
+## Paste
+
+### Ordered-into-ordered container-match paste does not renumber
+
+**Severity:** minor (rendering interop; round-trip safe)
+**Files:** `src/lib/tree-operations/paste/container-match.ts`
+
+The sibling-absorb route renumbers pasted ordered items from the splice point, and (since 0.9.6) both routes normalize unordered bullet glyphs — but container-match splices ordered items into a matching ordered ancestor with their pasted numbers intact (`1. 2. 3.` lands mid-list unchanged). Bytes round-trip; reference renderers re-sequence from the first number, so display order is right but the source numbering is misleading.
+
+**Why deferred:** pre-existing, unspecified behavior surfaced while closing the unordered-glyph gap; renumbering here should reuse `renumberOrderedList` under the same precompute-before-splice discipline, gated on the container-paste unit family — a small standalone change.
+
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
@@ -66,14 +77,14 @@ The chrome keymap binds Enter to `chrome.descendToBody` by default. A plugin tha
 
 **Why deferred:** reachable only by a plugin overriding the documented single-line chrome contract; not worth a guard until a real consumer needs `block.split` on chrome.
 
-### Undo-restore e2e has a latent read window under CPU load
+### Undo-restore e2e read window is an idiom class, not a one-off
 
 **Severity:** trivial (CI-flake awareness; passes in isolation and every clean run)
-**Files:** `src/lib/e2e/tests/plugins/reserved-chrome-selection.spec.ts` (Gate 1 undo-restore)
+**Files:** the reserved-chrome spec family (`src/lib/e2e/tests/plugins/reserved-chrome-*.spec.ts`), undo epilogues
 
-The Gate-1 undo-restore e2e once observed `readNote` seeing a childless note after `waitForSourceContains` had already passed, under concurrent CPU load — the source-bytes wait won the race a beat before the CST children re-materialized. It passed in isolation and in every clean run since.
+The Gate-1 undo-restore e2e once observed `readNote` seeing a childless note after `waitForSourceContains` had already passed under CPU load — the source-bytes wait won the race a beat before the CST children re-materialized. The 2026-07 review traced the same `waitForSourceContains`-then-read-children idiom to ~10 undo epilogues across the (since split) reserved-chrome specs — all latent under contention. Fix idiom when touched: poll the CST shape (children count/kind via the live-CST probes), not the source bytes.
 
-**Why deferred:** a non-deterministic read window under CPU contention, not a product bug, with no reliable repro. Awareness only; revisit if it recurs in CI.
+**Why deferred:** non-deterministic under contention only, no clean-run repro; convert the epilogues to CST-shape polls on the next touch of each spec rather than as a sweep.
 
 ### Cross-block copy STARTING mid-chrome loses the container wrapper
 
