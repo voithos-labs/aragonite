@@ -56,6 +56,13 @@ test.describe('plugin container: <details> reveal-into-collapsed degrade', () =>
 		// that it hung (rescan is synchronous; the reveal is fire-and-forget).
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
+		// The negative asserts below (body unmounted, `open` unflipped) all hold
+		// BEFORE the reveal fires too, so a buggy auto-expand landing a tick late
+		// would slip through a pre==post check. Settle two render frames past the
+		// fire-and-forget reveal so a late mutation would be visible here.
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
 		// The degrade: the clamp held — the body was NOT mounted by the reveal, and
 		// `open` was NOT flipped (still `<details>`, aria-expanded false).
 		expect(await bodyHostCount(page)).toBe(1);
