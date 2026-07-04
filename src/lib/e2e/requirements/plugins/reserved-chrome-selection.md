@@ -61,7 +61,7 @@ endpoints truncate in place, and a fully-consumed container unit-deletes.
 - chrome-end endpoint (table above → mid-title): the title keeps its uncovered tail in the chrome leaf; the start table takes its row semantics
 - table → table across the wall: the strictly-between title clears, never node-deletes (shared deletion-collection coverage)
 - whole-subtree consumed via a table-involving range: the container dies as ONE splice, children intact — undo restores title and body together
-- known gap, out of this gate: whole-row-snap deletes leave the table's OWN row ids stale (pre-existing without chrome, `docs/issues.md` § Tables) — audits here exclude table-kind state
+- state audits include table-kind state: a whole-row-snap delete commits the endpoint table as its own scope, so its row ids/refs stay in lockstep with children
 
 ## User interactions
 

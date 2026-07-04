@@ -55,17 +55,6 @@ The action menu and the commit wrappers now share `canDeleteRow`/`canDeleteColum
 
 **Why deferred:** `selection/` may not import `editor-actions/`, so a true three-way unification needs the predicates relocated down to `tree-operations/table-mutations.ts` (the layer all three import) plus a selection range-delete e2e re-run — a deliberate cross-layer move.
 
-## Tables
-
-### Cross-block whole-row-snap delete leaves the table's row ids stale
-
-**Severity:** minor (dev-audit-visible; no known user-facing repro)
-**Files:** `src/lib/selection/cross-block/ops.ts` (scope collection), table row `BlockListState`
-
-A cross-block delete whose whole-row snap removes table rows splices `table.children` without the table itself being a commit scope (`collectTouchedContainers` collects only strict ancestors of the endpoints), so `auditBlockListStateConsistency` reports the table's `ids` length stale against its children/refs. Reproducible on the plain editor with no plugin involved (paragraph → body-cell Delete). The Gate-6 chrome×table e2e audits exclude table-kind state for this reason.
-
-**Why deferred:** pre-existing and independent of the chrome wall; surfaced while testing the wall × table composition. Fixing it means teaching the cross-block commit to scope endpoint tables — a deliberate commit-machinery change to make under the table e2e battery, not a drive-by.
-
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry

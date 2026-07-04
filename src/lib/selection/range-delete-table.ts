@@ -130,7 +130,8 @@ function deleteWithinTable(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 }
+		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 },
+		tableRowSplices: []
 	};
 }
 
@@ -296,7 +297,7 @@ function deleteFromProseIntoTable(
 
 	// end.offset is the whole-row-snapped inclusive last cell; deleteCellsAndCollapse
 	// takes an exclusive end, so clearing the same rows the clipboard copied needs +1.
-	const result = deleteCellsAndCollapse(table, 0, end.offset + 1);
+	const { result, splice } = deleteCellsAndCollapse(table, 0, end.offset + 1);
 
 	const wall = resolveEndWall(doc, start, end, result === 'tableEmpty');
 	const plan = collectDeletionPlan(
@@ -329,7 +330,8 @@ function deleteFromProseIntoTable(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
+		collapsedCaret: { path: start.path.slice(), offset: start.offset },
+		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
 
@@ -343,7 +345,11 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const tableResult = deleteCellsAndCollapse(table, start.offset, totalCellCount(table));
+	const { result: tableResult, splice } = deleteCellsAndCollapse(
+		table,
+		start.offset,
+		totalCellCount(table)
+	);
 
 	const wall = resolveEndWall(doc, start, end, null);
 	const consumed = wall?.consumed ?? false;
@@ -413,7 +419,11 @@ function deleteFromTableIntoProse(
 				: caretNearestSurvivor(doc, start.path, sharing)
 			: survivingAnchorCellCaret(table, start.path, start.offset);
 
-	return { newDoc: doc, collapsedCaret };
+	return {
+		newDoc: doc,
+		collapsedCaret,
+		tableRowSplices: splice ? [{ table, ...splice }] : []
+	};
 }
 
 // Deep [...tablePath, row, col] caret into the surviving table's anchor cell:
@@ -455,9 +465,17 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
+	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
+		startTable,
+		start.offset,
+		totalCellCount(startTable)
+	);
 	// end.offset is the whole-row-snapped inclusive last cell; +1 for the exclusive end.
-	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset + 1);
+	const { result: endResult, splice: endSplice } = deleteCellsAndCollapse(
+		endTable,
+		0,
+		end.offset + 1
+	);
 
 	const wall = resolveEndWall(doc, start, end, endResult === 'tableEmpty');
 	const emptiedEndpoints: number[][] = [];
@@ -496,7 +514,11 @@ function deleteAcrossTwoTables(
 		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing);
 	}
 
-	return { newDoc: doc, collapsedCaret };
+	const tableRowSplices = [
+		...(startSplice ? [{ table: startTable, ...startSplice }] : []),
+		...(endSplice ? [{ table: endTable, ...endSplice }] : [])
+	];
+	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
 // Every block the caret could land in across the range was removed. Anchor-
@@ -561,18 +583,25 @@ function pathOfNode(parent: Document | CstNode, target: CstNode): number[] | nul
 
 type ClearResult = 'tableSurvives' | 'tableEmpty';
 
+interface CellDeleteOutcome {
+	result: ClearResult;
+	/** Whole-row window spliced out of `table.children`; null when only cell raws cleared. */
+	splice: { at: number; count: number } | null;
+}
+
 /**
  * Clear cells in `[startCellIdx, endCellIdx)`, remove rows where every cell
  * is in the range, and promote the next surviving row to header when row 0
- * goes. Mutates in place. Returns whether the table itself should be
- * removed (no rows remain).
+ * goes. Mutates in place. Reports whether the table itself should be removed
+ * (no rows remain) and the row window it spliced, so the commit can sync the
+ * table's row state from the splice that actually happened.
  */
 function deleteCellsAndCollapse(
 	table: CstNode,
 	startCellIdx: number,
 	endCellIdx: number
-): ClearResult {
-	if (startCellIdx >= endCellIdx) return 'tableSurvives';
+): CellDeleteOutcome {
+	if (startCellIdx >= endCellIdx) return { result: 'tableSurvives', splice: null };
 	clearCellsInRange(table, startCellIdx, endCellIdx);
 
 	const meta = metadataOf(table, 'table');
@@ -590,16 +619,17 @@ function deleteCellsAndCollapse(
 	const lastFull = lastColInRange === cellsPerRow - 1 ? lastRowInRange : lastRowInRange - 1;
 
 	const headerRemoved = firstFull <= 0 && lastFull >= 0;
+	const splice = firstFull <= lastFull ? { at: firstFull, count: lastFull - firstFull + 1 } : null;
 
-	if (firstFull <= lastFull) {
-		rows.splice(firstFull, lastFull - firstFull + 1);
+	if (splice) {
+		rows.splice(splice.at, splice.count);
 	}
 
-	if (rows.length === 0) return 'tableEmpty';
+	if (rows.length === 0) return { result: 'tableEmpty', splice };
 	if (headerRemoved) {
 		metadataOf(rows[0], 'tableRow').isHeader = true;
 	}
-	return 'tableSurvives';
+	return { result: 'tableSurvives', splice };
 }
 
 function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: number): void {
