@@ -32,7 +32,29 @@ export interface ContainerBlockComponentDeps {
 	readonly isCollapsed?: () => boolean;
 }
 
-export function createContainerBlockComponent(deps: ContainerBlockComponentDeps): BlockComponent {
+/**
+ * The container shim's surface, with the members it always supplies promoted to
+ * required — so a container host re-exports them for BlockHost without a
+ * per-member non-null assertion. Re-exported under this name from the plugin
+ * container seam.
+ */
+export type ContainerBlockComponent = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'getCursorPosition'
+			| 'focusByPath'
+			| 'getBlockComponentByPath'
+			| 'revealByPath'
+			| 'focusAtColumn'
+			| 'isVerticallyTransparent'
+			| 'selectEdgeWidget'
+		>
+	>;
+
+export function createContainerBlockComponent(
+	deps: ContainerBlockComponentDeps
+): ContainerBlockComponent {
 	return {
 		editable: true,
 		focusable: true,
