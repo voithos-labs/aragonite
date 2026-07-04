@@ -20,11 +20,11 @@ Remaining work, ordered:
 2. **Registry hardening — before limestone binds.** Duplicate-registration guard on the inline-widget registry, own-kind-only `augmentBlockKind`, an opener late-registration policy, a bootstrap coherence check for `reservedChrome` declarations, a grouped container registration shape (container-only descriptor fields registered as one unit, so illegal descriptor states are unrepresentable at the API boundary), and the `ContainerBlockListProps` inversion (author the interface; BlockList conforms via a compile-time check).
 3. **Inline scanner rework** — replace the staged backward-scan inline parser with the CommonMark delimiter/bracket-stack pass (single left-to-right scan, openers_bottom, innermost-wins). Grounds: five bug classes share the old architecture (review 2026-07-03); must land before the KaTeX seam and any inline-parser hook freeze the scan-stage semantics. The ~240-test + property surface validates the rework; corruption stopgaps shipped 0.9.6.
 4. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving consumer. Decide the `AnyInlineKind` widening here (mirror `AnyBlockKind`), even if the registry ships later — breaking if deferred past the freeze.
-5. **Tarball-gate the extensions** — every dogfood extension builds and runs through the packed tarball in `examples/consumer`; forces the pending promotion of the core helpers both consumers need onto `aragonite/plugin`.
+5. **Tarball-gate the extensions** — every dogfood extension builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface from outside the repo (the core helpers both consumers need shipped on `aragonite/plugin` in 0.9.6; the gate validates them at the package boundary).
 6. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-7. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays every PR.
+7. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays every PR. Fold in the invariant-watcher fixture adoption sweep (the shared fixture ships in 14 specs; the remaining specs adopt it with a one-line import each).
 8. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-9. **Freeze cut at release** — final contract reconciliation; the pre-freeze labels come off; pending owner decisions land (open-state-aware height estimation for collapsed containers).
+9. **Freeze cut at release** — final contract reconciliation; the pre-freeze labels come off; pending owner decisions land: per-scope keying for the reveal mount-waiter registry (module-global today — a multi-instance concern), the `env.ts` toolchain-seam decision (route the direct `import.meta.env` reads through `editorEnv` vs narrowing the seam's claim), and grouping `BlockComponent`'s optional capability probes into named facets so post-freeze hook work can dispatch on facet presence.
 
 **Standing posture: invariant guards over invariant docs.** Every load-bearing contract the types can't express becomes a guard that fails at the gate, not in a vault. The complexity is essential — cap the downside, don't simplify.
 
@@ -53,6 +53,8 @@ History view, inline markdown diff, three-way merge UI for markdown conflicts, c
 ### 2.0+ — Platform-level
 
 Canvas/spatial view, graph view, dataview-shape queries, executable code blocks; then (3.0) a notebook environment with shared kernel state. Driven by the plugin API where possible.
+
+consumer specific (limestone): shared env for executable code block, start with python and javascript. Probably this type of executable code block will be a plugin in the limestone codebase.
 
 ## Downstream (consumer-owned, not this repo)
 

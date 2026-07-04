@@ -2,6 +2,59 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.6 — Review hardening: corruption fixes, path-dialect unification, contract quick-wins
+
+A full four-pass audit (every Critical/Important finding independently verified) followed by
+reviewed fix waves. Three byte-corruption classes closed, one deadline-bound restructure landed
+before the 1.0 freeze, and the plugin surface met the corruption oracle for the first time.
+
+- **Selection × tables no longer corrupts the CST.** Table-endpoint normalization moved inside
+  the selection state (`enterCrossBlock`/`extendFocus` — the sixth entry path can no longer
+  miss it), closing two hand-reachable corruption gestures (double Ctrl+A with a table at a
+  document edge; shift-click between paragraph and cell). Shift+ArrowUp from a container's
+  first leaf no longer extends downward; cross-block delete holds a re-entry latch; table
+  endpoints join the multi-scope commit so whole-row snaps keep row ids stable (the standing
+  table-kind audit exclusion is gone).
+- **Inline parser stopgaps** (the full CommonMark delimiter/bracket-stack rework is
+  roadmapped): a link destination can no longer terminate inside a code span (typable
+  byte-corruption via `textContent ≠ raw`); the emphasis multiple-of-3 gate reads original run
+  lengths (divergence vs commonmark.js: 865/72,702 → 0); bracket nesting is depth-capped;
+  entity and paren scans are bounded; a GFM header/delimiter count mismatch now rejects the
+  table per spec instead of silently truncating header cells.
+- **One path dialect on the public event channel.** Commit scopes mint doc-absolute event and
+  undo-snapshot paths at the seam (factories, not call sites) — nested ops no longer emit
+  scope-local paths, no-caret undo restores land for click-driven container ops, typing in a
+  container-nested link-reference definition rebuilds the resolver map, and a dev guard
+  (G1.16) makes the next dialect drift loud. Landed pre-freeze on purpose: the `edit` channel
+  is what external consumers bind to at 1.0.
+- **Plugin contract quick-wins (pre-freeze, user-approved).** `parse`, `serializeChildren`,
+  `trimTrailingLineEnding`, `declaredPluginKind` (kills the cast ceremony), typed
+  `BlockComponentProps`/`ContainerBlockComponent`, and registry probes for kind/component/
+  opener on `aragonite/plugin`; collapse-ness single-sourced from the declared probe (window
+  clamp and height oracle derive from it — a collapsed container estimates one chrome row);
+  dev guards for misbehaving openers (G1.15) plus a misuse-outcome table in the contract doc;
+  `KeyBinding.arg` widened for the coming command mint; the uncallable `registerCommand`
+  export removed until the mint lands.
+- **Interaction/a11y fixes.** Focus and reveal skip failed-render blocks instead of hanging;
+  the stale top-level reveal ref is fixed with a deterministic guard; keyboard reorder works
+  for code blocks and thematic breaks; table alignment restores focus and announces; Ctrl+F
+  works with CapsLock; structural paste lands the caret at the end of pasted content; pasted
+  unordered items adopt the destination list's bullet on every paste route; case-insensitive
+  search is fold-safe (İ) and a new query starts at the first match.
+- **Theming made real; tooling unblocked.** The eleven documented `--syntax-*` tokens are now
+  actually read (visually neutral by construction — consumer overrides work without changing
+  the shipped look); undeclared token reads fixed; the css-ownership lint catches off-family
+  tokens; the perf gate finally has launchers (`perf:check`/`perf:editor`/`perf:e2e`);
+  plugins/simulation area scripts; CI caches browsers; the consumer-smoke pack pin self-heals
+  across version bumps.
+- **Structure + test infrastructure.** `editor-actions/` reorganized (`commit/`, `focus/`,
+  `plugin/`; the layer's one upward value edge removed at the barrel seam); an invariant-
+  watcher Playwright fixture (invariant fires now fail adopted specs); the two largest spec
+  files split 4-way each; a plugin-ops simulation profile — the strongest corruption oracle's
+  first contact with the plugin surface, green; nine requirement files backfilled; an
+  adversarial parser pin corpus with widened property generators (non-ASCII,
+  cross-construct).
+
 ### 0.9.5 — Details/collapsible: the second chrome consumer + first-class collapse
 
 The `details`/collapsible dev-harness plugin validated the reserved-chrome contract as its second real consumer — zero internal reach-ins for the component, SSR + hydration clean with interactive chrome — and collapse landed as first-class machinery.
