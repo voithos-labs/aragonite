@@ -61,6 +61,7 @@ index.ts         public barrel — the supported API surface
 3. All dependencies explicit — context, props, params. No runtime patching.
 4. New block type = one component + one BlockHost entry + one block-kind descriptor entry.
 5. Node copies are written into the `$state` tree, then re-read through it before further use — never hold a raw copy after the proxy has observed it (`tree-operations/unshare.ts` header).
+6. Enforcement ladder: **unrepresentable > guarded > documented** — load-bearing contracts climb as high as they can; rules live at choke points, not call sites. The incident-backed rule set is `docs/culture.md` — read it before your first edit.
 
 ### Debugging
 
@@ -83,20 +84,21 @@ Before hand-tracing editor state (CST, selection, undo stack, ops log), dump it.
 
 Orient from `docs/design/editor/editor.md`. Read a design doc only when the task touches its subsystem.
 
-| Document                                  | Scope                                             |
-| ----------------------------------------- | ------------------------------------------------- |
-| `docs/design/editor/editor.md`            | Editor design spec                                |
-| `docs/design/editor/syntax-tree.md`       | CST node model, parser design, GFM block coverage |
-| `docs/design/editor/inline-parsing.md`    | Inline parser pipeline, ambient prefix, rendering |
-| `docs/design/editor/invariants.md`        | Load-bearing invariants catalog + enforcement     |
-| `docs/design/editor/virtual-rendering.md` | Windowing for large docs                          |
-| `docs/design/editor/plugin-contract.md`   | Frozen plugin-API contract (foundation)           |
-| `docs/editor/consumer-guide.md`           | Embedding the editor: API, theming, props, events |
-| `docs/editor/adding-a-block.md`           | How to add a new block type                       |
-| `docs/editor/gfm-reference.md`            | GFM syntax reference                              |
-| `docs/testing.md`                         | Test infrastructure and patterns                  |
-| `docs/perf/performance.md`                | Perf claims, gate, and key decisions              |
-| `docs/roadmap.md` / `docs/changelog.md`   | Forward plan / shipped history                    |
+| Document                                  | Scope                                                    |
+| ----------------------------------------- | -------------------------------------------------------- |
+| `docs/design/editor/editor.md`            | Editor design spec                                       |
+| `docs/design/editor/syntax-tree.md`       | CST node model, parser design, GFM block coverage        |
+| `docs/design/editor/inline-parsing.md`    | Inline parser pipeline, ambient prefix, rendering        |
+| `docs/design/editor/invariants.md`        | Load-bearing invariants catalog + enforcement            |
+| `docs/design/editor/virtual-rendering.md` | Windowing for large docs                                 |
+| `docs/design/editor/plugin-contract.md`   | Frozen plugin-API contract (foundation)                  |
+| `docs/editor/consumer-guide.md`           | Embedding the editor: API, theming, props, events        |
+| `docs/editor/adding-a-block.md`           | How to add a new block type                              |
+| `docs/editor/gfm-reference.md`            | GFM syntax reference                                     |
+| `docs/culture.md`                         | Incident-backed rules: sharp edges, fix + testing habits |
+| `docs/testing.md`                         | Test infrastructure and patterns                         |
+| `docs/perf/performance.md`                | Perf claims, gate, and key decisions                     |
+| `docs/roadmap.md` / `docs/changelog.md`   | Forward plan / shipped history                           |
 
 ## Conventions
 
@@ -114,7 +116,7 @@ Commit gate: `npm test` (full unit + every e2e project, incl. simulation) + `npm
 
 ### Testing
 
-Tests must catch regressions. Ask: "if someone broke this, would this test catch it?" Fix bugs test-first where you can, so each fix lands as a permanent regression guard.
+Tests must catch regressions. Ask: "if someone broke this, would this test catch it?" Fix bugs test-first where you can, so each fix lands as a permanent regression guard. Each fix records a one-line **miss-analysis** — what test should have caught this, and why none did — in its commit message or requirement entry.
 
 ### Style / review
 

@@ -13,7 +13,7 @@ Dispatch implementers and reviewers on the model CLAUDE.md mandates — **opus 4
 
 ## Every brief opens with
 
-> Invoke the Skill tool for `forge-style`, `forge-docs`, and `forge-tests` and apply them to every file you touch (including pruning pre-existing verbose comments in your path). Project rules: comments explain _why_ only; Prettier with tabs (`npm run format`, then `npm run lint` clean before committing); commits symbol-prefixed lowercase, no trailing period, no co-authored-by / no "Generated with" line; `npm run check` stays at 0 errors.
+> Invoke the Skill tool for `forge-style`, `forge-docs`, and `forge-tests` and apply them to every file you touch (including pruning pre-existing verbose comments in your path). Read `docs/culture.md` — its incident-backed rules (sharp edges, choke-point discipline, red-first fixes, miss-analysis) are binding. Project rules: comments explain _why_ only; Prettier with tabs (`npm run format`, then `npm run lint` clean before committing); commits symbol-prefixed lowercase, no trailing period, no co-authored-by / no "Generated with" line; `npm run check` stays at 0 errors.
 
 Then: scene-setting context (where the task fits, what landed before it), the FULL task text (paste it — never make the agent read the plan file for its core instructions; pointing at the plan or a brief file for reference is fine), verified code facts with the warning that line numbers drift (re-locate by grep), and the gate the task must pass. Hand bulk artifacts (task brief, report) over as files, not pasted text.
 
