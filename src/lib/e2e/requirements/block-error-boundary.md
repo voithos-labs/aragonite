@@ -13,3 +13,8 @@ event.
 ## Edge cases
 
 - Serialized source is unaffected by a render failure (the failed block's own raw still round-trips).
+
+## User interactions
+
+- ArrowDown from the block above a failed block: the caret skips the failed block and lands on the block below it.
+- ArrowUp from the block below a failed block: the caret skips the failed block and lands on the block above it.

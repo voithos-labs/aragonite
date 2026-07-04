@@ -152,6 +152,26 @@ describe('revealChildOrWait', () => {
 			// entered the mount-wait loop (which only this never-firing registry could wake).
 		});
 
+		it('degrades when an in-window target never publishes (failed-render boundary)', async () => {
+			const i = freshIndex();
+			// The child IS mounted (in-window) but renders its failed boundary, so
+			// bind:this never assigns and no same-index mount will ever fire. The
+			// reveal must return so the caller degrades, not park forever.
+			const revealChild = vi.fn(async () => {
+				await Promise.resolve();
+			});
+
+			const call = revealChildOrWait(i, {
+				childCount: i + 1,
+				getRef: () => undefined,
+				revealChild,
+				isInWindow: () => true
+			});
+
+			expect(await settlesWithin(call)).toBe(true);
+			expect(revealChild).toHaveBeenCalledWith(i);
+		});
+
 		it('still terminates under a storm of spurious same-index wakes (re-wait cap)', async () => {
 			const i = freshIndex();
 			// Membership is unknown to this scope (isInWindow omitted), so the call enters

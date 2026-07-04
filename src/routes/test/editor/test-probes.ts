@@ -106,6 +106,7 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 
 let capturedErrorOrigins: string[] = [];
 let disposeErrorCapture: (() => void) | undefined;
+let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
 
 // Installs the e2e probe surface on `window.__test`. Behavior must stay
 // byte-for-byte stable — the e2e suite drives the editor through these.
@@ -132,7 +133,9 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		// windowing rebuild on a count change WITHOUT moving the scroll — the VR-2 above-fold
 		// anchor-remap path. `markdown` is parsed to top-level blocks and inserted as the
 		// container's children. Root-only paths are rejected (root ids live in a separate
-		// `blockIds` array this helper can't reach).
+		// `blockIds` array this helper can't reach). The container's own raw (and every
+		// ancestor's) stays STALE, so getSource()/roundTripStable() are blind to the splice
+		// — assert through getDocument() after using this.
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -307,6 +310,22 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			if (!node) return [];
 			const state = getStateForNode(node);
 			return state ? [...state.innerBlockIds] : [];
+		},
+		// ── Stale ref-slot probes ────────────────────────────────────────
+		/**
+		 * Capture the mounted component at top-level `index` into page scope so
+		 * `replantBlockRef` can later write it back into a cleared slot —
+		 * deterministically forging the stale detached ref that the windowed
+		 * each-block's conditional cleanup only rarely leaves behind.
+		 */
+		captureBlockRef: (index: number): boolean => {
+			capturedBlockRef = editor.__test.getBlockComponent([index]);
+			return capturedBlockRef !== null;
+		},
+		replantBlockRef: (index: number): boolean => {
+			if (!capturedBlockRef) return false;
+			editor.__test.setBlockRefSlot(index, capturedBlockRef);
+			return true;
 		},
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**

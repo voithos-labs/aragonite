@@ -5,7 +5,7 @@
  * When a table is one END of a cross-block (different-block) selection, the
  * highlight, clipboard copy, and range delete must agree on the same cell set;
  * left partial, copy row-rounds while delete clears columns and a Cut loses or
- * duplicates cells (findings F1). Snapping each table endpoint to its whole row
+ * duplicates cells. Snapping each table endpoint to its whole row
  * — start side to the row's first cell, end side to the row's last cell — makes
  * all three paths capture the same whole rows (WYSIWYG: the painted rows are the
  * copied/deleted rows).
@@ -15,9 +15,8 @@
  * delete, and overlay convert to their own end-exclusive form at their seams.
  *
  * Only `cellCoordinate` endpoints snap: that flag is what distinguishes a
- * row-major cell index from a char offset on a table-block path. A pointer-drag
- * anchor that lacks the flag (the open F3 anchor gap) is left untouched — once
- * F3 sets the flag there, this snap fires for it automatically.
+ * row-major cell index from a char offset on a table-block path; unflagged
+ * endpoints pass through untouched.
  *
  * Intra-table selections (both endpoints on the same table) are NOT snapped —
  * rectangular sub-cell selection inside one table is intentionally preserved.
@@ -28,6 +27,50 @@ import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
 import { comparePaths } from './primitives';
+
+/**
+ * A cross-block selection endpoint inside a table must address the table block
+ * by row-major cell index (`[tableIdx]` + cellIdx), matching the pointer-drag
+ * representation. A deep `[tableIdx, row, col]` leaf path with a character
+ * offset routes the delete through the generic (non-table-aware) path, which
+ * merges external text into a cell and corrupts the grid. Non-table paths pass
+ * through unchanged. SelectionState applies this to every incoming point, so
+ * entry paths need not call it themselves.
+ */
+export function normalizeTableEndpoint(
+	doc: Document,
+	path: number[],
+	offset: number
+): SelectionPoint {
+	for (let d = 0; d < path.length - 1; d++) {
+		const node = nodeAt(doc, path.slice(0, d + 1));
+		if (node && isBlockNode(node) && node.kind === 'table') {
+			const colCount = metadataOf(node, 'table').columnCount;
+			const rowIdx = path[d + 1];
+			const colIdx = path[d + 2] ?? 0;
+			return {
+				path: path.slice(0, d + 1),
+				offset: rowIdx * colCount + colIdx,
+				cellCoordinate: true
+			};
+		}
+	}
+	return { path: path.slice(), offset };
+}
+
+/**
+ * Inverse of {@link normalizeTableEndpoint}: expand a cell-coordinate endpoint
+ * back to its deep `[tableIdx, row, col]` leaf path so reveal/caret placement can
+ * reach the off-window cell. Null for non-cell-coordinate points (the path is
+ * already the leaf).
+ */
+export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
+	if (!point.cellCoordinate) return null;
+	const node = nodeAt(doc, point.path);
+	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
+	const colCount = metadataOf(node, 'table').columnCount;
+	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
+}
 
 export function snapCrossBlockTableEndpoints(
 	doc: Document,

@@ -59,18 +59,28 @@ describe('SelectionState lifecycle', () => {
 
 describe('SelectionState.isCustomRendered', () => {
 	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
-	const tablePaths: { kind: string; path: number[] }[] = [
-		{ kind: 'table', path: [0] },
-		{ kind: 'tableRow', path: [0, 0] },
-		{ kind: 'tableCell', path: [0, 0, 0] }
-	];
 
-	for (const { kind, path } of tablePaths) {
-		it(`is true for same-path different-offset on ${kind}`, () => {
+	it('is true for same-path different-offset on a table block (cell-index selection)', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 1 });
+		expect(s.isCustomRendered).toBe(true);
+	});
+
+	// Deep row/cell paths can no longer be stored: the state normalizes them to
+	// the table block + row-major cell index on entry, so a pair addressing one
+	// cell collapses instead of painting a custom range.
+	for (const path of [
+		[0, 0],
+		[0, 0, 0]
+	]) {
+		it(`normalizes a deep same-path pair at [${path.join(',')}] to table cell coordinates`, () => {
 			const doc = parse(tableSource);
 			const s = createSelectionState({ getDoc: () => doc });
-			s.enterCrossBlock({ path, offset: 0 }, { path, offset: 1 });
-			expect(s.isCustomRendered).toBe(true);
+			s.enterCrossBlock({ path: path.slice(), offset: 0 }, { path: path.slice(), offset: 1 });
+			expect(s.anchor).toEqual({ path: [0], offset: 0, cellCoordinate: true });
+			expect(s.focus).toEqual({ path: [0], offset: 0, cellCoordinate: true });
+			expect(s.isCustomRendered).toBe(false);
 		});
 	}
 

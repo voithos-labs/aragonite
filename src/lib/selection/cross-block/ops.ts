@@ -59,6 +59,35 @@ export async function performCrossBlockDelete(
 		tableCoverageDelete?: boolean;
 	}
 ): Promise<SelectionPoint | null> {
+	// Key auto-repeat, paste, or a composition can re-enter while a delete is
+	// parked on its reveal await; both calls would resolve the SAME endpoints
+	// and the second would delete against the mutated tree. Serialize per
+	// selection: the follow-up waits out the in-flight commit, then re-resolves
+	// — the collapsed selection makes it a no-op. When nothing is in flight
+	// this adds no await, preserving the sync variant's no-yield window.
+	let inFlight: Promise<SelectionPoint | null> | undefined;
+	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
+		await inFlight.catch(() => {});
+	}
+	const run = runCrossBlockDelete(ctx, options);
+	inFlightDeletes.set(ctx.selection, run);
+	try {
+		return await run;
+	} finally {
+		if (inFlightDeletes.get(ctx.selection) === run) inFlightDeletes.delete(ctx.selection);
+	}
+}
+
+const inFlightDeletes = new WeakMap<SelectionState, Promise<SelectionPoint | null>>();
+
+async function runCrossBlockDelete(
+	ctx: CrossBlockMutationContext,
+	options?: {
+		undoEntry?: UndoEntryMode;
+		skipCaretRestore?: boolean;
+		tableCoverageDelete?: boolean;
+	}
+): Promise<SelectionPoint | null> {
 	const { start, end } = resolveStartEnd(ctx.selection);
 	if (!start || !end) return null;
 
