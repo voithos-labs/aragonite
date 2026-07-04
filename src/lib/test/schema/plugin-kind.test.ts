@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { declarePluginKind } from '../../schema/plugin-kind';
+import { declarePluginKind, declaredPluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 describe('declarePluginKind', () => {
@@ -28,5 +28,23 @@ describe('declarePluginKind', () => {
 			supportsInline: false
 		});
 		expect(tryGetBlockKindDescriptor(kind)?.mergeRole).toBe('not-mergeable');
+	});
+});
+
+describe('declaredPluginKind', () => {
+	it('recovers the brand for an already-declared name', () => {
+		const kind = declarePluginKind('accessorProbe');
+		expect(declaredPluginKind('accessorProbe')).toBe(kind);
+	});
+
+	it('throws for an undeclared name, naming the kind', () => {
+		expect(() => declaredPluginKind('neverDeclaredKind')).toThrow(/neverDeclaredKind/);
+	});
+
+	it('does not declare — an accessor call for an undeclared name is not idempotent', () => {
+		expect(() => declaredPluginKind('notYetDeclared')).toThrow();
+		// A later collision must still be loud: the failed lookup didn't register it.
+		expect(declarePluginKind('notYetDeclared')).toBe('notYetDeclared');
+		expect(() => declarePluginKind('notYetDeclared')).toThrow(/already declared/);
 	});
 });

@@ -22,6 +22,8 @@ import type {
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import { isCollapsedContainer } from '../schema/reserved-chrome';
+import { devWarn } from '../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
@@ -52,9 +54,14 @@ export interface ContainerBlockDeps {
 	get index(): number;
 	get path(): number[];
 	getBoxEl(): HTMLElement | undefined;
-	/** Collapse clamp — while true only the chrome row (child 0) mounts; body children
-	 *  genuinely unmount. Read live (typically off this node's metadata) so a toggle or
-	 *  its undo re-renders reactively. */
+	/**
+	 * Collapse clamp — while true only the chrome row (child 0) mounts; body
+	 * children genuinely unmount. Optional: a container that declares
+	 * `reservedChrome.isCollapsed` needs no dep — the factory derives the clamp
+	 * from that one probe. Supply it only as an escape hatch (dev-warns when it
+	 * disagrees with the declared probe). Read live so a toggle or its undo
+	 * re-renders reactively.
+	 */
 	isCollapsed?: () => boolean;
 }
 
@@ -64,11 +71,48 @@ export type ContainerBlockListProps = Pick<
 	'children' | 'blockIds' | 'setRef' | 'getRef' | 'parentPath' | 'window' | 'reorderable'
 >;
 
+/**
+ * The `BlockComponent` surface `createContainerBlock` returns, with the members
+ * the container shim always supplies promoted to required — so a host re-exports
+ * them for BlockHost without a per-member non-null assertion.
+ */
+export type ContainerBlockComponent = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'getCursorPosition'
+			| 'focusByPath'
+			| 'getBlockComponentByPath'
+			| 'revealByPath'
+			| 'focusAtColumn'
+			| 'isVerticallyTransparent'
+			| 'selectEdgeWidget'
+		>
+	>;
+
+/**
+ * The shim returns the weaker `BlockComponent` (container members optional), so a
+ * host can only re-export them as required by narrowing through this check — not a
+ * blind cast. Members mirror the `Required<Pick<…>>` above; a future drop by the
+ * shim throws at the seam here instead of surfacing as an `undefined` re-export.
+ */
+function suppliesContainerMembers(c: BlockComponent): c is ContainerBlockComponent {
+	return (
+		c.getCursorPosition !== undefined &&
+		c.focusByPath !== undefined &&
+		c.getBlockComponentByPath !== undefined &&
+		c.revealByPath !== undefined &&
+		c.focusAtColumn !== undefined &&
+		c.isVerticallyTransparent !== undefined &&
+		c.selectEdgeWidget !== undefined
+	);
+}
+
 export interface ContainerBlock {
 	/** Spread onto `<BlockList {...blockListProps} />` inside the chrome box. */
 	blockListProps: ContainerBlockListProps;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
-	containerApi: BlockComponent;
+	containerApi: ContainerBlockComponent;
 	/**
 	 * Commit a shallow metadata patch on THIS container node as one undoable
 	 * entry, round-tripping through the kind's `rebuildRaw`. `afterTick` runs
@@ -76,6 +120,30 @@ export interface ContainerBlock {
 	 * body caret to the chrome row here (the clamp kills the window pin).
 	 */
 	updateOwnMetadata(patch: Record<string, unknown>, afterTick?: () => void): void | Promise<void>;
+}
+
+/**
+ * Collapse-ness has ONE definition: the descriptor's `reservedChrome.isCollapsed`
+ * probe. The window/focus clamp derives from it, so a container that declares the
+ * probe needn't also thread a dep. An explicit dep stays an escape hatch; in dev
+ * it's cross-checked against the probe so a half-collapsed hybrid (model says
+ * collapsed, view stays open, or vice versa) is loud, not silent.
+ */
+export function composeCollapseProbe(
+	explicit: (() => boolean) | undefined,
+	getNode: () => CstNode
+): () => boolean {
+	if (!explicit) return () => isCollapsedContainer(getNode());
+	return () => {
+		const value = explicit();
+		if (import.meta.env.DEV && value !== isCollapsedContainer(getNode())) {
+			devWarn(
+				'plugin-container',
+				`isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "${getNode().kind}"`
+			);
+		}
+		return value;
+	};
 }
 
 /**
@@ -129,6 +197,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const listState = createBlockListState(() => deps.node);
 
+	const collapsed = composeCollapseProbe(deps.isCollapsed, () => deps.node);
+
 	const blockquoteOverrides = createBlockquoteOverrides({
 		get index() {
 			return deps.index;
@@ -156,11 +226,11 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			...base,
 			blockEdit: {
 				...base.blockEdit,
-				descendToBody: gateDescendOnCollapse(deps.isCollapsed, defaults.blockEdit.descendToBody)
+				descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody)
 			},
 			focus: {
 				moveFocus: gateMoveFocusOnCollapse(
-					deps.isCollapsed,
+					collapsed,
 					defaults.focus.moveFocus,
 					parentFocus,
 					() => deps.index
@@ -201,10 +271,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		getListEl: () => deps.getBoxEl()?.querySelector(':scope > .block-list') ?? null,
 		getOwnEl: () => deps.getBoxEl()?.closest('.block-host') ?? null,
 		provideLeafChannel: true,
-		isCollapsed: deps.isCollapsed
+		isCollapsed: collapsed
 	});
 
-	const containerApi = createContainerBlockComponent({
+	const base = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
@@ -216,8 +286,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		},
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
-		isCollapsed: deps.isCollapsed
+		isCollapsed: collapsed
 	});
+	if (!suppliesContainerMembers(base)) {
+		throw new Error('createContainerBlockComponent must supply every container method');
+	}
+	const containerApi: ContainerBlockComponent = base;
 
 	const blockListProps: ContainerBlockListProps = {
 		get children() {

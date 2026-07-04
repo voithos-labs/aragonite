@@ -10,36 +10,23 @@ import {
 } from './details-helpers';
 
 /**
- * Spec §8.3 — height-oracle drift, CHARACTERIZATION (pin the observed, don't
- * force). The per-kind oracle estimates an unmounted block from its full `raw`.
- * A collapsed details' raw carries its whole (hidden) body, but the rendered
- * block is one summary row, so the oracle over-estimates every off-window
- * collapsed details. In a large doc with top-level windowing active that inflates
- * the scroll height until each details is scrolled into view and measured.
+ * Spec §8.3 — height-oracle estimate for collapsed containers. The oracle reads
+ * the declared `reservedChrome.isCollapsed` probe and estimates a collapsed
+ * details at one chrome row, ignoring the hidden body its `raw` still carries.
+ * That kills, at its root, the former over-estimate where a collapsed details'
+ * full `raw` inflated the load-time scroll height until each was scrolled into
+ * view and measured. The unit suite pins the exact one-chrome-row estimate; this
+ * suite proves the tight estimate at scale — the load-time height no longer
+ * over-counts — plus correctness under the residual drift.
  *
- * OBSERVED (Chromium, plugins harness — 40 collapsed details, ~1.1KB body each):
- * load-time scroll height ≈ 5681px vs ≈ 2416px fully measured — a ≈ 3265px
- * over-estimate, ≈ 82px per collapsed details. The fixed floor below sits an order
- * of magnitude under it so viewport-width variance can't flake the assertion.
- *
- * MATERIALITY (judged NOT material — record + guard, no fix): the drift is
- * absorbed by the editor's scroll-anchor correction (`correctAnchor` in
- * list-windowing), the sign-symmetric, scope-generic machinery the VR suite's
- * anchor tests already prove where estimate ≠ measured — the top-level `deep jump
- * ... holds the viewport via scroll-anchor correction (VR-2)` and its nested-scope
- * twin. A dedicated details mid-jump test is not carried here: this fixture's real
- * measured height (~2416px) is shorter than a viewport, so a jump to the estimated
- * middle lands past the true end and settles at the top via the browser's scrollTop
- * clamp — a clamp, not the anchor correction (verified: the settle is byte-identical
- * with `correctAnchor` neutered), so any local mid-jump assertion is vacuous. A
- * bounded fix — an open-aware height hook the oracle consults — is a pre-freeze
- * DESCRIPTOR widening; deferred to the controller rather than built here.
+ * A collapsed block's real chrome (border/padding/margin) slightly exceeds one
+ * prose row, so the tight estimate now sits at or below the fully-measured height
+ * — a small under-estimate the same scroll-anchor machinery absorbs (the machinery
+ * the VR suite's anchor tests prove where estimate ≠ measured). A dedicated details
+ * mid-jump test is not carried here: this fixture's real measured height is shorter
+ * than a viewport, so a mid-jump settles at the top via the browser's scrollTop
+ * clamp, not the anchor correction — any local mid-jump assertion would be vacuous.
  */
-
-// The over-estimate is real but the load-time window mounts a handful of details;
-// the fixed floor sits far below the observed drift so viewport-width variance
-// can't flake it.
-const DRIFT_FLOOR_PX = 800;
 
 function collapsedDetailsDoc(count: number): string {
 	return (
@@ -55,7 +42,9 @@ function collapsedDetailsDoc(count: number): string {
 	);
 }
 
-const COUNT = 40;
+// Large enough that even the tight one-chrome-row estimate (~40px each) exceeds
+// the mounted band — the precondition below needs off-window rows to exist.
+const COUNT = 300;
 
 function topLevelSpacerCount(page: Page): Promise<number> {
 	// Collapsed details mount no body, so every `.vr-spacer` is a top-level one.
@@ -68,7 +57,7 @@ function topLevelHostCount(page: Page): Promise<number> {
 	);
 }
 
-test.describe('plugin container: <details> height-oracle drift at scale', () => {
+test.describe('plugin container: <details> collapsed height estimate at scale', () => {
 	let editor: DetailsPage;
 	let invariantWarnings: string[];
 	let pageErrors: string[];
@@ -87,7 +76,7 @@ test.describe('plugin container: <details> height-oracle drift at scale', () => 
 		expect(pageErrors).toEqual([]);
 	});
 
-	test('a run of collapsed details over-estimates scroll height until scrolled through', async ({
+	test('a run of collapsed details estimates one chrome row each, not the hidden body', async ({
 		page
 	}) => {
 		await editor.loadContent(collapsedDetailsDoc(COUNT));
@@ -96,7 +85,7 @@ test.describe('plugin container: <details> height-oracle drift at scale', () => 
 		expect((await editor.bridge.getSource()).includes('<details open>')).toBe(false);
 
 		// Precondition: top-level windowing is active and most details are off-window
-		// (estimated), or the drift below is vacuous.
+		// (estimated from the collapse probe), or the comparison below is vacuous.
 		expect(await topLevelSpacerCount(page)).toBeGreaterThan(0);
 		expect(await topLevelHostCount(page)).toBeLessThan(COUNT);
 
@@ -107,15 +96,16 @@ test.describe('plugin container: <details> height-oracle drift at scale', () => 
 		const drift = estimated - measured;
 		const perDetails = drift / COUNT;
 		console.log(
-			`details height-oracle drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
+			`details collapsed-estimate drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
 		);
 
-		// The oracle over-estimated (collapsed raw ≫ one summary row); measuring every
-		// details on the way through corrects it downward.
-		expect(measured).toBeLessThan(estimated);
-		expect(drift).toBeGreaterThan(DRIFT_FLOOR_PX);
+		// The oracle estimates each off-window collapsed details at one chrome row,
+		// below its real rendered chrome, so the load-time height no longer over-counts
+		// — it now sits below the fully-measured height (the over-estimate class is
+		// gone), a residual the scroll-anchor machinery absorbs.
+		expect(estimated).toBeLessThan(measured);
 
-		// Correctness holds under the drift: no desync, no render throw.
+		// Correctness holds under the residual drift: no desync, no render throw.
 		expect(await auditRealDesyncs(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

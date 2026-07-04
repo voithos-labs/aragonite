@@ -1,10 +1,10 @@
-// The frozen plugin-authoring surface, published at the `aragonite/plugin` subpath.
+// The plugin-authoring surface, published at the `aragonite/plugin` subpath.
 // Separate from the `<Editor>` consumer barrel (index.ts) on purpose: this is the
-// authoring API, not the embedding API. Only the stable registration surface belongs
-// here — no test helpers, no internal getters or dispatch.
+// authoring API, not the embedding API. Only the authoring surface belongs here —
+// no test helpers, no internal getters or dispatch.
 
 // ── Kind declaration ─────────────────────────────────────────────────────────
-export { declarePluginKind } from './schema/plugin-kind';
+export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
@@ -14,15 +14,29 @@ export type { BlockKindDescriptor, MergeRole, UnwrapRole } from './schema/block-
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';
 export type { BlockComponentEntry } from './schema/block-component-registry';
-export type { BlockComponent } from './block-component';
+export type { BlockComponent, BlockComponentProps } from './block-component';
 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
 export type { BlockOpener, OpenContext } from './schema/block-openers';
 
-// ── Command registry ─────────────────────────────────────────────────────────
-export { registerCommand } from './schema/commands';
-export type { CommandId, GlobalCommandContext } from './schema/commands';
+// ── Command vocabulary + keybindings ─────────────────────────────────────────
+// CommandId names the built-in command a keymap binding targets; KeyBinding is
+// the per-kind chord→command shape. The command-registration surface stays off
+// this barrel until the command mint lands (roadmap 1).
+export type { CommandId } from './schema/commands';
+export type { KeyBinding } from './schema/keybindings';
+
+// ── Parse / serialize helpers ────────────────────────────────────────────────
+// The recognizer/serializer halves of an opener: parse a body to a Document,
+// join child bytes back, and read a child's display text without dropping a CRLF.
+// Re-exported here so an opener needn't reach into core/ deep paths that the
+// packaged artifact doesn't expose.
+export { parse } from './core/parser';
+export type { Document } from './core/nodes';
+export { concatChildren as serializeChildren } from './core/serializer';
+export { trimTrailingLineEnding } from './core/lines';
+export type { ParsedLine } from './core/lines';
 
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';
@@ -44,6 +58,7 @@ export { default as BlockList } from './components/BlockList.svelte';
 export { createContainerBlock } from './editor-actions/plugin-container';
 export type {
 	ContainerBlock,
+	ContainerBlockComponent,
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin-container';
