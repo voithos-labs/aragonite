@@ -10,13 +10,10 @@ import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 // ── B2: top-level replaceBlock preserves id ──────────────────────────────────
 

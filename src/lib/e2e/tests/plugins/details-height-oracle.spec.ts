@@ -1,10 +1,10 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import {
 	DetailsPage,
 	readDetails,
 	capturedErrors,
 	auditRealDesyncs,
-	collectInvariantWarnings,
 	editorScrollHeight,
 	scrollThrough
 } from './details-helpers';
@@ -59,12 +59,10 @@ function topLevelHostCount(page: Page): Promise<number> {
 
 test.describe('plugin container: <details> collapsed height estimate at scale', () => {
 	let editor: DetailsPage;
-	let invariantWarnings: string[];
 	let pageErrors: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
-		invariantWarnings = collectInvariantWarnings(page);
 		pageErrors = [];
 		page.on('pageerror', (e) => pageErrors.push(e.message));
 		await editor.gotoDetails();
@@ -72,7 +70,6 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 	});
 
 	test.afterEach(() => {
-		expect(invariantWarnings).toEqual([]);
 		expect(pageErrors).toEqual([]);
 	});
 

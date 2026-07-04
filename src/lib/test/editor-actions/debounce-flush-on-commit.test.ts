@@ -1,13 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 // ── B4: pending typing batch must flush as one input event before structural commit ─
 
