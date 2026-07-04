@@ -34,4 +34,19 @@ test.describe('per-block error boundary', () => {
 		expect(src).toContain('beta');
 		expect(src).toContain('gamma');
 	});
+
+	test('keyboard traversal skips a failed block in both directions', async ({ page }) => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
+		await editor.waitForRenderFlush();
+
+		// Click (not programmatic focus) so the caret has a measurable rect for
+		// the visual-line boundary checks, as a real user's caret would.
+		await editor.clickBlock(0);
+		await page.keyboard.press('ArrowDown');
+		await expect(editor.getBlock(2)).toBeFocused();
+
+		await page.keyboard.press('ArrowUp');
+		await expect(editor.getBlock(0)).toBeFocused();
+	});
 });
