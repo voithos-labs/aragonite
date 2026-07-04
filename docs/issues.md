@@ -28,15 +28,6 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 ## Code structure
 
-### Table reorder-drag lifecycle is duplicated across the row and column controllers
-
-**Severity:** minor (structure; no behavior impact)
-**Files:** `src/lib/components/blocks/table/table-reorder-drag.ts`
-
-`startRowReorderDrag` and `startColumnReorderDrag` are ~98-line near-identical controllers — teardown / commit-on-release / pointermove / pointerup / cancel / key handling and listener registration are byte-identical; only the per-axis `process()`, the axis, and the insertion-line shape differ. The cross-block `editor-actions/reorder-drag.ts` is a third drag controller but diverges enough (delegated capture-phase install, ghost label, no drag threshold) that folding it in would leak.
-
-**Why deferred:** a pure refactor with no functional gain and real divergences; do it as its own commit gated on the full row + column + windowed + wide-table drag e2e. Clean seam (validated against the live code by the 2026-07 review, with two amendments): `process` must RETURN `{ line, dropTo }` rather than mutate closure state — which also makes the axis clamps pure-testable — and the `axis` param is only the autoscroll axis (name it `autoScrollAxis`). The header-clamp now has a direct controller-level unit test (`table-reorder-drag-clamp.test.ts`), so the refactor's clamp behavior is pinned in advance. A `pointerId` filter on `onUp` (both controllers commit on any pointerup today) is a real fix to land as its own guarded change, not silently inside the refactor.
-
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
 **Severity:** minor (a11y; table blocks only)
