@@ -1,6 +1,6 @@
 {
 	"name": "aragonite",
-	"version": "0.9.1",
+	"version": "0.9.5",
 	"description": "CST block editor for GFM Markdown",
 	"type": "module",
 	"license": "MIT",
@@ -23,7 +23,9 @@
 		"dist"
 	],
 	"sideEffects": [
-		"**/*.css"
+		"**/*.css",
+		"./dist/components/built-in-blocks.js",
+		"./dist/core/parsers/built-in-openers.js"
 	],
 	"scripts": {
 		"dev": "vite dev",
@@ -43,6 +45,8 @@
 		"test:editor:selection": "vitest run src/lib/test/selection --passWithNoTests",
 		"test:editor:blocks": "vitest run src/lib/test/blocks --passWithNoTests",
 		"test:editor:image": "vitest run src/lib/test/image --passWithNoTests",
+		"test:editor:plugins": "vitest run src/lib/test/plugins --passWithNoTests",
+		"test:editor:simulation": "vitest run src/lib/test/simulation --passWithNoTests",
 		"test:editor:undo": "vitest run src/lib/test/undo --passWithNoTests",
 		"test:editor:debug": "vitest run src/lib/test/debug --passWithNoTests",
 		"test:editor:invariants": "vitest run src/lib/test/invariants --passWithNoTests",
@@ -65,6 +69,9 @@
 		"test:e2e:a11y": "playwright test --project=e2e-a11y",
 		"test:e2e:search": "playwright test --project=e2e-search",
 		"test:e2e:vr": "playwright test --project=e2e-vr",
+		"perf:editor": "vitest bench --run src/lib/test/perf",
+		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
+		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 -- playwright test --project=e2e-perf",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
