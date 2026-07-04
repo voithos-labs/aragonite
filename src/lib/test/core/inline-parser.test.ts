@@ -384,6 +384,28 @@ describe('parseInline — links and images (Stage 3)', () => {
 	});
 });
 
+describe('parseInline — totality under deep bracket nesting', () => {
+	it('parses 2000-deep bracket nesting without throwing and covers all bytes', () => {
+		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
+		const nodes = inlineOf(source);
+		const reconstructed = nodes.map((n) => source.slice(n.start, n.end)).join('');
+		expect(reconstructed).toBe(source);
+	});
+
+	it('nesting at the depth cap still parses as links', () => {
+		const source = '['.repeat(32) + 'a' + '](u)'.repeat(32);
+		const nodes = inlineOf(source);
+		expect(nodes).toHaveLength(1);
+		let depth = 0;
+		let node: InlineNode | undefined = nodes[0];
+		while (node?.kind === 'link') {
+			depth++;
+			node = node.children?.[0];
+		}
+		expect(depth).toBe(32);
+	});
+});
+
 describe('parseInline — escape integration', () => {
 	it('escape neutralizes emphasis delimiter', () => {
 		const raw = '\\*foo\\*';

@@ -42,9 +42,22 @@ function scanRegion(raw: string, start: number, end: number, out: InlineNode[]):
 	}
 }
 
+// Longest reference body that can possibly decode: the longest named entity
+// is 31 chars (`CounterClockwiseContourIntegral`); numeric forms are at most
+// 8. Capping the `;` search here keeps `&`-floods linear — an unbounded
+// indexOf rescans to the end of the region per candidate.
+const MAX_REFERENCE_BODY = 31;
+
 function tryMatchReference(raw: string, pos: number, end: number): InlineNode | null {
-	const semi = raw.indexOf(';', pos + 1);
-	if (semi === -1 || semi >= end) return null;
+	const searchEnd = Math.min(end, pos + MAX_REFERENCE_BODY + 2);
+	let semi = -1;
+	for (let i = pos + 1; i < searchEnd; i++) {
+		if (raw[i] === ';') {
+			semi = i;
+			break;
+		}
+	}
+	if (semi === -1) return null;
 	const body = raw.slice(pos + 1, semi);
 	if (body.length === 0) return null;
 

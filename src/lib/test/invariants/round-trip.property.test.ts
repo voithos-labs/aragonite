@@ -54,3 +54,11 @@ describe('G2.2 EOF edge states', () => {
 		});
 	}
 });
+
+// Adversarial fixed cases the generators cannot reach at useful sizes.
+describe('G2.1 adversarial nesting', () => {
+	it('round-trips 2000-deep link bracket nesting', () => {
+		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
+		expect(serialize(parse(source))).toBe(source);
+	});
+});
