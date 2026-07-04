@@ -284,10 +284,10 @@
 			: []
 	);
 
-	function openMenu(axis: MenuAxis, index: number, e: MouseEvent): void {
+	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
 		const grip = e.currentTarget as HTMLElement | null;
 		const rect = grip?.getBoundingClientRect();
-		const target: MenuTarget = axis === 'column' ? { colIdx: index } : { rowIdx: index };
+		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
 		if (!rect) {
 			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
 			return;
@@ -352,9 +352,9 @@
 		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
-	async function runAction(action: CellShortcutAction, index: number): Promise<void> {
+	async function runAction(action: CellShortcutAction, axisIdx: number): Promise<void> {
 		if (!menu) return;
-		await ctx[action](index);
+		await ctx[action](axisIdx);
 		menu = null;
 	}
 
