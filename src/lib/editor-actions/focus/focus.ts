@@ -3,10 +3,10 @@
  * vertical traversal, and trailing-paragraph creation past document end.
  */
 
-import type { FocusActions, MoveFocusOptions } from '../action-contracts';
-import type { FocusPosition } from '../block-component';
-import type { CstNode } from '../core/nodes';
-import type { EditorActionsDeps, UndoController } from './deps';
+import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
+import type { FocusPosition } from '../../block-component';
+import type { CstNode } from '../../core/nodes';
+import type { EditorActionsDeps, UndoController } from '../deps';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 

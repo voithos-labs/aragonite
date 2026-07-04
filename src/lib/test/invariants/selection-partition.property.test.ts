@@ -1,12 +1,7 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
-import {
-	classifyBlockForSelection,
-	comparePaths,
-	normalize,
-	walkBetween
-} from '../../selection/primitives';
-import { pathsEqual } from '../../selection/path-math';
+import { classifyBlockForSelection, normalize, walkBetween } from '../../selection/primitives';
+import { comparePaths, pathsEqual } from '../../selection/path-math';
 import { allBlockPaths, arbDocWithSelection } from './arbitraries';
 
 // G2.7: the two cross-block selection primitives agree. classifyBlockForSelection

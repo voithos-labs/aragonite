@@ -3,6 +3,11 @@
 // authoring API, not the embedding API. Only the authoring surface belongs here —
 // no test helpers, no internal getters or dispatch.
 
+import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
+import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
+import type { AnyBlockKind } from './core/nodes';
+import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
+
 // ── Kind declaration ─────────────────────────────────────────────────────────
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
@@ -55,15 +60,20 @@ export { isBlockComponentRegistered } from './schema/block-component-registry';
 // yet frozen; shape may change. Lets a plugin build an editable nested container
 // as thinly as the built-in blockquote, without touching any editor context key.
 export { default as BlockList } from './components/BlockList.svelte';
-export { createContainerBlock } from './editor-actions/plugin-container';
+export { createContainerBlock } from './editor-actions/plugin/container';
 export type {
 	ContainerBlock,
 	ContainerBlockComponent,
 	ContainerBlockDeps,
 	ContainerBlockListProps
-} from './editor-actions/plugin-container';
-export { registerChromeLeaf } from './editor-actions/plugin-chrome-leaf';
-export type { ChromeLeafOptions } from './editor-actions/plugin-chrome-leaf';
+} from './editor-actions/plugin/container';
+// registerChromeLeaf binds the editor's built-in text surface as the leaf
+// component here — the one seam allowed to import components/, so editor-actions
+// keeps no upward value edge to the component tree.
+export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {
+	bindChromeLeaf(kind, TextEditableBlock, opts);
+}
+export type { ChromeLeafOptions };
 // Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
 // collapse getter and the model-layer walks share one definition.
 export { isCollapsedContainer } from './schema/reserved-chrome';

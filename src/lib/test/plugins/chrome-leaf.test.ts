@@ -5,7 +5,8 @@ import {
 	getBlockComponent,
 	isBlockComponentRegistered
 } from '../../schema/block-component-registry';
-import { registerChromeLeaf } from '../../editor-actions/plugin-chrome-leaf';
+import { registerChromeLeaf } from '../../editor-actions/plugin/chrome-leaf';
+import TextEditableBlock from '../../components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import type { KeyBinding } from '../../schema/keybindings';
@@ -24,7 +25,7 @@ describe('registerChromeLeaf', () => {
 
 	it('registers a context-dependent, not-mergeable editable chrome leaf + its component', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind, {
+		registerChromeLeaf(kind, TextEditableBlock, {
 			blockClass: 'spec-chrome-leaf',
 			keymap: [{ chord: 'Enter', command: 'block.split' }]
 		});
@@ -41,7 +42,7 @@ describe('registerChromeLeaf', () => {
 
 	it('defaults the keymap to descend-on-Enter plus the two merge chords', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind);
+		registerChromeLeaf(kind, TextEditableBlock);
 
 		expect(getBlockKindDescriptor(kind).keymap).toEqual([
 			{ chord: 'Enter', command: 'chrome.descendToBody' },
@@ -52,7 +53,9 @@ describe('registerChromeLeaf', () => {
 
 	it('merges a caller keymap chord-keyed: the override wins its chord, defaults fill the rest', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind, { keymap: [{ chord: 'Enter', command: 'block.split' }] });
+		registerChromeLeaf(kind, TextEditableBlock, {
+			keymap: [{ chord: 'Enter', command: 'block.split' }]
+		});
 
 		const keymap = getBlockKindDescriptor(kind).keymap;
 		expect(keymap).toHaveLength(3);
@@ -65,14 +68,14 @@ describe('registerChromeLeaf', () => {
 
 	it('honors a mergeRole override', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind, { mergeRole: 'container' });
+		registerChromeLeaf(kind, TextEditableBlock, { mergeRole: 'container' });
 
 		expect(getBlockKindDescriptor(kind).mergeRole).toBe('container');
 	});
 
 	it('yields extraProps with an undefined blockClass when none is given', () => {
 		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind);
+		registerChromeLeaf(kind, TextEditableBlock);
 
 		const extraProps = getBlockComponent(kind)?.extraProps;
 		expect(extraProps?.({ kind, leadingTrivia: '', raw: '\n' })).toStrictEqual({

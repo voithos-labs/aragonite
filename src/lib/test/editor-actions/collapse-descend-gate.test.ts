@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { gateDescendOnCollapse } from '$lib/editor-actions/plugin-container';
+import { gateDescendOnCollapse } from '$lib/editor-actions/plugin/container';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';

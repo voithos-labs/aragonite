@@ -13,8 +13,9 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, comparePaths, assertCharOffset } from './primitives';
+import { walkBetween, assertCharOffset } from './primitives';
 import {
+	comparePaths,
 	isPathSubtreeBetween,
 	isStrictAncestorOf,
 	lowestCommonAncestor,

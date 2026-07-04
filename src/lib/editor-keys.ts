@@ -9,7 +9,6 @@
 
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
-import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
@@ -26,7 +25,6 @@ export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
 /** Sibling-reorder action shared by the keyboard nudge and the drag handle. */
 export const REORDER_ACTION_KEY = Symbol('reorder-action');
-export type { ReorderAction } from './editor-actions/reorder-action';
 
 /** Announce a reorder into the editor's polite live region. Shared so the
  *  table-row path (which bypasses the generic reorder action) reuses the one
@@ -43,13 +41,10 @@ export const KEYBINDING_OVERRIDES_KEY = Symbol('keybinding-overrides');
 export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 
 export const SELECTION_KEY = Symbol('selection');
-export type { EditorSelection } from './selection/primitives';
 
 export const SEARCH_KEY = Symbol('search');
-export type { SearchState } from './reactivity/search-state.svelte';
 
 export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
-export type { WidgetSelectionState };
 
 export const RESOLVE_IMAGE_URL_KEY = Symbol('resolve-image-url');
 export type ResolveImageUrl = (rawUrl: string) => string;
