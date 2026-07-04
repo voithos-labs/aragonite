@@ -85,6 +85,32 @@ describe('computeScopeDescriptor — mixed-depth audit (B5)', () => {
 		expect(d.op).toBe('noop');
 	});
 
+	// ── No net removal in the scope ───────────────────────────────────────
+
+	it('noop when the scope lost no children: every slot survived in place', () => {
+		// Doc scope for start=[0] truncated in place, end=[1] a surviving table
+		// (or a replaced-in-slot leaf): ids/refs must be kept as-is, matching
+		// the pure top-level path's convention.
+		const d = computeScopeDescriptor([], [0], [1], 2, 2);
+		expect(d).toEqual({ op: 'noop' });
+	});
+
+	// ── Table endpoint (caller passes the endpoint one level deeper) ──────
+
+	it('surviving end table keeps its id past a removed middle block', () => {
+		// start=[0], end table at [2] — the caller deepens the cell-coordinate
+		// endpoint to [2,0] so the table counts as "descends deeper" (survives
+		// in place unless fully consumed). Middle [1] removed.
+		const d = computeScopeDescriptor([], [0], [2, 0], 3, 2);
+		expect(d).toEqual({
+			op: 'replace',
+			at: 0,
+			count: 3,
+			newCount: 2,
+			idMap: { 0: 0, 1: 2 }
+		});
+	});
+
 	// ── Invariant audit across the mixed-depth branch ────────────────────
 
 	it('descriptor stays in bounds for every realistic mixed-depth shape', () => {

@@ -632,25 +632,6 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	}
 
-	// Whole-row-snap deletes leave the table's OWN row ids stale — a pre-existing
-	// gap reproducible without chrome (docs/issues.md § Tables): refs track the
-	// rendered rows so they shrink with children, while the unscoped ids array
-	// lags longer. Tolerate ONLY that exact signature; any other table-state
-	// desync still fails, so the exclusion can't mask a real regression.
-	async function nonTableStateViolations(page: Page): Promise<unknown[]> {
-		const violations = (await stateConsistencyViolations(page)) as Array<{
-			kind?: string;
-			childrenLen: number;
-			idsLen: number;
-			refsLen: number;
-		}>;
-		return violations.filter((v) => {
-			if (v.kind !== 'table') return true;
-			const knownStaleRowIds = v.refsLen === v.childrenLen && v.idsLen > v.childrenLen;
-			return !knownStaleRowIds;
-		});
-	}
-
 	async function dragPoints(
 		page: Page,
 		from: { x: number; y: number },
@@ -696,7 +677,7 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await editor.bridge.getSource()).toBe(
 			'Ab\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
-		expect(await nonTableStateViolations(page)).toEqual([]);
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		// Child-level undo: the clear went through an unshared copy (G1.9), so the
@@ -777,7 +758,7 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		expect(await editor.bridge.getSource()).toBe(
 			'| a | b |\n| --- | --- |\n\n:::note\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
-		expect(await nonTableStateViolations(page)).toEqual([]);
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
@@ -800,7 +781,7 @@ test.describe('Fork-A spike — reserved child-0 chrome (:::note title)', () => 
 		await editor.bridge.waitForSourceNotContains(':::note');
 
 		expect(await editor.bridge.getSource()).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
-		expect(await nonTableStateViolations(page)).toEqual([]);
+		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		// One-splice unit delete undoes to the full container, children intact.
