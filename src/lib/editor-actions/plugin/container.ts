@@ -19,7 +19,6 @@ import type {
 	FocusActions,
 	MoveFocusOptions
 } from '../../action-contracts';
-import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
@@ -34,7 +33,10 @@ import {
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createBlockquoteOverrides } from '../blockquote-overrides';
-import { createContainerBlockComponent } from '../container-block-component';
+import {
+	createContainerBlockComponent,
+	type ContainerBlockComponent
+} from '../container-block-component';
 import type { UndoController } from '../deps';
 import {
 	createStandardNestedActions,
@@ -71,42 +73,10 @@ export type ContainerBlockListProps = Pick<
 	'children' | 'blockIds' | 'setRef' | 'getRef' | 'parentPath' | 'window' | 'reorderable'
 >;
 
-/**
- * The `BlockComponent` surface `createContainerBlock` returns, with the members
- * the container shim always supplies promoted to required — so a host re-exports
- * them for BlockHost without a per-member non-null assertion.
- */
-export type ContainerBlockComponent = BlockComponent &
-	Required<
-		Pick<
-			BlockComponent,
-			| 'getCursorPosition'
-			| 'focusByPath'
-			| 'getBlockComponentByPath'
-			| 'revealByPath'
-			| 'focusAtColumn'
-			| 'isVerticallyTransparent'
-			| 'selectEdgeWidget'
-		>
-	>;
-
-/**
- * The shim returns the weaker `BlockComponent` (container members optional), so a
- * host can only re-export them as required by narrowing through this check — not a
- * blind cast. Members mirror the `Required<Pick<…>>` above; a future drop by the
- * shim throws at the seam here instead of surfacing as an `undefined` re-export.
- */
-function suppliesContainerMembers(c: BlockComponent): c is ContainerBlockComponent {
-	return (
-		c.getCursorPosition !== undefined &&
-		c.focusByPath !== undefined &&
-		c.getBlockComponentByPath !== undefined &&
-		c.revealByPath !== undefined &&
-		c.focusAtColumn !== undefined &&
-		c.isVerticallyTransparent !== undefined &&
-		c.selectEdgeWidget !== undefined
-	);
-}
+// `ContainerBlockComponent` is defined at the shim (`container-block-component`),
+// which now types every container member as required, and re-exported here so the
+// plugin barrel surfaces it from the container seam.
+export type { ContainerBlockComponent };
 
 export interface ContainerBlock {
 	/** Spread onto `<BlockList {...blockListProps} />` inside the chrome box. */
@@ -274,7 +244,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isCollapsed: collapsed
 	});
 
-	const base = createContainerBlockComponent({
+	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
@@ -288,10 +258,6 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isInWindow: windowing.isInWindow,
 		isCollapsed: collapsed
 	});
-	if (!suppliesContainerMembers(base)) {
-		throw new Error('createContainerBlockComponent must supply every container method');
-	}
-	const containerApi: ContainerBlockComponent = base;
 
 	const blockListProps: ContainerBlockListProps = {
 		get children() {

@@ -22,29 +22,6 @@ import {
 
 const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
 
-// Link children re-enter parseInline, so bracket nesting recurses; thousands
-// of `[` would overflow the call stack. Past the cap, brackets stay literal
-// text. Tracked module-level (parsing is synchronous) so the cap holds without
-// threading a depth parameter through the public parseInline signature.
-const MAX_LINK_NESTING_DEPTH = 32;
-let linkNestingDepth = 0;
-
-function parseLinkChildren(
-	raw: string,
-	start: number,
-	end: number,
-	resolver?: LinkReferenceResolver
-): InlineNode[] {
-	linkNestingDepth++;
-	try {
-		return parseInline(raw, start, end, resolver);
-	} finally {
-		// Balance even on a throw — a stuck counter would silently disable
-		// link parsing for every later parse.
-		linkNestingDepth--;
-	}
-}
-
 /**
  * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
  *
@@ -181,6 +158,31 @@ export function scanLinksAndAutolinks(
 	}
 
 	return result;
+}
+
+// ── Link-nesting guard ──────────────────────────────────────────────────────
+
+// Link children re-enter parseInline, so bracket nesting recurses; thousands
+// of `[` would overflow the call stack. Past the cap, brackets stay literal
+// text. Tracked module-level (parsing is synchronous) so the cap holds without
+// threading a depth parameter through the public parseInline signature.
+const MAX_LINK_NESTING_DEPTH = 32;
+let linkNestingDepth = 0;
+
+function parseLinkChildren(
+	raw: string,
+	start: number,
+	end: number,
+	resolver?: LinkReferenceResolver
+): InlineNode[] {
+	linkNestingDepth++;
+	try {
+		return parseInline(raw, start, end, resolver);
+	} finally {
+		// Balance even on a throw — a stuck counter would silently disable
+		// link parsing for every later parse.
+		linkNestingDepth--;
+	}
 }
 
 // ── Links and images ───────────────────────────────────────────────────────
