@@ -15,7 +15,9 @@ import { expectStateForNode } from '../reactivity/state-registry';
 import { classifyTableSelectionCoverage } from './range-delete-table';
 import {
 	deleteRow as mutDeleteRow,
-	deleteColumn as mutDeleteColumn
+	deleteColumn as mutDeleteColumn,
+	canDeleteRow,
+	canDeleteColumn
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import type { CrossBlockMutationContext } from './cross-block/ops';
@@ -48,18 +50,14 @@ export async function maybeCommitTableCoverageDelete(
 		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a
 		// silent no-op — falling through to a cell-clear would silently
 		// rewrite the user's intent.
-		const willRemoveHeader = coverage.rowIdx === 0;
-		const bodyCount = rowCount - 1;
-		if (rowCount <= 1 || (!willRemoveHeader && bodyCount <= 1)) {
-			return { caret: null };
-		}
+		if (!canDeleteRow(coverage.rowIdx!, rowCount)) return { caret: null };
 		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx!, options, caretRestore);
 		return { caret };
 	}
 
 	if (coverage.kind === 'column') {
 		// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
-		if (columnCount <= 1) return { caret: null };
+		if (!canDeleteColumn(columnCount)) return { caret: null };
 		const caret = await commitColumnDelete(
 			ctx,
 			table,

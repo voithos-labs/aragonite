@@ -3,6 +3,7 @@
 ## Happy paths
 
 - 1×1 cell: Ctrl+A inside a cell, then Ctrl+C, copies the cell's plain text.
+- A cell holding a widget (`<br>`): Ctrl+C copies the raw bytes (`a<br>b`), not the rendered textContent — matching what Cut writes, so copy→paste round-trips the line break.
 - Cross-block selection from a paragraph through a table to a paragraph below: Ctrl+C copies the leading paragraph text, the table's GFM raw, and the trailing paragraph text.
 
 ## Edge cases

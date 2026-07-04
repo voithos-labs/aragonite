@@ -149,10 +149,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 
 		// Descend on an existing body is a pure focus move: were it to push a dead
 		// undo entry, this single undo would consume it and "BodyQ" would survive.
+		// Poll the CST children (not the source bytes) so the assert waits for the tree
+		// to re-materialize the reverted text.
 		await editor.undo();
-		await editor.bridge.waitForSourceNotContains('BodyQ');
-		const note = await readNote(page, 1);
-		expect(note.childTexts).toEqual(['Title', 'Body']);
+		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts)).toEqual(['Title', 'Body']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

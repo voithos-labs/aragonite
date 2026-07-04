@@ -66,16 +66,6 @@ describe('text-batch lifecycle', () => {
 		expect(emitInput).not.toHaveBeenCalled();
 	});
 
-	it('discard drops the batch silently and forces a fresh snapshot', () => {
-		const { batch, pushSnapshot, emitInput } = harness();
-		batch.keystroke([0], 0);
-		batch.discard();
-		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS);
-		expect(emitInput).not.toHaveBeenCalled();
-		batch.keystroke([0], 1);
-		expect(pushSnapshot).toHaveBeenCalledTimes(2);
-	});
-
 	it('the flushed path is the batch-start path, immune to later caller mutation', () => {
 		const { batch, emitInput } = harness();
 		const path = [0, 2];

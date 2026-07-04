@@ -422,6 +422,11 @@
 
 	function onPointerDown(e: PointerEvent): void {
 		if (!el) return;
+		// A right-click opens the cell menu; preserve any active intra-table
+		// rectangle (encoded as cross-block selection) so the menu's Cut/Copy can
+		// act on it. The clear + drag-install below would collapse it first, before
+		// contextmenu fires.
+		if (e.button === 2) return;
 		const tableEl = el.closest('[role="table"]') as HTMLElement | null;
 		if (!tableEl) {
 			crossBlock.handlePointerDown(e);
@@ -467,7 +472,17 @@
 			return;
 		}
 
-		writeCrossBlockCopy(e, { selection, getDoc, crossBlock });
+		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
+
+		// Intra-cell: write the raw slice (preserves widget bytes like <br> that the
+		// browser's rendered-textContent copy drops). Mirrors onCut's intra-cell arm,
+		// so Copy and Cut write the same payload.
+		if (!el) return;
+		const offsets = cursor.getRawSelection();
+		if (!offsets || offsets.start === offsets.end) return;
+		e.preventDefault();
+		const display = trimTrailingLineEnding(node.raw);
+		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {

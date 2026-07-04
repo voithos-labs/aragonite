@@ -26,6 +26,7 @@ action items dispatch the committed table mutations.
 - Right-click → "Delete column" removes the clicked cell's column (routed by the clicked colIdx, independent of any row action).
 - Right-click → "Delete row" removes the clicked cell's row (routed by the clicked rowIdx, independent of any column action).
 - Right-clicking outside the table (e.g. a paragraph) does not open the affordance menu — the contextmenu handler is scoped to the table grid, and only suppresses the native menu when the pointer is over a cell.
+- Right-clicking a cell inside an active intra-table rectangle selection opens the menu WITHOUT collapsing the rectangle — the pointerdown clear + drag-install are skipped for the secondary button, so the menu's Cut/Copy still see the rectangle.
 
 ## Edge cases
 

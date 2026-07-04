@@ -8,12 +8,31 @@ import type { CellShortcutAction } from './cell-keydown-plan';
 import type { TableAlignment } from '../../../core/nodes';
 import {
 	tableRowReorderTarget,
-	tableColumnReorderTarget,
-	canDeleteRow,
-	canDeleteColumn
+	tableColumnReorderTarget
 } from '../../../editor-actions/table-context';
+import { canDeleteRow, canDeleteColumn } from '../../../tree-operations/table-mutations';
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste';
+
+/**
+ * Clamp a fixed-position menu's desired top-left so the whole menu stays within
+ * the viewport (minus `margin`). Menus open at a raw pointer/grip coordinate;
+ * near the right/bottom edge part of the menu would otherwise render off-screen
+ * and unreachable. A menu larger than the viewport pins to the top/left margin.
+ */
+export function clampMenuToViewport(
+	desired: { x: number; y: number },
+	menu: { width: number; height: number },
+	viewport: { width: number; height: number },
+	margin = 8
+): { x: number; y: number } {
+	const maxX = Math.max(margin, viewport.width - menu.width - margin);
+	const maxY = Math.max(margin, viewport.height - menu.height - margin);
+	return {
+		x: Math.min(Math.max(margin, desired.x), maxX),
+		y: Math.min(Math.max(margin, desired.y), maxY)
+	};
+}
 
 export type TableMenuItem =
 	// `index` is the action's own axis index (rowIdx for row-group actions, colIdx

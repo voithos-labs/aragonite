@@ -54,7 +54,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childKinds))
+			.toEqual(['note-title', 'paragraph']);
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 	});
 
@@ -116,9 +118,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		// The cleared chrome cleared through an unshared copy (G1.9), so undo restores
 		// the title at the CHILD level — not just the container's authoritative source
 		// bytes, which `getSource` reads and would show even with a corrupted title node.
+		// Poll the child text (not the source bytes) so the assert waits for the CST to
+		// re-materialize, not just the serialized bytes to match.
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
-		expect((await readNote(page, 1)).childTexts[0]).toBe('Title');
+		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
@@ -143,7 +146,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('Body1');
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childKinds))
+			.toEqual(['note-title', 'paragraph', 'paragraph']);
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
@@ -177,9 +182,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 
 		// One-splice unit delete undoes cleanly back to the full container, children intact.
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childTexts))
+			.toEqual(['Title', 'Body1', 'Body2']);
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
-		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'Body1', 'Body2']);
 	});
 
 	test('Gate 4g: a body-only range never fires the wall — type-over merges exactly like a blockquote', async ({

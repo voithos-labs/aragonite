@@ -345,6 +345,24 @@ test.describe('table block: cell right-click menu', () => {
 		await page.getByText('text below').click({ button: 'right' });
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
+
+	test('right-click within an active intra-table rectangle preserves the rectangle', async ({
+		page
+	}) => {
+		// Build a 2x2 rectangle: click a body cell, shift+click the diagonal one.
+		await page.locator('[role="cell"]').nth(2).click(); // body ("1"), row 1 col 0
+		await page
+			.locator('[role="cell"]')
+			.nth(5)
+			.click({ modifiers: ['Shift'] }); // ("4"), row 2 col 1
+		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);
+
+		// Right-clicking a cell inside the rectangle opens the menu without collapsing
+		// the selection (before the fix, onPointerDown's clear ran for any button).
+		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await expect(page.getByRole('menu')).toBeVisible();
+		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);
+	});
 });
 
 test.describe('table block: grid markup structure', () => {

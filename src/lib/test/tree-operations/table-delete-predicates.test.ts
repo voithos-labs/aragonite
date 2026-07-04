@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canDeleteRow, canDeleteColumn } from '$lib/editor-actions/table-context';
+import { canDeleteRow, canDeleteColumn } from '$lib/tree-operations/table-mutations';
 
 // rowCount is the FULL row count (header at index 0 + body rows). A header
 // delete promotes the next row, so it only needs a second row; a body delete

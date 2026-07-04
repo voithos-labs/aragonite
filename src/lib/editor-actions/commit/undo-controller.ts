@@ -368,6 +368,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		 */
 		savedChildren: CstNode[] | undefined;
 		savedChildIds: string[] | undefined;
+		/**
+		 * Pre-publish snapshots of the reactive ids/refs this scope publishes into.
+		 * publishScopeView writes the MUTATED ids/refs (doc-scope ids route through
+		 * the setter to top-level blockIds; every scope's refs into innerBlockRefs)
+		 * before the ancestor-raw rebuild — a throw there must restore them, else
+		 * top-level blockIds/refs keep reflecting the rolled-back mutation until the
+		 * next commit. (Container ids live on childIds, restored via savedChildIds.)
+		 */
+		savedStateIds: string[];
+		savedStateRefs: (BlockComponent | undefined)[];
 	}
 
 	/**
@@ -393,6 +403,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 		const refs = [...s.state.innerBlockRefs];
+		// Distinct copies: `ids`/`refs` above are mutated in place by
+		// publishScopeView; these stay frozen as the rollback target.
+		const savedStateIds = [...s.state.innerBlockIds];
+		const savedStateRefs = [...s.state.innerBlockRefs];
 		const savedChildren = owned.children;
 		const savedChildIds = owned.childIds;
 		owned.children = [...(owned.children ?? [])];
@@ -405,7 +419,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			ids,
 			refs,
 			savedChildren,
-			savedChildIds
+			savedChildIds,
+			savedStateIds,
+			savedStateRefs
 		};
 	}
 
@@ -477,6 +493,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
+					// publishScopeView may have written the mutated ids/refs into reactive
+					// state before the throw; restore them so top-level blockIds/refs don't
+					// reflect the rolled-back mutation. Doc-scope ids route through the
+					// setter to top-level blockIds; container ids restored via childIds above.
+					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
+					p.target.state.innerBlockRefs = p.savedStateRefs;
 				}
 			}
 		});
@@ -537,6 +559,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		getDocScope,
 		captureCurrentState,
 		collapsedSelectionAt,
-		clearDebouncedCheckpoint: textBatch.discard
+		flushDebouncedCheckpoint: textBatch.interrupt
 	};
 }

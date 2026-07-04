@@ -94,11 +94,16 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 
 		// Child-level undo: the clear went through an unshared copy (G1.9), so the
 		// title node itself is restored — getSource alone is blind to a corrupted child.
+		// Poll the CST children (not the source bytes) so the reads below wait for the
+		// tree to re-materialize, not just the serialized bytes to match.
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
-		const restored = await readNote(page, 1);
-		expect(restored.childKinds).toEqual(['note-title', 'table']);
-		expect(restored.childTexts).toEqual(['Title', '| a | b |\n| --- | --- |\n| 1 | 2 |']);
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childKinds))
+			.toEqual(['note-title', 'table']);
+		expect((await readNote(page, 1)).childTexts).toEqual([
+			'Title',
+			'| a | b |\n| --- | --- |\n| 1 | 2 |'
+		]);
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
@@ -124,10 +129,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
-		const restored = await readNote(page, 1);
-		expect(restored.childKinds).toEqual(['note-title', 'table']);
-		expect(restored.childTexts[0]).toBe('Title');
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childKinds))
+			.toEqual(['note-title', 'table']);
+		expect((await readNote(page, 1)).childTexts[0]).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
@@ -174,8 +179,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
-		expect((await readNote(page, 1)).childTexts[0]).toBe('Title');
+		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_BOTH_FIXTURE);
 	});
 
@@ -198,10 +202,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 
 		// One-splice unit delete undoes to the full container, children intact.
 		await editor.undo();
-		await editor.bridge.waitForSourceContains(':::note Title');
-		const restored = await readNote(page, 1);
-		expect(restored.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(restored.childTexts).toEqual(['Title', 'Body']);
+		await expect
+			.poll(() => readNote(page, 1).then((n) => n.childKinds))
+			.toEqual(['note-title', 'paragraph']);
+		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(TBL_ABOVE_FIXTURE);
 	});
 });
