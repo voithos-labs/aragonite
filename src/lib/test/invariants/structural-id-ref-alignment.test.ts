@@ -14,7 +14,8 @@ import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
@@ -34,10 +35,6 @@ import type { CstNode } from '$lib/core/nodes';
  * shape most likely to desync ids/refs, since every moved slot reuses an
  * existing id rather than minting one.
  */
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
 

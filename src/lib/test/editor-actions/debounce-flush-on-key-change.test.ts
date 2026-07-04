@@ -1,12 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 function makeSetup() {
 	const { deps, events } = makeEditorActionsDeps([

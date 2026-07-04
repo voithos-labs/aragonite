@@ -29,6 +29,7 @@ import {
 	insertColumnRight,
 	insertRowBelow
 } from './gestures/table';
+import { toggleCollapse } from './gestures/plugin';
 import { lateCorrection } from './gestures/correction';
 
 /**
@@ -246,6 +247,15 @@ export class Gestures {
 
 	deleteRow(cellIndex: number): Promise<void> {
 		return deleteRow(this.ctx, cellIndex);
+	}
+
+	// ── Plugin containers ───────────────────────────────────────────────────────
+	// Real click on a `<details>` collapse toggle. Resyncs around the opener-byte
+	// rewrite and body mount/unmount (auto-behavior). Only reachable on the plugins
+	// route, over a loaded document holding a details container.
+
+	toggleCollapse(): Promise<void> {
+		return toggleCollapse(this.ctx);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
