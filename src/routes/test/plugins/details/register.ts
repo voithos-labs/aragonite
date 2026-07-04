@@ -10,7 +10,7 @@ import {
 	registerBlockComponent,
 	defineBlockComponent,
 	isBlockComponentRegistered,
-	type AnyBlockKind
+	declaredPluginKind
 } from '$lib/plugin';
 import { registerDetailsKind, DETAILS } from './details-kind';
 import DetailsBlock from './DetailsBlock.svelte';
@@ -18,6 +18,6 @@ import DetailsBlock from './DetailsBlock.svelte';
 export function registerDetails(): void {
 	registerDetailsKind();
 	if (!isBlockComponentRegistered(DETAILS)) {
-		registerBlockComponent(DETAILS as AnyBlockKind, defineBlockComponent(DetailsBlock));
+		registerBlockComponent(declaredPluginKind(DETAILS), defineBlockComponent(DetailsBlock));
 	}
 }

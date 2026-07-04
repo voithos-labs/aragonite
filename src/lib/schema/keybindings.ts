@@ -11,8 +11,13 @@ import { devWarn } from '../dev-warn';
 export interface KeyBinding {
 	chord: string;
 	command: CommandId;
-	/** Static argument baked into the binding (e.g. the heading level for `heading.cycle`). */
-	arg?: number;
+	/**
+	 * Static argument baked into the binding. Widened past the built-in
+	 * `heading.cycle` level so a minted command (e.g. a `setKind` carrying a
+	 * string) can travel the same channel. It reaches the handler as `unknown`:
+	 * the handler must type-guard it before use and ignore an out-of-shape value.
+	 */
+	arg?: unknown;
 }
 
 const MOD_ORDER = ['Mod', 'Alt', 'Shift'] as const;

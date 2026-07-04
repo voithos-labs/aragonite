@@ -12,17 +12,18 @@
 
 import {
 	declarePluginKind,
+	declaredPluginKind,
 	registerBlockKind,
 	registerBlockOpener,
 	registerChromeLeaf,
 	isBlockKindRegistered,
 	setPluginMetadata,
-	getPluginMetadata
+	getPluginMetadata,
+	parse,
+	serializeChildren,
+	trimTrailingLineEnding,
+	type CstNode
 } from '$lib/plugin';
-import { parse } from '$lib/core/parser';
-import { concatChildren } from '$lib/core/serializer';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
 export const NOTE = 'note';
 export const NOTE_TITLE = 'note-title';
@@ -37,7 +38,11 @@ interface CalloutMetadata {
 }
 
 function makeTitleChild(text: string): CstNode {
-	return { kind: NOTE_TITLE as AnyBlockKind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' };
+	return {
+		kind: declaredPluginKind(NOTE_TITLE),
+		leadingTrivia: '',
+		raw: text ? `${text}\n` : '\n'
+	};
 }
 
 /**
@@ -50,7 +55,7 @@ export function rebuildCalloutRaw(node: CstNode): void {
 	const children = node.children ?? [];
 	const titleText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
 	const body = children.slice(1);
-	const inner = (node.innerPrefix ?? '') + concatChildren(body) + (node.innerSuffix ?? '');
+	const inner = (node.innerPrefix ?? '') + serializeChildren(body) + (node.innerSuffix ?? '');
 	const opener = titleText ? `:::${type} ${titleText}` : `:::${type}`;
 	node.raw = `${opener}\n${inner}:::\n`;
 }

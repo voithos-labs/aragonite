@@ -1,9 +1,9 @@
 <script lang="ts">
 	// The `<details>` collapsible on `createContainerBlock` — the same public seam
-	// the callout uses, plus a disclosure toggle and the collapse clamp.
-	// Collapse-ness has ONE definition: the descriptor's `reservedChrome.isCollapsed`
-	// probe, read here via `isCollapsedContainer` on the LIVE node so a toggle (or
-	// its undo) re-renders the mounted body reactively.
+	// the callout uses, plus a disclosure toggle. Collapse-ness has ONE definition:
+	// the descriptor's `reservedChrome.isCollapsed` probe. The factory derives its
+	// window/focus clamp from that probe, so this component threads no collapse dep;
+	// it reads `isCollapsedContainer` only for its own disclosure UI.
 	import { BlockList, createContainerBlock, isCollapsedContainer, type CstNode } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -22,8 +22,7 @@
 		get path() {
 			return myPath;
 		},
-		getBoxEl: () => boxEl,
-		isCollapsed: () => isCollapsedContainer(node)
+		getBoxEl: () => boxEl
 	});
 
 	function toggle() {
@@ -44,10 +43,10 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
-	export const revealByPath = containerApi.revealByPath!;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const selectEdgeWidget = containerApi.selectEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
 </script>
 
 <div class="details-block" bind:this={boxEl}>

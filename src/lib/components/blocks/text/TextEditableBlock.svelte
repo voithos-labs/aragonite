@@ -307,7 +307,7 @@
 		return true;
 	}
 
-	export function runCommand(id: CommandId, arg?: number): boolean {
+	export function runCommand(id: CommandId, arg?: unknown): boolean {
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so it would be stale here.
 		const offset = cursor.getRaw() ?? 0;
@@ -349,8 +349,12 @@
 				toggleFormat('emphasis');
 				return true;
 			case 'heading.cycle': {
-				// Replace any existing `#` prefix so repeated shortcuts cycle heading levels.
-				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, offset);
+				// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
+				// accept only an in-range level (0 strips to paragraph, 1–6 sets an ATX
+				// level). A non-number or out-of-range value would coerce wrong or throw a
+				// RangeError inside `#`.repeat, so fall back to the strip behavior.
+				const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
+				const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
 				pendingCursorOffset = caretOffset;
 				return true;

@@ -27,6 +27,21 @@ export function declarePluginKind(name: string): PluginBlockKind {
 	return name as PluginBlockKind;
 }
 
+/**
+ * Recover the branded kind for an already-declared name, so a module that isn't
+ * the one that minted it (a registration call, a node factory) reaches the brand
+ * without an unchecked `as AnyBlockKind` cast. Throws for an undeclared name —
+ * a typo can't silently register against a kind that doesn't exist.
+ */
+export function declaredPluginKind(name: string): PluginBlockKind {
+	if (!declaredPluginKinds.has(name)) {
+		throw new Error(
+			`declaredPluginKind: "${name}" has not been declared — call declarePluginKind first`
+		);
+	}
+	return name as PluginBlockKind;
+}
+
 export function __clearDeclaredPluginKindsForTests(): void {
 	declaredPluginKinds.clear();
 }

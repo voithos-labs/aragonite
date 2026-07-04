@@ -53,7 +53,7 @@ export interface GlobalCommandContext {
 
 export interface CommandDispatchTarget {
 	kind: AnyBlockKind;
-	runCommand(id: CommandId, arg?: number): boolean;
+	runCommand(id: CommandId, arg?: unknown): boolean;
 }
 
 type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
