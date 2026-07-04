@@ -41,3 +41,11 @@ from the outer first item's paragraph to a paragraph inside the nested sub-
 list's second item; Backspace. Both the outer list's and the nested list's
 `BlockListState` instances must remain consistent — depth is not an excuse for
 desyncing.
+
+### 5. Cross-block delete ending in a table body cell (regression)
+
+Paragraph above a table; shift-click into a body cell and Backspace. The
+whole-row snap splices rows out of `table.children`, so the table must commit
+as its own scope: its row `BlockListState` ids/refs shrink with the surviving
+rows. Regression guard for the stale-row-ids bug where the endpoint table was
+never a commit scope and only strict ancestors were collected.

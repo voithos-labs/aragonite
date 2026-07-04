@@ -3,10 +3,12 @@
  * restore the native caret in the merged block.
  *
  * Commit paths:
- *   - Pure top-level (both endpoints at doc.children) → commitStructural.
- *   - Cross-container (at least one endpoint nested) → commitMultiScope
- *     with one scope per touched container, so every affected
- *     BlockListState stays in sync with node.children.
+ *   - Pure top-level (both endpoints at doc.children, neither a table unless
+ *     the paths are equal) → commitStructural.
+ *   - Cross-container (an endpoint nested, or a cross-path table endpoint —
+ *     the whole-row snap splices table.children, so the table must commit as
+ *     its own scope) → commitMultiScope with one scope per touched container,
+ *     so every affected BlockListState stays in sync with node.children.
  *   - Intra-table full-table/row/column coverage (Backspace only) routes to
  *     range-delete-table-coverage; subset coverage falls through to the
  *     pure-top-level path's cell-clear primitive.
@@ -92,7 +94,15 @@ async function runCrossBlockDelete(
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
-	const isPureTopLevel = start.path.length === 1 && end.path.length === 1;
+	// A cross-path table endpoint leaves the pure path: the whole-row snap
+	// splices table.children, which only the multi-scope commit can sync to
+	// the table's row state. Same-path (intra-table) deletes only clear cell
+	// raws — no row splice — so they stay pure.
+	const samePath = pathsEqual(start.path, end.path);
+	const isPureTopLevel =
+		start.path.length === 1 &&
+		end.path.length === 1 &&
+		(samePath || (!isTableAt(doc, start.path) && !isTableAt(doc, end.path)));
 
 	const caretRestore = !options?.skipCaretRestore
 		? (caret: SelectionPoint | null) => {
@@ -115,7 +125,7 @@ async function runCrossBlockDelete(
 		await ctx.revealPath(start.path);
 	}
 
-	if (options?.tableCoverageDelete && isPureTopLevel && pathsEqual(start.path, end.path)) {
+	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
 		const block = nodeAt(doc, start.path);
 		if (block && (block as CstNode).kind === 'table') {
 			const handled = await maybeCommitTableCoverageDelete(
@@ -156,6 +166,11 @@ function resolveStartEnd(selection: SelectionState): {
 } {
 	if (!selection.isCrossBlock) return { start: null, end: null };
 	return { start: selection.start, end: selection.end };
+}
+
+function isTableAt(doc: Document, path: number[]): boolean {
+	const node = nodeAt(doc, path);
+	return node !== null && isBlockNode(node) && node.kind === 'table';
 }
 
 /**
@@ -214,6 +229,13 @@ async function commitCrossContainerDelete(
 	const scopes: MultiScopeTarget[] = [];
 	const containerPaths: number[][] = [];
 
+	// A table endpoint addresses the table block itself (cell-index offset).
+	// For ancestor-scope descriptors it behaves like a point one level deeper —
+	// the table survives in place unless fully consumed, exactly like a
+	// container an endpoint descends into — so deepen it before computing.
+	const effStartPath = isTableAt(doc, start.path) ? [...start.path, 0] : start.path;
+	const effEndPath = isTableAt(doc, end.path) ? [...end.path, 0] : end.path;
+
 	// Doc scope goes first when the LCA is doc-level, so commitMultiScope
 	// publishes doc.children / blockIds / blockRefs atomically with the
 	// container scopes.
@@ -248,15 +270,22 @@ async function commitCrossContainerDelete(
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 
-			return containerPaths.map((p, i) =>
-				computeScopeDescriptor(
+			// An endpoint-table scope takes its descriptor from the row splice
+			// the table branch actually performed — matched on the owned node
+			// (prepareScopeView unshared the spine before rangeDelete ran, so
+			// identities agree) — never from re-derived snap math.
+			const rowSplices = result.tableRowSplices ?? [];
+			return containerPaths.map((p, i): StructuralChange => {
+				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);
+				if (rowSplice) return { op: 'delete', at: rowSplice.at, count: rowSplice.count };
+				return computeScopeDescriptor(
 					p,
-					start.path,
-					end.path,
+					effStartPath,
+					effEndPath,
 					beforeLens[i],
 					scopeViews[i].children.length
-				)
-			);
+				);
+			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
@@ -266,10 +295,12 @@ async function commitCrossContainerDelete(
 }
 
 /**
- * Enumerate every mounted container on start.path or end.path (strictly
- * above the endpoint) whose children array gets spliced. Document root is
- * excluded; callers add it via `getDocScope()`. Returned outermost-first,
- * de-duplicated when start and end share ancestors.
+ * Enumerate every mounted container on start.path or end.path whose children
+ * array gets spliced: strict ancestors of each endpoint, plus the endpoint
+ * itself when it is a table (the whole-row snap splices table.children;
+ * every other endpoint kind mutates raw only). Document root is excluded;
+ * callers add it via `getDocScope()`. Returned outermost-first, de-duplicated
+ * when start and end share ancestors.
  */
 function collectTouchedContainers(
 	doc: Document,
@@ -284,13 +315,14 @@ function collectTouchedContainers(
 	const seen = new Set<string>();
 
 	function visit(leafPath: number[]): void {
-		for (let depth = 1; depth < leafPath.length; depth++) {
+		for (let depth = 1; depth <= leafPath.length; depth++) {
 			const ancestorPath = leafPath.slice(0, depth);
+			const node = nodeAt(doc, ancestorPath);
+			if (!node || !isBlockNode(node) || !node.children) continue;
+			if (depth === leafPath.length && node.kind !== 'table') continue;
 			const key = ancestorPath.join('.');
 			if (seen.has(key)) continue;
 			seen.add(key);
-			const node = nodeAt(doc, ancestorPath);
-			if (!node || !isBlockNode(node) || !node.children) continue;
 			const state = getStateForNode(node);
 			if (!state) continue;
 			touched.push({ path: ancestorPath, node, state });
@@ -323,7 +355,9 @@ export function __computeScopeDescriptorForTests(
 
 /**
  * Compute a StructuralChange for one scope. Generalization of
- * topLevelStructuralChange to arbitrary depth.
+ * topLevelStructuralChange to arbitrary depth. Table endpoints must be
+ * passed one level deeper than the table path (the cell dimension), so a
+ * surviving table counts as a descended-into container.
  */
 function computeScopeDescriptor(
 	ancestorPath: number[],
@@ -355,20 +389,22 @@ function computeScopeDescriptor(
 
 	const removed = beforeLen - afterLen;
 
+	// No net removal in this scope: every slot in the window survived in
+	// place (endpoint truncation/reparse happens in-slot). Noop keeps the
+	// existing ids/refs — the pure top-level path's convention.
+	if (removed === 0) return { op: 'noop' };
+
 	// Mixed-depth case: only one endpoint descends, but cascade-cleanup
 	// removed siblings from the other side. Extend the touched range so the
 	// descriptor reports the real splice and idMap[0]=0 preserves the
 	// descending endpoint's id.
-	if (removed > 0 && startDescends !== endDescends) {
+	if (startDescends !== endDescends) {
 		if (startDescends) {
 			rightIdx = Math.max(rightIdx, startIdx + removed);
 		} else {
 			leftIdx = Math.min(leftIdx, Math.max(0, endIdx - removed));
 		}
 	}
-	// Length-unchanged single-index edit: child modified in-place. Noop keeps
-	// existing id/ref.
-	if (removed === 0 && leftIdx === rightIdx) return { op: 'noop' };
 
 	const count = rightIdx - leftIdx + 1;
 	const newCount = Math.max(0, count - removed);
