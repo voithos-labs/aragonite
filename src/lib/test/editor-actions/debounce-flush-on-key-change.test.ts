@@ -33,7 +33,7 @@ describe('debounce flush on batch-key change', () => {
 		expect(inputEvents()[0].path).toEqual([0]);
 		expect(inputEvents()[0].detail).toMatchObject({ byteLength: 3 });
 
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 
 	it('the new batch flushes separately with its own path and byte count', () => {

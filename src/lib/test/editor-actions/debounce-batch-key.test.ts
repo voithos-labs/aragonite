@@ -67,7 +67,7 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		// Two snapshots: one before each leaf's typing batch.
 		expect(deps.undoManager.getStacks().undo).toHaveLength(2);
 		// Cleanup the still-pending debounce timer so vitest exits cleanly.
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 
 	it('typing in leaf 0, leaf 1, then leaf 0 again produces three undo entries', async () => {
@@ -78,7 +78,7 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		await bundle.blockEdit.updateBlockContent(0, 'a12\n', 2);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(3);
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 
 	it('typing repeatedly into the same leaf still produces one batch (no spurious breaks)', async () => {
@@ -89,6 +89,6 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		await bundle.blockEdit.updateBlockContent(0, 'hi123\n', 4);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 });

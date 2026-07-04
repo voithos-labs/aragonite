@@ -1,6 +1,9 @@
 import type { Document } from '../core/nodes';
 import { compileMatcher } from '../search/matcher';
 import { scanDocument, type Match } from '../search/document-scan';
+import { groupMatchesByPath, pathKey, type IndexedMatch } from '../search/match-index';
+
+const EMPTY_MATCHES: IndexedMatch[] = [];
 
 export interface SearchOptions {
 	caseSensitive: boolean;
@@ -26,6 +29,8 @@ export function createSearchState(deps: SearchDeps) {
 	let replacement = $state('');
 	let options = $state<SearchOptions>({ caseSensitive: false, wholeWord: false, regex: false });
 	let matches = $state<Match[]>([]);
+	// One grouping per rescan, shared by every overlay — see match-index.
+	const matchesByPath = $derived(groupMatchesByPath(matches));
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
 	// Count of the last replace/replaceAll, surfaced as "N replaced" feedback.
@@ -66,6 +71,9 @@ export function createSearchState(deps: SearchDeps) {
 		},
 		get matches() {
 			return matches;
+		},
+		matchesForPath(path: number[]): IndexedMatch[] {
+			return matchesByPath.get(pathKey(path)) ?? EMPTY_MATCHES;
 		},
 		get activeIndex() {
 			return activeIndex;
@@ -144,6 +152,9 @@ export interface SearchState {
 	readonly replacement: string;
 	readonly options: SearchOptions;
 	readonly matches: Match[];
+	/** Matches owned by `path`'s leaf, with their flat index — grouped once per
+	 *  rescan so overlays skip the full-document scan. */
+	matchesForPath(path: number[]): IndexedMatch[];
 	readonly activeIndex: number;
 	readonly error: string | null;
 	readonly replacedCount: number | null;

@@ -154,28 +154,6 @@ Payload envelopes (the per-op arms change; read the source type rather than enum
 
 `getSearch()` returns the imperative find/replace controller (`SearchState`) — the same engine the built-in bar drives. Use it to set the query and options (case sensitivity, whole-word, regex), step through matches, and replace one or all. The `searchBar` prop renders the built-in UI (Ctrl+F / Ctrl+H) over the same controller; set it `false` to drive search from your own chrome.
 
-## Mutation-ceremony map
+## Mutations
 
-Every structural mutation routes through one internal commit primitive over three scopes, plus a separate undo/redo-apply path. A contributor reads this to see which path owns a given edit; consumers never assemble a ceremony themselves.
-
-```
-                       ┌─────────────────────────────┐
-   split / merge /     │  Top-level scope            │
-   delete / paste /    │  document children array    │──┐
-   replaceBlock        └─────────────────────────────┘  │
-                       ┌─────────────────────────────┐  │   one commit primitive:
-   nested split /      │  Container scope            │  ├─▶ snapshot · unshare path ·
-   merge / paste /     │  one container's children   │──┤   mutate · publish · emit `edit`
-   item reorder        └─────────────────────────────┘  │
-                       ┌─────────────────────────────┐  │
-   cross-container     │  Multi-scope                │  │
-   delete · indent /   │  several scopes, one step   │──┘
-   unindent            └─────────────────────────────┘
-
-                       ┌─────────────────────────────┐
-   Ctrl+Z / Ctrl+Y     │  Undo/redo-apply            │ ── restores a snapshot;
-                       │  (separate path)            │    emits `undo` / `redo` on `edit`
-                       └─────────────────────────────┘
-```
-
-All three commit scopes share one primitive (snapshot, copy-path-on-write unshare, mutate, atomic publish, `edit` emit, `await tick()` before any post-tick focus callback). The undo/redo-apply path is separate: it restores a saved snapshot and emits `undo` / `redo` on the same `edit` channel. Full detail: `docs/design/editor/editor.md` § Commit Primitive / Event Seam.
+Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. The internal model (one commit primitive over three scopes, plus a separate undo/redo-apply path) is a contributor concern, documented once at `docs/design/editor/editor.md` § Commit Primitive / Event Seam.

@@ -36,16 +36,22 @@ export function createHistoryActions(
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Drop any armed keystroke batch before the history swap so its debounce
-	// timer can't push a stale snapshot after the stack moves underneath it.
+	// Flush any armed keystroke batch before the history swap: interrupt clears
+	// the debounce timer (so it can't push a stale snapshot after the stack moves
+	// underneath it) AND emits the batch's pending `input` event, so its bytes
+	// aren't dropped from the edit channel — discarding lost them.
 	function beginHistorySwap(): void {
 		deps.stickyColumn.reset();
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	}
 
 	return {
 		async requestUndo(): Promise<void> {
 			beginHistorySwap();
+			// Check the stack before capturing: captureCurrentState marks the whole
+			// tree snapshot-shared, forcing copy-on-write spines on the next edit — a
+			// wasted cost when Ctrl+Z is a no-op on an empty undo stack.
+			if (!deps.undoManager.canUndo) return;
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;
 			await restore(entry, 'undo');
@@ -53,6 +59,7 @@ export function createHistoryActions(
 
 		async requestRedo(): Promise<void> {
 			beginHistorySwap();
+			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());
 			if (!entry) return;
 			await restore(entry, 'redo');

@@ -28,8 +28,6 @@ export interface TextBatch {
 	 * input event, and require a fresh snapshot from the next keystroke.
 	 */
 	interrupt(): void;
-	/** Drop the pending batch without emitting (IME entry, programmatic reset). */
-	discard(): void;
 }
 
 /**
@@ -46,9 +44,8 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	let batchByteLength = 0;
 
 	/**
-	 * Must run before anything discards or repoints the batch — otherwise
-	 * edit-channel observers never see the batch's `input` event and
-	 * under-count keystrokes.
+	 * Must run before the batch is repointed or reset — otherwise edit-channel
+	 * observers never see the batch's `input` event and under-count keystrokes.
 	 */
 	function flushPendingInput(): void {
 		if (batchByteLength > 0 && batchPath) {
@@ -88,12 +85,6 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 		interrupt() {
 			clearTimer();
 			flushPendingInput();
-			needsCheckpoint = true;
-		},
-		discard() {
-			clearTimer();
-			batchPath = null;
-			batchByteLength = 0;
 			needsCheckpoint = true;
 		}
 	};

@@ -208,8 +208,11 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak without a preceding keydown.
-		if (e.inputType === 'insertLineBreak' && el) {
+		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak
+		// without a preceding keydown. Gated on !composing like the insertText arm
+		// below: an IME emitting insertLineBreak mid-composition must not sync
+		// (its mobile-Enter purpose applies post-compositionend, composing false).
+		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
 			const branchPreEditOffset = getCursorOffsetHelper(el) ?? 0;

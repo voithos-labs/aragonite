@@ -42,6 +42,7 @@
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
+	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -650,11 +651,11 @@
 	// ── Virtual rendering (top-level windowing) ──────────────────────────
 
 	const heightOracle = createHeightOracle({
-		lineHeight: 24,
-		codeLineHeight: 20,
-		avgCharWidth: 8,
-		blockChrome: 16,
-		imageBlockMinHeight: 200
+		lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
+		codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
+		avgCharWidth: HEIGHT_ESTIMATES.avgCharWidth,
+		blockChrome: HEIGHT_ESTIMATES.blockChrome,
+		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
 	setContext(HEIGHT_ORACLE_KEY, heightOracle);
 

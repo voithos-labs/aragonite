@@ -206,8 +206,9 @@ export interface CommitController {
 	 * (e.g., a cross-block delete whose LCA is the document root).
 	 */
 	getDocScope(): MultiScopeTarget;
-	/** Clear the pending keystroke-debounce timer; next edit starts a new batch. */
-	clearDebouncedCheckpoint(): void;
+	/** Flush the pending keystroke batch — emit its `input` event and clear the
+	 *  debounce timer — before a history swap, so the batch's bytes aren't lost. */
+	flushDebouncedCheckpoint(): void;
 }
 
 export interface ContainerEditActions {

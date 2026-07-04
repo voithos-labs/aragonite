@@ -4,7 +4,7 @@
 	import { SEARCH_KEY, EDITOR_ROOT_KEY } from '../editor-keys';
 	import type { SearchState } from '../reactivity/search-state.svelte';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
-	import { pathsEqual, isStrictAncestorOf } from '../selection/path-math';
+	import { isStrictAncestorOf } from '../selection/path-math';
 
 	let {
 		path,
@@ -58,17 +58,17 @@
 		function measureLeaf(state: SearchState, leaf: BlockComponent | undefined, blockRect: DOMRect) {
 			if (!leaf?.measurePartialRects) return [];
 			const out: Painted[] = [];
-			state.matches.forEach((m, i) => {
-				if (!pathsEqual(m.path, path)) return;
-				for (const r of leaf.measurePartialRects!(m.start, m.end)) {
+			// Only this leaf's matches (grouped once per rescan), not a full-document scan.
+			for (const { match, index } of state.matchesForPath(path)) {
+				for (const r of leaf.measurePartialRects!(match.start, match.end)) {
 					// Empty matches never reach here — the collapsed-range guard in overlay-rects
 					// drops them upstream. This drops a degenerate zero-width client rect a
 					// non-collapsed match can still emit from `getClientRects` (e.g. a line-boundary
 					// fragment), which would otherwise paint an invisible sliver.
 					if (r.width <= 0) continue;
-					out.push(toLocal(r, blockRect, i === state.activeIndex));
+					out.push(toLocal(r, blockRect, index === state.activeIndex));
 				}
-			});
+			}
 			return out;
 		}
 

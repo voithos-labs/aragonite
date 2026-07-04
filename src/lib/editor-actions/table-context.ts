@@ -24,7 +24,9 @@ import {
 	deleteColumn as mutDeleteColumn,
 	moveColumn as mutMoveColumn,
 	cycleAlignment as mutCycleAlignment,
-	setAlignment as mutSetAlignment
+	setAlignment as mutSetAlignment,
+	canDeleteRow,
+	canDeleteColumn
 } from '../tree-operations/table-mutations';
 
 /**
@@ -57,22 +59,6 @@ export function tableColumnReorderTarget(
 	const to = colIdx + dir;
 	if (to < 0 || to > colCount - 1) return null;
 	return to;
-}
-
-/**
- * Whether a row delete is allowed. rowCount is the FULL row count (header at
- * index 0 + body rows). A header delete promotes the next row, so it only needs
- * a second row; a body delete needs a second body row, else the last body row
- * would leave a header-only table.
- */
-export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
-	if (rowCount <= 1) return false;
-	return rowIdx === 0 || rowCount - 1 > 1;
-}
-
-/** Whether a column delete is allowed: a table must keep at least one column. */
-export function canDeleteColumn(colCount: number): boolean {
-	return colCount > 1;
 }
 
 export interface TableMutationsContextDeps {

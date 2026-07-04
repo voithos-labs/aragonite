@@ -51,10 +51,9 @@ test('search Previous to a far match past undecoded images keeps the active high
 	await prevButton(page).click();
 	await expect(page.locator('.search-count')).toHaveText(/11\s*\/\s*11/);
 	await editor.waitForRenderFlush();
-	await page.waitForTimeout(400);
 
-	const res = await activeOverlayInView(page);
-	expect(res.painted).toBe(true); // the active match's block mounted + painted
-	expect(res.inView).toBe(true); // and the reveal kept it on-screen (no clamp strand)
+	// Poll the reveal's paint+scroll outcome directly: the active match's block
+	// must mount, paint, and stay on-screen (no clamp strand).
+	await expect.poll(() => activeOverlayInView(page)).toEqual({ painted: true, inView: true });
 	expect(pageErrors).toEqual([]);
 });
