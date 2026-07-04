@@ -15,7 +15,7 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
 
-**Target:** 1.2 — the inline-widget editing registry's first consumer (`docs/roadmap.md` § 1.2). Decoded rendering is prototyped; entity keyboard interaction (edge-delete, arrow step-over, shift-extend) needs the registry's atomic-inline caret-addressing, currently hardcoded to `kind === 'image'`.
+**Target:** the inline-widget editing registry (pre-1.0 — `docs/roadmap.md` § Pre-1.0, the KaTeX item); entities are a natural early consumer. Decoded rendering is prototyped; entity keyboard interaction (edge-delete, arrow step-over, shift-extend) needs the registry's atomic-inline caret-addressing, currently hardcoded to `kind === 'image'`.
 
 ### Table cell Shift+Enter inserts `<br>` but renders it as literal text
 
@@ -35,9 +35,7 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items among their siblings via the `block.moveUp/moveDown` keymap, matching the drag handle's tooltip. A table has no non-cell focus surface, and inside a cell Alt+↑/↓ is already bound — in `cell-keydown-plan.ts`'s hard-coded `SHORTCUTS` — to ROW reorder, so there is no free gesture to reorder the whole table block, and its drag handle's keyboard equivalent is missing.
 
-**Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use — the S1 single-source gap. Expressing a whole-table `block.moveUp/moveDown` cleanly (a distinct chord, or routing the block-level chord through the cell plan's `native` fallthrough) is part of that keymap migration, a Tier-3 concern out of this batch's scope. Code and thematic-break keyboard reorder shipped; the table case is flagged here.
-
-## Tables & selection (review 2026-07 minors)
+**Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use, so they also bypass the consumer `keybindings` override prop. Expressing a whole-table `block.moveUp/moveDown` cleanly is part of migrating the table chords onto the declarative keymap — its own deliberate change (the consumer-guide's rebindability promise should be scoped or fulfilled with it). Code and thematic-break keyboard reorder shipped; the table case is flagged here.
 
 ### Table-branch range-delete ceremony lacks the chrome branch's hardening
 
@@ -46,12 +44,28 @@ Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items a
 
 The chrome branch filters deletion candidates to subtree roots and identity-gates each delete; the table branch splices nested covered paths child-by-child and cascades over pre-deletion paths. Unify on the chrome branch's ceremony on the next pass over this file.
 
+### MatchOverlay's cell branch still scans all matches
+
+**Severity:** minor (perf; search-open only)
+**Files:** `src/lib/components/MatchOverlay.svelte` (grid/table branch)
+
+The prose branch now reads its own per-path bucket from the match index; the table-cell branch still walks the full match list because its cell addressing needs a seam the overlay doesn't have. Extend the bucket read to cells when that seam is next touched.
+
+## Test coverage
+
+### No composition-driving harness; IME guards are pinned by parity, not by tests
+
+**Severity:** minor (test gap)
+**Files:** `src/lib/components/blocks/code/CodeBlock.svelte`, `src/lib/components/blocks/text/` (composition handlers)
+
+The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
+
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
 
 **Severity:** trivial (plugin misuse; unreachable via seam defaults)
-**Files:** `src/lib/editor-actions/plugin-chrome-leaf.ts` (chrome keymap), `src/lib/editor-actions/block-edit-core.ts` (`split`)
+**Files:** `src/lib/editor-actions/plugin/chrome-leaf.ts` (chrome keymap), `src/lib/editor-actions/block-edit-core.ts` (`split`)
 
 The chrome keymap binds Enter to `chrome.descendToBody` by default. A plugin that rebinds it to `block.split` gets a noop split — the chrome is single-line, so nothing structurally changes — through a commit that still pushes an undo entry.
 
@@ -76,6 +90,5 @@ chrome tail emitted as the container opener AND a synthesized closer injected wh
 exits the container — a `collectCrossBlockText` structural change (container-exit tracking),
 not the bounded closer-synthesis the END case uses.
 
-**Why deferred:** out of the Task-6 descope-hatched bound; the END direction is the shipped,
-reachable-today gesture. Fold the START direction into the 1.2 clipboard/hook family with the
-container-exit walk change.
+**Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
+direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
