@@ -4,7 +4,7 @@ How to embed, theme, and wire the editor as a library. Contributor-facing intern
 
 ## Public API
 
-Everything supported is re-exported from the barrel (`src/lib`). Adding an export is non-breaking; removing one is breaking — the surface is kept minimal and grows on demand.
+Everything supported is re-exported from the package barrel (`aragonite`). Adding an export is non-breaking; removing one is breaking — the surface is kept minimal and grows on demand.
 
 | Group             | What you get                                                                                                                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -31,8 +31,8 @@ The consumer owns load, save, and dirty-state. `editor.__test.*` is internal and
 
 ```svelte
 <script>
-	import { Editor } from '$lib/editor';
-	import '$lib/editor/styles/editor-theme.css';
+	import { Editor } from 'aragonite';
+	import 'aragonite/styles/editor-theme.css';
 
 	let editor;
 </script>
@@ -82,7 +82,7 @@ All tokens are editor-owned and shipped with light + dark values, so the module 
 | Group       | Tokens                                                                                                | Role                                                                                                          |
 | ----------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | **Content** | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--md-*`, `--selection-overlay-bg`, `--search-match-*` | The editor's own visual language                                                                              |
-| **Chrome**  | `--color-*`, `--radius-*`                                                                             | App-chrome flavored (bg/text/border/accent) — override to match your app palette; reads keep inline fallbacks |
+| **Chrome**  | `--color-*`                                                                                           | App-chrome flavored (bg/text/border/accent) — override to match your app palette; reads keep inline fallbacks |
 
 ## Behavior / policy props
 
@@ -98,7 +98,7 @@ Optional props customize URL/image handling and editor affordances:
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 
-**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context but are **not** folded into the prose render-memo key; a reactive post-mount swap renders stale, so set them at mount and treat them as fixed for the editor's lifetime. (Rationale: `docs/design/editor/editor.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. (The render-memo completeness contract behind this is G4.7 in `docs/design/editor/invariants.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Keyboard shortcuts
 

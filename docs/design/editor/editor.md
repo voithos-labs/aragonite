@@ -311,7 +311,7 @@ The nested `BlockList` inside a container block provides its own scoped editor-a
 
 ### Ambient Markers
 
-Containers contribute a read-only prefix to the first prose child's rendered content — the list-item's `- ` / `1. `, the blockquote's `> `. This is the `ambientPrefix` prop. The inline pipeline concatenates it with the child's content so `textContent(block) === ambientPrefix + raw`; cursor translation between DOM and raw passes through a single offset-pair helper. See `docs/design/editor/inline-parsing.md` for the textContent invariant.
+A container may contribute a read-only prefix to the first prose child's rendered content — today the list item's `- ` / `1. ` marker; the blockquote contributes none (its `> ` markers are represented by border-only chrome). This is the `ambientPrefix` prop. The inline pipeline concatenates it with the child's content so `textContent(block) === ambientPrefix + raw`; cursor translation between DOM and raw passes through a single offset-pair helper. See `docs/design/editor/inline-parsing.md` for the textContent invariant.
 
 The prop is a union: a plain string for inert markers, or an object carrying `text` plus a list of interactive ranges — each range a character offset span with a className, optional ARIA, and a click handler. Interactive ranges let a marker embed clickable elements (today: task checkbox toggles) without fragmenting the text contract; the offset-pair translation still sees one contiguous string. A single render helper, `buildAmbientSpan`, consumes both shapes — consumers don't branch on the variant. Future container widgets (callout badges, collapsible toggles, plugin-authored markers) extend the same contract without further widening.
 
@@ -498,7 +498,7 @@ Both arrays are the `{#each}` key source for their respective `BlockList`. They 
 
 Cross-block paste, cross-block delete, and multi-scope commit need to look up a `BlockListState` (keyed-id array + ref array) from a CstNode reference. The mapping is held in `reactivity/state-registry.ts` as a module-global WeakMap keyed by the container node. Each `BlockList` registers its state on mount (a re-mount overwrites the prior entry); there is no deregister step — because the key is the node, an entry becomes collectable as soon as the node leaves the tree, so the WeakMap GCs it without an explicit teardown. Lookups split between a strict variant (throws if absent — for paths that must succeed) and a nullable variant.
 
-The registry is module-global, which means multiple editor instances on the same page share it. Today's app mounts one editor at a time; multi-instance isolation is a future-roadmap concern.
+The registry is module-global, so multiple editor instances on the same page share it — safely, because entries are keyed by node and instances never share nodes. The consumer-facing statement of the multi-instance boundary (global grammar, per-instance state) lives in `docs/editor/consumer-guide.md` § Multiple instances.
 
 ## Node Type Coverage
 

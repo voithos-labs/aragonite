@@ -15,9 +15,8 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 	return {
 		// Bubble reveal to the parent: a nested scope's reveal is the editor's
 		// recursive revealPath descending through this container, so this scope
-		// doesn't own it. (Nested scopes DO window since Phase 3 — recursive
-		// nested windowing — but moveFocus below doesn't need to reveal; see its
-		// adjacent-only contract.)
+		// doesn't own it. (Nested scopes do window, but moveFocus below doesn't
+		// need to reveal; see its adjacent-only contract.)
 		revealPath: parent.focus.revealPath,
 		// `moveFocus` is sync and does not reveal an off-window inner target,
 		// unlike the root `moveFocus` (which routes through `revealPath`). Every

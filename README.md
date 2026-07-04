@@ -8,8 +8,8 @@ Extracted from [limestone](https://github.com/DanielZFLiu/limestone), where it w
 
 ```svelte
 <script>
-	import { Editor } from '$lib';
-	import '$lib/styles/editor-theme.css';
+	import { Editor } from 'aragonite';
+	import 'aragonite/styles/editor-theme.css';
 
 	let editor;
 </script>
