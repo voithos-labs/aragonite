@@ -302,6 +302,6 @@
 		> :global(.block-host:first-child)
 		> :global(:not(.list-block)) {
 		text-decoration: line-through;
-		color: var(--text-muted, rgba(128, 128, 128, 0.7));
+		color: var(--syntax-task-done, rgba(128, 128, 128, 0.7));
 	}
 </style>

@@ -33,7 +33,10 @@ Unit tests can be scoped to a single concept area:
 | `test:editor:selection`      | Selection-state logic                                                                           |
 | `test:editor:blocks`         | Per-block unit tests (code block, etc.)                                                         |
 | `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                        |
+| `test:editor:plugins`        | Plugin dogfood kinds — callout/details round-trips, chrome-leaf behavior                        |
+| `test:editor:simulation`     | Simulation-engine internals — seeded RNG, expectation tracker                                   |
 | `test:editor:undo`           | Undo stack and entry management                                                                 |
+| `test:editor:search`         | Find/replace engine — document scan and search state                                            |
 | `test:editor:debug`          | Debug engine helpers and operations log                                                         |
 | `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards                                    |
 | `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens, instrument behavior |
@@ -49,10 +52,12 @@ E2E tests are grouped into Playwright projects:
 | `test:e2e:blocks:image`      | Image block specs only                                                                                                                                                                                                    |
 | `test:e2e:blocks:table`      | Table block specs only                                                                                                                                                                                                    |
 | `test:e2e:blocks:blockquote` | Blockquote block specs only                                                                                                                                                                                               |
+| `test:e2e:plugins`           | Plugin-authoring specs — plugin containers, reserved chrome, collapse                                                                                                                                                     |
 | `test:e2e:clipboard`         | Cut / copy / paste (excludes exploration)                                                                                                                                                                                 |
 | `test:e2e:exploration`       | Clipboard exploration / manual-verification scenarios                                                                                                                                                                     |
 | `test:e2e:selection`         | Cross-block selection behavior                                                                                                                                                                                            |
 | `test:e2e:sticky-column`     | Vertical cursor column tracking across block transitions                                                                                                                                                                  |
+| `test:e2e:search`            | Find/replace bar and controller behavior                                                                                                                                                                                  |
 | `test:e2e:a11y`              | axe baseline-ratchet over `.editor` — fails on any violation outside the committed (fails-closed, only-shrinks) allowlist                                                                                                 |
 | `test:e2e:vr`                | Virtual-rendering correctness on large fixtures — windowing, reveal, and table-row windowing, with the mounted-count ceiling plus the layouts-per-mount and anchor-compensation guards; runs in `npm test` (no PERF gate) |
 
@@ -162,10 +167,10 @@ Engine lives in `src/lib/e2e/simulation/`; specs in `tests/simulation/` (require
 
 **Running it:**
 
-| Command                                     | Scope                                                                                                                                                    |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`               | The deterministic smoke — runs in `npm test`; fast, bounded note, oracles only.                                                                          |
-| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated full capture suite (every note) plus the multi-seed fuzz — writes screenshots + per-checkpoint `manifest.json` to `simulation-captures/`. |
+| Command                                     | Scope                                                                                                                                             |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:e2e:simulation`               | The ungated oracle runs — smoke note, multi-seed fuzz, fenced-code/image session, loaded-table ops; all run in `npm test`.                        |
+| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the gated capture suites (every note) — writes screenshots + per-checkpoint `manifest.json` to `simulation-captures/` for the visual review. |
 
 ### Agentic visual review
 
@@ -183,7 +188,7 @@ Two layers measure editor performance over shared deterministic fixtures:
 | Browser | Playwright `e2e-perf` (`PERF`-gated) | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                    |
 | Gate    | Playwright `e2e-perf` (`PERF_GATE`)  | `npm run perf:check`  | Keystroke p50 of the renderable 1MB rows vs baseline+tolerance — fails on regression    |
 
-`npm run perf` runs the first two. Without `PERF=1` the browser layer skips in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/e2e/requirements/perf/typing-latency.md`.
+The browser and gate scripts arm their own env gates (`PERF` / `PERF_GATE`); outside them — e.g. the full `npm test` battery — the `e2e-perf` specs self-skip in seconds. Each browser row writes one JSON artifact to `perf-results/`; capped shape×size rows and measurement details live in `src/lib/e2e/requirements/perf/typing-latency.md`.
 
 ### Fixtures
 
