@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { updateNodeContent } from '../../tree-operations/node-ops';
-import { createUndoController } from '../../editor-actions/undo/undo-controller';
-import { createHistoryActions } from '../../editor-actions/undo/history';
+import { createUndoController } from '../../editor-actions/commit/undo-controller';
+import { createHistoryActions } from '../../editor-actions/commit/history';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import type { CstNode } from '../../core/nodes';
 import {

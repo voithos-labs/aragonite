@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { composeCollapseProbe } from '../../editor-actions/plugin-container';
+import { composeCollapseProbe } from '../../editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';

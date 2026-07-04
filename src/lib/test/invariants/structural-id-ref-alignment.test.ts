@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';

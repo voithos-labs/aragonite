@@ -36,10 +36,8 @@
 		WIDTH_VERSION_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
-		type EditorSelection,
 		type ResolveImageUrl,
-		type ResolveLinkUrl,
-		type SearchState
+		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
@@ -48,6 +46,7 @@
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
+	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
@@ -55,7 +54,7 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { lrdMapCouldChange } from '../lrd-map-gate';
+	import { lrdMapCouldChange } from './lrd-map-gate';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
@@ -66,7 +65,7 @@
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
-	import { createSearchState } from '../reactivity/search-state.svelte';
+	import { createSearchState, type SearchState } from '../reactivity/search-state.svelte';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';

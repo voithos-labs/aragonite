@@ -7,7 +7,7 @@
 import { tick } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import type { EditorSelection } from '../../editor-keys';
+import type { EditorSelection } from '../../selection/primitives';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';

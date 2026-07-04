@@ -6,8 +6,8 @@
  * requested offset/extremum.
  */
 
-import { CURSOR_END, type BlockComponent, type FocusPosition } from '../block-component';
-import type { StickyColumnState } from '../cursor/sticky-column';
+import { CURSOR_END, type BlockComponent, type FocusPosition } from '../../block-component';
+import type { StickyColumnState } from '../../cursor/sticky-column';
 
 export async function consumeStickyLanding(
 	block: BlockComponent,

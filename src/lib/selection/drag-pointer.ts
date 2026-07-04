@@ -9,7 +9,7 @@ import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
 import type { AnyBlockKind } from '../core/nodes';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
-import { comparePaths } from './primitives';
+import { comparePaths } from './path-math';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { createAutoScroll } from './autoscroll';
 

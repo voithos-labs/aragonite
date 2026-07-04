@@ -37,7 +37,7 @@ const ALLOWLIST: Record<string, string> = {
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
-	'src/lib/editor-actions/undo/text-batch.ts': 'setTimeout wall-clock undo debounce'
+	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;

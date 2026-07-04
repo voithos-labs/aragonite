@@ -3,9 +3,24 @@
  * no document lookups — strictly arithmetic on indices.
  */
 
-import { comparePaths, type SelectionPoint } from './primitives';
+import type { SelectionPoint } from './primitives';
 
 // ── Path predicates ────────────────────────────────────────────────────────
+
+/**
+ * Compare two paths in document order. Ancestor-before-descendant:
+ * `[2]` comes before `[2, 0]` (container opens before children).
+ */
+export function comparePaths(a: number[], b: number[]): number {
+	const len = Math.min(a.length, b.length);
+	for (let i = 0; i < len; i++) {
+		if (a[i] < b[i]) return -1;
+		if (a[i] > b[i]) return 1;
+	}
+	if (a.length < b.length) return -1;
+	if (a.length > b.length) return 1;
+	return 0;
+}
 
 /** True if `prefix` equals `path` or is a strict ancestor of it. */
 export function pathHasPrefix(path: number[], prefix: number[]): boolean {

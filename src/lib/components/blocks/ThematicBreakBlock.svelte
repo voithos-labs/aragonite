@@ -9,9 +9,9 @@
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
 		REORDER_ACTION_KEY,
-		type KeybindingOverridesGetter,
-		type ReorderAction
+		type KeybindingOverridesGetter
 	} from '../../editor-keys';
+	import type { ReorderAction } from '../../editor-actions/reorder-action';
 	import { eventToChord } from '../../schema/keybindings';
 	import {
 		resolveBinding,

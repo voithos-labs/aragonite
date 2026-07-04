@@ -3,7 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 

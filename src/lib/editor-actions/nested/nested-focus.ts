@@ -7,7 +7,7 @@
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { FocusPosition } from '../../block-component';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { dispatchMoveFocus } from '../focus-dispatch';
+import { dispatchMoveFocus } from '../focus/focus-dispatch';
 import type { NestedActionsDeps } from './nested-actions';
 
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {

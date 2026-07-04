@@ -6,11 +6,8 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
-import type {
-	DocumentGetter,
-	LinkReferenceResolverRef,
-	WidgetSelectionState
-} from '../../../editor-keys';
+import type { DocumentGetter, LinkReferenceResolverRef } from '../../../editor-keys';
+import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';

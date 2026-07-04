@@ -10,7 +10,7 @@
 // long-session behavior, not first-push behavior.
 import { bench, describe } from 'vitest';
 import { parse } from '../../core/parser';
-import { createUndoController } from '../../editor-actions/undo/undo-controller';
+import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { generateFixture, type FixtureShape } from './fixtures/generate';

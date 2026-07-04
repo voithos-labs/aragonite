@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createListOverrides } from '$lib/editor-actions/list-overrides';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { parse } from '$lib/core/parser';
 import {

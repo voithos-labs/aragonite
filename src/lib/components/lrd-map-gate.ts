@@ -4,9 +4,9 @@
  * keeping the O(nodes) walk off the keystroke hot path for the common
  * (LRD-free) document.
  */
-import type { Document } from './core/nodes';
-import type { EditEvent } from './editor-events';
-import { nodeAt } from './tree-operations/node-ops';
+import type { Document } from '../core/nodes';
+import type { EditEvent } from '../editor-events';
+import { nodeAt } from '../tree-operations/node-ops';
 
 /**
  * Whether a commit could change the LRD set, gating the O(nodes) map rebuild off

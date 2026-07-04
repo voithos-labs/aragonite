@@ -17,8 +17,7 @@ import {
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
-import { comparePaths } from './primitives';
-import { isStrictAncestorOf } from './path-math';
+import { comparePaths, isStrictAncestorOf } from './path-math';
 import { cellEndpointDeepPath } from './table-endpoint-snap';
 import { displayLength } from '../core/lines';
 

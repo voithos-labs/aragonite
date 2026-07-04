@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SEARCH_KEY, type SearchState } from '../editor-keys';
+	import { SEARCH_KEY } from '../editor-keys';
+	import type { SearchState } from '../reactivity/search-state.svelte';
 
 	// `replaceExpanded` is owned by Editor so the root Ctrl+H shortcut and the
 	// chevron share one source of truth; the chevron reports toggles back up.

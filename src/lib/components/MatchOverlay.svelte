@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../block-component';
-	import { SEARCH_KEY, EDITOR_ROOT_KEY, type SearchState } from '../editor-keys';
+	import { SEARCH_KEY, EDITOR_ROOT_KEY } from '../editor-keys';
+	import type { SearchState } from '../reactivity/search-state.svelte';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 	import { pathsEqual, isStrictAncestorOf } from '../selection/path-math';
 

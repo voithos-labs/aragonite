@@ -25,9 +25,9 @@
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type ReorderAction
+		type KeybindingOverridesGetter
 	} from '../../../editor-keys';
+	import type { ReorderAction } from '../../../editor-actions/reorder-action';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';

@@ -5,7 +5,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import { isPathBetween } from './path-math';
+import { comparePaths, isPathBetween } from './path-math';
 import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -54,23 +54,6 @@ export function assertCharOffset(point: SelectionPoint, tag: string): number {
 		devWarn(tag, 'char-offset site received a cell-coordinate SelectionPoint', point);
 	}
 	return point.offset;
-}
-
-// ── Path comparison ────────────────────────────────────────────────────────
-
-/**
- * Compare two paths in document order. Ancestor-before-descendant:
- * `[2]` comes before `[2, 0]` (container opens before children).
- */
-export function comparePaths(a: number[], b: number[]): number {
-	const len = Math.min(a.length, b.length);
-	for (let i = 0; i < len; i++) {
-		if (a[i] < b[i]) return -1;
-		if (a[i] > b[i]) return 1;
-	}
-	if (a.length < b.length) return -1;
-	if (a.length > b.length) return 1;
-	return 0;
 }
 
 // ── Normalization ──────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import {
 	performCrossBlockDelete,
 	type CrossBlockMutationContext
 } from '$lib/selection/cross-block/ops';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { consumeStickyLanding } from '../../editor-actions/focus-landing';
+import { consumeStickyLanding } from '../../editor-actions/focus/focus-landing';
 import { CURSOR_END } from '../../block-component';
 import { createStickyColumnState, type StickyColumnState } from '../../cursor/sticky-column';
 import { mockRef } from '../harness/editor-actions';

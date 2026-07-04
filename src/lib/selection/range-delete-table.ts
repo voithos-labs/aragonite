@@ -10,10 +10,16 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, comparePaths, assertCharOffset } from './primitives';
+import { walkBetween, assertCharOffset } from './primitives';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { lowestCommonAncestor, isPathSubtreeBetween, pathHasPrefix, pathsEqual } from './path-math';
+import {
+	comparePaths,
+	lowestCommonAncestor,
+	isPathSubtreeBetween,
+	pathHasPrefix,
+	pathsEqual
+} from './path-math';
 import { nodeAt } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
