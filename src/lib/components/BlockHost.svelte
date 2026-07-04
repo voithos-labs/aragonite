@@ -196,7 +196,7 @@
 	.failed-block-notice {
 		display: block;
 		font-size: 0.85em;
-		color: var(--color-text-secondary, #e6e5e5);
+		color: var(--color-text-muted, #aaa);
 	}
 	.failed-block-raw {
 		margin: 0.25rem 0 0;

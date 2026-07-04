@@ -238,7 +238,7 @@
    if it were text. The `(url)` / `[label]` markers stay dimmed — only the link
    text (the `<a>` content) takes the accent. */
 :where(.editor) a.md-link-content:not(:has(.md-image-widget)) {
-	color: var(--color-accent, #567b67);
+	color: var(--syntax-link, var(--color-accent, #567b67));
 	text-decoration: underline;
 }
 
@@ -303,19 +303,58 @@
 	font-size: 0.92em;
 }
 
-/* <br> widget shell — no visual chrome; the inner <br> produces the line
-   break. The shell exists for cursor / widget-offset participation via the
-   [data-inline-widget] generic marker. */
-:where(.editor) .md-br-widget {
-	/* Reserved for future selected-state styling — today no chrome. */
-}
-
 /* Off-window placeholder tint (VR-8). Spacers reserve the height of unmounted
    blocks; a fling can outrun the window recompute and paint a bare spacer for one
    frame, which without a background tears white. The faint tint reads as "loading".
    Global across the three spacer renderers (BlockList / ListBlock / TableBlock). */
 :where(.editor) .vr-spacer {
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
+}
+
+/* ── Semantic syntax-token wiring ─────────────────────────────────────────────
+   Each --syntax-* token colors one Markdown construct; defaults in
+   editor-theme.css are neutral (currentColor / the chrome token the rule read
+   before), so these rules change nothing until a consumer overrides a token.
+   Fallbacks repeat the neutral default so a wholesale-replacement theme that
+   omits the family still renders sanely. Rules whose construct is colored by a
+   component <style> shorthand (quote bar, thematic break) carry the extra
+   selector weight needed to beat the Svelte scoping class deterministically. */
+
+:where(.editor)
+	.text-editable-block:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
+	color: var(--syntax-heading, currentColor);
+}
+
+:where(.editor) :is(em, strong) {
+	color: var(--syntax-emphasis, currentColor);
+}
+
+:where(.editor) .inline-code-content {
+	color: var(--syntax-code, currentColor);
+}
+
+/* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
+:where(.editor) .text-editable-block.raw-block {
+	color: var(--syntax-comment, currentColor);
+}
+
+:where(.editor) .block-host[data-block-kind='blockquote'] > .blockquote-block {
+	border-left-color: var(--syntax-quote, var(--color-ui-muted, #a4a4a4));
+}
+
+:where(.editor) .thematic-break-block[role='separator'] > hr {
+	border-top-color: var(--syntax-separator, var(--color-ui-muted, #a4a4a4));
+}
+
+/* The [contenteditable='false'] qualifier scopes to the structurally-injected
+   ambient prefix (list bullet / number / task text), not inline .md-marker
+   spans. */
+:where(.editor) .list-item-block .md-marker[contenteditable='false'] {
+	color: var(--syntax-list, currentColor);
+}
+
+:where(.editor) .task-checkbox {
+	color: var(--syntax-task, currentColor);
 }
 
 /* Table affordance grips: revealed only while the table is hovered (pure CSS, no

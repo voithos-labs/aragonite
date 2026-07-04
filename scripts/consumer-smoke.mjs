@@ -6,18 +6,21 @@ import { rmSync } from 'node:fs';
 
 const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
 // `--with-deps` installs OS libraries and is Linux-only (CI); elsewhere it's a
-// no-op/error, so add it only on linux. The consumer refs the tarball via
-// `file:../../aragonite-<version>.tgz`, so `npm pack` at the repo root is the
-// single source — no copy needed.
+// no-op/error, so add it only on linux.
 const withDeps = process.platform === 'linux' ? '--with-deps ' : '';
 
 run('npm run package');
-run('npm pack');
+// The tarball name embeds the version; install the file `npm pack` reports
+// instead of the consumer's static pin so a version bump can't strand the
+// smoke on a stale tarball name. (The static pin stays for manual installs;
+// installing by path rewrites it to the packed name when they diverge.)
+const packOutput = execSync('npm pack', { encoding: 'utf8' });
+const tarball = packOutput.trim().split(/\r?\n/).pop();
 run('node scripts/verify-pack.mjs'); // published paths present AND no test files ship
 // Force a fresh extract — npm may reuse a cached copy for an unchanged version,
 // which would make an edit → repack loop test stale bits.
 rmSync('examples/consumer/node_modules/aragonite', { recursive: true, force: true });
-run('npm install', { cwd: 'examples/consumer' });
+run(`npm install ../../${tarball}`, { cwd: 'examples/consumer' });
 run('npm run check', { cwd: 'examples/consumer' }); // public entry points type-resolve from outside
 run('npm run build', { cwd: 'examples/consumer' }); // bundle + exports validation
 run(`npx playwright install ${withDeps}chromium`, { cwd: 'examples/consumer' });

@@ -682,7 +682,7 @@
 	}
 
 	.text-editable-block :global(.md-autolink) {
-		color: var(--color-accent, #567b67);
+		color: var(--syntax-url, var(--color-accent, #567b67));
 		text-decoration: underline;
 	}
 </style>
