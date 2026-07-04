@@ -66,10 +66,9 @@ early enough that what they teach is still cheap to act on.
     - **1.3 paper dry-run**: walk each planned post-1.0 plugin (Mermaid, footnotes, emoji, autolinks)
       against the contract on paper and confirm no breaking-if-deferred gap — reading cost now versus
       breaking change later.
-    - **Contributor onboarding doc**: distill the sharp edges into a CONTRIBUTING-grade document
-      (architecture in one breath; layer rules; each sharp edge WITH the incident that justifies it;
-      the gate tiers). The judgment that currently lives in session ledgers must survive contact with
-      contributors who haven't read them.
+    - **Promote `docs/culture.md` into the public CONTRIBUTING** — the incident-backed rule set
+      exists; at release it gains the practical wrapper (setup, PR flow, gate tiers) and becomes the
+      front door for contributors who haven't lived the repo's history.
     - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
       per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
       toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
