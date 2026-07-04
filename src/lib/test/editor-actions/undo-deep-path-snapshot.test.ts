@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
+import { makeEditorActionsDeps, mockRef, makeNode } from '$lib/test/harness/editor-actions';
 
 describe('debounced undo snapshot — deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {

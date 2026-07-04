@@ -75,7 +75,7 @@ export default defineConfig({
 			// multi-MB fixture load; the fixed viewport makes the mounted-window
 			// bound deterministic.
 			name: 'e2e-vr',
-			testMatch: 'perf/virtual-rendering.spec.ts',
+			testMatch: 'perf/vr-*.spec.ts',
 			timeout: 120_000,
 			use: { viewport: { width: 1280, height: 900 } }
 		},

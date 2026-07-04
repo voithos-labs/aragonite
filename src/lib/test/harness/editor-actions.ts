@@ -13,6 +13,13 @@ import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor-events';
 
+// ── CST node factory ─────────────────────────────────────────────────────────
+
+/** A minimal leaf CST node for editor-action and invariant unit fixtures. */
+export function makeNode(kind: string, raw: string): CstNode {
+	return { kind, leadingTrivia: '', raw } as CstNode;
+}
+
 // ── BlockComponent / sticky-column stubs ─────────────────────────────────────
 
 export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
