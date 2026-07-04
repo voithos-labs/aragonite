@@ -288,6 +288,8 @@ registerBlockKind('fencedCode', {
 		{ chord: 'Shift+Tab', command: 'code.dedent' },
 		{ chord: 'Backspace', command: 'code.backspace' },
 		{ chord: 'Delete', command: 'code.delete' },
+		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 		{ chord: 'Mod+B', command: 'format.toggleStrong' },
 		{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
 	]
@@ -296,7 +298,11 @@ registerBlockKind('thematicBreak', {
 	mergeRole: 'not-mergeable',
 	editable: false,
 	isContainer: false,
-	supportsInline: false
+	supportsInline: false,
+	keymap: [
+		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
+	]
 });
 registerBlockKind('indentedCode', {
 	mergeRole: 'not-mergeable',

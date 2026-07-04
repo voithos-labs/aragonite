@@ -171,6 +171,32 @@ test.describe('table block: column affordance menu', () => {
 		await editor.bridge.waitForSourceMatches(/^\| -+ \| -+: \| -+ \|$/m);
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
+
+	// Finding 5.2 (a11y): keyboard alignment once dropped focus to <body> and
+	// announced nothing. The cell menu (Shift+F10) → activate a segment must return
+	// focus to a cell and announce via the live region. Driven through the menu's
+	// real roving focus, not a programmatic .press on the segment.
+	test('keyboard-driven alignment restores focus to a cell and announces', async ({ page }) => {
+		await editor.loadContent('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+		await page.locator('[role="cell"]').nth(4).click(); // body row, column B ("2")
+		await page.keyboard.press('Shift+F10');
+		await expect(page.getByRole('menu')).toBeVisible();
+
+		// Walk the roving focus to the alignment trio: ArrowUp from the first item
+		// wraps to the last stop (the Right segment); ArrowLeft steps to Center;
+		// Enter activates it. This is the keyboard path a real user takes.
+		const focused = page.locator('[role="menu"] :focus');
+		await page.keyboard.press('ArrowUp');
+		await expect(focused).toHaveAttribute('aria-label', 'Right');
+		await page.keyboard.press('ArrowLeft');
+		await expect(focused).toHaveAttribute('aria-label', 'Center');
+		await page.keyboard.press('Enter');
+
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		await editor.bridge.waitForSourceMatches(/^\| -+ \| :-+: \| -+ \|$/m);
+		await expect(page.locator(':focus')).toHaveAttribute('role', 'cell');
+		await expect(page.locator('.editor-sr-live-reorder')).toContainText('Column aligned center');
+	});
 });
 
 test.describe('table block: row affordance menu', () => {

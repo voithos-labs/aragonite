@@ -185,13 +185,18 @@ function relocateRemainingChildren(
  *               (trailing index is the LAST paragraph within the target
  *               listItem — not always 0 for loose items).
  *   offset:     position within the target paragraph, before appended content.
+ *
+ * Returns null when the previous item exposes no text-bearing leaf (its deepest
+ * leaf is opaque — a fenced code block, a collapsed container's chrome). The
+ * caller falls back to a focus move; a null return is not a caller-contract
+ * violation, so it is reported rather than thrown (unlike a bad `currentIndex`).
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
 	sharing?: SharingState
-): { mergePoint: { targetPath: number[]; offset: number } } {
+): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Reads from list.children are allowed during targeting, but the final
 	// splice MUST land in `children`, not `list.children`. See node-ops.ts
 	// header for the project-wide rule.
@@ -206,11 +211,7 @@ export function mergeListItemIntoPrevious(
 
 	const previousIndex = currentIndex - 1;
 	const targetPath = findDeepestVisibleTextTarget(list, previousIndex);
-	if (!targetPath) {
-		throw new Error(
-			'mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf'
-		);
-	}
+	if (!targetPath) return null;
 
 	// Own the deep-leaf spine before any capture — the walk below must see the
 	// owned copies, and the target paragraph's raw is written in place.

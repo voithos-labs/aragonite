@@ -96,6 +96,9 @@ export function createBlockEditActions(
 			options?: { undoEntry?: UndoEntryMode }
 		): Promise<void> {
 			if (blocks.length === 0) return;
+			// Bounds parity with the container path (nested-block-edit): an invalid
+			// blockIndex no-ops instead of reaching foldPasteReplacement(undefined).
+			if (blockIndex < 0 || blockIndex >= deps.doc.children.length) return;
 
 			// Build the replacement outside the commit so a failing fold can't
 			// corrupt the document; the splice lives inside `mutate` so the

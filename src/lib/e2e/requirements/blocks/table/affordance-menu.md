@@ -14,6 +14,7 @@ action items dispatch the committed table mutations.
 - Column grip → "Delete column" removes the grip's column when at least two columns remain.
 - The column menu lists the column actions (insert left/right, move left/right, delete) plus an alignment control reflecting the column's current alignment.
 - Column grip → alignment control: clicking a segment (L/C/R) sets the targeted (non-first) column's alignment and closes the menu, leaving the other columns plain — Center serializes that column's delimiter to `:---:`, Right to `---:`.
+- Alignment via the keyboard-opened cell menu (focus a cell → Shift+F10 → arrow through the menu's roving focus to an L/C/R segment → Enter) closes the menu, restores keyboard focus to a cell in that column instead of dropping it to `<body>`, and announces "Column aligned left/center/right" in the live region (a11y).
 - Hovering the table reveals one row grip per row (header + body rows; the delimiter line is not a row); clicking a grip opens the menu for that row.
 - Row grip → "Delete row" removes that body row.
 - Row grip → "Insert row below"/"Insert row above" adds a body row after/before the grip's row.
