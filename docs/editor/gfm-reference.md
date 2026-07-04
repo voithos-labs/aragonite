@@ -1,6 +1,6 @@
 # GFM Reference
 
-Quick reference for the GitHub Flavored Markdown syntax Limestone's CST editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is delivered as plugins on top of the v1.2 plugin API.
+Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is planned as plugins on the plugin-authoring API (scheduling in `docs/roadmap.md`).
 
 <!-- Examples demonstrating alternative syntaxes use `text` fences on purpose:
      prettier formats `markdown`-tagged fences as markdown and normalizes away
@@ -95,7 +95,7 @@ Here is a [link to Google][google-ref] and another to [GitHub][github-ref].
 Visit <https://example.com> or write to <mailto:user@example.com>.
 ```
 
-Per CommonMark §6.8, an absolute URI in angle brackets becomes a link without `[text](url)` syntax. (GFM's bare-URL autolinks — no brackets — are the Section 2 extension; non-http schemes in angle form are a roadmapped polish item.)
+Per CommonMark §6.8, an absolute URI in angle brackets — any valid scheme — becomes a link without `[text](url)` syntax. (GFM's bare-URL autolinks — no brackets — are the Section 2 extension.)
 
 **Hard Line Breaks:**
 
