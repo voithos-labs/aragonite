@@ -230,11 +230,19 @@ When added, it is an additive field, designed against its real consumer.
 
 Everything a plugin author reaches today comes through the `aragonite/plugin` subpath:
 
-- **Registration base (frozen):** kind declaration, descriptor/component/opener registration,
-  idempotent-registration probes, typed per-node plugin metadata.
+- **Registration base (frozen):** kind declaration (plus `declaredPluginKind`, the checked
+  accessor that recovers a declared brand in another module without a cast), descriptor /
+  component / opener registration, idempotent-registration probes for kind and component
+  registration, typed per-node plugin metadata.
+- **Opener + serialize helpers:** `parse` (body → `Document`), `serializeChildren` (join child
+  bytes), and `trimTrailingLineEnding` (CRLF-correct display text) — the recognizer and
+  serializer halves an opener and `rebuildRaw` need, promoted off `core/` deep paths so the
+  packaged artifact carries them.
 - **Container authoring:** a factory that wires a nested-`BlockList` container (list state,
   ancestor contexts, nested actions, windowing, the `BlockComponent` surface) so a plugin
-  container is as thin as the built-in blockquote.
+  container is as thin as the built-in blockquote. It returns a `ContainerBlockComponent` —
+  the container methods it always supplies typed as required, so a host re-exports them with no
+  per-member assertion; `BlockComponentProps` names the props BlockHost passes every component.
 - **Editable chrome:** one call registers a container's title/summary leaf with a default
   keymap (Enter descends to the body; chord-keyed overrides). The container _declares_ its
   chrome slot on its descriptor, and the machinery enforces the **reserved-chrome contract**:
@@ -242,10 +250,12 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   never node-deleted — by destructive ranges, and kind-stable through every edit.
 - **Collapsible containers:** the declaration optionally carries a pure collapse probe
   (`isCollapsed` over the node); from that one declaration, every child-adjacency operation —
-  merge from below, focus walks in and out, Enter-descend, reveal — is collapse-aware, and the
-  container factory clamps its window to the chrome row (the body genuinely unmounts). The
-  factory also returns a metadata-commit handle (`updateOwnMetadata`) for behavioral fields
-  like a collapsible's open state — merged, raw-rebuilt, and undoable in one commit.
+  merge from below, focus walks in and out, Enter-descend, reveal — is collapse-aware, the
+  container factory derives its window clamp from the same probe (the body genuinely unmounts,
+  no separate collapse dep to thread), and the height oracle estimates a collapsed container at
+  one chrome row. The factory also returns a metadata-commit handle (`updateOwnMetadata`) for
+  behavioral fields like a collapsible's open state — merged, raw-rebuilt, and undoable in one
+  commit.
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
   through edits), and an opaque container contract (raw is authoritative, not a strip
   decomposition), both invariant-guarded.
@@ -289,10 +299,26 @@ mutation handles) and the rest by **dev-mode invariants** that tree-shake out of
 so plugin development against a production build gets no signal. **Develop plugins against a
 dev build.**
 
+### Misuse outcomes
+
+What each misuse does in dev versus production — the reason the dev build is where plugin
+development belongs:
+
+| Misuse                               | Dev                                                                                                                                | Production                                          |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `rebuildRaw` writes the wrong bytes  | commit-time invariant warn (opaque-container staleness / rebuild determinism), naming the kind                                     | silent until the bytes surface in a round-trip      |
+| Component throws while rendering     | contained by the per-block error boundary — failed-block fallback plus an `error` event (`origin: 'render'`), attributable by path | same containment (the boundary ships in production) |
+| Opener returns a non-advancing index | parse throws, naming the kind, before the loop can spin                                                                            | parse loop spins — the browser tab hangs on load    |
+| Opener's `raw` ≠ the consumed lines  | parse dev-warns (`invariant:opener-raw`), naming the kind                                                                          | silent `serialize(parse(x)) !== x` round-trip break |
+| Opener throws                        | propagates uncaught — parse runs at editor init and inside the commit ceremony, outside the per-block boundary                     | same — uncaught                                     |
+
 ## Enforcement
 
 The contract's load-bearing rules are guarded by the invariant catalog
-(`docs/design/editor/invariants.md`): kind-table completeness, opener coherence, and keymap
-coherence at bootstrap; opaque-container staleness, rebuild determinism, and the reserved-chrome
-slot at every commit; duplicate registration throws at the call site. The plugins e2e project
-fails on any dev-invariant fire.
+(`docs/design/editor/invariants.md`): opener coherence at bootstrap over the live registry, and
+kind-table completeness and keymap coherence at bootstrap but over the built-in kinds only until
+the registry-derived hardening lands — a plugin keymap's command ids are type-checked, not yet
+bootstrap-validated;
+opaque-container staleness, rebuild determinism, and the reserved-chrome slot at every commit; a
+plugin opener's return checked at parse (non-advancing throws, raw-mismatch warns); duplicate
+registration throws at the call site. The plugins e2e project fails on any dev-invariant fire.

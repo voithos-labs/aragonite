@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
+import { registerBlockKind } from '../../schema/block-kind-descriptor';
 
 const opts = {
 	lineHeight: 24,
@@ -180,6 +181,35 @@ describe('createHeightOracle', () => {
 			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n'
 		};
 		expect(o.estimate(wide, 800)).toBeGreaterThan(2 * 24 + 16); // not just source-line count
+	});
+
+	// A collapsed container mounts only its chrome row; estimating from its full
+	// `raw` (which still carries the hidden body) over-counts it several-fold. The
+	// oracle reads the declared collapse probe and returns one chrome row instead —
+	// the tight estimate. Open, it falls through to the normal full-raw arm.
+	it('estimates a collapsed container at one chrome row, open at its full raw', () => {
+		const o = createHeightOracle(opts);
+		const summary = declarePluginKind('oracle-collapsible-chrome');
+		const collapsible = declarePluginKind('oracle-collapsible');
+		registerBlockKind(collapsible, {
+			mergeRole: 'container',
+			editable: true,
+			isContainer: true,
+			supportsInline: false,
+			reservedChrome: {
+				kind: summary,
+				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+			}
+		});
+
+		const bigBody = 'x'.repeat(2000); // full-raw estimate is 20 wrapped lines at width 800
+		const collapsed: CstNode = { kind: collapsible, leadingTrivia: '', raw: bigBody };
+		setPluginMetadata(collapsed, { open: false });
+		expect(o.estimate(collapsed, 800)).toBe(24 + 16); // one chrome row, body ignored
+
+		const open: CstNode = { kind: collapsible, leadingTrivia: '', raw: bigBody };
+		setPluginMetadata(open, { open: true });
+		expect(o.estimate(open, 800)).toBe(20 * 24 + 16); // unchanged full-raw wrapped estimate
 	});
 
 	it('clear() empties the measured cache', () => {

@@ -6,6 +6,7 @@
  * index shifts and undo don't invalidate them.
  */
 import type { CstNode } from '../core/nodes';
+import { isCollapsedContainer } from '../schema/reserved-chrome';
 
 // Any image: inline `![alt](url)`, reference `![alt][ref]`, or shortcut
 // `![ref]`. Captures the alt segment so a `|WxH` size hint can be read. The
@@ -65,6 +66,12 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 	}
 
 	function estimate(node: CstNode, width: number): number {
+		// A collapsed container mounts only its chrome row; its body lives in `raw`
+		// but never renders, so estimating from full `raw` over-counts it several-
+		// fold. One chrome line + block chrome is the tight estimate, matching what
+		// the summary/title row actually paints. Reads the declared collapse probe,
+		// so no per-kind arm is needed (cursor/ reading schema/ is layer-legal).
+		if (isCollapsedContainer(node)) return opts.lineHeight + opts.blockChrome;
 		const kind = node.kind;
 		const raw = node.raw;
 		switch (kind) {
