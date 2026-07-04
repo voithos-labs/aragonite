@@ -37,6 +37,15 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 **Why deferred:** a pure refactor with no functional gain and real divergences; do it as its own commit gated on the full row + column + windowed + wide-table drag e2e. Clean seam: one `startTableReorderDrag(down, { process, axis, getScrollContainer, setLine, commit, fromIdx, onDragRecognized, lifetimeSignal })`, with the row/column files reduced to geometry + `process`.
 
+### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
+
+**Severity:** minor (a11y; table blocks only)
+**Files:** `src/lib/components/blocks/table/cell-keydown-plan.ts`, `src/lib/schema/block-kind-descriptor.ts` (`table` registration), `src/lib/components/blocks/table/TableBlock.svelte`
+
+Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items among their siblings via the `block.moveUp/moveDown` keymap, matching the drag handle's tooltip. A table has no non-cell focus surface, and inside a cell Alt+↑/↓ is already bound — in `cell-keydown-plan.ts`'s hard-coded `SHORTCUTS` — to ROW reorder, so there is no free gesture to reorder the whole table block, and its drag handle's keyboard equivalent is missing.
+
+**Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use — the S1 single-source gap. Expressing a whole-table `block.moveUp/moveDown` cleanly (a distinct chord, or routing the block-level chord through the cell plan's `native` fallthrough) is part of that keymap migration, a Tier-3 concern out of this batch's scope. Code and thematic-break keyboard reorder shipped; the table case is flagged here.
+
 ### Delete-enablement predicates have a third inline copy in the selection layer
 
 **Severity:** minor (single-source-of-truth; byte-equivalent today)
@@ -99,14 +108,3 @@ not the bounded closer-synthesis the END case uses.
 **Why deferred:** out of the Task-6 descope-hatched bound; the END direction is the shipped,
 reachable-today gesture. Fold the START direction into the 1.2 clipboard/hook family with the
 container-exit walk change.
-
-## Test coverage
-
-### Dragging a body row into the header region has no direct e2e
-
-**Severity:** trivial (test gap)
-**Files:** `src/lib/e2e/tests/blocks/table/drag-reorder-row.spec.ts`
-
-Row drag clamps a body row to `[1, rowCount-1]` (it can't displace the fixed header). The clamp is enforced in code and exercised indirectly by the upward-drag test, but no test drags a row into the gap above the header and asserts it lands at row 1.
-
-**Why deferred:** low marginal value and the precise into-header gesture is flaky to drive; add when convenient.

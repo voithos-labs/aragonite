@@ -16,7 +16,9 @@ import {
 	reconcileTaskMetadata,
 	foldPasteReplacement
 } from '../../tree-operations';
+import { pastedContentFocusIndex } from '../../tree-operations/paste/hooks';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { assertInvariant } from '../../invariants/assert';
 import { CURSOR_END } from '../../block-component';
 import type { NestedActionsDeps } from './nested-actions';
@@ -79,6 +81,17 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
+			// A collapsed container's body children are unmounted, so the chrome row is
+			// the last VISIBLE child. Forward-Delete exits past the container rather than
+			// merging into (or dead-ending on) the invisible body — an I-1-consistent
+			// focus move, no mutation (mirrors gateMoveFocusOnCollapse). `append: false`
+			// keeps the last-block case inert: without it, exiting past the final block
+			// mints a trailing paragraph (root focus append path), mutating on a Delete.
+			if (isCollapsedContainer(deps.node)) {
+				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
+				return;
+			}
+
 			await core.mergeWithNextInterior(innerIndex);
 		},
 
@@ -103,16 +116,15 @@ export function createNestedBlockEdit(
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			const replacement = foldPasteReplacement(
-				deps.node.children[innerIndex],
-				offset,
-				blocks,
-				preDelete
-			);
+			const target = deps.node.children[innerIndex];
+			const replacement = foldPasteReplacement(target, offset, blocks, preDelete);
 			await core.replaceBlock(
 				innerIndex,
 				replacement,
-				{ replacementIndex: replacement.length - 1, offset: CURSOR_END },
+				{
+					replacementIndex: pastedContentFocusIndex(target, offset, preDelete, replacement.length),
+					offset: CURSOR_END
+				},
 				options
 			);
 		},

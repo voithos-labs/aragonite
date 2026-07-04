@@ -20,11 +20,13 @@
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
 		PASTE_COORDINATOR_KEY,
+		REORDER_ACTION_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
-		type KeybindingOverridesGetter
+		type KeybindingOverridesGetter,
+		type ReorderAction
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -74,6 +76,7 @@
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
@@ -286,6 +289,12 @@
 				return codeBackspace();
 			case 'code.delete':
 				return codeDelete();
+			case 'block.moveUp':
+				reorder.nudgeReorderUnit(myPath, -1);
+				return true;
+			case 'block.moveDown':
+				reorder.nudgeReorderUnit(myPath, 1);
+				return true;
 			default:
 				return false;
 		}
