@@ -14,19 +14,78 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/editor/plugin-contract.md`.
 
-Remaining work, ordered:
+Remaining work, ordered. Sequencing principle: **risk first, validation before freeze** — the items most
+likely to change later plans (the scanner rework) or to reveal contract gaps (the clean-room build) run
+early enough that what they teach is still cheap to act on.
 
-1. **Command mint** — plugin-minted command ids over the existing register-once registry. Drivers: a `callout.setKind`-style command and chrome keymap overrides.
-2. **Registry hardening — before limestone binds.** Duplicate-registration guard on the inline-widget registry, own-kind-only `augmentBlockKind`, an opener late-registration policy, a bootstrap coherence check for `reservedChrome` declarations, a grouped container registration shape (container-only descriptor fields registered as one unit, so illegal descriptor states are unrepresentable at the API boundary), and the `ContainerBlockListProps` inversion (author the interface; BlockList conforms via a compile-time check).
-3. **Inline scanner rework** — replace the staged backward-scan inline parser with the CommonMark delimiter/bracket-stack pass (single left-to-right scan, openers_bottom, innermost-wins). Grounds: five bug classes share the old architecture (review 2026-07-03); must land before the KaTeX seam and any inline-parser hook freeze the scan-stage semantics. The ~240-test + property surface validates the rework; corruption stopgaps shipped 0.9.6.
-4. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving consumer. Decide the `AnyInlineKind` widening here (mirror `AnyBlockKind`), even if the registry ships later — breaking if deferred past the freeze.
-5. **Tarball-gate the extensions** — every dogfood extension builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface from outside the repo (the core helpers both consumers need shipped on `aragonite/plugin` in 0.9.6; the gate validates them at the package boundary).
-6. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-7. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays every PR. Fold in the invariant-watcher fixture adoption sweep (the shared fixture ships in 14 specs; the remaining specs adopt it with a one-line import each).
-8. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-9. **Freeze cut at release** — final contract reconciliation; the pre-freeze labels come off; pending owner decisions land: per-scope keying for the reveal mount-waiter registry (module-global today — a multi-instance concern), the `env.ts` toolchain-seam decision (route the direct `import.meta.env` reads through `editorEnv` vs narrowing the seam's claim), and grouping `BlockComponent`'s optional capability probes into named facets so post-freeze hook work can dispatch on facet presence.
+1. **Command mint** — plugin-minted command ids over the existing register-once registry. Drivers: a
+   `callout.setKind`-style command and chrome keymap overrides. Small; unblocks dogfood UX and settles
+   the command-dispatch tier the chrome seam needs.
+2. **Inline scanner rework** — replace the staged backward-scan inline parser with the CommonMark
+   delimiter/bracket-stack pass (single left-to-right scan, openers_bottom, innermost-wins). Grounds:
+   five bug classes share the old architecture (review 2026-07); must land before the KaTeX seam and
+   any inline-parser hook freeze the scan-stage semantics. Pulled ahead of everything sizeable because
+   it is the largest unknown in the plan — if it runs long, everything downstream shifts, and better to
+   know early. **De-risk step first:** stand up a commonmark.js differ harness (brute-force corpus,
+   node-shape comparison — the review's ad-hoc 72k-string differ, made permanent) BEFORE touching the
+   scanner, so the rework becomes "make the differ converge" and the harness remains a conformance
+   ratchet afterward. The ~240-test + property surface validates alongside; corruption stopgaps
+   shipped 0.9.6.
+3. **Registry hardening — before limestone binds.** Duplicate-registration guard on the inline-widget
+   registry, own-kind-only `augmentBlockKind`, an opener late-registration policy, a bootstrap
+   coherence check for `reservedChrome` declarations, registry-derived enumerations for the coherence
+   checks (they currently validate built-ins only), a grouped container registration shape
+   (container-only descriptor fields registered as one unit, so illegal descriptor states are
+   unrepresentable at the API boundary), and the `ContainerBlockListProps` inversion (author the
+   interface; BlockList conforms via a compile-time check).
+4. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image
+   live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving
+   consumer. Decide the `AnyInlineKind` widening here (mirror `AnyBlockKind`), even if the registry
+   ships later — breaking if deferred past the freeze.
+5. **Clean-room freeze validator** — build one real extension (alerts/admonitions — a third container
+   consumer) under third-party conditions: the author gets the public docs and `aragonite/plugin`
+   ONLY, no reading `src/lib` internals. The dogfood plugins validated the API's _sufficiency_ with
+   full source access; this validates its _discoverability_, which is what the DX thesis actually
+   rests on. Every reach-in the author needs and every doc gap they hit is a freeze blocker, fixed
+   while fixing is free. (Mermaid/footnotes stay post-1.0 on purpose — they need the portal and
+   inline-hook seams that are deliberately deferred; see the freeze-cut dry-run below.)
+6. **Tarball-gate the extensions** — every dogfood extension (now including the clean-room one)
+   builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface
+   from outside the repo at the package boundary.
+7. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
+   (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
+8. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
+   every PR. Fold in completing the invariant-watcher fixture adoption sweep (shipped in 14 specs;
+   remaining specs are a one-line import each) — finish it before external contributors arrive, since
+   the fixture is the safety net for people who haven't internalized the invariants.
+9. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
+   extensions, a theme toggle, prop toggles; keep and polish the debug panel.
+10. **Freeze cut at release** — in order:
+    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
+      audits before milestones, not after incidents.
+    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (Mermaid, footnotes, emoji, autolinks)
+      against the contract on paper and confirm no breaking-if-deferred gap — reading cost now versus
+      breaking change later.
+    - **Contributor onboarding doc**: distill the sharp edges into a CONTRIBUTING-grade document
+      (architecture in one breath; layer rules; each sharp edge WITH the incident that justifies it;
+      the gate tiers). The judgment that currently lives in session ledgers must survive contact with
+      contributors who haven't read them.
+    - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
+      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
+      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
+      the claim), grouping `BlockComponent`'s optional capability probes into named facets, and an
+      a11y strings table (announcements are hardcoded English today).
+    - **Freeze litmus**: the contract must not preclude a consumer-built rendered reading mode
+      (markers hidden, widgets rendered) — always-visible-styled-source is the editor's default, not
+      a wall; verify no frozen surface hard-binds it.
 
-**Standing posture: invariant guards over invariant docs.** Every load-bearing contract the types can't express becomes a guard that fails at the gate, not in a vault. The complexity is essential — cap the downside, don't simplify.
+**Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
+load-bearing contract climbs as high as it can: prefer types/seams that make the violation
+inexpressible; where types can't reach, a dev guard that fails at the gate; prose only for what
+neither can hold. Two habits keep the ladder honest: every bug fix records a one-line miss-analysis
+("what test should have caught this, and why didn't it") in its commit or requirement file, and every
+new feature class adds a simulation gesture so the corruption oracle's coverage tracks the product's
+surface. The complexity is essential — cap the downside, don't simplify.
 
 ## Post-1.0 sketch
 
@@ -40,7 +99,8 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
 - **Component-portal widget seam** — let a plugin mount a Svelte component as an atomic inline/block widget (Lexical's `DecoratorNode` analog) instead of hand-building DOM.
 - **General editable-leaf tier** — a recognizer-backed standalone plugin text block; the 1.0 chrome leaf is deliberately narrower (see the tier model in `plugin-contract.md`).
-- **Inline-parser extension hook** — a scan-stage hook for custom inline syntax, built when a real consumer can validate its shape.
+- **Inline-parser extension hook** — a scan-stage hook for custom inline syntax, built when a real consumer can validate its shape (footnotes/emoji from 1.3 are the natural validators).
+- **Rendered reading mode as a consumer-buildable view** — always-visible-styled-source is a deliberate default and a taste some users won't share; prove a consumer can build a markers-hidden reading view through public surfaces without forking the render path (the 1.0 freeze litmus guarantees the contract allows it; this item makes it real).
 
 ### 1.3 — Beyond-GFM (as plugins)
 
