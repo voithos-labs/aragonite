@@ -16,6 +16,7 @@ entirely through the keyboard and the bar's buttons. Replace-all is one undo ste
 
 ## Edge cases
 
+- Ctrl+F / Ctrl+H still open the bar when CapsLock uppercases the key (no Shift modifier).
 - Enter on the last match wraps the active index back to the first.
 - Shift+Enter on the first match wraps to the last.
 - The case toggle (`Aa`) narrows a case-insensitive match set to the case-sensitive subset (count drops).

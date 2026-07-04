@@ -6,7 +6,6 @@
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
-import { metadataOf } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import { CURSOR_END } from '../block-component';
@@ -17,8 +16,10 @@ import {
 	offsetFromViewportPoint
 } from './native-bridge';
 import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths } from './primitives';
+import { isStrictAncestorOf } from './path-math';
+import { cellEndpointDeepPath } from './table-endpoint-snap';
 import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -28,16 +29,17 @@ import { displayLength } from '../core/lines';
  * block). Captures the native caret as both anchor and focus; the caller
  * immediately extendFocus()es to the actual target.
  */
-export function enterCrossBlockFromKeyboard(
+function enterCrossBlockFromKeyboard(
 	selection: SelectionState,
-	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[]
 ): boolean {
 	const anchorPoint = readNativeCaretInBlock(currentBlockEl, currentBlockPath);
 	if (!anchorPoint) return false;
-	const anchor = normalizeTableEndpoint(doc, anchorPoint.path, anchorPoint.offset);
-	selection.enterCrossBlock(anchor, { path: anchor.path.slice(), offset: anchor.offset });
+	selection.enterCrossBlock(anchorPoint, {
+		path: anchorPoint.path.slice(),
+		offset: anchorPoint.offset
+	});
 	// Collapse (not clear) so the focus block retains a caret — otherwise
 	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
@@ -122,10 +124,9 @@ export function extendFocusToNextBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
-	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, 0));
+	selection.extendFocus({ path: leafTarget, offset: 0 });
 	return true;
 }
 
@@ -150,11 +151,10 @@ export function extendFocusToPreviousBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
-	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, offset));
+	selection.extendFocus({ path: leafTarget, offset });
 	return true;
 }
 
@@ -181,12 +181,11 @@ export function extendFocusToDocEdge(
 	if (!target) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 
 	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
-	selection.extendFocus(normalizeTableEndpoint(doc, target, offset));
+	selection.extendFocus({ path: target, offset });
 	return true;
 }
 
@@ -201,11 +200,21 @@ export function selectWholeDocument(
 	const first = firstPath(doc);
 	const last = lastPath(doc);
 	if (!first || !last) return false;
-	const focusPoint = { path: last, offset: leafOffsetEnd(doc, last) };
-	selection.enterCrossBlock({ path: first, offset: 0 }, focusPoint);
-	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard.
-	const focusBlockEl = getBlockElByPath?.(last);
-	if (focusBlockEl) applyCollapsedCaret(focusBlockEl, focusPoint);
+	selection.enterCrossBlock(
+		{ path: first, offset: 0 },
+		{
+			path: last,
+			offset: leafOffsetEnd(doc, last)
+		}
+	);
+	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. A table focus
+	// endpoint normalizes to the table block, whose wrapper holds no caret —
+	// park in its deep cell instead, as collapseCrossBlock does.
+	const focus = selection.focus;
+	const deepPath = focus && cellEndpointDeepPath(doc, focus);
+	const parkPoint = deepPath ? { path: deepPath, offset: 0 } : focus;
+	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;
+	if (focusBlockEl && parkPoint) applyCollapsedCaret(focusBlockEl, parkPoint);
 	else clearNativeSelection();
 	return true;
 }
@@ -282,7 +291,13 @@ function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {
 
 /** Last leaf reachable from `fromPath` going backward (descend or step). */
 function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
-	const prev = previousPath(doc, fromPath);
+	// previousPath is doc-order (ancestor-before-descendant), so a first-child
+	// leaf's "previous" is its own container — descending into that ancestor's
+	// LAST leaf would move the walk forward (and lets the transparent-skip
+	// callers ping-pong between two leaves). Skip ancestors until a genuinely
+	// preceding subtree (or the document start) is reached.
+	let prev = previousPath(doc, fromPath);
+	while (prev && isStrictAncestorOf(prev, fromPath)) prev = previousPath(doc, prev);
 	return prev ? lastLeafAtOrBefore(doc, prev) : null;
 }
 
@@ -333,47 +348,4 @@ function leafOffsetEnd(doc: Document, path: number[]): number {
 	if (!node || !('raw' in node) || typeof node.raw !== 'string') return 0;
 	// raw includes a trailing newline; the cursor works in display space.
 	return displayLength(node.raw);
-}
-
-/**
- * A cross-block selection endpoint inside a table must address the table block
- * by row-major cell index (`[tableIdx]` + cellIdx), matching the pointer-drag
- * representation. A deep `[tableIdx, row, col]` leaf path with a character
- * offset routes the delete through the generic (non-table-aware) path, which
- * merges external text into a cell and corrupts the grid. Non-table paths pass
- * through unchanged.
- */
-export function normalizeTableEndpoint(
-	doc: Document,
-	path: number[],
-	offset: number
-): SelectionPoint {
-	for (let d = 0; d < path.length - 1; d++) {
-		const node = nodeAt(doc, path.slice(0, d + 1));
-		if (node && isBlockNode(node) && node.kind === 'table') {
-			const colCount = metadataOf(node, 'table').columnCount;
-			const rowIdx = path[d + 1];
-			const colIdx = path[d + 2] ?? 0;
-			return {
-				path: path.slice(0, d + 1),
-				offset: rowIdx * colCount + colIdx,
-				cellCoordinate: true
-			};
-		}
-	}
-	return { path: path.slice(), offset };
-}
-
-/**
- * Inverse of {@link normalizeTableEndpoint}: expand a cell-coordinate endpoint
- * back to its deep `[tableIdx, row, col]` leaf path so reveal/caret placement can
- * reach the off-window cell. Null for non-cell-coordinate points (the path is
- * already the leaf).
- */
-export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
-	if (!point.cellCoordinate) return null;
-	const node = nodeAt(doc, point.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
-	const colCount = metadataOf(node, 'table').columnCount;
-	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
 }

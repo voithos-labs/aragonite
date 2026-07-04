@@ -50,11 +50,41 @@ export async function dispatchMoveFocus(
 	}
 
 	const block = refs[innerIndex];
-	if (!block?.focusable) return;
+	if (!block?.focusable) {
+		// A refless (failed-render) or non-focusable child must not dead-end the
+		// move — continue in its direction (editor.md § Focus Traversal). The
+		// recursion delegates upward when it walks past this scope's bounds.
+		const step = traversalStep(position);
+		if (step !== 0) {
+			await dispatchMoveFocus(
+				refs,
+				innerIndex + step,
+				position,
+				stickyColumn,
+				parent,
+				childCount,
+				options
+			);
+		}
+		return;
+	}
 
 	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
 		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount, options)
 	);
+}
+
+/**
+ * Direction a FocusPosition implies for traversal: entering at 'start' (or
+ * from above) means the move goes down; entering at 'end' (or from below)
+ * means up. A bare numeric offset is a targeted landing with no direction —
+ * 0 tells the caller not to skip.
+ */
+export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
+	if (typeof position === 'object') return position.stickyColumnFrom === 'below' ? -1 : 1;
+	if (position === 'start') return 1;
+	if (position === 'end') return -1;
+	return 0;
 }
 
 /**

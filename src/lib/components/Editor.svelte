@@ -333,6 +333,15 @@
 			childCount: doc.children.length,
 			getRef: (i) => blockRefs[i],
 			revealChild: topWindowing.revealChild,
+			// The windowed each-block's conditional cleanup can leave a detached
+			// off-window ref in its slot; descending into it would silently no-op
+			// (or hang) the reveal. Mirror the container shim: drop the stale slot
+			// so the scroll + fresh mount run. isInWindow reads the effective
+			// (mounted) band, so a live ref is never reported stale.
+			dropRef: (i) => {
+				blockRefs[i] = undefined;
+			},
+			isStale: (i) => !topWindowing.isInWindow(i),
 			isInWindow: topWindowing.isInWindow
 		});
 		const ref = blockRefs[top];
@@ -595,19 +604,21 @@
 		if (!editorEl) return;
 		const root = editorEl;
 		const onKeyDown = (e: KeyboardEvent) => {
-			const mod = e.ctrlKey || e.metaKey;
+			// eventToChord normalizes the key (CapsLock uppercases e.key without
+			// Shift), matching every other chord-dispatch site.
+			const rootChord = eventToChord(e);
 			// Search shortcuts route regardless of which block holds focus, so they
 			// sit before the editor-root/body activeElement guard below. Seed the
 			// query from the live native selection before open() — focusing the find
 			// input collapses that selection.
-			if (searchBar && mod && (e.key === 'f' || e.key === 'h')) {
+			if (searchBar && (rootChord === 'Mod+F' || rootChord === 'Mod+H')) {
 				e.preventDefault();
 				// Snapshot before open() — focusing the find input collapses the
 				// native selection, so read both the seed text and the caret now.
 				const sel = window.getSelection();
 				const selected = sel?.toString() ?? '';
 				savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-				replaceExpanded = e.key === 'h';
+				replaceExpanded = rootChord === 'Mod+H';
 				searchState.open();
 				if (selected) searchState.setQuery(selected);
 				return;
@@ -624,7 +635,6 @@
 			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
 			// caret whose block unmounted, not necessarily a selection. No block is
 			// focused here, so resolve at global scope (consumer override, else default).
-			const rootChord = eventToChord(e);
 			if (rootChord && isEditorGlobalChord(rootChord)) {
 				e.preventDefault();
 				const binding = resolveGlobalBinding(rootChord, overridesMap);
@@ -787,7 +797,16 @@
 		return ref.getBlockComponentByPath?.(rest) ?? null;
 	}
 
-	export const __test = { getDocument, getBlockComponent, getUndoStack, getOperationsLog };
+	export const __test = {
+		getDocument,
+		getBlockComponent,
+		getUndoStack,
+		getOperationsLog,
+		// Deterministically constructs the stale-slot artifact the windowed
+		// each-block's conditional cleanup can leave behind (see revealPath's
+		// isStale wiring); e2e-only, via test-probes' replantBlockRef.
+		setBlockRefSlot
+	};
 </script>
 
 <!-- tabindex="-1": focusable so a windowed-out block can hand focus here instead

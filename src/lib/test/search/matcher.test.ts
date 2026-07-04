@@ -23,6 +23,17 @@ describe('compileMatcher — literal', () => {
 	it('whole-word excludes substrings', () => {
 		expect(ranges('cat', { wholeWord: true }, 'cat category')).toEqual([{ start: 0, end: 3 }]);
 	});
+	// 'İ' (U+0130) lowercases to two code units, shifting every index after it
+	// in the folded haystack; offsets must stay in original-string space.
+	it('keeps offsets in original-string space when case folding changes length', () => {
+		const text = 'Iİstanbul cat';
+		const r = ranges('cat', {}, text);
+		expect(r).toEqual([{ start: 10, end: 13 }]);
+		expect(text.slice(r[0].start, r[0].end)).toBe('cat');
+	});
+	it('fold-safe fallback still honors wholeWord', () => {
+		expect(ranges('cat', { wholeWord: true }, 'İ catalog cat')).toEqual([{ start: 10, end: 13 }]);
+	});
 });
 
 describe('compileMatcher — regex', () => {

@@ -46,6 +46,20 @@ test.describe('search — open and close', () => {
 		await expect(replaceInput(page)).toBeVisible();
 	});
 
+	// CapsLock uppercases e.key without a Shift modifier; pressing an uppercase
+	// letter reproduces exactly that event shape.
+	test('Ctrl+F and Ctrl+H still open with CapsLock on', async ({ page }) => {
+		await editor.clickBlock(0);
+		await page.keyboard.press(`${primaryModifier}+F`);
+		await expect(findInput(page)).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(findInput(page)).toHaveCount(0);
+
+		await page.keyboard.press(`${primaryModifier}+H`);
+		await expect(replaceInput(page)).toBeVisible();
+	});
+
 	test('Esc closes the bar, clears highlights, and returns focus to the document', async ({
 		page
 	}) => {

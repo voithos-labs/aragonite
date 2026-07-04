@@ -86,6 +86,9 @@ export function createSearchState(deps: SearchDeps) {
 			deps.onClose();
 		},
 		setQuery(q: string) {
+			// A new query restarts navigation at the first match; option toggles
+			// (setOptions) keep the position through the rescan clamp instead.
+			if (q !== query) activeIndex = 0;
 			query = q;
 			replacedCount = null;
 			rescan();

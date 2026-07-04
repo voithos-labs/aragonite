@@ -34,6 +34,25 @@ describe('SearchState', () => {
 		s.prev();
 		expect(s.activeIndex).toBe(2); // wrap back
 	});
+	it('a changed query restarts navigation at the first match', () => {
+		const s = makeState('cat dog cat dog cat dog\n\ncat dog cat dog\n');
+		s.open();
+		s.setQuery('cat');
+		s.next();
+		s.next();
+		expect(s.activeIndex).toBe(2);
+		s.setQuery('dog'); // 5 matches — no clamp, so a stale index would survive
+		expect(s.activeIndex).toBe(0);
+	});
+	it('an option toggle keeps the active position', () => {
+		const s = makeState('a A a A\n');
+		s.open();
+		s.setQuery('a');
+		s.next();
+		expect(s.activeIndex).toBe(1);
+		s.setOptions({ caseSensitive: true }); // 2 matches left; index 1 still valid
+		expect(s.activeIndex).toBe(1);
+	});
 	it('sets error and clears matches on invalid regex', () => {
 		const s = makeState('text\n');
 		s.open();
