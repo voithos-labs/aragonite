@@ -190,6 +190,10 @@ export function createTableMutationsContext(
 		if (from === to) return;
 		const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
 		const rowCount = node.children?.length ?? 0;
+		// Guard the SOURCE against the live count: a keyboard/menu/drag commit can
+		// carry a `from` staled by a concurrent structural edit. `to` is already
+		// clamped by the reorder-target helpers and the drag controller.
+		if (from < 0 || from >= rowCount) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// column now; the generic reorder afterTick would land at column 0.
 		const col = focusedCell?.colIdx ?? 0;
@@ -226,6 +230,8 @@ export function createTableMutationsContext(
 		if (from === to) return;
 		const { node, focusCell, focusedCell } = deps;
 		const columnCount = metadataOf(node, 'table').columnCount;
+		// Guard the SOURCE against the live count — see reorderRowTo.
+		if (from < 0 || from >= columnCount) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// row now; the column edit's afterTick would otherwise land at row 0.
 		const row = focusedCell?.rowIdx ?? 0;
@@ -328,7 +334,11 @@ export function createTableMutationsContext(
 		},
 
 		async setColumnAlignment(colIdx, alignment) {
-			const { node, index, myPath, rowsState, parentContainerEdit } = deps;
+			const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+			// Capture the originating cell before the menu's focusout nulls it: the
+			// menu's alignment button unmounts on commit, so without an explicit
+			// refocus the caret falls to <body> (a11y). Mirrors insertColumn.
+			const cell = focusedCell;
 			// Distinct from tableCycleAlignment so consumers can tell a direct set
 			// from a cycle step; commits unconditionally — the first table mutation
 			// also normalizes cell padding, so a same-value set is not a byte no-op.
@@ -341,7 +351,13 @@ export function createTableMutationsContext(
 					mutSetAlignment(scope.node, colIdx, alignment);
 					return { op: 'noop' };
 				},
-				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
+				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [index, colIdx] },
+				afterTick: () => {
+					focusCell(cell?.rowIdx ?? 0, colIdx, 'start');
+					deps.announceReorder(
+						alignment === 'none' ? 'Column alignment cleared' : `Column aligned ${alignment}`
+					);
+				}
 			});
 		}
 	};

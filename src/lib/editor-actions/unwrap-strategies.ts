@@ -16,6 +16,7 @@ import {
 } from '../tree-operations';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
+import { mergedElseFocusPrevious } from './merge-fallback';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
@@ -113,8 +114,11 @@ async function listItemCascadeMiddle(
 		return;
 	}
 
-	// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
-	let mergePoint!: { targetPath: number[]; offset: number };
+	// Rule M1: merge into deepest visible text above with preserve-absolute-indent
+	// child placement. When the previous item's deepest leaf is opaque the merge
+	// finds no target — the tree stays put and the caret falls back to the
+	// previous item's end (mirrors mergeWithPreviousInterior's opaque-leaf path).
+	let mergePoint: { targetPath: number[]; offset: number } | null = null;
 	await deps.parent.containerEdit.commitContainer({
 		containerNode: node,
 		path: deps.path,
@@ -127,8 +131,8 @@ async function listItemCascadeMiddle(
 				itemIndex,
 				scope.sharing
 			);
-			mergePoint = result.mergePoint;
-			return { op: 'delete', at: itemIndex, count: 1 };
+			mergePoint = result?.mergePoint ?? null;
+			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };
 		},
 		op: {
 			kind: 'merge',
@@ -136,8 +140,10 @@ async function listItemCascadeMiddle(
 			eventPath: [index, itemIndex]
 		},
 		afterTick: () => {
-			const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
+			const merged = mergedElseFocusPrevious(mergePoint, state.innerBlockRefs[itemIndex - 1]);
+			if (!merged) return;
+			const [firstPathIdx, ...restPath] = merged.targetPath;
+			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, merged.offset);
 		}
 	});
 }

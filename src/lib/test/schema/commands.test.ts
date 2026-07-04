@@ -93,6 +93,9 @@ describe('fencedCode keymap', () => {
 		['Shift+Tab', 'code.dedent'],
 		['Backspace', 'code.backspace'],
 		['Delete', 'code.delete'],
+		// Keyboard reorder parity with prose: the drag handle promises Alt+↑/↓.
+		['Alt+ArrowUp', 'block.moveUp'],
+		['Alt+ArrowDown', 'block.moveDown'],
 		['Mod+B', 'format.toggleStrong'],
 		['Mod+I', 'format.toggleEmphasis']
 	] as const;
@@ -101,6 +104,18 @@ describe('fencedCode keymap', () => {
 		for (const [chord, command] of FENCED_CODE_BINDINGS) {
 			expect(resolveBinding(chord, 'fencedCode')?.command).toBe(command);
 		}
+	});
+});
+
+describe('thematicBreak keymap — keyboard reorder', () => {
+	// The hr renders a drag handle whose tooltip promises Alt+↑/↓; those chords
+	// must resolve to the block-move commands. Plain arrows stay unbound so the
+	// component's own focus-navigation handles them.
+	it('binds Alt+↑/↓ to block move and leaves plain arrows unbound', () => {
+		expect(resolveBinding('Alt+ArrowUp', 'thematicBreak')?.command).toBe('block.moveUp');
+		expect(resolveBinding('Alt+ArrowDown', 'thematicBreak')?.command).toBe('block.moveDown');
+		expect(resolveBinding('ArrowUp', 'thematicBreak')).toBeNull();
+		expect(resolveBinding('ArrowDown', 'thematicBreak')).toBeNull();
 	});
 });
 

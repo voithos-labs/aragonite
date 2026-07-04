@@ -58,7 +58,10 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					mutate: (scope) => performDelete({ children: scope.children }, itemIndex, scope.sharing),
 					op: { kind: 'delete', eventPath: [index, itemIndex] },
 					afterTick: () => {
-						const focusIdx = Math.min(itemIndex, (node.children?.length ?? 1) - 1);
+						// Read through `deps.node`: the captured `node` is the pre-commit
+						// object the snapshot still shares, so its child count is stale by
+						// +1 after the delete (mirrors table-context's deleteRow rule).
+						const focusIdx = Math.min(itemIndex, (deps.node.children?.length ?? 1) - 1);
 						deps.state.innerBlockRefs[focusIdx]?.focus(0);
 					}
 				});

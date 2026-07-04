@@ -2,11 +2,25 @@ import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import type { StructuralChange } from './structural-change';
+import { devWarn } from '../dev-warn';
+
+// Invariant backstop: a stale index (e.g. a mid-drag delete shrank the array)
+// would otherwise splice `undefined` into the $state tree — or, on the trivia
+// path, unshare a nonexistent slot. Both entry points bail through this BEFORE
+// any unshare or write.
+function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
+	if (from < 0 || from >= len || to < 0 || to >= len) {
+		devWarn('reorder', `reorder out of bounds: from=${from} to=${to} len=${len}`);
+		return true;
+	}
+	return false;
+}
 
 // A reorder rewrites no bytes and creates no node: it is one contiguous `replace`
 // whose idMap permutes the spanned window so each moved block keeps its id + ref.
 export function reorderChildren(children: CstNode[], from: number, to: number): StructuralChange {
 	if (from === to) return { op: 'noop' };
+	if (isReorderOutOfBounds(from, to, children.length)) return { op: 'noop' };
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
 	const count = hi - lo + 1;
@@ -39,6 +53,7 @@ export function reorderChildrenWithTrivia(
 	sharing: SharingState
 ): StructuralChange {
 	if (from === to) return { op: 'noop' };
+	if (isReorderOutOfBounds(from, to, children.length)) return { op: 'noop' };
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
 	const windowTrivia: string[] = [];

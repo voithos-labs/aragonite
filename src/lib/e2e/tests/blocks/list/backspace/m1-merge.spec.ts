@@ -128,6 +128,31 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		expect(consoleErrors.filter((m) => /each_key_duplicate/.test(m))).toEqual([]);
 	});
 
+	test('M1 opaque previous leaf (fenced code): no merge, no crash, caret falls back', async ({
+		page
+	}) => {
+		// Regression: Backspace at start of the item after a fenced-code-only item
+		// once threw inside the commit ceremony (DEV crash / prod dead key). It must
+		// now no-op structurally and move the caret to the previous item's code block.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(e.message));
+
+		await editor.loadContent('- ```\n  code\n  ```\n- text\n');
+		const textItem = editor.page.locator('[contenteditable="true"]', { hasText: 'text' }).first();
+		await textItem.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForRenderFlush();
+
+		const source = await editor.bridge.getSource();
+		expect(source).toContain('code');
+		expect(source).toContain('text');
+		// No merge: both items survive, and 'text' is not appended to the code block.
+		expect((source.match(/^- /gm) ?? []).length).toBe(2);
+		expect(source).not.toContain('codetext');
+		expect(pageErrors).toEqual([]);
+	});
+
 	test('ordered: deleting item renumbers subsequent', async () => {
 		await editor.loadContent('1. First\n2. Second\n3. Third\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'Second' });

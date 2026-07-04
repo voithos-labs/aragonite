@@ -122,10 +122,12 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);
 		},
-		getBlockCount: () => {
-			const doc = parse(editor.getSource());
-			return doc.children.length;
-		},
+		// getBlockCount / getBlockKind / dumpTree read the LIVE CST via getDocument()
+		// — not parse(getSource()). A reparse can't see a live-kind-vs-raw desync or a
+		// transient block the serializer trims, which is exactly what kind-transition
+		// specs assert. (dumpInlineTree stays on the reparse: it inspects inline
+		// structure within one block, not block-level liveness.)
+		getBlockCount: () => editor.__test.getDocument().children.length,
 		// Structurally splice the children of a NESTED container (by path) IN PLACE, ids
 		// kept in lockstep via the production helper, then retrigger that container's
 		// reactivity. Unlike setSource (a full reparse that resets scroll + model) or undo
@@ -149,10 +151,7 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			spliceChildren(container, at, removeCount, ...inserted);
 			container.children = [...(container.children ?? [])];
 		},
-		getBlockKind: (index: number) => {
-			const doc = parse(editor.getSource());
-			return doc.children[index]?.kind ?? '';
-		},
+		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
 		// Force a top-level block to a kind with a descriptor but NO registered
 		// component, so it reaches BlockHost's no-component branch. Exercises the
 		// visible-raw fallback (a kind outside ALL_BLOCK_KINDS, so it doesn't
@@ -225,7 +224,8 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			snapshot: perfSnapshot
 		},
 		// ── Debug engine surface ──────────────────────────────────────────
-		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) => dumpTree(parse(editor.getSource()), opts),
+		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
+			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
 		dumpInlineTree: () => {
 			const path = getFocusedBlockPath();
