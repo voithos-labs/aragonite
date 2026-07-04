@@ -33,11 +33,33 @@ change on external code that has bound to it.**
 | Verdict                  | Rule                                                                                    | Action                                                                                 |
 | ------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | **Breaking-if-deferred** | A later change breaks bound external code                                               | Finalize now, even with no consumer yet                                                |
-| **Additive-later**       | A later change only _adds_ (new field on a payload consumers receive, new optional API) | Defer — and deferring is _better_, because a shape with no consumer can't be validated |
+| **Additive-later**       | A later change only _adds_ (new field on a payload consumers receive, new optional API) | No freeze pressure — safe to change later; **whether to build it now is a separate call** (see below) |
 
 The distinction is sharper than "does it have a consumer today." A required field added to an
 event payload, for instance, never breaks a _receiver_ — so an event-payload extension is
 additive-later even though it sounds like a contract change.
+
+### Freeze-scope is not build-scope
+
+"Additive-later" answers one question — _must this be frozen now?_ → **no.** It does **not**
+answer _should this be built now?_ Those are separate axes; collapsing them into a flat "defer"
+is a trap (it under-scoped a batch once — a surface read as "don't build" when it was only "need
+not freeze").
+
+Deciding whether to build an additive-later surface pre-freeze:
+
+- **Build now** when it rides machinery already being built (marginal cost), **or** a
+  dogfood/in-repo consumer can validate the _mechanism_ pre-freeze. "A shape with no consumer
+  can't be validated" has an escape hatch — writing a dogfood consumer _is_ the validation,
+  which is what the dogfood plugins exist for.
+- **Defer** when neither holds and building it would expose a _bound shape you would only be
+  guessing at_ — the `EditEvent` snapshot/real-delta discriminant is the canonical case: its
+  semantic needs its real post-v1 consumer.
+
+The rule both branches serve: **get the shapes plugins _bind to_ exact before freeze; keep
+_additive capability surfaces_ minimal, so later growth stays an _add_, never a _restructure_.**
+Adding a field to a payload or context a consumer receives is safe; changing a signature or
+shape they bind to is the breaking restructure.
 
 ## Decision table
 
@@ -185,8 +207,9 @@ members can be added later without breaking a receiver. They need no change for 
 ## Target shapes (designed ahead)
 
 Sketched so later work builds toward a known direction. None is frozen: each is additive. The
-plugin-op vocabulary extension is the pre-1.0 command mint's territory; the plugin object /
-`plugins` prop ships with the 1.2 DX system.
+plugin-op vocabulary extension is the pre-1.0 command mint's territory but stays deferred within it
+until a novel-op consumer exists (metadata edits already emit the typed `metadataUpdate`); the plugin
+object / `plugins` prop ships with the 1.2 DX system.
 
 - **Plugin object + `plugins` prop.** A plugin is an identified unit that performs its global
   registrations. Direction: a declarative manifest (the framework owns registration order and
@@ -198,6 +221,14 @@ plugin-op vocabulary extension is the pre-1.0 command mint's territory; the plug
   participate in `EditorError.context.op`. Additive over `OperationDetailMap`.
 - **Error-origin extension.** Additional `EditorError.origin` values (e.g. a plugin/parse/command
   origin) and possibly a structured plugin-error shape.
+- **Normalize-on-commit / veto seam.** A sanctioned hook for a plugin to veto a commit or append
+  derived mutations atomically within the commit ceremony (ProseMirror
+  `filterTransaction`/`appendTransaction`, CM6 `transactionFilter`). Post-1.0: additive over the
+  ceremony — plugins never bind its internal shape — built when a real consumer validates the hook
+  shape (veto vs append, sync vs async, the owned view it receives). Invariant enforcement stays
+  editor-owned; this augments a commit, it does not bypass the invariants. The 1.0 freeze litmus
+  verifies no frozen surface precludes it (`docs/roadmap.md` § Pre-freeze plugin direction
+  decisions).
 
 ### Deferred (additive): the `EditEvent` snapshot/real-delta discriminant
 
