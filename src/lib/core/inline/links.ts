@@ -22,6 +22,29 @@ import {
 
 const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
 
+// Link children re-enter parseInline, so bracket nesting recurses; thousands
+// of `[` would overflow the call stack. Past the cap, brackets stay literal
+// text. Tracked module-level (parsing is synchronous) so the cap holds without
+// threading a depth parameter through the public parseInline signature.
+const MAX_LINK_NESTING_DEPTH = 32;
+let linkNestingDepth = 0;
+
+function parseLinkChildren(
+	raw: string,
+	start: number,
+	end: number,
+	resolver?: LinkReferenceResolver
+): InlineNode[] {
+	linkNestingDepth++;
+	try {
+		return parseInline(raw, start, end, resolver);
+	} finally {
+		// Balance even on a throw — a stuck counter would silently disable
+		// link parsing for every later parse.
+		linkNestingDepth--;
+	}
+}
+
 /**
  * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
  *
@@ -30,6 +53,15 @@ const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
  * (a `;` preceded by `&` followed by alphanumerics / `#` and digits/hex back to `&`).
  */
 export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: number): number {
+	// Parens are counted once and the balance maintained while trimming — a
+	// recount per trimmed `)` makes paren floods quadratic. Only the `)` branch
+	// removes parens, so decrementing `closes` there keeps the counts exact.
+	let opens = 0;
+	let closes = 0;
+	for (let i = urlStart; i < urlEnd; i++) {
+		if (raw[i] === '(') opens++;
+		else if (raw[i] === ')') closes++;
+	}
 	let end = urlEnd;
 	while (end > urlStart) {
 		const ch = raw[end - 1];
@@ -38,14 +70,9 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 			continue;
 		}
 		if (ch === ')') {
-			let opens = 0;
-			let closes = 0;
-			for (let i = urlStart; i < end; i++) {
-				if (raw[i] === '(') opens++;
-				else if (raw[i] === ')') closes++;
-			}
 			if (closes > opens) {
 				end--;
+				closes--;
 				continue;
 			}
 			break;
@@ -236,7 +263,7 @@ function scanLinksAndImages(
 			const bracketClose = findMatchingBracket(raw, bracketOpen, end, occupied);
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
-				if (dest !== null) {
+				if (dest !== null && !insideOccupied(occupied, dest.end)) {
 					const altRaw = raw.slice(bracketOpen + 1, bracketClose);
 					const dims = parseImageDimensions(altRaw);
 					out.push({
@@ -266,12 +293,12 @@ function scanLinksAndImages(
 			continue;
 		}
 
-		if (ch === '[') {
+		if (ch === '[' && linkNestingDepth < MAX_LINK_NESTING_DEPTH) {
 			const bracketClose = findMatchingBracket(raw, pos, end, occupied);
 			if (bracketClose !== -1) {
 				const dest = parseDestination(raw, bracketClose + 1, end);
-				if (dest !== null) {
-					const children = parseInline(raw, pos + 1, bracketClose, resolver);
+				if (dest !== null && !insideOccupied(occupied, dest.end)) {
+					const children = parseLinkChildren(raw, pos + 1, bracketClose, resolver);
 					out.push({
 						kind: 'link',
 						start: pos,
@@ -301,6 +328,17 @@ function scanLinksAndImages(
 	}
 
 	return out;
+}
+
+// parseDestination scans bytes blindly, so its terminator can land inside a
+// range a prior stage claimed (e.g. a `)` within a code span). A link ending
+// strictly inside such a range would overlap it as a sibling, breaking the
+// inline-offset partition — reject the link and leave the bytes literal.
+function insideOccupied(occupied: Range[], pos: number): boolean {
+	for (const r of occupied) {
+		if (r.start < pos && pos < r.end) return true;
+	}
+	return false;
 }
 
 function findMatchingBracket(
@@ -442,7 +480,7 @@ function buildResolvedLink(
 	resolved: { url: string; title?: string },
 	resolver: LinkReferenceResolver
 ): InlineNode {
-	const children = parseInline(raw, textStart, textEnd, resolver);
+	const children = parseLinkChildren(raw, textStart, textEnd, resolver);
 	return {
 		kind: 'link',
 		start,

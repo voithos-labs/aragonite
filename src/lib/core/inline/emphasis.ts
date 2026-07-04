@@ -67,14 +67,26 @@ function isWhitespace(ch: string): boolean {
 	return /\s/.test(ch);
 }
 
+// Flanking neighbors are read as full code points: a UTF-16 unit read would
+// classify an astral neighbor as a lone surrogate ("other"), while the spec
+// defines the character classes over code points.
+function codePointBefore(raw: string, pos: number): string {
+	const unit = raw.charCodeAt(pos - 1);
+	if (unit >= 0xdc00 && unit <= 0xdfff && pos >= 2) {
+		const high = raw.charCodeAt(pos - 2);
+		if (high >= 0xd800 && high <= 0xdbff) return raw.slice(pos - 2, pos);
+	}
+	return raw[pos - 1];
+}
+
 function classifyRun(
 	raw: string,
 	runStart: number,
 	runEnd: number,
 	kind: '*' | '_' | '~'
 ): { canOpen: boolean; canClose: boolean } {
-	const charBefore = runStart > 0 ? raw[runStart - 1] : '';
-	const charAfter = runEnd < raw.length ? raw[runEnd] : '';
+	const charBefore = runStart > 0 ? codePointBefore(raw, runStart) : '';
+	const charAfter = runEnd < raw.length ? String.fromCodePoint(raw.codePointAt(runEnd)!) : '';
 
 	const followedByWhitespace = isWhitespace(charAfter);
 	const followedByPunct = isPunct(charAfter);
@@ -245,11 +257,12 @@ export function processEmphasis(raw: string, segments: Segment[]): InlineNode[] 
 				if (!opener.canOpen || opener.count === 0) continue;
 				if (opener.kind !== closer.kind) continue;
 
-				// CommonMark multiple-of-3 rule.
+				// CommonMark multiple-of-3 rule — evaluated on ORIGINAL run lengths
+				// (commonmark.js `origdelims`), not the decayed remainders.
 				if (
 					(opener.canClose || closer.canOpen) &&
-					(opener.count + closer.count) % 3 === 0 &&
-					!(opener.count % 3 === 0 && closer.count % 3 === 0)
+					(opener.origCount + closer.origCount) % 3 === 0 &&
+					!(opener.origCount % 3 === 0 && closer.origCount % 3 === 0)
 				) {
 					continue;
 				}

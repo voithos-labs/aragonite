@@ -99,8 +99,9 @@ export function parseTable(
 	};
 }
 
-// GFM pads short rows (header and body alike) with empty cells and truncates
-// long ones to the delimiter column count.
+// GFM pads short BODY rows with empty cells and truncates long ones to the
+// delimiter column count. The header always matches: a count mismatch rejects
+// the whole table at recognition (GFM §4.10, gate in paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');

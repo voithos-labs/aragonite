@@ -9,7 +9,22 @@ import fc from 'fast-check';
 // (G2.5) stay clean. The widget-delta case in the spine test supplies those
 // explicitly.
 
-const word = fc.constantFrom('foo', 'bar', 'baz', 'x', 'lorem', '42', 'a', 'b');
+// Non-ASCII words (CJK, combining mark, emoji, ZWJ cluster) arm the properties
+// against surrogate/cluster slicing: no node boundary may land mid-pair.
+const word = fc.constantFrom(
+	'foo',
+	'bar',
+	'baz',
+	'x',
+	'lorem',
+	'42',
+	'a',
+	'b',
+	'汉字',
+	'ém',
+	'😀',
+	'👩‍👦'
+);
 
 const emphasisRun = fc
 	.tuple(fc.constantFrom('*', '**', '_', '__', '~~', '***'), word)
@@ -19,15 +34,18 @@ const codeSpan = fc
 	.tuple(fc.constantFrom('`', '``'), fc.constantFrom('code', 'x = 1', 'a*b', '[x]', ''))
 	.map(([ticks, inner]) => ticks + inner + ticks);
 
-const inlineLink = fc.constantFrom(
-	'[text](url)',
-	'[a](b "t")',
-	'[**bold**](u)',
-	'[](u)',
-	'[label][ref]',
-	'[collapsed][]',
-	'[shortcut]'
-);
+// Labels and destinations are generated (not constant strings) so the
+// code-span×destination and paren/escape destination classes are reachable:
+// backticks in either side, `)` inside a code span, balanced parens, `\)`.
+const inlineLink = fc
+	.tuple(
+		fc.constantFrom('text', 'a', '**bold**', '', 'x`y'),
+		fc.constantFrom('url', 'u`x`', 'u`)`', 'a(b)c', 'u\\)', '<u v>', ''),
+		fc.constantFrom('', ' "t"')
+	)
+	.map(([label, dest, title]) => `[${label}](${dest}${title})`);
+
+const referenceLink = fc.constantFrom('[label][ref]', '[collapsed][]', '[shortcut]');
 
 const autolink = fc.constantFrom(
 	'<https://example.com>',
@@ -44,13 +62,16 @@ const entity = fc.constantFrom('&copy;', '&amp;', '&#39;', '&#x22;', '&notreal;'
 // Hard breaks: backslash-newline and two-spaces-newline, both LF and CRLF.
 const hardBreak = fc.constantFrom('\\\n', '\\\r\n', '  \n', '  \r\n');
 
-const punctSpacer = fc.constantFrom(' ', '. ', ', ', ' (', ') ', '!', '?', ': ', '');
+// U+10100 (astral Po) spaces runs the way `.` does — flanking must classify
+// it via code points, not UTF-16 units.
+const punctSpacer = fc.constantFrom(' ', '. ', ', ', ' (', ') ', '!', '?', ': ', '', '\u{10100}');
 
 const fragment = fc.oneof(
 	{ arbitrary: word, weight: 5 },
 	{ arbitrary: emphasisRun, weight: 4 },
 	{ arbitrary: codeSpan, weight: 2 },
 	{ arbitrary: inlineLink, weight: 2 },
+	{ arbitrary: referenceLink, weight: 1 },
 	{ arbitrary: autolink, weight: 1 },
 	{ arbitrary: escape, weight: 2 },
 	{ arbitrary: entity, weight: 2 },

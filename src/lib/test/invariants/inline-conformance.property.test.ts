@@ -29,6 +29,17 @@ function isAllPlainText(nodes: InlineNode[]): boolean {
 	return nodes.every((n) => n.kind === 'text');
 }
 
+/** Node tree rendered as an `<em>`/`<strong>`-tagged shape string for exact pins. */
+function shapeOf(nodes: InlineNode[], source: string): string {
+	return nodes
+		.map((n) => {
+			if (n.kind === 'emphasis') return `<em>${shapeOf(n.children ?? [], source)}</em>`;
+			if (n.kind === 'strong') return `<strong>${shapeOf(n.children ?? [], source)}</strong>`;
+			return source.slice(n.start, n.end);
+		})
+		.join('');
+}
+
 // Positive cases pin the exact set of emphasized runs (markers included):
 // asserting the full set, not mere presence, fails a parser that emphasizes the
 // wrong span, drops a nested pair, or invents a spurious one.
@@ -100,6 +111,17 @@ describe('G2.3 intra-word underscore suppression (CommonMark §6.2)', () => {
 	}
 });
 
+describe('G2.3 astral punctuation flanking (code points, not UTF-16 units)', () => {
+	it('astral punctuation neighbors flank like BMP punctuation', () => {
+		// U+10100 (AEGEAN WORD SEPARATOR LINE, category Po) must flank like `.`:
+		// `._x_.` emphasizes, so this must too. Reading UTF-16 units instead of
+		// code points classifies the lone surrogate as "other" and drops the pair.
+		const source = '\u{10100}_x_\u{10100}';
+		const nodes = parseInline(source, 0, source.length);
+		expect(sortedSpans(nodes, source)).toEqual(['_x_']);
+	});
+});
+
 describe('G2.3 multiple-of-3 rule (CommonMark §6.2)', () => {
 	it('nested run produces emphasis wrapping strong, not a flat pair', () => {
 		const source = 'foo***bar***baz';
@@ -120,4 +142,24 @@ describe('G2.3 multiple-of-3 rule (CommonMark §6.2)', () => {
 		// The trailing `*baz*` after the strong stays literal (no second emphasis).
 		expect(nodes.filter((n) => n.kind === 'emphasis')).toHaveLength(0);
 	});
+
+	// The rule applies to ORIGINAL delimiter-run lengths, not the still-unconsumed
+	// remainder after partial matches (commonmark.js `origdelims`). Shapes mined
+	// from a brute-force diff against commonmark.js 0.31.2, each with a distinct
+	// opener/closer decay pattern.
+	const originalRunLengthCases = [
+		{ source: 'x**y*z****w', shape: 'x**y<em>z</em>***w' },
+		{ source: 'a***a****', shape: 'a<em><strong>a</strong></em>*' },
+		{ source: '*a***a*', shape: '<em>a</em>*<em>a</em>' },
+		{ source: '**a****a*', shape: '**a***<em>a</em>' },
+		{ source: 'a*a *a**', shape: 'a*a <em>a</em>*' },
+		{ source: 'a*a *a***', shape: 'a<em>a <em>a</em></em>*' }
+	];
+
+	for (const { source, shape } of originalRunLengthCases) {
+		it(`gates on original run lengths: ${JSON.stringify(source)}`, () => {
+			const nodes = parseInline(source, 0, source.length);
+			expect(shapeOf(nodes, source)).toBe(shape);
+		});
+	}
 });
