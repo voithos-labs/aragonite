@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createFocusActions } from '$lib/editor-actions/focus';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createFocusActions } from '$lib/editor-actions/focus/focus';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';

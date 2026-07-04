@@ -11,7 +11,7 @@
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
-import { comparePaths } from './primitives';
+import { comparePaths } from './path-math';
 import { createRangeAtRawOffsets, rawOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 

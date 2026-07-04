@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { gateMoveFocusOnCollapse } from '$lib/editor-actions/plugin-container';
+import { gateMoveFocusOnCollapse } from '$lib/editor-actions/plugin/container';
 import type { FocusActions } from '$lib/action-contracts';
 
 function stubParentFocus() {

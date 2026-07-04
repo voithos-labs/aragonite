@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';

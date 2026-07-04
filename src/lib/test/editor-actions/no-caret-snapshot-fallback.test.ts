@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nodeAt } from '$lib/tree-operations/node-ops';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createListOverrides } from '$lib/editor-actions/list-overrides';

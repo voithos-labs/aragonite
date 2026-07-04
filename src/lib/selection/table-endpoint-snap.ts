@@ -26,7 +26,7 @@ import type { Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
-import { comparePaths } from './primitives';
+import { comparePaths } from './path-math';
 
 /**
  * A cross-block selection endpoint inside a table must address the table block

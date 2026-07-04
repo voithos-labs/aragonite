@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';

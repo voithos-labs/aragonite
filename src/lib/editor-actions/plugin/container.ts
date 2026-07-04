@@ -12,35 +12,35 @@
 
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
-import type BlockList from '../components/BlockList.svelte';
+import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
 	ContainerEditActions,
 	FocusActions,
 	MoveFocusOptions
-} from '../action-contracts';
-import type { BlockComponent } from '../block-component';
-import type { CstNode } from '../core/nodes';
-import type { StickyColumnState } from '../cursor/sticky-column';
-import { isCollapsedContainer } from '../schema/reserved-chrome';
-import { devWarn } from '../dev-warn';
+} from '../../action-contracts';
+import type { BlockComponent } from '../../block-component';
+import type { CstNode } from '../../core/nodes';
+import type { StickyColumnState } from '../../cursor/sticky-column';
+import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
 	CONTROLLER_KEY,
 	FOCUS_KEY,
 	STICKY_COLUMN_KEY
-} from '../editor-keys';
-import { createBlockListState } from '../reactivity/block-list-state.svelte';
-import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-import { createBlockquoteOverrides } from './blockquote-overrides';
-import { createContainerBlockComponent } from './container-block-component';
-import type { UndoController } from './deps';
+} from '../../editor-keys';
+import { createBlockListState } from '../../reactivity/block-list-state.svelte';
+import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
+import { createBlockquoteOverrides } from '../blockquote-overrides';
+import { createContainerBlockComponent } from '../container-block-component';
+import type { UndoController } from '../deps';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
 	type NestedActionsOverrideFactory
-} from './nested/nested-actions';
+} from '../nested/nested-actions';
 
 /**
  * Reactive inputs the host component feeds in as getters (Design Rule 5): each is

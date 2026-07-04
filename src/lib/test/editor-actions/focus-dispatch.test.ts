@@ -3,7 +3,7 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '../../editor-actions/focus-dispatch';
+} from '../../editor-actions/focus/focus-dispatch';
 import { CURSOR_END } from '../../block-component';
 import { mockRef, makeStickyColumn, makeStubFocus } from '../harness/editor-actions';
 

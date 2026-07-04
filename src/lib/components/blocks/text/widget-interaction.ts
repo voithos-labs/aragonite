@@ -13,7 +13,8 @@
 
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { CstNode, InlineNode } from '../../../core/nodes';
-import type { LinkReferenceResolverRef, WidgetSelectionState } from '../../../editor-keys';
+import type { LinkReferenceResolverRef } from '../../../editor-keys';
+import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { getInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
