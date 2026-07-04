@@ -1,11 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import {
 	DetailsPage,
 	readDetails,
 	activeBlockPath,
 	bodyHostCount,
 	capturedErrors,
-	collectInvariantWarnings,
 	OPEN,
 	SUMMARY_ONLY,
 	CLOSED_WITH_BELOW,
@@ -22,17 +21,11 @@ import {
  */
 test.describe('plugin container: <details> collapsible', () => {
 	let editor: DetailsPage;
-	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
-		invariantWarnings = collectInvariantWarnings(page);
 		await editor.gotoDetails();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
-	});
-
-	test.afterEach(() => {
-		expect(invariantWarnings).toEqual([]);
 	});
 
 	test('substrate: ?seed=details mounts the DetailsBlock component, not a raw fallback', async ({

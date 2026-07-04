@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 // The plugins harness reuses the editor demo's probe surface but seeds a single
@@ -77,26 +78,10 @@ async function roundTripStable(page: Page): Promise<boolean> {
 
 test.describe('plugin container: :::note callout editability', () => {
 	let editor: PluginsPage;
-	// The opaque-container invariants (opaque-stale-raw, opaque-rebuild-
-	// nondeterministic) emit `[invariant:…]` console warnings — a channel the
-	// structured `error` event does not carry. Watch it so a stale-raw /
-	// nondeterministic-rebuild violation on this page fails the gate instead of
-	// passing silently.
-	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
-		invariantWarnings = [];
-		page.on('console', (m) => {
-			const type = m.type();
-			if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
-				invariantWarnings.push(`${type}: ${m.text()}`);
-		});
 		await editor.gotoPlugins();
-	});
-
-	test.afterEach(() => {
-		expect(invariantWarnings).toEqual([]);
 	});
 
 	test('type, split, merge, and undo mutate the callout children, never the root', async ({

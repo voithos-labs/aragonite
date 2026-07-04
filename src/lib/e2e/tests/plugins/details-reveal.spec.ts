@@ -1,12 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { primaryModifier } from '../../platform';
-import {
-	DetailsPage,
-	activeBlockPath,
-	bodyHostCount,
-	capturedErrors,
-	collectInvariantWarnings
-} from './details-helpers';
+import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
  * The reveal-into-collapsed degrade (spec §4). Searching for text that lives in a
@@ -30,17 +24,11 @@ const CLOSED_WITH_NEEDLE =
 
 test.describe('plugin container: <details> reveal-into-collapsed degrade', () => {
 	let editor: DetailsPage;
-	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
-		invariantWarnings = collectInvariantWarnings(page);
 		await editor.gotoDetails();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
-	});
-
-	test.afterEach(() => {
-		expect(invariantWarnings).toEqual([]);
 	});
 
 	test('search navigation into a collapsed body degrades to the summary without mutating open', async ({

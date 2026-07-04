@@ -90,20 +90,6 @@ export async function auditRealDesyncs(page: Page): Promise<RefDesync[]> {
 	return violations.filter((v) => v.idsLen !== v.childrenLen || v.refsLen > v.childrenLen);
 }
 
-// Attach the `[invariant:…]` console watcher and return the mutable sink. The
-// opaque-container + state-consistency guards warn on this channel (not the
-// structured error event), so a clamp-driven violation must fail the gate rather
-// than pass silently. Pair with `expect(sink).toEqual([])` in afterEach.
-export function collectInvariantWarnings(page: Page): string[] {
-	const warnings: string[] = [];
-	page.on('console', (m) => {
-		const type = m.type();
-		if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
-			warnings.push(`${type}: ${m.text()}`);
-	});
-	return warnings;
-}
-
 export const OPEN = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 export const SUMMARY_ONLY = '<details>\n<summary>Sum</summary>\n</details>\n';
 export const CLOSED_WITH_BELOW =

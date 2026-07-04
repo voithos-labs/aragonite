@@ -1,12 +1,11 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import {
 	DetailsPage,
 	readDetails,
 	bodyHostCount,
 	detailsSpacerCount,
 	capturedErrors,
-	auditRealDesyncs,
-	collectInvariantWarnings
+	auditRealDesyncs
 } from './details-helpers';
 
 /**
@@ -32,17 +31,11 @@ const CHILD_COUNT = 201; // summary + 200 body paragraphs
 
 test.describe('plugin container: <details> nested windowing × clamp', () => {
 	let editor: DetailsPage;
-	let invariantWarnings: string[];
 
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
-		invariantWarnings = collectInvariantWarnings(page);
 		await editor.gotoDetails();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
-	});
-
-	test.afterEach(() => {
-		expect(invariantWarnings).toEqual([]);
 	});
 
 	test('toggling a nested-windowed details closed→open→closed keeps CST and refs in sync', async ({
