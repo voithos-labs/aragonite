@@ -2,8 +2,9 @@
  * Register a container-chrome leaf kind — editable text living at a reserved
  * child slot of a plugin container (a callout title, a details summary) —
  * through one call. Inside a container this needs exactly one component
- * (TextEditableBlock): the container seam already threads every editor
- * context, so the leaf mediates none. Chrome kinds are `contextDependentKind`
+ * (TextEditableBlock, passed in by the plugin.ts seam so editor-actions holds
+ * no upward value edge to components/): the container seam already threads
+ * every editor context, so the leaf mediates none. Chrome kinds are `contextDependentKind`
  * so a content edit keeps the kind, and `supportsInline` stays off
  * (inline-bearing chrome is blocked on the off-window inline-cache issue).
  * Chrome only — not a seam for standalone recognizer-backed leaf kinds.
@@ -11,13 +12,17 @@
  * descriptor; this seam supplies the leaf.
  */
 
-import { registerBlockKind, type MergeRole } from '../schema/block-kind-descriptor';
-import { registerBlockComponent, defineBlockComponent } from '../schema/block-component-registry';
-import { normalizeChord, type KeyBinding } from '../schema/keybindings';
-import { registerPasteSurface } from '../tree-operations/paste-surfaces';
-import { defaultInlineHook } from '../tree-operations/paste/hooks';
-import type { AnyBlockKind } from '../core/nodes';
-import TextEditableBlock from '../components/blocks/text/TextEditableBlock.svelte';
+import type { Component } from 'svelte';
+import { registerBlockKind, type MergeRole } from '../../schema/block-kind-descriptor';
+import {
+	registerBlockComponent,
+	defineBlockComponent
+} from '../../schema/block-component-registry';
+import { normalizeChord, type KeyBinding } from '../../schema/keybindings';
+import { registerPasteSurface } from '../../tree-operations/paste-surfaces';
+import { defaultInlineHook } from '../../tree-operations/paste/hooks';
+import type { AnyBlockKind } from '../../core/nodes';
+import type { BlockComponent, BlockComponentProps } from '../../block-component';
 
 export interface ChromeLeafOptions {
 	/** CSS class on the leaf's surface, for chrome styling. */
@@ -45,7 +50,9 @@ function mergeChromeKeymap(overrides: KeyBinding[] | undefined): KeyBinding[] {
 	];
 }
 
-export function registerChromeLeaf(kind: AnyBlockKind, opts: ChromeLeafOptions = {}): void {
+export function registerChromeLeaf<
+	P extends Partial<BlockComponentProps> & Record<string, unknown>
+>(kind: AnyBlockKind, component: Component<P, BlockComponent>, opts: ChromeLeafOptions = {}): void {
 	registerBlockKind(kind, {
 		mergeRole: opts.mergeRole ?? 'not-mergeable',
 		editable: true,
@@ -56,7 +63,7 @@ export function registerChromeLeaf(kind: AnyBlockKind, opts: ChromeLeafOptions =
 	});
 	registerBlockComponent(
 		kind,
-		defineBlockComponent(TextEditableBlock, () => ({ blockClass: opts.blockClass }))
+		defineBlockComponent(component, () => ({ blockClass: opts.blockClass }))
 	);
 	// Inline-only surface: no structural hooks, so `surfaceForcesInline` holds if a
 	// paste ever reaches surface resolution — defense behind the dispatch gate that

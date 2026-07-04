@@ -10,7 +10,7 @@ import {
 	dispatchFocusByPath,
 	dispatchFocusAtColumn,
 	dispatchGetBlockComponentByPath
-} from './focus-dispatch';
+} from './focus/focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { CstNode } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';

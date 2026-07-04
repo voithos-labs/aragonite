@@ -2,12 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
-import {
-	assertCharOffset,
-	comparePaths,
-	normalize,
-	type SelectionPoint
-} from '../../selection/primitives';
+import { assertCharOffset, normalize, type SelectionPoint } from '../../selection/primitives';
+import { comparePaths } from '../../selection/path-math';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 const cell = (path: number[], offset: number): SelectionPoint => ({

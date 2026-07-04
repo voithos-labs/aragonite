@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import type { SelectionPoint } from '$lib/selection/primitives';

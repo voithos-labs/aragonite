@@ -46,7 +46,7 @@
 import { expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import {
 	createStandardNestedActions,

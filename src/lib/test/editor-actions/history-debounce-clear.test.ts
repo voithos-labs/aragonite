@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createHistoryActions } from '$lib/editor-actions/undo/history';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 

@@ -34,11 +34,11 @@
 		type DocumentGetter,
 		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
-		type ReorderAction,
 		type ResolveImageUrl,
-		type ResolveLinkUrl,
-		type WidgetSelectionState
+		type ResolveLinkUrl
 	} from '../../../editor-keys';
+	import type { ReorderAction } from '../../../editor-actions/reorder-action';
+	import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';

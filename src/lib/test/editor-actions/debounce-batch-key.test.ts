@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';

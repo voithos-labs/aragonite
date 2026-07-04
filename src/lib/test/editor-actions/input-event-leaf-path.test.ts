@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { nodeAt } from '$lib/tree-operations/node-ops';
-import { lrdMapCouldChange } from '$lib/lrd-map-gate';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/undo/text-batch';
+import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,

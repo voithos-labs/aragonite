@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
