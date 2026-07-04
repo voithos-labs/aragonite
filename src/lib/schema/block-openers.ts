@@ -49,6 +49,15 @@ export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): vo
 	interruptCache = null;
 }
 
+/**
+ * Probe by name whether an opener is registered. `registerBlockOpener` throws on
+ * duplicate, so a plugin registering idempotently (HMR / re-import) guards on
+ * this. Accepts a plain name so callers needn't pre-brand an unminted kind.
+ */
+export function isBlockOpenerRegistered(kind: string): boolean {
+	return openers.has(kind as AnyBlockKind);
+}
+
 /** Priority-ascending; cached — the parser loops this per block. */
 export function getOrderedOpeners(): readonly BlockOpener[] {
 	if (!orderedCache) {

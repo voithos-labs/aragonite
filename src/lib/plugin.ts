@@ -54,6 +54,7 @@ export { setPluginMetadata, getPluginMetadata } from './core/nodes';
 // (HMR / re-import) by guarding on these.
 export { isBlockKindRegistered } from './schema/block-kind-descriptor';
 export { isBlockComponentRegistered } from './schema/block-component-registry';
+export { isBlockOpenerRegistered } from './schema/block-openers';
 
 // ── Container-authoring surface (pre-freeze / unstable) ─────────────────────────
 // Being refined against real plugin blocks until the open-source release — NOT
