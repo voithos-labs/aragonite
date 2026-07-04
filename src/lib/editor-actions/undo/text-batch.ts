@@ -45,8 +45,8 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 
 	/**
 	 * Must run before anything discards or repoints the batch — otherwise
-	 * observers under-count keystrokes and the inline sweep never refreshes
-	 * the batch's subtree with a resolver.
+	 * edit-channel observers never see the batch's `input` event and
+	 * under-count keystrokes.
 	 */
 	function flushPendingInput(): void {
 		if (batchByteLength > 0 && batchBlockIndex >= 0) {

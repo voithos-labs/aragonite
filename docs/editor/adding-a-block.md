@@ -93,7 +93,7 @@ The same rule covers `commitMultiScope`'s per-scope views. Writes outside a comm
 
 A container's `ambientPrefix` can be inert text (the default) or carry interactive character ranges — clickable regions inside the read-only prefix. See the `AmbientPrefix` contract in `docs/design/editor/editor.md`.
 
-- For inert markers, return a string from the component's prefix getter — the list-item's `- `, the blockquote's `> `.
+- For inert markers, return a string from the component's prefix getter — e.g. the list item's `- ` (the blockquote passes no prefix; its `> ` markers render as border-only chrome).
 - For markers with embedded interactive elements, return the object form with `text` plus one or more interactive ranges (character offsets, className, optional role/ARIA, click handler).
 
 Keep the component thin: define a pure `buildXAmbient(metadata, onAction)` helper alongside the component and call it from the prefix getter. Task checkboxes follow this pattern — `buildTaskItemAmbient` in `src/lib/components/blocks/list/task-checkbox.ts` is the canonical example. The helper is unit-testable without mounting the component, and render-path DEV warnings for malformed metadata live in the helper.

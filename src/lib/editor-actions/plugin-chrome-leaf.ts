@@ -1,15 +1,14 @@
 /**
  * Register a container-chrome leaf kind — editable text living at a reserved
  * child slot of a plugin container (a callout title, a details summary) —
- * through one call. The Fork-A spike measured that inside a container this
- * needs exactly one component (TextEditableBlock): the container seam already
- * threads every editor context, so the leaf mediates none. Chrome kinds are
- * `contextDependentKind` so a content edit keeps the kind, and `supportsInline`
- * stays off (inline-bearing chrome is an open pre-freeze question — the
- * off-window inline-cache issue). NOT the general Tier-2a editable leaf (a
- * recognizer-backed standalone kind) — that seam is separate and later.
+ * through one call. Inside a container this needs exactly one component
+ * (TextEditableBlock): the container seam already threads every editor
+ * context, so the leaf mediates none. Chrome kinds are `contextDependentKind`
+ * so a content edit keeps the kind, and `supportsInline` stays off
+ * (inline-bearing chrome is blocked on the off-window inline-cache issue).
+ * Chrome only — not a seam for standalone recognizer-backed leaf kinds.
  * Composition: the container declares its chrome via `reservedChrome` on its
- * descriptor; this seam supplies the leaf. Pre-freeze.
+ * descriptor; this seam supplies the leaf.
  */
 
 import { registerBlockKind, type MergeRole } from '../schema/block-kind-descriptor';
