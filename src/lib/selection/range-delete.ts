@@ -24,9 +24,22 @@ import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-c
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
+/** A whole-row window the table branch spliced out of `table.children`. */
+export interface TableRowSplice {
+	table: CstNode;
+	at: number;
+	count: number;
+}
+
 export interface RangeDeleteResult {
 	newDoc: Document;
 	collapsedCaret: SelectionPoint;
+	/**
+	 * Row splices performed on endpoint tables, reported so the cross-block
+	 * commit can descriptor-sync each table's row BlockListState without
+	 * re-deriving snap math. Set (possibly empty) by the table branch only.
+	 */
+	tableRowSplices?: TableRowSplice[];
 }
 
 /**
