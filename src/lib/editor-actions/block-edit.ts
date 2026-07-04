@@ -63,7 +63,7 @@ export function createBlockEditActions(
 			postEditFocusOffset?: number
 		): Promise<void> {
 			deps.stickyColumn.reset();
-			controller.pushUndoSnapshotDebounced(blockIndex, preEditOffset ?? 0);
+			controller.pushUndoSnapshotDebounced([blockIndex], preEditOffset ?? 0);
 			// Out-of-ceremony in-place write: copy the node first when a snapshot
 			// shares it (once per keystroke batch — the copy is owned afterwards).
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
@@ -75,7 +75,7 @@ export function createBlockEditActions(
 				await controller.commitStructural({
 					snapshot: 'skip',
 					mutate: () => ({ op: 'noop' }),
-					op: { kind: 'updateContent', detail: { length: text.length } },
+					op: { kind: 'updateContent', detail: { length: text.length }, eventPath: [blockIndex] },
 					touchedNodes: [deps.doc.children[blockIndex]],
 					afterTick: () => {
 						deps.blockRefs[blockIndex]?.focus(focusOffset);

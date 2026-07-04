@@ -38,8 +38,8 @@ export function createReorderAction(
 	async function commitReorder(unit: ReorderUnit, to: number, offset: number): Promise<void> {
 		if (unit.parentKind === 'document') {
 			await controller.commitStructural({
-				snapshot: { blockIndex: unit.index, offset },
-				op: { kind: 'reorder', detail: { from: unit.index, to } },
+				snapshot: { path: [unit.index], offset },
+				op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: [unit.index] },
 				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
 				afterTick: () => deps.blockRefs[to]?.focus(0)
 			});
@@ -52,7 +52,8 @@ export function createReorderAction(
 			containerNode: parent,
 			path: unit.parentPath,
 			state,
-			snapshot: { blockIndex: unit.index, offset },
+			// A drag carries no live caret: restore to the moved unit's pre-move path.
+			snapshot: { path: [...unit.parentPath, unit.index], offset },
 			op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: unit.parentPath },
 			mutate: (scope) => {
 				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);

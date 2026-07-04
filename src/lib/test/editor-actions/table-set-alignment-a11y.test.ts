@@ -23,9 +23,6 @@ function mutationsFor(focusedCell: { rowIdx: number; colIdx: number } | null) {
 		get node() {
 			return liveTable();
 		},
-		get index() {
-			return 0;
-		},
 		get myPath() {
 			return [0];
 		},

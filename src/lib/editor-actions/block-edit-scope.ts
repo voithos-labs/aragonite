@@ -3,7 +3,9 @@
  * differs between a top-level edit (commits to the document children via
  * `commitStructural`) and a container edit (commits to a nested children
  * array via `commitContainer`): the commit ceremony, child addressing, refs,
- * unshare primitive, and snapshot/eventPath shape.
+ * and the unshare primitive. Both factories are the SINGLE mint point for the
+ * commit args' doc-absolute paths (snapshot restore + event target) — the
+ * core hands over local indices only.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -27,7 +29,7 @@ export interface MutationView {
 export interface ScopeCommitArgs {
 	/** Snapshot coordinate in THIS scope's local index space, or 'skip' to join a caller's entry. */
 	snapshot: { index: number; offset: number } | 'skip';
-	/** eventPath tail: the local index the emitted edit event targets (often the op's index; the deleted neighbor for not-editable merges). The top-level scope ignores it — commitStructural derives the path from the snapshot. */
+	/** The local index the emitted edit event targets (often the op's index; the deleted neighbor for not-editable merges; the minted index for inserts). The factory prefixes the scope's absolute path. */
 	eventTarget: number;
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
@@ -52,17 +54,17 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
 		collapseEmptyReplaceToDelete: false,
-		commit({ snapshot, op, mutate, afterTick }): Promise<void> {
+		commit({ snapshot, eventTarget, op, mutate, afterTick }): Promise<void> {
 			return controller.commitStructural({
 				snapshot:
-					snapshot === 'skip' ? 'skip' : { blockIndex: snapshot.index, offset: snapshot.offset },
+					snapshot === 'skip' ? 'skip' : { path: [snapshot.index], offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
 						children,
 						sharing: deps.sharing,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
-				op,
+				op: { ...op, eventPath: [eventTarget] },
 				afterTick
 			});
 		}
@@ -82,14 +84,16 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 				path: deps.path,
 				state,
 				snapshot:
-					snapshot === 'skip' ? 'skip' : { blockIndex: deps.index, offset: snapshot.offset },
+					snapshot === 'skip'
+						? 'skip'
+						: { path: [...deps.path, snapshot.index], offset: snapshot.offset },
 				mutate: (scope) =>
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
-				op: { ...op, eventPath: [deps.index, eventTarget] },
+				op: { ...op, eventPath: [...deps.path, eventTarget] },
 				afterTick
 			});
 		}

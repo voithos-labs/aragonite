@@ -82,7 +82,7 @@ async function commitFullTableDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -105,7 +105,7 @@ async function commitFullTableDelete(
 			collapsedCaret = { path: [survivorIdx], offset: 0 };
 			return change;
 		},
-		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' } },
+		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' }, eventPath: [tableIdx] },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
@@ -127,7 +127,7 @@ async function commitRowDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx, rowIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -175,7 +175,7 @@ async function commitColumnDelete(
 		}))
 	];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({
@@ -194,10 +194,12 @@ async function commitColumnDelete(
 
 			return [{ op: 'noop' }, ...rowChanges];
 		},
+		// Event targets the TABLE — a column index is not a child path (parity
+		// with table-context's column ops); colIdx rides in the detail.
 		op: {
 			kind: 'tableDeleteColumn',
 			detail: { colIdx, crossBlock: true },
-			eventPath: [tableIdx, colIdx]
+			eventPath: [tableIdx]
 		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});

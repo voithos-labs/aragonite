@@ -21,7 +21,6 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
-import { createNestedContainerEdit } from './nested-container-edit';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -65,7 +64,10 @@ export function createStandardNestedActions(
 	// snapshots after a parent structural op or undo/redo replacement.
 	const blockEdit = createNestedBlockEdit(state, deps);
 	const focus = createNestedFocus(state, deps);
-	const containerEdit = createNestedContainerEdit(deps);
+	// Commit coordinates are doc-absolute at their mint point (block-edit-scope
+	// factories / context callers), so intermediate containers have nothing to
+	// remap — the parent's containerEdit passes through every level unchanged.
+	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
 	if (!overrideFactory) return defaults;

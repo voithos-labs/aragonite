@@ -113,7 +113,7 @@ export async function applyContainerMatchingPaste(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 		mutate: ([scopeView]) => {
 			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
@@ -168,7 +168,7 @@ async function applyContainerMatchingMerge(
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-			snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+			snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
 				// The merged leaf sits BELOW the scope node — own its full spine.
@@ -201,7 +201,7 @@ async function applyContainerMatchingMerge(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.

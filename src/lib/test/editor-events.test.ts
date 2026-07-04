@@ -144,7 +144,7 @@ describe('createEditorEvents', () => {
 			containerNode,
 			path: [0],
 			state,
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0, 1], offset: 0 },
 			mutate: ({ children }) => {
 				children.splice(1, 1);
 				return { op: 'delete', at: 1, count: 1 };

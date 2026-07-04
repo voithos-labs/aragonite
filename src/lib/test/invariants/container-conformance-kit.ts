@@ -341,9 +341,6 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 		get node() {
 			return table;
 		},
-		get index() {
-			return 1;
-		},
 		get myPath() {
 			return [1];
 		},
@@ -494,9 +491,6 @@ async function checkTableColumnOneUndo(): Promise<void> {
 	const ctx = createTableMutationsContext({
 		get node() {
 			return table;
-		},
-		get index() {
-			return 0;
 		},
 		get myPath() {
 			return [0];

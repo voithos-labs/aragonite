@@ -43,12 +43,12 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 						// strand an empty `> >` in the outer raw).
 						await deps.controller.commitMultiScope({
 							scopes: [{ node, state, path: deps.path }],
-							snapshot: { blockIndex: index, offset: 0 },
+							snapshot: { path: [...deps.path, innerIndex], offset: 0 },
 							mutate: ([scope]) => [performDelete(scope, innerIndex, scope.sharing)],
 							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },
-								eventPath: [index]
+								eventPath: [...deps.path]
 							},
 							afterTick: () => {
 								parentFocus.moveFocus(index + 1, 'start');

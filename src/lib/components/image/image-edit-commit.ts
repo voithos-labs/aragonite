@@ -106,7 +106,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		// Nothing to persist — skip the commit so a no-op edit (e.g. a popover
 		// dismiss after a resize already wrote the change) adds no undo entry.
 		if (newRaw === resolved.paragraph.raw) return;
-		const snapshot = { blockIndex: paragraphPath[0], offset: 0 };
+		const snapshot = { path: paragraphPath.slice(), offset: 0 };
 		const leafIdx = paragraphPath[paragraphPath.length - 1];
 		const writeRaw = (paragraph: CstNode) => {
 			paragraph.raw = newRaw;
@@ -120,7 +120,11 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 					writeRaw(owned);
 					return { op: 'noop' as const };
 				},
-				op: { kind: 'updateContent', detail: { length: newRaw.length } }
+				op: {
+					kind: 'updateContent',
+					detail: { length: newRaw.length },
+					eventPath: paragraphPath.slice()
+				}
 			});
 			return;
 		}

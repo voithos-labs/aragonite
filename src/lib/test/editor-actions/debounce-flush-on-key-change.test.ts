@@ -27,13 +27,12 @@ describe('debounce flush on batch-key change', () => {
 		const { controller, editHandler, inputEvents } = makeSetup();
 
 		// Three keystrokes in block 0 — still buffered, debounce hasn't fired.
-		for (let i = 0; i < 3; i++) controller.pushUndoSnapshotDebounced(0, i);
+		for (let i = 0; i < 3; i++) controller.pushUndoSnapshotDebounced([0], i);
 		expect(editHandler).not.toHaveBeenCalled();
 
 		// Focus moves to block 1 inside the debounce window. The key change
-		// must flush block 0's batch, not silently drop it — the inline sweep
-		// only refreshes block 0's subtree off this event.
-		controller.pushUndoSnapshotDebounced(1, 0);
+		// must flush block 0's batch, not silently drop it.
+		controller.pushUndoSnapshotDebounced([1], 0);
 
 		expect(inputEvents()).toHaveLength(1);
 		expect(inputEvents()[0].path).toEqual([0]);
@@ -47,9 +46,9 @@ describe('debounce flush on batch-key change', () => {
 		try {
 			const { controller, inputEvents } = makeSetup();
 
-			controller.pushUndoSnapshotDebounced(0, 0);
-			controller.pushUndoSnapshotDebounced(0, 1);
-			controller.pushUndoSnapshotDebounced(1, 0);
+			controller.pushUndoSnapshotDebounced([0], 0);
+			controller.pushUndoSnapshotDebounced([0], 1);
+			controller.pushUndoSnapshotDebounced([1], 0);
 			vi.runAllTimers();
 
 			expect(inputEvents().map((e) => e.path)).toEqual([[0], [1]]);
