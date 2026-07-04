@@ -13,7 +13,7 @@ import {
 	registerBlockComponent,
 	defineBlockComponent,
 	isBlockComponentRegistered,
-	type AnyBlockKind
+	declaredPluginKind
 } from '$lib/plugin';
 import { registerCalloutKind, NOTE } from './callout-kind';
 import CalloutBlock from './CalloutBlock.svelte';
@@ -21,6 +21,6 @@ import CalloutBlock from './CalloutBlock.svelte';
 export function registerCallout(): void {
 	registerCalloutKind();
 	if (!isBlockComponentRegistered(NOTE)) {
-		registerBlockComponent(NOTE as AnyBlockKind, defineBlockComponent(CalloutBlock));
+		registerBlockComponent(declaredPluginKind(NOTE), defineBlockComponent(CalloutBlock));
 	}
 }

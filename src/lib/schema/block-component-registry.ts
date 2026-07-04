@@ -5,7 +5,7 @@
 
 import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
-import type { BlockComponent } from '../block-component';
+import type { BlockComponent, BlockComponentProps } from '../block-component';
 
 export interface BlockComponentEntry {
 	/**
@@ -21,13 +21,16 @@ export interface BlockComponentEntry {
 
 /**
  * Typed constructor for a component-registry entry. The `Component<P, BlockComponent>`
- * parameter enforces the one invariant that matters — the component's exported
- * surface is `BlockComponent` — at the call site. The single internal cast widens
- * props to the registry's `Record<string, unknown>`; props are contravariant, so
- * a component with specific props can't be assigned directly, but BlockHost always
- * supplies the correct props at runtime.
+ * parameter enforces the two invariants that matter at the call site — the
+ * component's exported surface is `BlockComponent`, and its props are a subset of
+ * the `BlockComponentProps` BlockHost passes (plus any registry `extraProps`). The
+ * single internal cast widens props to the registry's `Record<string, unknown>`;
+ * props are contravariant, so a component with specific props can't be assigned
+ * directly, but BlockHost always supplies the correct props at runtime.
  */
-export function defineBlockComponent<P extends Record<string, unknown>>(
+export function defineBlockComponent<
+	P extends Partial<BlockComponentProps> & Record<string, unknown>
+>(
 	component: Component<P, BlockComponent>,
 	extraProps?: (node: CstNode) => Record<string, unknown>
 ): BlockComponentEntry {

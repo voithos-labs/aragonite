@@ -30,10 +30,10 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
-	export const revealByPath = containerApi.revealByPath!;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const selectEdgeWidget = containerApi.selectEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
 </script>
 
 <div class="callout-block" bind:this={boxEl}>
