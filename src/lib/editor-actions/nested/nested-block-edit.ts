@@ -144,13 +144,15 @@ export function createNestedBlockEdit(
 			// the chosen branch runs the real mutation below.
 			const preview = performUpdate({ children: [{ ...deps.node.children[innerIndex] }] }, 0, text);
 
+			const leafPath = [...deps.path, innerIndex];
+
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
 					path: deps.path,
 					state,
-					snapshot: { blockIndex: deps.index, offset: preEditOffset ?? 0 },
+					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 						return performUpdate({ children: scope.children }, innerIndex, text);
@@ -158,7 +160,7 @@ export function createNestedBlockEdit(
 					op: {
 						kind: 'updateContent',
 						detail: { length: text.length },
-						eventPath: [deps.index, innerIndex]
+						eventPath: leafPath
 					},
 					afterTick: () => {
 						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
@@ -171,11 +173,10 @@ export function createNestedBlockEdit(
 			// the inner leaf's id as the batch key so focus moves between
 			// sibling leaves inside this container break the typing batch.
 			parent.containerEdit.pushDebouncedCheckpoint(
-				deps.index,
+				leafPath,
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
-			const leafPath = [...deps.path, innerIndex];
 			parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
 				assertInvariant('unshared-spine-depth', () =>
 					chain.length === leafPath.length

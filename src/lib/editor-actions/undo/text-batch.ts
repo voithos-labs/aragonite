@@ -7,20 +7,22 @@
 
 export interface TextBatchDeps {
 	/** Capture the pre-edit snapshot for the first keystroke of a batch. */
-	pushSnapshot(blockIndex: number, offset: number): void;
+	pushSnapshot(leafPath: number[], offset: number): void;
 	/** Emit the batched `input` edit event when a batch flushes. */
-	emitInput(blockIndex: number, byteLength: number): void;
+	emitInput(leafPath: number[], byteLength: number): void;
 }
 
 export interface TextBatch {
 	/**
 	 * Record one keystroke. The first keystroke of a batch (new batch key, or
 	 * after an interrupt/flush) pushes a snapshot; every keystroke re-arms the
-	 * pause timer. `batchKey` identifies the leaf being typed in (stable string
-	 * id for container scopes; numeric blockIndex top-level fallback) — sibling
-	 * leaves inside one container must not share a batch across focus moves.
+	 * pause timer. `leafPath` is the edited leaf's doc-absolute path (snapshot
+	 * seed + input-event target). `batchKey` identifies the leaf being typed in
+	 * (stable string id for container scopes; the path itself as fallback) —
+	 * sibling leaves inside one container must not share a batch across focus
+	 * moves.
 	 */
-	keystroke(blockIndex: number, offset: number, batchKey?: string | number): void;
+	keystroke(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
 	 * Structural-commit interrupt: cancel the pause timer, flush the pending
 	 * input event, and require a fresh snapshot from the next keystroke.
@@ -40,7 +42,7 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let lastBatchKey: string | number = -1;
 	let needsCheckpoint = true;
-	let batchBlockIndex = -1;
+	let batchPath: number[] | null = null;
 	let batchByteLength = 0;
 
 	/**
@@ -49,10 +51,10 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	 * under-count keystrokes.
 	 */
 	function flushPendingInput(): void {
-		if (batchByteLength > 0 && batchBlockIndex >= 0) {
-			deps.emitInput(batchBlockIndex, batchByteLength);
+		if (batchByteLength > 0 && batchPath) {
+			deps.emitInput(batchPath, batchByteLength);
 		}
-		batchBlockIndex = -1;
+		batchPath = null;
 		batchByteLength = 0;
 	}
 
@@ -64,13 +66,13 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	}
 
 	return {
-		keystroke(blockIndex, offset, batchKey) {
-			const key = batchKey ?? blockIndex;
+		keystroke(leafPath, offset, batchKey) {
+			const key = batchKey ?? leafPath.join('.');
 			if (lastBatchKey !== key || needsCheckpoint) {
 				flushPendingInput();
-				deps.pushSnapshot(blockIndex, offset);
+				deps.pushSnapshot(leafPath, offset);
 				lastBatchKey = key;
-				batchBlockIndex = blockIndex;
+				batchPath = leafPath.slice();
 				needsCheckpoint = false;
 			}
 			batchByteLength++;
@@ -90,7 +92,7 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 		},
 		discard() {
 			clearTimer();
-			batchBlockIndex = -1;
+			batchPath = null;
 			batchByteLength = 0;
 			needsCheckpoint = true;
 		}
