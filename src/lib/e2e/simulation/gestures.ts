@@ -29,7 +29,7 @@ import {
 	insertColumnRight,
 	insertRowBelow
 } from './gestures/table';
-import { toggleCollapse } from './gestures/plugin';
+import { setCalloutKind, toggleCollapse } from './gestures/plugin';
 import { lateCorrection } from './gestures/correction';
 
 /**
@@ -256,6 +256,13 @@ export class Gestures {
 
 	toggleCollapse(): Promise<void> {
 		return toggleCollapse(this.ctx);
+	}
+
+	// Real minted-command chord (Mod+7/Mod+8) that bubbles from a callout leaf to
+	// the container handler and commits the new type. Resyncs around the opener-byte
+	// rewrite. Only reachable over a loaded document holding a `:::note` callout.
+	setCalloutKind(): Promise<void> {
+		return setCalloutKind(this.ctx);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
