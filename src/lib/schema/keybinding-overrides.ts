@@ -16,8 +16,12 @@ export interface KeybindingOverride {
 	command: AnyCommandId | null;
 	/** Target one block kind's keymap; omit for the editor-global scope. */
 	kind?: BlockKind;
-	/** Static argument baked into the binding (e.g. heading level for `heading.cycle`). */
-	arg?: number;
+	/**
+	 * Static argument baked into the binding. `unknown` for coherence with
+	 * `KeyBinding.arg`: a minted command's non-number arg (e.g. a `setKind`
+	 * carrying a string) survives normalization; the handler type-guards it.
+	 */
+	arg?: unknown;
 }
 
 /** A normalized override entry: a concrete binding, or `'disabled'` (the chord is unbound). */
