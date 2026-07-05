@@ -35,7 +35,8 @@
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { resolveKindBinding, type CommandId } from '../../../schema/commands';
+	import { resolveKindBinding } from '../../../schema/commands';
+	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 
 	let {
@@ -211,7 +212,7 @@
 	// Not on the BlockComponent surface (the published ref is containerApi, not
 	// this instance); the bubble handler below closes over it directly and is
 	// its only caller.
-	function runCommand(id: CommandId): boolean {
+	function runCommand(id: AnyCommandId): boolean {
 		switch (id) {
 			case 'list.indent':
 				listContext.indentItem(index);

@@ -6,14 +6,14 @@
  */
 import type { AnyBlockKind, BlockKind } from '../core/nodes';
 import { normalizeChordStrict, type KeyBinding } from './keybindings';
-import type { CommandId } from './commands';
+import type { AnyCommandId } from './command-id';
 
 /** A consumer override of the default keymap for one mounted editor (the `keybindings` prop). */
 export interface KeybindingOverride {
 	/** Chord string in the public format (Mod/Alt/Shift + key). See keybindings.ts. */
 	chord: string;
-	/** A built-in command to bind, or `null` to disable the chord (remove its binding). */
-	command: CommandId | null;
+	/** A command to bind (built-in or minted plugin id), or `null` to disable the chord (remove its binding). */
+	command: AnyCommandId | null;
 	/** Target one block kind's keymap; omit for the editor-global scope. */
 	kind?: BlockKind;
 	/** Static argument baked into the binding (e.g. heading level for `heading.cycle`). */
