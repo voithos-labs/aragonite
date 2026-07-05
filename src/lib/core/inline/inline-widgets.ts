@@ -24,6 +24,12 @@ export function registerInlineWidgetKind(
 	kind: InlineNode['kind'],
 	descriptor: InlineWidgetDescriptor
 ): void {
+	if (registry.has(kind)) {
+		throw new Error(
+			`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
+				`register-once — a re-registration would clobber a built-in (image/rawHtml).`
+		);
+	}
 	registry.set(kind, descriptor);
 }
 
@@ -73,3 +79,14 @@ registerInlineWidgetKind('rawHtml', {
 	isWidget: (node, raw) => isLiveHtmlTag(raw.slice(node.start, node.end)),
 	buildWidget: (node) => buildLiveHtmlWidget(node)
 });
+
+// Snapshot the built-in kinds after their module-load registration; the test
+// reset keeps these and drops only plugin-registered kinds.
+const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<InlineNode['kind']> = new Set(registry.keys());
+
+/** Test-only. Removes every plugin-registered inline-widget kind; built-ins survive. */
+export function __resetInlineWidgetsForTests(): void {
+	for (const kind of registry.keys()) {
+		if (!BUILTIN_INLINE_WIDGET_KINDS.has(kind)) registry.delete(kind);
+	}
+}
