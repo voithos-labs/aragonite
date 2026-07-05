@@ -161,7 +161,7 @@ export interface BlockComponent {
 	 * caller fall through to remaining inline keydown branches. Block components
 	 * that declare a keymap implement this; others omit it.
 	 */
-	runCommand?(id: import('./schema/commands').CommandId, arg?: unknown): boolean;
+	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
 	/**
 	 * Current raw-offset selection in an editable leaf (table cell), collapsed
 	 * caret returned as `{start: n, end: n}`. Captured before a right-click menu

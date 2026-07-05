@@ -10,6 +10,8 @@
  * shape global commands need; HistoryActions satisfies it structurally.
  */
 import type { AnyBlockKind } from '../core/nodes';
+import type { AnyCommandId } from './command-id';
+import { devWarn } from '../dev-warn';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 import {
@@ -53,11 +55,11 @@ export interface GlobalCommandContext {
 
 export interface CommandDispatchTarget {
 	kind: AnyBlockKind;
-	runCommand(id: CommandId, arg?: unknown): boolean;
+	runCommand(id: AnyCommandId, arg?: unknown): boolean;
 }
 
 type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
-const globalCommands = new Map<CommandId, GlobalCommandRun>();
+const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
 
 export function registerCommand(id: GlobalCommandId, run: GlobalCommandRun): void {
 	if (globalCommands.has(id)) {
@@ -66,7 +68,7 @@ export function registerCommand(id: GlobalCommandId, run: GlobalCommandRun): voi
 	globalCommands.set(id, run);
 }
 
-export function getCommand(id: CommandId): GlobalCommandRun | undefined {
+export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
 	return globalCommands.get(id);
 }
 
@@ -77,6 +79,28 @@ export function __removePluginCommandsForTests(): void {
 	for (const id of globalCommands.keys()) {
 		if (!BUILTIN_COMMAND_IDS.has(id)) globalCommands.delete(id);
 	}
+}
+
+const warnedUnresolvedIds = new Set<string>();
+
+/**
+ * Dev-warn once per id that a bound command had no handler on the leaf path — a
+ * dead key. Plugin ids dispatch via the container-bubble path; a plugin id bound
+ * on a leaf kind (or a stale id after a plugin unloads) has no leaf handler.
+ * Silent in production (devWarn). Also reused by the bubble-path dispatch.
+ */
+export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
+	if (warnedUnresolvedIds.has(id)) return;
+	warnedUnresolvedIds.add(id);
+	devWarn(
+		'commands',
+		`no handler for "${id}"; key is dead (plugin commands dispatch on the bubble path)`
+	);
+}
+
+/** Test-only. Clears the once-per-id warn set so each test sees a first-time warn. */
+export function __resetCommandWarningsForTests(): void {
+	warnedUnresolvedIds.clear();
 }
 
 registerCommand('history.undo', (ctx) => {
@@ -173,5 +197,12 @@ export function dispatchKeyCommand(
 	if (!binding) return false;
 	const globalRun = getCommand(binding.command);
 	if (globalRun) return globalRun(ctx);
+	// A non-built-in id on the leaf path is a plugin id with no leaf handler (the
+	// leaf registry tier is deferred — plugin commands dispatch on the bubble path):
+	// dead-key rather than hand it to a leaf runCommand that can't resolve it.
+	if (!BUILTIN_COMMAND_IDS.has(binding.command)) {
+		warnUnresolvedPluginCommand(binding.command);
+		return false;
+	}
 	return target.runCommand(binding.command, binding.arg);
 }
