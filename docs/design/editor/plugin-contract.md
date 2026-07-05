@@ -30,9 +30,9 @@ imports a type or relies on a behavior, changing it breaks that plugin. Freezing
 A surface belongs in the freeze if, and only if, **changing it later would force a breaking
 change on external code that has bound to it.**
 
-| Verdict                  | Rule                                                                                    | Action                                                                                 |
-| ------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **Breaking-if-deferred** | A later change breaks bound external code                                               | Finalize now, even with no consumer yet                                                |
+| Verdict                  | Rule                                                                                    | Action                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Breaking-if-deferred** | A later change breaks bound external code                                               | Finalize now, even with no consumer yet                                                               |
 | **Additive-later**       | A later change only _adds_ (new field on a payload consumers receive, new optional API) | No freeze pressure — safe to change later; **whether to build it now is a separate call** (see below) |
 
 The distinction is sharper than "does it have a consumer today." A required field added to an
