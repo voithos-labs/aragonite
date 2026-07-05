@@ -178,6 +178,13 @@ test.describe('plugin-container ops simulation', () => {
 		await typeAtPath(ctx, [noteIdx, 1], ' more');
 		await checkOracles('note-body-edit');
 
+		// Command-dispatch gesture: a real minted-command chord bubbles from a
+		// callout leaf to the container handler and commits a metadataUpdate.
+		await g.pause();
+		await g.setCalloutKind();
+		expect(await containerRaw(page, 'note')).toContain(':::warning');
+		await checkOracles('note-set-kind');
+
 		// ── Split the callout body, then undo/redo the split's typing ───────────
 		await g.pause();
 		await editor.clickBlockAtPath([noteIdx, 1], 0);
