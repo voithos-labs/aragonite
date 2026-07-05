@@ -10,6 +10,7 @@ import {
 	isEditorGlobalChord,
 	resolveGlobalBinding
 } from '$lib/schema/commands';
+import { mintCommandId } from '$lib/schema/command-id';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {
@@ -26,6 +27,12 @@ describe('normalizeKeybindingOverrides', () => {
 			command: 'heading.cycle',
 			arg: 1
 		});
+	});
+
+	it('carries a non-number arg through normalization (widened for minted commands)', () => {
+		const command = mintCommandId('demo.setKind');
+		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+K', command, arg: 'warning' }]);
+		expect(lookupOverride(map, 'global', 'Mod+Shift+K')).toMatchObject({ command, arg: 'warning' });
 	});
 
 	it('compiles a disable to the "disabled" sentinel', () => {
