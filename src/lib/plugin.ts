@@ -27,10 +27,18 @@ export type { BlockOpener, OpenContext } from './schema/block-openers';
 
 // ── Command vocabulary + keybindings ─────────────────────────────────────────
 // CommandId names the built-in command a keymap binding targets; KeyBinding is
-// the per-kind chord→command shape. The command-registration surface stays off
-// this barrel until the command mint lands (roadmap 1).
+// the per-kind chord→command shape. The command-mint section below adds the
+// authoring surface for a plugin's own block-commands.
 export type { CommandId } from './schema/commands';
 export type { KeyBinding } from './schema/keybindings';
+
+// ── Command mint ─────────────────────────────────────────────────────────────
+// registerBlockCommand binds a (kind, name) block-command and returns its minted
+// PluginCommandId; the handler runs against a BlockCommandContext (focused node +
+// metadata writer). AnyCommandId spans built-in and minted ids for keymap typing.
+export { registerBlockCommand } from './schema/block-commands';
+export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
+export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 
 // ── Parse / serialize helpers ────────────────────────────────────────────────
 // The recognizer/serializer halves of an opener: parse a body to a Document,
