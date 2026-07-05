@@ -14,6 +14,7 @@ import {
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
+	registerBlockCommand,
 	registerBlockOpener,
 	registerChromeLeaf,
 	isBlockKindRegistered,
@@ -65,6 +66,17 @@ export function registerCalloutKind(): void {
 	const note = declarePluginKind(NOTE);
 	const noteTitle = declarePluginKind(NOTE_TITLE);
 
+	// A minted block-command on the note kind: a chord that bubbles from an inner
+	// leaf to the container resolves this handler, which commits the new callout
+	// type through the container's own metadata seam (→ rebuildCalloutRaw → one
+	// metadataUpdate). `arg` arrives as `unknown` off the descriptor binding — the
+	// handler type-guards it and declines an out-of-shape value.
+	const setKind = registerBlockCommand(note, 'callout.setKind', (ctx) => {
+		if (typeof ctx.arg !== 'string') return false;
+		ctx.updateMetadata({ calloutType: ctx.arg });
+		return true;
+	});
+
 	registerBlockKind(note, {
 		mergeRole: 'container',
 		editable: true,
@@ -76,7 +88,17 @@ export function registerCalloutKind(): void {
 		containerContract: 'opaque',
 		rebuildRaw: rebuildCalloutRaw,
 		reservedChrome: { kind: noteTitle },
-		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' },
+		// Mod+7/Mod+8, NOT Mod+Shift+1/2: a Shift-held digit's key token is
+		// layout-translated by the browser ('1'→'!'), so eventToChord would emit
+		// `Mod+Shift+!` and never match a digit binding. Mod+7/8 sit past the
+		// Mod+0–6 heading.cycle range and carry no Shift, so a real keypress
+		// round-trips — the same family as the built-in heading bindings. Both args
+		// are strings: the passthrough the descriptor's `unknown` arg exists to carry.
+		keymap: [
+			{ chord: 'Mod+7', command: setKind, arg: 'note' },
+			{ chord: 'Mod+8', command: setKind, arg: 'warning' }
+		]
 	});
 
 	// Reserved-child-0 chrome via the public seam: no `$lib` component import, the
