@@ -10,7 +10,7 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	const { blockListProps, containerApi } = createContainerBlock({
+	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
 		get node() {
 			return node;
 		},
@@ -36,7 +36,8 @@
 	export const revealByPath = containerApi.revealByPath;
 </script>
 
-<div class="callout-block" bind:this={boxEl}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="callout-block" bind:this={boxEl} onkeydown={handleKeydown}>
 	<BlockList {...blockListProps} />
 </div>
 

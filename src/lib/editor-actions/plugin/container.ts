@@ -22,13 +22,17 @@ import type {
 import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
+import { eventToChord } from '../../schema/keybindings';
 import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
 	CONTROLLER_KEY,
 	FOCUS_KEY,
-	STICKY_COLUMN_KEY
+	KEYBINDING_OVERRIDES_KEY,
+	STICKY_COLUMN_KEY,
+	type KeybindingOverridesGetter
 } from '../../editor-keys';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
@@ -90,6 +94,14 @@ export interface ContainerBlock {
 	 * body caret to the chrome row here (the clamp kills the window pin).
 	 */
 	updateOwnMetadata(patch: Record<string, unknown>, afterTick?: () => void): void | Promise<void>;
+	/**
+	 * Attach to the container's chrome box. A chord that bubbles from an inner
+	 * leaf (declined there without `preventDefault`) resolves against this kind's
+	 * keymap and runs its registered command, consuming the key on a hit. Kind-only
+	 * — the global tier stays with the focused leaf, so a bubbled undo/redo never
+	 * double-fires (mirrors `ListItemBlock`'s bubble handler).
+	 */
+	handleKeydown(e: KeyboardEvent): void;
 }
 
 /**
@@ -158,12 +170,38 @@ export function gateMoveFocusOnCollapse(
 	};
 }
 
+/**
+ * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
+ * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
+ * chord resolves only through a registered command, whose context routes
+ * `updateMetadata` back to this container's own metadata commit. `kind` and the
+ * context `node` are read live off `deps.node`, never snapshotted (Design Rule 5).
+ */
+export function buildContainerKindTarget(
+	deps: Pick<ContainerBlockDeps, 'node'>,
+	updateOwnMetadata: ContainerBlock['updateOwnMetadata']
+): KindCommandTarget {
+	return {
+		get kind() {
+			return deps.node.kind;
+		},
+		runCommand: () => false,
+		getCommandContext: () => ({
+			node: deps.node,
+			updateMetadata: (patch) => {
+				updateOwnMetadata(patch);
+			}
+		})
+	};
+}
+
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 
 	const listState = createBlockListState(() => deps.node);
 
@@ -277,10 +315,19 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		reorderable: true
 	};
 
-	return {
-		blockListProps,
-		containerApi,
-		updateOwnMetadata: (patch, afterTick) =>
-			parentBlockEdit.updateBlockMetadata(deps.index, patch, { afterTick })
+	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
+		parentBlockEdit.updateBlockMetadata(deps.index, patch, { afterTick });
+
+	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata);
+
+	const handleKeydown = (e: KeyboardEvent): void => {
+		if (e.defaultPrevented) return;
+		const chord = eventToChord(e);
+		if (!chord) return;
+		if (dispatchKindCommand(chord, kindTarget, keybindingOverrides())) {
+			e.preventDefault();
+		}
 	};
+
+	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown };
 }
