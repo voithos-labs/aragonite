@@ -74,6 +74,11 @@ export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
 
 const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 
+/** True when the id is part of the closed built-in vocabulary (not a minted plugin id). */
+export function isBuiltinCommandId(id: AnyCommandId): boolean {
+	return BUILTIN_COMMAND_IDS.has(id);
+}
+
 /** Test-only. Removes every command outside the closed built-in vocabulary. */
 export function __removePluginCommandsForTests(): void {
 	for (const id of globalCommands.keys()) {
@@ -84,18 +89,15 @@ export function __removePluginCommandsForTests(): void {
 const warnedUnresolvedIds = new Set<string>();
 
 /**
- * Dev-warn once per id that a bound command had no handler on the leaf path — a
- * dead key. Plugin ids dispatch via the container-bubble path; a plugin id bound
- * on a leaf kind (or a stale id after a plugin unloads) has no leaf handler.
- * Silent in production (devWarn). Also reused by the bubble-path dispatch.
+ * Dev-warn once per id that a bound command resolved to no handler — a dead key.
+ * Shared by both dispatch paths (leaf and container-bubble), so the message names
+ * no path: a plugin id bound on a kind with no registered command, or a stale id
+ * after a plugin unloads. Silent in production (devWarn).
  */
 export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
 	if (warnedUnresolvedIds.has(id)) return;
 	warnedUnresolvedIds.add(id);
-	devWarn(
-		'commands',
-		`no handler for "${id}"; key is dead (plugin commands dispatch on the bubble path)`
-	);
+	devWarn('commands', `no registered handler for command "${id}"; key is dead`);
 }
 
 /** Test-only. Clears the once-per-id warn set so each test sees a first-time warn. */
@@ -200,7 +202,7 @@ export function dispatchKeyCommand(
 	// A non-built-in id on the leaf path is a plugin id with no leaf handler (the
 	// leaf registry tier is deferred — plugin commands dispatch on the bubble path):
 	// dead-key rather than hand it to a leaf runCommand that can't resolve it.
-	if (!BUILTIN_COMMAND_IDS.has(binding.command)) {
+	if (!isBuiltinCommandId(binding.command)) {
 		warnUnresolvedPluginCommand(binding.command);
 		return false;
 	}
