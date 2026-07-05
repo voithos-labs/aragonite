@@ -89,15 +89,17 @@ export function __removePluginCommandsForTests(): void {
 const warnedUnresolvedIds = new Set<string>();
 
 /**
- * Dev-warn once per id that a bound command resolved to no handler — a dead key.
- * Shared by both dispatch paths (leaf and container-bubble), so the message names
- * no path: a plugin id bound on a kind with no registered command, or a stale id
- * after a plugin unloads. Silent in production (devWarn).
+ * Dev-warn once per id that a bound command reached no runnable handler on the
+ * dispatch path that fired — a dead key. Shared by both paths (leaf and
+ * container-bubble). "Reachable", not "registered": a handler may be registered on
+ * a kind whose dispatch tier isn't wired here — a plugin command bound on a leaf
+ * kind, where the leaf registry tier is deferred — so this signals unreachability,
+ * not necessarily a missing registration. Silent in production (devWarn).
  */
 export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
 	if (warnedUnresolvedIds.has(id)) return;
 	warnedUnresolvedIds.add(id);
-	devWarn('commands', `no registered handler for command "${id}"; key is dead`);
+	devWarn('commands', `command "${id}" reached no handler on this dispatch path; key is dead`);
 }
 
 /** Test-only. Clears the once-per-id warn set so each test sees a first-time warn. */
