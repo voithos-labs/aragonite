@@ -2,6 +2,14 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.7 — Command mint: plugin block-commands + registry fail-loud
+
+Roadmap item 1. A plugin mints a command id, binds it to a kind's keymap, and the container-bubble dispatch runs it — the first increment of a unified command registry — plus the two P0 registry fail-loud fixes the freeze needs.
+
+- **Plugin command mint.** `registerBlockCommand(kind, name, handler)` on `aragonite/plugin` mints a branded `PluginCommandId` and registers a `(kind,id)` handler; `AnyCommandId` threads plugin ids through the keymap/override/dispatch types (mirroring `AnyBlockKind`). The `:::note` callout gains a `callout.setKind` command bound to `Mod+7`/`Mod+8`, validating mint → keymap → bubble dispatch → handler → metadata commit → the existing `metadataUpdate` op end-to-end — no new op kind. `BlockCommandContext` and the handler shape join the pre-freeze plugin surface; plugin-op vocabulary stays deferred (metadata edits already emit `metadataUpdate`).
+- **Bubble dispatch single-sourced.** `dispatchKindCommand` is the one seam every container-bubble keydown routes through — resolving the registry, else the container's `runCommand`; the built-in list/blockquote/table containers migrated onto it, deleting the per-container duplication. The container factory supplies the command context (routing `updateMetadata` to `updateOwnMetadata`). The leaf path widens types and dev-warns a dead plugin-command key; its registry tier is deferred to a driver (built-in-command migration + the command palette are the unified-home follow-up).
+- **Two P0 registry fail-loud fixes.** `registerInlineWidgetKind` throws on duplicate — a plugin can no longer clobber the built-in `image`/`rawHtml` widgets process-globally; `augmentBlockKind` rejects built-in kinds via a structural `augmentBuiltin` seam kept off the public surface, closing the silent built-in-descriptor-rewrite path. Miss-analysis: the sibling entry-layer registries lacked the register-once / augment-guard tests their peers already had.
+
 ### 0.9.6 — Review hardening: corruption fixes, path-dialect unification, contract quick-wins
 
 A full four-pass audit (every Critical/Important finding independently verified) followed by
