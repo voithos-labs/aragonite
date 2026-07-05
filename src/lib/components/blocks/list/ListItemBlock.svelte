@@ -35,7 +35,7 @@
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { resolveKindBinding } from '../../../schema/commands';
+	import { dispatchKindCommand } from '../../../schema/block-commands';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 
@@ -226,17 +226,15 @@
 	}
 
 	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab
-	// declines (without preventDefault) when a listContext is present. Resolve
-	// ONLY this kind's keymap — never the global table: undo/redo belong to the
-	// focused contenteditable, whose async keydown handler preventDefaults after
-	// an await, so the event bubbles here with defaultPrevented still false. A
-	// global fallthrough would re-fire undo/redo a second time.
+	// declines (without preventDefault) when a listContext is present. Dispatch is
+	// kind-only (dispatchKindCommand): the focused contenteditable's async handler
+	// preventDefaults only after an await, so the event still bubbles here with
+	// defaultPrevented false — a global tier would re-fire its undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
-		const binding = resolveKindBinding(chord, node.kind, keybindingOverrides());
-		if (binding && runCommand(binding.command)) {
+		if (dispatchKindCommand(chord, { kind: node.kind, runCommand }, keybindingOverrides())) {
 			e.preventDefault();
 		}
 	}
