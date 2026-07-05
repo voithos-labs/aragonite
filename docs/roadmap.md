@@ -69,10 +69,12 @@ early enough that what they teach is still cheap to act on.
    rests on. Every reach-in the author needs and every doc gap they hit is a freeze blocker, fixed
    while fixing is free. (Mermaid/footnotes stay post-1.0 on purpose — they need the portal and
    inline-hook seams that are deliberately deferred; see the freeze-cut dry-run below.) It is also
-   the driver for two deferred plugin surfaces (§ Pre-freeze plugin direction decisions): prototype
-   the generic `:::name` directive primitive here — admonitions *is* a `:::` directive, so it tests
-   one generic directive opener against per-kind openers and confirms byte-lossless serialization —
-   and expose `registerPasteSurface` on the plugin barrel if the extension needs custom paste.
+   the driver for two deferred plugin surfaces (§ Pre-freeze plugin direction decisions): the generic `:::name` directive primitive is built and docs-published *before* this build starts, so
+   the clean-room author consumes it as a published API (validating its discoverability) rather than
+   co-authoring a core primitive under third-party conditions — if it is not ready in time, this build
+   runs against per-kind openers first and the directive comparison follows as a separate,
+   non-clean-room step; and `registerPasteSurface` is exposed on the plugin barrel if the extension
+   needs custom paste.
 6. **Tarball-gate the extensions** — every dogfood extension (now including the clean-room one)
    builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface
    from outside the repo at the package boundary.
@@ -129,9 +131,10 @@ not _build-now_:
   the same mechanism.
 - **Generic `:::name` directive primitive** (remark-directive) — one directive opener owning all
   `:::` syntax instead of N plugins colliding on opener priority, giving authors a lossless
-  container/leaf/text grammar. **Decided: prototype pre-freeze, driven by item 5** (admonitions _is_
-  a directive); the 1.0-vs-1.2 cut follows the prototype's byte-lossless confirmation. The per-kind
-  opener stays the general escape hatch.
+  container/leaf/text grammar. **Decided: prototype pre-freeze**, built and docs-published _before_
+  the item-5 clean-room build so that build validates its discoverability rather than co-authoring it
+  under third-party conditions (admonitions consumes it); the 1.0-vs-1.2 cut follows the prototype's
+  byte-lossless confirmation. The per-kind opener stays the general escape hatch.
 
 **Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
