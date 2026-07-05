@@ -199,21 +199,47 @@ export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescr
 	registry.set(kind, descriptor);
 }
 
-/**
- * Merge fields into an existing registration. Used by top-of-DAG wire-up
- * (components/built-in-blocks.ts) to patch in behavior that can't live in
- * this file without importing downstream layers. Throws when the kind isn't
- * already registered — no accidental creation via partial data.
- */
-export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
+// Merge fields into an existing registration; throw if the kind was never
+// registered (no accidental creation via partial data). The built-in-vs-plugin
+// gate lives in the two public entries below, not here.
+function mergeBlockKindFields(
+	entry: string,
+	kind: AnyBlockKind,
+	fields: Partial<BlockKindDescriptor>
+): void {
 	const existing = registry.get(kind);
 	if (!existing) {
 		throw new Error(
-			`augmentBlockKind: cannot augment "${kind}" — no base descriptor. ` +
-				`Call registerBlockKind first.`
+			`${entry}: cannot augment "${kind}" — no base descriptor. Call registerBlockKind first.`
 		);
 	}
 	registry.set(kind, { ...existing, ...fields });
+}
+
+/**
+ * Merge fields into a plugin's own registration. The public authoring entry.
+ * Rejects built-in kinds — a plugin augmenting a built-in silently rewrote its
+ * descriptor process-globally; built-in wire-up uses the internal augmentBuiltin
+ * seam. Also throws when the kind isn't already registered.
+ */
+export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
+	if (isBuiltinBlockKind(kind)) {
+		throw new Error(
+			`augmentBlockKind: "${kind}" is a built-in kind — the plugin surface may only augment ` +
+				`plugin-declared kinds.`
+		);
+	}
+	mergeBlockKindFields('augmentBlockKind', kind, fields);
+}
+
+/**
+ * Internal seam for augmenting a BUILT-IN descriptor. Top-of-DAG wire-up
+ * (components/built-in-blocks.ts) patches in behavior that can't live in this
+ * file without importing downstream layers. Deliberately kept off the public
+ * `aragonite/plugin` surface so a plugin can't rewrite a built-in.
+ */
+export function augmentBuiltin(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
+	mergeBlockKindFields('augmentBuiltin', kind, fields);
 }
 
 export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {

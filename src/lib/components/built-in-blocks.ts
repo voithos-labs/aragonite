@@ -13,7 +13,7 @@ import {
 	registerBlockComponent,
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
-import { augmentBlockKind } from '../schema/block-kind-descriptor';
+import { augmentBuiltin } from '../schema/block-kind-descriptor';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 import CodeBlock from './blocks/code/CodeBlock.svelte';
@@ -64,4 +64,4 @@ registerPasteSurface(tableCellPasteSurface);
 // Table owns internal cell addressing, so it registers a foreign-drag hit-test
 // the selection layer dispatches through the descriptor registry — no
 // selection→table-component import.
-augmentBlockKind('table', { foreignDragHitTest: tableDragHitTest });
+augmentBuiltin('table', { foreignDragHitTest: tableDragHitTest });

@@ -6,7 +6,7 @@ import {
 	resolveKindBinding,
 	dispatchKeyCommand
 } from '$lib/schema/commands';
-import { augmentBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {
@@ -40,7 +40,7 @@ describe('dispatchKeyCommand', () => {
 		const real = tryGetBlockKindDescriptor('paragraph')!;
 		const runCommand = vi.fn(() => true);
 		try {
-			augmentBlockKind('paragraph', {
+			augmentBuiltin('paragraph', {
 				keymap: [
 					{ chord: 'Mod+B', command: 'format.toggleStrong' },
 					{ chord: 'Mod+3', command: 'heading.cycle', arg: 3 }
@@ -51,7 +51,7 @@ describe('dispatchKeyCommand', () => {
 			expect(dispatchKeyCommand('Mod+3', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
 			expect(runCommand).toHaveBeenLastCalledWith('heading.cycle', 3);
 		} finally {
-			augmentBlockKind('paragraph', { keymap: real.keymap });
+			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
 	});
 });
@@ -60,12 +60,12 @@ describe('resolveBinding order', () => {
 	it('per-kind binding shadows the global table, falls through otherwise', () => {
 		const real = tryGetBlockKindDescriptor('paragraph')!;
 		try {
-			augmentBlockKind('paragraph', {
+			augmentBuiltin('paragraph', {
 				keymap: [{ chord: 'Mod+Z', command: 'block.split' }]
 			});
 			expect(resolveBinding('Mod+Z', 'paragraph')?.command).toBe('block.split');
 		} finally {
-			augmentBlockKind('paragraph', { keymap: real.keymap });
+			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
 		// fencedCode doesn't bind Mod+Z → falls through to the global table
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
