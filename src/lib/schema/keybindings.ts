@@ -5,12 +5,12 @@
  * uppercased. Shifted-symbol keys (e.g. Shift+1 -> '!') are not modeled —
  * no in-scope binding needs them.
  */
-import type { CommandId } from './commands';
+import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
 
 export interface KeyBinding {
 	chord: string;
-	command: CommandId;
+	command: AnyCommandId;
 	/**
 	 * Static argument baked into the binding. Widened past the built-in
 	 * `heading.cycle` level so a minted command (e.g. a `setKind` carrying a
