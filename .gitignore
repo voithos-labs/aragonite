@@ -24,6 +24,9 @@ simulation-captures/
 # Raw perf harness output; curated numbers live in baseline.json
 perf-results/
 
+# Raw conformance sweep output; the curated divergence set lives in baseline.json
+conformance-results/
+
 # Subagent-driven-development scratch (briefs, reports, progress ledger)
 .superpowers/
 
