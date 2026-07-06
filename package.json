@@ -73,6 +73,7 @@
 		"perf:editor": "vitest bench --run src/lib/test/perf",
 		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
 		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 -- playwright test --project=e2e-perf",
+		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/conformance/full-sweep.test.ts",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
