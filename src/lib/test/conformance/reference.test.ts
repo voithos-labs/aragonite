@@ -18,4 +18,19 @@ describe('referenceInlineNodes', () => {
 	it('returns null for empty input', () => {
 		expect(referenceInlineNodes('')).toBeNull();
 	});
+
+	it('returns null when the block layer trims or shifts what the inline stage sees', () => {
+		expect(referenceInlineNodes(' a')).toBeNull();
+		expect(referenceInlineNodes('a ')).toBeNull();
+		expect(referenceInlineNodes('a\n')).toBeNull();
+		expect(referenceInlineNodes('\na')).toBeNull();
+		expect(referenceInlineNodes('Foo\n    bar')).toBeNull();
+		expect(referenceInlineNodes('[foo]\n\n[foo]: /url')).toBeNull();
+		expect(referenceInlineNodes('[foo]: /url\n===\n[foo]')).toBeNull();
+	});
+
+	it('keeps flush multi-line paragraphs, including hard breaks', () => {
+		expect(referenceInlineNodes('a\nb')).not.toBeNull();
+		expect(referenceInlineNodes('line  \nbreak')).not.toBeNull();
+	});
 });
