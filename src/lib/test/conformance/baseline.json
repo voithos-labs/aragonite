@@ -1,0 +1,3681 @@
+{
+	"referenceVersion": "0.31.2",
+	"normalizerReconciliations": [
+		{
+			"what": "empty link/image title coalesced with absent",
+			"why": "commonmark 0.31.2 AST cannot distinguish [a](/u \"\") from [a](/u); its own renderer drops both"
+		}
+	],
+	"entries": [
+		{
+			"input": "<https://example.com/\\[\\>",
+			"class": "autolink-uri-charset",
+			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
+		},
+		{
+			"input": "<https://example.com?find=\\*>",
+			"class": "autolink-uri-charset",
+			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
+		},
+		{
+			"input": "<https://foo.bar.`baz>`",
+			"class": "autolink-uri-charset",
+			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
+		},
+		{
+			"input": "\n\n)b'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\n**[`&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n <\"0!\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n 𐄀'[*#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n!&中[b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n!aé*!\"中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"\"'`')",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"&(\\b]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"\\)é中中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"\\]!b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"a*`&#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\"a\\é'#]'\\𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n#<'<](中0é0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n#`]中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n&\n&0[##",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n&\"𐄀𐄀_`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n&#<'`中a#!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n&[中)a>0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n'*>ba0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n'`` !",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n( * (é&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n( abé!!'中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n(!(_( >[0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n(>'!a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n(`]``\n0b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n)\")<#(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n)a\\#[𐄀 _𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n)中)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n*!\"\"[\\>)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n*0_'< ) b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n*<)中\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n*_*[b_\n)\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n*中\n*`&#!\n#_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n<&(é_><*&)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n<0*𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n<𐄀`'*#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n====",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n[)\")`é>!<𐄀`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n[_a(*\" 0é",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n[`> _)< _",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n[中&(`[\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\ \\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\#\\0'中)[中'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\'[<é#)0éé",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\'`0)[a(!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\*\n`>!é[]>#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n\\𐄀0\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n]#\\`[!\\>0!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n]b`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n]b𐄀><\\!>0b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n_ 𐄀**a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n_!中&][b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n_#]_\"`𐄀𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n_0 \"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n_\\'&[&*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n`')[bb<>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n`<\n!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n`_#&`b&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\na<`)[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\na<é𐄀!a 0[>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\naéa&[_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\nb\"*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\né\n<中(0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\né\naa)_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\néa')[𐄀a\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\né𐄀 #𐄀`&𐄀 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n中&&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n中&𐄀a𐄀*)b\\]0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n中_中[b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n中中`中\nb<``0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n𐄀 >`_[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n𐄀\"!(]b__>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n𐄀éé_!&0>𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \n#`b*a'中>\\(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \na>[>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \n中\\aéa&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "   aaa\nbbb",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  !",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  (",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  )",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  <'&!éé>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  [",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  [)(<\n\"[é",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  \\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  ]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  _",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  `",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  `a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "  aaa\n bbb",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ! 𐄀é)\n#\\'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ![",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !\\𐄀!)<\n&[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " !a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \"0\n_![``0*<",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \"b0>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " #\"[))]] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " #)>><`!<(中]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " #<`中𐄀!`_*é",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " #中0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " & #>\n**&中𐄀<",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " &!\n*_!#>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " &#_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " &( b&ab])",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " &`é ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ' *\n&\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " '\"_b`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " '<ba((",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " '_a!é'<_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " '𐄀\\]b]'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ('<é*'\\\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ((",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ()",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (< ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ([",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (`\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (b0a\"*_𐄀\n&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " (𐄀\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )\n!*a\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )&&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ))",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )<'&𐄀[&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )>>a)&*b\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )[<<𐄀(a#!#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )`é]*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " )a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *##中(\"'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *#0é<!*& 𐄀)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *(>\"\"*&!]>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " **",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *-*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *<'& >中*#<",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *\\')",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *](!_]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *]>𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *]𐄀\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *_#\"*\n`_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " *中b[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0&<\"(]_é)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0(a中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0<)[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0<中",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0b]>b0`#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 0𐄀 \\<0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " <&&(&) #&'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " <*𐄀 中`(*中a𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " <[0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [&<'_0*`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " []",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [`>𐄀*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " [a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\&\nb!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\* é)中0(<",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " \\a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ] é中*𐄀b[𐄀b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]!0a(\n\\#`_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ](",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ])",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]*]<>#b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ][",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]`0[\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ]a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _!a'中ba&0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _*é! \n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _\\)>#\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _]&0*))",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " __",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ___0",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " _a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `(_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `__!𐄀\"#é_b",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " ``",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " `a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a\n)0\"\" &",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a& `0>é![",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a'é>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a)",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a**a!b!𐄀a a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a>(&!*`*b&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a[",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a[ &𐄀]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " a`",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " aa",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " b)\\a\n𐄀\\>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " b<*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " béé a",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " é\n(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " é*]中\"[(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " é𐄀\"  é",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 中 &𐄀'\"\"> &",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 中)`é(a!\n中&",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 中[__(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 中é&0中)*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 中é*]b#_",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 𐄀b\\(_))*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 𐄀中])\na",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": " 𐄀中中a[[]](!(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!\"<\"a#*[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!#0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!0_ a\n&!##𐄀\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!>b&\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "![ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "!𐄀0`\n\"é(é\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\"\n '0é &)<*",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\"[ é`>𐄀\" ` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\"]`_0` \n([",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\"a'` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\"b_&`é\n _",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#!\\# ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "##>*(中\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#&\n![*中 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#)\né[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#_ 中b ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#_é`>𐄀é\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#a&!<\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#é)>*\\(中#𐄀 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#𐄀\n#* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "#𐄀)中 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&&中\n\"!中0' ! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&*\\>(中#éa ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&0#]b0é ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&[b\n& ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&]!b)\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&é&'0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&é(*0 \n'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&éb\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "&中0#\\\"\n!a\n]\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "'\n)\\`(`( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "'\"<\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "'0&_\">a\"éb[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "'a\\é(0\n <",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "'é \n!bé",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(\n#\\(é\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(\"\\中*\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "('a[* _! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "((#_\n_\")\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(((0#\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "() ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "()\\[`(\n)\"\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "([ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(\\`0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(]`\\<' ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(_𐄀<#𐄀\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(a\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(a__𐄀 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(ab(*b\n #_\\\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "(𐄀_' >0]\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")\nb!\n) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ") ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ") [> ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")(`aa中a𐄀\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")00`b_&\\\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")>é(éé[\\[& ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")\\\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")`!>\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": ")𐄀<&!&_*>中a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*''\n 中&]#",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*'>中&'` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*)中&\n#(\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "** ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*[\n\\\n0é])* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*\\*\\*_&<#]] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*\\_[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*_\"\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*aé_'>_#中_\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "*𐄀< \\ *]#\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0\n*(]<\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0!\"(\\'' ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0\"中 _<!)\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0#中0'[\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0*&# ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0*(([*0&>\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "00\"0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0[>é𐄀&b#\né\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0`#a)中\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0é! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0é#&)*(\\\\ _ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "0é0\n!] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<\n\\\na'* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<!]!(aa((`\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<!_\\!0>\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<#é[(\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<[*[*\\\" ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<bb`中]\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "<𐄀]'_\\ \n中_0(",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "Foo\n    ***",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "Foo\n    ---",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "Foo\n    bar\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "['中&b]0\n𐄀 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[< !中> ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[>#é* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[[ &(&<) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[\\ \n\"[b\\>\\",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[b(>*>*([é\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[é\"é>a\n #]",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "[é_&é_&\n _",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\!\n !(<_\")0𐄀",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\\\[)a][& ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\\\[𐄀]\n_&'中0 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\]𐄀)#  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\\𐄀'0a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]\n0\\\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "] &\n&*<('中\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]&\n \"]<_𐄀!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]&]\"a<# ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "])0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]<`\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "][ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]_!b!*中_!&a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "]a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_\n\\#>a(中é ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_*é \n0\\aa",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_<'\n \\>&!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_>)b ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_[_`中&_'\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_\\__\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "__ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_中!\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "_中b ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`\"(!aéb[<a#\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`&>]>é'𐄀\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`0#( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`0<b\n 0# \n(>",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`>'a>\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`>0\n\"( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`\\[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "``\"'\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`a[(![[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`b𐄀b]\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`中 *𐄀\"`)a\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`𐄀\n \"[*b<<]'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`𐄀)&𐄀\"\n\"<\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "`𐄀)(中<&`0 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a\n éb>!\\𐄀𐄀中\"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a'#!'>\\[* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a( ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a) ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a0<*))]中_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a<ab\\)0b\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a[]b ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a[𐄀_ >#_é< ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a_ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a_<><<#' ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "aa ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "aaa\n             bbb\n                                       ccc",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "aaa     \nbbb     ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "ab& \n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "abé__\"中\n\"\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "a中&!<)\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b!#\"0 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b\"é>\\ \n𐄀)𐄀𐄀!",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b#\\\n!b]\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b0]\n中]\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b]\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b]é!baé0\"<中 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "b_([_<\" ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "ba()中\"中a\" ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "bé] ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "foo\n    # bar",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "foo \n baz",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "foo  ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "foo  \n     bar",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "foo\\\n     bar",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é\n *`<]é' *",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é ![𐄀\\\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é#<_\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é'&\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é(中[\\`a& #[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é*\" ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é<𐄀#a' ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é\\[(!(\\>\n\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é]_! ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é中* ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "é𐄀<中b` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中 \n*\\!`a \"",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中 𐄀]中\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中!'𐄀(\\[&𐄀` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中\"` ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中&\n <\"中'",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中&'*𐄀ba\"\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中] 𐄀 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中a[!]\n ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中é\nb\n<(<0[0 ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中𐄀\"&)\\ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "中𐄀&< 𐄀中b\\\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀# `'中[ ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀&0[`aa*\\' ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀'>(<0a\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀<`\">)'0\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀\\_\\é\n\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀_'é*a]>>\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀b& ",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀é<b\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "𐄀é>\né\\b#é\n",
+			"class": "block-edge-whitespace",
+			"note": "commonmark's block layer strips line-edge whitespace and edge blank lines before inline parsing; aragonite parses the raw bytes — both agree on the block-preprocessed form"
+		},
+		{
+			"input": "\n[`\n`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "'`𐄀> \n0`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "(中)_\n<)𐄀`\n`*",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": ")b]`0\n𐄀*`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "<>`\n\"`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "\\[`[\n&`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`  ``  `",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "` `` `",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "` foo `` bar `",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`#[\n`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`&# \n中 &\"`é",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "``\nfoo\n``",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "``\nfoo\nbar  \nbaz\n``",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "``\nfoo \n``",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`` \\[\\` ``",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`` foo ` bar ``",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "``` aa ```\nfoo",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`code  \nspan`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`code\\\nspan`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "`foo   bar \nbaz`",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "a`\n`中'#]>",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "中` 𐄀\"]\n<#`>",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "中`0\n! `b",
+			"class": "code-span-folding",
+			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+		},
+		{
+			"input": "#'*<'<*𐄀]é> ",
+			"class": "emphasis-flanking-astral",
+			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "*#a𐄀_#\\!𐄀)_",
+			"class": "emphasis-flanking-astral",
+			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "_`中b_𐄀中中(a ]",
+			"class": "emphasis-flanking-astral",
+			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "𐄀*)*\"(''aé",
+			"class": "emphasis-flanking-astral",
+			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "< https://foo.bar >",
+			"class": "gfm-bare-autolink",
+			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "foo@bar.example.com",
+			"class": "gfm-bare-autolink",
+			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "https://example.com",
+			"class": "gfm-bare-autolink",
+			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "<a href=\"`\">`",
+			"class": "html-inline-parsing",
+			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
+		},
+		{
+			"input": "[foo <bar attr=\"](baz)\">",
+			"class": "html-inline-parsing",
+			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
+		},
+		{
+			"input": "foo <a href=\"&ouml;\">",
+			"class": "html-inline-parsing",
+			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
+		},
+		{
+			"input": "foo <a href=\"\\*\">",
+			"class": "html-inline-parsing",
+			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
+		},
+		{
+			"input": "![[[foo](uri1)](uri2)](uri3)",
+			"class": "image-alt-structure",
+			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
+		},
+		{
+			"input": "![foo ![bar](/url)](/url2)",
+			"class": "image-alt-structure",
+			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
+		},
+		{
+			"input": "![foo [bar](/url)](/url2)",
+			"class": "image-alt-structure",
+			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
+		},
+		{
+			"input": "![foo](<url>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[a](<b)c\n[a](<b)c>\n[a](<b>c)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[a](<b)c>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[foo<https://example.com/?search=](uri)>",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](   /uri\n  \"title\"  )",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](/url \"title \\\"&quot;\")",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](/url \"title\")\n[link](/url 'title')\n[link](/url (title))",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](</my uri>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](<>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](<foo\nbar>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](<foo(and(bar)>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](<foo\\>)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](\\(foo\\))",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](foo\nbar)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](foo(and(bar))",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](foo(and(bar)))",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](foo\\(and\\(bar\\))",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](foo\\)\\:)",
+			"class": "link-destination-parsing",
+			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
+		},
+		{
+			"input": "[link](/url \"title\")",
+			"class": "link-nbsp-whitespace",
+			"note": "ours treats U+00A0 as the destination/title separator; commonmark splits only on ASCII space/tab"
+		},
+		{
+			"input": "   [foo]: \n      /url  \n           'the title'  \n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![*foo* bar]\n\n[*foo* bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![*foo* bar][]\n\n[*foo* bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![Foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![Foo][]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo *bar*]\n\n[foo *bar*]: train.jpg \"train & tracks\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo *bar*][]\n\n[foo *bar*]: train.jpg \"train & tracks\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo *bar*][foobar]\n\n[FOOBAR]: train.jpg \"train & tracks\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo] \n[]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo][]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo][bar]\n\n[BAR]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "![foo][bar]\n\n[bar]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "!\\[foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "*[foo*][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[\nfoo\n]: /url\nbar",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[![moon](moon.jpg)][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[*foo* bar]\n\n[*foo* bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[*foo* bar][]\n\n[*foo* bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[FOO]: /url\n\n[Foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[Foo\n  bar]: /url\n\n[Baz][Foo bar]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[Foo bar]:\n<my url>\n'title'\n\n[Foo bar]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[Foo*bar\\]]:my_(url) 'title (with parens)'\n\n[Foo*bar\\]]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[Foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[Foo][]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[[*foo* bar]]\n\n[*foo* bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[[bar [foo]\n\n[foo]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[bar\\\\]: /uri\n\n[bar\\\\]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[bar][foo\\!]\n\n[foo!]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo *bar [baz][ref]*][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo *bar][ref]*\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo <bar attr=\"][ref]\">\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo [bar](/uri)][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo*]: /url\n\n*[foo*]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo<https://example.com/?search=][ref]>\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n\n[foo]: /bar\\* \"ti\\*tle\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n\n[foo]: /f&ouml;&ouml; \"f&ouml;&ouml;\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n\n[foo]: first\n[foo]: second",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n\n[foo]: url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]\n[bar]\n\n[bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo] \n[]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo] [bar]\n\n[bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo] bar\n\n[foo]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]()\n\n[foo]: /url1",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo](not a link)\n\n[foo]: /url1",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]:\n/url\n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /foo-url \"foo\"\n[bar]: /bar-url\n  \"bar\"\n[baz]: /baz-url\n\n[foo],\n[bar],\n[baz]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url\n\"title\" ok",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url\n===\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url \"title\"\n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url '\ntitle\nline1\nline2\n'\n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url1\n\n[foo]: /url2\n\n[bar][foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: /url\\bar\\*baz \"foo\\\"bar\\baz\"\n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo]: <>\n\n[foo]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][BaR]\n\n[bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][]\n\n[foo]: /url1",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][bar]\n\n[bar]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][bar]\n\n[foo]: /url1\n[bar]: /url2",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][bar][baz]\n\n[baz]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][bar][baz]\n\n[baz]: /url1\n[bar]: /url2",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][bar][baz]\n\n[baz]: /url1\n[foo]: /url2",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo][ref\\[]\n\n[ref\\[]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo`][ref]`\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[link *foo **bar** `#`*][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[link [foo [bar]]][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[link \\[bar][ref]\n\n[ref]: /uri",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[ΑΓΩ]: /φου\n\n[αγω]",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[ẞ]\n\n[SS]: /url",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "\\![foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "\\[foo]\n\n[foo]: /url \"title\"",
+			"class": "link-reference-definition",
+			"note": "commonmark consumes the definition and resolves the reference; the harness feeds raw text to parseInline with no resolver"
+		},
+		{
+			"input": "[foo *[bar [baz](/uri)](/uri)*](/uri)",
+			"class": "links-in-links",
+			"note": "commonmark forbids links inside links and keeps the innermost; ours nests and keeps the outermost"
+		},
+		{
+			"input": "[foo [bar](/uri)](/uri)",
+			"class": "links-in-links",
+			"note": "commonmark forbids links inside links and keeps the innermost; ours nests and keeps the outermost"
+		},
+		{
+			"input": "[foo](/bar\\* \"ti\\*tle\")",
+			"class": "url-encoding",
+			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+		},
+		{
+			"input": "[foo](/f&ouml;&ouml; \"f&ouml;&ouml;\")",
+			"class": "url-encoding",
+			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+		},
+		{
+			"input": "[link](\"title\")",
+			"class": "url-encoding",
+			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+		},
+		{
+			"input": "[link](foo%20b&auml;)",
+			"class": "url-encoding",
+			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+		},
+		{
+			"input": "[link](foo\\bar)",
+			"class": "url-encoding",
+			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+		}
+	]
+}

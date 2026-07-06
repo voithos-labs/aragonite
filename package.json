@@ -35,6 +35,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "npm run test:editor && npm run test:e2e",
 		"test:editor": "vitest run --passWithNoTests",
+		"test:editor:conformance": "vitest run src/lib/test/conformance --passWithNoTests",
 		"test:editor:core": "vitest run src/lib/test/core --passWithNoTests",
 		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations --passWithNoTests",
 		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions --passWithNoTests",
