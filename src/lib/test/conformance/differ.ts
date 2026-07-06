@@ -4,7 +4,7 @@
  * harness bug that must surface, never be counted as a divergence or a skip.
  */
 import { parseInline } from '../../core/inline';
-import { referenceInlineNodes } from './reference';
+import { referenceInlineReading, type ReferenceSkip } from './reference';
 import { normalizeAragonite, normalizeReference, normalEqual, type NormalNode } from './normalize';
 
 export interface Divergence {
@@ -21,30 +21,42 @@ export function diffInput(input: string): Divergence | null {
 export function runDiff(inputs: string[]): {
 	divergences: Divergence[];
 	skipped: number;
+	skippedNotParagraph: number;
+	skippedPartialSpan: number;
 	compared: number;
 } {
 	const divergences: Divergence[] = [];
-	let skipped = 0;
+	let skippedNotParagraph = 0;
+	let skippedPartialSpan = 0;
 	let compared = 0;
 	for (const input of inputs) {
 		const outcome = evaluateInput(input);
-		if (outcome === 'skipped') {
-			skipped++;
+		if (outcome === 'not-single-paragraph') {
+			skippedNotParagraph++;
+			continue;
+		}
+		if (outcome === 'partial-span') {
+			skippedPartialSpan++;
 			continue;
 		}
 		compared++;
 		if (outcome !== 'equal') divergences.push(outcome);
 	}
-	return { divergences, skipped, compared };
+	return {
+		divergences,
+		skipped: skippedNotParagraph + skippedPartialSpan,
+		skippedNotParagraph,
+		skippedPartialSpan,
+		compared
+	};
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** Skipped = the input is not a single reference paragraph, so has no inline reading. */
-function evaluateInput(input: string): 'skipped' | 'equal' | Divergence {
-	const referenceNodes = referenceInlineNodes(input);
-	if (referenceNodes === null) return 'skipped';
-	const theirs = normalizeReference(referenceNodes);
+function evaluateInput(input: string): ReferenceSkip | 'equal' | Divergence {
+	const reading = referenceInlineReading(input);
+	if ('skip' in reading) return reading.skip;
+	const theirs = normalizeReference(reading.nodes);
 	const ours = normalizeAragonite(parseInline(input, 0, input.length), input);
 	return normalEqual(ours, theirs) ? 'equal' : { input, ours, theirs };
 }
