@@ -7,6 +7,11 @@ describe('diffInput', () => {
 		expect(diffInput('a\n\nb')).toBeNull();
 	});
 
+	it('returns null when the reference paragraph does not span the whole input', () => {
+		expect(diffInput(' a')).toBeNull();
+		expect(diffInput('[foo]\n\n[foo]: /url')).toBeNull();
+	});
+
 	it('returns null when both parsers agree', () => {
 		expect(diffInput('*emphasis* and `code`')).toBeNull();
 	});
@@ -21,10 +26,12 @@ describe('diffInput', () => {
 });
 
 describe('runDiff', () => {
-	it('partitions inputs into skipped, equal, and divergent', () => {
-		const { divergences, skipped, compared } = runDiff(['# heading', 'plain', '`  a  `']);
-		expect(skipped).toBe(1);
-		expect(compared).toBe(2);
-		expect(divergences.map((d) => d.input)).toEqual(['`  a  `']);
+	it('partitions inputs into skipped, equal, and divergent, with skip reasons', () => {
+		const result = runDiff(['# heading', ' a', 'plain', '`  a  `']);
+		expect(result.skipped).toBe(2);
+		expect(result.skippedNotParagraph).toBe(1);
+		expect(result.skippedPartialSpan).toBe(1);
+		expect(result.compared).toBe(2);
+		expect(result.divergences.map((d) => d.input)).toEqual(['`  a  `']);
 	});
 });

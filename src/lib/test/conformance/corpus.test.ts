@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { referenceInlineNodes, REFERENCE_VERSION } from './reference';
+import { referenceInlineReading, REFERENCE_VERSION } from './reference';
 import {
 	ENUM_ALPHABET,
 	RANDOM_EXTRAS,
@@ -74,12 +74,18 @@ describe('sampleCorpus', () => {
 // ── Spec-example fixture ─────────────────────────────────────────────────────
 
 describe('loadSpecExamples', () => {
-	it('yields the inline-only subset of the pinned spec, all parseable', () => {
+	it('yields single-paragraph spec examples, mostly readable under the span guard', () => {
 		const examples = loadSpecExamples();
 		expect(examples.length).toBeGreaterThan(100);
+		let readable = 0;
 		for (const { markdown } of examples) {
-			expect(referenceInlineNodes(markdown.replace(/\n$/, ''))).not.toBeNull();
+			const reading = referenceInlineReading(markdown.replace(/\n$/, ''));
+			if ('nodes' in reading) readable++;
+			// The fixture filter selected single-paragraph docs; the span guard may
+			// still skip ones the block layer trims, but never for paragraph shape.
+			else expect(reading.skip).toBe('partial-span');
 		}
+		expect(readable).toBeGreaterThan(200);
 	});
 
 	it('carries section and example provenance for each entry', () => {
