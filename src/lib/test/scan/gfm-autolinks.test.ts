@@ -14,9 +14,9 @@ import {
 	textNode
 } from './scan-test-helpers';
 
-// GFM bare/www/email autolinks over text runs, ported from the old pipeline's
-// links.ts §6.9 section — the old parser is the oracle (the reference has no
-// autolink extension), except where a divergence is named inline.
+// GFM §6.9 bare/www/email autolinks over text runs. The reference has no
+// autolink extension, so these shapes are pinned here rather than by the
+// conformance ratchet.
 
 describeScanCases('bare autolinks as the only content (fast-bail seam)', [
 	// These inputs contain no unconditional special character: if the bail
@@ -133,11 +133,11 @@ describeScanCases('autolinks interleave with emphasis and links', [
 describe('child walk under deep image nesting (DoS guard)', () => {
 	it('pathological nesting parses without overflow and stays near-linear', () => {
 		// 20k-deep `![…](u)` nesting — commonmark semantics build one image per
-		// level, the class the old pipeline's bracket depth cap kept unreachable.
-		// A per-level recursion in the autolink child walk overflows the call
-		// stack here, and an unbounded dimension-suffix search over each level's
-		// label goes quadratic. The generous bound fails both shapes on any
-		// machine while leaving the linear one two orders of magnitude of room.
+		// level. A per-level recursion in the autolink child walk overflows the
+		// call stack here; the wall-clock bound is a coarse DoS backstop for
+		// gross super-linear blowups (the dimension-suffix quadratic this depth
+		// once exposed is pinned exactly by the bounded-suffix edge case in
+		// core/inline/image-dimensions.test.ts, not by this clock).
 		const depth = 20000;
 		const raw = '!['.repeat(depth) + 'a' + '](u)'.repeat(depth);
 		const startedAt = performance.now();
@@ -145,13 +145,16 @@ describe('child walk under deep image nesting (DoS guard)', () => {
 		const elapsed = performance.now() - startedAt;
 		expect(elapsed).toBeLessThan(2000);
 		expect(nodes).toHaveLength(1);
-		// Iterative descent: a recursive assertion would itself overflow.
+		// Iterative descent with conditional throws: 20k expect() calls are
+		// pure overhead, and a recursive assertion would itself overflow.
 		let node = nodes[0];
 		let imagesSeen = 0;
 		while (node.kind === 'image') {
 			imagesSeen++;
-			expect(node.children).toHaveLength(1);
-			node = node.children![0];
+			if (node.children?.length !== 1) {
+				throw new Error(`image at depth ${imagesSeen} has ${node.children?.length} children`);
+			}
+			node = node.children[0];
 		}
 		expect(imagesSeen).toBe(depth);
 		expect(node).toEqual(textNode(depth * 2, depth * 2 + 1, 'a'));

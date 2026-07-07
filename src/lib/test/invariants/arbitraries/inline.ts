@@ -2,7 +2,7 @@ import fc from 'fast-check';
 
 // Inline content fragments: emphasis/strong/strike runs, code spans, links,
 // autolinks, escapes, entities, hard breaks, and plain words — interleaved so
-// the emphasis matcher, code-span pre-pass, and link scanner all see realistic
+// the emphasis matcher, code-span handler, and bracket stack all see realistic
 // adjacency. Image and `<br>` fragments are excluded: they render as atomic
 // widgets (0 textContent) and images expose a parsed `alt` that diverges from
 // raw bytes, so the widget-free spine property (G2.4) and the offset partition
