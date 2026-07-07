@@ -61,6 +61,7 @@ Test files under `test/invariants/` (arbitraries in `test/invariants/arbitraries
 | G2.8  | Split/merge round-trip + id↔ref↔children alignment (all scopes) | P·N   | `structural-id-ref-alignment.test.ts`                                      |
 | G2.9  | Paste op-kind dual-emit                                         | P     | `paste-op-kind.test.ts`                                                    |
 | G2.10 | Sticky-column matrix + capture-without-reset guard (jsdom)      | P·A   | `sticky-column-matrix.test.ts`, `lint/sticky-column-capture-reset.test.ts` |
+| G2.11 | Inline scan total coverage + construct tiling + kind vocabulary | P     | `inline-total-coverage.property.test.ts`                                   |
 
 ## Group 3 — Compile-time type guards (T)
 
