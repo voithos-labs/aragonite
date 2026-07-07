@@ -16,7 +16,6 @@ import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
 import { assertInvariant, type InvariantViolation } from '../invariants/assert';
 import {
 	checkRegistryCompleteness,
-	checkIsContainerIffRebuildRaw,
 	checkOpenerRegistry,
 	checkKeymapCoherence,
 	checkReservedChromeCoherence,
@@ -45,11 +44,6 @@ const hasDescriptor = (kind: AnyBlockKind): boolean =>
 
 const hasComponent = (kind: AnyBlockKind): boolean => getBlockComponent(kind) !== undefined;
 
-const pairingOf = (kind: AnyBlockKind): { isContainer: boolean; hasRebuildRaw: boolean } => {
-	const d = tryGetBlockKindDescriptor(kind);
-	return { isContainer: d?.isContainer ?? false, hasRebuildRaw: d?.rebuildRaw !== undefined };
-};
-
 const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({ kind, keymap: tryGetBlockKindDescriptor(kind)?.keymap }));
 
@@ -66,7 +60,7 @@ const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/3/10/11/17/18). First call sweeps the
+ * Run the registry coherence checks (G1.2/10/11/17/18). First call sweeps the
  * whole world — bootstrap semantics; later calls validate only the kinds
  * registered since the previous flush, plus opener coherence over the full
  * registry (a new opener's priority collision is inherently cross-entry).
@@ -87,7 +81,6 @@ export function flushPendingRegistrationChecks(
 	// a plugin kind's component may legitimately register on its own schedule, so
 	// reservedChrome coherence — not completeness — is the plugin-kind bootstrap check.
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
-	report('container-rebuild-pairing', () => checkIsContainerIffRebuildRaw(kinds, pairingOf));
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 	report('keymap-coherence', () =>
 		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord)

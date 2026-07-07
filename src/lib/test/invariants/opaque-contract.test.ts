@@ -32,18 +32,18 @@ function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind 
 	registerBlockKind(title, {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		isContainer: false,
 		supportsInline: false,
 		contextDependentKind: true
 	});
 	registerBlockKind(note, {
 		mergeRole: 'container',
 		editable: true,
-		isContainer: true,
 		supportsInline: false,
-		containerContract: 'opaque',
-		rebuildRaw: rebuildNoteRaw,
-		...(opts.declareChrome ? { reservedChrome: { kind: title } } : {})
+		container: {
+			contract: 'opaque',
+			rebuildRaw: rebuildNoteRaw,
+			...(opts.declareChrome ? { reservedChrome: { kind: title } } : {})
+		}
 	});
 	registerBlockOpener(note, {
 		priority: 45,
@@ -99,10 +99,8 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'container',
 			editable: true,
-			isContainer: true,
 			supportsInline: false,
-			containerContract: 'opaque',
-			rebuildRaw: () => {}
+			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		// raw deliberately diverges from serialize(children) — the opaque contract.
 		const node: CstNode = {
@@ -223,10 +221,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'container',
 			editable: true,
-			isContainer: true,
 			supportsInline: false,
-			containerContract: 'opaque',
-			rebuildRaw: () => {}
+			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		const node: CstNode = {
 			kind,

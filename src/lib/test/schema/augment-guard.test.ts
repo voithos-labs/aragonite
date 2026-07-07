@@ -11,7 +11,6 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 const minimal = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false
 } as const;
 
@@ -33,6 +32,22 @@ describe('augmentBlockKind rejects built-in kinds', () => {
 		registerBlockKind(kind, minimal);
 		augmentBlockKind(kind, { renderImagesAsWidgets: true });
 		expect(tryGetBlockKindDescriptor(kind)?.renderImagesAsWidgets).toBe(true);
+	});
+});
+
+describe('container-group augments are gated on the registered category', () => {
+	it('throws for a plugin kind registered as a leaf', () => {
+		const kind = declarePluginKind('leafNoContainerAugment');
+		registerBlockKind(kind, minimal);
+		expect(() => augmentBlockKind(kind, { container: { rebuildRaw: () => {} } })).toThrow(
+			/registered as a leaf/
+		);
+	});
+
+	it('augmentBuiltin shares the gate — a built-in leaf refuses container fields', () => {
+		expect(() => augmentBuiltin('paragraph', { container: { rebuildRaw: () => {} } })).toThrow(
+			/registered as a leaf/
+		);
 	});
 });
 
