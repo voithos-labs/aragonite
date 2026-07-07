@@ -2,15 +2,31 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import type { InvariantViolation } from '$lib/invariants/assert';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
-import { flushPendingRegistrationChecks } from '$lib/schema/registration-checks';
+import {
+	flushPendingRegistrationChecks,
+	hasPendingRegistrationChecks
+} from '$lib/schema/registration-checks';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind, type BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { registerBlockCommand } from '$lib/schema/block-commands';
 import {
 	registerBlockOpener,
 	getOrderedOpeners,
 	type BlockOpener
 } from '$lib/schema/block-openers';
+import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
+import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+
+const container: BlockKindDescriptor = {
+	mergeRole: 'container',
+	editable: true,
+	isContainer: true,
+	containerContract: 'opaque',
+	rebuildRaw: () => {},
+	supportsInline: false
+};
 
 const leaf: BlockKindDescriptor = {
 	mergeRole: 'not-mergeable',
@@ -35,7 +51,12 @@ function collector() {
 	return { violations, report, byTag };
 }
 
-beforeEach(() => __resetSchemaRegistriesForTests());
+// registerChromeLeaf also registers a register-once paste surface, which the
+// schema reset does not clear; reset it so chrome-leaf batches don't accumulate.
+beforeEach(() => {
+	__resetSchemaRegistriesForTests();
+	__resetPasteSurfacesForTests();
+});
 
 describe('checkLateOpenerRegistration', () => {
 	it('passes while the grammar is unconsumed', () => {
@@ -65,22 +86,16 @@ describe('flushPendingRegistrationChecks', () => {
 		expect(byTag('late-opener-registration')).toHaveLength(1);
 	});
 
-	it('tolerates forward references inside a registration batch', () => {
+	it('tolerates forward references in a coherent callout-shaped batch', () => {
 		flushPendingRegistrationChecks();
-		const container = declarePluginKind('fwd-container');
+		const calloutKind = declarePluginKind('fwd-container');
 		const title = declarePluginKind('fwd-title');
-		// Opener lands before its descriptor; reservedChrome names a kind
-		// registered later in the same batch — nothing may fire mid-batch.
-		registerBlockOpener(container, opener(102));
-		registerBlockKind(container, {
-			...leaf,
-			mergeRole: 'container',
-			isContainer: true,
-			containerContract: 'opaque',
-			rebuildRaw: () => {},
-			reservedChrome: { kind: title }
-		});
-		registerBlockKind(title, { ...leaf, contextDependentKind: true });
+		// Opener lands before its descriptor; reservedChrome names a chrome kind
+		// registered later in the same batch via registerChromeLeaf — nothing may
+		// fire mid-batch, and the completed batch is fully coherent.
+		registerBlockOpener(calloutKind, opener(9102));
+		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+		registerChromeLeaf(title, TextEditableBlock);
 
 		const { violations, report } = collector();
 		flushPendingRegistrationChecks(report);
@@ -122,23 +137,95 @@ describe('flushPendingRegistrationChecks', () => {
 		getOrderedOpeners();
 		const stale = declarePluginKind('stale-kind');
 		registerBlockKind(stale, leaf);
-		registerBlockOpener(stale, opener(105));
+		registerBlockOpener(stale, opener(9105));
 
 		__resetSchemaRegistriesForTests();
 
-		// Post-reset registrations are bootstrap again: not enqueued, so the
-		// broken keymap below must NOT surface (first-flush latch cleared), and
-		// the opener must NOT warn late (grammar latch cleared).
+		// Post-reset registrations are bootstrap again: the first-flush latch is
+		// cleared, so they no-op the enqueue (nothing pending) rather than queueing
+		// as incremental, and the opener must NOT warn late (grammar latch cleared).
 		const fresh = declarePluginKind('post-reset');
-		registerBlockKind(fresh, {
-			...leaf,
-			keymap: [{ chord: 'Mod+B', command: 'no.such.command' as never }]
-		});
-		registerBlockOpener(fresh, opener(106));
+		registerBlockKind(fresh, leaf);
+		registerBlockOpener(fresh, opener(9106));
+		expect(hasPendingRegistrationChecks()).toBe(false);
 
 		const { report, byTag } = collector();
 		flushPendingRegistrationChecks(report);
 		expect(byTag('late-opener-registration')).toEqual([]);
+	});
+});
+
+// The first flush sweeps the live registry (getAllRegisteredKinds), not just the
+// built-in ALL_BLOCK_KINDS, so a plugin registered before the first mount is
+// validated like any other — the roadmap's pre-mount coverage gap.
+describe('registry-derived first-flush sweep', () => {
+	it('flags a pre-mount plugin keymap binding an unknown command', () => {
+		const kind = declarePluginKind('pre-mount-keymap');
+		registerBlockKind(kind, {
+			...leaf,
+			keymap: [{ chord: 'Mod+B', command: 'no.such.command' as never }]
+		});
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('keymap-coherence')).toHaveLength(1);
+		expect(byTag('keymap-coherence')[0].violation.message).toContain('pre-mount-keymap');
+	});
+
+	it('accepts a pre-mount plugin keymap binding its own minted command', () => {
+		const kind = declarePluginKind('pre-mount-command');
+		const command = registerBlockCommand(kind, 'toggleThing', () => true);
+		registerBlockKind(kind, { ...leaf, keymap: [{ chord: 'Mod+K', command }] });
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
 		expect(byTag('keymap-coherence')).toEqual([]);
+	});
+
+	it('accepts a coherent pre-mount callout-shaped batch', () => {
+		const title = declarePluginKind('boot-title');
+		registerChromeLeaf(title, TextEditableBlock);
+		const calloutKind = declarePluginKind('boot-container');
+		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+		registerBlockOpener(calloutKind, opener(9107));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('reserved-chrome-coherence')).toEqual([]);
+		expect(byTag('keymap-coherence')).toEqual([]);
+		expect(byTag('opener-registry')).toEqual([]);
+	});
+});
+
+describe('reservedChrome coherence at the flush', () => {
+	it('flags a declarer that is not a container (incremental flush)', () => {
+		flushPendingRegistrationChecks();
+		const title = declarePluginKind('rc-chrome');
+		registerChromeLeaf(title, TextEditableBlock);
+		const declarer = declarePluginKind('rc-non-container');
+		registerBlockKind(declarer, { ...leaf, reservedChrome: { kind: title } });
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('reserved-chrome-coherence')).toHaveLength(1);
+		expect(byTag('reserved-chrome-coherence')[0].violation.detail).toMatchObject({
+			kind: 'rc-non-container',
+			issue: 'not-container'
+		});
+	});
+
+	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
+		const title = declarePluginKind('rc-descriptor-only');
+		registerBlockKind(title, { ...leaf, contextDependentKind: true });
+		const calloutKind = declarePluginKind('rc-container');
+		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('reserved-chrome-coherence')).toHaveLength(1);
+		expect(byTag('reserved-chrome-coherence')[0].violation.detail).toMatchObject({
+			chromeKind: 'rc-descriptor-only',
+			missing: 'component'
+		});
 	});
 });
