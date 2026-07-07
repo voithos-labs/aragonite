@@ -43,15 +43,14 @@ There is no function that maps an inline offset into the container's `raw`, beca
 
 ### Parsing pipeline
 
-1. **Backtick code spans** — match balanced backtick sequences; content is literal
-2. **Backslash escapes** — neutralize the next ASCII-punctuation character so it cannot start markup
-3. **Character references** — recognize named, decimal, and hex HTML entities; source remains intact
-4. **Links, images, autolinks** — `[text](url)`, `![alt](url)`, `<url>`, and bare URL autolinks in one pass over unoccupied text
-5. **Raw HTML** — claim inline HTML tags as literal ranges; runs after links so autolinks win for `<url>`/`<email>`, and before emphasis so `*`/`_` inside tag attributes cannot pair as delimiters
-6. **Delimiter runs + emphasis** — classify `*`/`_`/`~~` using flanking rules, match via the CommonMark algorithm, recurse for nesting
-7. **Post-processing** — hard line breaks (trailing `\` or two spaces before `\n`), then merge adjacent text nodes
+A single left-to-right scan — the commonmark.js reference architecture — with a plain-text fast bail: content with no construct-starting character short-circuits to one text node, keeping the per-keystroke hot path O(n) with no allocation.
 
-Stage order is load-bearing. Code spans claim ranges first so escapes and entities stay inert inside them; escapes and entities run before emphasis so a neutralized `*` or `_` cannot pair as a delimiter.
+- **Character dispatch** — each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks, raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text.
+- **Delimiter stack** — `*`/`_`/`~~` runs are classified as opener/closer by the flanking rules and pushed; pairing is deferred.
+- **Bracket stack** — `[`/`![` push a candidate; `]` attempts an inline or reference link/image, and on success pairs emphasis over the construct's interior (links never contain links; a reference-form label with no matching definition commits to an `unresolvedReference` node).
+- **Deferred passes** — GFM bare autolinks claim maximal text runs (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge.
+
+Precedence is positional: the construct that completes earliest claims its bytes and the scan never re-enters a claimed range, so code spans, autolinks, and raw HTML are mutually inert with no occupied-range bookkeeping — sibling overlap is structurally unrepresentable.
 
 ### Separation from block parser
 

@@ -16,9 +16,14 @@ import type { InlineNode } from '../../nodes';
 import { ESCAPABLE_PUNCTUATION } from '../escapes';
 import { parseImageDimensions } from '../image-dimensions';
 import { normalizeLinkLabel, type ResolvedReference } from '../link-reference-resolver';
-import { mergeAdjacentText } from '../post-process';
 import { processEmphasis } from './emphasis';
-import { appendNode, flushPendingText, type Bracket, type ScanContext } from './scan-state';
+import {
+	appendNode,
+	flushPendingText,
+	mergeAdjacentText,
+	type Bracket,
+	type ScanContext
+} from './scan-state';
 import { processDestination, unescapeSpecString } from './url';
 
 // ── Scan-time handlers ──────────────────────────────────────────────────────

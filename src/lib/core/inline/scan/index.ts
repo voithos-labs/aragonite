@@ -1,19 +1,16 @@
 /**
  * scanInline — single-pass inline scanner (the CommonMark reference
- * architecture), the staged pipeline's cutover replacement. Same contract as
- * parseInline: InlineNode[] with absolute offsets into raw, total coverage
- * of [start, end). Nothing outside scan/ and its tests may import this until
- * cutover.
+ * architecture), exported as `parseInline` from ../index.ts. Contract:
+ * InlineNode[] with absolute offsets into raw, total coverage of [start, end).
  */
 
 import type { InlineNode } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
-import { mergeAdjacentText } from '../post-process';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
 import { handleDelimiter, processEmphasis } from './emphasis';
-import { createScanContext, flushPendingText } from './scan-state';
+import { createScanContext, flushPendingText, mergeAdjacentText } from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
 
 // Every character that can start a construct or anchor a lookback: the
@@ -105,8 +102,8 @@ export function scanInline(
 		}
 	}
 	flushPendingText(ctx, ctx.end);
-	// GFM bare autolinks claim their bytes before emphasis pairs (the old
-	// pipeline's stage order): a delimiter absorbed into a URL must not pair.
+	// GFM bare autolinks claim their bytes before emphasis pairs: a delimiter
+	// absorbed into a URL must not pair.
 	scanGfmAutolinks(ctx);
 	processEmphasis(ctx, 0);
 	return mergeAdjacentText(ctx.nodes);

@@ -99,3 +99,18 @@ export function appendNode(ctx: ScanContext, node: InlineNode): void {
 	ctx.pos = node.end;
 	ctx.textStart = node.end;
 }
+
+/** Merge adjacent text nodes into a single text node. */
+export function mergeAdjacentText(nodes: InlineNode[]): InlineNode[] {
+	const result: InlineNode[] = [];
+	for (const node of nodes) {
+		const prev = result[result.length - 1];
+		if (node.kind === 'text' && prev?.kind === 'text' && prev.end === node.start) {
+			prev.end = node.end;
+			prev.text = (prev.text ?? '') + (node.text ?? '');
+		} else {
+			result.push(node);
+		}
+	}
+	return result;
+}

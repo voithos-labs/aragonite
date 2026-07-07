@@ -1,6 +1,3 @@
-import { describe, it, expect } from 'vitest';
-import { parseInline } from '../../core/inline';
-import { scanInline } from '../../core/inline/scan';
 import {
 	codeNode,
 	describeScanCases,
@@ -41,7 +38,7 @@ describeScanCases('emphasis node shape (markers inside the range)', [
 describeScanCases('strikethrough (GFM)', [
 	['exactly-two runs pair', '~~a~~', [strikethroughNode(0, 5, [textNode(2, 3, 'a')])]],
 	['single tilde stays literal', '~a~', [textNode(0, 3, '~a~')]],
-	// GFM edge pinned to the old parser: only exactly-2 runs delimit, so a
+	// GFM edge: only exactly-2 runs delimit, so a
 	// 3-tilde run is literal — no partial consumption as with `*`.
 	['three-tilde runs stay literal', '~~~a~~~', [textNode(0, 7, '~~~a~~~')]],
 	[
@@ -53,8 +50,8 @@ describeScanCases('strikethrough (GFM)', [
 			strikethroughNode(6, 11, [textNode(8, 9, 'c')])
 		]
 	],
-	// Old-parser parity: distinct exactly-2 runs DO nest (only a longer run,
-	// which cannot delimit, is prevented — direct `~~~~` nesting is unreachable).
+	// Distinct exactly-2 runs DO nest (only a longer run, which cannot
+	// delimit, is prevented — direct `~~~~` nesting is unreachable).
 	[
 		'distinct runs nest',
 		'~~a ~~b~~ c~~',
@@ -67,14 +64,3 @@ describeScanCases('strikethrough (GFM)', [
 		]
 	]
 ]);
-
-describe('old-parser parity (field-for-field)', () => {
-	// Dies with the old pipeline at cutover; until then it pins that the scan
-	// path reproduces the staged tree exactly, unmerged leftover runs included.
-	const sources = ['*foo*', '**a *b* c**', '***a***', '~~a~~', '~~~a~~~', '**foo*bar**baz*'];
-	for (const source of sources) {
-		it(JSON.stringify(source), () => {
-			expect(scanInline(source, 0, source.length)).toEqual(parseInline(source, 0, source.length));
-		});
-	}
-});

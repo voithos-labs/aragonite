@@ -6,7 +6,7 @@ function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
 }
 
-describe('parseInline — backtick spans (Stage 1)', () => {
+describe('parseInline — backtick spans', () => {
 	it('plain text with no markup', () => {
 		const nodes = inlineOf('Hello world');
 		expect(nodes).toEqual([{ kind: 'text', start: 0, end: 11, text: 'Hello world' }]);
@@ -92,7 +92,7 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 	});
 });
 
-describe('parseInline — emphasis and strong (Stage 2)', () => {
+describe('parseInline — emphasis and strong', () => {
 	const emphasisChars = ['*', '_'] as const;
 
 	for (const ch of emphasisChars) {
@@ -144,7 +144,7 @@ describe('parseInline — emphasis and strong (Stage 2)', () => {
 	});
 });
 
-describe('parseInline — strikethrough (Stage 2)', () => {
+describe('parseInline — strikethrough', () => {
 	it('simple strikethrough', () => {
 		const nodes = inlineOf('Hello ~~world~~ end');
 		expect(nodes[1].kind).toBe('strikethrough');
@@ -164,7 +164,7 @@ describe('parseInline — strikethrough (Stage 2)', () => {
 	}
 });
 
-describe('parseInline — hard line breaks (Stage 2)', () => {
+describe('parseInline — hard line breaks', () => {
 	it('backslash before newline', () => {
 		const nodes = inlineOf('Hello\\\nworld');
 		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
