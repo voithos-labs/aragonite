@@ -1,15 +1,84 @@
 /**
  * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) and the GFM §6.9
- * bare/www/email autolink pass over completed text runs. The GFM matchers are
- * ported from the old pipeline's links.ts (its scan dies at cutover); the old
- * parser is their oracle — the reference has no autolink extension.
+ * bare/www/email autolink pass over completed text runs. The reference has no
+ * autolink extension — the GFM rules here answer to the GFM spec directly.
  */
 
 import type { InlineNode } from '../../nodes';
 import { matchHtmlFormAt } from '../html-tag-grammar';
-import { isValidLeadingBoundary, trimTrailingPunctuation } from '../links';
 import { appendNode, type ScanContext } from './scan-state';
 import { percentEncodeUri } from './url';
+
+// ── GFM §6.9 boundary and trim rules ────────────────────────────────────────
+
+const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
+
+/**
+ * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
+ *
+ * Conditional ): only when there are more `)` than `(` in [urlStart, end).
+ * Conditional ;: only when the part before is NOT shaped like an HTML entity
+ * (a `;` preceded by `&` followed by alphanumerics / `#` and digits/hex back to `&`).
+ */
+export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: number): number {
+	// Parens are counted once and the balance maintained while trimming — a
+	// recount per trimmed `)` makes paren floods quadratic. Only the `)` branch
+	// removes parens, so decrementing `closes` there keeps the counts exact.
+	let opens = 0;
+	let closes = 0;
+	for (let i = urlStart; i < urlEnd; i++) {
+		if (raw[i] === '(') opens++;
+		else if (raw[i] === ')') closes++;
+	}
+	let end = urlEnd;
+	while (end > urlStart) {
+		const ch = raw[end - 1];
+		if (TRAILING_PUNCT.has(ch)) {
+			end--;
+			continue;
+		}
+		if (ch === ')') {
+			if (closes > opens) {
+				end--;
+				closes--;
+				continue;
+			}
+			break;
+		}
+		if (ch === ';') {
+			// Look back for &name; / &#NNN; / &#xHHH;
+			let j = end - 2;
+			while (j > urlStart && /[0-9A-Fa-f]/.test(raw[j])) j--;
+			if (j >= urlStart + 2 && raw[j] === 'x' && raw[j - 1] === '#' && raw[j - 2] === '&') {
+				break;
+			}
+			j = end - 2;
+			while (j > urlStart && /[0-9]/.test(raw[j])) j--;
+			if (j >= urlStart + 1 && raw[j] === '#' && raw[j - 1] === '&') {
+				break;
+			}
+			j = end - 2;
+			while (j > urlStart && /[A-Za-z0-9]/.test(raw[j])) j--;
+			if (j >= urlStart && raw[j] === '&' && j < end - 2) {
+				break;
+			}
+			end--;
+			continue;
+		}
+		break;
+	}
+	return end;
+}
+
+/**
+ * Per GFM §6.9: a bare autolink is valid only at start-of-region or after
+ * whitespace, `*`, `_`, `~`, or `(`.
+ */
+export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
+	if (pos <= regionStart) return true;
+	const ch = raw[pos - 1];
+	return /\s/.test(ch) || ch === '*' || ch === '_' || ch === '~' || ch === '(';
+}
 
 // ── `<` handler: spec autolink, then raw HTML tag ───────────────────────────
 
@@ -52,12 +121,11 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 // ── GFM §6.9 pass over completed text runs ──────────────────────────────────
 
 /**
- * Scan every maximal run of adjacent text nodes for bare autolinks — the old
- * pipeline's stage order: URLs claim their bytes before emphasis pairs, so a
- * delimiter absorbed into a URL can never pair, while the run boundaries
- * (claimed constructs) end URLs exactly where the old gap scan did. Consumed
- * delimiters are pruned; runs inside already-wrapped link/image children are
- * scanned recursively (the old pipeline reparsed link text in full).
+ * Scan every maximal run of adjacent text nodes for bare autolinks. Runs
+ * before emphasis pairing so a delimiter absorbed into a URL can never pair;
+ * run boundaries (claimed constructs) end URLs. Consumed delimiters are
+ * pruned; runs inside already-wrapped link/image children are scanned too —
+ * they were spliced out of the top-level list before this pass saw them.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
 	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
@@ -159,7 +227,7 @@ function scanRunForBareAutolinks(raw: string, start: number, end: number): Inlin
 	return out;
 }
 
-// ── GFM matchers (ported from links.ts) ─────────────────────────────────────
+// ── GFM bare/www/email matchers ─────────────────────────────────────────────
 
 /**
  * Case-insensitive ASCII prefix check without the old slice+toLowerCase

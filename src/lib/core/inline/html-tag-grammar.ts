@@ -1,7 +1,7 @@
 /**
  * CommonMark §6.6 HTML tag grammar — shared between the block-level HTML
- * parser (`core/parsers/html-block.ts`, type 7 catch-all) and the inline raw
- * HTML stage (`core/inline/raw-html.ts`).
+ * parser (`core/parsers/html-block.ts`, type 7 catch-all) and the inline
+ * scanner's `<` handler (`core/inline/scan/autolinks.ts`).
  *
  * Note: `core/parsers/html-block.ts` TYPE_7_OPEN duplicates the open/close
  * tag patterns wrapped with line anchors (^ {0,3} ... \s*$) for block-level
