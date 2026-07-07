@@ -19,9 +19,10 @@ import {
 	checkIsContainerIffRebuildRaw,
 	checkOpenerRegistry,
 	checkKeymapCoherence,
+	checkReservedChromeCoherence,
 	checkLateOpenerRegistration
 } from '../invariants/registry';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { tryGetBlockKindDescriptor, getAllRegisteredKinds } from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
@@ -42,6 +43,8 @@ export type RegistrationCheckReport = (tag: string, check: () => InvariantViolat
 const hasDescriptor = (kind: AnyBlockKind): boolean =>
 	tryGetBlockKindDescriptor(kind) !== undefined;
 
+const hasComponent = (kind: AnyBlockKind): boolean => getBlockComponent(kind) !== undefined;
+
 const pairingOf = (kind: AnyBlockKind): { isContainer: boolean; hasRebuildRaw: boolean } => {
 	const d = tryGetBlockKindDescriptor(kind);
 	return { isContainer: d?.isContainer ?? false, hasRebuildRaw: d?.rebuildRaw !== undefined };
@@ -50,10 +53,20 @@ const pairingOf = (kind: AnyBlockKind): { isContainer: boolean; hasRebuildRaw: b
 const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({ kind, keymap: tryGetBlockKindDescriptor(kind)?.keymap }));
 
+const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
+	kinds.map((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		return {
+			kind,
+			isContainer: d?.isContainer ?? false,
+			reservedChromeKind: d?.reservedChrome?.kind
+		};
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/3/10/11/17). First call sweeps the
+ * Run the registry coherence checks (G1.2/3/10/11/17/18). First call sweeps the
  * whole world — bootstrap semantics; later calls validate only the kinds
  * registered since the previous flush, plus opener coherence over the full
  * registry (a new opener's priority collision is inherently cross-entry).
@@ -65,18 +78,22 @@ export function flushPendingRegistrationChecks(
 	if (!work) return;
 	if (work.firstFlush) {
 		report('registry-completeness', () =>
-			checkRegistryCompleteness(
-				ALL_BLOCK_KINDS,
-				hasDescriptor,
-				(kind) => getBlockComponent(kind) !== undefined
-			)
+			checkRegistryCompleteness(ALL_BLOCK_KINDS, hasDescriptor, hasComponent)
 		);
 	}
-	const kinds = work.firstFlush ? ALL_BLOCK_KINDS : work.kinds;
+	// The first flush's descriptor-bearing checks sweep the live registry (built-ins
+	// plus any plugin kind registered pre-mount), not just ALL_BLOCK_KINDS; later
+	// flushes validate the kinds registered since. Completeness stays built-in-scoped:
+	// a plugin kind's component may legitimately register on its own schedule, so
+	// reservedChrome coherence — not completeness — is the plugin-kind bootstrap check.
+	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('container-rebuild-pairing', () => checkIsContainerIffRebuildRaw(kinds, pairingOf));
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 	report('keymap-coherence', () =>
 		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord)
+	);
+	report('reserved-chrome-coherence', () =>
+		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));

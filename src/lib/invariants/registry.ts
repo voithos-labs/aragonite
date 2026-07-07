@@ -157,3 +157,49 @@ export function checkLateOpenerRegistration(
 		detail: { kind }
 	};
 }
+
+export interface ReservedChromeCoherenceEntry {
+	kind: AnyBlockKind;
+	isContainer: boolean;
+	reservedChromeKind?: AnyBlockKind;
+}
+
+/**
+ * G1.18 — reservedChrome bootstrap coherence: a kind declaring `reservedChrome`
+ * must be a container, and its chrome kind must resolve to both a descriptor and
+ * a component (both registered by `registerChromeLeaf`). Catches a declarer that
+ * put chrome on a leaf, or one whose chrome leaf was never registered. Distinct
+ * from the per-commit slot check (G1.14): this validates the registration shape
+ * at bootstrap, not a live tree. Reports the first offending declarer.
+ */
+export function checkReservedChromeCoherence(
+	entries: readonly ReservedChromeCoherenceEntry[],
+	hasDescriptor: (kind: AnyBlockKind) => boolean,
+	hasComponent: (kind: AnyBlockKind) => boolean
+): InvariantViolation | null {
+	for (const { kind, isContainer, reservedChromeKind } of entries) {
+		if (reservedChromeKind === undefined) continue;
+		if (!isContainer) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `kind "${kind}" declares reservedChrome but is not a container`,
+				detail: { kind, chromeKind: reservedChromeKind, issue: 'not-container' }
+			};
+		}
+		if (!hasDescriptor(reservedChromeKind)) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") has no registered descriptor`,
+				detail: { kind, chromeKind: reservedChromeKind, missing: 'descriptor' }
+			};
+		}
+		if (!hasComponent(reservedChromeKind)) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") has no registered component`,
+				detail: { kind, chromeKind: reservedChromeKind, missing: 'component' }
+			};
+		}
+	}
+	return null;
+}
