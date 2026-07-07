@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import {
-	assertEmphasisCoverage,
+	assertConstructCoverage,
 	assertTotalCoverage,
 	collectKind,
 	hasKind
@@ -39,7 +39,7 @@ function describeFlankingCases(
 					if (negativesAllText) expect(nodes.every((n) => n.kind === 'text')).toBe(true);
 					return;
 				}
-				assertEmphasisCoverage(nodes);
+				assertConstructCoverage(nodes);
 				expect(sortedSpans(nodes, source)).toEqual(runs!.slice().sort());
 			});
 		}
