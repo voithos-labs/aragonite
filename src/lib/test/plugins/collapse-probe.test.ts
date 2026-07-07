@@ -15,11 +15,16 @@ function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	registerBlockKind(kind, {
 		mergeRole: 'container',
 		editable: true,
-		isContainer: true,
 		supportsInline: false,
-		reservedChrome: {
-			kind: chrome,
-			isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+		// The probe never commits, so an inert strip contract + noop rebuild satisfy
+		// the group's required pairing.
+		container: {
+			contract: 'strip',
+			rebuildRaw: () => {},
+			reservedChrome: {
+				kind: chrome,
+				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+			}
 		}
 	});
 	return kind;

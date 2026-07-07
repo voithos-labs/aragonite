@@ -14,10 +14,8 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'container',
 			editable: true,
-			isContainer: true,
 			supportsInline: false,
-			containerContract: 'opaque',
-			rebuildRaw
+			container: { contract: 'opaque', rebuildRaw }
 		});
 		return kind;
 	}
