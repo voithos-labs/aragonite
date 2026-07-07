@@ -46,4 +46,15 @@ describe('ranges', () => {
 		assertTotalCoverage(nodes, 2, 5);
 		expect(nodes).toEqual([codeNode(2, 5, 'a')]);
 	});
+
+	it('escape lookback is clamped to the range start', () => {
+		// Deliberate divergence, pinned for cutover: the old parser's isEscaped
+		// (backticks.ts) counts backslashes back past `start`, so the
+		// out-of-range \ at offset 1 would suppress this span. A content-range
+		// boundary bounds the parse. Unreachable via any current
+		// getContentRange, but the cutover must not silently flip it.
+		const nodes = scanInline('x\\`a`', 2, 5);
+		assertTotalCoverage(nodes, 2, 5);
+		expect(nodes).toEqual([codeNode(2, 5, 'a')]);
+	});
 });
