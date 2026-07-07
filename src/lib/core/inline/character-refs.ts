@@ -31,7 +31,7 @@ function scanRegion(raw: string, start: number, end: number, out: InlineNode[]):
 	let pos = start;
 	while (pos < end) {
 		if (raw[pos] === '&') {
-			const ref = tryMatchReference(raw, pos, end);
+			const ref = matchCharacterReference(raw, pos, end);
 			if (ref !== null) {
 				out.push(ref);
 				pos = ref.end;
@@ -48,7 +48,8 @@ function scanRegion(raw: string, start: number, end: number, out: InlineNode[]):
 // indexOf rescans to the end of the region per candidate.
 const MAX_REFERENCE_BODY = 31;
 
-function tryMatchReference(raw: string, pos: number, end: number): InlineNode | null {
+/** Match one character reference; `pos` must point at an `&`. Shared recognition core for the staged pipeline and scan/. */
+export function matchCharacterReference(raw: string, pos: number, end: number): InlineNode | null {
 	const searchEnd = Math.min(end, pos + MAX_REFERENCE_BODY + 2);
 	let semi = -1;
 	for (let i = pos + 1; i < searchEnd; i++) {
