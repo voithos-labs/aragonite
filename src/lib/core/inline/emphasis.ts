@@ -79,7 +79,13 @@ function codePointBefore(raw: string, pos: number): string {
 	return raw[pos - 1];
 }
 
-function classifyRun(
+/**
+ * CommonMark §6.2 flanking over code points (astral neighbors classify by
+ * category, not surrogate halves). Shared classification core for the staged
+ * pipeline and scan/. Neighbors are read from raw unclamped: context outside
+ * [start, end) still counts, as the spec's source-text reading implies.
+ */
+export function classifyDelimiterRun(
 	raw: string,
 	runStart: number,
 	runEnd: number,
@@ -178,7 +184,12 @@ function scanTextRegionForDelimiters(
 				continue;
 			}
 
-			const { canOpen, canClose } = classifyRun(raw, runStart, runEnd, ch as '*' | '_' | '~');
+			const { canOpen, canClose } = classifyDelimiterRun(
+				raw,
+				runStart,
+				runEnd,
+				ch as '*' | '_' | '~'
+			);
 
 			if (textStart < runStart) {
 				out.push({

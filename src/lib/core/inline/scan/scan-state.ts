@@ -23,8 +23,12 @@ export interface ScanContext {
 }
 
 export interface Delimiter {
-	/** The text node holding the run's bytes. */
-	nodeIndex: number;
+	/**
+	 * The text node holding the run's bytes, by identity: processEmphasis
+	 * splices `nodes` when it wraps a match, so a position would go stale
+	 * where an object reference cannot.
+	 */
+	node: InlineNode;
 	char: '*' | '_' | '~';
 	/** Remaining unconsumed run length. */
 	length: number;
@@ -32,16 +36,23 @@ export interface Delimiter {
 	origLength: number;
 	canOpen: boolean;
 	canClose: boolean;
-	active: boolean;
 }
 
 export interface Bracket {
-	/** The '[' / '![' text node. */
+	/**
+	 * The '[' / '![' text node's position. Stays valid across processEmphasis:
+	 * a floor-f call only wraps nodes appended after the bracket that recorded
+	 * floor f, so positions at or before any live bracket never shift.
+	 */
 	nodeIndex: number;
 	isImage: boolean;
 	/** Deactivated by the links-in-links rule. */
 	active: boolean;
-	/** delimiters.length at push — processEmphasis floor on match. */
+	/**
+	 * delimiters.length at push — processEmphasis floor on match. A floor-f
+	 * call truncates the delimiter stack back to f, so floors recorded by
+	 * enclosing brackets (all <= f) stay valid.
+	 */
 	delimiterFloor: number;
 }
 
