@@ -4,6 +4,7 @@ import {
 	assertTotalCoverage,
 	describeScanCases,
 	codeNode,
+	emphasisNode,
 	escapeNode,
 	textNode
 } from './scan-test-helpers';
@@ -34,9 +35,9 @@ describeScanCases('unmatched runs stay literal text', [
 
 describeScanCases('interleaving', [
 	[
-		'unclaimed delimiters fall through around a span',
+		'backticks bind before the emphasis pass sees the interior',
 		'*`a`*',
-		[textNode(0, 1, '*'), codeNode(1, 4, 'a'), textNode(4, 5, '*')]
+		[emphasisNode(0, 5, [codeNode(1, 4, 'a')])]
 	]
 ]);
 
