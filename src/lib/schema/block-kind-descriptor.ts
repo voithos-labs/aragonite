@@ -1,5 +1,6 @@
 import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
+import { enqueueRegistrationCheck } from './registration-pending';
 import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
@@ -129,6 +130,57 @@ export interface BlockKindDescriptor {
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 }
 
+/**
+ * Container-only fields, registered as one unit. `contract` and `rebuildRaw`
+ * are required together, and a leaf has no way to carry any of these — the
+ * pairing violation the retired G1.3 bootstrap guard watched for is now
+ * unrepresentable. Field semantics live on `BlockKindDescriptor`, the flat
+ * read-side shape the group normalizes into.
+ */
+export interface ContainerDescriptorGroup {
+	contract: 'strip' | 'grid' | 'opaque';
+	rebuildRaw: (node: CstNode) => void;
+	reservedChrome?: BlockKindDescriptor['reservedChrome'];
+	containerPaste?: BlockKindDescriptor['containerPaste'];
+	unwrapRole?: UnwrapRole;
+}
+
+// One source for both the type-level Omit and the runtime strip: excess-property
+// checks bite only fresh literals, so a widened value (e.g. a flat descriptor
+// passed as a registration) can structurally smuggle these keys past the types.
+const CONTAINER_ONLY_KEYS = [
+	'isContainer',
+	'containerContract',
+	'rebuildRaw',
+	'reservedChrome',
+	'containerPaste',
+	'unwrapRole'
+] as const;
+type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
+
+function stripContainerOnlyKeys<T extends object>(fields: T): Omit<T, ContainerOnlyKey> {
+	const stripped = { ...fields } as Record<string, unknown>;
+	for (const key of CONTAINER_ONLY_KEYS) delete stripped[key];
+	return stripped as Omit<T, ContainerOnlyKey>;
+}
+
+/**
+ * The write-side shape `registerBlockKind` accepts. `isContainer` is derived
+ * (`container !== undefined`), never declared.
+ */
+export interface BlockKindRegistration extends Omit<BlockKindDescriptor, ContainerOnlyKey> {
+	container?: ContainerDescriptorGroup;
+}
+
+/**
+ * The augment shape: top-level fields replace; a partial `container` group
+ * merges into the existing group — and is refused outright for a kind
+ * registered as a leaf.
+ */
+export type BlockKindAugmentation = Partial<Omit<BlockKindRegistration, 'container'>> & {
+	container?: Partial<ContainerDescriptorGroup>;
+};
+
 // ── Content-range helpers (used by built-in registrations) ─────────────────
 
 // Headings carry a `# ` prefix that is not part of the editable text.
@@ -189,23 +241,36 @@ const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
+export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	if (registry.has(kind)) {
 		throw new Error(
 			`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
 				`use augmentBlockKind to merge fields into an existing registration.`
 		);
 	}
-	registry.set(kind, descriptor);
+	registry.set(kind, normalizeRegistration(registration));
+	enqueueRegistrationCheck(kind);
+}
+
+// The flat part is stripped of container-only keys (see CONTAINER_ONLY_KEYS)
+// and isContainer is derived, so the `container` group is the only source of
+// container fields — a widened or stale-keyed registration object cannot leak.
+function normalizeRegistration(registration: BlockKindRegistration): BlockKindDescriptor {
+	const { container, ...rest } = registration;
+	const flat = stripContainerOnlyKeys(rest);
+	if (!container) return { ...flat, isContainer: false };
+	const { contract, ...containerFields } = container;
+	return { ...flat, ...containerFields, isContainer: true, containerContract: contract };
 }
 
 // Merge fields into an existing registration; throw if the kind was never
 // registered (no accidental creation via partial data). The built-in-vs-plugin
-// gate lives in the two public entries below, not here.
+// gate lives in the two public entries below, not here — the leaf/container
+// gate lives here so both entries inherit it.
 function mergeBlockKindFields(
 	entry: string,
 	kind: AnyBlockKind,
-	fields: Partial<BlockKindDescriptor>
+	fields: BlockKindAugmentation
 ): void {
 	const existing = registry.get(kind);
 	if (!existing) {
@@ -213,7 +278,24 @@ function mergeBlockKindFields(
 			`${entry}: cannot augment "${kind}" — no base descriptor. Call registerBlockKind first.`
 		);
 	}
-	registry.set(kind, { ...existing, ...fields });
+	const { container, ...rest } = fields;
+	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
+	if (container) {
+		if (!existing.isContainer) {
+			throw new Error(
+				`${entry}: cannot augment "${kind}" with container fields — it was registered as a leaf`
+			);
+		}
+		// Merge, never unset: `??` keeps an explicitly-undefined group field from
+		// breaking the contract/rebuild pairing the registration shape guarantees.
+		next.containerContract = container.contract ?? existing.containerContract;
+		next.rebuildRaw = container.rebuildRaw ?? existing.rebuildRaw;
+		next.reservedChrome = container.reservedChrome ?? existing.reservedChrome;
+		next.containerPaste = container.containerPaste ?? existing.containerPaste;
+		next.unwrapRole = container.unwrapRole ?? existing.unwrapRole;
+	}
+	registry.set(kind, next);
+	enqueueRegistrationCheck(kind);
 }
 
 /**
@@ -222,7 +304,7 @@ function mergeBlockKindFields(
  * descriptor process-globally; built-in wire-up uses the internal augmentBuiltin
  * seam. Also throws when the kind isn't already registered.
  */
-export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
+export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
 		throw new Error(
 			`augmentBlockKind: "${kind}" is a built-in kind — the plugin surface may only augment ` +
@@ -238,7 +320,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: Partial<BlockKindDe
  * file without importing downstream layers. Deliberately kept off the public
  * `aragonite/plugin` surface so a plugin can't rewrite a built-in.
  */
-export function augmentBuiltin(kind: AnyBlockKind, fields: Partial<BlockKindDescriptor>): void {
+export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	mergeBlockKindFields('augmentBuiltin', kind, fields);
 }
 
@@ -283,14 +365,12 @@ export function __removePluginBlockKindsForTests(): void {
 registerBlockKind('paragraph', {
 	mergeRole: 'prose',
 	editable: true,
-	isContainer: false,
 	supportsInline: true,
 	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('heading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
-	isContainer: false,
 	supportsInline: true,
 	getContentRange: headingContentRange,
 	keymap: TEXT_EDITABLE_KEYMAP
@@ -298,7 +378,6 @@ registerBlockKind('heading', {
 registerBlockKind('setextHeading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
-	isContainer: false,
 	supportsInline: true,
 	getContentRange: setextHeadingContentRange,
 	keymap: TEXT_EDITABLE_KEYMAP
@@ -306,7 +385,6 @@ registerBlockKind('setextHeading', {
 registerBlockKind('fencedCode', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false,
 	keymap: [
 		{ chord: 'Enter', command: 'code.newline' },
@@ -323,7 +401,6 @@ registerBlockKind('fencedCode', {
 registerBlockKind('thematicBreak', {
 	mergeRole: 'not-mergeable',
 	editable: false,
-	isContainer: false,
 	supportsInline: false,
 	keymap: [
 		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
@@ -333,44 +410,36 @@ registerBlockKind('thematicBreak', {
 registerBlockKind('indentedCode', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false,
 	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('htmlBlock', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false,
 	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('linkReferenceDefinition', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false,
 	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('table', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: true,
-	containerContract: 'grid',
-	rebuildRaw: rebuildTableRaw,
-	supportsInline: false
+	supportsInline: false,
+	container: { contract: 'grid', rebuildRaw: rebuildTableRaw }
 });
 registerBlockKind('tableRow', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: true,
-	containerContract: 'grid',
-	rebuildRaw: rebuildTableRowRaw,
-	supportsInline: false
+	supportsInline: false,
+	container: { contract: 'grid', rebuildRaw: rebuildTableRowRaw }
 });
 registerBlockKind('tableCell', {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: true,
 	contextDependentKind: true,
 	getContentRange: tableCellContentRange,
@@ -386,45 +455,44 @@ registerBlockKind('tableCell', {
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',
 	editable: true,
-	isContainer: false,
 	supportsInline: false,
 	keymap: TEXT_EDITABLE_KEYMAP
 });
 registerBlockKind('blockquote', {
 	mergeRole: 'container',
 	editable: true,
-	isContainer: true,
-	containerContract: 'strip',
-	rebuildRaw: rebuildBlockquoteRaw,
 	supportsInline: false,
-	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
-	unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+	container: {
+		contract: 'strip',
+		rebuildRaw: rebuildBlockquoteRaw,
+		containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
+		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+	}
 });
 registerBlockKind('list', {
 	mergeRole: 'container',
 	editable: true,
-	isContainer: true,
-	containerContract: 'strip',
-	rebuildRaw: rebuildListRaw,
 	supportsInline: false,
-	containerPaste: {
-		matchesAncestor: (top, ancestor) =>
-			(metadataOf(top, 'list')?.ordered ?? false) ===
-			(metadataOf(ancestor, 'list')?.ordered ?? false),
-		siblingAbsorb: true
-	},
-	unwrapRole: {
-		firstChildBackspace: 'list-item-cascade',
-		middleChildBackspace: 'list-item-cascade'
+	container: {
+		contract: 'strip',
+		rebuildRaw: rebuildListRaw,
+		containerPaste: {
+			matchesAncestor: (top, ancestor) =>
+				(metadataOf(top, 'list')?.ordered ?? false) ===
+				(metadataOf(ancestor, 'list')?.ordered ?? false),
+			siblingAbsorb: true
+		},
+		unwrapRole: {
+			firstChildBackspace: 'list-item-cascade',
+			middleChildBackspace: 'list-item-cascade'
+		}
 	}
 });
 registerBlockKind('listItem', {
 	mergeRole: 'container',
 	editable: true,
-	isContainer: true,
-	containerContract: 'strip',
-	rebuildRaw: rebuildListItemRaw,
 	supportsInline: false,
+	container: { contract: 'strip', rebuildRaw: rebuildListItemRaw },
 	keymap: [
 		{ chord: 'Tab', command: 'list.indent' },
 		{ chord: 'Shift+Tab', command: 'list.unindent' }

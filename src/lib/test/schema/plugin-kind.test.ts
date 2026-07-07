@@ -24,7 +24,6 @@ describe('declarePluginKind', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'not-mergeable',
 			editable: false,
-			isContainer: false,
 			supportsInline: false
 		});
 		expect(tryGetBlockKindDescriptor(kind)?.mergeRole).toBe('not-mergeable');

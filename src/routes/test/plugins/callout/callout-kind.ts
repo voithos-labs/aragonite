@@ -80,15 +80,16 @@ export function registerCalloutKind(): void {
 	registerBlockKind(note, {
 		mergeRole: 'container',
 		editable: true,
-		isContainer: true,
 		supportsInline: false,
-		// Child-0 chrome puts the title in the opener line, breaking
-		// `strip(raw) === serialize(children)`. `'opaque'` marks raw authoritative
-		// and exempts the container from checkStaleRaw's byte-check.
-		containerContract: 'opaque',
-		rebuildRaw: rebuildCalloutRaw,
-		reservedChrome: { kind: noteTitle },
-		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' },
+		container: {
+			// Child-0 chrome puts the title in the opener line, breaking
+			// `strip(raw) === serialize(children)`. `'opaque'` marks raw authoritative
+			// and exempts the container from checkStaleRaw's byte-check.
+			contract: 'opaque',
+			rebuildRaw: rebuildCalloutRaw,
+			reservedChrome: { kind: noteTitle },
+			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		},
 		// Mod+7/Mod+8, NOT Mod+Shift+1/2: a Shift-held digit's key token is
 		// layout-translated by the browser ('1'→'!'), so eventToChord would emit
 		// `Mod+Shift+!` and never match a digit binding. Mod+7/8 sit past the

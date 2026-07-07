@@ -20,6 +20,7 @@ import type {
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { BlockComponent } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
@@ -35,6 +36,7 @@ import {
 	type KeybindingOverridesGetter
 } from '../../editor-keys';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
+import type { WindowResult } from '../../reactivity/block-window.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
@@ -71,11 +73,40 @@ export interface ContainerBlockDeps {
 	isCollapsed?: () => boolean;
 }
 
-/** The `BlockList` props the host spreads onto its rendered `<BlockList>`. */
-export type ContainerBlockListProps = Pick<
-	ComponentProps<typeof BlockList>,
-	'children' | 'blockIds' | 'setRef' | 'getRef' | 'parentPath' | 'window' | 'reorderable'
->;
+/**
+ * The `BlockList` props the host spreads onto its rendered `<BlockList>`. Authored
+ * as the fixed public contract rather than derived from `BlockList`'s internal
+ * props: an internal prop edit that breaks the container seam now fails
+ * `npm run check` at the conformance check below, with this exported type as the
+ * fixed point — it can no longer silently rewrite the public contract.
+ */
+export interface ContainerBlockListProps {
+	children: CstNode[];
+	blockIds: string[];
+	setRef: (i: number, r: BlockComponent | undefined) => void;
+	getRef: (i: number) => BlockComponent | undefined;
+	parentPath?: number[];
+	window?: WindowResult;
+	reorderable?: boolean;
+}
+
+// BlockList must accept everything the contract promises (contract ⊆ component)…
+type _BlockListAccepts =
+	ContainerBlockListProps extends Pick<
+		ComponentProps<typeof BlockList>,
+		keyof ContainerBlockListProps
+	>
+		? true
+		: never;
+// …and the component's props for those keys must still satisfy the contract (component ⊆ contract).
+type _ContractCovers =
+	Pick<
+		ComponentProps<typeof BlockList>,
+		keyof ContainerBlockListProps
+	> extends ContainerBlockListProps
+		? true
+		: never;
+const _conforms: [_BlockListAccepts, _ContractCovers] = [true, true];
 
 // `ContainerBlockComponent` is defined at the shim (`container-block-component`),
 // which now types every container member as required, and re-exported here so the
