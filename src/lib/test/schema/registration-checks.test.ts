@@ -189,11 +189,44 @@ describe('registry-derived first-flush sweep', () => {
 		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
 		registerBlockOpener(calloutKind, opener(9107));
 
+		const { violations, report } = collector();
+		flushPendingRegistrationChecks(report);
+		// Built-in components don't load in the unit-test context (see
+		// registry.test.ts), so the first-flush completeness sweep fires on
+		// built-ins here; every other check — the batch's own included — is silent.
+		expect(violations.filter((v) => v.tag !== 'registry-completeness')).toEqual([]);
+	});
+});
+
+// Twins of the first-sweep keymap cases at the INCREMENTAL path: a regression
+// that scoped keymap coherence to the first flush, or fed the incremental path
+// a builtin-only known-command set, must fail here.
+describe('keymap coherence at the incremental flush', () => {
+	it('accepts a plugin keymap binding its own minted command', () => {
+		flushPendingRegistrationChecks();
+		const kind = declarePluginKind('inc-minted');
+		const command = registerBlockCommand(kind, 'toggleIncThing', () => true);
+		registerBlockKind(kind, { ...leaf, keymap: [{ chord: 'Mod+K', command }] });
+
+		const { violations, report } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(violations).toEqual([]);
+	});
+
+	it('flags a keymap naming an unminted plugin-shaped id', () => {
+		flushPendingRegistrationChecks();
+		const kind = declarePluginKind('inc-unminted');
+		registerBlockKind(kind, {
+			...leaf,
+			keymap: [{ chord: 'Mod+K', command: 'plugin.never-minted' as never }]
+		});
+
 		const { report, byTag } = collector();
 		flushPendingRegistrationChecks(report);
-		expect(byTag('reserved-chrome-coherence')).toEqual([]);
-		expect(byTag('keymap-coherence')).toEqual([]);
-		expect(byTag('opener-registry')).toEqual([]);
+		expect(byTag('keymap-coherence')).toHaveLength(1);
+		expect(byTag('keymap-coherence')[0].violation.message).toBe(
+			'kind "inc-unminted" binds chord "Mod+K" to unknown command "plugin.never-minted"'
+		);
 	});
 });
 
