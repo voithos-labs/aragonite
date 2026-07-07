@@ -67,16 +67,24 @@ export function isBlockOpenerRegistered(kind: string): boolean {
 }
 
 /**
- * Priority-ascending; cached — the parser loops this per block. The grammar-
- * consumption seam: registrations pending since the last flush are validated
- * before this read, and flush-before-mark keeps a registrant racing the first
- * read out of the late-opener warn (G1.17).
+ * Priority-ascending, equal priorities broken by kind name — so dispatch order
+ * is a pure function of the declarations, never of registration order (G1.10
+ * still warns on the tie, since a shared priority is usually unintended).
+ * Cached — the parser loops this per block. The grammar-consumption seam:
+ * registrations pending since the last flush are validated before this read,
+ * and flush-before-mark keeps a registrant racing the first read out of the
+ * late-opener warn (G1.17).
  */
 export function getOrderedOpeners(): readonly BlockOpener[] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
 	if (!orderedCache) {
-		orderedCache = [...openers.values()].sort((a, b) => a.priority - b.priority);
+		orderedCache = [...openers.entries()]
+			.sort(
+				([kindA, a], [kindB, b]) =>
+					a.priority - b.priority || (kindA < kindB ? -1 : kindA > kindB ? 1 : 0)
+			)
+			.map(([, opener]) => opener);
 	}
 	return orderedCache;
 }

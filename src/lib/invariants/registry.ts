@@ -70,8 +70,9 @@ export function checkIsContainerIffRebuildRaw(
 
 /**
  * G1.10 — opener-registry coherence: every registered opener belongs to a
- * registered kind, and priorities are unique (equal priorities make dispatch
- * order registration-dependent — a silent round-trip hazard).
+ * registered kind, and priorities are unique (equal priorities are deterministic
+ * — dispatch falls back to kind name — but a shared priority is usually
+ * unintended, so it still warns).
  */
 export function checkOpenerRegistry(
 	entries: readonly { kind: AnyBlockKind; priority: number }[],
@@ -90,7 +91,7 @@ export function checkOpenerRegistry(
 		if (holder !== undefined) {
 			return {
 				code: 'opener-registry',
-				message: `kinds "${holder}" and "${kind}" share opener priority ${priority}`,
+				message: `kinds "${holder}" and "${kind}" share opener priority ${priority} — order falls back to kind name; give each kind its own priority`,
 				detail: { kinds: [holder, kind], priority }
 			};
 		}
