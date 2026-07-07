@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import {
 	augmentBlockKind,
+	getBlockKindDescriptor,
 	registerBlockKind,
 	tryGetBlockKindDescriptor,
 	type BlockKindRegistration
@@ -67,6 +68,33 @@ describe('registerBlockKind normalizes the container group', () => {
 		const kind = declarePluginKind('norm-stale');
 		registerBlockKind(kind, { ...leaf, isContainer: true } as BlockKindRegistration);
 		expect(tryGetBlockKindDescriptor(kind)?.isContainer).toBe(false);
+	});
+
+	// A flat descriptor is structurally assignable to the registration types —
+	// excess-property checks bite only fresh literals — so the widened calls
+	// below COMPILE with no cast; the runtime strip is the defense these pin.
+	it('a widened flat descriptor cannot smuggle container-only fields past the group', () => {
+		const kind = declarePluginKind('norm-widened');
+		registerBlockKind(kind, getBlockKindDescriptor('blockquote'));
+
+		const d = tryGetBlockKindDescriptor(kind)!;
+		expect(d.isContainer).toBe(false);
+		expect(d.rebuildRaw).toBeUndefined();
+		expect(d.containerContract).toBeUndefined();
+		expect(d.reservedChrome).toBeUndefined();
+		expect(d.containerPaste).toBeUndefined();
+		expect(d.unwrapRole).toBeUndefined();
+	});
+
+	it('a widened flat descriptor cannot smuggle container-only fields through augment', () => {
+		const kind = declarePluginKind('aug-widened');
+		registerBlockKind(kind, leaf);
+		augmentBlockKind(kind, getBlockKindDescriptor('blockquote'));
+
+		const d = tryGetBlockKindDescriptor(kind)!;
+		expect(d.isContainer).toBe(false);
+		expect(d.rebuildRaw).toBeUndefined();
+		expect(d.containerContract).toBeUndefined();
 	});
 });
 
