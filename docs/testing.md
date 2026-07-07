@@ -37,6 +37,7 @@ Unit tests can be scoped to a single concept area:
 | `test:editor:simulation`     | Simulation-engine internals — seeded RNG, expectation tracker                                   |
 | `test:editor:undo`           | Undo stack and entry management                                                                 |
 | `test:editor:search`         | Find/replace engine — document scan and search state                                            |
+| `test:editor:conformance`    | commonmark.js differ slice — spec examples + seeded corpus vs the committed divergence baseline |
 | `test:editor:debug`          | Debug engine helpers and operations log                                                         |
 | `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards                                    |
 | `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens, instrument behavior |
@@ -70,6 +71,17 @@ Unit tests live under `src/lib/test/`, mirroring the source tree one-for-one (th
 Tests that import a sub-path directly (e.g. `tree-operations/list/m1-contract` rather than the `tree-operations` barrel) mirror at the deeper path — `test/tree-operations/list/m1-contract.test.ts`. Test directory depth follows import depth, not just the directory the SUT lives in.
 
 The invariant catalog (`test/invariants/`, with shared arbitraries under `test/invariants/arbitraries/` and source-scan guards under `test/invariants/lint/`) deliberately bends the mirror rule: the catalog is cross-cutting — like the root-level `round-trip*.test.ts` — and lives in one place so the whole set is legible. See `docs/design/editor/invariants.md`.
+
+## Conformance Harness (commonmark.js differ)
+
+`src/lib/test/conformance/` diffs the inline parser against commonmark.js (pinned exact — bumping the reference is a deliberate re-bless with a changelog note). Both trees normalize to one minimal shape; unmapped constructs throw rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's `normalizerReconciliations` audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the entire input (its block layer neither trimmed nor consumed anything), with per-reason skip counts — so a divergence always means the inline parsers disagree.
+
+| Tier       | Command                    | Scope                                                                                                                  |
+| ---------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Slice      | rides `npm test`           | Spec-example fixtures + deterministic seeded corpus vs `baseline.json` — fails closed in both directions               |
+| Full sweep | `npm run conformance:full` | Full brute-force enumeration + high-volume seeded random; writes a classed report to gitignored `conformance-results/` |
+
+The baseline is a ratchet: a divergence not in it fails the slice, and a stale entry (no longer divergent) fails until removed — the count only shrinks, by mechanism. The full sweep is a meter, not a gate: its classed report (plus unclassified inputs) is the empirical input to the inline-scanner rework.
 
 ## E2E Tests (Playwright)
 

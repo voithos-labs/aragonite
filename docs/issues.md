@@ -53,6 +53,33 @@ The prose branch now reads its own per-path bucket from the match index; the tab
 
 ## Test coverage
 
+### Attribution perf axes time out on 1MB setSource settle (pre-existing)
+
+**Severity:** minor (diagnostic instruments only — the `PERF-GATE` rows and typing-latency rows pass with 2-3× headroom, so `perf:check`'s regression gate is intact)
+**Files:** `src/lib/e2e/tests/perf/attribution.perf.spec.ts`
+
+9 of 13 attribution axes fail on `page.waitForFunction` (60s) waiting for `settle()` after `__test.setSource` of a 1MB fixture. Proven pre-existing: axis1 fails identically at 0.9.7 (`d7135f3`), so this is not a 0.9.8 regression. The failure means the in-page document never reaches the expected byte length within the timeout — diagnose the settle predicate against current `setSource` behavior on 1MB fixtures before trusting any attribution numbers.
+
+**Why deferred:** baseline-proven pre-existing; the diagnosis belongs to a perf-harness pass, not the conformance/registry batch that surfaced it.
+
+### `lineInterruptsParagraph` is a second grammar-read seam without flush/latch
+
+**Severity:** trivial (unreachable today)
+**Files:** `src/lib/schema/block-openers.ts`
+
+`getOrderedOpeners` flushes pending registration checks and trips the grammar-consumed latch; `lineInterruptsParagraph` reads the same grammar but does neither. Unreachable outside a parse that already ran opener dispatch, but it is the sibling-path shape (a rule at N−1 of N entry paths) one refactor away from real.
+
+**Why deferred:** no reachable bug; mirror the two calls when the seam is next touched.
+
+### Conformance reference version has no drift-guard test
+
+**Severity:** trivial
+**Files:** `src/lib/test/conformance/reference.ts`
+
+`REFERENCE_VERSION` is hand-maintained beside the exact-pinned `commonmark` devDependency; nothing red ties them together. A bump that misses `reference.ts` would shift divergences and fail the slice ratchet loudly anyway — the ratchet is the de-facto guard.
+
+**Why deferred:** add the direct pin when the harness is next touched.
+
 ### No composition-driving harness; IME guards are pinned by parity, not by tests
 
 **Severity:** minor (test gap)
