@@ -74,8 +74,12 @@ export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
 
 const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 
-/** True when the id is part of the closed built-in vocabulary (not a minted plugin id). */
-export function isBuiltinCommandId(id: AnyCommandId): boolean {
+/**
+ * True when the id is part of the closed built-in vocabulary (not a minted
+ * plugin id). Accepts a plain name so probes needn't pre-brand (the
+ * `isBlockKindRegistered` convention).
+ */
+export function isBuiltinCommandId(id: string): boolean {
 	return BUILTIN_COMMAND_IDS.has(id);
 }
 

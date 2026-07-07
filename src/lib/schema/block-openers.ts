@@ -10,6 +10,13 @@
 
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { ParsedLine } from '../core/lines';
+import {
+	enqueueRegistrationCheck,
+	hasPendingRegistrationChecks,
+	markGrammarConsumed,
+	__resetRegistrationChecksForTests
+} from './registration-pending';
+import { flushPendingRegistrationChecks } from './registration-checks';
 
 /**
  * One instance is reused across the parse loop — openers must consume it
@@ -45,6 +52,7 @@ export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): vo
 		);
 	}
 	openers.set(kind, opener);
+	enqueueRegistrationCheck(kind, 'opener');
 	orderedCache = null;
 	interruptCache = null;
 }
@@ -58,8 +66,15 @@ export function isBlockOpenerRegistered(kind: string): boolean {
 	return openers.has(kind as AnyBlockKind);
 }
 
-/** Priority-ascending; cached — the parser loops this per block. */
+/**
+ * Priority-ascending; cached — the parser loops this per block. The grammar-
+ * consumption seam: registrations pending since the last flush are validated
+ * before this read, and flush-before-mark keeps a registrant racing the first
+ * read out of the late-opener warn (G1.17).
+ */
 export function getOrderedOpeners(): readonly BlockOpener[] {
+	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
+	markGrammarConsumed();
 	if (!orderedCache) {
 		orderedCache = [...openers.values()].sort((a, b) => a.priority - b.priority);
 	}
@@ -84,11 +99,15 @@ export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number 
 	return [...openers.entries()].map(([kind, o]) => ({ kind, priority: o.priority }));
 }
 
-// Opener tests own the whole registry (register a controlled set after a full clear).
+// Opener tests own the whole registry (register a controlled set after a full
+// clear). Also resets the registration-check latches — a grammar-consumed or
+// first-flush latch outliving the registry it shadows would mislabel the next
+// controlled set as late registrations.
 export function __resetBlockOpenersForTests(): void {
 	openers.clear();
 	orderedCache = null;
 	interruptCache = null;
+	__resetRegistrationChecksForTests();
 }
 
 // The unified schema reset preserves built-ins for tests that merely add plugin kinds.

@@ -102,6 +102,11 @@ describe('checkIsContainerIffRebuildRaw (G1.3)', () => {
 	});
 
 	it('passes over the real registries', () => {
-		expect(checkIsContainerIffRebuildRaw()).toBeNull();
+		expect(
+			checkIsContainerIffRebuildRaw(ALL_BLOCK_KINDS, (kind) => {
+				const d = tryGetBlockKindDescriptor(kind);
+				return { isContainer: d?.isContainer ?? false, hasRebuildRaw: d?.rebuildRaw !== undefined };
+			})
+		).toBeNull();
 	});
 });

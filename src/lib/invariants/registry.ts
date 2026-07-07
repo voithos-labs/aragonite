@@ -1,16 +1,11 @@
 import type { AnyBlockKind, BlockKind } from '../core/nodes';
-import { ALL_BLOCK_KINDS } from '../core/nodes';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { getBlockComponent } from '../schema/block-component-registry';
-import { listRegisteredOpeners } from '../schema/block-openers';
-import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '../schema/commands';
-import { normalizeChord, type KeyBinding } from '../schema/keybindings';
 import type { InvariantViolation } from './assert';
 
 /**
- * Registry predicates accept their lookups as parameters (real ones as
- * defaults) so negative tests inject a missing/mismatched entry without
- * mutating the module-global registries other tests depend on.
+ * Registry predicates take every lookup as a parameter — pure by construction.
+ * The registries they validate call back into this module at the registration
+ * seam (`schema/registration-checks.ts`), so a schema import here would cycle;
+ * that seam supplies the real registries, and negative tests inject their own.
  */
 
 /**
@@ -28,10 +23,9 @@ const NO_STANDALONE_COMPONENT: ReadonlySet<BlockKind> = new Set(['listItem']);
  * renders inside a parent (see `NO_STANDALONE_COMPONENT`). Returns the first gap.
  */
 export function checkRegistryCompleteness(
-	kinds: BlockKind[] = ALL_BLOCK_KINDS,
-	hasDescriptor: (kind: BlockKind) => boolean = (kind) =>
-		tryGetBlockKindDescriptor(kind) !== undefined,
-	hasComponent: (kind: BlockKind) => boolean = (kind) => getBlockComponent(kind) !== undefined
+	kinds: readonly BlockKind[],
+	hasDescriptor: (kind: BlockKind) => boolean,
+	hasComponent: (kind: BlockKind) => boolean
 ): InvariantViolation | null {
 	for (const kind of kinds) {
 		if (!hasDescriptor(kind)) {
@@ -58,11 +52,8 @@ export function checkRegistryCompleteness(
  * `isContainer` and `rebuildRaw`-presence disagree.
  */
 export function checkIsContainerIffRebuildRaw(
-	kinds: BlockKind[] = ALL_BLOCK_KINDS,
-	getPairing: (kind: BlockKind) => { isContainer: boolean; hasRebuildRaw: boolean } = (kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return { isContainer: d?.isContainer ?? false, hasRebuildRaw: d?.rebuildRaw !== undefined };
-	}
+	kinds: readonly AnyBlockKind[],
+	getPairing: (kind: AnyBlockKind) => { isContainer: boolean; hasRebuildRaw: boolean }
 ): InvariantViolation | null {
 	for (const kind of kinds) {
 		const { isContainer, hasRebuildRaw } = getPairing(kind);
@@ -83,9 +74,8 @@ export function checkIsContainerIffRebuildRaw(
  * order registration-dependent — a silent round-trip hazard).
  */
 export function checkOpenerRegistry(
-	entries: { kind: AnyBlockKind; priority: number }[] = listRegisteredOpeners(),
-	hasDescriptor: (kind: AnyBlockKind) => boolean = (kind) =>
-		tryGetBlockKindDescriptor(kind) !== undefined
+	entries: readonly { kind: AnyBlockKind; priority: number }[],
+	hasDescriptor: (kind: AnyBlockKind) => boolean
 ): InvariantViolation | null {
 	const seen = new Map<number, AnyBlockKind>();
 	for (const { kind, priority } of entries) {
@@ -109,6 +99,11 @@ export function checkOpenerRegistry(
 	return null;
 }
 
+export interface KeymapCoherenceEntry {
+	kind: AnyBlockKind;
+	keymap?: readonly { chord: string; command: string }[];
+}
+
 /**
  * G1.11 — keymap coherence: every keymap binding names a known command, and a
  * kind's chords are unique after normalization (duplicates make dispatch order
@@ -116,17 +111,15 @@ export function checkOpenerRegistry(
  * same chord to different commands. Reports the first offending binding.
  */
 export function checkKeymapCoherence(
-	entries: { kind: AnyBlockKind; keymap?: KeyBinding[] }[] = ALL_BLOCK_KINDS.map((kind) => ({
-		kind,
-		keymap: tryGetBlockKindDescriptor(kind)?.keymap
-	}))
+	entries: readonly KeymapCoherenceEntry[],
+	isKnownCommand: (id: string) => boolean,
+	normalizeChord: (chord: string) => string
 ): InvariantViolation | null {
-	const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 	for (const { kind, keymap } of entries) {
 		if (!keymap) continue;
 		const seenChords = new Set<string>();
 		for (const binding of keymap) {
-			if (!knownCommands.has(binding.command)) {
+			if (!isKnownCommand(binding.command)) {
 				return {
 					code: 'keymap-coherence',
 					message: `kind "${kind}" binds chord "${binding.chord}" to unknown command "${binding.command}"`,
@@ -145,4 +138,21 @@ export function checkKeymapCoherence(
 		}
 	}
 	return null;
+}
+
+/**
+ * G1.17 — opener registered after the grammar was consumed. Parsed documents
+ * never re-parse, so the new kind silently misses every open document; the
+ * registration seam records the lateness and the next flush reports it.
+ */
+export function checkLateOpenerRegistration(
+	kind: AnyBlockKind,
+	grammarConsumed: boolean
+): InvariantViolation | null {
+	if (!grammarConsumed) return null;
+	return {
+		code: 'late-opener-registration',
+		message: `opener for "${kind}" registered after documents were parsed — already-parsed documents will not re-parse; register plugins before first mount`,
+		detail: { kind }
+	};
 }
