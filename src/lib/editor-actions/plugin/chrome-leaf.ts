@@ -56,7 +56,6 @@ export function registerChromeLeaf<
 	registerBlockKind(kind, {
 		mergeRole: opts.mergeRole ?? 'not-mergeable',
 		editable: true,
-		isContainer: false,
 		supportsInline: false,
 		contextDependentKind: true,
 		keymap: mergeChromeKeymap(opts.keymap)
