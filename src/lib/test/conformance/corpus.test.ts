@@ -18,6 +18,10 @@ describe('enumerateCorpus', () => {
 		expect(corpus).toHaveLength(132);
 	});
 
+	it('handles the full-sweep maxLen 5 — 161k strings at the top length', () => {
+		expect(enumerateCorpus(5)).toHaveLength(11 + 121 + 1331 + 14641 + 161051);
+	});
+
 	it('covers every single character and has no duplicates', () => {
 		const corpus = enumerateCorpus(2);
 		for (const char of ENUM_ALPHABET) expect(corpus).toContain(char);
