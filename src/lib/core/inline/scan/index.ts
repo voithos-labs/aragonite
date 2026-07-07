@@ -10,13 +10,14 @@ import type { InlineNode } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
 import { mergeAdjacentText } from '../post-process';
 import { handleBacktick } from './code-spans';
+import { handleDelimiter, processEmphasis } from './emphasis';
 import { createScanContext, flushPendingText } from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
 
 // Every character that can start a construct or anchor a lookback: the
-// dispatch cases below plus the characters later handlers claim (`* _ ~ [ <`
-// fall through as text until then). `!` and `]` are deliberately absent —
-// they only matter in ranges that also contain `[`. GFM bare/www autolinks
+// dispatch cases below plus the characters later handlers claim (`[ <` fall
+// through as text until then). `!` and `]` are deliberately absent — they
+// only matter in ranges that also contain `[`. GFM bare/www autolinks
 // trigger on plain text; their handler must extend this seam.
 const SPECIAL_CHARS = '\\`&\n<[*_~';
 
@@ -58,10 +59,16 @@ export function scanInline(
 			case '\n':
 				handleNewline(ctx);
 				break;
+			case '*':
+			case '_':
+			case '~':
+				handleDelimiter(ctx);
+				break;
 			default:
 				ctx.pos++;
 		}
 	}
 	flushPendingText(ctx, ctx.end);
+	processEmphasis(ctx, 0);
 	return mergeAdjacentText(ctx.nodes);
 }
