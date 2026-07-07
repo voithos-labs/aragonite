@@ -40,10 +40,14 @@ export const RANDOM_EXTRAS = [
 /** Every string of length 1..maxLen over `ENUM_ALPHABET`, shortest first. */
 export function enumerateCorpus(maxLen: number): string[] {
 	const corpus: string[] = [];
-	let previousLength: string[] = [''];
+	let stringsAtLength: string[] = [''];
 	for (let length = 1; length <= maxLen; length++) {
-		previousLength = previousLength.flatMap((prefix) => ENUM_ALPHABET.map((char) => prefix + char));
-		corpus.push(...previousLength);
+		stringsAtLength = stringsAtLength.flatMap((prefix) =>
+			ENUM_ALPHABET.map((char) => prefix + char)
+		);
+		// No spread-push: at maxLen 5 the top tier is 11^5 = 161k strings, and
+		// push(...arr) passes each as a call argument — that overflows the stack.
+		for (const string of stringsAtLength) corpus.push(string);
 	}
 	return corpus;
 }
