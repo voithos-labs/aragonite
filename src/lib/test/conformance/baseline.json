@@ -6,11 +6,11 @@
 			"why": "commonmark 0.31.2 AST cannot distinguish [a](/u \"\") from [a](/u); its own renderer drops both"
 		},
 		{
-			"what": "code-span content folded per spec §6.1 (line endings → spaces; one flanking space stripped)",
+			"what": "code-span content folded per spec §6.1 on the aragonite side only (line endings → spaces; one flanking space stripped); commonmark's code literal is already spec-folded",
 			"why": "styled-source display must keep raw bytes (textContent === raw); the spec-semantic content differs by design"
 		},
 		{
-			"what": "spaces before a softbreak newline trimmed from text",
+			"what": "spaces (not tabs) before a softbreak newline trimmed from aragonite text only; the reference AST never carries them",
 			"why": "same byte-preserving display model; spec strips end-of-line spaces at the inline stage"
 		}
 	],
@@ -29,11 +29,6 @@
 			"input": "<https://foo.bar.`baz>`",
 			"class": "autolink-uri-charset",
 			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
-		},
-		{
-			"input": "`  ``  `",
-			"class": "code-span-folding",
-			"note": "double-flanking-space span survives the §6.1 reconciliation: folding strips one space from our raw bytes but re-strips commonmark's already-folded literal, leaving the normal forms one flanking space apart"
 		},
 		{
 			"input": "*#a𐄀_#\\!𐄀)_",

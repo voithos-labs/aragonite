@@ -96,15 +96,22 @@ describe('normalize (dual-parser mini-differ)', () => {
 // ── Reconciliations (audited: baseline.json normalizerReconciliations) ───────
 
 /**
- * Display-model divergences the shared canonicalization reconciles on BOTH
- * sides: §6.1 code-span folding and §6.8 softbreak space-trimming. Inputs are
- * mechanism-report exemplars; the shape is the reconciled normal form.
+ * Display-model divergences reconciled by folding the ARAGONITE side to the
+ * spec-semantic form the reference already carries: §6.1 code-span folding and
+ * §6.8 softbreak space-trimming. Inputs are mechanism-report exemplars; the
+ * shape is the reconciled normal form — which must equal the reference's
+ * untransformed one (folding it again would double-strip).
  */
 const RECONCILED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	{
 		name: 'code span: one flanking space stripped',
 		md: '` * `',
 		shape: [{ kind: 'code', text: '*' }]
+	},
+	{
+		name: 'code span: double flanking spaces lose exactly one, not two',
+		md: '`  a  `',
+		shape: [{ kind: 'code', text: ' a ' }]
 	},
 	{
 		name: 'code span: line endings fold to spaces before the strip',
@@ -114,11 +121,6 @@ const RECONCILED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	{
 		name: 'softbreak: one trailing space trimmed (not a hard break)',
 		md: 'a \nb',
-		shape: [{ kind: 'text', text: 'a\nb' }]
-	},
-	{
-		name: 'softbreak: tab trimmed only after adjacent text merges',
-		md: 'a\t\nb',
 		shape: [{ kind: 'text', text: 'a\nb' }]
 	},
 	{
@@ -143,6 +145,11 @@ const PRESERVED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 		name: 'two-space line ending stays a hard break',
 		md: 'a  \nb',
 		shape: [{ kind: 'text', text: 'a' }, { kind: 'hardbreak' }, { kind: 'text', text: 'b' }]
+	},
+	{
+		name: 'tab before a softbreak is content (reference strips spaces only)',
+		md: 'a\t\nb',
+		shape: [{ kind: 'text', text: 'a\t\nb' }]
 	}
 ];
 
@@ -168,6 +175,12 @@ describe('reconciliations (code-span folding, softbreak trimming)', () => {
 	it('single-sided flanking space is content, not stripped', () => {
 		const ours = normalizeAragonite(parseInline('` a`', 0, 4), '` a`');
 		const theirs = normalizeReference(referenceInlineNodes('`a`')!);
+		expect(normalEqual(ours, theirs)).toBe(false);
+	});
+
+	it('genuine text-content mismatch still fails normalEqual after trimming', () => {
+		const ours = normalizeAragonite(parseInline('y \nb', 0, 4), 'y \nb');
+		const theirs = normalizeReference(referenceInlineNodes('x\nb')!);
 		expect(normalEqual(ours, theirs)).toBe(false);
 	});
 });
