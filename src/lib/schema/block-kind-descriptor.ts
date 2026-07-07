@@ -145,19 +145,30 @@ export interface ContainerDescriptorGroup {
 	unwrapRole?: UnwrapRole;
 }
 
+// One source for both the type-level Omit and the runtime strip: excess-property
+// checks bite only fresh literals, so a widened value (e.g. a flat descriptor
+// passed as a registration) can structurally smuggle these keys past the types.
+const CONTAINER_ONLY_KEYS = [
+	'isContainer',
+	'containerContract',
+	'rebuildRaw',
+	'reservedChrome',
+	'containerPaste',
+	'unwrapRole'
+] as const;
+type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
+
+function stripContainerOnlyKeys<T extends object>(fields: T): Omit<T, ContainerOnlyKey> {
+	const stripped = { ...fields } as Record<string, unknown>;
+	for (const key of CONTAINER_ONLY_KEYS) delete stripped[key];
+	return stripped as Omit<T, ContainerOnlyKey>;
+}
+
 /**
  * The write-side shape `registerBlockKind` accepts. `isContainer` is derived
  * (`container !== undefined`), never declared.
  */
-export interface BlockKindRegistration extends Omit<
-	BlockKindDescriptor,
-	| 'isContainer'
-	| 'containerContract'
-	| 'rebuildRaw'
-	| 'reservedChrome'
-	| 'containerPaste'
-	| 'unwrapRole'
-> {
+export interface BlockKindRegistration extends Omit<BlockKindDescriptor, ContainerOnlyKey> {
 	container?: ContainerDescriptorGroup;
 }
 
@@ -241,10 +252,12 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	enqueueRegistrationCheck(kind);
 }
 
-// isContainer is derived and written after the spreads, so a stale property on
-// a non-fresh registration object cannot leak into the descriptor.
+// The flat part is stripped of container-only keys (see CONTAINER_ONLY_KEYS)
+// and isContainer is derived, so the `container` group is the only source of
+// container fields — a widened or stale-keyed registration object cannot leak.
 function normalizeRegistration(registration: BlockKindRegistration): BlockKindDescriptor {
-	const { container, ...flat } = registration;
+	const { container, ...rest } = registration;
+	const flat = stripContainerOnlyKeys(rest);
 	if (!container) return { ...flat, isContainer: false };
 	const { contract, ...containerFields } = container;
 	return { ...flat, ...containerFields, isContainer: true, containerContract: contract };
@@ -265,8 +278,8 @@ function mergeBlockKindFields(
 			`${entry}: cannot augment "${kind}" — no base descriptor. Call registerBlockKind first.`
 		);
 	}
-	const { container, ...flat } = fields;
-	const next: BlockKindDescriptor = { ...existing, ...flat };
+	const { container, ...rest } = fields;
+	const next: BlockKindDescriptor = { ...existing, ...stripContainerOnlyKeys(rest) };
 	if (container) {
 		if (!existing.isContainer) {
 			throw new Error(
