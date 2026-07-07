@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
+import {
+	normalizeLinkLabel,
+	type LinkReferenceResolver,
+	type ResolvedReference
+} from '../../core/inline/link-reference-resolver';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
 
@@ -130,9 +135,9 @@ export function linkNode(
 	end: number,
 	children: InlineNode[],
 	url: string,
-	title?: string
+	rest: Pick<InlineNode, 'title' | 'label'> = {}
 ): InlineNode {
-	return { kind: 'link', start, end, children, url, ...(title !== undefined ? { title } : {}) };
+	return { kind: 'link', start, end, children, url, ...rest };
 }
 
 export function imageNode(
@@ -141,9 +146,26 @@ export function imageNode(
 	children: InlineNode[],
 	alt: string,
 	url: string,
-	rest: Pick<InlineNode, 'title' | 'width' | 'height'> = {}
+	rest: Pick<InlineNode, 'title' | 'width' | 'height' | 'label'> = {}
 ): InlineNode {
 	return { kind: 'image', start, end, children, alt, url, ...rest };
+}
+
+export function unresolvedRefNode(
+	start: number,
+	end: number,
+	label: string,
+	refKind: 'link' | 'image'
+): InlineNode {
+	return { kind: 'unresolvedReference', start, end, label, refKind };
+}
+
+// ── Resolver fixture ────────────────────────────────────────────────────────
+
+/** Resolver over a fixed label→reference map, normalizing like the production map. */
+export function resolverOf(entries: Record<string, ResolvedReference>): LinkReferenceResolver {
+	const map = new Map(Object.entries(entries).map(([k, v]) => [normalizeLinkLabel(k), v]));
+	return (label) => map.get(normalizeLinkLabel(label));
 }
 
 // ── Case runner ─────────────────────────────────────────────────────────────
@@ -151,11 +173,15 @@ export function imageNode(
 export type ScanCase = [name: string, raw: string, expected: InlineNode[]];
 
 /** Runs scanInline over the whole input, asserting coverage plus exact nodes. */
-export function describeScanCases(family: string, cases: ScanCase[]): void {
+export function describeScanCases(
+	family: string,
+	cases: ScanCase[],
+	resolver?: LinkReferenceResolver
+): void {
 	describe(family, () => {
 		for (const [name, raw, expected] of cases) {
 			it(name, () => {
-				const nodes = scanInline(raw, 0, raw.length);
+				const nodes = scanInline(raw, 0, raw.length, resolver);
 				assertTotalCoverage(nodes, 0, raw.length);
 				assertConstructCoverage(nodes);
 				expect(nodes).toEqual(expected);
