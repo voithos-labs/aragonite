@@ -11,18 +11,14 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	registerBlockKind(chrome, {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		isContainer: false,
 		supportsInline: false,
 		contextDependentKind: true
 	});
 	registerBlockKind(container, {
 		mergeRole: 'container',
 		editable: true,
-		isContainer: true,
 		supportsInline: false,
-		containerContract: 'opaque',
-		rebuildRaw: () => {},
-		reservedChrome: { kind: chrome }
+		container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chrome } }
 	});
 	return { container, chrome };
 }
@@ -46,10 +42,8 @@ describe('ensureEditableContainers — reserved-chrome backfill', () => {
 		registerBlockKind(plain, {
 			mergeRole: 'container',
 			editable: true,
-			isContainer: true,
 			supportsInline: false,
-			containerContract: 'opaque',
-			rebuildRaw: () => {}
+			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		const node: CstNode = { kind: plain, leadingTrivia: '', raw: '', children: [] };
 

@@ -10,7 +10,6 @@ function registerChromeKind() {
 	registerBlockKind(chrome, {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		isContainer: false,
 		supportsInline: false,
 		contextDependentKind: true
 	});

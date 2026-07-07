@@ -47,28 +47,6 @@ export function checkRegistryCompleteness(
 }
 
 /**
- * G1.3 — a kind is a container iff its descriptor supplies `rebuildRaw`.
- * rebuildRaw is declared at registration. Reports the first kind where
- * `isContainer` and `rebuildRaw`-presence disagree.
- */
-export function checkIsContainerIffRebuildRaw(
-	kinds: readonly AnyBlockKind[],
-	getPairing: (kind: AnyBlockKind) => { isContainer: boolean; hasRebuildRaw: boolean }
-): InvariantViolation | null {
-	for (const kind of kinds) {
-		const { isContainer, hasRebuildRaw } = getPairing(kind);
-		if (isContainer !== hasRebuildRaw) {
-			return {
-				code: 'container-rebuild-pairing',
-				message: `kind "${kind}" ${isContainer ? 'is a container but has no rebuildRaw' : 'has rebuildRaw but is not a container'}`,
-				detail: { kind, isContainer, hasRebuildRaw }
-			};
-		}
-	}
-	return null;
-}
-
-/**
  * G1.10 — opener-registry coherence: every registered opener belongs to a
  * registered kind, and priorities are unique (equal priorities are deterministic
  * — dispatch falls back to kind name — but a shared priority is usually

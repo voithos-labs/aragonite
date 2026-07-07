@@ -77,15 +77,16 @@ export function registerDetailsKind(): void {
 	registerBlockKind(details, {
 		mergeRole: 'container',
 		editable: true,
-		isContainer: true,
 		supportsInline: false,
-		containerContract: 'opaque',
-		rebuildRaw: rebuildDetailsRaw,
-		reservedChrome: {
-			kind: detailsSummary,
-			isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
-		},
-		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		container: {
+			contract: 'opaque',
+			rebuildRaw: rebuildDetailsRaw,
+			reservedChrome: {
+				kind: detailsSummary,
+				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
+			},
+			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		}
 	});
 
 	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });

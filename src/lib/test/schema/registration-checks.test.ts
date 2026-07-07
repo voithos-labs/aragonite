@@ -7,7 +7,7 @@ import {
 	hasPendingRegistrationChecks
 } from '$lib/schema/registration-checks';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, type BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { registerBlockKind, type BlockKindRegistration } from '$lib/schema/block-kind-descriptor';
 import { registerBlockCommand } from '$lib/schema/block-commands';
 import {
 	registerBlockOpener,
@@ -19,21 +19,25 @@ import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.sve
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 
-const container: BlockKindDescriptor = {
+const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
+
+const container: BlockKindRegistration = {
 	mergeRole: 'container',
 	editable: true,
-	isContainer: true,
-	containerContract: 'opaque',
-	rebuildRaw: () => {},
+	supportsInline: false,
+	container: containerGroup
+};
+
+const leaf: BlockKindRegistration = {
+	mergeRole: 'not-mergeable',
+	editable: true,
 	supportsInline: false
 };
 
-const leaf: BlockKindDescriptor = {
-	mergeRole: 'not-mergeable',
-	editable: true,
-	isContainer: false,
-	supportsInline: false
-};
+const withChrome = (title: AnyBlockKind): BlockKindRegistration => ({
+	...container,
+	container: { ...containerGroup, reservedChrome: { kind: title } }
+});
 
 const opener = (priority: number): BlockOpener => ({
 	priority,
@@ -94,7 +98,7 @@ describe('flushPendingRegistrationChecks', () => {
 		// registered later in the same batch via registerChromeLeaf — nothing may
 		// fire mid-batch, and the completed batch is fully coherent.
 		registerBlockOpener(calloutKind, opener(9102));
-		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+		registerBlockKind(calloutKind, withChrome(title));
 		registerChromeLeaf(title, TextEditableBlock);
 
 		const { violations, report } = collector();
@@ -186,7 +190,7 @@ describe('registry-derived first-flush sweep', () => {
 		const title = declarePluginKind('boot-title');
 		registerChromeLeaf(title, TextEditableBlock);
 		const calloutKind = declarePluginKind('boot-container');
-		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+		registerBlockKind(calloutKind, withChrome(title));
 		registerBlockOpener(calloutKind, opener(9107));
 
 		const { violations, report } = collector();
@@ -230,28 +234,16 @@ describe('keymap coherence at the incremental flush', () => {
 	});
 });
 
+// A leaf declaring reservedChrome is unrepresentable through the registration
+// shape (the grouped `container` field owns it), so only the chrome-kind gaps
+// remain constructible here; the not-container predicate branch stays covered
+// by direct call in test/invariants/reserved-chrome-coherence.test.ts.
 describe('reservedChrome coherence at the flush', () => {
-	it('flags a declarer that is not a container (incremental flush)', () => {
-		flushPendingRegistrationChecks();
-		const title = declarePluginKind('rc-chrome');
-		registerChromeLeaf(title, TextEditableBlock);
-		const declarer = declarePluginKind('rc-non-container');
-		registerBlockKind(declarer, { ...leaf, reservedChrome: { kind: title } });
-
-		const { report, byTag } = collector();
-		flushPendingRegistrationChecks(report);
-		expect(byTag('reserved-chrome-coherence')).toHaveLength(1);
-		expect(byTag('reserved-chrome-coherence')[0].violation.detail).toMatchObject({
-			kind: 'rc-non-container',
-			issue: 'not-container'
-		});
-	});
-
 	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
 		const title = declarePluginKind('rc-descriptor-only');
 		registerBlockKind(title, { ...leaf, contextDependentKind: true });
 		const calloutKind = declarePluginKind('rc-container');
-		registerBlockKind(calloutKind, { ...container, reservedChrome: { kind: title } });
+		registerBlockKind(calloutKind, withChrome(title));
 
 		const { report, byTag } = collector();
 		flushPendingRegistrationChecks(report);
