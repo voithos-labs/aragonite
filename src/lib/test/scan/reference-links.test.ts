@@ -164,6 +164,8 @@ describeScanCases(
 describeScanCases(
 	'bracketAfter guard: a bracket inside the text blocks collapsed/shortcut lookup',
 	[
+		// Deliberate divergence from the OLD parser (which looked the label up and
+		// emitted a collapsed unresolvedReference here) — not a scanner bug.
 		[
 			'collapsed form is rejected, [] rescans as literal text',
 			'[a ![b](u) c][]',
@@ -190,6 +192,8 @@ describeScanCases(
 describeScanCases(
 	'label length boundary (999 content chars)',
 	[
+		// Deliberate divergence from the OLD parser (which had no label-length
+		// cap) — the reference's 999 limit, not a scanner bug.
 		[
 			'a 1000-char label is not a label: shortcut takes over',
 			'[foo][' + 'a'.repeat(1000) + ']',
