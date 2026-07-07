@@ -21,61 +21,74 @@ function isEscaped(raw: string, index: number): boolean {
 	return backslashes % 2 === 1;
 }
 
+export interface BacktickRunMatch {
+	tickLen: number;
+	/** Start of the first equal-length closing run, or -1 when unmatched. */
+	closeStart: number;
+}
+
+/**
+ * Measure the backtick run opening at `tickStart` and find its closer: a run
+ * of N backticks closes only with a later run of exactly N (§6.1). Shared
+ * matching core for the staged pipeline and scan/.
+ */
+export function matchBacktickRun(raw: string, tickStart: number, end: number): BacktickRunMatch {
+	let pos = tickStart;
+	while (pos < end && raw[pos] === '`') pos++;
+	const tickLen = pos - tickStart;
+
+	let searchPos = pos;
+	while (searchPos < end) {
+		if (raw[searchPos] === '`') {
+			const closeStart = searchPos;
+			while (searchPos < end && raw[searchPos] === '`') searchPos++;
+			if (searchPos - closeStart === tickLen) return { tickLen, closeStart };
+		} else {
+			searchPos++;
+		}
+	}
+	return { tickLen, closeStart: -1 };
+}
+
 export function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[] {
 	const nodes: InlineNode[] = [];
 	let pos = start;
 	let textStart = start;
 
 	while (pos < end) {
-		if (raw[pos] === '`') {
-			if (isEscaped(raw, pos)) {
-				pos++;
-				continue;
-			}
-			const tickStart = pos;
-			while (pos < end && raw[pos] === '`') pos++;
-			const tickLen = pos - tickStart;
-
-			let closeStart = -1;
-			let searchPos = pos;
-			while (searchPos < end) {
-				if (raw[searchPos] === '`') {
-					const cStart = searchPos;
-					while (searchPos < end && raw[searchPos] === '`') searchPos++;
-					if (searchPos - cStart === tickLen) {
-						closeStart = cStart;
-						break;
-					}
-				} else {
-					searchPos++;
-				}
-			}
-
-			if (closeStart !== -1) {
-				if (textStart < tickStart) {
-					nodes.push({
-						kind: 'text',
-						start: textStart,
-						end: tickStart,
-						text: raw.slice(textStart, tickStart)
-					});
-				}
-
-				const contentStart = tickStart + tickLen;
-				const contentEnd = closeStart;
-				nodes.push({
-					kind: 'inlineCode',
-					start: tickStart,
-					end: closeStart + tickLen,
-					text: raw.slice(contentStart, contentEnd)
-				});
-
-				textStart = closeStart + tickLen;
-				pos = textStart;
-			}
-		} else {
+		if (raw[pos] !== '`') {
 			pos++;
+			continue;
 		}
+		if (isEscaped(raw, pos)) {
+			pos++;
+			continue;
+		}
+
+		const tickStart = pos;
+		const { tickLen, closeStart } = matchBacktickRun(raw, tickStart, end);
+		if (closeStart === -1) {
+			pos = tickStart + tickLen;
+			continue;
+		}
+
+		if (textStart < tickStart) {
+			nodes.push({
+				kind: 'text',
+				start: textStart,
+				end: tickStart,
+				text: raw.slice(textStart, tickStart)
+			});
+		}
+		nodes.push({
+			kind: 'inlineCode',
+			start: tickStart,
+			end: closeStart + tickLen,
+			text: raw.slice(tickStart + tickLen, closeStart)
+		});
+
+		textStart = closeStart + tickLen;
+		pos = textStart;
 	}
 
 	if (textStart < end) {

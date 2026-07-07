@@ -8,7 +8,8 @@
 import type { InlineNode } from '../nodes';
 import { forEachGap, interleave, occupiedRangesFrom } from './ranges';
 
-const ESCAPABLE = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~');
+/** CommonMark's 32 escapable ASCII punctuation characters. Shared with scan/. */
+export const ESCAPABLE_PUNCTUATION = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~');
 
 export function scanEscapes(
 	raw: string,
@@ -27,7 +28,7 @@ export function scanEscapes(
 function scanRegion(raw: string, start: number, end: number, out: InlineNode[]): void {
 	let pos = start;
 	while (pos < end) {
-		if (raw[pos] === '\\' && pos + 1 < end && ESCAPABLE.has(raw[pos + 1])) {
+		if (raw[pos] === '\\' && pos + 1 < end && ESCAPABLE_PUNCTUATION.has(raw[pos + 1])) {
 			out.push({ kind: 'escape', start: pos, end: pos + 2 });
 			pos += 2;
 		} else {
