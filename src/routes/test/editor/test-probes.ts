@@ -162,7 +162,6 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: true,
-					isContainer: false,
 					supportsInline: false
 				});
 			}
@@ -180,7 +179,6 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: false,
-					isContainer: false,
 					supportsInline: false
 				});
 				// A throwing stub isn't a full BlockComponent, but it throws before

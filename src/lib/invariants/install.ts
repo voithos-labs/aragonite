@@ -7,12 +7,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import { assertInvariant } from './assert';
 import { checkCommitPathAddressable } from './commit-paths';
-import {
-	checkRegistryCompleteness,
-	checkIsContainerIffRebuildRaw,
-	checkOpenerRegistry,
-	checkKeymapCoherence
-} from './registry';
+import { flushPendingRegistrationChecks } from '../schema/registration-checks';
 import {
 	checkStaleRaw,
 	checkOpaqueStaleRaw,
@@ -73,14 +68,11 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 }
 
-let didStartupCheck = false;
-
-/** Registry-wide checks, run once after built-in registration. */
+/**
+ * Registry-wide checks at the mount seam. The registration-check flush owns
+ * the once-latch: the first flush sweeps the whole world; later mounts
+ * validate only registrations that arrived since the previous flush.
+ */
 export function runStartupInvariantChecks(): void {
-	if (didStartupCheck) return;
-	didStartupCheck = true;
-	assertInvariant('registry-completeness', checkRegistryCompleteness);
-	assertInvariant('container-rebuild-pairing', checkIsContainerIffRebuildRaw);
-	assertInvariant('opener-registry', checkOpenerRegistry);
-	assertInvariant('keymap-coherence', checkKeymapCoherence);
+	flushPendingRegistrationChecks();
 }

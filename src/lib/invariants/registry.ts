@@ -1,16 +1,11 @@
 import type { AnyBlockKind, BlockKind } from '../core/nodes';
-import { ALL_BLOCK_KINDS } from '../core/nodes';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { getBlockComponent } from '../schema/block-component-registry';
-import { listRegisteredOpeners } from '../schema/block-openers';
-import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '../schema/commands';
-import { normalizeChord, type KeyBinding } from '../schema/keybindings';
 import type { InvariantViolation } from './assert';
 
 /**
- * Registry predicates accept their lookups as parameters (real ones as
- * defaults) so negative tests inject a missing/mismatched entry without
- * mutating the module-global registries other tests depend on.
+ * Registry predicates take every lookup as a parameter — pure by construction.
+ * The registries they validate call back into this module at the registration
+ * seam (`schema/registration-checks.ts`), so a schema import here would cycle;
+ * that seam supplies the real registries, and negative tests inject their own.
  */
 
 /**
@@ -28,10 +23,9 @@ const NO_STANDALONE_COMPONENT: ReadonlySet<BlockKind> = new Set(['listItem']);
  * renders inside a parent (see `NO_STANDALONE_COMPONENT`). Returns the first gap.
  */
 export function checkRegistryCompleteness(
-	kinds: BlockKind[] = ALL_BLOCK_KINDS,
-	hasDescriptor: (kind: BlockKind) => boolean = (kind) =>
-		tryGetBlockKindDescriptor(kind) !== undefined,
-	hasComponent: (kind: BlockKind) => boolean = (kind) => getBlockComponent(kind) !== undefined
+	kinds: readonly BlockKind[],
+	hasDescriptor: (kind: BlockKind) => boolean,
+	hasComponent: (kind: BlockKind) => boolean
 ): InvariantViolation | null {
 	for (const kind of kinds) {
 		if (!hasDescriptor(kind)) {
@@ -53,39 +47,14 @@ export function checkRegistryCompleteness(
 }
 
 /**
- * G1.3 — a kind is a container iff its descriptor supplies `rebuildRaw`.
- * rebuildRaw is declared at registration. Reports the first kind where
- * `isContainer` and `rebuildRaw`-presence disagree.
- */
-export function checkIsContainerIffRebuildRaw(
-	kinds: BlockKind[] = ALL_BLOCK_KINDS,
-	getPairing: (kind: BlockKind) => { isContainer: boolean; hasRebuildRaw: boolean } = (kind) => {
-		const d = tryGetBlockKindDescriptor(kind);
-		return { isContainer: d?.isContainer ?? false, hasRebuildRaw: d?.rebuildRaw !== undefined };
-	}
-): InvariantViolation | null {
-	for (const kind of kinds) {
-		const { isContainer, hasRebuildRaw } = getPairing(kind);
-		if (isContainer !== hasRebuildRaw) {
-			return {
-				code: 'container-rebuild-pairing',
-				message: `kind "${kind}" ${isContainer ? 'is a container but has no rebuildRaw' : 'has rebuildRaw but is not a container'}`,
-				detail: { kind, isContainer, hasRebuildRaw }
-			};
-		}
-	}
-	return null;
-}
-
-/**
  * G1.10 — opener-registry coherence: every registered opener belongs to a
- * registered kind, and priorities are unique (equal priorities make dispatch
- * order registration-dependent — a silent round-trip hazard).
+ * registered kind, and priorities are unique (equal priorities are deterministic
+ * — dispatch falls back to kind name — but a shared priority is usually
+ * unintended, so it still warns).
  */
 export function checkOpenerRegistry(
-	entries: { kind: AnyBlockKind; priority: number }[] = listRegisteredOpeners(),
-	hasDescriptor: (kind: AnyBlockKind) => boolean = (kind) =>
-		tryGetBlockKindDescriptor(kind) !== undefined
+	entries: readonly { kind: AnyBlockKind; priority: number }[],
+	hasDescriptor: (kind: AnyBlockKind) => boolean
 ): InvariantViolation | null {
 	const seen = new Map<number, AnyBlockKind>();
 	for (const { kind, priority } of entries) {
@@ -100,13 +69,18 @@ export function checkOpenerRegistry(
 		if (holder !== undefined) {
 			return {
 				code: 'opener-registry',
-				message: `kinds "${holder}" and "${kind}" share opener priority ${priority}`,
+				message: `kinds "${holder}" and "${kind}" share opener priority ${priority} — order falls back to kind name; give each kind its own priority`,
 				detail: { kinds: [holder, kind], priority }
 			};
 		}
 		seen.set(priority, kind);
 	}
 	return null;
+}
+
+export interface KeymapCoherenceEntry {
+	kind: AnyBlockKind;
+	keymap?: readonly { chord: string; command: string }[];
 }
 
 /**
@@ -116,17 +90,15 @@ export function checkOpenerRegistry(
  * same chord to different commands. Reports the first offending binding.
  */
 export function checkKeymapCoherence(
-	entries: { kind: AnyBlockKind; keymap?: KeyBinding[] }[] = ALL_BLOCK_KINDS.map((kind) => ({
-		kind,
-		keymap: tryGetBlockKindDescriptor(kind)?.keymap
-	}))
+	entries: readonly KeymapCoherenceEntry[],
+	isKnownCommand: (id: string) => boolean,
+	normalizeChord: (chord: string) => string
 ): InvariantViolation | null {
-	const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 	for (const { kind, keymap } of entries) {
 		if (!keymap) continue;
 		const seenChords = new Set<string>();
 		for (const binding of keymap) {
-			if (!knownCommands.has(binding.command)) {
+			if (!isKnownCommand(binding.command)) {
 				return {
 					code: 'keymap-coherence',
 					message: `kind "${kind}" binds chord "${binding.chord}" to unknown command "${binding.command}"`,
@@ -142,6 +114,69 @@ export function checkKeymapCoherence(
 				};
 			}
 			seenChords.add(chord);
+		}
+	}
+	return null;
+}
+
+/**
+ * G1.17 — opener registered after the grammar was consumed. Parsed documents
+ * never re-parse, so the new kind silently misses every open document; the
+ * registration seam records the lateness and the next flush reports it.
+ */
+export function checkLateOpenerRegistration(
+	kind: AnyBlockKind,
+	grammarConsumed: boolean
+): InvariantViolation | null {
+	if (!grammarConsumed) return null;
+	return {
+		code: 'late-opener-registration',
+		message: `opener for "${kind}" registered after documents were parsed — already-parsed documents will not re-parse; register plugins before first mount`,
+		detail: { kind }
+	};
+}
+
+export interface ReservedChromeCoherenceEntry {
+	kind: AnyBlockKind;
+	isContainer: boolean;
+	reservedChromeKind?: AnyBlockKind;
+}
+
+/**
+ * G1.18 — reservedChrome bootstrap coherence: a kind declaring `reservedChrome`
+ * must be a container, and its chrome kind must resolve to both a descriptor and
+ * a component (both registered by `registerChromeLeaf`). Catches a declarer that
+ * put chrome on a leaf, or one whose chrome leaf was never registered. Distinct
+ * from the per-commit slot check (G1.14): this validates the registration shape
+ * at bootstrap, not a live tree. Reports the first offending declarer.
+ */
+export function checkReservedChromeCoherence(
+	entries: readonly ReservedChromeCoherenceEntry[],
+	hasDescriptor: (kind: AnyBlockKind) => boolean,
+	hasComponent: (kind: AnyBlockKind) => boolean
+): InvariantViolation | null {
+	for (const { kind, isContainer, reservedChromeKind } of entries) {
+		if (reservedChromeKind === undefined) continue;
+		if (!isContainer) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `kind "${kind}" declares reservedChrome but is not a container`,
+				detail: { kind, chromeKind: reservedChromeKind, issue: 'not-container' }
+			};
+		}
+		if (!hasDescriptor(reservedChromeKind)) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") has no registered descriptor`,
+				detail: { kind, chromeKind: reservedChromeKind, missing: 'descriptor' }
+			};
+		}
+		if (!hasComponent(reservedChromeKind)) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") has no registered component`,
+				detail: { kind, chromeKind: reservedChromeKind, missing: 'component' }
+			};
 		}
 	}
 	return null;
