@@ -76,9 +76,9 @@ describeScanCases('entities', [
 
 describeScanCases('unclaimed specials', [
 	[
-		'delimiter and bracket characters fall through as text',
-		'*a* _b_ ~c~ [d] !e <f>',
-		[textNode(0, 22, '*a* _b_ ~c~ [d] !e <f>')]
+		'bracket and angle characters fall through as text',
+		'[d] !e <f>',
+		[textNode(0, 10, '[d] !e <f>')]
 	]
 ]);
 
