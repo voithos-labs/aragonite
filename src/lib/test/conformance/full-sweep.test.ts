@@ -3,13 +3,11 @@ import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { runDiff } from './differ';
 import { enumerateCorpus, sampleCorpus, loadSpecExamples } from './corpus';
 import { REFERENCE_VERSION } from './reference';
-import { parseInline } from '../../core/inline';
-import { scanInline } from '../../core/inline/scan';
 import baseline from './baseline.json';
 
 // Env-gated so `npm test` skips it in seconds; the controller runs the real
-// sweep via `npm run conformance:full`. The report is a meter for the scanner
-// rework, not a gate — the in-suite guard is the slice ratchet.
+// sweep via `npm run conformance:full`. The report is a divergence meter, not
+// a gate — the in-suite guard is the slice ratchet.
 const OUTPUT_DIR = 'conformance-results';
 const OUTPUT_FILE = `${OUTPUT_DIR}/full-sweep.json`;
 const MAX_EXEMPLARS = 5;
@@ -32,12 +30,7 @@ describe.skipIf(!process.env.CONFORMANCE_FULL)('conformance full sweep', () => {
 			...sampleCorpus(99, 50000, 4, 24)
 		];
 
-		const parserName = process.env.CONFORMANCE_SCANNER === 'scan' ? 'scanInline' : 'parseInline';
-		const parser = parserName === 'scanInline' ? scanInline : parseInline;
-		const { divergences, compared, skippedNotParagraph, skippedPartialSpan } = runDiff(
-			inputs,
-			parser
-		);
+		const { divergences, compared, skippedNotParagraph, skippedPartialSpan } = runDiff(inputs);
 
 		const classByInput = new Map(baseline.entries.map((entry) => [entry.input, entry.class]));
 		const exemplarsByClass = new Map<string, string[]>();
@@ -63,7 +56,6 @@ describe.skipIf(!process.env.CONFORMANCE_FULL)('conformance full sweep', () => {
 
 		const report = {
 			referenceVersion: REFERENCE_VERSION,
-			parser: parserName,
 			generatedAt: new Date().toISOString(),
 			compared,
 			skippedNotParagraph,

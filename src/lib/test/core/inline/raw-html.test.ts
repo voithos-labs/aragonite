@@ -5,7 +5,7 @@ function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
 }
 
-describe('scanInlineRawHtml — per-form detection', () => {
+describe('parseInline — raw HTML per-form detection', () => {
 	it('detects inline <br> as rawHtml', () => {
 		const nodes = inlineOf('foo<br>bar');
 		const html = nodes.filter((n) => n.kind === 'rawHtml');
@@ -72,7 +72,7 @@ describe('scanInlineRawHtml — per-form detection', () => {
 	});
 });
 
-describe('scanInlineRawHtml — composition with other stages', () => {
+describe('parseInline — raw HTML composition with other constructs', () => {
 	it('HTML inside code span stays inert (code span claims first)', () => {
 		const nodes = inlineOf('see `<br>` here');
 		const html = nodes.filter((n) => n.kind === 'rawHtml');

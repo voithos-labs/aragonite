@@ -16,209 +16,49 @@
 	],
 	"entries": [
 		{
-			"input": "<https://example.com/\\[\\>",
-			"class": "autolink-uri-charset",
-			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
-		},
-		{
-			"input": "<https://example.com?find=\\*>",
-			"class": "autolink-uri-charset",
-			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
-		},
-		{
-			"input": "<https://foo.bar.`baz>`",
-			"class": "autolink-uri-charset",
-			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
-		},
-		{
 			"input": "*#a𐄀_#\\!𐄀)_",
 			"class": "emphasis-flanking-astral",
-			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
 		},
 		{
 			"input": "_`中b_𐄀中中(a ]",
 			"class": "emphasis-flanking-astral",
-			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
 		},
 		{
 			"input": "𐄀*)*\"(''aé",
 			"class": "emphasis-flanking-astral",
-			"note": "ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
 		},
 		{
 			"input": "< https://foo.bar >",
 			"class": "gfm-bare-autolink",
-			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
 		},
 		{
 			"input": "foo@bar.example.com",
 			"class": "gfm-bare-autolink",
-			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
 		},
 		{
 			"input": "https://example.com",
 			"class": "gfm-bare-autolink",
-			"note": "aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
-		},
-		{
-			"input": "<a href=\"`\">`",
-			"class": "html-inline-parsing",
-			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
-		},
-		{
-			"input": "[foo <bar attr=\"](baz)\">",
-			"class": "html-inline-parsing",
-			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
-		},
-		{
-			"input": "foo <a href=\"&ouml;\">",
-			"class": "html-inline-parsing",
-			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
-		},
-		{
-			"input": "foo <a href=\"\\*\">",
-			"class": "html-inline-parsing",
-			"note": "ours fails to parse html tags carrying attribute values, letting code spans/links/escapes claim the span commonmark gives to html_inline"
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
 		},
 		{
 			"input": "![[[foo](uri1)](uri2)](uri3)",
 			"class": "image-alt-structure",
-			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		},
 		{
 			"input": "![foo ![bar](/url)](/url2)",
 			"class": "image-alt-structure",
-			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		},
 		{
 			"input": "![foo [bar](/url)](/url2)",
 			"class": "image-alt-structure",
-			"note": "ours flattens the image label to a raw text alt; commonmark keeps structured inlines in the alt"
-		},
-		{
-			"input": "![foo](<url>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[a](<b)c\n[a](<b)c>\n[a](<b>c)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[a](<b)c>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[foo<https://example.com/?search=](uri)>",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](/url \"title \\\"&quot;\")",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](/url \"title\")\n[link](/url 'title')\n[link](/url (title))",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](</my uri>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](<>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](<foo\nbar>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](<foo(and(bar)>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](<foo\\>)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](\\(foo\\))",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](foo\nbar)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](foo(and(bar))",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](foo(and(bar)))",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](foo\\(and\\(bar\\))",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](foo\\)\\:)",
-			"class": "link-destination-parsing",
-			"note": "spec destination/title forms not implemented: balanced/escaped parens, angle-bracket destinations, newline/whitespace rules, (title) delimiters, escapes/entities in titles, bracket-link vs autolink precedence"
-		},
-		{
-			"input": "[link](/url \"title\")",
-			"class": "link-nbsp-whitespace",
-			"note": "ours treats U+00A0 as the destination/title separator; commonmark splits only on ASCII space/tab"
-		},
-		{
-			"input": "[foo *[bar [baz](/uri)](/uri)*](/uri)",
-			"class": "links-in-links",
-			"note": "commonmark forbids links inside links and keeps the innermost; ours nests and keeps the outermost"
-		},
-		{
-			"input": "[foo [bar](/uri)](/uri)",
-			"class": "links-in-links",
-			"note": "commonmark forbids links inside links and keeps the innermost; ours nests and keeps the outermost"
-		},
-		{
-			"input": "[foo](/bar\\* \"ti\\*tle\")",
-			"class": "url-encoding",
-			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
-		},
-		{
-			"input": "[foo](/f&ouml;&ouml; \"f&ouml;&ouml;\")",
-			"class": "url-encoding",
-			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
-		},
-		{
-			"input": "[link](\"title\")",
-			"class": "url-encoding",
-			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
-		},
-		{
-			"input": "[link](foo%20b&auml;)",
-			"class": "url-encoding",
-			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
-		},
-		{
-			"input": "[link](foo\\bar)",
-			"class": "url-encoding",
-			"note": "commonmark decodes escapes/entities then percent-encodes destinations and titles; ours keeps raw bytes"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		}
 	]
 }

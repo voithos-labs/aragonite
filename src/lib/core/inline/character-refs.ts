@@ -1,7 +1,6 @@
 /**
- * Inline pipeline pre-pass: CommonMark §6.2 entity and numeric character
- * references. Three forms — named (`&copy;`), decimal (`&#NNN;`), hex
- * (`&#xNNNN;` or `&#XNNNN;`). Walks text gaps between occupied input nodes.
+ * CommonMark §6.2 entity and numeric character references. Three forms —
+ * named (`&copy;`), decimal (`&#NNN;`), hex (`&#xNNNN;` or `&#XNNNN;`).
  *
  * Per spec, code points that are zero, exceed 0x10FFFF, or fall in the
  * surrogate range 0xD800–0xDFFF decode to U+FFFD (replacement character).
@@ -9,38 +8,8 @@
 
 import type { InlineNode } from '../nodes';
 import { HTML5_NAMED_ENTITIES } from './html-entities';
-import { forEachGap, interleave, occupiedRangesFrom } from './ranges';
 
 const REPLACEMENT = '�';
-
-export function scanCharacterReferences(
-	raw: string,
-	start: number,
-	end: number,
-	occupied: InlineNode[]
-): InlineNode[] {
-	const occupiedRanges = occupiedRangesFrom(occupied);
-
-	const found: InlineNode[] = [];
-	forEachGap(occupiedRanges, start, end, (s, e) => scanRegion(raw, s, e, found));
-
-	return interleave(raw, start, end, occupied, found);
-}
-
-function scanRegion(raw: string, start: number, end: number, out: InlineNode[]): void {
-	let pos = start;
-	while (pos < end) {
-		if (raw[pos] === '&') {
-			const ref = matchCharacterReference(raw, pos, end);
-			if (ref !== null) {
-				out.push(ref);
-				pos = ref.end;
-				continue;
-			}
-		}
-		pos++;
-	}
-}
 
 // Longest reference body that can possibly decode: the longest named entity
 // is 31 chars (`CounterClockwiseContourIntegral`); numeric forms are at most
@@ -48,7 +17,7 @@ function scanRegion(raw: string, start: number, end: number, out: InlineNode[]):
 // indexOf rescans to the end of the region per candidate.
 const MAX_REFERENCE_BODY = 31;
 
-/** Match one character reference; `pos` must point at an `&`. Shared recognition core for the staged pipeline and scan/. */
+/** Match one character reference; `pos` must point at an `&`. */
 export function matchCharacterReference(raw: string, pos: number, end: number): InlineNode | null {
 	const searchEnd = Math.min(end, pos + MAX_REFERENCE_BODY + 2);
 	let semi = -1;

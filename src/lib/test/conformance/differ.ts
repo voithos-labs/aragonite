@@ -1,22 +1,11 @@
 /**
- * Compares an inline parser (the shipping pipeline by default, or an injected
- * one — the pre-cutover scanner rides through here) against the commonmark
- * reference over a corpus. No try/catch anywhere: a normalizer throw means an
- * unmapped node type — a harness bug that must surface, never be counted as a
- * divergence or a skip.
+ * Compares parseInline against the commonmark reference over a corpus. No
+ * try/catch anywhere: a normalizer throw means an unmapped node type — a
+ * harness bug that must surface, never be counted as a divergence or a skip.
  */
 import { parseInline } from '../../core/inline';
-import type { LinkReferenceResolver } from '../../core/inline/link-reference-resolver';
-import type { InlineNode } from '../../core/nodes';
 import { referenceInlineReading, type ReferenceSkip } from './reference';
 import { normalizeAragonite, normalizeReference, normalEqual, type NormalNode } from './normalize';
-
-export type InlineParser = (
-	raw: string,
-	start: number,
-	end: number,
-	resolver?: LinkReferenceResolver
-) => InlineNode[];
 
 export interface Divergence {
 	input: string;
@@ -24,15 +13,12 @@ export interface Divergence {
 	theirs: NormalNode[];
 }
 
-export function diffInput(input: string, parser: InlineParser = parseInline): Divergence | null {
-	const outcome = evaluateInput(input, parser);
+export function diffInput(input: string): Divergence | null {
+	const outcome = evaluateInput(input);
 	return typeof outcome === 'string' ? null : outcome;
 }
 
-export function runDiff(
-	inputs: string[],
-	parser: InlineParser = parseInline
-): {
+export function runDiff(inputs: string[]): {
 	divergences: Divergence[];
 	skipped: number;
 	skippedNotParagraph: number;
@@ -44,7 +30,7 @@ export function runDiff(
 	let skippedPartialSpan = 0;
 	let compared = 0;
 	for (const input of inputs) {
-		const outcome = evaluateInput(input, parser);
+		const outcome = evaluateInput(input);
 		if (outcome === 'not-single-paragraph') {
 			skippedNotParagraph++;
 			continue;
@@ -67,13 +53,13 @@ export function runDiff(
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-function evaluateInput(input: string, parser: InlineParser): ReferenceSkip | 'equal' | Divergence {
+function evaluateInput(input: string): ReferenceSkip | 'equal' | Divergence {
 	const reading = referenceInlineReading(input);
 	if ('skip' in reading) return reading.skip;
 	const theirs = normalizeReference(reading.nodes);
 	// No resolver, deliberately: the reference wrapper skips every input whose
 	// parse consumed a refmap entry (reference.ts span guard), so a resolver
 	// would never fire — unresolvedReference deviations are invisible here by design.
-	const ours = normalizeAragonite(parser(input, 0, input.length), input);
+	const ours = normalizeAragonite(parseInline(input, 0, input.length), input);
 	return normalEqual(ours, theirs) ? 'equal' : { input, ours, theirs };
 }

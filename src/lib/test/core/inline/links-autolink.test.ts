@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
-import { trimTrailingPunctuation, isValidLeadingBoundary } from '../../../core/inline/links';
+import {
+	trimTrailingPunctuation,
+	isValidLeadingBoundary
+} from '../../../core/inline/scan/autolinks';
 
 function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
 }
 
-describe('parseInline — autolinks (Stage 3)', () => {
+describe('parseInline — autolinks', () => {
 	it('angle-bracket autolink', () => {
 		const nodes = inlineOf('Visit <https://example.com> now');
 		expect(nodes[1].kind).toBe('autolink');
@@ -385,10 +388,9 @@ describe('angle-bracket email autolink (CommonMark §6.8)', () => {
 		expect(autolinks[0].end).toBe(raw.length);
 	});
 
-	// No single-segment-domain rejection pin: the old pipeline's dotted-domain
-	// requirement is an accidental spec deviation (§6.5's regex accepts
-	// `<foo@bar>`; commonmark.js emits `mailto:foo@bar`). The spec behavior is
-	// pinned in the scanner suite, which replaces this pipeline at cutover.
+	// No single-segment-domain rejection pin: §6.5's regex accepts `<foo@bar>`
+	// (commonmark.js emits `mailto:foo@bar`); the accepting shape is pinned in
+	// the scan suite.
 
 	it('rejects email with internal whitespace', () => {
 		const nodes = inlineOf('<foo @bar.com>');
@@ -424,7 +426,7 @@ describe('angle-bracket email autolink (CommonMark §6.8)', () => {
 	});
 });
 
-describe('autolink stage interactions', () => {
+describe('autolink interactions with other constructs', () => {
 	it('autolink does not bleed into a following code span', () => {
 		const raw = 'see https://example.com `code` end';
 		const nodes = inlineOf(raw);
@@ -461,7 +463,7 @@ describe('autolink stage interactions', () => {
 	});
 });
 
-describe('parseInline — fast path post-processing (I4)', () => {
+describe('parseInline — fast-bail output shape', () => {
 	it('fast path output has no adjacent text siblings', () => {
 		const input = 'before  \nhttps://example.com after';
 		const nodes = inlineOf(input);
@@ -484,7 +486,7 @@ describe('parseInline — fast path post-processing (I4)', () => {
 	});
 });
 
-describe('parseInline — links and images (Stage 3)', () => {
+describe('parseInline — links and images', () => {
 	it('simple inline link', () => {
 		const nodes = inlineOf('Click [here](https://example.com) now');
 		expect(nodes.length).toBe(3);
@@ -565,10 +567,8 @@ describe('parseInline — links and images (Stage 3)', () => {
 });
 
 describe('parseInline — totality under deep bracket nesting', () => {
-	// Totality is the pin here, not tree shape: the old pipeline nests links
-	// inside links up to its depth cap, which deviates from §6.3 ("links may
-	// not contain other links, at any level of nesting") — the spec shape is
-	// pinned in the scanner suite, which replaces this pipeline at cutover.
+	// Totality is the pin here (the DoS guard), not tree shape: the §6.3
+	// links-in-links deactivation shape is pinned in the scan suite.
 	it('parses 2000-deep bracket nesting without throwing and covers all bytes', () => {
 		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
 		const nodes = inlineOf(source);

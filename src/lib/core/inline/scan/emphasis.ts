@@ -8,8 +8,75 @@
  */
 
 import type { InlineNode } from '../../nodes';
-import { classifyDelimiterRun } from '../emphasis';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
+
+// ── Flanking classification (§6.2 phase 1) ──────────────────────────────────
+
+/** Unicode punctuation (ASCII punctuation + general category P). */
+function isPunct(ch: string): boolean {
+	if (!ch) return false;
+	const code = ch.codePointAt(0)!;
+	if (
+		(code >= 0x21 && code <= 0x2f) ||
+		(code >= 0x3a && code <= 0x40) ||
+		(code >= 0x5b && code <= 0x60) ||
+		(code >= 0x7b && code <= 0x7e)
+	) {
+		return true;
+	}
+	return /^\p{P}$/u.test(ch);
+}
+
+function isWhitespace(ch: string): boolean {
+	if (!ch) return true; // string boundary counts as whitespace
+	return /\s/.test(ch);
+}
+
+// Flanking neighbors are read as full code points: a UTF-16 unit read would
+// classify an astral neighbor as a lone surrogate ("other"), while the spec
+// defines the character classes over code points.
+function codePointBefore(raw: string, pos: number): string {
+	const unit = raw.charCodeAt(pos - 1);
+	if (unit >= 0xdc00 && unit <= 0xdfff && pos >= 2) {
+		const high = raw.charCodeAt(pos - 2);
+		if (high >= 0xd800 && high <= 0xdbff) return raw.slice(pos - 2, pos);
+	}
+	return raw[pos - 1];
+}
+
+/**
+ * CommonMark §6.2 flanking over code points (astral neighbors classify by
+ * category, not surrogate halves). Neighbors are read from raw unclamped:
+ * context outside [start, end) still counts, as the spec's source-text
+ * reading implies.
+ */
+export function classifyDelimiterRun(
+	raw: string,
+	runStart: number,
+	runEnd: number,
+	kind: '*' | '_' | '~'
+): { canOpen: boolean; canClose: boolean } {
+	const charBefore = runStart > 0 ? codePointBefore(raw, runStart) : '';
+	const charAfter = runEnd < raw.length ? String.fromCodePoint(raw.codePointAt(runEnd)!) : '';
+
+	const followedByWhitespace = isWhitespace(charAfter);
+	const followedByPunct = isPunct(charAfter);
+	const precededByWhitespace = isWhitespace(charBefore);
+	const precededByPunct = isPunct(charBefore);
+
+	const leftFlanking =
+		!followedByWhitespace && (!followedByPunct || precededByWhitespace || precededByPunct);
+	const rightFlanking =
+		!precededByWhitespace && (!precededByPunct || followedByWhitespace || followedByPunct);
+
+	if (kind === '*' || kind === '~') {
+		return { canOpen: leftFlanking, canClose: rightFlanking };
+	}
+	// `_` has extra restrictions to avoid intra-word emphasis.
+	const canOpen = leftFlanking && (!rightFlanking || precededByPunct);
+	const canClose = rightFlanking && (!leftFlanking || followedByPunct);
+	return { canOpen, canClose };
+}
 
 // ── Scan-time handler ───────────────────────────────────────────────────────
 
