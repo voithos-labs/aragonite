@@ -1,5 +1,6 @@
 import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
+import { enqueueRegistrationCheck } from './registration-pending';
 import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
@@ -197,6 +198,7 @@ export function registerBlockKind(kind: AnyBlockKind, descriptor: BlockKindDescr
 		);
 	}
 	registry.set(kind, descriptor);
+	enqueueRegistrationCheck(kind);
 }
 
 // Merge fields into an existing registration; throw if the kind was never
@@ -214,6 +216,7 @@ function mergeBlockKindFields(
 		);
 	}
 	registry.set(kind, { ...existing, ...fields });
+	enqueueRegistrationCheck(kind);
 }
 
 /**
