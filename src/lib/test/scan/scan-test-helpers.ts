@@ -118,6 +118,14 @@ export function codeNode(start: number, end: number, text: string): InlineNode {
 	return { kind: 'inlineCode', start, end, text };
 }
 
+export function autolinkNode(start: number, end: number, url: string): InlineNode {
+	return { kind: 'autolink', start, end, url };
+}
+
+export function rawHtmlNode(start: number, end: number): InlineNode {
+	return { kind: 'rawHtml', start, end };
+}
+
 export function emphasisNode(start: number, end: number, children: InlineNode[]): InlineNode {
 	return { kind: 'emphasis', start, end, children };
 }
