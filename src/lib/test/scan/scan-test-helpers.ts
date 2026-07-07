@@ -37,8 +37,12 @@ const EMPHASIS_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
 	strikethrough: 2
 };
 
-/** Every emphasis-family node in the tree tiles as leading marker + children + trailing marker. */
-export function assertEmphasisCoverage(nodes: InlineNode[]): void {
+/**
+ * Every emphasis-family, link, and image node in the tree tiles as leading
+ * marker + children + trailing marker. A link's trailing marker `](…)` starts
+ * where its last child ends (children cover only the label interior).
+ */
+export function assertConstructCoverage(nodes: InlineNode[]): void {
 	for (const node of nodes) {
 		const markerLen = EMPHASIS_MARKER_LEN[node.kind];
 		if (markerLen !== undefined) {
@@ -46,8 +50,16 @@ export function assertEmphasisCoverage(nodes: InlineNode[]): void {
 				{ start: node.start, end: node.start + markerLen },
 				{ start: node.end - markerLen, end: node.end }
 			]);
+		} else if (node.kind === 'link' || node.kind === 'image') {
+			const leadEnd = node.start + (node.kind === 'image' ? 2 : 1);
+			const children = node.children ?? [];
+			const trailStart = children.length > 0 ? children[children.length - 1].end : leadEnd;
+			assertChildCoverage(node, [
+				{ start: node.start, end: leadEnd },
+				{ start: trailStart, end: node.end }
+			]);
 		}
-		if (node.children) assertEmphasisCoverage(node.children);
+		if (node.children) assertConstructCoverage(node.children);
 	}
 }
 
@@ -113,6 +125,27 @@ export function strikethroughNode(start: number, end: number, children: InlineNo
 	return { kind: 'strikethrough', start, end, children };
 }
 
+export function linkNode(
+	start: number,
+	end: number,
+	children: InlineNode[],
+	url: string,
+	title?: string
+): InlineNode {
+	return { kind: 'link', start, end, children, url, ...(title !== undefined ? { title } : {}) };
+}
+
+export function imageNode(
+	start: number,
+	end: number,
+	children: InlineNode[],
+	alt: string,
+	url: string,
+	rest: Pick<InlineNode, 'title' | 'width' | 'height'> = {}
+): InlineNode {
+	return { kind: 'image', start, end, children, alt, url, ...rest };
+}
+
 // ── Case runner ─────────────────────────────────────────────────────────────
 
 export type ScanCase = [name: string, raw: string, expected: InlineNode[]];
@@ -124,7 +157,7 @@ export function describeScanCases(family: string, cases: ScanCase[]): void {
 			it(name, () => {
 				const nodes = scanInline(raw, 0, raw.length);
 				assertTotalCoverage(nodes, 0, raw.length);
-				assertEmphasisCoverage(nodes);
+				assertConstructCoverage(nodes);
 				expect(nodes).toEqual(expected);
 			});
 		}

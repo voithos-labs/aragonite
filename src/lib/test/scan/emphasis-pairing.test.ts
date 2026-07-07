@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../core/inline/scan';
 import {
-	assertEmphasisCoverage,
+	assertConstructCoverage,
 	assertTotalCoverage,
 	describeScanCases,
 	emphasisNode,
@@ -13,7 +13,7 @@ describe('multiple-of-3 rule (CommonMark §6.2)', () => {
 	it('nested run produces emphasis wrapping strong, not a flat pair', () => {
 		const source = 'foo***bar***baz';
 		const nodes = scanInline(source, 0, source.length);
-		assertEmphasisCoverage(nodes);
+		assertConstructCoverage(nodes);
 		const em = nodes.find((n) => n.kind === 'emphasis');
 		expect(em).toBeDefined();
 		expect(em!.children?.some((c) => c.kind === 'strong')).toBe(true);
@@ -24,7 +24,7 @@ describe('multiple-of-3 rule (CommonMark §6.2)', () => {
 		// under the multiple-of-3 rule, so it survives as text inside the strong.
 		const source = '**foo*bar**baz*';
 		const nodes = scanInline(source, 0, source.length);
-		assertEmphasisCoverage(nodes);
+		assertConstructCoverage(nodes);
 		const strong = nodes.find((n) => n.kind === 'strong');
 		expect(strong).toBeDefined();
 		expect(strong!.children?.some((c) => c.kind === 'text' && c.text === '*')).toBe(true);
@@ -49,7 +49,7 @@ describe('multiple-of-3 rule (CommonMark §6.2)', () => {
 		it(`gates on original run lengths: ${JSON.stringify(source)}`, () => {
 			const nodes = scanInline(source, 0, source.length);
 			assertTotalCoverage(nodes, 0, source.length);
-			assertEmphasisCoverage(nodes);
+			assertConstructCoverage(nodes);
 			expect(shapeOf(nodes, source)).toBe(shape);
 		});
 	}
