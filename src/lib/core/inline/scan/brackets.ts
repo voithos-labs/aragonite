@@ -1,21 +1,25 @@
 /**
- * Bracket stack — inline links and images (CommonMark §6.3), a port of the
- * reference parseOpenBracket/parseBang/parseCloseBracket onto the flat
+ * Bracket stack — inline and reference links/images (CommonMark §6.3), a port
+ * of the reference parseOpenBracket/parseBang/parseCloseBracket onto the flat
  * working-node list. A failed `]` leaves its brackets as literal text with
- * any inner nodes standing; reference-link forms are the resolver task's.
+ * any inner nodes standing — except full/collapsed reference forms whose
+ * label misses the resolver: those commit to one opaque `unresolvedReference`
+ * node over the whole construct (editor deviation; the renderer flags it).
  *
- * `url`/`title` carry the reference AST's spec-processed values (backslash
- * escapes resolved, entities decoded, destinations percent-encoded); offsets
- * stay lossless — serialization never reads these fields.
+ * `url`/`title` carry the reference AST's spec-processed values for inline
+ * forms, and the resolver's values byte-for-byte for reference forms (LRD
+ * destinations are stored raw). Offsets stay lossless — serialization never
+ * reads these fields.
  */
 
 import type { InlineNode } from '../../nodes';
-import { matchCharacterReference } from '../character-refs';
 import { ESCAPABLE_PUNCTUATION } from '../escapes';
 import { parseImageDimensions } from '../image-dimensions';
+import { normalizeLinkLabel, type ResolvedReference } from '../link-reference-resolver';
 import { mergeAdjacentText } from '../post-process';
 import { processEmphasis } from './emphasis';
-import { appendNode, flushPendingText, type ScanContext } from './scan-state';
+import { appendNode, flushPendingText, type Bracket, type ScanContext } from './scan-state';
+import { processDestination, unescapeSpecString } from './url';
 
 // ── Scan-time handlers ──────────────────────────────────────────────────────
 
@@ -32,10 +36,13 @@ function pushBracket(ctx: ScanContext, isImage: boolean): void {
 	const start = ctx.pos;
 	const end = start + (isImage ? 2 : 1);
 	appendNode(ctx, { kind: 'text', start, end, text: ctx.raw.slice(start, end) });
+	const enclosing = ctx.brackets[ctx.brackets.length - 1];
+	if (enclosing !== undefined) enclosing.bracketAfter = true;
 	ctx.brackets.push({
 		nodeIndex: ctx.nodes.length - 1,
 		isImage,
 		active: true,
+		bracketAfter: false,
 		delimiterFloor: ctx.delimiters.length
 	});
 }
@@ -53,13 +60,37 @@ export function handleCloseBracket(ctx: ScanContext): void {
 	}
 
 	const labelEnd = ctx.pos;
-	const tail = parseInlineLinkTail(ctx.raw, labelEnd + 1, ctx.end);
-	if (tail === null) {
+	const inline = parseInlineLinkTail(ctx.raw, labelEnd + 1, ctx.end);
+	if (inline !== null) {
+		wrapMatchedBracket(ctx, bracket, labelEnd, inline);
+		return;
+	}
+
+	const ref = parseReferenceTail(ctx, bracket, labelEnd);
+	if (ref === null) {
 		ctx.brackets.pop();
 		ctx.pos++;
 		return;
 	}
+	if (ref.resolved === undefined) {
+		emitUnresolvedReference(ctx, bracket, ref);
+		return;
+	}
+	wrapMatchedBracket(ctx, bracket, labelEnd, {
+		url: ref.resolved.url,
+		...(ref.resolved.title !== undefined ? { title: ref.resolved.title } : {}),
+		label: ref.label,
+		end: ref.end
+	});
+}
 
+/** Replace the opener and inner nodes with the matched link/image node. */
+function wrapMatchedBracket(
+	ctx: ScanContext,
+	bracket: Bracket,
+	labelEnd: number,
+	target: LinkTarget
+): void {
 	ctx.brackets.pop();
 	flushPendingText(ctx, labelEnd);
 	processEmphasis(ctx, bracket.delimiterFloor);
@@ -67,10 +98,10 @@ export function handleCloseBracket(ctx: ScanContext): void {
 	const opener = ctx.nodes[bracket.nodeIndex];
 	const children = mergeAdjacentText(ctx.nodes.splice(bracket.nodeIndex + 1));
 	ctx.nodes[bracket.nodeIndex] = bracket.isImage
-		? buildImage(ctx.raw, opener, labelEnd, tail, children)
-		: buildLink(opener, tail, children);
-	ctx.pos = tail.end;
-	ctx.textStart = tail.end;
+		? buildImage(ctx.raw, opener, labelEnd, target, children)
+		: buildLink(opener, target, children);
+	ctx.pos = target.end;
+	ctx.textStart = target.end;
 
 	// §6.3: no links inside links — a matched link deactivates every
 	// enclosing link opener; image openers stay live.
@@ -81,14 +112,15 @@ export function handleCloseBracket(ctx: ScanContext): void {
 	}
 }
 
-function buildLink(opener: InlineNode, tail: InlineLinkTail, children: InlineNode[]): InlineNode {
+function buildLink(opener: InlineNode, target: LinkTarget, children: InlineNode[]): InlineNode {
 	return {
 		kind: 'link',
 		start: opener.start,
-		end: tail.end,
+		end: target.end,
 		children,
-		url: tail.url,
-		...(tail.title !== undefined ? { title: tail.title } : {})
+		url: target.url,
+		...(target.title !== undefined ? { title: target.title } : {}),
+		...(target.label !== undefined ? { label: target.label } : {})
 	};
 }
 
@@ -96,33 +128,110 @@ function buildImage(
 	raw: string,
 	opener: InlineNode,
 	labelEnd: number,
-	tail: InlineLinkTail,
+	target: LinkTarget,
 	children: InlineNode[]
 ): InlineNode {
 	const dims = parseImageDimensions(raw.slice(opener.end, labelEnd));
 	return {
 		kind: 'image',
 		start: opener.start,
-		end: tail.end,
+		end: target.end,
 		children,
 		alt: dims.displayAlt,
-		url: tail.url,
-		...(tail.title !== undefined ? { title: tail.title } : {}),
+		url: target.url,
+		...(target.title !== undefined ? { title: target.title } : {}),
 		...(dims.width !== undefined ? { width: dims.width } : {}),
-		...(dims.height !== undefined ? { height: dims.height } : {})
+		...(dims.height !== undefined ? { height: dims.height } : {}),
+		...(target.label !== undefined ? { label: target.label } : {})
 	};
+}
+
+/** Where a matched bracket points — an inline `(…)` tail or a resolved reference. */
+interface LinkTarget {
+	url: string;
+	title?: string;
+	/** Normalized label, reference forms only (renderer and image round-trip read it). */
+	label?: string;
+	/** Offset just past the closing `)` or the reference's final `]`. */
+	end: number;
+}
+
+// ── Reference tail: [label], [], or nothing after the text (§6.3) ───────────
+
+interface ReferenceTail {
+	/** Normalized lookup label. */
+	label: string;
+	/** Offset just past the form's final `]`; the text's `]` + 1 for shortcut. */
+	end: number;
+	/** Lookup miss — full/collapsed forms commit to unresolvedReference. */
+	resolved: ResolvedReference | undefined;
+}
+
+function parseReferenceTail(
+	ctx: ScanContext,
+	bracket: Bracket,
+	labelEnd: number
+): ReferenceTail | null {
+	const { raw, end, resolver } = ctx;
+	if (resolver === undefined) return null;
+
+	const afterText = labelEnd + 1;
+	const secondEnd = parseLinkLabel(raw, afterText, end);
+	if (secondEnd !== null && secondEnd > afterText + 2) {
+		const rawLabel = raw.slice(afterText + 1, secondEnd - 1);
+		return { label: normalizeLinkLabel(rawLabel), end: secondEnd, resolved: resolver(rawLabel) };
+	}
+
+	// Collapsed/shortcut reuse the link text as label; a bracket opened inside
+	// it can never be part of a valid label — skip the lookup outright
+	// (the reference's bracketAfter guard).
+	if (bracket.bracketAfter) return null;
+	const rawLabel = raw.slice(ctx.nodes[bracket.nodeIndex].end, labelEnd);
+	if (secondEnd !== null) {
+		return { label: normalizeLinkLabel(rawLabel), end: secondEnd, resolved: resolver(rawLabel) };
+	}
+	const resolved = resolver(rawLabel);
+	if (resolved === undefined) return null; // shortcut never commits on a miss
+	return { label: normalizeLinkLabel(rawLabel), end: afterText, resolved };
+}
+
+/**
+ * Link label at `pos`: `[`, at most 999 content chars with no unescaped
+ * brackets (a backslash escapes any char), `]`. Returns the offset just past
+ * the closing `]`, or null.
+ */
+function parseLinkLabel(raw: string, pos: number, end: number): number | null {
+	if (pos >= end || raw[pos] !== '[') return null;
+	let i = pos + 1;
+	while (i < end && i - pos <= 1000) {
+		const ch = raw[i];
+		if (ch === ']') return i + 1;
+		if (ch === '[') return null;
+		i += ch === '\\' ? 2 : 1;
+	}
+	return null;
+}
+
+/** Replace the opener, inner nodes, and their delimiters with the opaque node. */
+function emitUnresolvedReference(ctx: ScanContext, bracket: Bracket, ref: ReferenceTail): void {
+	ctx.brackets.pop();
+	ctx.delimiters.length = bracket.delimiterFloor;
+	const start = ctx.nodes[bracket.nodeIndex].start;
+	ctx.nodes.length = bracket.nodeIndex;
+	ctx.nodes.push({
+		kind: 'unresolvedReference',
+		start,
+		end: ref.end,
+		label: ref.label,
+		refKind: bracket.isImage ? 'image' : 'link'
+	});
+	ctx.pos = ref.end;
+	ctx.textStart = ref.end;
 }
 
 // ── Inline-link tail: "(" destination title? ")" ────────────────────────────
 
-interface InlineLinkTail {
-	url: string;
-	title?: string;
-	/** Offset just past the closing ')'. */
-	end: number;
-}
-
-function parseInlineLinkTail(raw: string, pos: number, end: number): InlineLinkTail | null {
+function parseInlineLinkTail(raw: string, pos: number, end: number): LinkTarget | null {
 	if (pos >= end || raw[pos] !== '(') return null;
 	let i = skipSpnl(raw, pos + 1, end);
 	const dest = parseDestination(raw, i, end);
@@ -238,85 +347,4 @@ function parseTitle(raw: string, pos: number, end: number): { title: string; end
 		else i++;
 	}
 	return null;
-}
-
-// ── Spec destination/title processing ───────────────────────────────────────
-
-function processDestination(rawDest: string): string {
-	return percentEncodeUri(unescapeSpecString(rawDest));
-}
-
-/** The reference's unescapeString: backslash escapes resolved, entities decoded. */
-function unescapeSpecString(s: string): string {
-	let out = '';
-	let i = 0;
-	while (i < s.length) {
-		const ch = s[i];
-		if (ch === '\\' && i + 1 < s.length && ESCAPABLE_PUNCTUATION.has(s[i + 1])) {
-			out += s[i + 1];
-			i += 2;
-			continue;
-		}
-		if (ch === '&') {
-			const ref = matchCharacterReference(s, i, s.length);
-			if (ref !== null && ref.decoded !== undefined) {
-				out += ref.decoded;
-				i = ref.end;
-				continue;
-			}
-		}
-		out += ch;
-		i++;
-	}
-	return out;
-}
-
-// The mdurl encode() kept set — commonmark.js normalizes destinations
-// through it, so the differ needs byte-equal output.
-const URI_SAFE = buildUriSafeTable(";/?:@&=+$,-_.!~*'()#");
-
-function buildUriSafeTable(kept: string): boolean[] {
-	const safe = new Array<boolean>(128).fill(false);
-	for (let code = 0x30; code <= 0x39; code++) safe[code] = true;
-	for (let code = 0x41; code <= 0x5a; code++) safe[code] = true;
-	for (let code = 0x61; code <= 0x7a; code++) safe[code] = true;
-	for (const ch of kept) safe[ch.charCodeAt(0)] = true;
-	return safe;
-}
-
-const HEX_PAIR = /^[0-9a-f]{2}$/i;
-
-/**
- * mdurl-style percent-encoding: keeps valid `%XX` sequences, encodes other
- * ASCII outside the kept set with uppercase hex, UTF-8 percent-encodes the
- * rest; a lone surrogate becomes the encoded replacement character.
- */
-function percentEncodeUri(s: string): string {
-	let out = '';
-	for (let i = 0; i < s.length; i++) {
-		const code = s.charCodeAt(i);
-		if (code === 0x25 && i + 2 < s.length && HEX_PAIR.test(s.slice(i + 1, i + 3))) {
-			out += s.slice(i, i + 3);
-			i += 2;
-			continue;
-		}
-		if (code < 128) {
-			out += URI_SAFE[code] ? s[i] : '%' + code.toString(16).toUpperCase().padStart(2, '0');
-			continue;
-		}
-		if (code >= 0xd800 && code <= 0xdfff) {
-			if (code <= 0xdbff && i + 1 < s.length) {
-				const next = s.charCodeAt(i + 1);
-				if (next >= 0xdc00 && next <= 0xdfff) {
-					out += encodeURIComponent(s[i] + s[i + 1]);
-					i++;
-					continue;
-				}
-			}
-			out += '%EF%BF%BD';
-			continue;
-		}
-		out += encodeURIComponent(s[i]);
-	}
-	return out;
 }
