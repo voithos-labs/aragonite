@@ -49,6 +49,12 @@ export interface Bracket {
 	/** Deactivated by the links-in-links rule. */
 	active: boolean;
 	/**
+	 * A later bracket opened while this one was innermost. Collapsed/shortcut
+	 * references reuse the link text as label, and a label cannot contain an
+	 * unescaped bracket — the `]` handler skips their lookup outright.
+	 */
+	bracketAfter: boolean;
+	/**
 	 * delimiters.length at push — processEmphasis floor on match. A floor-f
 	 * call truncates the delimiter stack back to f, so floors recorded by
 	 * enclosing brackets (all <= f) stay valid.
