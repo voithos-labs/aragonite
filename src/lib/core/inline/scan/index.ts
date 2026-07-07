@@ -9,6 +9,7 @@
 import type { InlineNode } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
 import { mergeAdjacentText } from '../post-process';
+import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
 import { handleDelimiter, processEmphasis } from './emphasis';
@@ -16,20 +17,42 @@ import { createScanContext, flushPendingText } from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
 
 // Every character that can start a construct or anchor a lookback: the
-// dispatch cases below plus `<`, which falls through as text until the
-// autolink handler lands. `!` and `]` are deliberately absent — they only
-// matter in ranges that also contain `[`. GFM bare/www autolinks trigger on
-// plain text; their handler must extend this seam.
-const SPECIAL_CHARS = '\\`&\n<[*_~';
+// dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
+// deliberately absent — they only matter in ranges that also contain `[`.
+const SPECIAL_CHARS = '\\`&\n<[*_~@';
+
+// GFM bare http/www autolinks contain no character from the set above, so
+// their starts get conditional probes instead of unconditional membership:
+// `:` (too common in prose to forfeit the bail) counts only when `//`
+// follows, `w`/`W` only when they complete a `www.` prefix. Each probe adds
+// at most three comparisons at its trigger character; the lookahead may read
+// past `end` and over-trigger, which costs one wasted scan, never a node.
+const PROBE_SCHEME = 2;
+const PROBE_WWW = 3;
 
 const SPECIAL = new Uint8Array(128);
 for (let i = 0; i < SPECIAL_CHARS.length; i++) SPECIAL[SPECIAL_CHARS.charCodeAt(i)] = 1;
+SPECIAL[0x3a] = PROBE_SCHEME; // :
+SPECIAL[0x57] = PROBE_WWW; // W
+SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
-function hasSpecialChars(raw: string, start: number, end: number): boolean {
+function needsScan(raw: string, start: number, end: number): boolean {
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
-		if (code < 128 && SPECIAL[code] === 1) return true;
+		if (code >= 128) continue;
+		const cls = SPECIAL[code];
+		if (cls === 0) continue;
+		if (cls === 1) return true;
+		if (cls === PROBE_SCHEME) {
+			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true;
+		} else if (
+			(raw.charCodeAt(i + 1) | 0x20) === 0x77 &&
+			(raw.charCodeAt(i + 2) | 0x20) === 0x77 &&
+			raw.charCodeAt(i + 3) === 0x2e
+		) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -41,7 +64,7 @@ export function scanInline(
 	resolver?: LinkReferenceResolver
 ): InlineNode[] {
 	if (start >= end) return [];
-	if (!hasSpecialChars(raw, start, end)) {
+	if (!needsScan(raw, start, end)) {
 		return [{ kind: 'text', start, end, text: raw.slice(start, end) }];
 	}
 
@@ -74,11 +97,17 @@ export function scanInline(
 			case '!':
 				handleBang(ctx);
 				break;
+			case '<':
+				handleAngle(ctx);
+				break;
 			default:
 				ctx.pos++;
 		}
 	}
 	flushPendingText(ctx, ctx.end);
+	// GFM bare autolinks claim their bytes before emphasis pairs (the old
+	// pipeline's stage order): a delimiter absorbed into a URL must not pair.
+	scanGfmAutolinks(ctx);
 	processEmphasis(ctx, 0);
 	return mergeAdjacentText(ctx.nodes);
 }
