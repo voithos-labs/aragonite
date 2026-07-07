@@ -4,9 +4,11 @@
  * Only the fields a GFM inline construct actually carries survive; offsets,
  * link labels, image dimensions, and reference bookkeeping are dropped.
  *
- * Deliberately NOT reconciled here: URL and code-span content differences
- * (percent-encoding, whitespace folding). Those are real divergences the
- * baseline records — normalizing them away would hide conformance gaps.
+ * Audited reconciliations (each recorded in baseline.json's
+ * normalizerReconciliations) are applied to BOTH sides' normal form: empty-title
+ * coalescing, §6.1 code-span folding, §6.8 softbreak space-trimming. URL content
+ * differences (percent-encoding) stay unreconciled — those are real divergences
+ * the baseline records, and normalizing them away would hide conformance gaps.
  */
 import type { Node as CommonmarkNode } from 'commonmark';
 import type { InlineNode } from '../../core/nodes';
@@ -146,22 +148,63 @@ function titleField(title: string | null | undefined): { title?: string } {
 	return title ? { title } : {};
 }
 
-/** Merge adjacent text, drop empty text, recursively into children. */
+/**
+ * Merge adjacent text and drop empty text, apply the display-model
+ * reconciliations, then merge/drop again — recursively into children.
+ * Reconciling must follow the first merge: the reference side emits softbreaks
+ * as separate '\n' text nodes, so the space-before-newline pattern only exists
+ * once adjacent text is joined. The second pass restores the merged/nonempty
+ * canonical form no matter what a reconciliation emits.
+ */
 function canonicalize(nodes: NormalNode[]): NormalNode[] {
+	const withChildren = nodes.map((node) =>
+		node.children ? { ...node, children: canonicalize(node.children) } : node
+	);
+	return mergeText(mergeText(withChildren).map(reconcile));
+}
+
+function mergeText(nodes: NormalNode[]): NormalNode[] {
 	const result: NormalNode[] = [];
 	for (const node of nodes) {
-		const merged = node.children ? { ...node, children: canonicalize(node.children) } : node;
-		if (merged.kind === 'text') {
-			if ((merged.text ?? '') === '') continue;
+		if (node.kind === 'text') {
+			if ((node.text ?? '') === '') continue;
 			const prev = result[result.length - 1];
 			if (prev?.kind === 'text') {
-				prev.text = (prev.text ?? '') + (merged.text ?? '');
+				prev.text = (prev.text ?? '') + (node.text ?? '');
 				continue;
 			}
 		}
-		result.push(merged);
+		result.push(node);
 	}
 	return result;
+}
+
+function reconcile(node: NormalNode): NormalNode {
+	if (node.kind === 'code') return { ...node, text: foldCodeText(node.text ?? '') };
+	if (node.kind === 'text') return { ...node, text: trimSoftbreakSpaces(node.text ?? '') };
+	return node;
+}
+
+/**
+ * CommonMark §6.1: fold code-span content — line endings become spaces; strip
+ * one flanking space when both sides have one and content isn't all spaces.
+ * Display keeps raw bytes (styled-source model); this is the spec-semantic
+ * view only.
+ */
+function foldCodeText(text: string): string {
+	const folded = text.replace(/\r\n|\r|\n/g, ' ');
+	if (folded.length >= 2 && folded.startsWith(' ') && folded.endsWith(' ') && folded.trim() !== '')
+		return folded.slice(1, -1);
+	return folded;
+}
+
+/**
+ * CommonMark §6.8: spaces at the end of a line before a softbreak are not
+ * content. Applied to text-node text around embedded '\n' (hard breaks are
+ * separate nodes by this point on both sides).
+ */
+function trimSoftbreakSpaces(text: string): string {
+	return text.replace(/[ \t]+\n/g, '\n');
 }
 
 function nodeEqual(a: NormalNode, b: NormalNode): boolean {
