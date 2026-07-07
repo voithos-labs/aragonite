@@ -34,17 +34,17 @@
 		{
 			"input": "![[[foo](uri1)](uri2)](uri3)",
 			"class": "image-alt-structure",
-			"note": "residue: ours stores alt as raw label bytes; spec alt is the plain-text rendering of the parsed label"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model and old-parser parity (the old baseline diverged identically); the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		},
 		{
 			"input": "![foo ![bar](/url)](/url2)",
 			"class": "image-alt-structure",
-			"note": "residue: ours stores alt as raw label bytes; spec alt is the plain-text rendering of the parsed label"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model and old-parser parity (the old baseline diverged identically); the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		},
 		{
 			"input": "![foo [bar](/url)](/url2)",
 			"class": "image-alt-structure",
-			"note": "residue: ours stores alt as raw label bytes; spec alt is the plain-text rendering of the parsed label"
+			"note": "deliberate: alt is the raw label bytes — the editor's product model and old-parser parity (the old baseline diverged identically); the spec's plain-text alt is a render-layer concern outside the scanner's contract"
 		}
 	]
 }

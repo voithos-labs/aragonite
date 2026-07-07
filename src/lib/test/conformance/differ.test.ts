@@ -17,22 +17,23 @@ describe('diffInput', () => {
 	});
 
 	it('returns both normalized sides for a divergent input', () => {
-		// commonmark percent-encodes destinations; ours keeps raw bytes — a
-		// deliberate divergence the baseline records (url-encoding class).
-		const divergence = diffInput('[link](foo\\bar)');
+		// A GFM bare autolink diverges under both pipelines forever (the
+		// reference has no autolink extension), so this exemplar survives the
+		// scanner cutover — unlike a fixable-mechanism input.
+		const divergence = diffInput('https://example.com');
 		expect(divergence).not.toBeNull();
-		expect(divergence!.input).toBe('[link](foo\\bar)');
+		expect(divergence!.input).toBe('https://example.com');
 		expect(divergence!.ours).not.toEqual(divergence!.theirs);
 	});
 });
 
 describe('runDiff', () => {
 	it('partitions inputs into skipped, equal, and divergent, with skip reasons', () => {
-		const result = runDiff(['# heading', ' a', 'plain', '[link](foo\\bar)']);
+		const result = runDiff(['# heading', ' a', 'plain', 'https://example.com']);
 		expect(result.skipped).toBe(2);
 		expect(result.skippedNotParagraph).toBe(1);
 		expect(result.skippedPartialSpan).toBe(1);
 		expect(result.compared).toBe(2);
-		expect(result.divergences.map((d) => d.input)).toEqual(['[link](foo\\bar)']);
+		expect(result.divergences.map((d) => d.input)).toEqual(['https://example.com']);
 	});
 });

@@ -6,8 +6,10 @@ import baseline from './scan-baseline.json';
 
 // Pre-cutover convergence ratchet for the scanner, against its own baseline;
 // slice.test.ts keeps ratcheting the shipping pipeline until cutover folds the
-// two. Image divergences compare by alt STRING (normalize.ts maps our alt to a
-// single text child), so GFM autolinks inside an alt are invisible here by design.
+// two. Image comparison is one-sided: normalize.ts maps OUR alt string to a
+// single text child while the REFERENCE side keeps its parsed-label structure —
+// that asymmetry is what the deliberate image-alt-structure baseline class
+// records, and it makes GFM autolinks inside an alt invisible here by design.
 
 const sliceInputs = [
 	...loadSpecExamples().map((e) => e.markdown.replace(/\n$/, '')),
