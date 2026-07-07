@@ -61,13 +61,13 @@ function escapeAlt(alt: string): string {
 	return alt.replace(/[[\]\\]/g, '\\$&');
 }
 
-// The destination scanner ends the URL at space/tab/`)`/`"`/`'` and has no
-// angle-bracket form, so a local path with spaces would otherwise truncate.
-// Percent-encode those bytes; idempotent since an encoded URL has no literal
-// stop-char left.
+// Bare destinations end at whitespace/`"`/`'` and may carry parens only as
+// balanced pairs (CommonMark §6.3), so a path with spaces would truncate and
+// a lone paren would unbalance the pair the closing `)` needs. Percent-encode
+// those bytes; idempotent since an encoded URL has no literal stop-char left.
 function encodeDestination(url: string): string {
 	return url.replace(
-		/[ \t)"']/g,
+		/[ \t()"']/g,
 		(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
 	);
 }

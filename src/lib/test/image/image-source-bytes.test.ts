@@ -118,4 +118,11 @@ describe('buildImageSourceBytes — output re-parses as an image', () => {
 			buildImageSourceBytes({ alt: 'a', url: 'x y' })
 		);
 	});
+
+	it('encodes both parens so the destination never carries an unbalanced pair', () => {
+		// Encoding only `)` leaves a bare `(` — CommonMark destinations include
+		// parens "only if they are backslash-escaped or part of a balanced pair",
+		// so the spec parser rejects the rebuilt image.
+		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/(y)' })).toBe('![a](http://x/%28y%29)');
+	});
 });
