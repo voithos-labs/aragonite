@@ -4,6 +4,14 @@
 		{
 			"what": "empty link/image title coalesced with absent",
 			"why": "commonmark 0.31.2 AST cannot distinguish [a](/u \"\") from [a](/u); its own renderer drops both"
+		},
+		{
+			"what": "code-span content folded per spec §6.1 (line endings → spaces; one flanking space stripped)",
+			"why": "styled-source display must keep raw bytes (textContent === raw); the spec-semantic content differs by design"
+		},
+		{
+			"what": "spaces before a softbreak newline trimmed from text",
+			"why": "same byte-preserving display model; spec strips end-of-line spaces at the inline stage"
 		}
 	],
 	"entries": [
@@ -23,114 +31,9 @@
 			"note": "ours rejects <scheme:...> autolinks containing backslashes/backticks that commonmark accepts and percent-encodes"
 		},
 		{
-			"input": "'`𐄀> \n0`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "(中)_\n<)𐄀`\n`*",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": ")b]`0\n𐄀*`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "<>`\n\"`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "\\[`[\n&`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
 			"input": "`  ``  `",
 			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "` `` `",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "` foo `` bar `",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`#[\n`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`&# \n中 &\"`é",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "``\nfoo\n``",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "``\nfoo\nbar  \nbaz\n``",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "``\nfoo \n``",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`` \\[\\` ``",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`` foo ` bar ``",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "``` aa ```\nfoo",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`code  \nspan`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`code\\\nspan`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "`foo   bar \nbaz`",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "a`\n`中'#]>",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "中` 𐄀\"]\n<#`>",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
-		},
-		{
-			"input": "中`0\n! `b",
-			"class": "code-span-folding",
-			"note": "commonmark folds newlines to spaces and strips one flanking space inside code spans; ours keeps raw content bytes"
+			"note": "double-flanking-space span survives the §6.1 reconciliation: folding strips one space from our raw bytes but re-strips commonmark's already-folded literal, leaving the normal forms one flanking space apart"
 		},
 		{
 			"input": "*#a𐄀_#\\!𐄀)_",
@@ -296,46 +199,6 @@
 			"input": "[foo [bar](/uri)](/uri)",
 			"class": "links-in-links",
 			"note": "commonmark forbids links inside links and keeps the innermost; ours nests and keeps the outermost"
-		},
-		{
-			"input": "\"]`_0` \n([",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "&é(*0 \n'",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "'é \n!bé",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "<𐄀]'_\\ \n中_0(",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "[\\ \n\"[b\\>\\",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "_*é \n0\\aa",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "b\"é>\\ \n𐄀)𐄀𐄀!",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
-		},
-		{
-			"input": "中 \n*\\!`a \"",
-			"class": "softbreak-space-trimming",
-			"note": "the inline spec removes spaces at the end of a line before a softbreak; ours keeps the raw byte"
 		},
 		{
 			"input": "[foo](/bar\\* \"ti\\*tle\")",

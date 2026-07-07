@@ -17,7 +17,8 @@ describe('diffInput', () => {
 	});
 
 	it('returns both normalized sides for a divergent input', () => {
-		// commonmark strips one flanking space inside code spans; ours keeps raw bytes
+		// Double flanking spaces survive the §6.1 fold reconciliation: one strip
+		// leaves ours ' a ' vs commonmark's re-stripped 'a'.
 		const divergence = diffInput('`  a  `');
 		expect(divergence).not.toBeNull();
 		expect(divergence!.input).toBe('`  a  `');

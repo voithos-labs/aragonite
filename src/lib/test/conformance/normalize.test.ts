@@ -73,19 +73,103 @@ const CONVERGENT: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	}
 ];
 
+/** Both parsers' normal forms match `shape` exactly and compare equal. */
+function expectBothNormalizeTo(md: string, shape: NormalNode[]): void {
+	const ours = normalizeAragonite(parseInline(md, 0, md.length), md);
+	const refNodes = referenceInlineNodes(md);
+	expect(refNodes).not.toBeNull();
+	const ref = normalizeReference(refNodes!);
+
+	expect(ours).toEqual(shape);
+	expect(ref).toEqual(shape);
+	expect(normalEqual(ours, ref)).toBe(true);
+}
+
 describe('normalize (dual-parser mini-differ)', () => {
 	for (const { name, md, shape } of CONVERGENT) {
 		it(`${name}: both parsers agree and match the shape`, () => {
-			const ours = normalizeAragonite(parseInline(md, 0, md.length), md);
-			const refNodes = referenceInlineNodes(md);
-			expect(refNodes).not.toBeNull();
-			const ref = normalizeReference(refNodes!);
-
-			expect(ours).toEqual(shape);
-			expect(ref).toEqual(shape);
-			expect(normalEqual(ours, ref)).toBe(true);
+			expectBothNormalizeTo(md, shape);
 		});
 	}
+});
+
+// ── Reconciliations (audited: baseline.json normalizerReconciliations) ───────
+
+/**
+ * Display-model divergences the shared canonicalization reconciles on BOTH
+ * sides: §6.1 code-span folding and §6.8 softbreak space-trimming. Inputs are
+ * mechanism-report exemplars; the shape is the reconciled normal form.
+ */
+const RECONCILED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
+	{
+		name: 'code span: one flanking space stripped',
+		md: '` * `',
+		shape: [{ kind: 'code', text: '*' }]
+	},
+	{
+		name: 'code span: line endings fold to spaces before the strip',
+		md: '``\nfoo\n``',
+		shape: [{ kind: 'code', text: 'foo' }]
+	},
+	{
+		name: 'softbreak: one trailing space trimmed (not a hard break)',
+		md: 'a \nb',
+		shape: [{ kind: 'text', text: 'a\nb' }]
+	},
+	{
+		name: 'softbreak: tab trimmed only after adjacent text merges',
+		md: 'a\t\nb',
+		shape: [{ kind: 'text', text: 'a\nb' }]
+	},
+	{
+		name: 'both rules in one input',
+		md: "<[&\u{10100} \n`_中\n]'`ab",
+		shape: [
+			{ kind: 'text', text: '<[&\u{10100}\n' },
+			{ kind: 'code', text: "_中 ]'" },
+			{ kind: 'text', text: 'ab' }
+		]
+	}
+];
+
+/** Edges the reconciliation must NOT touch (spec §6.1 / §6.8 boundaries). */
+const PRESERVED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
+	{
+		name: 'all-space code span keeps every space',
+		md: '`   `',
+		shape: [{ kind: 'code', text: '   ' }]
+	},
+	{
+		name: 'two-space line ending stays a hard break',
+		md: 'a  \nb',
+		shape: [{ kind: 'text', text: 'a' }, { kind: 'hardbreak' }, { kind: 'text', text: 'b' }]
+	}
+];
+
+describe('reconciliations (code-span folding, softbreak trimming)', () => {
+	for (const { name, md, shape } of RECONCILED) {
+		it(`${name}: both sides reach the reconciled shape`, () => {
+			expectBothNormalizeTo(md, shape);
+		});
+	}
+
+	for (const { name, md, shape } of PRESERVED) {
+		it(`${name}: reconciliation leaves the shape alone`, () => {
+			expectBothNormalizeTo(md, shape);
+		});
+	}
+
+	it('genuine interior code-content mismatch still fails normalEqual', () => {
+		const ours = normalizeAragonite(parseInline('`a  b`', 0, 6), '`a  b`');
+		const theirs = normalizeReference(referenceInlineNodes('`a b`')!);
+		expect(normalEqual(ours, theirs)).toBe(false);
+	});
+
+	it('single-sided flanking space is content, not stripped', () => {
+		const ours = normalizeAragonite(parseInline('` a`', 0, 4), '` a`');
+		const theirs = normalizeReference(referenceInlineNodes('`a`')!);
+		expect(normalEqual(ours, theirs)).toBe(false);
+	});
 });
 
 // ── Canonicalization ─────────────────────────────────────────────────────────
