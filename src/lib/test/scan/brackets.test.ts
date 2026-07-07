@@ -31,7 +31,7 @@ describeScanCases('inline link and image node shape', [
 	[
 		'empty title stays distinct from absent',
 		'[a](b "")',
-		[linkNode(0, 9, [textNode(1, 2, 'a')], 'b', '')]
+		[linkNode(0, 9, [textNode(1, 2, 'a')], 'b', { title: '' })]
 	],
 	[
 		'emphasis in the label wraps at match time',
@@ -131,6 +131,19 @@ describe('image label structure (baseline image-alt-structure)', () => {
 		]);
 	});
 });
+
+describeScanCases('close bracket with no opener on the stack stays literal', [
+	[
+		'stray ] after a matched link',
+		'[a](b)]x',
+		[linkNode(0, 6, [textNode(1, 2, 'a')], 'b'), textNode(6, 8, ']x')]
+	],
+	[
+		'stray ] before an opener',
+		'a][b](c)',
+		[textNode(0, 2, 'a]'), linkNode(2, 8, [textNode(3, 4, 'b')], 'c')]
+	]
+]);
 
 describe('unmatched brackets stay literal', () => {
 	const literalInputs: Array<[name: string, input: string]> = [
