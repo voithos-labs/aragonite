@@ -79,10 +79,12 @@ describe('cross-block copy ending in reserved chrome', () => {
 		const kind = DETAILS as AnyBlockKind;
 		const original = getBlockKindDescriptor(kind).rebuildRaw!;
 		augmentBlockKind(kind, {
-			rebuildRaw: (node) => {
-				const meta = getPluginMetadata<Record<string, unknown>>(node);
-				if (meta) meta.rogue = true;
-				original(node);
+			container: {
+				rebuildRaw: (node) => {
+					const meta = getPluginMetadata<Record<string, unknown>>(node);
+					if (meta) meta.rogue = true;
+					original(node);
+				}
 			}
 		});
 

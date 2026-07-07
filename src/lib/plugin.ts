@@ -13,8 +13,18 @@ export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
+// BlockKindRegistration is the write-side shape (container-only fields grouped
+// under `container`, isContainer derived); BlockKindDescriptor stays exported as
+// the flat read-side shape descriptor lookups return.
 export { registerBlockKind, augmentBlockKind } from './schema/block-kind-descriptor';
-export type { BlockKindDescriptor, MergeRole, UnwrapRole } from './schema/block-kind-descriptor';
+export type {
+	BlockKindDescriptor,
+	BlockKindRegistration,
+	BlockKindAugmentation,
+	ContainerDescriptorGroup,
+	MergeRole,
+	UnwrapRole
+} from './schema/block-kind-descriptor';
 
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';

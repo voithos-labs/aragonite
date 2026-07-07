@@ -194,11 +194,16 @@ describe('createHeightOracle', () => {
 		registerBlockKind(collapsible, {
 			mergeRole: 'container',
 			editable: true,
-			isContainer: true,
 			supportsInline: false,
-			reservedChrome: {
-				kind: summary,
-				isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+			// The oracle only estimates, so an inert strip contract + noop rebuild
+			// satisfy the group's required pairing.
+			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
+				reservedChrome: {
+					kind: summary,
+					isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+				}
 			}
 		});
 

@@ -11,7 +11,6 @@ describe('plugin-kind node is a first-class CST citizen', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'not-mergeable',
 			editable: true,
-			isContainer: false,
 			supportsInline: false
 		});
 		expect(getBlockKindDescriptor(kind).editable).toBe(true);

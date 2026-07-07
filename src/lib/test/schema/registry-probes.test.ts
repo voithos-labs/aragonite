@@ -28,7 +28,6 @@ describe('registration probes', () => {
 		registerBlockKind(declarePluginKind('probeKind'), {
 			mergeRole: 'not-mergeable',
 			editable: false,
-			isContainer: false,
 			supportsInline: false
 		});
 		expect(isBlockKindRegistered('probeKind')).toBe(true);

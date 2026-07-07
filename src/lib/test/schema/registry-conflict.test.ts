@@ -21,7 +21,6 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 const minimal = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	isContainer: false,
 	supportsInline: false
 } as const;
 
