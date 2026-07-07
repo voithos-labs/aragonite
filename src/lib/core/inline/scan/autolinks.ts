@@ -70,10 +70,15 @@ export function scanGfmAutolinks(ctx: ScanContext): void {
 }
 
 function scanChildren(raw: string, nodes: InlineNode[]): void {
-	for (const node of nodes) {
-		if (node.children !== undefined && node.children.length > 0) {
-			spliceBareAutolinks(raw, node.children);
-			scanChildren(raw, node.children);
+	// Iterative: nesting depth is input-controlled (images nest without bound),
+	// so a per-level recursion is a call-stack overflow on adversarial input.
+	const pending: InlineNode[][] = [nodes];
+	while (pending.length > 0) {
+		for (const node of pending.pop()!) {
+			if (node.children !== undefined && node.children.length > 0) {
+				spliceBareAutolinks(raw, node.children);
+				pending.push(node.children);
+			}
 		}
 	}
 }

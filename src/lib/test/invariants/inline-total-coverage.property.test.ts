@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { arbInlineSource } from './arbitraries';
-import { enumerateCorpus, sampleCorpus } from '../conformance/corpus';
+import { enumerateCorpus, loadSpecExamples, sampleCorpus } from '../conformance/corpus';
 import { assertTotalCoverage, assertConstructCoverage } from '../scan/scan-test-helpers';
 
 // G2.11: the scanner's editor-facing contract, which no conformance diff can
@@ -70,7 +70,14 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	});
 
 	it('holds over the seeded conformance corpus', () => {
-		for (const input of [...enumerateCorpus(3), ...sampleCorpus(20260706, 2000, 4, 12)]) {
+		// Spec examples included because generated corpora statistically miss
+		// image-construct tiling (nested labels, dimension suffixes).
+		const inputs = [
+			...loadSpecExamples().map((example) => example.markdown.replace(/\n$/, '')),
+			...enumerateCorpus(3),
+			...sampleCorpus(20260706, 2000, 4, 12)
+		];
+		for (const input of inputs) {
 			assertScanContract(input, 0, input.length);
 		}
 	});

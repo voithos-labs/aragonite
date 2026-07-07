@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+import { scanInline } from '../../core/inline/scan';
 import {
 	autolinkNode,
 	codeNode,
@@ -127,3 +129,31 @@ describeScanCases('autolinks interleave with emphasis and links', [
 		[imageNode(0, 16, [autolinkNode(2, 11, 'www.x.com')], 'www.x.com', '/u')]
 	]
 ]);
+
+describe('child walk under deep image nesting (DoS guard)', () => {
+	it('pathological nesting parses without overflow and stays near-linear', () => {
+		// 20k-deep `![…](u)` nesting — commonmark semantics build one image per
+		// level, the class the old pipeline's bracket depth cap kept unreachable.
+		// A per-level recursion in the autolink child walk overflows the call
+		// stack here, and an unbounded dimension-suffix search over each level's
+		// label goes quadratic. The generous bound fails both shapes on any
+		// machine while leaving the linear one two orders of magnitude of room.
+		const depth = 20000;
+		const raw = '!['.repeat(depth) + 'a' + '](u)'.repeat(depth);
+		const startedAt = performance.now();
+		const nodes = scanInline(raw, 0, raw.length);
+		const elapsed = performance.now() - startedAt;
+		expect(elapsed).toBeLessThan(2000);
+		expect(nodes).toHaveLength(1);
+		// Iterative descent: a recursive assertion would itself overflow.
+		let node = nodes[0];
+		let imagesSeen = 0;
+		while (node.kind === 'image') {
+			imagesSeen++;
+			expect(node.children).toHaveLength(1);
+			node = node.children![0];
+		}
+		expect(imagesSeen).toBe(depth);
+		expect(node).toEqual(textNode(depth * 2, depth * 2 + 1, 'a'));
+	});
+});

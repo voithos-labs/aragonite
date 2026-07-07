@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
 import { trimTrailingPunctuation, isValidLeadingBoundary } from '../../../core/inline/links';
-import type { InlineNode } from '../../../core/nodes';
 
 function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
@@ -386,10 +385,10 @@ describe('angle-bracket email autolink (CommonMark §6.8)', () => {
 		expect(autolinks[0].end).toBe(raw.length);
 	});
 
-	it('rejects <foo@bar> with single-segment domain', () => {
-		const nodes = inlineOf('<foo@bar>');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
+	// No single-segment-domain rejection pin: the old pipeline's dotted-domain
+	// requirement is an accidental spec deviation (§6.5's regex accepts
+	// `<foo@bar>`; commonmark.js emits `mailto:foo@bar`). The spec behavior is
+	// pinned in the scanner suite, which replaces this pipeline at cutover.
 
 	it('rejects email with internal whitespace', () => {
 		const nodes = inlineOf('<foo @bar.com>');
@@ -566,23 +565,14 @@ describe('parseInline — links and images (Stage 3)', () => {
 });
 
 describe('parseInline — totality under deep bracket nesting', () => {
+	// Totality is the pin here, not tree shape: the old pipeline nests links
+	// inside links up to its depth cap, which deviates from §6.3 ("links may
+	// not contain other links, at any level of nesting") — the spec shape is
+	// pinned in the scanner suite, which replaces this pipeline at cutover.
 	it('parses 2000-deep bracket nesting without throwing and covers all bytes', () => {
 		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
 		const nodes = inlineOf(source);
 		const reconstructed = nodes.map((n) => source.slice(n.start, n.end)).join('');
 		expect(reconstructed).toBe(source);
-	});
-
-	it('nesting at the depth cap still parses as links', () => {
-		const source = '['.repeat(32) + 'a' + '](u)'.repeat(32);
-		const nodes = inlineOf(source);
-		expect(nodes).toHaveLength(1);
-		let depth = 0;
-		let node: InlineNode | undefined = nodes[0];
-		while (node?.kind === 'link') {
-			depth++;
-			node = node.children?.[0];
-		}
-		expect(depth).toBe(32);
 	});
 });
