@@ -14,7 +14,9 @@ import {
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
 import { augmentBuiltin } from '../schema/block-kind-descriptor';
+import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
+import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
 import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 import CodeBlock from './blocks/code/CodeBlock.svelte';
 import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
@@ -65,3 +67,7 @@ registerPasteSurface(tableCellPasteSurface);
 // the selection layer dispatches through the descriptor registry — no
 // selection→table-component import.
 augmentBuiltin('table', { foreignDragHitTest: tableDragHitTest });
+
+// Image resize is editor-layer behavior; the core image kind stays data-only and
+// gains its selected-key handler here, where the DOM/render layer is reachable.
+augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });

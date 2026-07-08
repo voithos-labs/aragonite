@@ -56,6 +56,28 @@ export function registerInlineWidgetKind(
 	registry.set(kind, descriptor);
 }
 
+/**
+ * Layer editing fields onto an already-registered kind's policy. The editor-layer
+ * mount wire-up (components/built-in-blocks.ts) uses this to attach behavior — the
+ * image resize `onSelectedKey` — that can't live in the core registration without
+ * importing a downstream layer. Throws for an unregistered kind.
+ */
+export function augmentInlineWidgetKind(
+	kind: AnyInlineKind,
+	editing: Partial<InlineWidgetEditingPolicy>
+): void {
+	const descriptor = registry.get(kind);
+	if (!descriptor) {
+		throw new Error(
+			`augmentInlineWidgetKind: "${kind}" is not registered — register the widget kind before ` +
+				`augmenting its editing policy.`
+		);
+	}
+	// Layers onto the built-in's already-complete policy (image registers the
+	// required granularity/edge fields); the cast reflects that precondition.
+	descriptor.editing = { ...descriptor.editing, ...editing } as InlineWidgetEditingPolicy;
+}
+
 /** Kind-level recognition — independent of per-block render policy (e.g.
  *  renderImagesAsWidgets). */
 export function isInlineWidget(node: InlineNode, raw: string): boolean {
