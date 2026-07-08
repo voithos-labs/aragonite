@@ -98,6 +98,7 @@
 		"commonmark": "0.31.2",
 		"fast-check": "^4.8.0",
 		"jsdom": "^29.0.2",
+		"katex": "^0.17.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.0.0",
