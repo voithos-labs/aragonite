@@ -10,8 +10,9 @@ import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
 import { handleDelimiter, processEmphasis } from './emphasis';
-import { createScanContext, flushPendingText, mergeAdjacentText } from './scan-state';
+import { appendNode, createScanContext, flushPendingText, mergeAdjacentText } from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
+import { getInlineSyntax, hasInlineSyntax } from './plugin-syntax';
 
 // Every character that can start a construct or anchor a lookback: the
 // dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
@@ -35,11 +36,20 @@ SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
 function needsScan(raw: string, start: number, end: number): boolean {
+	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them
+	// only when something is registered — the empty registry stays byte-identical.
+	const probePlugins = hasInlineSyntax();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
-		if (code >= 128) continue;
+		if (code >= 128) {
+			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			continue;
+		}
 		const cls = SPECIAL[code];
-		if (cls === 0) continue;
+		if (cls === 0) {
+			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			continue;
+		}
 		if (cls === 1) return true;
 		if (cls === PROBE_SCHEME) {
 			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true;
@@ -97,8 +107,22 @@ export function scanInline(
 			case '<':
 				handleAngle(ctx);
 				break;
-			default:
+			default: {
+				if (hasInlineSyntax()) {
+					const recognize = getInlineSyntax(raw[ctx.pos]);
+					if (recognize) {
+						const node = recognize(raw, ctx.pos, ctx.end);
+						if (node) {
+							if (node.end <= ctx.pos) {
+								throw new Error(`inline-syntax "${raw[ctx.pos]}" did not advance`);
+							}
+							appendNode(ctx, node);
+							break;
+						}
+					}
+				}
 				ctx.pos++;
+			}
 		}
 	}
 	flushPendingText(ctx, ctx.end);
