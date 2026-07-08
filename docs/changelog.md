@@ -2,6 +2,17 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.9 — Inline scanner rework: the CommonMark delimiter/bracket-stack pass
+
+Roadmap item 1, cut over whole. `parseInline` is now a single left-to-right scanner (`core/inline/scan/`) — character dispatch feeding a delimiter stack (flanking, `openers_bottom`, original-run-length multiple-of-3) and a bracket stack (innermost-wins links, spec destination/title parsing, links-in-links deactivation) — replacing the five-stage pre-pass pipeline, which is deleted.
+
+- **The differ converged to deliberate-only.** The conformance baseline went from 71 entries across 11 classes to **9 entries across 3 deliberate classes**: `emphasis-flanking-astral` (commonmark.js reads UTF-16 units where the spec says code points — we stay spec-correct; all 416 unclassified full-sweep divergences are mechanism-verified members of this class), `gfm-bare-autolink` (we implement GFM; the reference is CommonMark-only), and `image-alt-structure` (alt stays raw label bytes — the editor's display model; the spec's plain-text alt is a render-layer concern). Six classes converged outright: link-destination-parsing, url-encoding, links-in-links, html-inline-parsing, autolink-uri-charset, link-nbsp-whitespace. Whole-corpus monotonicity held: zero previously-agreeing inputs regressed across 182,160.
+- **Two audited normalizer reconciliations** carry the styled-source byte model: spec §6.1 code-span folding and §6.8 softbreak space-trimming apply to the aragonite side only (the reference AST is already spec-folded) — recorded in the baseline's audit array; display bytes are untouched.
+- **Flip parity before cutover: 0 product failures across the full 3,135-test unit suite**, with every discrepancy triaged — one scanner bug fixed red-first (destination paren encoding), three old pins retired with spec/reference justification quoted.
+- **0.9.6 inline stopgaps structurally retired.** The delimiter/bracket architecture makes the link-in-code-span corruption class unrepresentable and the multiple-of-3 fix structural (`origLength`); the bracket depth cap died with recursion (a reintroduced deep-image-nesting overflow was caught and fixed red-first — 50k-deep now parses in milliseconds); entity/paren scan bounds live in the shared cores.
+- **Faster, not just cleaner:** ~2.2× faster than the old pipeline over the slice corpus warm; every `perf:check` gate row passed at or better than the pre-cutover run. A new total-coverage property (G2.11) pins the node contract — every byte in exactly one node's range — over adversarial and corpus inputs.
+- The scan dispatch table is the designed seat for the 1.2 inline-syntax hook; nothing is exported now.
+
 ### 0.9.8 — Conformance harness + registry hardening
 
 Roadmap item 1's de-risk step and item 2 in full: the inline-scanner rework now has its convergence meter, and the registries limestone will bind to fail loud at the registration seam.

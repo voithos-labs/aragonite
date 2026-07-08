@@ -15,26 +15,14 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/editor/plugin-contract.md`.
 
 Remaining work, ordered. Sequencing principle: **risk first, validation before freeze** — the items most
-likely to change later plans (the scanner rework) or to reveal contract gaps (the clean-room build) run
+likely to change later plans or to reveal contract gaps (the KaTeX seam, the clean-room build) run
 early enough that what they teach is still cheap to act on.
 
-1. **Inline scanner rework** — replace the staged backward-scan inline parser with the CommonMark
-   delimiter/bracket-stack pass (single left-to-right scan, openers_bottom, innermost-wins). Grounds:
-   five bug classes share the old architecture (review 2026-07); must land before the KaTeX seam and
-   any inline-parser hook freeze the scan-stage semantics. Pulled ahead of everything sizeable because
-   it is the largest unknown in the plan — if it runs long, everything downstream shifts, and better to
-   know early. **De-risk step shipped (0.9.8):** the commonmark.js differ harness is in place as a
-   permanent conformance ratchet (`test:editor:conformance` slice in the commit gate with a
-   fails-both-directions baseline; `npm run conformance:full` as the sweep meter) — the rework is now
-   literally "make the differ converge": 51 baseline-classed divergences across 9 classes plus 1,822
-   unclassified sweep inputs are the work list (group the unclassified by mechanism when writing the
-   rework spec). The ~240-test + property surface validates alongside; corruption stopgaps
-   shipped 0.9.6.
-2. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image
+1. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image
    live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving
    consumer. Decide the `AnyInlineKind` widening here (mirror `AnyBlockKind`), even if the registry
    ships later — breaking if deferred past the freeze.
-3. **Clean-room freeze validator** — build one real extension (alerts/admonitions — a third container
+2. **Clean-room freeze validator** — build one real extension (alerts/admonitions — a third container
    consumer) under third-party conditions: the author gets the public docs and `aragonite/plugin`
    ONLY, no reading `src/lib` internals. The dogfood plugins validated the API's _sufficiency_ with
    full source access; this validates its _discoverability_, which is what the DX thesis actually
@@ -47,18 +35,18 @@ early enough that what they teach is still cheap to act on.
    runs against per-kind openers first and the directive comparison follows as a separate,
    non-clean-room step; and `registerPasteSurface` is exposed on the plugin barrel if the extension
    needs custom paste.
-4. **Tarball-gate the extensions** — every dogfood extension (now including the clean-room one)
+3. **Tarball-gate the extensions** — every dogfood extension (now including the clean-room one)
    builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface
    from outside the repo at the package boundary.
-5. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
+4. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
    (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-6. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
+5. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
    every PR. Fold in completing the invariant-watcher fixture adoption sweep (shipped in 14 specs;
    remaining specs are a one-line import each) — finish it before external contributors arrive, since
    the fixture is the safety net for people who haven't internalized the invariants.
-7. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
+6. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
    extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-8. **Freeze cut at release** — in order:
+7. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (Mermaid, footnotes, emoji, autolinks)
@@ -92,19 +80,19 @@ not _build-now_:
   highest-leverage lever for plugin _quality_: derived content, linked edits, auto-fix, structural
   guards. **Decided: yes, post-1.0.** No pre-freeze dogfood driver needs it, and the ceremony is
   internal (plugins never bind its shape), so the hook stays additive. Direction fixed now so 1.0
-  doesn't foreclose it; the item-8 commit-seam litmus guards it; designed-ahead in
+  doesn't foreclose it; the item-7 commit-seam litmus guards it; designed-ahead in
   `plugin-contract.md` § Target shapes. Invariant enforcement stays editor-owned — this augments a
   commit, it does not bypass the invariants.
 - **First-class plugin paste** — the paste-surface mechanism is built and used internally by the
   chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided:
   1.0-eligible, build-on-driver.** Exposure is one additive export; the clean-room admonitions build
-  (item 3) is the forcing function — expose it there if that extension needs custom paste, else
+  (item 2) is the forcing function — expose it there if that extension needs custom paste, else
   defer. The richer _conversion config_ (Editor.js `pasteConfig` analog) is 1.2 DX ergonomics over
   the same mechanism.
 - **Generic `:::name` directive primitive** (remark-directive) — one directive opener owning all
   `:::` syntax instead of N plugins colliding on opener priority, giving authors a lossless
   container/leaf/text grammar. **Decided: prototype pre-freeze**, built and docs-published _before_
-  the item-3 clean-room build so that build validates its discoverability rather than co-authoring it
+  the item-2 clean-room build so that build validates its discoverability rather than co-authoring it
   under third-party conditions (admonitions consumes it); the 1.0-vs-1.2 cut follows the prototype's
   byte-lossless confirmation. The per-kind opener stays the general escape hatch.
 

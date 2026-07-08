@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { referenceInlineNodes } from './reference';
+import { referenceInlineNodes, REFERENCE_VERSION } from './reference';
+import packageJson from '../../../../package.json';
 
 describe('referenceInlineNodes', () => {
+	// The baseline is only meaningful against this exact reference version — a
+	// commonmark bump that skips reference.ts must go red here, not drift silently.
+	it('REFERENCE_VERSION matches the pinned devDependency', () => {
+		expect(packageJson.devDependencies.commonmark).toBe(REFERENCE_VERSION);
+	});
+
 	it('returns the inline children of a single paragraph', () => {
 		const nodes = referenceInlineNodes('*a* b');
 		expect(nodes).not.toBeNull();

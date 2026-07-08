@@ -184,7 +184,7 @@ Decimal: &#35; &#1234;
 Hexadecimal: &#x22; &#xE9;
 ```
 
-Per CommonMark §6.2, the full HTML5 named entity set plus decimal (`&#NNN;`) and hexadecimal (`&#xNNNN;`) numeric references are recognized in inline content. Sibling pre-pass to backslash escapes — both run before link/image scanning and the delimiter scanner.
+Per CommonMark §6.2, the full HTML5 named entity set plus decimal (`&#NNN;`) and hexadecimal (`&#xNNNN;`) numeric references are recognized in inline content. Recognized at the `&` dispatch of the single-pass inline scanner, alongside backslash escapes at `\` — neither can pair as a delimiter or leak into link syntax.
 
 ---
 

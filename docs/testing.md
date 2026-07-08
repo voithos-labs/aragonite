@@ -81,7 +81,7 @@ The invariant catalog (`test/invariants/`, with shared arbitraries under `test/i
 | Slice      | rides `npm test`           | Spec-example fixtures + deterministic seeded corpus vs `baseline.json` — fails closed in both directions               |
 | Full sweep | `npm run conformance:full` | Full brute-force enumeration + high-volume seeded random; writes a classed report to gitignored `conformance-results/` |
 
-The baseline is a ratchet: a divergence not in it fails the slice, and a stale entry (no longer divergent) fails until removed — the count only shrinks, by mechanism. The full sweep is a meter, not a gate: its classed report (plus unclassified inputs) is the empirical input to the inline-scanner rework.
+The baseline is a ratchet: a divergence not in it fails the slice, and a stale entry (no longer divergent) fails until removed — the count only shrinks, by mechanism. The full sweep is a meter, not a gate: its classed report (plus unclassified inputs) is the standing divergence meter for the inline parser.
 
 ## E2E Tests (Playwright)
 
