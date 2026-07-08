@@ -20,15 +20,26 @@
 	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 	const MATH_SEED = 'Before $x^2$ after\n\nNext\n';
+	// Math on the first visual line; a soft-wrapped second line (pre-wrap renders the
+	// internal newline as a break) column-aligns real text beneath the widget, for the
+	// reveal hit-test's X-and-Y coverage.
+	const MATH_MULTILINE_SEED = '$x^2$ first line padding\nsecond visual line here\n\nNext\n';
 
 	// The callout is the default document (the landed callout e2e reads it directly);
-	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math`
-	// an inline-math paragraph. The seed arrives via the load data, so the server and
-	// client render the same document. One-time snapshot: the harness never
-	// re-navigates client-side, and the test probes then own `source`.
+	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math` an
+	// inline-math paragraph, `?seed=math-multiline` the two-line reveal-hit-test doc.
+	// The seed arrives via the load data, so the server and client render the same
+	// document. One-time snapshot: the harness never re-navigates client-side, and the
+	// test probes then own `source`.
 	// svelte-ignore state_referenced_locally
 	let source = $state(
-		data.seed === 'details' ? DETAILS_SEED : data.seed === 'math' ? MATH_SEED : CALLOUT_SEED
+		data.seed === 'details'
+			? DETAILS_SEED
+			: data.seed === 'math'
+				? MATH_SEED
+				: data.seed === 'math-multiline'
+					? MATH_MULTILINE_SEED
+					: CALLOUT_SEED
 	);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
