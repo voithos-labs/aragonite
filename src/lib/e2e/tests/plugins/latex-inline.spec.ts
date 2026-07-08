@@ -1,0 +1,158 @@
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
+import { EditorPage } from '../../editor-page';
+
+/**
+ * Inline `$…$` math: select → reveal editable source → commit re-renders (design
+ * §"Inline edit UX", flagship axis A1). The reveal swap and the commit re-render are
+ * driven through real mouse/keyboard only — no programmatic selection — because the
+ * reactive-re-render survival of the caret is exactly what the unit layer could not
+ * prove (Task 10 deferred it here). The math widget is `.math-inline-widget`; KaTeX
+ * output is `.katex`; the revealed source is plain `$…$` text in the block.
+ */
+
+class MathPage extends EditorPage {
+	async gotoMath(): Promise<void> {
+		await this.page.goto('/test/plugins?seed=math');
+		await this.editorContainer.waitFor({ state: 'visible' });
+		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
+			timeout: 10_000
+		});
+		await expect(this.mathWidget).toHaveCount(1);
+	}
+
+	get mathWidget() {
+		return this.page.locator('.math-inline-widget');
+	}
+
+	/** Click the rendered widget to reveal its source, settling on the swap. */
+	async revealByClick(): Promise<void> {
+		await this.mathWidget.click();
+		await expect(this.mathWidget).toHaveCount(0);
+	}
+}
+
+// IME has no native Playwright driver (docs/concerns.md #3), so a composition is
+// simulated by firing the real compositionstart/input/compositionend the editor
+// listens to and inserting the composed text at the caret as the browser would —
+// the one gesture no automation API provides. Everything else here is real input.
+async function composeIntoCaret(page: Page, text: string): Promise<void> {
+	await page.evaluate((composed) => {
+		const el = document.activeElement as HTMLElement | null;
+		const sel = window.getSelection();
+		if (!el || !sel || sel.rangeCount === 0) return;
+		const range = sel.getRangeAt(0);
+		const node = range.startContainer;
+		const at = range.startOffset;
+		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		if (node.nodeType === Node.TEXT_NODE) {
+			const t = node as Text;
+			t.data = t.data.slice(0, at) + composed + t.data.slice(at);
+			const r = document.createRange();
+			r.setStart(t, at + composed.length);
+			r.collapse(true);
+			sel.removeAllRanges();
+			sel.addRange(r);
+		}
+		el.dispatchEvent(
+			new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: composed })
+		);
+		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: composed }));
+	}, text);
+}
+
+test.describe('plugin inline math: select → reveal-source editing', () => {
+	let editor: MathPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new MathPage(page);
+		await editor.gotoMath();
+	});
+
+	test('clicking the rendered math reveals its source without touching the CST', async () => {
+		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+		await editor.revealByClick();
+
+		// The opaque widget is gone; the raw `$…$` is now visible, editable text.
+		expect(await editor.getBlockText(0)).toContain('$x^2$');
+		// Reveal is a view toggle — the source has not changed.
+		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+	});
+
+	test('keyboard-selecting the widget and pressing Enter reveals the source', async ({ page }) => {
+		await editor.getBlock(0).click();
+		await page.keyboard.press('Home');
+		// "Before " is 7 chars: 7 steps reach the widget's left edge, the 8th selects it.
+		for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('Enter');
+
+		await expect(editor.mathWidget).toHaveCount(0);
+		expect(await editor.getBlockText(0)).toContain('$x^2$');
+	});
+
+	test('editing the source and pressing Enter re-renders KaTeX and persists the edit', async ({
+		page
+	}) => {
+		await editor.revealByClick();
+		// Move into the source (past the opening `$`) and type inside the formula.
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('y');
+		await page.keyboard.press('Enter');
+
+		await expect(editor.mathWidget).toHaveCount(1);
+		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
+		await editor.bridge.waitForSourceContains('$yx^2$');
+		expect(await editor.bridge.getSource()).toContain('Before $yx^2$ after');
+		expect(await editor.bridge.getSource()).not.toContain('$x^2$ after');
+		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+	});
+
+	test('the reveal caret lands in the source and the commit lands it at the trailing edge', async ({
+		page
+	}) => {
+		await editor.revealByClick();
+		// A char typed right after reveal lands at the source's leading edge — not at a
+		// block edge, which is where a lost caret would drop it.
+		await page.keyboard.type('z');
+		const revealed = await editor.getBlockText(0);
+		expect(revealed).toContain('z$x^2$');
+		expect(revealed).not.toContain('zBefore');
+
+		await page.keyboard.press('Enter');
+		await expect(editor.mathWidget).toHaveCount(1);
+		// Commit landed the caret at the math's trailing edge: the next char lands
+		// immediately after the re-rendered widget.
+		await page.keyboard.type('!');
+		await editor.bridge.waitForSourceContains('$x^2$!');
+		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
+	});
+
+	test('Escape discards the source edit and restores the rendered widget', async ({ page }) => {
+		await editor.revealByClick();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('y');
+		// Escape reverts to the rendered widget from the untouched raw — edit discarded.
+		await page.keyboard.press('Escape');
+
+		await expect(editor.mathWidget).toHaveCount(1);
+		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
+		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+		expect(await editor.bridge.getSource()).not.toContain('$yx^2$');
+	});
+
+	test('IME composition in the revealed source commits only on blur', async ({ page }) => {
+		await editor.revealByClick();
+		await page.keyboard.press('ArrowRight');
+		await composeIntoCaret(page, 'yy');
+
+		// Composition is ephemeral: nothing committed to the CST yet.
+		await editor.waitForRenderFlush();
+		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+
+		// Focus leaves the block → the composed source commits and re-renders.
+		await editor.getBlock(1).click();
+		await editor.bridge.waitForSourceContains('$yyx^2$');
+		await expect(editor.mathWidget).toHaveCount(1);
+		expect(await editor.bridge.getSource()).toContain('Before $yyx^2$ after');
+	});
+});
