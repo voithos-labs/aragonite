@@ -71,14 +71,14 @@ The prose branch now reads its own per-path bucket from the match index; the tab
 
 **Why deferred:** no reachable bug; mirror the two calls when the seam is next touched.
 
-### Conformance reference version has no drift-guard test
+### Two latent fail-loud conformance divergences the corpus cannot spell
 
-**Severity:** trivial
-**Files:** `src/lib/test/conformance/reference.ts`
+**Severity:** trivial (phantom-red prevention notes, not defects)
+**Files:** `src/lib/test/conformance/normalize.ts`, `src/lib/core/inline/character-refs.ts`
 
-`REFERENCE_VERSION` is hand-maintained beside the exact-pinned `commonmark` devDependency; nothing red ties them together. A bump that misses `reference.ts` would shift divergences and fail the slice ratchet loudly anyway — the ratchet is the de-facto guard.
+Two divergence shapes are unreachable by the current corpus alphabets but would surface as fail-loud fresh divergences if the corpus ever gains the needed bytes: (1) an entity-decoded newline after a space (`foo &#10;bar`) — our softbreak trimming keys on `\n` bytes regardless of provenance; (2) C1 numeric references (`&#128;`) — the reference applies HTML5's cp1252 remap while we follow CommonMark §2.5's letter (ours spec-correct, probe-verified). If either surfaces, class it as deliberate with these rationales rather than chasing it as a scanner bug.
 
-**Why deferred:** add the direct pin when the harness is next touched.
+**Why deferred:** unreachable today; recorded so a future corpus widening inherits the adjudications.
 
 ### No composition-driving harness; IME guards are pinned by parity, not by tests
 
