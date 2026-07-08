@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import {
 	isInlineWidget,
 	buildCoreInlineWidget,
-	flattenInlineWidgets
+	flattenInlineWidgets,
+	registerInlineWidgetKind,
+	getInlineWidgetEditing,
+	__resetInlineWidgetsForTests
 } from '../../core/inline/inline-widgets';
+import { declarePluginInlineKind } from '../../schema/plugin-kind';
 
 describe('isInlineWidget — registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
@@ -135,4 +139,42 @@ describe('flattenInlineWidgets — recursion + document order', () => {
 		const widgetWithChildren: InlineNode = { ...img(0, 6), children: [inner] };
 		expect(flattenInlineWidgets([widgetWithChildren], '![](x)')).toEqual([widgetWithChildren]);
 	});
+});
+
+describe('getInlineWidgetEditing — per-kind editing policy', () => {
+	const mathKind = declarePluginInlineKind('math');
+	const spoilerKind = declarePluginInlineKind('spoiler');
+
+	afterEach(__resetInlineWidgetsForTests);
+
+	it('returns the editing policy registered for a plugin widget kind', () => {
+		const onSelectedKey = () => true;
+		registerInlineWidgetKind(mathKind, {
+			isWidget: () => true,
+			editing: {
+				deleteGranularity: 'select-then-delete',
+				onEdge: 'select',
+				revealSource: true,
+				onSelectedKey
+			}
+		});
+		const policy = getInlineWidgetEditing(mathKind);
+		expect(policy?.revealSource).toBe(true);
+		expect(policy?.onSelectedKey).toBe(onSelectedKey);
+	});
+
+	it('returns undefined for a widget kind registered without an editing policy', () => {
+		registerInlineWidgetKind(spoilerKind, { isWidget: () => true });
+		expect(getInlineWidgetEditing(spoilerKind)).toBeUndefined();
+	});
+
+	it.each([
+		{ kind: 'image', deleteGranularity: 'select-then-delete', onEdge: 'select' },
+		{ kind: 'rawHtml', deleteGranularity: 'atomic', onEdge: 'step-over' }
+	] as const)(
+		'exposes the built-in $kind editing policy',
+		({ kind, deleteGranularity, onEdge }) => {
+			expect(getInlineWidgetEditing(kind)).toEqual({ deleteGranularity, onEdge });
+		}
+	);
 });
