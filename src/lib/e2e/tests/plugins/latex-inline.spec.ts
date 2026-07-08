@@ -12,8 +12,8 @@ import { EditorPage } from '../../editor-page';
  */
 
 class MathPage extends EditorPage {
-	async gotoMath(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=math');
+	async gotoMath(seed: 'math' | 'math-multiline' = 'math'): Promise<void> {
+		await this.page.goto(`/test/plugins?seed=${seed}`);
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000
@@ -29,6 +29,43 @@ class MathPage extends EditorPage {
 	async revealByClick(): Promise<void> {
 		await this.mathWidget.click();
 		await expect(this.mathWidget).toHaveCount(0);
+	}
+
+	/** Vertical center of `needle`, in block [0]. A range over the substring alone
+	 *  (not the whole text node, which may span the soft-wrapped break) isolates the
+	 *  line the needle sits on. */
+	async lineYContaining(needle: string): Promise<number> {
+		const y = await this.page.evaluate((text) => {
+			const wrapper = document.querySelector("[data-block-path='[0]']");
+			const editable = wrapper?.querySelector('[contenteditable]');
+			if (!editable) return null;
+			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				const idx = node.textContent?.indexOf(text) ?? -1;
+				if (idx >= 0) {
+					const range = document.createRange();
+					range.setStart(node, idx);
+					range.setEnd(node, idx + text.length);
+					const rect = range.getBoundingClientRect();
+					return rect.top + rect.height / 2;
+				}
+			}
+			return null;
+		}, needle);
+		if (y === null) throw new Error(`no text node containing "${needle}" in block [0]`);
+		return y;
+	}
+
+	/** True when the collapsed selection currently sits inside block [0]. */
+	async selectionInMathBlock(): Promise<boolean> {
+		return this.page.evaluate(() => {
+			const wrapper = document.querySelector("[data-block-path='[0]']");
+			const editable = wrapper?.querySelector('[contenteditable]');
+			const sel = window.getSelection();
+			if (!editable || !sel || sel.rangeCount === 0) return false;
+			return editable.contains(sel.getRangeAt(0).startContainer);
+		});
 	}
 }
 
@@ -77,6 +114,34 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(await editor.getBlockText(0)).toContain('$x^2$');
 		// Reveal is a view toggle — the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+	});
+
+	test('clicking column-aligned text on another visual line places the caret, not reveal', async ({
+		page
+	}) => {
+		await editor.gotoMath('math-multiline');
+
+		const widgetBox = await editor.mathWidget.boundingBox();
+		if (!widgetBox) throw new Error('math widget has no bounding box');
+		const line2Y = await editor.lineYContaining('second visual line');
+		// Premise: the second line renders below the widget, so the point below is
+		// genuinely a different visual line sharing the widget's column.
+		expect(line2Y).toBeGreaterThan(widgetBox.y + widgetBox.height);
+
+		// Click at the widget's horizontal center but on line 2: same column, other line.
+		await page.mouse.click(widgetBox.x + widgetBox.width / 2, line2Y);
+		await editor.waitForRenderFlush();
+
+		// The widget is untouched — the click landed on real text, not on the widget.
+		await expect(editor.mathWidget).toHaveCount(1);
+
+		// The caret really landed in line-2 text: a typed char enters the block source
+		// while the math source stays folded (never revealed for editing).
+		await page.keyboard.type('Q');
+		await editor.bridge.waitForSourceContains('Q');
+		const source = await editor.bridge.getSource();
+		expect(source).toContain('$x^2$');
+		expect(source).toContain('visual line here');
 	});
 
 	test('keyboard-selecting the widget and pressing Enter reveals the source', async ({ page }) => {
@@ -154,5 +219,10 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await editor.bridge.waitForSourceContains('$yyx^2$');
 		await expect(editor.mathWidget).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('Before $yyx^2$ after');
+
+		// The blur-commit must not yank the caret back: focus moved to the next block,
+		// so the selection stays there — the just-blurred math block never steals it.
+		await editor.waitForRenderFlush();
+		expect(await editor.selectionInMathBlock()).toBe(false);
 	});
 });
