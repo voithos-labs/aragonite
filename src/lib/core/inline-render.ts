@@ -262,6 +262,22 @@ export function renderInlineNodes(
 				}
 				break;
 			}
+
+			default: {
+				// Registered plugin widget kinds (e.g. math) render via the registry;
+				// anything still unrecognized falls back to its raw source, mirroring
+				// the unknown-block fallback so every byte round-trips.
+				const widget = buildCoreInlineWidget(node, raw);
+				if (widget) {
+					frag.appendChild(widget);
+					break;
+				}
+				const span = document.createElement('span');
+				span.className = 'md-unknown-inline';
+				span.textContent = raw.slice(node.start, node.end);
+				frag.appendChild(span);
+				break;
+			}
 		}
 	}
 
