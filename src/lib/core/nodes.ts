@@ -190,9 +190,39 @@ export type InlineNodeKind =
 	| 'unresolvedReference'
 	| 'rawHtml';
 
+declare const InlineKindBrand: unique symbol;
+/**
+ * A plugin-declared inline kind. Runtime value is a plain string; the brand
+ * keeps `InlineNodeKind` switches exhaustive over built-ins while letting the
+ * schema registries key plugin kinds.
+ */
+export type PluginInlineKind = string & { readonly [InlineKindBrand]: true };
+
+export type AnyInlineKind = InlineNodeKind | PluginInlineKind;
+
+export const INLINE_KIND_TABLE: Record<InlineNodeKind, true> = {
+	text: true,
+	emphasis: true,
+	strong: true,
+	strikethrough: true,
+	inlineCode: true,
+	link: true,
+	image: true,
+	autolink: true,
+	hardLineBreak: true,
+	escape: true,
+	entityReference: true,
+	unresolvedReference: true,
+	rawHtml: true
+};
+
+export function isBuiltinInlineKind(kind: AnyInlineKind): kind is InlineNodeKind {
+	return kind in INLINE_KIND_TABLE;
+}
+
 /** start/end are byte offsets into the parent block's raw, including markers. */
 export interface InlineNode {
-	kind: InlineNodeKind;
+	kind: AnyInlineKind;
 	start: number;
 	end: number;
 	text?: string;
