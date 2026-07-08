@@ -73,7 +73,7 @@ export interface WidgetInteraction {
 	/** Plain Arrow/Delete/typing while the caret sits against a widget edge. */
 	handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean;
 	/** Snap a click that landed outside any text node to the nearest widget edge. */
-	snapClickToWidgetEdge(clickX: number | null): void;
+	snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
 	/** Escape (cancel to rendered) / Enter (commit + re-render) while source is shown. */
@@ -374,25 +374,34 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return false;
 	}
 
-	function snapClickToWidgetEdge(clickX: number | null): void {
+	function snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void {
 		deps.setSnapTarget(null);
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
-		// A click landing on a reveal-source widget enters source editing — checked
-		// before the text-node guard below, since the click lands on the opaque
-		// contenteditable=false island, not in editable text.
-		for (const inline of inlinesOf(deps.node)) {
-			if (!isInlineWidget(inline, deps.node.raw)) continue;
-			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
-			const widget = el.querySelector(
-				`[data-inline-widget][data-source-start="${inline.start}"]`
-			) as HTMLElement | null;
-			if (!widget) continue;
-			const rect = widget.getBoundingClientRect();
-			if (clickX >= rect.left && clickX <= rect.right) {
-				el.focus();
-				void startReveal(inline, inline.start);
-				return;
+		// A click that lands ON a reveal-source widget enters source editing. The
+		// point-in-rect test is authoritative and runs before the text-node guard
+		// below: reveal fires only when the pointer is inside the widget's box, so a
+		// column-aligned click on real text on another visual line falls through to
+		// the caret path instead of revealing.
+		if (clickY !== null) {
+			for (const inline of inlinesOf(deps.node)) {
+				if (!isInlineWidget(inline, deps.node.raw)) continue;
+				if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
+				const widget = el.querySelector(
+					`[data-inline-widget][data-source-start="${inline.start}"]`
+				) as HTMLElement | null;
+				if (!widget) continue;
+				const rect = widget.getBoundingClientRect();
+				const insideWidget =
+					clickX >= rect.left &&
+					clickX <= rect.right &&
+					clickY >= rect.top &&
+					clickY <= rect.bottom;
+				if (insideWidget) {
+					el.focus();
+					void startReveal(inline, inline.start);
+					return;
+				}
 			}
 		}
 		// Don't override a click that landed in a real text node — native caret

@@ -408,7 +408,11 @@
 		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {
-			cursor.setRaw(pendingCursorOffset);
+			// Restore the caret only while this block still owns focus. A blur-commit
+			// (revealed source persisted as focus leaves) also sets a pending offset;
+			// without this guard the restore would yank the global selection back into
+			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
+			if (document.activeElement === el) cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 		markKeystrokeSettle();
@@ -568,9 +572,11 @@
 	}
 
 	// Click past a block-level widget drops the caret outside the contenteditable
-	// (no text-node anchor); capture click X in pointerdown and snap to the
-	// nearest widget edge in onClick.
+	// (no text-node anchor); capture the click point in pointerdown and snap to the
+	// nearest widget edge in onClick. Y is load-bearing for the reveal hit-test — a
+	// column-aligned click on another visual line must not reveal a widget.
 	let lastClickClientX: number | null = null;
+	let lastClickClientY: number | null = null;
 	// Survives the click→keydown gap when Chromium clears the caret at
 	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
@@ -578,6 +584,7 @@
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 		lastClickClientX = e.clientX;
+		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
 	}
 
@@ -591,9 +598,11 @@
 
 	function onClick(): void {
 		const x = lastClickClientX;
+		const y = lastClickClientY;
 		lastClickClientX = null;
+		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x);
+		widgetInteraction.snapClickToWidgetEdge(x, y);
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────

@@ -10,7 +10,8 @@ axis A1). IME composition during the source edit is the spec's named highest-ris
 edge (there is no other IME harness in the suite).
 
 Seed (`?seed=math`): `Before $x^2$ after` in block [0], a `Next` paragraph in [1]
-as a blur target.
+as a blur target. Seed (`?seed=math-multiline`): a two-visual-line paragraph with the
+math on line 1 and column-aligned text on line 2, for the reveal hit-test.
 
 ## Happy paths
 
@@ -29,6 +30,11 @@ as a blur target.
   the Enter-commit appears immediately after the re-rendered math
 - Escape after editing: the rendered widget returns carrying the ORIGINAL source and
   the serialized source is byte-identical to the seed — the edit is discarded
+- click on real text on another visual line that column-aligns with the widget: the
+  caret lands in that text and the widget stays rendered — the reveal hit-test is
+  point-in-rect (X and Y), not X-only
+- after a blur-away commit (focus moved to another block), the selection stays in the
+  block that took focus — the just-blurred math block does not yank the caret back
 
 ## User interactions
 
