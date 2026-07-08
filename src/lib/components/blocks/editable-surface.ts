@@ -51,6 +51,11 @@ export interface EditableSurfaceDeps {
 	/** Ambient marker length in raw units — 0 for code/cell, prose marker width for text. */
 	getAmbientLength: () => number;
 	backend: CursorBackend;
+	/** True while an ephemeral edit (inline-math source reveal) owns the DOM: the
+	 *  block commits on exit, not per-keystroke, so both keyboard input and IME
+	 *  compositionend must skip the CST commit here — the one choke point both
+	 *  paths funnel through (compositionend calls this same internal onInput). */
+	isInputSuppressed?: () => boolean;
 
 	// ── Live block state (thunks — never snapshot) ────────────────────────────
 	getMyPath: () => number[];
@@ -209,6 +214,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── Input / composition skeleton ──────────────────────────────────────────
 
 	function onInput(): void {
+		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
 		deps.stickyColumn.reset();
 		if (deps.getComposing() || !deps.getEl()) return;
