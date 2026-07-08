@@ -12,6 +12,14 @@ import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
+// ── Inline-kind declaration (pre-freeze / unstable) ──────────────────────────
+// The inline authoring surface is being refined against the KaTeX/inline-widget
+// work until the open-source release — NOT yet frozen; shape may change. Only
+// the mint + recovery accessor ship here; the recognition hook and widget-editing
+// registry land later.
+export { declarePluginInlineKind, declaredPluginInlineKind } from './schema/plugin-kind';
+export type { PluginInlineKind } from './core/nodes';
+
 // ── Block-kind descriptor registry ───────────────────────────────────────────
 // BlockKindRegistration is the write-side shape (container-only fields grouped
 // under `container`, isContainer derived); BlockKindDescriptor stays exported as
