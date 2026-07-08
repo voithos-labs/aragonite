@@ -1,10 +1,11 @@
 /**
  * Inline-widget interaction for TextEditableBlock: keyboard handling of a
- * selected image widget (resize, step-out, delete, replace), shift-arrow
- * entry into a widget, caret-adjacent widget selection/typing, and click-to-
- * snap against a widget's edges. The component owns the contenteditable, the
- * $effect wiring, and the `$state` snap target; this owns the offset math and
- * the handler bodies that branch off keydown/click.
+ * selected widget (step-out, delete, replace, plus kind-specific keys routed to
+ * its editing policy — e.g. image resize), shift-arrow entry into a widget,
+ * caret-adjacent widget selection/typing, and click-to-snap against a widget's
+ * edges. The component owns the contenteditable, the $effect wiring, and the
+ * `$state` snap target; this owns the offset math and the handler bodies that
+ * branch off keydown/click.
  *
  * Each keydown sub-handler returns whether it consumed the event, so the
  * component can interleave them with the shared keydown pipeline at the same
@@ -17,11 +18,13 @@ import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { getInlineContent } from '../../../core/inline/inline-cache';
-import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
+import {
+	isInlineWidget,
+	flattenInlineWidgets,
+	getInlineWidgetEditing
+} from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
-import { buildImageSourceBytes, type ImageFields } from '../../image/image-source-bytes';
-import { keyboardResizeWidth } from '../../image/image-resize';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
 	widgetAtCursor,
@@ -29,9 +32,6 @@ import {
 	rawHasNoTextBefore,
 	rawHasNoTextAfter
 } from './widget-adjacency';
-
-const KEYBOARD_STEP = 20;
-const FALLBACK_DEFAULT_WIDTH = 400;
 
 export interface WidgetInteractionDeps {
 	get node(): CstNode;
@@ -54,9 +54,9 @@ export interface WidgetInteraction {
 	/** Block has only image/blank inline content — vertical arrow traversal
 	 *  skips it because the widgets carry no column meaning. */
 	isVerticallyTransparent(): boolean;
-	/** Keydown while an image widget is selected. Resolves true once the
-	 *  widget is confirmed here — every key is consumed in that state, so the
-	 *  caller must not fall through to the shared pipeline. */
+	/** Keydown while a widget is selected. Resolves true once the widget is
+	 *  confirmed here — every key is consumed in that state, so the caller must
+	 *  not fall through to the shared pipeline. */
 	handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Shift+Arrow stepping into a widget; extends the native selection to the
 	 *  far boundary atomically. */
@@ -96,41 +96,31 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			widget !== null && deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart);
 		if (!widgetIsHere) return false;
 
-		// Shift+Arrow runs before plain Arrow — `e.key === 'ArrowRight'` matches
-		// both, so the shift check has to win or resize never fires.
+		// The widget kind's editing policy claims custom keys first — image resize
+		// (Shift+Arrow) lives there. Flattened so the nested image of
+		// `[![alt][ref]][repo]` is the resolved widget.
+		const inline = flattenInlineWidgets(inlinesOf(node), node.raw).find(
+			(n) => n.start === widget.start
+		);
+		if (inline) {
+			const onSelectedKey = getInlineWidgetEditing(inline.kind)?.onSelectedKey;
+			const consumed = onSelectedKey?.(e, {
+				node,
+				inline,
+				widgetStart: widget.start,
+				widgetEnd: widget.end,
+				index: deps.index,
+				preSelectOffset: selectedWidget.preSelectOffset,
+				editorContentWidth: deps.getEditorContentWidth(),
+				updateContent: (newRaw, caretBefore, caretAfter) =>
+					deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
+			});
+			if (consumed) return true;
+		}
+		// A kind that claims no Shift+Arrow key still swallows it — stepping out is
+		// reserved for plain Arrow (the branches below).
 		if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
 			e.preventDefault();
-			// Flattened so the nested image of `[![alt][ref]][repo]` is found.
-			const inline = flattenInlineWidgets(inlinesOf(node), node.raw).find(
-				(n) => n.kind === 'image' && n.start === widget.start
-			);
-			if (!inline || inline.kind !== 'image') return true;
-
-			const delta = e.key === 'ArrowRight' ? KEYBOARD_STEP : -KEYBOARD_STEP;
-			const currentWidth = inline.width ?? FALLBACK_DEFAULT_WIDTH;
-			const newWidth = keyboardResizeWidth(currentWidth, delta, deps.getEditorContentWidth());
-
-			// A keyboard resize only changes the width/height — url and title are
-			// untouched — so carry the reference label through to preserve the
-			// `![alt][label]` form instead of inlining the LRD-resolved url.
-			const newFields: ImageFields = {
-				alt: inline.alt ?? '',
-				url: inline.url ?? '',
-				...(inline.title !== undefined ? { title: inline.title } : {}),
-				width: newWidth,
-				...(inline.height !== undefined
-					? { height: Math.round((newWidth / currentWidth) * inline.height) }
-					: {}),
-				...(inline.label !== undefined ? { label: inline.label } : {})
-			};
-			const newBytes = buildImageSourceBytes(newFields);
-			const newRaw = node.raw.slice(0, widget.start) + newBytes + node.raw.slice(widget.end);
-			deps.blockEdit.updateBlockContent(
-				deps.index,
-				newRaw,
-				selectedWidget.preSelectOffset,
-				widget.start + newBytes.length
-			);
 			return true;
 		}
 		if (e.key === 'ArrowLeft') {

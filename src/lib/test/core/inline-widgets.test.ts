@@ -6,6 +6,7 @@ import {
 	buildCoreInlineWidget,
 	flattenInlineWidgets,
 	registerInlineWidgetKind,
+	augmentInlineWidgetKind,
 	getInlineWidgetEditing,
 	__resetInlineWidgetsForTests
 } from '../../core/inline/inline-widgets';
@@ -177,4 +178,31 @@ describe('getInlineWidgetEditing — per-kind editing policy', () => {
 			expect(getInlineWidgetEditing(kind)).toEqual({ deleteGranularity, onEdge });
 		}
 	);
+});
+
+describe('augmentInlineWidgetKind — attaching editor behavior to a registration', () => {
+	const captionKind = declarePluginInlineKind('caption');
+
+	afterEach(__resetInlineWidgetsForTests);
+
+	it('layers onSelectedKey onto a registered kind without dropping its data policy', () => {
+		registerInlineWidgetKind(captionKind, {
+			isWidget: () => true,
+			editing: { deleteGranularity: 'select-then-delete', onEdge: 'select' }
+		});
+		const onSelectedKey = () => true;
+		augmentInlineWidgetKind(captionKind, { onSelectedKey });
+		expect(getInlineWidgetEditing(captionKind)).toEqual({
+			deleteGranularity: 'select-then-delete',
+			onEdge: 'select',
+			onSelectedKey
+		});
+	});
+
+	it('throws when the kind was never registered', () => {
+		const ghostKind = declarePluginInlineKind('ghost');
+		expect(() => augmentInlineWidgetKind(ghostKind, { onSelectedKey: () => true })).toThrow(
+			/not registered/
+		);
+	});
 });
