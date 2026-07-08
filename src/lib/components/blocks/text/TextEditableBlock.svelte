@@ -118,6 +118,10 @@
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// True while an inline-widget's `$…$` source is revealed for editing: the edit
+	// is ephemeral DOM, so onInput (and IME compositionend) skip the per-keystroke
+	// CST commit — the block commits once on reveal exit.
+	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
 	// Cursor position captured before each edit (keydown fires before DOM changes)
@@ -134,6 +138,7 @@
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		isInputSuppressed: () => revealing,
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
@@ -235,6 +240,10 @@
 		},
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
+		},
+		readRawText: () => readRawText(),
+		setRevealing: (value) => {
+			revealing = value;
 		},
 		get linkRef() {
 			return linkRef;
@@ -482,6 +491,10 @@
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
+		// Revealed `$…$` source: Escape cancels back to rendered, Enter commits +
+		// re-renders. Every other key edits the source natively (onInput suppressed).
+		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
@@ -570,6 +583,9 @@
 
 	function onBlur(e: FocusEvent): void {
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
+		// Focus left the block with source still revealed — persist the edit before
+		// the caret is gone.
+		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
 
