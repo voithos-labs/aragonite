@@ -1,23 +1,31 @@
 /**
- * Inline `$…$` math for the first-party LaTeX extension: the recognizer, the
- * plugin inline kind, and the KaTeX-backed live widget. Dev/e2e harness only —
- * kept out of `src/lib` so `svelte-package` never pulls `katex` into `dist/`.
+ * The first-party LaTeX extension's recognizers and widgets: inline `$…$` math
+ * (recognizer + plugin inline kind + KaTeX live widget) and block `$$…$$` display
+ * math (a source-holding leaf kind + block opener). Dev/e2e harness only — kept
+ * out of `src/lib` so `svelte-package` never pulls `katex` into `dist/`.
  *
- * Recognition is gated on registration: with no extension loaded the scanner
- * never sees a `$` trigger, so inline parsing stays byte-identical to bare GFM.
+ * Recognition is gated on registration: with no extension loaded neither the
+ * inline `$` trigger nor the block `$$` opener exists, so parsing stays
+ * byte-identical to bare GFM.
  */
 
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
+	declarePluginKind,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
-	type PluginInlineKind
+	registerBlockKind,
+	registerBlockOpener,
+	isBlockKindRegistered,
+	type PluginInlineKind,
+	type CstNode
 } from '$lib/plugin';
 import type { InlineNode } from '$lib/core/nodes';
 import { createMemoizedRenderer, katexRenderer, type MathRenderer } from './math-renderer';
 
 export const MATH_INLINE = 'math';
+export const MATH_BLOCK = 'mathBlock';
 
 // ── Recognition ──────────────────────────────────────────────────────────────
 
@@ -96,5 +104,66 @@ export function registerMathInline(): void {
 		isWidget: () => true,
 		buildWidget: (node, raw) => buildMathWidget(node, raw, render),
 		editing: { deleteGranularity: 'select-then-delete', onEdge: 'select', revealSource: true }
+	});
+}
+
+// ── Block `$$…$$` display math ─────────────────────────────────────────────────
+
+const BLOCK_FENCE = '$$';
+
+/**
+ * A block-math opener line, at column 0: either a bare `$$` (multi-line fence, a
+ * later bare `$$` closes it) or a closed single line `$$…$$` (length ≥ 4 keeps
+ * the open/close pair disjoint). A `$$`-prefixed line that is neither — e.g.
+ * `$$ x` with no same-line close — is not an opener and falls to a paragraph.
+ */
+function isBlockMathOpener(text: string): boolean {
+	if (!text.startsWith(BLOCK_FENCE)) return false;
+	if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) return true;
+	return text === BLOCK_FENCE;
+}
+
+export function registerMathBlock(): void {
+	if (isBlockKindRegistered(MATH_BLOCK)) return; // idempotent for HMR / re-import
+	const mathBlock = declarePluginKind(MATH_BLOCK);
+
+	// A source-holding leaf like `fencedCode`, not a container: no `container`
+	// group, no children. `serialize` re-emits `leadingTrivia + raw`, so a `raw`
+	// built from the exact fence bytes round-trips byte-for-byte.
+	registerBlockKind(mathBlock, {
+		mergeRole: 'not-mergeable',
+		editable: true,
+		supportsInline: false
+	});
+
+	registerBlockOpener(mathBlock, {
+		// `$$` collides with no built-in matcher, so priority is only collision
+		// avoidance; 15 sits just past the sibling verbatim fence (fencedCode@10)
+		// and ties nothing (built-ins step by 10; the callout/details harness use 45/65).
+		priority: 15,
+		interruptsParagraph: isBlockMathOpener,
+		tryOpen(ctx) {
+			const text = ctx.line.text;
+			if (!text.startsWith(BLOCK_FENCE)) return null;
+
+			if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) {
+				return {
+					node: { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
+					nextIndex: ctx.index + 1
+				};
+			}
+			if (text !== BLOCK_FENCE) return null;
+
+			let i = ctx.index + 1;
+			while (i < ctx.end && ctx.lines[i].text !== BLOCK_FENCE) i++;
+			if (i >= ctx.end) return null; // unterminated fence declines to paragraph
+
+			const raw = ctx.lines
+				.slice(ctx.index, i + 1)
+				.map((l) => l.raw)
+				.join('');
+			const node: CstNode = { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw };
+			return { node, nextIndex: i + 1 };
+		}
 	});
 }
