@@ -1,0 +1,44 @@
+# Feature: Plugin Inline Math — Select → Reveal-Source Editing
+
+Inline `$…$` math renders as an atomic KaTeX widget. Selecting it (a click on the
+widget, or keyboard-select + Enter) reveals the editable `$…$` source in place. The
+edit is ephemeral DOM — no per-keystroke CST commit (design axis A2, "re-render on
+commit, not keystroke") — and re-renders on commit (blur / Enter). Escape discards
+the edit and restores the rendered widget. The caret lands in the source across the
+reveal swap and at the math's trailing edge across the commit re-render (flagship
+axis A1). IME composition during the source edit is the spec's named highest-risk
+edge (there is no other IME harness in the suite).
+
+Seed (`?seed=math`): `Before $x^2$ after` in block [0], a `Next` paragraph in [1]
+as a blur target.
+
+## Happy paths
+
+- click the rendered math: the `$…$` source appears in place, the KaTeX widget is
+  gone, and the serialized source is unchanged — reveal is a view toggle, not an edit
+- keyboard-select the widget (Home, ArrowRight to its edge, one more to select) and
+  press Enter: same reveal
+- edit the revealed source and press Enter: KaTeX re-renders and the edited `$…$`
+  bytes are in the source (round-trip stable)
+
+## Edge cases
+
+- the reveal caret lands inside the source: a character typed right after reveal
+  appears within the `$…$`, not at a block edge
+- after commit the caret sits at the math's trailing edge: a character typed after
+  the Enter-commit appears immediately after the re-rendered math
+- Escape after editing: the rendered widget returns carrying the ORIGINAL source and
+  the serialized source is byte-identical to the seed — the edit is discarded
+
+## User interactions
+
+- real mouse click on the widget; real Home / ArrowRight / Enter / Escape / typing —
+  no programmatic selection or caret placement
+- IME composition (compositionstart → composed text inserted → compositionend) into
+  the revealed source commits nothing per keystroke; the composed math commits only
+  when focus leaves the block
+
+## Error cases
+
+- the `[invariant:…]` console watcher stays silent across reveal, edit, commit,
+  cancel, and the IME path
