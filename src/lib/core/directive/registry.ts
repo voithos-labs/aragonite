@@ -13,6 +13,12 @@ import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } fr
 export interface ParsedDirective {
 	fence: DirectiveFence;
 	body?: Document;
+	/** The opener's `ctx.leadingTrivia`, passed through so a factory node serializes intact. */
+	leadingTrivia: string;
+	/** The exact consumed byte slice (opener line + body + closer) — a factory sets `node.raw` to this. */
+	raw: string;
+	closerColonCount: number;
+	closerNewline: boolean;
 }
 
 export interface DirectiveDefinition {

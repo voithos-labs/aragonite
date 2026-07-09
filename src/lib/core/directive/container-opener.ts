@@ -12,7 +12,7 @@ import { declaredPluginKind } from '../../schema/plugin-kind';
 import { setPluginMetadata, type CstNode } from '../nodes';
 import { parse } from '../parser';
 import { matchDirectiveOpener, isDirectiveCloser, type DirectiveFence } from './grammar';
-import { resolveDirective } from './registry';
+import { resolveDirective, type ParsedDirective } from './registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
 
 export function registerDirectiveOpeners(): void {
@@ -55,10 +55,22 @@ export function registerDirectiveOpeners(): void {
 				.map((l) => l.raw)
 				.join('');
 			const body = parse(bodyText);
+			// The closer line is all colons (isDirectiveCloser guarantees an empty
+			// remainder), so its text length is the exact closer colon count.
+			const closerColonCount = closerLine.text.length;
+			const closerNewline = closerLine.raw.endsWith('\n');
 
 			const def = resolveDirective('container', fence.name);
 			if (def?.fromDirective) {
-				return { node: def.fromDirective({ fence, body }) as CstNode, nextIndex: closerIdx + 1 };
+				const parsed: ParsedDirective = {
+					fence,
+					body,
+					leadingTrivia: ctx.leadingTrivia,
+					raw,
+					closerColonCount,
+					closerNewline
+				};
+				return { node: def.fromDirective(parsed) as CstNode, nextIndex: closerIdx + 1 };
 			}
 
 			const node: CstNode = {
@@ -69,14 +81,12 @@ export function registerDirectiveOpeners(): void {
 				children: body.children,
 				innerSuffix: body.suffix
 			};
-			// The closer line is all colons (isDirectiveCloser guarantees an empty
-			// remainder), so its text length is the exact closer colon count.
 			setPluginMetadata<DirectiveContainerMetadata>(node, {
 				name: fence.name,
 				colonCount: fence.colonCount,
 				info: fence.info,
-				closerColonCount: closerLine.text.length,
-				closerNewline: closerLine.raw.endsWith('\n')
+				closerColonCount,
+				closerNewline
 			});
 			return { node, nextIndex: closerIdx + 1 };
 		}
