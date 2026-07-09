@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	matchDirectiveOpener,
 	isDirectiveCloser,
-	serializeDirective
+	serializeDirective,
+	parseDirectiveAttributes
 } from '$lib/core/directive/grammar';
 
 describe('matchDirectiveOpener', () => {
@@ -57,5 +58,19 @@ describe('serializeDirective', () => {
 			innerSuffix: '\n'
 		});
 		expect(out).toBe(':::note  My Title\n\nhi\n\n:::\n');
+	});
+});
+
+describe('parseDirectiveAttributes', () => {
+	it('reads a [label] and {#id .class key=val}', () => {
+		expect(parseDirectiveAttributes(' [My Label]{#warn .danger title="a b"}')).toEqual({
+			label: 'My Label',
+			id: 'warn',
+			classes: ['danger'],
+			properties: { title: 'a b' }
+		});
+	});
+	it('returns empty structure for bare info (callout title path)', () => {
+		expect(parseDirectiveAttributes('  My Title')).toEqual({ classes: [], properties: {} });
 	});
 });
