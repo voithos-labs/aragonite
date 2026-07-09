@@ -87,6 +87,23 @@ Two divergence shapes are unreachable by the current corpus alphabets but would 
 
 The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
 
+### LaTeX acceptance-axis follow-ups (A2 integration gap, A1 flakiness watch)
+
+**Severity:** minor (test coverage)
+**Files:** `src/lib/e2e/tests/plugins/latex-acceptance.spec.ts`; block-math component (`src/routes/test/plugins/latex/BlockMath.svelte`)
+
+Two gaps left by the LaTeX acceptance suite:
+
+- **A2 proven by construction, not end-to-end.** "Edit one of N live equations re-renders only that
+  one" is asserted for the memo primitive at the unit level. For block math it rests on a per-instance
+  memo plus Svelte reactivity — proven by construction, not by a live edit-one-of-N integration test.
+- **A1 fixture may cross the windowing watermark.** The block-reveal fixture is large enough that
+  folding a block can trigger a geometry re-estimate, a flakiness watch-point for the seeded multi-run.
+  Read an A1 failure there as a windowing-geometry interaction before a reveal regression.
+
+**Why deferred:** each acceptance axis already maps to a falsifiable test; these close residual
+coverage when the LaTeX test surface is next extended.
+
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
@@ -119,3 +136,90 @@ not the bounded closer-synthesis the END case uses.
 
 **Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
 direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
+
+### Dogfood callout/details chrome is card-like, unreconciled with document-not-pile-of-blocks
+
+**Severity:** minor (dev-harness plugin styling; no functional impact)
+**Files:** `src/routes/test/plugins/callout/CalloutBlock.svelte`, `src/routes/test/plugins/details/DetailsBlock.svelte` (`<style>` chrome)
+
+Both dogfood containers style their chrome as a bordered, rounded, tinted box with a leading
+icon (`ℹ` / disclosure triangle) — `border` + `border-radius` + a low-alpha `color-mix` fill.
+That is the card-like affordance the editor's "a document should feel like a document, not a
+pile of blocks" principle steers away from. It rides today because these plugins validate the
+plugin _mechanism_, not a final aesthetic — but demo polish (roadmap item 6) promotes the
+dogfood extensions into the showcase, where their look becomes the reference plugin authors copy.
+
+**Open question, not a clear defect:** a callout/admonition is box-like by nature (Obsidian,
+Notion, GitHub alerts all box them), and the principle targets _ordinary prose_ reading as
+cards — plugin-authored container chrome is the author's call, not an editor affordance. The
+decision is whether the reference plugins should model the restrained house aesthetic (gutter
+rail / margin cue over a full box) to set author expectations, or keep the conventional box
+because that is what a callout is.
+
+**Target:** demo polish (`docs/roadmap.md` § Pre-1.0) — decide the reference-plugin chrome
+aesthetic there; no code change needed before then.
+
+## Plugin inline widgets
+
+### Re-add `deleteGranularity` / `onEdge` when the inline-entity consumer lands
+
+**Severity:** n/a — freeze-forward reminder, not a defect
+**Files:** `src/lib/core/inline/inline-widgets.ts` (`InlineWidgetEditingPolicy`), re-exported on
+`aragonite/plugin`
+
+Two fields were trimmed from the public `InlineWidgetEditingPolicy` (commit `fe99476`) because nothing
+consumed them, keeping the pre-freeze inline surface free of inert configuration. They must be re-added
+**additively** when the deferred inline-entity / atomic-inline feature lands — entity editing is
+_defined by_ delete granularity (atomic `&copy;` delete versus image's select-then-delete), so building
+it forces the re-add. The exact trimmed shape, recorded so the re-add restores it verbatim:
+
+- `deleteGranularity: 'atomic' | 'select-then-delete'`
+- `onEdge: 'select' | 'step-over'`
+
+**Why deferred:** freezing inert fields and later giving them behavior is the one path that breaks an
+author's config; trimming now and re-adding with the consumer is the additive-safe choice.
+
+### LaTeX render-memo cache is unbounded
+
+**Severity:** minor (harness)
+**Files:** `src/routes/test/plugins/latex/math-renderer.ts` (`createMemoizedRenderer`)
+
+The memoized renderer keys rendered output on the source string in an unbounded `Map` — every keystroke
+while editing source mints a new key, so the cache grows without eviction. It lives in the dev/e2e
+harness (kept out of `dist/`), so it touches no frozen library API.
+
+**Fix direction:** bound it (LRU or size cap).
+
+**Why deferred:** harness-only, no frozen surface; bound it before math widgets ship broadly.
+
+### Block-math edit past the fence leaves a stuck error until reload
+
+**Severity:** minor
+**Files:** `src/routes/test/plugins/latex/BlockMath.svelte`
+
+Editing a block-math source so it appends past the fence (`$$x^2$$` followed by a blank line and
+`hello`) leaves the node its math kind — a no-op reparse — so a stuck KaTeX error node persists until
+reload. `serialize` still emits the raw bytes intact, so there is no data loss (the round-trip
+invariant holds).
+
+**Fix direction:** re-fence, or reparse-to-blocks, on commit in the block-math component.
+
+**Why deferred:** component-level behavior; no byte loss and no library API or invariant implication.
+
+### TableCellBlock and CodeBlock have unguarded pending-cursor effects (latent reveal-source parity)
+
+**Severity:** trivial (latent; unreachable today)
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` and
+`src/lib/components/blocks/code/CodeBlock.svelte` vs
+`src/lib/components/blocks/text/TextEditableBlock.svelte`
+
+`TextEditableBlock` gained a `document.activeElement === el` guard on its pending-cursor `$effect`
+during the inline-widget feature; the analogous effects in `TableCellBlock` and in `CodeBlock`
+(its `setCursorOffsetHelper(el, pendingCursorOffset)` restore) are unguarded. Unreachable today —
+no source-reveal is wired to table cells or code blocks, so no blur-commit sets a pending cursor
+while focus has left.
+
+**Fix direction:** add the same `document.activeElement === el` guard if either surface ever gains
+inline-widget reveal.
+
+**Why deferred:** no reachable bug; mirror the guard when reveal reaches those surfaces.

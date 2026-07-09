@@ -55,6 +55,9 @@ early enough that what they teach is still cheap to act on.
    - **Promote `docs/culture.md` into the public CONTRIBUTING** — the incident-backed rule set
      exists; at release it gains the practical wrapper (setup, PR flow, gate tiers) and becomes the
      front door for contributors who haven't lived the repo's history.
+   - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
+     pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
+     `git log`.
    - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
