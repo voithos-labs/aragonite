@@ -2,6 +2,15 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.10 — Inline-widget editing registry + KaTeX
+
+The third plugin authoring seam: the image live-widget path is generalized so a plugin inline kind gets atomic caret-addressing, with KaTeX as the driving first-party consumer.
+
+- **`AnyInlineKind` widening + inline-widget editing registry.** Plugin inline kinds thread through the model (mirroring `AnyBlockKind`) via `INLINE_KIND_TABLE` and an unknown-inline fallback; `registerInlineWidgetKind` / `augmentInlineWidgetKind` carry per-kind editing policy. The widening the roadmap flagged breaking-if-deferred-past-freeze is decided.
+- **Inline-syntax recognition hook.** `registerInlineSyntax` hands the scanner a trigger character and a recognizer — gated (dormant unless registered, conformance byte-identical), the designed seat for the 1.2 inline-syntax consumers.
+- **Shared source-reveal editing primitive.** Atomic inline widgets contribute raw bytes via `data-source-start`/`-end`, are caret-addressable only at their edges, and reveal editable source on focus (caret/tick core + injected swap).
+- **First-party KaTeX extension (dogfood).** Inline `$…$` (select→reveal-source) and block `$$…$$` (render-primary, source-on-focus); renderer injected, not bundled — verified out of `dist`. Nine interface findings routed to `docs/issues.md` + `plugin-contract.md`; `deleteGranularity`/`onEdge` trimmed as unconsumed (re-add additively with the inline-entity consumer).
+
 ### 0.9.9 — Inline scanner rework: the CommonMark delimiter/bracket-stack pass
 
 Roadmap item 1, cut over whole. `parseInline` is a single left-to-right scanner (`core/inline/scan/`) — character dispatch feeding a delimiter stack (flanking, `openers_bottom`, original-run-length multiple-of-3) and a bracket stack (innermost-wins links, spec destination/title parsing) — and the staged pre-pass pipeline is deleted.
