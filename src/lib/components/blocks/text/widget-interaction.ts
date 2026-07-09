@@ -56,6 +56,9 @@ export interface WidgetInteractionDeps {
 	/** Mirror the reveal-active state into the component so `onInput` (and IME
 	 *  compositionend) suppress the per-keystroke CST commit while source is shown. */
 	setRevealing: (value: boolean) => void;
+	/** A selection currently spans block boundaries — folding a revealed source
+	 *  mid-selection would strand an endpoint anchored in it. */
+	isCrossBlock: () => boolean;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
@@ -100,9 +103,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// revealed — and re-renders on commit, not per keystroke (design spec A2). The
 	// whole edit therefore lands as ONE undo entry.
 	let activeReveal: SourceReveal | null = null;
+	// The revealed source text node, hoisted out of startReveal so commitReveal can
+	// read its live DOM position — the widget's post-edit trailing edge — regardless
+	// of edits made to the surrounding prose. Doubles as the revealed-state flag.
+	let activeSourceNode: Text | null = null;
 	let revealWidgetEnd = 0;
 	let revealCaretBefore = 0;
-	let revealOriginalDisplayLength = 0;
+	let revealOriginalDisplay = '';
 
 	async function startReveal(inline: InlineNode, caretBefore: number): Promise<void> {
 		if (activeReveal) return;
@@ -110,9 +117,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const end = inline.end;
 		const source = deps.node.raw.slice(start, end);
 		// The imperative span-swap IS the inline mechanism: replace the opaque
-		// [data-inline-widget] island with a text node and back. The captured node
-		// doubles as the revealed-state flag the primitive reads via `isRevealed`.
-		let sourceNode: Text | null = null;
+		// [data-inline-widget] island with a text node and back.
 		const reveal = createSourceReveal({
 			get container() {
 				return deps.getEl();
@@ -127,7 +132,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				return source;
 			},
 			getAmbientLength: deps.getAmbientLength,
-			isRevealed: () => sourceNode !== null,
+			isRevealed: () => activeSourceNode !== null,
 			showSource: () => {
 				const container = deps.getEl();
 				if (!container) return;
@@ -135,22 +140,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					`[data-inline-widget][data-source-start="${start}"]`
 				);
 				if (!widget) return;
-				sourceNode = document.createTextNode(source);
-				widget.replaceWith(sourceNode);
+				activeSourceNode = document.createTextNode(source);
+				widget.replaceWith(activeSourceNode);
 			},
 			// Cancel rebuilds the ORIGINAL widget from the unchanged raw (the edit is
 			// discarded); the persist path re-renders reactively instead, so this only
 			// fires on Escape.
 			showRendered: () => {
-				if (sourceNode === null) return;
-				sourceNode.replaceWith(buildRevealWidget(inline));
-				sourceNode = null;
+				if (activeSourceNode === null) return;
+				activeSourceNode.replaceWith(buildRevealWidget(inline));
+				activeSourceNode = null;
 			}
 		});
 		activeReveal = reveal;
 		revealWidgetEnd = end;
 		revealCaretBefore = caretBefore;
-		revealOriginalDisplayLength = trimTrailingLineEnding(deps.node.raw).length;
+		revealOriginalDisplay = trimTrailingLineEnding(deps.node.raw);
 		deps.widgetSelection.clear();
 		deps.setRevealing(true);
 		await reveal.reveal();
@@ -167,19 +172,38 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return widget;
 	}
 
-	// Persist: read the ephemeral source edit back through the widget-aware walk and
-	// commit it once. The reactive re-render (forced by the pending-cursor set) is
-	// what re-renders the widget — "commit re-renders" without the imperative swap,
-	// so the CST holds the edit for serialize/undo. Caret lands on the math's new
-	// trailing edge; the edit is confined to the source region, so a plain length
-	// delta locates it.
+	// Persist the ephemeral source edit, or fold back untouched. The reactive
+	// re-render (forced by the pending-cursor set) is what re-renders the widget —
+	// "commit re-renders" without the imperative swap — so the CST holds the edit
+	// for serialize/undo. The caret lands on the math's new trailing edge, read from
+	// the revealed source node's live position so an edit to the surrounding prose
+	// shifts it correctly (a length delta off the widget's old end would not).
 	function commitReveal(): void {
 		if (!activeReveal) return;
+		// Mirror BlockMath: a cross-block selection sweeping through keeps the source
+		// revealed so its rects measure real text, not a folded island — folding now
+		// would strand a selection endpoint anchored in the source text node.
+		if (deps.isCrossBlock()) return;
+		const el = deps.getEl();
+		const sourceNode = activeSourceNode;
 		const editedDisplay = deps.readRawText();
-		const delta = editedDisplay.length - revealOriginalDisplayLength;
-		const caretAfter = revealWidgetEnd + delta;
+		const caretAfter =
+			el && sourceNode
+				? Math.max(0, rawOffsetAtNode(el, sourceNode, sourceNode.length) - deps.getAmbientLength())
+				: revealWidgetEnd;
 		activeReveal = null;
+		activeSourceNode = null;
 		deps.setRevealing(false);
+		// No edit: fold back to rendered without touching the CST. A zero-diff
+		// updateBlockContent still pushes a dead undo entry (the debounced snapshot
+		// fires before the noop reparse bails), so the user's next Ctrl+Z would
+		// revert nothing instead of their prior action. setPendingCursor re-renders
+		// from the untouched CST — folding the span-swap — and its caret restore is
+		// focus-guarded, so a blur folds without yanking the caret back.
+		if (editedDisplay === revealOriginalDisplay) {
+			deps.setPendingCursor(caretAfter);
+			return;
+		}
 		deps.blockEdit.updateBlockContent(
 			deps.index,
 			editedDisplay + '\n',
