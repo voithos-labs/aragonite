@@ -15,7 +15,11 @@ const cases = [
 	':::note\n:::\n', // empty body
 	':::wide\nx\n::::\n', // closer longer than opener — pins closerColonCount capture
 	':::bare\nx\n:::', // no trailing newline — pins closerNewline capture
-	'::leaf\n' // leaf tier — a single-line directive node
+	'::leaf\n', // leaf tier — a single-line directive node
+	'::toc\n', // leaf, no info
+	'::embed some info\n', // leaf with multi-word info
+	'::note-2 x\n', // leaf, hyphenated name
+	'::note keep  \n' // leaf with trailing info whitespace — pins verbatim info bytes
 ];
 
 describe('directive round-trip property', () => {
