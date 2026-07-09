@@ -70,4 +70,12 @@ describe('inline-syntax recognition', () => {
 		registerInlineSyntax('$', (_raw, pos) => mathNode(pos, pos));
 		expect(() => parseInline('a$b', 0, 3)).toThrow(/did not advance/);
 	});
+
+	it('throws when a recognizer returns a node that starts off the cursor', () => {
+		// appendNode flushes pending text to node.start; a start past the trigger would
+		// gap coverage (and a start before it would overlap the prior run), so the seam
+		// fails loud instead of tiling a torn tree.
+		registerInlineSyntax('$', (_raw, pos) => mathNode(pos + 1, pos + 2));
+		expect(() => parseInline('a$b', 0, 3)).toThrow(/started at 2, expected 1/);
+	});
 });
