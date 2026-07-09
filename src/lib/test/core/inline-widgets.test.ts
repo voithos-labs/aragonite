@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import {
 	isInlineWidget,
 	buildCoreInlineWidget,
-	flattenInlineWidgets
+	flattenInlineWidgets,
+	registerInlineWidgetKind,
+	augmentInlineWidgetKind,
+	getInlineWidgetEditing,
+	__resetInlineWidgetsForTests
 } from '../../core/inline/inline-widgets';
+import { declarePluginInlineKind } from '../../schema/plugin-kind';
 
 describe('isInlineWidget — registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {
@@ -134,5 +139,69 @@ describe('flattenInlineWidgets — recursion + document order', () => {
 		const inner = img(1, 5);
 		const widgetWithChildren: InlineNode = { ...img(0, 6), children: [inner] };
 		expect(flattenInlineWidgets([widgetWithChildren], '![](x)')).toEqual([widgetWithChildren]);
+	});
+});
+
+describe('getInlineWidgetEditing — per-kind editing policy', () => {
+	const mathKind = declarePluginInlineKind('math');
+	const spoilerKind = declarePluginInlineKind('spoiler');
+
+	afterEach(__resetInlineWidgetsForTests);
+
+	it('returns the editing policy registered for a plugin widget kind', () => {
+		const onSelectedKey = () => true;
+		registerInlineWidgetKind(mathKind, {
+			isWidget: () => true,
+			editing: {
+				revealSource: true,
+				onSelectedKey
+			}
+		});
+		const policy = getInlineWidgetEditing(mathKind);
+		expect(policy?.revealSource).toBe(true);
+		expect(policy?.onSelectedKey).toBe(onSelectedKey);
+	});
+
+	it('returns undefined for a widget kind registered without an editing policy', () => {
+		registerInlineWidgetKind(spoilerKind, { isWidget: () => true });
+		expect(getInlineWidgetEditing(spoilerKind)).toBeUndefined();
+	});
+
+	it('exposes the built-in editing policies: image carries a base, rawHtml carries none', () => {
+		expect(getInlineWidgetEditing('image')).toEqual({});
+		expect(getInlineWidgetEditing('rawHtml')).toBeUndefined();
+	});
+});
+
+describe('augmentInlineWidgetKind — attaching editor behavior to a registration', () => {
+	const captionKind = declarePluginInlineKind('caption');
+
+	afterEach(__resetInlineWidgetsForTests);
+
+	it('layers onSelectedKey onto a registered kind without dropping its existing fields', () => {
+		registerInlineWidgetKind(captionKind, {
+			isWidget: () => true,
+			editing: { revealSource: true }
+		});
+		const onSelectedKey = () => true;
+		augmentInlineWidgetKind(captionKind, { onSelectedKey });
+		expect(getInlineWidgetEditing(captionKind)).toEqual({
+			revealSource: true,
+			onSelectedKey
+		});
+	});
+
+	it('initializes an editing policy when augmenting a kind that had none', () => {
+		registerInlineWidgetKind(captionKind, { isWidget: () => true });
+		const onSelectedKey = () => true;
+		augmentInlineWidgetKind(captionKind, { onSelectedKey });
+		expect(getInlineWidgetEditing(captionKind)).toEqual({ onSelectedKey });
+	});
+
+	it('throws when the kind was never registered', () => {
+		const ghostKind = declarePluginInlineKind('ghost');
+		expect(() => augmentInlineWidgetKind(ghostKind, { onSelectedKey: () => true })).toThrow(
+			/not registered/
+		);
 	});
 });

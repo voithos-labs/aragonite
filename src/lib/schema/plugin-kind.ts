@@ -1,4 +1,10 @@
-import { BLOCK_KIND_TABLE, type PluginBlockKind } from '../core/nodes';
+import {
+	BLOCK_KIND_TABLE,
+	isBuiltinInlineKind,
+	type AnyInlineKind,
+	type PluginBlockKind,
+	type PluginInlineKind
+} from '../core/nodes';
 
 const NAME_PATTERN = /^[a-z][a-zA-Z0-9-]*$/;
 
@@ -44,4 +50,49 @@ export function declaredPluginKind(name: string): PluginBlockKind {
 
 export function __clearDeclaredPluginKindsForTests(): void {
 	declaredPluginKinds.clear();
+}
+
+const declaredPluginInlineKinds = new Set<string>();
+
+export function declarePluginInlineKind(name: string): PluginInlineKind {
+	if (!NAME_PATTERN.test(name)) {
+		throw new Error(
+			`declarePluginInlineKind: invalid kind name "${name}" — lowercase first letter, then letters/digits/hyphens`
+		);
+	}
+	if (isBuiltinInlineKind(name as AnyInlineKind)) {
+		throw new Error(`declarePluginInlineKind: "${name}" is a built-in InlineNodeKind`);
+	}
+	if (declaredPluginInlineKinds.has(name)) {
+		throw new Error(`declarePluginInlineKind: "${name}" was already declared by another plugin`);
+	}
+	declaredPluginInlineKinds.add(name);
+	return name as PluginInlineKind;
+}
+
+/**
+ * Recover the branded inline kind for an already-declared name — the inline
+ * mirror of {@link declaredPluginKind}, so a recognizer or node factory reaches
+ * the brand without an unchecked cast. Throws for an undeclared name.
+ */
+export function declaredPluginInlineKind(name: string): PluginInlineKind {
+	if (!declaredPluginInlineKinds.has(name)) {
+		throw new Error(
+			`declaredPluginInlineKind: "${name}" has not been declared — call declarePluginInlineKind first`
+		);
+	}
+	return name as PluginInlineKind;
+}
+
+/**
+ * Boolean probe for whether an inline kind is already declared — the inline
+ * mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
+ * (HMR / re-import) guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
+ */
+export function isInlineKindDeclared(name: string): boolean {
+	return declaredPluginInlineKinds.has(name);
+}
+
+export function __clearDeclaredPluginInlineKindsForTests(): void {
+	declaredPluginInlineKinds.clear();
 }

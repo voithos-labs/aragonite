@@ -13,7 +13,7 @@
  * normalizing them away would hide conformance gaps.
  */
 import type { Node as CommonmarkNode } from 'commonmark';
-import type { InlineNode } from '../../core/nodes';
+import { isBuiltinInlineKind, type InlineNode } from '../../core/nodes';
 
 export interface NormalNode {
 	kind: 'text' | 'emphasis' | 'strong' | 'code' | 'link' | 'image' | 'html' | 'hardbreak';
@@ -41,6 +41,11 @@ export function normalEqual(a: NormalNode[], b: NormalNode[]): boolean {
 // ── Aragonite → NormalNode ───────────────────────────────────────────────────
 
 function mapAragonite(node: InlineNode, raw: string): NormalNode {
+	// AnyInlineKind admits plugin kinds; exclude them so the switch stays total
+	// over InlineNodeKind. Plugin inline kinds never reach the conformance corpus.
+	if (!isBuiltinInlineKind(node.kind)) {
+		throw new Error(`normalize: unmapped inline kind '${node.kind}'`);
+	}
 	switch (node.kind) {
 		case 'text':
 			return { kind: 'text', text: node.text ?? raw.slice(node.start, node.end) };

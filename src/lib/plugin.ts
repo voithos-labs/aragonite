@@ -12,6 +12,27 @@ import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
+// ── Inline authoring surface (pre-freeze / unstable) ─────────────────────────
+// Being refined against the KaTeX/inline-widget work until the open-source
+// release — NOT yet frozen; shape may change. Mint an inline kind, hook the
+// scanner on a trigger character, and register a kind as a live atomic widget
+// with its editing policy. The internal seams (first-party widget augmentation,
+// the recognizer/editing accessors, test resets) stay off this barrel.
+export {
+	declarePluginInlineKind,
+	declaredPluginInlineKind,
+	isInlineKindDeclared
+} from './schema/plugin-kind';
+export type { PluginInlineKind, InlineNode } from './core/nodes';
+export { registerInlineSyntax } from './core/inline/scan/plugin-syntax';
+export type { InlineSyntaxRecognizer } from './core/inline/scan/plugin-syntax';
+export { registerInlineWidgetKind } from './core/inline/inline-widgets';
+export type {
+	InlineWidgetDescriptor,
+	InlineWidgetEditingPolicy,
+	InlineWidgetEditingContext
+} from './core/inline/inline-widgets';
+
 // ── Block-kind descriptor registry ───────────────────────────────────────────
 // BlockKindRegistration is the write-side shape (container-only fields grouped
 // under `container`, isContainer derived); BlockKindDescriptor stays exported as
