@@ -24,13 +24,21 @@
 	// internal newline as a break) column-aligns real text beneath the widget, for the
 	// reveal hit-test's X-and-Y coverage.
 	const MATH_MULTILINE_SEED = '$x^2$ first line padding\nsecond visual line here\n\nNext\n';
+	// A block `$$…$$` leaf between two paragraphs, so the block-math e2e can drive
+	// focus/click reveal, blur re-render, and arrow nav in and out of the block.
+	const MATH_BLOCK_SEED = 'Before\n\n$$x^2$$\n\nAfter\n';
+	// A multi-line `aligned` fence: the render must survive internal `\n`s (A7), and
+	// the revealed source must stay a single text node so the offset walk is exact.
+	const MATH_BLOCK_MULTILINE_SEED =
+		'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n';
 
 	// The callout is the default document (the landed callout e2e reads it directly);
 	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math` an
-	// inline-math paragraph, `?seed=math-multiline` the two-line reveal-hit-test doc.
-	// The seed arrives via the load data, so the server and client render the same
-	// document. One-time snapshot: the harness never re-navigates client-side, and the
-	// test probes then own `source`.
+	// inline-math paragraph, `?seed=math-multiline` the two-line reveal-hit-test doc,
+	// `?seed=mathblock` a block `$$…$$` leaf, `?seed=mathblock-multiline` an `aligned`
+	// fence. The seed arrives via the load data, so the server and client render the
+	// same document. One-time snapshot: the harness never re-navigates client-side, and
+	// the test probes then own `source`.
 	// svelte-ignore state_referenced_locally
 	let source = $state(
 		data.seed === 'details'
@@ -39,7 +47,11 @@
 				? MATH_SEED
 				: data.seed === 'math-multiline'
 					? MATH_MULTILINE_SEED
-					: CALLOUT_SEED
+					: data.seed === 'mathblock'
+						? MATH_BLOCK_SEED
+						: data.seed === 'mathblock-multiline'
+							? MATH_BLOCK_MULTILINE_SEED
+							: CALLOUT_SEED
 	);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();

@@ -51,7 +51,11 @@ function mountBlock(ambientPrefix = ''): HTMLElement {
 	return el;
 }
 
+// The swap is injected: `showSource` replaces the opaque widget with a text node,
+// `showRendered` rebuilds the widget; the captured node is the revealed-state flag
+// the primitive reads. This mirrors the inline consumer's own closure.
 function depsFor(el: HTMLElement, ambientPrefix = '') {
+	let sourceNode: Text | null = null;
 	return {
 		get container() {
 			return el;
@@ -66,7 +70,20 @@ function depsFor(el: HTMLElement, ambientPrefix = '') {
 			return SOURCE;
 		},
 		getAmbientLength: () => ambientPrefix.length,
-		renderWidget: renderedWidget
+		isRevealed: () => sourceNode !== null,
+		showSource: () => {
+			const widget = el.querySelector<HTMLElement>(
+				`[data-inline-widget][data-source-start="${SRC_START}"]`
+			);
+			if (!widget) return;
+			sourceNode = document.createTextNode(SOURCE);
+			widget.replaceWith(sourceNode);
+		},
+		showRendered: () => {
+			if (sourceNode === null) return;
+			sourceNode.replaceWith(renderedWidget());
+			sourceNode = null;
+		}
 	};
 }
 

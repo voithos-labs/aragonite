@@ -1,16 +1,20 @@
 /**
- * Rendered↔source reveal for an atomic inline widget. A widget renders as an
- * opaque [data-inline-widget] island standing for its `$…$`-style raw bytes;
- * this swaps it to editable source text and back, placing the caret via the
- * `widget-offset` helpers only — offset translation has one home
- * (`cursor/widget-offset.ts`).
+ * Rendered↔source reveal: swaps an opaque rendered view for its editable raw
+ * source and back, placing the caret via the `widget-offset` helpers only —
+ * offset translation has one home (`cursor/widget-offset.ts`). Two consumers
+ * share this caret core over two different swaps:
  *
- * SCOPE. The imperative span-swap here IS the inline math mechanism — a
- * [data-inline-widget] child of a contenteditable. The genuinely reusable part is
- * the caret core below (clamp → ambient conversion → post-`tick()` placement).
- * Block math (render-primary, source-on-focus, no widget span) toggles reactively,
- * so it reuses that core but abstracts the swap itself; that seam is resolved at
- * the block-component task when the block DOM is concrete, not generalized here.
+ *   INLINE math — a [data-inline-widget] island inside a contenteditable
+ *     paragraph. Its swap is an imperative span↔text-node replace; the container
+ *     is the always-editable paragraph, which stays focused across the swap.
+ *   BLOCK math — a render-primary display block. Its swap is a reactive render↔
+ *     source `$state` toggle; the source contenteditable is MOUNTED on reveal and
+ *     UNMOUNTED on commit, so `container` is null while rendered.
+ *
+ * The swap itself is injected (`showSource`/`showRendered`) and the revealed
+ * state is owned by the consumer (`isRevealed`), so this primitive stays swap-
+ * agnostic and never double-tracks the flag. Everything below the swap — clamp,
+ * `tick()`, ambient conversion, caret placement — is the genuinely shared kernel.
  *
  * CARET-LANDING RULE:
  *   reveal(atSourceOffset?)  entry — caret at source `sourceStart + atSourceOffset`,
@@ -18,8 +22,18 @@
  *                            edge (0). A click into rendered output can't map to a
  *                            source glyph, so entry honors a REQUESTED offset or
  *                            lands on an edge — never an arbitrary interior point.
- *   commit()                 exit  — caret at the widget's TRAILING edge, source
- *                            offset === sourceEnd (the node's `end`).
+ *   commit()                 exit  — caret at the source's TRAILING edge
+ *                            (`sourceEnd`). Inline uses this for Escape-cancel
+ *                            (rebuild the widget, caret after it). Block commits
+ *                            on blur via a CST update instead, so its `container`
+ *                            is already unmounted here and the placement self-
+ *                            cancels — a re-render must not yank focus back.
+ *
+ * FOCUS. reveal focuses the settled container before placing the caret, but only
+ * when it is not already active. Inline's paragraph is already focused (no-op);
+ * block's freshly-mounted source contenteditable is not, and a caret placed in an
+ * unfocused editable would not receive typing. Focusing BEFORE the caret write
+ * (not after) avoids the browser resetting the selection to the element start.
  *
  * AMBIENT-INCLUDED OFFSETS (load-bearing). `sourceStart`/`sourceEnd`/`atSourceOffset`
  * are BLOCK-source offsets — they exclude the rendered marker prefix a container
@@ -27,48 +41,53 @@
  * that marker text, so a source offset is converted to walk space as
  * `getAmbientLength() + offset` at the single `placeCaret` seam — the same
  * conversion as `TextEditableBlock`'s `createRangeAtRawOffsets(el, ambientLength +
- * start, …)`. Ambient is 0 for a plain paragraph, nonzero inside a marker prefix;
- * feeding the bare block offset to the walk mis-lands the caret by exactly ambient.
+ * start, …)`. Ambient is 0 for a plain paragraph or a top-level block, nonzero
+ * inside a marker prefix; feeding the bare block offset to the walk mis-lands the
+ * caret by exactly ambient.
  *
- * POST-RENDER CARET. reveal/commit flip the rendered↔source view, then `await
- * tick()` so the caret lands after the swap settles — the only permitted
- * sequencing (no setTimeout/rAF). The swap here is a synchronous DOM replace; the
- * tick is what lets a reactive consumer's re-render settle first (block math).
+ * POST-RENDER CARET. reveal/commit flip the view, then `await tick()` so the caret
+ * lands after the swap settles — the only permitted sequencing (no setTimeout/rAF).
+ * The inline swap is a synchronous DOM replace; the tick is what lets a reactive
+ * consumer's mount/re-render settle first (block math).
  *
- * PRECONDITION: `source.length === sourceEnd - sourceStart`. The widget's raw
- * length equals its source-text length, so every raw offset OUTSIDE the widget is
- * stable across the swap and the walk stays consistent (math never mutates raw).
+ * PRECONDITION: `source.length === sourceEnd - sourceStart`. The source's raw
+ * length equals its source-text length, so every raw offset OUTSIDE it is stable
+ * across the swap and the walk stays consistent (math never mutates raw on reveal).
  */
 
 import { tick } from 'svelte';
 import { createRangeAtRawOffsets } from './widget-offset';
 
 export interface SourceRevealDeps {
-	/** The block's contenteditable host — where the offset walk runs. */
+	/** The block's contenteditable host — where the offset walk runs. Null while a
+	 *  reactive consumer has the source unmounted (block math when rendered). */
 	get container(): HTMLElement | null;
-	/** Widget node's raw byte range [start, end) in the block source. */
+	/** Source's raw byte range [start, end) in the block source. */
 	get sourceStart(): number;
 	get sourceEnd(): number;
-	/** The widget's raw source bytes; `length` MUST equal `sourceEnd - sourceStart`. */
+	/** The source's raw bytes; `length` MUST equal `sourceEnd - sourceStart`. */
 	get source(): string;
 	/** Rendered marker prefix length the DOM walk counts but block source excludes. */
 	getAmbientLength(): number;
-	/** Builds a fresh opaque widget ([data-inline-widget] + data-source-*). Injected —
-	 *  the LaTeX consumer injects a KaTeX-backed builder; the renderer is not owned here. */
-	renderWidget(): HTMLElement;
+	/** Whether the editable source is currently shown. Owned by the consumer
+	 *  (inline: a captured text node; block: a reactive flag). */
+	isRevealed(): boolean;
+	/** Swap the rendered view for editable source. May decline (leave `isRevealed`
+	 *  false) — e.g. the inline widget island isn't in the DOM. */
+	showSource(): void;
+	/** Swap the editable source back for the rendered view (inverse of showSource). */
+	showRendered(): void;
 }
 
 export interface SourceReveal {
 	isRevealed(): boolean;
 	/** Swap to editable source; caret at `sourceStart + atSourceOffset` (default edge). */
 	reveal(atSourceOffset?: number): Promise<void>;
-	/** Swap back to the rendered widget; caret at the trailing edge (`sourceEnd`). */
+	/** Swap back to the rendered view; caret at the trailing edge (`sourceEnd`). */
 	commit(): Promise<void>;
 }
 
 export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
-	let sourceNode: Text | null = null;
-
 	/** Places the caret at a BLOCK-source offset, converting to ambient-included walk space. */
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
 		const target = deps.getAmbientLength() + blockSourceOffset;
@@ -80,28 +99,19 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {
-		const container = deps.container;
-		if (!container) return;
-		if (sourceNode === null) {
-			const widget = container.querySelector<HTMLElement>(
-				`[data-inline-widget][data-source-start="${deps.sourceStart}"]`
-			);
-			if (!widget) return;
-			sourceNode = document.createTextNode(deps.source);
-			widget.replaceWith(sourceNode);
-		}
+		if (!deps.isRevealed()) deps.showSource();
+		if (!deps.isRevealed()) return; // swap declined (island not in the DOM)
 		await tick();
 		const settled = deps.container;
 		if (!settled) return;
+		if (document.activeElement !== settled) settled.focus();
 		const clamped = Math.max(0, Math.min(atSourceOffset, deps.source.length));
 		placeCaret(settled, deps.sourceStart + clamped);
 	}
 
 	async function commit(): Promise<void> {
-		const container = deps.container;
-		if (!container || sourceNode === null) return;
-		sourceNode.replaceWith(deps.renderWidget());
-		sourceNode = null;
+		if (!deps.isRevealed()) return;
+		deps.showRendered();
 		await tick();
 		const settled = deps.container;
 		if (!settled) return;
@@ -109,7 +119,7 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	}
 
 	return {
-		isRevealed: () => sourceNode !== null,
+		isRevealed: () => deps.isRevealed(),
 		reveal,
 		commit
 	};

@@ -109,6 +109,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const start = inline.start;
 		const end = inline.end;
 		const source = deps.node.raw.slice(start, end);
+		// The imperative span-swap IS the inline mechanism: replace the opaque
+		// [data-inline-widget] island with a text node and back. The captured node
+		// doubles as the revealed-state flag the primitive reads via `isRevealed`.
+		let sourceNode: Text | null = null;
 		const reveal = createSourceReveal({
 			get container() {
 				return deps.getEl();
@@ -123,10 +127,25 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				return source;
 			},
 			getAmbientLength: deps.getAmbientLength,
+			isRevealed: () => sourceNode !== null,
+			showSource: () => {
+				const container = deps.getEl();
+				if (!container) return;
+				const widget = container.querySelector<HTMLElement>(
+					`[data-inline-widget][data-source-start="${start}"]`
+				);
+				if (!widget) return;
+				sourceNode = document.createTextNode(source);
+				widget.replaceWith(sourceNode);
+			},
 			// Cancel rebuilds the ORIGINAL widget from the unchanged raw (the edit is
 			// discarded); the persist path re-renders reactively instead, so this only
 			// fires on Escape.
-			renderWidget: () => buildRevealWidget(inline)
+			showRendered: () => {
+				if (sourceNode === null) return;
+				sourceNode.replaceWith(buildRevealWidget(inline));
+				sourceNode = null;
+			}
 		});
 		activeReveal = reveal;
 		revealWidgetEnd = end;
