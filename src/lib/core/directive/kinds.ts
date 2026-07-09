@@ -64,15 +64,19 @@ export function registerDirectiveKinds(): void {
 /**
  * Declare the `directiveText` inline kind and register its atomic widget. The
  * `:` recognizer (register.ts) stamps this kind on the span it delimits; the
- * widget renders the source dimmed (source-reveal editing is a later tier).
- * Idempotent for HMR / re-import via the declared-kind probe.
+ * widget renders the source dimmed and opts into `revealSource`, so focusing it
+ * swaps the rendered island for its editable source and blur/Enter commits the
+ * edit — the shared inline-widget reveal primitive (widget-interaction.ts),
+ * reused verbatim from the inline-math precedent. Idempotent for HMR / re-import
+ * via the declared-kind probe.
  */
 export function registerDirectiveTextKind(): void {
 	if (isInlineKindDeclared(DIRECTIVE_TEXT)) return;
 	const kind = declarePluginInlineKind(DIRECTIVE_TEXT);
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
-		buildWidget: buildDirectiveTextWidget
+		buildWidget: buildDirectiveTextWidget,
+		editing: { revealSource: true }
 	});
 }
 
