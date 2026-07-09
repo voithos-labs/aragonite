@@ -84,6 +84,15 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	return name as PluginInlineKind;
 }
 
+/**
+ * Boolean probe for whether an inline kind is already declared — the inline
+ * mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
+ * (HMR / re-import) guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
+ */
+export function isInlineKindDeclared(name: string): boolean {
+	return declaredPluginInlineKinds.has(name);
+}
+
 export function __clearDeclaredPluginInlineKindsForTests(): void {
 	declaredPluginInlineKinds.clear();
 }
