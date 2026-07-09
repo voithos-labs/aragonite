@@ -153,8 +153,6 @@ describe('getInlineWidgetEditing — per-kind editing policy', () => {
 		registerInlineWidgetKind(mathKind, {
 			isWidget: () => true,
 			editing: {
-				deleteGranularity: 'select-then-delete',
-				onEdge: 'select',
 				revealSource: true,
 				onSelectedKey
 			}
@@ -169,15 +167,10 @@ describe('getInlineWidgetEditing — per-kind editing policy', () => {
 		expect(getInlineWidgetEditing(spoilerKind)).toBeUndefined();
 	});
 
-	it.each([
-		{ kind: 'image', deleteGranularity: 'select-then-delete', onEdge: 'select' },
-		{ kind: 'rawHtml', deleteGranularity: 'atomic', onEdge: 'step-over' }
-	] as const)(
-		'exposes the built-in $kind editing policy',
-		({ kind, deleteGranularity, onEdge }) => {
-			expect(getInlineWidgetEditing(kind)).toEqual({ deleteGranularity, onEdge });
-		}
-	);
+	it('exposes the built-in editing policies: image carries a base, rawHtml carries none', () => {
+		expect(getInlineWidgetEditing('image')).toEqual({});
+		expect(getInlineWidgetEditing('rawHtml')).toBeUndefined();
+	});
 });
 
 describe('augmentInlineWidgetKind — attaching editor behavior to a registration', () => {
@@ -185,18 +178,24 @@ describe('augmentInlineWidgetKind — attaching editor behavior to a registratio
 
 	afterEach(__resetInlineWidgetsForTests);
 
-	it('layers onSelectedKey onto a registered kind without dropping its data policy', () => {
+	it('layers onSelectedKey onto a registered kind without dropping its existing fields', () => {
 		registerInlineWidgetKind(captionKind, {
 			isWidget: () => true,
-			editing: { deleteGranularity: 'select-then-delete', onEdge: 'select' }
+			editing: { revealSource: true }
 		});
 		const onSelectedKey = () => true;
 		augmentInlineWidgetKind(captionKind, { onSelectedKey });
 		expect(getInlineWidgetEditing(captionKind)).toEqual({
-			deleteGranularity: 'select-then-delete',
-			onEdge: 'select',
+			revealSource: true,
 			onSelectedKey
 		});
+	});
+
+	it('initializes an editing policy when augmenting a kind that had none', () => {
+		registerInlineWidgetKind(captionKind, { isWidget: () => true });
+		const onSelectedKey = () => true;
+		augmentInlineWidgetKind(captionKind, { onSelectedKey });
+		expect(getInlineWidgetEditing(captionKind)).toEqual({ onSelectedKey });
 	});
 
 	it('throws when the kind was never registered', () => {
