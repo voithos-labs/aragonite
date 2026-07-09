@@ -1,13 +1,16 @@
 /**
  * `:::note` fenced-div callout — a plugin container kind built on the public
- * registration seams, extended by the Fork-A spike to carry an editable
- * reserved-child-0 "title" leaf (`note-title`). Dev/e2e harness only.
+ * registration seams, now dispatched through the `:::name` directive primitive
+ * instead of a hand-rolled opener. Dev/e2e harness only.
  *
- * The title lives in the opener line (`:::note My Title`) yet is a real CST
- * child at index 0, so `strip(raw) !== serialize(children)`. That is why the
- * callout declares an `'opaque'` container contract: `raw` is authoritative
- * (not a strip-decomposition), exempt from `checkStaleRaw`'s byte-level guard.
- * `rebuildRaw` re-emits the title into the opener line from child 0.
+ * `registerCalloutKind` registers `note`/`warning` as directive names on the
+ * shared `:::` opener; `:::note`/`:::warning` resolve here, any other name falls
+ * through to the generic directive container. The title lives in the opener line
+ * (`:::note My Title`) yet is a real CST child at index 0, so
+ * `strip(raw) !== serialize(children)` — hence the `'opaque'` container contract:
+ * `raw` is authoritative (not a strip-decomposition), exempt from `checkStaleRaw`'s
+ * byte-level guard. `rebuildCalloutRaw` re-emits the title into the opener line via
+ * `serializeDirective`.
  */
 
 import {
@@ -15,27 +18,29 @@ import {
 	declaredPluginKind,
 	registerBlockKind,
 	registerBlockCommand,
-	registerBlockOpener,
 	registerChromeLeaf,
+	registerDirective,
+	serializeDirective,
 	isBlockKindRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
-	parse,
 	serializeChildren,
 	trimTrailingLineEnding,
-	type CstNode
+	type CstNode,
+	type ParsedDirective
 } from '$lib/plugin';
+import { isDirectiveRegistered } from '$lib/core/directive/registry';
+import { registerDirectiveKinds } from '$lib/core/directive/kinds';
+import { registerDirectiveOpeners } from '$lib/core/directive/container-opener';
 
 export const NOTE = 'note';
 export const NOTE_TITLE = 'note-title';
 
-// Opener line: `:::type` with an optional title after the type word. The title
-// group is trimmed of surrounding whitespace by the `[ \t]+ … \S … [ \t]*$` shape.
-const OPEN = /^:::(\w+)(?:[ \t]+(.*\S))?[ \t]*$/;
-const CLOSE = /^:::\s*$/;
-
 interface CalloutMetadata {
 	calloutType: string;
+	colonCount: number;
+	closerColonCount: number;
+	closerNewline: boolean;
 }
 
 function makeTitleChild(text: string): CstNode {
@@ -47,21 +52,60 @@ function makeTitleChild(text: string): CstNode {
 }
 
 /**
+ * Build a callout node from a resolved `:::note`/`:::warning` fence. The opener
+ * info is the bare title (callout's opaque convention — no `[label]{attrs}`); the
+ * fence bytes go into metadata so `rebuildCalloutRaw` can reconstruct them.
+ */
+function calloutFromDirective(parsed: ParsedDirective): CstNode {
+	const title = parsed.fence.info.trim();
+	const node: CstNode = {
+		kind: declaredPluginKind(NOTE),
+		leadingTrivia: parsed.leadingTrivia,
+		raw: parsed.raw,
+		innerPrefix: parsed.body?.prefix ?? '',
+		children: [makeTitleChild(title), ...(parsed.body?.children ?? [])],
+		innerSuffix: parsed.body?.suffix ?? ''
+	};
+	setPluginMetadata<CalloutMetadata>(node, {
+		calloutType: parsed.fence.name,
+		colonCount: parsed.fence.colonCount,
+		closerColonCount: parsed.closerColonCount,
+		closerNewline: parsed.closerNewline
+	});
+	return node;
+}
+
+/**
  * Reconstruct `raw` from children after a structural edit. Child 0 is the title
- * (emitted into the opener line); children 1+ are the fenced body. Invoked by
- * the commit primitive whenever the callout's children mutate.
+ * (emitted into the opener line); children 1+ are the fenced body. Invoked by the
+ * commit primitive whenever the callout's children mutate, and by the `setKind`
+ * command's metadata commit (which rewrites `calloutType`).
  */
 export function rebuildCalloutRaw(node: CstNode): void {
-	const type = getPluginMetadata<CalloutMetadata>(node)?.calloutType ?? NOTE;
+	const meta = getPluginMetadata<CalloutMetadata>(node);
 	const children = node.children ?? [];
-	const titleText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
-	const body = children.slice(1);
-	const inner = (node.innerPrefix ?? '') + serializeChildren(body) + (node.innerSuffix ?? '');
-	const opener = titleText ? `:::${type} ${titleText}` : `:::${type}`;
-	node.raw = `${opener}\n${inner}:::\n`;
+	const title = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
+	node.raw = serializeDirective({
+		colonCount: meta?.colonCount ?? 3,
+		name: meta?.calloutType ?? NOTE,
+		info: title ? ` ${title}` : '',
+		innerPrefix: node.innerPrefix ?? '',
+		body: serializeChildren(children.slice(1)),
+		innerSuffix: node.innerSuffix ?? '',
+		closerColonCount: meta?.closerColonCount ?? meta?.colonCount ?? 3,
+		closerNewline: meta?.closerNewline ?? true
+	});
 }
 
 export function registerCalloutKind(): void {
+	// The shared `:::` opener + generic fallback kinds must be live for the callout
+	// names to resolve. Both are idempotent; calling them here (rather than a
+	// run-once side-effect import of the activation seam) re-establishes the opener
+	// after a registry reset in the unit suites — the route activates the same seam
+	// via `register-directive`.
+	registerDirectiveKinds();
+	registerDirectiveOpeners();
+
 	if (isBlockKindRegistered(NOTE)) return; // idempotent for HMR / re-import
 	const note = declarePluginKind(NOTE);
 	const noteTitle = declarePluginKind(NOTE_TITLE);
@@ -69,13 +113,23 @@ export function registerCalloutKind(): void {
 	// A minted block-command on the note kind: a chord that bubbles from an inner
 	// leaf to the container resolves this handler, which commits the new callout
 	// type through the container's own metadata seam (→ rebuildCalloutRaw → one
-	// metadataUpdate). `arg` arrives as `unknown` off the descriptor binding — the
-	// handler type-guards it and declines an out-of-shape value.
+	// metadataUpdate). The partial `{ calloutType }` patch merges over the fence
+	// bytes, so colonCount/closer fields survive the rebuild. `arg` arrives as
+	// `unknown` off the descriptor binding — the handler type-guards it and
+	// declines an out-of-shape value.
 	const setKind = registerBlockCommand(note, 'callout.setKind', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
 		ctx.updateMetadata({ calloutType: ctx.arg });
 		return true;
 	});
+
+	// note/warning both map to the note kind; other names fall through to the
+	// generic directive container. Idempotent for HMR — the directive registry
+	// survives a schema reset, so re-registering would throw without the guard.
+	if (!isDirectiveRegistered('container', NOTE)) {
+		registerDirective('container', NOTE, { kind: note, fromDirective: calloutFromDirective });
+		registerDirective('container', 'warning', { kind: note, fromDirective: calloutFromDirective });
+	}
 
 	registerBlockKind(note, {
 		mergeRole: 'container',
@@ -106,38 +160,4 @@ export function registerCalloutKind(): void {
 	// leaf is kind-sticky (contextDependentKind) so typing keeps `note-title`, and
 	// the seam's default keymap applies (Enter descends; Backspace/Delete merge).
 	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
-
-	registerBlockOpener(note, {
-		priority: 45, // between blockquote (40) and list (50); ::: is claimed by no built-in
-		interruptsParagraph: (line) => OPEN.test(line),
-		tryOpen(ctx) {
-			const opener = ctx.line.text.match(OPEN);
-			if (!opener) return null;
-
-			let i = ctx.index + 1;
-			while (i < ctx.end && !CLOSE.test(ctx.lines[i].text)) i++;
-			if (i >= ctx.end) return null; // unterminated fence declines to paragraph
-
-			const bodyText = ctx.lines
-				.slice(ctx.index + 1, i)
-				.map((l) => l.raw)
-				.join('');
-			const body = parse(bodyText);
-			const raw = ctx.lines
-				.slice(ctx.index, i + 1)
-				.map((l) => l.raw)
-				.join('');
-
-			const node: CstNode = {
-				kind: note,
-				leadingTrivia: ctx.leadingTrivia,
-				raw,
-				innerPrefix: body.prefix,
-				children: [makeTitleChild(opener[2] ?? ''), ...body.children],
-				innerSuffix: body.suffix
-			};
-			setPluginMetadata<CalloutMetadata>(node, { calloutType: opener[1] });
-			return { node, nextIndex: i + 1 };
-		}
-	});
 }
