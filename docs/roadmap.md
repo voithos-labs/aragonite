@@ -15,13 +15,15 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/editor/plugin-contract.md`.
 
 Remaining work, ordered. Sequencing principle: **risk first, validation before freeze** — the items most
-likely to change later plans or to reveal contract gaps (the KaTeX seam, the clean-room build) run
-early enough that what they teach is still cheap to act on.
+likely to change later plans or to reveal contract gaps (the `:::` directive primitive, the
+clean-room build) run early enough that what they teach is still cheap to act on.
 
-1. **Inline-widget editing registry + KaTeX** — the third authoring seam: generalize the image
-   live-widget path so a plugin inline kind gets atomic caret-addressing; KaTeX `$…$` is the driving
-   consumer. Decide the `AnyInlineKind` widening here (mirror `AnyBlockKind`), even if the registry
-   ships later — breaking if deferred past the freeze.
+1. **`:::name` directive primitive** — one opener owning all `:::`/`::`/`:` syntax (container / leaf
+   / text tiers) instead of N plugins colliding on opener priority: dispatch by name into the
+   existing kind system, with a lossless generic fallback for unregistered names. Built and
+   docs-published _before_ the clean-room build (item 2) consumes it as a published API (§ Pre-freeze
+   plugin direction decisions). The `AnyInlineKind` widening it leans on shipped with the
+   inline-widget registry (0.9.10).
 2. **Clean-room freeze validator** — build one real extension (alerts/admonitions — a third container
    consumer) under third-party conditions: the author gets the public docs and `aragonite/plugin`
    ONLY, no reading `src/lib` internals. The dogfood plugins validated the API's _sufficiency_ with
