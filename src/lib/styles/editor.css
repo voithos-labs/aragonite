@@ -111,6 +111,12 @@
 	position: relative;
 }
 
+/* Generic inline directive `:name[...]` with no plugin renderer: show its source
+   dimmed like a marker until a later tier reveals it for editing. */
+:where(.editor) .directive-text-widget {
+	opacity: var(--syntax-marker-dim, 0.4);
+}
+
 :where(.editor) .md-image-widget img {
 	max-width: 100%;
 	height: auto;
