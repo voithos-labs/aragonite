@@ -45,9 +45,12 @@ export interface TextRender {
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
 
+	// The dimmed marker portion of the raw (a heading's `## `, a directive leaf's
+	// `::name`). Any kind whose descriptor narrows the content range past 0 carries
+	// one; kinds without a getContentRange (paragraphs, the raw-editable fallback)
+	// yield '' and render as plain text.
 	function getBlockMarkerPrefix(): string {
 		const node = deps.node;
-		if (!isProseKind(node.kind)) return '';
 		const range = getContentRange(node);
 		return node.raw.slice(0, range.start);
 	}
@@ -79,6 +82,18 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache })
 			})
 		);
+		return frag;
+	}
+
+	// Non-prose marker line: a dimmed `.md-marker` span over the fence, then the
+	// remainder as a raw text node. No inline pass runs, so the text is verbatim.
+	function buildMarkerPrefixDOM(marker: string, rest: string): DocumentFragment {
+		const frag = document.createDocumentFragment();
+		const span = document.createElement('span');
+		span.className = 'md-marker';
+		span.textContent = marker;
+		frag.appendChild(span);
+		frag.appendChild(document.createTextNode(rest));
 		return frag;
 	}
 
@@ -114,7 +129,19 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			lastRenderedKey = renderKey;
 		} else {
 			const display = deps.getDisplayText();
-			if (el.textContent !== display) {
+			const markerPrefix = getBlockMarkerPrefix();
+			if (markerPrefix) {
+				// A non-prose kind with a marker (the directive leaf's `::name`): dim the
+				// fence like a heading marker, render the remainder as plain text. The line
+				// stays one editable coordinate space, so an edit that breaks the fence
+				// reparses to the natural kind.
+				if (el.textContent !== display || forceRebuild) {
+					el.replaceChildren(
+						buildMarkerPrefixDOM(markerPrefix, display.slice(markerPrefix.length))
+					);
+					lastRenderedKey = renderKey;
+				}
+			} else if (el.textContent !== display) {
 				el.textContent = display;
 				lastRenderedKey = renderKey;
 			}

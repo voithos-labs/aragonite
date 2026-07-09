@@ -12,9 +12,11 @@
 
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
+import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode } from '../nodes';
+import { displayLength, trimTrailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
-import { serializeDirective } from './grammar';
+import { matchDirectiveOpener, serializeDirective } from './grammar';
 
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
 export const DIRECTIVE_LEAF = 'directiveLeaf';
@@ -47,8 +49,32 @@ export function registerDirectiveKinds(): void {
 	registerBlockKind(declarePluginKind(DIRECTIVE_LEAF), {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		supportsInline: false
+		supportsInline: false,
+		getContentRange: directiveLeafContentRange,
+		keymap: DIRECTIVE_LEAF_KEYMAP
 	});
+}
+
+// Enter opens a paragraph sibling (a leaf never holds an in-line break; the split
+// reparses the empty tail to a paragraph); Backspace/Delete route through the
+// not-mergeable merge walk, which moves focus rather than concatenating.
+const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
+	{ chord: 'Enter', command: 'block.split' },
+	{ chord: 'Tab', command: 'block.insertTab' },
+	{ chord: 'Backspace', command: 'block.mergePrev' },
+	{ chord: 'Delete', command: 'block.mergeNext' },
+	{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
+	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
+];
+
+// The `::name` fence is a dimmed marker prefix; the editable content is the info
+// that follows it. Mirrors the heading marker-range mechanism for this non-prose
+// leaf. A raw that no longer opens a fence (an edit broke `::name`) reparses to a
+// paragraph before this is consulted, so the null branch is a defensive floor.
+function directiveLeafContentRange(node: CstNode): { start: number; end: number } {
+	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
+	const start = fence ? fence.colonCount + fence.name.length : 0;
+	return { start, end: displayLength(node.raw) };
 }
 
 export function rebuildDirectiveContainerRaw(node: CstNode): void {
