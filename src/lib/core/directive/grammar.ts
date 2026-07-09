@@ -54,3 +54,57 @@ export function serializeDirective(parts: {
 	const fence = ':'.repeat(parts.colonCount);
 	return `${fence}${parts.name}${parts.info}\n${parts.innerPrefix}${parts.body}${parts.innerSuffix}${fence}\n`;
 }
+
+// ── Attributes ────────────────────────────────────────────────────────────────
+
+export interface DirectiveAttributes {
+	label?: string;
+	id?: string;
+	classes: string[];
+	properties: Record<string, string>;
+}
+
+const LABEL = /^\s*\[([^\]]*)\]/;
+const BRACES = /\{([^}]*)\}/;
+// One attribute token: a run of non-space chars with quoted segments folded in,
+// so `title="a b"` stays whole instead of splitting on its inner space.
+const ATTR_TOKEN = /(?:[^\s"]+|"[^"]*")+/g;
+
+/**
+ * Opt-in `info → structure` reader: pulls a leading `[label]` and a `{#id .class
+ * key=val}` block out of the opener info. Bare or unmatched info yields an empty
+ * structure (the callout-title path). One-way only — there is no inverse
+ * serializer; the verbatim `info` remains the round-trip source of truth.
+ */
+export function parseDirectiveAttributes(info: string): DirectiveAttributes {
+	const attributes: DirectiveAttributes = { classes: [], properties: {} };
+
+	let rest = info;
+	const labelMatch = LABEL.exec(info);
+	if (labelMatch) {
+		attributes.label = labelMatch[1];
+		rest = info.slice(labelMatch[0].length);
+	}
+
+	const braceMatch = BRACES.exec(rest);
+	if (!braceMatch) return attributes;
+
+	for (const token of braceMatch[1].match(ATTR_TOKEN) ?? []) {
+		if (token.startsWith('#')) {
+			attributes.id = token.slice(1);
+		} else if (token.startsWith('.')) {
+			attributes.classes.push(token.slice(1));
+		} else {
+			const eq = token.indexOf('=');
+			if (eq > 0) {
+				const value = token.slice(eq + 1);
+				attributes.properties[token.slice(0, eq)] = unquote(value);
+			}
+		}
+	}
+	return attributes;
+}
+
+function unquote(value: string): string {
+	return value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
+}
