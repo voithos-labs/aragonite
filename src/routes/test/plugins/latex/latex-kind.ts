@@ -11,17 +11,17 @@
 
 import {
 	declarePluginInlineKind,
-	declaredPluginInlineKind,
 	declarePluginKind,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerBlockKind,
 	registerBlockOpener,
+	isInlineKindDeclared,
 	isBlockKindRegistered,
 	type PluginInlineKind,
+	type InlineNode,
 	type CstNode
 } from '$lib/plugin';
-import type { InlineNode } from '$lib/core/nodes';
 import { createMemoizedRenderer, katexRenderer, type MathRenderer } from './math-renderer';
 
 export const MATH_INLINE = 'math';
@@ -81,21 +81,8 @@ export function buildMathWidget(node: InlineNode, raw: string, render: MathRende
 
 // ── Registration ─────────────────────────────────────────────────────────────
 
-/** The barrel exposes no boolean inline-kind probe (block kinds have
- *  `isBlockKindRegistered`; inline kinds do not). `declaredPluginInlineKind`
- *  reads the same persistent declared-set the registries key on, so this stays
- *  correct under HMR re-import where a module-local flag would not. */
-function isMathInlineRegistered(): boolean {
-	try {
-		declaredPluginInlineKind(MATH_INLINE);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 export function registerMathInline(): void {
-	if (isMathInlineRegistered()) return; // idempotent for HMR / re-import
+	if (isInlineKindDeclared(MATH_INLINE)) return; // idempotent for HMR / re-import
 	const kind = declarePluginInlineKind(MATH_INLINE);
 	const render = createMemoizedRenderer(katexRenderer);
 

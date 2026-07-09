@@ -18,8 +18,12 @@ export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 // scanner on a trigger character, and register a kind as a live atomic widget
 // with its editing policy. The internal seams (first-party widget augmentation,
 // the recognizer/editing accessors, test resets) stay off this barrel.
-export { declarePluginInlineKind, declaredPluginInlineKind } from './schema/plugin-kind';
-export type { PluginInlineKind } from './core/nodes';
+export {
+	declarePluginInlineKind,
+	declaredPluginInlineKind,
+	isInlineKindDeclared
+} from './schema/plugin-kind';
+export type { PluginInlineKind, InlineNode } from './core/nodes';
 export { registerInlineSyntax } from './core/inline/scan/plugin-syntax';
 export type { InlineSyntaxRecognizer } from './core/inline/scan/plugin-syntax';
 export { registerInlineWidgetKind } from './core/inline/inline-widgets';
