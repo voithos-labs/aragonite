@@ -252,9 +252,8 @@ When added, it is an additive field, designed against its real consumer.
 - **0.8.2 inline-parser stage hook** — deferred to the inline-widget editing registry (now
   pre-1.0) / its 1.3 inline-syntax consumer. Widget-ness is a render+model decision, not a
   parse one, so the hook has no built-in to validate it.
-- **Per-hook 1.2 seams** — selection coordinate-addressing, inline-widget editing registry,
-  component-portal widget seam, the component registry replacing `BlockHost` dispatch. All
-  additive over this foundation.
+- **Per-hook 1.2 seams** — selection coordinate-addressing, component-portal widget seam, the
+  component registry replacing `BlockHost` dispatch. All additive over this foundation.
 - **Runtime unregister / replace** — Plugin System II.
 
 ## The pre-freeze authoring surface (1.0)
@@ -290,19 +289,39 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
   through edits), and an opaque container contract (raw is authoritative, not a strip
   decomposition), both invariant-guarded.
-- **Planned pre-1.0** (roadmap): plugin-minted command ids; the inline-widget editing
-  registry (atomic caret-addressed inline plugins — KaTeX is the driving consumer).
+- **Inline authoring (shipped, unstable-labeled).** The inline mirror of the block surface on
+  `aragonite/plugin`: an inline-kind mint with an idempotence probe (`declarePluginInlineKind`,
+  `declaredPluginInlineKind`, `isInlineKindDeclared`); an inline-syntax recognition hook
+  (`registerInlineSyntax` — the plugin hands the scanner a trigger character and a recognizer); and an
+  inline-widget editing registry (`registerInlineWidgetKind`, carrying a per-kind
+  `InlineWidgetEditingPolicy` on the `InlineWidgetDescriptor`, plus `InlineWidgetEditingContext` and
+  `InlineSyntaxRecognizer`; `InlineNode` is on the barrel) that gives a plugin inline kind atomic,
+  caret-addressed editing. KaTeX is the validating consumer — the renderer is injected, not bundled.
+  Three freeze-time decisions ride this surface:
+  - **Recognition precedence (additive).** The hook fires only for a trigger character no built-in
+    scanner already claims — built-in delimiter dispatch runs first. This limit is part of the hook
+    contract; a precedence-override variant can layer on additively later, without changing the base
+    signature.
+  - **Builder injection (freeze-decision).** Two builder paths coexist: the stateless registry
+    `buildWidget`, and image's stateful builder on the internal `augmentInlineWidgetKind` seam (off the
+    public barrel). Kept split on purpose — a future stateful plugin widget threads render context
+    through an optional additional `buildWidget` argument (additive) rather than exposing the internal
+    seam.
+  - **Error rendering (additive-later).** No shared error-render seam — each renderer handles its own
+    errors (the KaTeX path renders a legible inline message). Add an optional error-render hook only if
+    a second renderer starts duplicating it.
+- **Planned pre-1.0** (roadmap): plugin-minted command ids.
 
 ## Editable-content tiers
 
 Every mechanism for plugin content that is _itself editable_ falls in one of three tiers,
 each bound to a CST guarantee (prior-art record: the plugin-system research doc):
 
-| Tier          | Shape                                                                      | Status                    |
-| ------------- | -------------------------------------------------------------------------- | ------------------------- |
-| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog | shipped                   |
-| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns         | shipped                   |
-| Atomic widget | opaque non-text embed, caret-addressable at its edges                      | pre-1.0 (inline registry) |
+| Tier          | Shape                                                                      | Status  |
+| ------------- | -------------------------------------------------------------------------- | ------- |
+| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog | shipped |
+| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns         | shipped |
+| Atomic widget | opaque non-text embed, caret-addressable at its edges                      | shipped |
 
 A _general_ editable leaf (recognizer-backed standalone text block) is deliberately post-1.0;
 the chrome leaf is narrower on purpose. **Rejected permanently:** nested-editor interiors (a
