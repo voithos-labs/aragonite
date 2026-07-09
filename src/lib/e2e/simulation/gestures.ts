@@ -23,6 +23,14 @@ import {
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
+	deleteAroundInlineMath,
+	deleteInlineMathWidget,
+	editBlockMath,
+	editInlineMath,
+	insertBlockMath,
+	insertInlineMath
+} from './gestures/math';
+import {
 	deleteColumn,
 	deleteRow,
 	editCell,
@@ -220,6 +228,34 @@ export class Gestures {
 
 	resizeImage(direction: 'left' | 'right', steps: number): Promise<void> {
 		return resizeImage(this.ctx, direction, steps);
+	}
+
+	// ── Math (LaTeX extension, plugins route) ───────────────────────────────────
+	// Insert / reveal-edit-commit / delete inline `$…$` and block `$$…$$` math.
+	// Each gesture gates on the widget↔source swap and resyncs around the reparse.
+
+	insertInlineMath(formula: string): Promise<void> {
+		return insertInlineMath(this.ctx, formula);
+	}
+
+	insertBlockMath(formula: string, blurBlockIndex: number): Promise<void> {
+		return insertBlockMath(this.ctx, formula, blurBlockIndex);
+	}
+
+	editInlineMath(text: string): Promise<void> {
+		return editInlineMath(this.ctx, text);
+	}
+
+	editBlockMath(text: string, blurBlockIndex: number): Promise<void> {
+		return editBlockMath(this.ctx, text, blurBlockIndex);
+	}
+
+	deleteAroundInlineMath(blockIndex: number): Promise<void> {
+		return deleteAroundInlineMath(this.ctx, blockIndex);
+	}
+
+	deleteInlineMathWidget(blockIndex: number): Promise<void> {
+		return deleteInlineMathWidget(this.ctx, blockIndex);
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
