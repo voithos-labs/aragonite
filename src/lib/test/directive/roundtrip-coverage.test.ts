@@ -325,3 +325,67 @@ describe('directive total-coverage round-trip', () => {
 		expect(found).toBe(true);
 	});
 });
+
+// Hand-picked nasty shapes the generator under-weights, each pinned as a byte
+// round-trip plus the structural fact the round-trip alone can't see (the
+// serializer emits raw verbatim, so a wrong kind still round-trips). Names are
+// unregistered here, so a container is always the generic kind.
+describe('directive round-trip — adversarial interleaving + edge cases', () => {
+	const containerBodies: Array<[label: string, src: string]> = [
+		['list', ':::box\n- a\n- b\n:::\n'],
+		['table', ':::box\n| h |\n| --- |\n| c |\n:::\n'],
+		['fenced code', ':::box\n```\ncode\n```\n:::\n'],
+		['blockquote', ':::box\n> quote\n:::\n'],
+		['nested directive', '::::box\n:::inner\nx\n:::\n::::\n']
+	];
+	for (const [label, src] of containerBodies) {
+		it(`round-trips a container whose body is a ${label}`, () => {
+			expect(serialize(parse(src))).toBe(src);
+			expect(parse(src).children[0].kind).toBe(DIRECTIVE_CONTAINER);
+		});
+	}
+
+	it('keeps a text directive, a real link, and emphasis coexisting in one paragraph', () => {
+		const src = 'a :x[y] [real](u) **b** :z{k=v} c';
+		expect(serialize(parse(src))).toBe(src);
+		const inline = parseInline(src, 0, src.length);
+		expect(inline.filter((n) => n.kind === DIRECTIVE_TEXT).length).toBe(2);
+		expect(inline.some((n) => n.kind === 'link')).toBe(true);
+		expect(inline.some((n) => n.kind === 'strong')).toBe(true);
+	});
+
+	// Code resolves before the directive opener (fenced at priority 10, indented at
+	// its indent rule), so a directive-shaped line — closer included — stays code.
+	it('keeps a full ::: fence literal inside a fenced code block', () => {
+		const src = '```\n:::note\nhi\n:::\n```\n';
+		expect(serialize(parse(src))).toBe(src);
+		expect(parse(src).children[0].kind).toBe('fencedCode');
+	});
+
+	it('keeps a ::: fence literal inside an indented code block', () => {
+		const src = '    :::note\n    body\n    :::\n';
+		expect(serialize(parse(src))).toBe(src);
+		expect(parse(src).children[0].kind).toBe('indentedCode');
+	});
+
+	it('interrupts a paragraph with a leaf and resumes it after', () => {
+		const src = 'before\n::toc\nafter\n';
+		expect(serialize(parse(src))).toBe(src);
+		expect(parse(src).children.map((c) => c.kind)).toEqual([
+			'paragraph',
+			'directiveLeaf',
+			'paragraph'
+		]);
+	});
+
+	it('places a leaf immediately after a container close', () => {
+		const src = ':::box\nx\n:::\n::toc\n';
+		expect(serialize(parse(src))).toBe(src);
+		expect(parse(src).children.map((c) => c.kind)).toEqual(['directiveContainer', 'directiveLeaf']);
+	});
+
+	it('round-trips all three tiers mixed in one document', () => {
+		const src = ':::box\ninner\n:::\n::toc\nsee :ab[c]{k=v} and [x](y)\n';
+		expect(serialize(parse(src))).toBe(src);
+	});
+});
