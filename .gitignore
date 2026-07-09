@@ -32,3 +32,6 @@ conformance-results/
 
 # Brainstorm/plan process artifacts — durable record lives in changelog + design docs
 docs/superpowers/
+
+# Reviewer's ad-hoc concerns notes — local reference, not a tracked deliverable
+docs/concerns.md

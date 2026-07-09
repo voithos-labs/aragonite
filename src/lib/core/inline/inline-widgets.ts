@@ -7,8 +7,36 @@
  * is injected per-render (it holds per-instance state) and registers no builder.
  */
 
-import type { InlineNode } from '../nodes';
+import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
+
+/**
+ * Per-kind editing behavior for a live inline widget.
+ *
+ * `deleteGranularity` and `onEdge` were removed here as unconsumed — nothing read
+ * them; only descriptor literals set them. Re-add them additively when the
+ * deferred entity / atomic-inline feature lands: entity editing is *defined by*
+ * delete granularity, and select/step-over edge behavior is that feature's
+ * consumer, so those fields regain meaning only alongside it.
+ */
+export interface InlineWidgetEditingPolicy {
+	revealSource?: boolean;
+	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
+}
+
+/** What a widget kind's key handler is given about the selected widget instance. */
+export interface InlineWidgetEditingContext {
+	node: CstNode;
+	inline: InlineNode;
+	widgetStart: number;
+	widgetEnd: number;
+	index: number;
+	preSelectOffset: number;
+	editorContentWidth: number;
+	/** Core-safe commit hook: this module can't reach the editor-actions block API
+	 *  from the core layer, so the caller binds this to its content update. */
+	updateContent: (newRaw: string, caretBefore: number, caretAfter: number) => void;
+}
 
 export interface InlineWidgetDescriptor {
 	/** True when a node of this kind renders as a live widget given its raw slice. */
@@ -16,12 +44,13 @@ export interface InlineWidgetDescriptor {
 	/** Core widget DOM builder. Omitted for kinds whose builder is injected
 	 *  per-render (image). */
 	buildWidget?(node: InlineNode, raw: string): HTMLElement;
+	editing?: InlineWidgetEditingPolicy;
 }
 
-const registry = new Map<InlineNode['kind'], InlineWidgetDescriptor>();
+const registry = new Map<AnyInlineKind, InlineWidgetDescriptor>();
 
 export function registerInlineWidgetKind(
-	kind: InlineNode['kind'],
+	kind: AnyInlineKind,
 	descriptor: InlineWidgetDescriptor
 ): void {
 	if (registry.has(kind)) {
@@ -33,11 +62,37 @@ export function registerInlineWidgetKind(
 	registry.set(kind, descriptor);
 }
 
+/**
+ * Layer editing fields onto an already-registered kind's policy. The editor-layer
+ * mount wire-up (components/built-in-blocks.ts) uses this to attach behavior — the
+ * image resize `onSelectedKey` — that can't live in the core registration without
+ * importing a downstream layer. Throws for an unregistered kind.
+ */
+export function augmentInlineWidgetKind(
+	kind: AnyInlineKind,
+	editing: Partial<InlineWidgetEditingPolicy>
+): void {
+	const descriptor = registry.get(kind);
+	if (!descriptor) {
+		throw new Error(
+			`augmentInlineWidgetKind: "${kind}" is not registered — register the widget kind before ` +
+				`augmenting its editing policy.`
+		);
+	}
+	descriptor.editing = { ...descriptor.editing, ...editing };
+}
+
 /** Kind-level recognition — independent of per-block render policy (e.g.
  *  renderImagesAsWidgets). */
 export function isInlineWidget(node: InlineNode, raw: string): boolean {
 	const descriptor = registry.get(node.kind);
 	return descriptor ? descriptor.isWidget(node, raw) : false;
+}
+
+/** Editing policy for a widget kind, or undefined when the kind is unregistered
+ *  or declares no policy. */
+export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditingPolicy | undefined {
+	return registry.get(kind)?.editing;
 }
 
 /**
@@ -72,7 +127,10 @@ export function buildCoreInlineWidget(node: InlineNode, raw: string): HTMLElemen
 }
 
 registerInlineWidgetKind('image', {
-	isWidget: () => true
+	isWidget: () => true,
+	// Empty base editing policy: the editor layer layers `onSelectedKey` onto it
+	// via augmentInlineWidgetKind (components/built-in-blocks.ts).
+	editing: {}
 });
 
 registerInlineWidgetKind('rawHtml', {
@@ -82,7 +140,7 @@ registerInlineWidgetKind('rawHtml', {
 
 // Snapshot the built-in kinds after their module-load registration; the test
 // reset keeps these and drops only plugin-registered kinds.
-const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<InlineNode['kind']> = new Set(registry.keys());
+const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<AnyInlineKind> = new Set(registry.keys());
 
 /** Test-only. Removes every plugin-registered inline-widget kind; built-ins survive. */
 export function __resetInlineWidgetsForTests(): void {

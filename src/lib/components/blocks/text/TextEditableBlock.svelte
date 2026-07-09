@@ -118,6 +118,10 @@
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// True while an inline-widget's `$…$` source is revealed for editing: the edit
+	// is ephemeral DOM, so onInput (and IME compositionend) skip the per-keystroke
+	// CST commit — the block commits once on reveal exit.
+	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
 	// Cursor position captured before each edit (keydown fires before DOM changes)
@@ -134,6 +138,7 @@
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		isInputSuppressed: () => revealing,
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
@@ -236,6 +241,11 @@
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
+		readRawText: () => readRawText(),
+		setRevealing: (value) => {
+			revealing = value;
+		},
+		isCrossBlock: () => selection.isCrossBlock,
 		get linkRef() {
 			return linkRef;
 		}
@@ -399,7 +409,11 @@
 		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {
-			cursor.setRaw(pendingCursorOffset);
+			// Restore the caret only while this block still owns focus. A blur-commit
+			// (revealed source persisted as focus leaves) also sets a pending offset;
+			// without this guard the restore would yank the global selection back into
+			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
+			if (document.activeElement === el) cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 		markKeystrokeSettle();
@@ -482,6 +496,10 @@
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
+		// Revealed `$…$` source: Escape cancels back to rendered, Enter commits +
+		// re-renders. Every other key edits the source natively (onInput suppressed).
+		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
@@ -555,9 +573,11 @@
 	}
 
 	// Click past a block-level widget drops the caret outside the contenteditable
-	// (no text-node anchor); capture click X in pointerdown and snap to the
-	// nearest widget edge in onClick.
+	// (no text-node anchor); capture the click point in pointerdown and snap to the
+	// nearest widget edge in onClick. Y is load-bearing for the reveal hit-test — a
+	// column-aligned click on another visual line must not reveal a widget.
 	let lastClickClientX: number | null = null;
+	let lastClickClientY: number | null = null;
 	// Survives the click→keydown gap when Chromium clears the caret at
 	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
@@ -565,19 +585,25 @@
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 		lastClickClientX = e.clientX;
+		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
 	}
 
 	function onBlur(e: FocusEvent): void {
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
+		// Focus left the block with source still revealed — persist the edit before
+		// the caret is gone.
+		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
 
 	function onClick(): void {
 		const x = lastClickClientX;
+		const y = lastClickClientY;
 		lastClickClientX = null;
+		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x);
+		widgetInteraction.snapClickToWidgetEdge(x, y);
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
