@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
-import { serialize, concatChildren } from '$lib/core/serializer';
+import { serialize } from '$lib/core/serializer';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
-import { serializeDirective } from '$lib/core/directive/grammar';
 import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 import '$lib/core/directive/register'; // side-effect activation of the directive grammar
 
@@ -66,18 +65,13 @@ describe('registered-name dispatch via fromDirective', () => {
 	beforeAll(() => {
 		registerDirective('container', 'chart', {
 			kind: CHART,
-			fromDirective: ({ fence, body }) => {
+			// A factory can build a byte-exact node straight from the contract's
+			// `raw` + `leadingTrivia` — no re-derivation through serializeDirective.
+			fromDirective: (parsed) => {
 				const node: CstNode = {
 					kind: CHART,
-					leadingTrivia: '',
-					raw: serializeDirective({
-						colonCount: fence.colonCount,
-						name: fence.name,
-						info: fence.info,
-						innerPrefix: body?.prefix ?? '',
-						body: concatChildren(body?.children ?? []),
-						innerSuffix: body?.suffix ?? ''
-					})
+					leadingTrivia: parsed.leadingTrivia,
+					raw: parsed.raw
 				};
 				return node;
 			}
