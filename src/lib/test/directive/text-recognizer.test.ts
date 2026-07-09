@@ -27,7 +27,9 @@ describe('recognizeTextDirective', () => {
 		[':smile:', 0, 7, null], // name not followed by [ or {
 		['10:30', 2, 5, null], // name must start with a letter
 		['http://x', 4, 8, null], // :// scheme separator
-		[':x[a', 0, 4, null] // unbalanced — runs off end
+		[':x[a', 0, 4, null], // unbalanced — runs off end
+		[':x{', 0, 3, null], // unbalanced label-less braces decline
+		[':x[a]{', 0, 6, null] // valid label + unbalanced trailing brace declines the whole span
 	];
 
 	for (const [raw, pos, end, expectedEnd] of cases) {
