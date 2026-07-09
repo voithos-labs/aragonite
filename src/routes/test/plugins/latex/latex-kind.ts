@@ -90,7 +90,7 @@ export function registerMathInline(): void {
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		buildWidget: (node, raw) => buildMathWidget(node, raw, render),
-		editing: { deleteGranularity: 'select-then-delete', onEdge: 'select', revealSource: true }
+		editing: { revealSource: true }
 	});
 }
 

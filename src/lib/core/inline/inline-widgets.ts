@@ -10,10 +10,16 @@
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 
-/** Per-kind editing behavior for a live inline widget. */
+/**
+ * Per-kind editing behavior for a live inline widget.
+ *
+ * `deleteGranularity` and `onEdge` were removed here as unconsumed — nothing read
+ * them; only descriptor literals set them. Re-add them additively when the
+ * deferred entity / atomic-inline feature lands: entity editing is *defined by*
+ * delete granularity, and select/step-over edge behavior is that feature's
+ * consumer, so those fields regain meaning only alongside it.
+ */
 export interface InlineWidgetEditingPolicy {
-	deleteGranularity: 'atomic' | 'select-then-delete';
-	onEdge: 'select' | 'step-over';
 	revealSource?: boolean;
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
 }
@@ -73,9 +79,7 @@ export function augmentInlineWidgetKind(
 				`augmenting its editing policy.`
 		);
 	}
-	// Layers onto the built-in's already-complete policy (image registers the
-	// required granularity/edge fields); the cast reflects that precondition.
-	descriptor.editing = { ...descriptor.editing, ...editing } as InlineWidgetEditingPolicy;
+	descriptor.editing = { ...descriptor.editing, ...editing };
 }
 
 /** Kind-level recognition — independent of per-block render policy (e.g.
@@ -124,13 +128,14 @@ export function buildCoreInlineWidget(node: InlineNode, raw: string): HTMLElemen
 
 registerInlineWidgetKind('image', {
 	isWidget: () => true,
-	editing: { deleteGranularity: 'select-then-delete', onEdge: 'select' }
+	// Empty base editing policy: the editor layer layers `onSelectedKey` onto it
+	// via augmentInlineWidgetKind (components/built-in-blocks.ts).
+	editing: {}
 });
 
 registerInlineWidgetKind('rawHtml', {
 	isWidget: (node, raw) => isLiveHtmlTag(raw.slice(node.start, node.end)),
-	buildWidget: (node) => buildLiveHtmlWidget(node),
-	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+	buildWidget: (node) => buildLiveHtmlWidget(node)
 });
 
 // Snapshot the built-in kinds after their module-load registration; the test

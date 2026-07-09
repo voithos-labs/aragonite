@@ -117,12 +117,10 @@ describe('math widget DOM', () => {
 		expect((el as HTMLElement).childElementCount).toBeGreaterThan(0);
 	});
 
-	// The editing policy is the contract Task 13 consumes to drive
-	// select-then-delete + reveal-source; pin its exact shape here.
-	it('registers the select-then-delete / reveal-source editing policy', () => {
+	// reveal-source is the editing contract the widget-interaction layer reads to
+	// swap the rendered math island for its editable source; pin its exact shape.
+	it('registers the reveal-source editing policy', () => {
 		expect(getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])).toEqual({
-			deleteGranularity: 'select-then-delete',
-			onEdge: 'select',
 			revealSource: true
 		});
 	});

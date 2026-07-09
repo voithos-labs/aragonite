@@ -55,7 +55,7 @@ describe('aragonite/plugin inline authoring surface', () => {
 
 	it('exposes the widget-authoring types (compile-time contract)', () => {
 		const recognizer: InlineSyntaxRecognizer = () => null;
-		const editing: InlineWidgetEditingPolicy = { deleteGranularity: 'atomic', onEdge: 'step-over' };
+		const editing: InlineWidgetEditingPolicy = { revealSource: true };
 		const descriptor: InlineWidgetDescriptor = { isWidget: () => false, editing };
 		const widgetStartOf = (ctx: InlineWidgetEditingContext) => ctx.widgetStart;
 		const kind: PluginInlineKind | null = null;
