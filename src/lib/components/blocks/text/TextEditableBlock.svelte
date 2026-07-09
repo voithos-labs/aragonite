@@ -245,6 +245,7 @@
 		setRevealing: (value) => {
 			revealing = value;
 		},
+		isCrossBlock: () => selection.isCrossBlock,
 		get linkRef() {
 			return linkRef;
 		}

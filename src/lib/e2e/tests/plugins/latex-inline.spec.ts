@@ -225,4 +225,55 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await editor.waitForRenderFlush();
 		expect(await editor.selectionInMathBlock()).toBe(false);
 	});
+
+	test('committing a revealed widget with no edit keeps the prior undo entry reachable', async ({
+		page
+	}) => {
+		// A real edit in the sibling paragraph — the entry the next Ctrl+Z must reach.
+		await editor.getBlock(1).click();
+		await page.keyboard.press('End');
+		await page.keyboard.type('ABC');
+		await editor.bridge.waitForSourceContains('NextABC');
+		await editor.waitForUndoBatchFlush();
+
+		// Reveal the math and commit with NO edit. A zero-diff commit would push a dead
+		// undo entry, so this Ctrl+Z would revert the no-op instead of the ABC edit.
+		await editor.revealByClick();
+		await page.keyboard.press('Enter');
+		await expect(editor.mathWidget).toHaveCount(1);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('ABC');
+	});
+
+	test('a cross-block selection through the revealed source survives a blur without folding', async ({
+		page
+	}) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(String(e)));
+
+		await editor.revealByClick();
+		await page.keyboard.press('End');
+		// Extend down into the next paragraph — the anchor endpoint stays in the revealed
+		// source text node while the focus endpoint crosses the block boundary.
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+
+		// The source stays revealed while the selection is live — a folded island could
+		// not be selected through, and folding would strand the anchored endpoint.
+		await expect(editor.mathWidget).toHaveCount(0);
+		const paths = await editor.bridge.getSelectionPaths();
+		expect(paths).not.toBeNull();
+		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
+
+		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves
+		// focus off the block without collapsing the selection, so the blur is fired
+		// directly (mirrors this file's IME carve-out). The commit must bail on
+		// cross-block, not fold the source out from under the anchored endpoint.
+		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+		await editor.waitForRenderFlush();
+
+		await expect(editor.mathWidget).toHaveCount(0);
+		expect(pageErrors).toEqual([]);
+	});
 });

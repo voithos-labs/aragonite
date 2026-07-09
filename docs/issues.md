@@ -206,17 +206,20 @@ invariant holds).
 
 **Why deferred:** component-level behavior; no byte loss and no library API or invariant implication.
 
-### TableCellBlock has an unguarded pending-cursor effect (latent reveal-source parity)
+### TableCellBlock and CodeBlock have unguarded pending-cursor effects (latent reveal-source parity)
 
 **Severity:** trivial (latent; unreachable today)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` vs
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` and
+`src/lib/components/blocks/code/CodeBlock.svelte` vs
 `src/lib/components/blocks/text/TextEditableBlock.svelte`
 
 `TextEditableBlock` gained a `document.activeElement === el` guard on its pending-cursor `$effect`
-during the inline-widget feature; `TableCellBlock`'s analogous effect is unguarded. Unreachable today —
-no source-reveal is wired to table cells.
+during the inline-widget feature; the analogous effects in `TableCellBlock` and in `CodeBlock`
+(its `setCursorOffsetHelper(el, pendingCursorOffset)` restore) are unguarded. Unreachable today —
+no source-reveal is wired to table cells or code blocks, so no blur-commit sets a pending cursor
+while focus has left.
 
-**Fix direction:** add the same `document.activeElement === el` guard if cells ever gain inline-widget
-reveal.
+**Fix direction:** add the same `document.activeElement === el` guard if either surface ever gains
+inline-widget reveal.
 
-**Why deferred:** no reachable bug; mirror the guard when reveal reaches cells.
+**Why deferred:** no reachable bug; mirror the guard when reveal reaches those surfaces.
