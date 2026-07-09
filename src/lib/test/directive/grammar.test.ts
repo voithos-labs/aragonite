@@ -36,6 +36,29 @@ describe('matchDirectiveOpener', () => {
 		expect(matchDirectiveOpener(':x')).toBeNull();
 		expect(matchDirectiveOpener(':::')).toBeNull();
 	});
+	it('admits hyphens and digits in a name after a letter start', () => {
+		expect(matchDirectiveOpener(':::call-out')).toEqual({
+			tier: 'container',
+			colonCount: 3,
+			name: 'call-out',
+			info: ''
+		});
+		expect(matchDirectiveOpener(':::note-2 x')).toEqual({
+			tier: 'container',
+			colonCount: 3,
+			name: 'note-2',
+			info: ' x'
+		});
+	});
+	it('ends the name at an underscore and requires a leading letter', () => {
+		expect(matchDirectiveOpener(':::a_b')).toEqual({
+			tier: 'container',
+			colonCount: 3,
+			name: 'a',
+			info: '_b'
+		});
+		expect(matchDirectiveOpener(':::1x')).toBeNull();
+	});
 });
 
 describe('isDirectiveCloser', () => {
@@ -58,6 +81,30 @@ describe('serializeDirective', () => {
 			innerSuffix: '\n'
 		});
 		expect(out).toBe(':::note  My Title\n\nhi\n\n:::\n');
+	});
+	it('drops the closer newline for a document-final directive', () => {
+		const out = serializeDirective({
+			colonCount: 3,
+			name: 'x',
+			info: '',
+			innerPrefix: '',
+			body: 'y\n',
+			innerSuffix: '',
+			closerNewline: false
+		});
+		expect(out).toBe(':::x\ny\n:::');
+	});
+	it('widens the closer independently of the opener colon count', () => {
+		const out = serializeDirective({
+			colonCount: 3,
+			name: 'x',
+			info: '',
+			innerPrefix: '',
+			body: 'y\n',
+			innerSuffix: '',
+			closerColonCount: 4
+		});
+		expect(out).toBe(':::x\ny\n::::\n');
 	});
 });
 
