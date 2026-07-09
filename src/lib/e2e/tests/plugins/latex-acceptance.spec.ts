@@ -101,6 +101,7 @@ test.describe('latex acceptance axes', () => {
 		await expect(editor.blockRender).toHaveCount(1);
 
 		const baselineScroll = await editor.centerBlockMathAndReadScroll();
+		expect(baselineScroll).toBeGreaterThan(GEOMETRY_TOLERANCE);
 		const renderTopBefore = await editor.blockRenderTop();
 
 		// Reveal: the source textbox is a taller affordance, but the scroll must hold.
