@@ -10,17 +10,21 @@
  * barrel pulls a Svelte component in and would cycle back through core.
  */
 
-import { declarePluginKind } from '../../schema/plugin-kind';
+import {
+	declarePluginKind,
+	declarePluginInlineKind,
+	isInlineKindDeclared
+} from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import type { KeyBinding } from '../../schema/keybindings';
-import { getPluginMetadata, type CstNode } from '../nodes';
+import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import { displayLength, trimTrailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
+import { registerInlineWidgetKind } from '../inline/inline-widgets';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
 
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
 export const DIRECTIVE_LEAF = 'directiveLeaf';
-// Constant only this dispatch — the text-tier kind body lands with the inline widget.
 export const DIRECTIVE_TEXT = 'directiveText';
 
 /** Fence bytes a container node round-trips through `rebuildDirectiveContainerRaw`. */
@@ -53,6 +57,40 @@ export function registerDirectiveKinds(): void {
 		getContentRange: directiveLeafContentRange,
 		keymap: DIRECTIVE_LEAF_KEYMAP
 	});
+}
+
+// ── Text tier: inline `:name[label]{attrs}` ────────────────────────────────────
+
+/**
+ * Declare the `directiveText` inline kind and register its atomic widget. The
+ * `:` recognizer (register.ts) stamps this kind on the span it delimits; the
+ * widget renders the source dimmed (source-reveal editing is a later tier).
+ * Idempotent for HMR / re-import via the declared-kind probe.
+ */
+export function registerDirectiveTextKind(): void {
+	if (isInlineKindDeclared(DIRECTIVE_TEXT)) return;
+	const kind = declarePluginInlineKind(DIRECTIVE_TEXT);
+	registerInlineWidgetKind(kind, {
+		isWidget: () => true,
+		buildWidget: buildDirectiveTextWidget
+	});
+}
+
+/**
+ * Atomic-widget shell mirroring the inline-math precedent: the generic
+ * `[data-inline-widget]` marker plus `data-source-start`/`-end` = the node's
+ * offsets, which are the shared offset walk's only handle (0 chars counted from
+ * textContent). Renders the verbatim `:name[...]` source dimmed.
+ */
+function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
+	const shell = document.createElement('span');
+	shell.className = 'directive-text-widget';
+	shell.dataset.inlineWidget = '';
+	shell.dataset.sourceStart = String(node.start);
+	shell.dataset.sourceEnd = String(node.end);
+	shell.setAttribute('contenteditable', 'false');
+	shell.textContent = raw.slice(node.start, node.end);
+	return shell;
 }
 
 // Enter opens a paragraph sibling (a leaf never holds an in-line break; the split
