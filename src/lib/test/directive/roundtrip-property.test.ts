@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { CstNode } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { serialize, concatChildren } from '$lib/core/serializer';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
+import { serializeDirective } from '$lib/core/directive/grammar';
+import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 import '$lib/core/directive/register'; // side-effect activation of the directive grammar
 
 const cases = [
@@ -50,4 +54,41 @@ describe('directive container rebuild is the opener inverse', () => {
 			expect(node.raw).toBe(before);
 		});
 	}
+});
+
+// A registered name resolves through the registry to its `fromDirective` factory
+// instead of the generic fallback — the dispatch half of the opener. All cases
+// above register no name, so this is the only exercise of that branch.
+describe('registered-name dispatch via fromDirective', () => {
+	const CHART = declarePluginKind('directiveChartProbe');
+	beforeAll(() => {
+		registerDirective('container', 'chart', {
+			kind: CHART,
+			fromDirective: ({ fence, body }) => {
+				const node: CstNode = {
+					kind: CHART,
+					leadingTrivia: '',
+					raw: serializeDirective({
+						colonCount: fence.colonCount,
+						name: fence.name,
+						info: fence.info,
+						innerPrefix: body?.prefix ?? '',
+						body: concatChildren(body?.children ?? []),
+						innerSuffix: body?.suffix ?? ''
+					})
+				};
+				return node;
+			}
+		});
+	});
+	afterAll(() => __resetDirectiveRegistryForTests());
+
+	it('delegates a registered name to its factory node, not the generic kind', () => {
+		expect(parse(':::chart\nx\n:::\n').children[0].kind).toBe('directiveChartProbe');
+	});
+
+	it('round-trips a registered directive byte-for-byte', () => {
+		const src = ':::chart\nx\n:::\n';
+		expect(serialize(parse(src))).toBe(src);
+	});
 });
