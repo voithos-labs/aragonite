@@ -6,6 +6,10 @@
 	import { registerCallout } from './callout/register';
 	import { registerDetails } from './details/register';
 	import { registerLatex } from './latex/register';
+	// Bare side-effect import IS the directive opt-in: it activates the grammar and
+	// binds the generic `:::name` container component (no function call, unlike the
+	// dogfoods above), so the generic-directive e2e can reach a real editing surface.
+	import '$lib/components/blocks/directive/register-directive';
 
 	let { data }: { data: PageData } = $props();
 
