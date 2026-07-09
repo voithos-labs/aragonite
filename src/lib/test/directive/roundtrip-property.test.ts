@@ -14,6 +14,8 @@ const cases = [
 	'::::outer\n:::inner\nx\n:::\n::::\n', // nested, colon-count aware
 	':::unregisteredPlugin\nstill lossless\n:::\n', // generic fallback
 	':::note\n:::\n', // empty body
+	':::wide\nx\n::::\n', // closer longer than opener — pins closerColonCount capture
+	':::bare\nx\n:::', // no trailing newline — pins closerNewline capture
 	'::leaf\n' // leaf tier — a single-line directive node
 ];
 
