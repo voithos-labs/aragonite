@@ -113,6 +113,14 @@ export function scanInline(
 					if (recognize) {
 						const node = recognize(raw, ctx.pos, ctx.end);
 						if (node) {
+							// appendNode flushes pending text up to node.start and resumes at
+							// node.end, so a node that starts anywhere but the cursor gaps or
+							// overlaps coverage. Fail loud at the seam, not with a torn tree.
+							if (node.start !== ctx.pos) {
+								throw new Error(
+									`inline-syntax "${raw[ctx.pos]}" started at ${node.start}, expected ${ctx.pos}`
+								);
+							}
 							if (node.end <= ctx.pos) {
 								throw new Error(`inline-syntax "${raw[ctx.pos]}" did not advance`);
 							}
