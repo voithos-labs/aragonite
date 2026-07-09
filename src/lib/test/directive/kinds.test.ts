@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { setPluginMetadata } from '$lib/core/nodes';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
+import { getBlockKindDescriptor, isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import {
 	DIRECTIVE_CONTAINER,
@@ -25,6 +25,45 @@ describe('registerDirectiveKinds', () => {
 		registerDirectiveKinds();
 		expect(() => registerDirectiveKinds()).not.toThrow();
 		expect(isBlockKindRegistered(DIRECTIVE_CONTAINER)).toBe(true);
+	});
+});
+
+// The leaf's single-line render surface: the `::name` fence is dimmed as a marker
+// prefix (the heading mechanism, extended to this non-prose kind), and its keymap
+// wires Enter to a paragraph split and Backspace/Delete to the not-mergeable walk.
+describe('directiveLeaf render descriptor', () => {
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		registerDirectiveKinds();
+	});
+	afterEach(() => __resetSchemaRegistriesForTests());
+
+	const leaf = () => getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
+
+	it('marks `::name` as the content-range prefix so only the fence dims', () => {
+		const node: CstNode = {
+			kind: declaredPluginKind(DIRECTIVE_LEAF),
+			leadingTrivia: '',
+			raw: '::toc info\n'
+		};
+		// `::toc` (5) dims; ` info` (5..10) is the editable content.
+		expect(leaf().getContentRange!(node)).toEqual({ start: 5, end: 10 });
+	});
+
+	it('spans the whole line when the info is empty', () => {
+		const node: CstNode = {
+			kind: declaredPluginKind(DIRECTIVE_LEAF),
+			leadingTrivia: '',
+			raw: '::toc\n'
+		};
+		expect(leaf().getContentRange!(node)).toEqual({ start: 5, end: 5 });
+	});
+
+	it('binds Enter to a paragraph split and Backspace/Delete to the not-mergeable walk', () => {
+		const command = (chord: string) => leaf().keymap?.find((b) => b.chord === chord)?.command;
+		expect(command('Enter')).toBe('block.split');
+		expect(command('Backspace')).toBe('block.mergePrev');
+		expect(command('Delete')).toBe('block.mergeNext');
 	});
 });
 
