@@ -5,7 +5,7 @@ import { serialize } from '$lib/core/serializer';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
-import { buildCoreInlineWidget } from '$lib/core/inline/inline-widgets';
+import { buildCoreInlineWidget, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
 import '$lib/core/directive/register'; // side-effect: declares directiveText + widget + ':' recognizer
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
@@ -78,5 +78,12 @@ describe('directiveText atomic widget', () => {
 		expect(shell.dataset.sourceStart).toBe('4');
 		expect(shell.dataset.sourceEnd).toBe('26');
 		expect(shell.textContent).toBe(':abbr[HTML]{title="x"}');
+	});
+
+	// reveal-source is the contract the widget-interaction layer reads to swap the
+	// rendered island for its editable source on focus; pin its exact shape so the
+	// text tier stays editable, not a read-only atom.
+	it('registers the reveal-source editing policy', () => {
+		expect(getInlineWidgetEditing(kind)).toEqual({ revealSource: true });
 	});
 });
