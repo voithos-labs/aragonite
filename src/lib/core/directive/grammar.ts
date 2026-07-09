@@ -17,13 +17,13 @@ export interface DirectiveFence {
 	tier: DirectiveTier;
 	/** 2 = leaf, ≥3 = container. */
 	colonCount: number;
-	/** `/^\w+/` after the colon run. */
+	/** Charset `[A-Za-z][A-Za-z0-9-]*`: letter start, then letters/digits/hyphens (no underscore). */
 	name: string;
 	/** Verbatim remainder of the line incl. its leading separator; no trailing newline. */
 	info: string;
 }
 
-const OPENER = /^(:{2,})(\w+)(.*)$/;
+const OPENER = /^(:{2,})([A-Za-z][A-Za-z0-9-]*)(.*)$/;
 
 export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 	const match = OPENER.exec(lineText);
@@ -37,8 +37,15 @@ export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 	};
 }
 
+const COLON = 0x3a;
+
+// Char-scan, not `new RegExp` per call: the closer test runs inside the parser's
+// per-line loop, so it must not allocate. A closer is a colon run ≥ the opener's
+// count with nothing after it.
 export function isDirectiveCloser(lineText: string, openColonCount: number): boolean {
-	return new RegExp(`^:{${openColonCount},}$`).test(lineText);
+	let count = 0;
+	while (count < lineText.length && lineText.charCodeAt(count) === COLON) count++;
+	return count >= openColonCount && count === lineText.length;
 }
 
 // ── Serialize ─────────────────────────────────────────────────────────────────
@@ -50,9 +57,15 @@ export function serializeDirective(parts: {
 	innerPrefix: string;
 	body: string;
 	innerSuffix: string;
+	/** Closer colon run; defaults to `colonCount`. A nested `::::` closer widens past its opener. */
+	closerColonCount?: number;
+	/** Whether the closer ends with a newline; defaults to true. False for a document-final directive. */
+	closerNewline?: boolean;
 }): string {
-	const fence = ':'.repeat(parts.colonCount);
-	return `${fence}${parts.name}${parts.info}\n${parts.innerPrefix}${parts.body}${parts.innerSuffix}${fence}\n`;
+	const opener = ':'.repeat(parts.colonCount);
+	const closer = ':'.repeat(parts.closerColonCount ?? parts.colonCount);
+	const closerEnd = (parts.closerNewline ?? true) ? '\n' : '';
+	return `${opener}${parts.name}${parts.info}\n${parts.innerPrefix}${parts.body}${parts.innerSuffix}${closer}${closerEnd}`;
 }
 
 // ── Attributes ────────────────────────────────────────────────────────────────
