@@ -38,6 +38,14 @@ import {
 	insertRowBelow
 } from './gestures/table';
 import { setCalloutKind, toggleCollapse } from './gestures/plugin';
+import {
+	editContainerBody,
+	editLeafInfo,
+	insertLeafDirective,
+	insertTextDirective,
+	leafBackspaceAtStart,
+	revealEditTextDirective
+} from './gestures/directive';
 import { lateCorrection } from './gestures/correction';
 
 /**
@@ -299,6 +307,36 @@ export class Gestures {
 	// rewrite. Only reachable over a loaded document holding a `:::note` callout.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
+	}
+
+	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
+	// Insert / edit / reveal-commit across the container, leaf, and text tiers. Each
+	// gates on the promotion or widget swap the editor performs and resyncs around
+	// the reparse — container inserts arrive by paste (a multi-line fence never forms
+	// from live single-block typing), so they compose the selection/clipboard gestures.
+
+	insertTextDirective(name: string, label: string): Promise<void> {
+		return insertTextDirective(this.ctx, name, label);
+	}
+
+	revealEditTextDirective(stepIn: number, text: string, blurBlockIndex: number): Promise<void> {
+		return revealEditTextDirective(this.ctx, stepIn, text, blurBlockIndex);
+	}
+
+	insertLeafDirective(name: string, info: string): Promise<void> {
+		return insertLeafDirective(this.ctx, name, info);
+	}
+
+	editLeafInfo(leafIndex: number, text: string): Promise<void> {
+		return editLeafInfo(this.ctx, leafIndex, text);
+	}
+
+	leafBackspaceAtStart(leafIndex: number): Promise<void> {
+		return leafBackspaceAtStart(this.ctx, leafIndex);
+	}
+
+	editContainerBody(bodyPath: number[], text: string): Promise<void> {
+		return editContainerBody(this.ctx, bodyPath, text);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
