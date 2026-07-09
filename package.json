@@ -26,7 +26,8 @@
 		"**/*.css",
 		"./dist/components/built-in-blocks.js",
 		"./dist/core/parsers/built-in-openers.js",
-		"./dist/core/directive/register.js"
+		"./dist/core/directive/register.js",
+		"./dist/components/blocks/directive/register-directive.js"
 	],
 	"scripts": {
 		"dev": "vite dev",
