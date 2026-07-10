@@ -117,3 +117,17 @@ export type { ChromeLeafOptions };
 // Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
 // collapse getter and the model-layer walks share one definition.
 export { isCollapsedContainer } from './schema/reserved-chrome';
+
+// ── Directive authoring (pre-freeze / unstable) ──────────────────────────────
+// Being refined against the `:::name` directive work until the open-source
+// release — NOT yet frozen; shape may change. `activateDirectives()` turns the
+// grammar on (generic kinds + `:::`/`::` openers + inline `:` recognizer + generic
+// render); call it once at startup, before the editor parses. The remaining
+// symbols are inert — importing them does NOT claim `:::`, only the call does.
+// Register a name→kind directive, read the opener info into structure, and
+// serialize a fence losslessly.
+export { activateDirectives } from './components/blocks/directive/activate-directives';
+export { registerDirective } from './core/directive/registry';
+export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
+export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
+export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
