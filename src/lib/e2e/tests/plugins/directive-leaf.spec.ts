@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, readDoc, waitForDoc, roundTripStable } from './helpers';
 
 // The generic `::name` leaf: a two-colon fence with no registered plugin falls
 // back to `directiveLeaf`, a single editable line rendered through the built-in
@@ -9,66 +8,12 @@ import { EditorPage } from '../../editor-page';
 // space (an edit that breaks the fence reparses to a paragraph). Mirrors
 // directive-container.spec.ts: read the doc by CST path through `__test`, drive
 // real keyboard.
-class DirectivePage extends EditorPage {
-	async gotoPlugins() {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
-interface DocState {
-	rootCount: number;
-	kinds: string[];
-	// Root-child raws, trailing newlines stripped so they read as visible text.
-	texts: string[];
-}
-
-async function readDoc(page: Page): Promise<DocState> {
-	return page.evaluate(() => {
-		const doc = (window as any).__test.getDocument();
-		const children = doc.children as { kind: string; raw?: string }[];
-		return {
-			rootCount: children.length,
-			kinds: children.map((c) => c.kind),
-			texts: children.map((c) => (c.raw ?? '').replace(/\n+$/, ''))
-		};
-	});
-}
-
-async function waitForDoc(
-	page: Page,
-	predicate: (s: DocState) => boolean,
-	timeout = 2000
-): Promise<DocState> {
-	await page.waitForFunction(
-		(predSrc) => {
-			const doc = (window as any).__test.getDocument();
-			const children = doc.children as { kind: string; raw?: string }[];
-			const state = {
-				rootCount: children.length,
-				kinds: children.map((c) => c.kind),
-				texts: children.map((c) => (c.raw ?? '').replace(/\n+$/, ''))
-			};
-			return new Function('s', `return (${predSrc})(s);`)(state);
-		},
-		predicate.toString(),
-		{ timeout, polling: 16 }
-	);
-	return readDoc(page);
-}
-
-async function roundTripStable(page: Page): Promise<boolean> {
-	return page.evaluate(() => (window as any).__test.roundTripStable());
-}
 
 test.describe('plugin leaf: generic ::name directive', () => {
-	let editor: DirectivePage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new DirectivePage(page);
+		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
 	});
 

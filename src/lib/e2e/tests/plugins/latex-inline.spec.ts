@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 
 /**
  * Inline `$…$` math: select → reveal editable source → commit re-renders (design
@@ -11,13 +11,9 @@ import { EditorPage } from '../../editor-page';
  * output is `.katex`; the revealed source is plain `$…$` text in the block.
  */
 
-class MathPage extends EditorPage {
+class MathPage extends PluginsPage {
 	async gotoMath(seed: 'math' | 'math-multiline' = 'math'): Promise<void> {
-		await this.page.goto(`/test/plugins?seed=${seed}`);
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await this.gotoPlugins(seed);
 		await expect(this.mathWidget).toHaveCount(1);
 	}
 
@@ -27,8 +23,7 @@ class MathPage extends EditorPage {
 
 	/** Click the rendered widget to reveal its source, settling on the swap. */
 	async revealByClick(): Promise<void> {
-		await this.mathWidget.click();
-		await expect(this.mathWidget).toHaveCount(0);
+		await revealWidget(this.mathWidget);
 	}
 
 	/** Vertical center of `needle`, in block [0]. A range over the substring alone
@@ -169,7 +164,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await editor.bridge.waitForSourceContains('$yx^2$');
 		expect(await editor.bridge.getSource()).toContain('Before $yx^2$ after');
 		expect(await editor.bridge.getSource()).not.toContain('$x^2$ after');
-		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(page)).toBe(true);
 	});
 
 	test('the reveal caret lands in the source and the commit lands it at the trailing edge', async ({

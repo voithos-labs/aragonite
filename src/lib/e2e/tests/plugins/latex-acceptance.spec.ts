@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from './helpers';
 
 /**
  * Acceptance-axis coverage for the LaTeX extension, each test labelled with the
@@ -34,15 +34,7 @@ const A7_ENVIRONMENTS: Array<[name: string, inner: string]> = [
 const SCROLL_TOLERANCE = 2;
 const GEOMETRY_TOLERANCE = 2;
 
-class AcceptancePage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-
+class AcceptancePage extends PluginsPage {
 	get blockRender() {
 		return this.page.locator('.math-block-render');
 	}

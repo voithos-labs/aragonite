@@ -1,0 +1,450 @@
+# Plugin Author Guide
+
+Everything you need to extend the editor with your own block or inline content. The whole
+authoring surface lives on one import path — the `aragonite/plugin` subpath — separate from the
+`aragonite` embedding barrel a consumer uses. This guide is the entry point; for the `:::name`
+directive grammar see the [directives guide](directives.md), and for embedding, theming, and
+events see the [consumer guide](consumer-guide.md).
+
+## 1. What a plugin is
+
+A plugin teaches the editor a new **kind** — a first-class citizen of the document tree that
+parses, renders, and serializes alongside the built-ins. You wire up to four things:
+
+```
+declare a kind ──┬─▶ descriptor   how it merges, its container/chrome shape, its keymap
+                 ├─▶ component    how it renders and hosts any editable content
+                 └─▶ grammar      how source becomes the kind:
+                                    a block opener  │  a :::name directive  │  an inline recognizer
+```
+
+Only the kind and its descriptor are always required. A component makes it visible; grammar makes
+it parseable from Markdown. A kind with no component renders a visible raw fallback; a kind with no
+descriptor is an error at first use.
+
+**Registration is process-global and register-once.** A kind is a definition every editor in the
+page shares — the `customElements` model, where `customElements.define` defines an element for
+every document. Registering the same kind, component, or opener twice is a **conflict that throws**,
+not a silent override — so a plugin colliding with a built-in or another plugin fails loudly. There
+is no unregister and no runtime replace.
+
+Because register-once throws on the second call, guard every registration with the matching
+**idempotence probe** (`isBlockKindRegistered`, and its siblings) so a hot-reload re-import re-runs
+your module without throwing. Editing a registration module still needs a full page reload to take
+effect — the definitions cannot be hot-swapped in place.
+
+### Stability
+
+The authoring surface has two layers:
+
+- **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed
+  per-node metadata, and the idempotence probes. These shapes will not change in a breaking way.
+- **Pre-freeze / unstable.** The container factory and chrome leaf, the inline surface, and the
+  directive surface. Built and refined against real consumers, frozen only at the public release —
+  until then the shapes may change. They are labelled below.
+
+## 2. The capability map
+
+Every `aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying
+types describe their inputs and outputs.
+
+**Kind declaration**
+
+| Export                            | Role                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| `declarePluginKind`               | Mint a block kind from a name; rejects collisions with built-ins and prior kinds |
+| `declaredPluginKind`              | Recover an already-declared kind's brand in another module without a cast        |
+| `PluginBlockKind`, `AnyBlockKind` | The branded kind type, and the union of built-in and plugin kinds a node carries |
+
+**Block-kind descriptor**
+
+| Export                                                                                                                         | Role                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                       |
+| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                          |
+| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums |
+
+**Component registry**
+
+| Export                                                         | Role                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `registerBlockComponent`                                       | Bind a kind to the component that renders it                                             |
+| `defineBlockComponent`                                         | Wrap a Svelte component into the registry's entry shape                                  |
+| `BlockComponentEntry`, `BlockComponent`, `BlockComponentProps` | The registry entry, the component contract, and the props every block component receives |
+
+**Parser opener**
+
+| Export                       | Role                                                                 |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `registerBlockOpener`        | Teach the parser to recognize a block's own Markdown syntax          |
+| `BlockOpener`, `OpenContext` | The opener contract, and the line cursor it inspects to open a block |
+
+**Directive authoring** _(pre-freeze / unstable)_ — full semantics in the [directives guide](directives.md)
+
+| Export                                                                                             | Role                                                                                            |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `activateDirectives`                                                                               | Turn the `:::name` grammar on; call once at startup, before the first parse                     |
+| `registerDirective`                                                                                | Map a `(tier, name)` to one of your kinds                                                       |
+| `isDirectiveRegistered`                                                                            | Idempotence probe for a directive registration                                                  |
+| `parseDirectiveAttributes`                                                                         | Opt-in reader pulling `[label]{attrs}` out of a directive's info string                         |
+| `serializeDirective`                                                                               | Serialize a fence back to bytes losslessly from a registered kind                               |
+| `DirectiveDefinition`, `ParsedDirective`, `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The registration definition, the parsed fence handed to your factory, and the supporting shapes |
+
+**Inline authoring** _(pre-freeze / unstable)_
+
+| Export                                                                                                                                          | Role                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `declarePluginInlineKind`                                                                                                                       | Mint an inline kind                                                                                        |
+| `declaredPluginInlineKind`                                                                                                                      | Recover a declared inline kind's brand in another module                                                   |
+| `isInlineKindDeclared`                                                                                                                          | Idempotence probe for an inline-kind declaration                                                           |
+| `registerInlineSyntax`                                                                                                                          | Hook the scanner on a trigger character with your recognizer                                               |
+| `registerInlineWidgetKind`                                                                                                                      | Register an inline kind as a live atomic widget with its editing policy                                    |
+| `PluginInlineKind`, `InlineNode`, `InlineSyntaxRecognizer`, `InlineWidgetDescriptor`, `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The inline kind and node types, the recognizer contract, and the widget descriptor plus its editing shapes |
+
+**Commands and keybindings**
+
+| Export                                                                                                     | Role                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockCommand`                                                                                     | Mint a `(kind, name)` block command and get back its id                                                                                             |
+| `CommandId`, `KeyBinding`, `BlockCommandContext`, `BlockCommandHandler`, `PluginCommandId`, `AnyCommandId` | A built-in command id, a per-kind chord binding, the context and signature of a command handler, a minted command's id, and the union spanning both |
+
+**Container authoring and chrome** _(pre-freeze / unstable)_
+
+| Export                                                                                                            | Role                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `createContainerBlock`                                                                                            | Wire a nested-`BlockList` container so your block is as thin as the blockquote                                            |
+| `BlockList`                                                                                                       | The child-list component your container renders with the factory's props                                                  |
+| `registerChromeLeaf`                                                                                              | Register a container's title/summary leaf with a default keymap                                                           |
+| `isCollapsedContainer`                                                                                            | Read a container's collapse state, so a component and the model layer agree                                               |
+| `ContainerBlock`, `ContainerBlockComponent`, `ContainerBlockDeps`, `ContainerBlockListProps`, `ChromeLeafOptions` | The container API, the component surface it returns, the deps it takes, the child-list props, and the chrome-leaf options |
+
+**Parse / serialize helpers**
+
+| Export                   | Role                                                                |
+| ------------------------ | ------------------------------------------------------------------- |
+| `parse`                  | Parse a body of Markdown into a document you can lift children from |
+| `serializeChildren`      | Join child nodes back into their exact source bytes                 |
+| `trimTrailingLineEnding` | Read a child's display text without dropping a trailing line ending |
+| `Document`, `ParsedLine` | The parsed-document shape, and a single parsed source line          |
+
+**CST node access and metadata**
+
+| Export                                   | Role                                                                   |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node metadata without casting |
+| `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates  |
+
+**Idempotence probes**
+
+| Export                                                                           | Role                                               |
+| -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe |
+
+## 3. Walkthrough: a directive container end-to-end
+
+We build a `:::note` container — a titled, editable box whose title is a real editable line and
+whose body holds ordinary Markdown blocks. Every import is from the package, so this runs unchanged
+in a fresh SvelteKit app that installs the editor. It reuses the `:::name` grammar rather than a
+hand-written opener; the grammar's tiers, dispatch, and losslessness are the
+[directives guide](directives.md)'s subject — here we own the descriptor and component side.
+
+### The registration module
+
+One file declares the kinds, describes them, and maps the directive name. `registerDirective`'s
+`(tier, name)` mapping, the `ParsedDirective` shape, and the per-tier factory rules live in the
+[directives guide](directives.md); this module supplies the container factory (`fromDirective`,
+required for the container tier) and the descriptor.
+
+```ts
+// note-kind.ts
+import {
+	activateDirectives,
+	declarePluginKind,
+	declaredPluginKind,
+	registerBlockKind,
+	registerBlockCommand,
+	registerChromeLeaf,
+	registerDirective,
+	serializeDirective,
+	serializeChildren,
+	trimTrailingLineEnding,
+	isBlockKindRegistered,
+	isDirectiveRegistered,
+	setPluginMetadata,
+	getPluginMetadata,
+	type CstNode,
+	type ParsedDirective
+} from 'aragonite/plugin';
+
+const NOTE = 'note';
+const NOTE_TITLE = 'note-title';
+
+interface NoteMetadata {
+	name: string; // the matched directive name; re-emitted into raw so an edit survives
+	colonCount: number;
+	closerColonCount: number;
+	closerNewline: boolean;
+}
+
+// Build the node from a parsed :::note fence. Child 0 is the title (from the opener
+// line); children 1+ are the parsed body. The fence bytes go to metadata so the raw
+// can be rebuilt after an edit.
+function noteFromDirective(parsed: ParsedDirective): CstNode {
+	const title = parsed.fence.info.trim();
+	const node: CstNode = {
+		kind: declaredPluginKind(NOTE),
+		leadingTrivia: parsed.leadingTrivia,
+		raw: parsed.raw,
+		innerPrefix: parsed.body?.prefix ?? '',
+		children: [makeTitleChild(title), ...(parsed.body?.children ?? [])],
+		innerSuffix: parsed.body?.suffix ?? ''
+	};
+	setPluginMetadata<NoteMetadata>(node, {
+		name: parsed.fence.name,
+		colonCount: parsed.fence.colonCount,
+		closerColonCount: parsed.closerColonCount,
+		closerNewline: parsed.closerNewline
+	});
+	return node;
+}
+
+function makeTitleChild(text: string): CstNode {
+	return {
+		kind: declaredPluginKind(NOTE_TITLE),
+		leadingTrivia: '',
+		raw: text ? `${text}\n` : '\n'
+	};
+}
+
+// Re-emit raw from the children after any structural edit: title back into the
+// opener line, body children back into the fence.
+function rebuildNoteRaw(node: CstNode): void {
+	const meta = getPluginMetadata<NoteMetadata>(node);
+	const children = node.children ?? [];
+	const title = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
+	node.raw = serializeDirective({
+		colonCount: meta?.colonCount ?? 3,
+		name: meta?.name ?? NOTE,
+		info: title ? ` ${title}` : '',
+		innerPrefix: node.innerPrefix ?? '',
+		body: serializeChildren(children.slice(1)),
+		innerSuffix: node.innerSuffix ?? '',
+		closerColonCount: meta?.closerColonCount ?? 3,
+		closerNewline: meta?.closerNewline ?? true
+	});
+}
+
+export function registerNote(): void {
+	activateDirectives(); // idempotent; the shared grammar must be live before a parse
+	if (isBlockKindRegistered(NOTE)) return; // idempotent for hot-reload / re-import
+
+	const note = declarePluginKind(NOTE);
+	const noteTitle = declarePluginKind(NOTE_TITLE);
+
+	// Two names, one kind: :::note and :::tip both resolve here; any other name
+	// falls through to the generic directive fallback.
+	if (!isDirectiveRegistered('container', NOTE)) {
+		registerDirective('container', NOTE, { kind: note, fromDirective: noteFromDirective });
+		registerDirective('container', 'tip', { kind: note, fromDirective: noteFromDirective });
+	}
+
+	// A block command that switches the variant. updateMetadata is the sanctioned
+	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable edit —
+	// and because the name flows into raw, the change survives a round-trip.
+	const setVariant = registerBlockCommand(note, 'note.setVariant', (ctx) => {
+		if (typeof ctx.arg !== 'string') return false;
+		ctx.updateMetadata({ name: ctx.arg });
+		return true;
+	});
+
+	registerBlockKind(note, {
+		mergeRole: 'container',
+		editable: true,
+		supportsInline: false,
+		container: {
+			// The title lives in the opener line, so raw is not a strip of the children:
+			// 'opaque' marks raw authoritative.
+			contract: 'opaque',
+			rebuildRaw: rebuildNoteRaw,
+			reservedChrome: { kind: noteTitle },
+			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		},
+		keymap: [
+			{ chord: 'Mod+7', command: setVariant, arg: 'note' },
+			{ chord: 'Mod+8', command: setVariant, arg: 'tip' }
+		]
+	});
+
+	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
+}
+```
+
+### The component
+
+The component supplies only its own chrome; `createContainerBlock` hides the child-list state,
+ancestor wiring, and windowing. Read the reactive `node`, `index`, and `path` through **getters** —
+a plain value would snapshot stale state. Re-export the returned container API so the editor host
+can drive the block.
+
+```svelte
+<!-- NoteBlock.svelte -->
+<script lang="ts">
+	import { BlockList, createContainerBlock, type CstNode } from 'aragonite/plugin';
+
+	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let boxEl: HTMLElement | undefined = $state();
+
+	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get path() {
+			return myPath;
+		},
+		getBoxEl: () => boxEl
+	});
+
+	export const editable = containerApi.editable;
+	export const focusable = containerApi.focusable;
+	export const focus = containerApi.focus;
+	export const getCursorOffset = containerApi.getCursorOffset;
+	export const getCursorPosition = containerApi.getCursorPosition;
+	export const focusByPath = containerApi.focusByPath;
+	export const focusAtColumn = containerApi.focusAtColumn;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const selectEdgeWidget = containerApi.selectEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
+</script>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="note-block" bind:this={boxEl} onkeydown={handleKeydown}>
+	<BlockList {...blockListProps} />
+</div>
+
+<style>
+	.note-block {
+		border: 1px solid var(--color-ui-muted);
+		border-radius: 6px;
+		padding: 8px 12px;
+	}
+	.note-block :global(.note-title) {
+		font-weight: 600;
+	}
+</style>
+```
+
+`BlockList` must stay a **direct** child of your box so the container's windowing finds it; you may
+place other chrome (an icon, a toggle button) beside it.
+
+### Wire it into a page
+
+Register before the editor mounts, so the seed parses to your kind, and bind the component to its
+kind:
+
+```svelte
+<script lang="ts">
+	import { Editor } from 'aragonite';
+	import 'aragonite/styles/editor-theme.css';
+	import {
+		registerBlockComponent,
+		defineBlockComponent,
+		declaredPluginKind
+	} from 'aragonite/plugin';
+	import { registerNote } from './note-kind';
+	import NoteBlock from './NoteBlock.svelte';
+
+	registerNote();
+	registerBlockComponent(declaredPluginKind('note'), defineBlockComponent(NoteBlock));
+
+	const SEED = ':::note My Title\nBody paragraph\n:::\n';
+	let editor = $state();
+</script>
+
+<Editor bind:this={editor} source={SEED} theme="light" />
+```
+
+The chords are live: focus the note and press `Mod+7` / `Mod+8` to switch it between `note` and
+`tip` — then read `editor.getSource()` back and watch the opener line change with it. Chord strings
+follow the consumer guide's chord model — fixed-order `Mod`/`Alt`/`Shift` plus the key's own value;
+shifted-symbol chords are not modeled, so bind plain digits and letters. Add a collapse
+toggle by giving `reservedChrome` an `isCollapsed` probe over the node — every focus walk, merge,
+and window clamp then reads that one declaration.
+
+## 4. Editable-content tiers
+
+Content that is _itself editable_ comes in three tiers, each backed by a tree guarantee:
+
+| Tier              | What it hosts                                                        | Status  |
+| ----------------- | -------------------------------------------------------------------- | ------- |
+| **Container**     | Real document blocks in a nested child list — the walkthrough's body | shipped |
+| **Chrome leaf**   | One reserved, single-line, plain-text child the container's raw owns | shipped |
+| **Atomic widget** | An opaque, non-text embed, caret-addressable only at its edges       | shipped |
+
+The chrome leaf is deliberately narrow: it is always present, single-line and unsplittable (paste
+flattens to inline), and is cleared — never deleted — by a destructive range, staying the same kind
+through every edit. The contract guarantees the empty leaf's presence, not its look — an empty-state
+affordance (say, placeholder text over an untitled chrome leaf) is yours to build with CSS on the
+leaf's block class. A general editable standalone leaf is deferred to a later release. Nested-editor
+interiors — a second editor state serialized as a blob — are **rejected permanently**: they break
+byte-lossless round-trip.
+
+## 5. What a plugin may and may not do
+
+A plugin **may**:
+
+- Register kinds, components, and openers — once; a duplicate throws.
+- Declare a `rebuildRaw` and have the editor invoke it when the document changes.
+- Build containers and chrome through the factories.
+- Store primitive per-node metadata, and commit metadata through the sanctioned update path.
+- Contribute per-kind keymaps over the command vocabulary.
+- Render as an unknown kind and degrade to a visible raw fallback.
+
+A plugin **may not**:
+
+- Treat its DOM as authoritative or mutate the tree from the view layer — boundary events flow up,
+  and the tree always wins.
+- Write bytes through a node reference captured before an edit — after any change, read the node
+  back from the tree; the old reference is stale.
+- Pass reactive tree state by value across a module boundary — hand it through getters only.
+- Invent merge-role, unwrap, or container-contract values — those are closed sets.
+- Silently override a built-in or another plugin's registration.
+- Intercept or transform clipboard ingestion. Pasted text is parsed as authored, under whatever
+  grammars are active — there is no pre-parse paste-transform hook on this surface. A host
+  application that wants to rewrite document content does so at the document level: read
+  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer
+  guide's re-sync contract), which replaces the document in one step.
+
+Most of this boundary is enforced by **shape**: the factories never hand you a raw context key or a
+mutation handle, so the disallowed move is unavailable. The rest is enforced by **dev-mode checks
+that are stripped from a production build** — so a plugin developed against a production build gets
+no signal. **Develop against a dev build.**
+
+### Misuse outcomes
+
+Why the dev build is where plugin development belongs — what each mistake does in each build:
+
+| Misuse                                    | Dev build                                                           | Production build                                    |
+| ----------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
+| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                 | Silent until the bytes surface in a round-trip      |
+| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path | Same containment (the boundary ships in production) |
+| An opener returns a non-advancing index   | Parse throws, naming the kind, before the loop can spin             | Parse loop spins — the tab hangs on load            |
+| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
+| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same — uncaught                                     |
+
+## 6. Verifying your plugin
+
+**Round-trip is the contract.** Read the live document back with `editor.getSource()` (see the
+[consumer guide](consumer-guide.md)) and confirm it equals what you authored. Test the case that
+matters most for a plugin platform: author a document using your directive **with your plugin not
+registered** — the generic fallback must return it byte-for-byte, so uninstalling a plugin never
+corrupts a saved document.
+
+**Dev-mode warnings are your guard channel.** The shape checks above only fire in a dev build. Run
+`vite dev` while developing and watch the console: a `rebuildRaw` byte mismatch, an opener that
+disagrees with the lines it consumed, or a collapse probe that contradicts the descriptor all warn
+there and are silent in production. A clean dev-console round-trip is the signal your plugin is
+sound.

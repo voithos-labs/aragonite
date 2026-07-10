@@ -18,29 +18,15 @@ Remaining work, ordered. Sequencing principle: **risk first, validation before f
 likely to change later plans or to reveal contract gaps (the clean-room build) run early enough that
 what they teach is still cheap to act on.
 
-1. **Clean-room freeze validator** — build one real extension (alerts/admonitions — a third container
-   consumer) under third-party conditions: the author gets the public docs and `aragonite/plugin`
-   ONLY, no reading `src/lib` internals. The dogfood plugins validated the API's _sufficiency_ with
-   full source access; this validates its _discoverability_, which is what the DX thesis actually
-   rests on. Every reach-in the author needs and every doc gap they hit is a freeze blocker, fixed
-   while fixing is free. (Mermaid/footnotes stay post-1.0 on purpose — they need the portal and
-   inline-hook seams that are deliberately deferred; see the freeze-cut dry-run below.) It consumes two
-   plugin surfaces (§ Pre-freeze plugin direction decisions): the `:::name` directive primitive (shipped
-   0.9.11 — a published API with `activateDirectives()` + authoring docs), whose discoverability this
-   build validates under third-party conditions; and `registerPasteSurface` on the plugin barrel if the
-   extension needs custom paste.
-2. **Tarball-gate the extensions** — every dogfood extension (now including the clean-room one)
-   builds and runs through the packed tarball in `examples/consumer`, proving the authoring surface
-   from outside the repo at the package boundary.
-3. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
+1. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
    (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-4. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
+2. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
    every PR. Fold in completing the invariant-watcher fixture adoption sweep (shipped in 14 specs;
    remaining specs are a one-line import each) — finish it before external contributors arrive, since
    the fixture is the safety net for people who haven't internalized the invariants.
-5. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
+3. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
    extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-6. **Freeze cut at release** — in order:
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (Mermaid, footnotes, emoji, autolinks)
@@ -55,8 +41,11 @@ what they teach is still cheap to act on.
    - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
-     the claim), grouping `BlockComponent`'s optional capability probes into named facets, and an
-     a11y strings table (announcements are hardcoded English today).
+     the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
+     a11y strings table (announcements are hardcoded English today), and the dist-pruning stance —
+     the tarball ships every internal module's `.d.ts` (encapsulation is exports-map-level: deep
+     imports blocked, files greppable), and the clean-room author read them as the designed
+     types-reference; decide prune vs. document-as-contract.
    - **Freeze litmus**: the contract must not preclude a consumer-built rendered reading mode
      (markers hidden, widgets rendered) — always-visible-styled-source is the editor's default, not
      a wall; verify no frozen surface hard-binds it.
@@ -77,20 +66,25 @@ not _build-now_:
   highest-leverage lever for plugin _quality_: derived content, linked edits, auto-fix, structural
   guards. **Decided: yes, post-1.0.** No pre-freeze dogfood driver needs it, and the ceremony is
   internal (plugins never bind its shape), so the hook stays additive. Direction fixed now so 1.0
-  doesn't foreclose it; the item-6 commit-seam litmus guards it; designed-ahead in
+  doesn't foreclose it; the item-4 commit-seam litmus guards it; designed-ahead in
   `plugin-contract.md` § Target shapes. Invariant enforcement stays editor-owned — this augments a
   commit, it does not bypass the invariants.
 - **First-class plugin paste** — the paste-surface mechanism is built and used internally by the
-  chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided:
-  1.0-eligible, build-on-driver.** Exposure is one additive export; the clean-room admonitions build
-  (item 1) is the forcing function — expose it there if that extension needs custom paste, else
-  defer. The richer _conversion config_ (Editor.js `pasteConfig` analog) is 1.2 DX ergonomics over
-  the same mechanism.
+  chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided at the
+  clean-room build: stays internal at 1.0.** The driver (GitHub-alert → admonition conversion)
+  needed a content-keyed pre-parse clipboard transform, which the target-kind-keyed surface cannot
+  express — registering for prose kinds collides with the built-in default surfaces, and the type
+  closure drags commit-coordinator machinery public. Exposing it would have frozen an export that
+  fails its own driving use case. The missing seam is the 1.2 _conversion config_ (Editor.js
+  `pasteConfig` analog) — now empirically validated as content-keyed and paste-scoped, distinct
+  from the target-keyed surface; the driver shipped meanwhile on the documented document-rewrite
+  pattern (`getSource()` → transform → `source` re-sync).
 - **Generic `:::name` directive primitive** (remark-directive) — **shipped 0.9.11**: one opener owning
   all `:::`/`::`/`:` syntax, dispatch by name, three tiers, a lossless generic fallback, and a public
   `activateDirectives()`. Byte-losslessness is confirmed (adversarial round-trip property), so the one
   remaining decision is the **1.0-vs-1.2 freeze cut** — whether the directive surface freezes at 1.0 —
-  taken at the freeze against the clean-room build's (item 1) discoverability findings. The per-kind
+  taken at the freeze against the clean-room build's discoverability findings (shipped 0.9.12 — the
+  build needed no directive reach-ins; its findings were doc gaps, all fixed in-flight). The per-kind
   opener stays the general escape hatch.
 
 **Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
