@@ -68,7 +68,11 @@ key, so a container and a leaf may share a name. Registration is once — a dupl
 - **Unregistered name → generic fallback.** `:::anything` with no matching registration round-trips
   through a generic kind, rendering as a plain labelled box with a dimmed marker.
 - **Many names may map to one kind.** A plugin can register `note` and `warning` against a single
-  kind that reads the name back from its own metadata.
+  kind that reads the name back from its own metadata. When two plugins claim the same
+  `(tier, name)`, the idempotence guard the plugin guide recommends — skip `registerDirective` when
+  `isDirectiveRegistered` already reports the name claimed — resolves the clash silently first-wins:
+  the later plugin's registration is skipped with no error, and the name stays bound to whichever
+  plugin registered first.
 
 ### Per-tier factory contract
 

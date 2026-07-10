@@ -65,6 +65,8 @@
 <style>
 	.admonition {
 		--adm-accent: var(--adm-note);
+		/* Fixed hex per kind, not theme tokens: GitHub's alert palette is canonically
+		   one fixed color per kind, so admonitions read identically across host themes. */
 		--adm-note: #1f6feb;
 		--adm-tip: #2da44e;
 		--adm-important: #8250df;
