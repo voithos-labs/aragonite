@@ -1,6 +1,6 @@
 # GFM Reference
 
-Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is planned as plugins on the plugin-authoring API (scheduling in `docs/roadmap.md`).
+Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is planned as plugins on the plugin-authoring API.
 
 <!-- Examples demonstrating alternative syntaxes use `text` fences on purpose:
      prettier formats `markdown`-tagged fences as markdown and normalizes away
@@ -306,7 +306,6 @@ I am feeling :smile: and :tada: today!
 - **Relative Links:** Standard Markdown link destinations can already be relative, but GitHub resolves them naturally within a repository's file structure.
 
 ```markdown
-[Read the Contributing Guide](./CONTRIBUTING.md)
 [View the logo](../assets/logo.png)
 ```
 

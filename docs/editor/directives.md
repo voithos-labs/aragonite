@@ -3,7 +3,7 @@
 A **directive** is a plugin's entry into the `:::name` / `::name` / `:name` syntax family — the
 remark-directive model, adapted to aragonite's kind-per-component world and its byte-lossless
 round-trip invariant. This guide is for plugin authors. For the block-registration machinery
-directives build on, read `adding-a-block.md` first.
+directives build on, read the [plugin author guide](plugin-guide.md) first.
 
 Directives are **opt-in**: a consumer that never activates the grammar keeps `:::` unclaimed and
 parses as plain GFM.
