@@ -36,6 +36,19 @@ export function registerDirective(
 	name: string,
 	def: DirectiveDefinition
 ): void {
+	// Fail loud at registration so a tier/factory mismatch can't silently no-op at dispatch.
+	if (tier === 'container' && !def.fromDirective) {
+		throw new Error(
+			`registerDirective: container "${name}" requires a fromDirective factory ` +
+				`(a kind-only container would orphan the generic rebuild path).`
+		);
+	}
+	if (tier === 'text' && def.fromDirective) {
+		throw new Error(
+			`registerDirective: text "${name}" is kind-only; fromDirective is not used for inline nodes.`
+		);
+	}
+
 	const key = keyOf(tier, name);
 	if (definitions.has(key)) {
 		throw new Error(
