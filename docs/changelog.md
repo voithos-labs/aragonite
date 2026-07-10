@@ -2,6 +2,16 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.13 — The plugin unit: `definePlugin` + the `plugins` prop
+
+The authoring registrations gain an installable **unit**, so a consumer wires an extension by passing it — not by hand-ordering `register*` calls behind idempotence guards.
+
+- **`definePlugin` + `plugins` prop.** `definePlugin({ name, setup })` packages a plugin's global registrations; the editor's set-once `plugins` prop installs each once per process, before the instance's first parse. `installPlugins` on the main barrel is the editor-less entry for `parse()` pipelines; `isPluginInstalled` probes an install. Semantics: once per process keyed by name — same-identity re-install no-ops, same-name/different-identity is first-wins with a dev-warn (`name@version` when versioned), a failed setup stays failed (reload to retry). Kind declarations made during a setup are attributed to their plugin, so a duplicate-registration error names the first declarer.
+- **All four dogfoods + the consumer examples migrated.** Callout, details, LaTeX, and admonitions are factory exports now (`calloutPlugin()`, `detailsPlugin()`, `latexPlugin({ renderer? })` — LaTeX gains renderer injection — `admonitionsPlugin()`), each installed through the prop; the boundary-clean consumer examples install the same way. Per-plugin config rides the factory, and the unit owns idempotence — the per-call registration guards are gone from the authoring model.
+- **Staggered mount pinned by e2e.** A second editor can mount carrying a plugin the first never had: the late install serves the new editor's own parse, while the already-parsed editor does not re-parse (the late registration dev-warns).
+- **Content-keyed paste transforms.** `registerPasteTransform` records a named, pre-parse rewrite of pasted plain text — run in install order at every paste site, each declining (`null`) or replacing the clipboard text before the parse. Paste-scoped and content-keyed (distinct from the still-internal, target-kind-keyed `registerPasteSurface`), attributed to the owning plugin, with a dev-warn on a non-idempotent transform to catch paste feedback loops. The admonitions dogfood migrated its GitHub-alert → `:::name` conversion onto it (fence-safe, parse-scoped); the host convert button stays for loaded documents. Closes the clean-room build's one honest gap — the conversion-config seam the `registerPasteSurface` rejection pointed to, shipped a milestone early.
+- **Docs reconciled.** The plugin guide teaches the unit as the authoring model, the consumer guide gains a Plugins section, and the plugin contract moves the `plugins` prop from designed-ahead to shipped pre-1.0 (declarative manifest, scaffold, hot-reload, and reference fleet stay 1.2).
+
 ### 0.9.12 — Clean-room freeze validation
 
 Roadmap items 1+2, completed. The plugin API's _discoverability_ — what the DX thesis actually rests on — tested under third-party conditions, and the package boundary now carries the plugin surface as a permanent gate.

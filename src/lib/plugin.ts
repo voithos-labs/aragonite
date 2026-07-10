@@ -8,6 +8,14 @@ import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/ch
 import type { AnyBlockKind } from './core/nodes';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
+// ── Plugin unit (pre-freeze / unstable) ──────────────────────────────────────
+// Being refined until the open-source release — NOT yet frozen; shape may change.
+// definePlugin validates a { name, setup } unit at definition time; the editor's
+// `plugins` prop installs each once per process, so a consumer rarely calls
+// installPlugins directly. isPluginInstalled is the idempotence probe.
+export { definePlugin, isPluginInstalled } from './schema/plugin-install';
+export type { EditorPlugin } from './schema/plugin-install';
+
 // ── Kind declaration ─────────────────────────────────────────────────────────
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
@@ -131,3 +139,13 @@ export { registerDirective, isDirectiveRegistered } from './core/directive/regis
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
 export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
+
+// ── Paste transforms (pre-freeze / unstable) ──────────────────────────────────
+// Being refined against the conversion-config direction until the open-source
+// release — NOT yet frozen; shape may change. registerPasteTransform records a
+// content-keyed, pre-parse clipboard rewrite: it inspects the raw pasted text and
+// either replaces it or declines (null). Transforms run in install order at every
+// paste site, before the text is parsed — paste-scoped only; loading and typing
+// are untouched.
+export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
+export type { PasteTransform } from './tree-operations/paste/paste-transforms';

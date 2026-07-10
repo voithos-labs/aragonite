@@ -75,10 +75,12 @@ not _build-now_:
   needed a content-keyed pre-parse clipboard transform, which the target-kind-keyed surface cannot
   express — registering for prose kinds collides with the built-in default surfaces, and the type
   closure drags commit-coordinator machinery public. Exposing it would have frozen an export that
-  fails its own driving use case. The missing seam is the 1.2 _conversion config_ (Editor.js
-  `pasteConfig` analog) — now empirically validated as content-keyed and paste-scoped, distinct
-  from the target-keyed surface; the driver shipped meanwhile on the documented document-rewrite
-  pattern (`getSource()` → transform → `source` re-sync).
+  fails its own driving use case. The conversion-config seam (Editor.js `pasteConfig` analog) —
+  content-keyed and paste-scoped, distinct from the target-keyed surface — **shipped pre-1.0 as
+  `registerPasteTransform`**: pasted text runs through named, install-ordered transforms before the
+  parse, and the GitHub-alert → admonition driver migrated onto it (the document-rewrite pattern,
+  `getSource()` → transform → `source` re-sync, stays the consumer-side answer for whole-document
+  migration). `registerPasteSurface` stays internal, unchanged.
 - **Generic `:::name` directive primitive** (remark-directive) — **shipped 0.9.11**: one opener owning
   all `:::`/`::`/`:` syntax, dispatch by name, three tiers, a lossless generic fallback, and a public
   `activateDirectives()`. Byte-losslessness is confirmed (adversarial round-trip property), so the one
@@ -103,7 +105,7 @@ Subject to reconsideration after v1 ships.
 
 The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that makes the Svelte/TypeScript plugin thesis real, plus the generalizations deferred until more consumers exist:
 
-- **DX system:** `plugins` prop on `Editor.svelte`, typed declarative manifest, plugin scaffold, hot-reload dev loop, in-repo reference-plugin fleet (each exercising a different extension shape — callout, KaTeX, export command, Mermaid fence widget, image gallery, smart-HTML-paste), plugin docs, plugin DX test suite.
+- **DX system:** plugin scaffold, hot-reload dev loop, in-repo reference-plugin fleet (each exercising a different extension shape — callout, KaTeX, export command, Mermaid fence widget, image gallery, smart-HTML-paste), plugin docs site, plugin DX test suite — plus a declarative-manifest overload on the shipped `definePlugin` unit if a consumer wants one.
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Widen `KeybindingOverride.kind` to plugin kinds here too, so a consumer can rebind a plugin container's command chords (additive; command mint left it `BlockKind`-only). Ships on the command-mint foundation (0.9.7).
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
 - **Component-portal widget seam** — let a plugin mount a Svelte component as an atomic inline/block widget (Lexical's `DecoratorNode` analog) instead of hand-building DOM.

@@ -28,10 +28,58 @@ every document. Registering the same kind, component, or opener twice is a **con
 not a silent override — so a plugin colliding with a built-in or another plugin fails loudly. There
 is no unregister and no runtime replace.
 
-Because register-once throws on the second call, guard every registration with the matching
-**idempotence probe** (`isBlockKindRegistered`, and its siblings) so a hot-reload re-import re-runs
-your module without throwing. Editing a registration module still needs a full page reload to take
-effect — the definitions cannot be hot-swapped in place.
+Registrations get packaged into a **plugin** — a unit whose `setup` runs at most once per process
+(below) — so you write each `register*` call straight; the unit, not a per-call guard, owns
+idempotence. Editing a registration module still needs a full page reload to take effect — the
+definitions cannot be hot-swapped in place.
+
+### The plugin unit
+
+A **plugin** bundles the registrations above into one installable unit. `definePlugin({ name, setup })`
+validates it at definition time and returns an `EditorPlugin`; its `setup` runs the `register*` calls.
+By convention a plugin is a **factory export** — `export function myPlugin(options?)` returns the unit —
+so per-plugin configuration rides the factory's argument:
+
+```ts
+export function myPlugin(options?: { renderer?: Renderer }): EditorPlugin {
+	return definePlugin({
+		name: 'my-plugin',
+		setup() {
+			registerMyKind(options?.renderer ?? defaultRenderer);
+			registerBlockComponent(declaredPluginKind('my-kind'), defineBlockComponent(MyBlock));
+		}
+	});
+}
+```
+
+Install by passing units to the editor's **`plugins` prop** — set once at mount, before the first parse:
+
+```svelte
+<script module lang="ts">
+	import { myPlugin } from './my-plugin';
+
+	// Build the array once at module scope, not inline in the markup: an inline
+	// `plugins={[myPlugin()]}` re-mints the unit every render, and the second render's
+	// same-name/different-identity unit trips a harmless first-wins dev-warn. A stable
+	// module-scope array is the canonical wiring.
+	const plugins = [myPlugin()];
+</script>
+
+<Editor {source} {plugins} />
+```
+
+**A plugin installs once per process, keyed by name.** Passing the same unit again no-ops; passing a
+_different_ unit under a name already installed keeps the first and dev-warns (naming the loser as
+`name@version` when it carries a version). Units install in array order, and a `setup` that throws
+stays failed — a later attempt rethrows and advises a reload, because a partial setup cannot re-run
+against the register-once registries. Definitions are process-global, so there is no per-instance
+plugin configuration: two editors passing the same plugin share one registration, and anything an
+instance varies rides the factory's options.
+
+For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call
+`installPlugins(units)` from the `aragonite` barrel — same once-per-process semantics.
+`isPluginInstalled(name)` probes an install, for the rare setup that must branch on it; the prop and
+`installPlugins` are already idempotent, so most consumers never reach for it.
 
 ### Stability
 
@@ -39,14 +87,22 @@ The authoring surface has two layers:
 
 - **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed
   per-node metadata, and the idempotence probes. These shapes will not change in a breaking way.
-- **Pre-freeze / unstable.** The container factory and chrome leaf, the inline surface, and the
-  directive surface. Built and refined against real consumers, frozen only at the public release —
-  until then the shapes may change. They are labelled below.
+- **Pre-freeze / unstable.** The plugin unit, the container factory and chrome leaf, the inline
+  surface, and the directive surface. Built and refined against real consumers, frozen only at the
+  public release — until then the shapes may change. They are labelled below.
 
 ## 2. The capability map
 
 Every `aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying
 types describe their inputs and outputs.
+
+**Plugin unit** _(pre-freeze / unstable)_
+
+| Export              | Role                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `definePlugin`      | Validate a `{ name, setup }` unit at definition time and return it for the `plugins` prop      |
+| `isPluginInstalled` | Idempotence probe for a named plugin's install                                                 |
+| `EditorPlugin`      | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these |
 
 **Kind declaration**
 
@@ -140,6 +196,13 @@ types describe their inputs and outputs.
 | -------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe |
 
+**Paste transforms** _(pre-freeze / unstable)_
+
+| Export                   | Role                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `registerPasteTransform` | Register a content-keyed pre-parse clipboard rewrite (paste-scoped, install-order) |
+| `PasteTransform`         | The transform's shape — a unique name and a `transform(text) → string \| null`     |
+
 ## 3. Walkthrough: a directive container end-to-end
 
 We build a `:::note` container — a titled, editable box whose title is a real editable line and
@@ -150,31 +213,35 @@ hand-written opener; the grammar's tiers, dispatch, and losslessness are the
 
 ### The registration module
 
-One file declares the kinds, describes them, and maps the directive name. `registerDirective`'s
-`(tier, name)` mapping, the `ParsedDirective` shape, and the per-tier factory rules live in the
-[directives guide](directives.md); this module supplies the container factory (`fromDirective`,
-required for the container tier) and the descriptor.
+One file declares the kinds, describes them, maps the directive name, binds the component, and
+returns the whole thing as a `notePlugin()` unit. `registerDirective`'s `(tier, name)` mapping, the
+`ParsedDirective` shape, and the per-tier factory rules live in the [directives guide](directives.md);
+this module supplies the container factory (`fromDirective`, required for the container tier) and the
+descriptor.
 
 ```ts
 // note-kind.ts
 import {
 	activateDirectives,
+	definePlugin,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
+	registerBlockComponent,
 	registerBlockCommand,
 	registerChromeLeaf,
+	defineBlockComponent,
 	registerDirective,
 	serializeDirective,
 	serializeChildren,
 	trimTrailingLineEnding,
-	isBlockKindRegistered,
-	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
 	type CstNode,
+	type EditorPlugin,
 	type ParsedDirective
 } from 'aragonite/plugin';
+import NoteBlock from './NoteBlock.svelte'; // the component built in the next section
 
 const NOTE = 'note';
 const NOTE_TITLE = 'note-title';
@@ -234,48 +301,54 @@ function rebuildNoteRaw(node: CstNode): void {
 	});
 }
 
-export function registerNote(): void {
-	activateDirectives(); // idempotent; the shared grammar must be live before a parse
-	if (isBlockKindRegistered(NOTE)) return; // idempotent for hot-reload / re-import
+export function notePlugin(): EditorPlugin {
+	return definePlugin({
+		name: 'note',
+		setup() {
+			activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
-	const note = declarePluginKind(NOTE);
-	const noteTitle = declarePluginKind(NOTE_TITLE);
+			const note = declarePluginKind(NOTE);
+			const noteTitle = declarePluginKind(NOTE_TITLE);
 
-	// Two names, one kind: :::note and :::tip both resolve here; any other name
-	// falls through to the generic directive fallback.
-	if (!isDirectiveRegistered('container', NOTE)) {
-		registerDirective('container', NOTE, { kind: note, fromDirective: noteFromDirective });
-		registerDirective('container', 'tip', { kind: note, fromDirective: noteFromDirective });
-	}
+			// Two names, one kind: :::note and :::tip both resolve here; any other name
+			// falls through to the generic directive fallback.
+			registerDirective('container', NOTE, { kind: note, fromDirective: noteFromDirective });
+			registerDirective('container', 'tip', { kind: note, fromDirective: noteFromDirective });
 
-	// A block command that switches the variant. updateMetadata is the sanctioned
-	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable edit —
-	// and because the name flows into raw, the change survives a round-trip.
-	const setVariant = registerBlockCommand(note, 'note.setVariant', (ctx) => {
-		if (typeof ctx.arg !== 'string') return false;
-		ctx.updateMetadata({ name: ctx.arg });
-		return true;
+			// A block command that switches the variant. updateMetadata is the sanctioned
+			// commit path: it merges the patch, runs rebuildRaw, and makes one undoable edit —
+			// and because the name flows into raw, the change survives a round-trip.
+			const setVariant = registerBlockCommand(note, 'note.setVariant', (ctx) => {
+				if (typeof ctx.arg !== 'string') return false;
+				ctx.updateMetadata({ name: ctx.arg });
+				return true;
+			});
+
+			registerBlockKind(note, {
+				mergeRole: 'container',
+				editable: true,
+				supportsInline: false,
+				container: {
+					// The title lives in the opener line, so raw is not a strip of the children:
+					// 'opaque' marks raw authoritative.
+					contract: 'opaque',
+					rebuildRaw: rebuildNoteRaw,
+					reservedChrome: { kind: noteTitle },
+					unwrapRole: {
+						firstChildBackspace: 'lift-first-child',
+						middleChildBackspace: 'default-merge'
+					}
+				},
+				keymap: [
+					{ chord: 'Mod+7', command: setVariant, arg: 'note' },
+					{ chord: 'Mod+8', command: setVariant, arg: 'tip' }
+				]
+			});
+
+			registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
+			registerBlockComponent(declaredPluginKind(NOTE), defineBlockComponent(NoteBlock));
+		}
 	});
-
-	registerBlockKind(note, {
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		container: {
-			// The title lives in the opener line, so raw is not a strip of the children:
-			// 'opaque' marks raw authoritative.
-			contract: 'opaque',
-			rebuildRaw: rebuildNoteRaw,
-			reservedChrome: { kind: noteTitle },
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
-		},
-		keymap: [
-			{ chord: 'Mod+7', command: setVariant, arg: 'note' },
-			{ chord: 'Mod+8', command: setVariant, arg: 'tip' }
-		]
-	});
-
-	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
 }
 ```
 
@@ -342,29 +415,25 @@ place other chrome (an icon, a toggle button) beside it.
 
 ### Wire it into a page
 
-Register before the editor mounts, so the seed parses to your kind, and bind the component to its
-kind:
+Pass the plugin to the editor's `plugins` prop — it installs before the seed parses, so `:::note`
+resolves to your kind. Build the array once at module scope (see [The plugin unit](#the-plugin-unit)):
 
 ```svelte
+<script module lang="ts">
+	import { notePlugin } from './note-kind';
+
+	const plugins = [notePlugin()];
+</script>
+
 <script lang="ts">
 	import { Editor } from 'aragonite';
 	import 'aragonite/styles/editor-theme.css';
-	import {
-		registerBlockComponent,
-		defineBlockComponent,
-		declaredPluginKind
-	} from 'aragonite/plugin';
-	import { registerNote } from './note-kind';
-	import NoteBlock from './NoteBlock.svelte';
-
-	registerNote();
-	registerBlockComponent(declaredPluginKind('note'), defineBlockComponent(NoteBlock));
 
 	const SEED = ':::note My Title\nBody paragraph\n:::\n';
 	let editor = $state();
 </script>
 
-<Editor bind:this={editor} source={SEED} theme="light" />
+<Editor bind:this={editor} source={SEED} {plugins} theme="light" />
 ```
 
 The chords are live: focus the note and press `Mod+7` / `Mod+8` to switch it between `note` and
@@ -402,6 +471,8 @@ A plugin **may**:
 - Store primitive per-node metadata, and commit metadata through the sanctioned update path.
 - Contribute per-kind keymaps over the command vocabulary.
 - Render as an unknown kind and degrade to a visible raw fallback.
+- Transform pasted plain text before it is parsed — a content-keyed, paste-scoped hook (see
+  [Paste transforms](#paste-transforms)).
 
 A plugin **may not**:
 
@@ -412,16 +483,40 @@ A plugin **may not**:
 - Pass reactive tree state by value across a module boundary — hand it through getters only.
 - Invent merge-role, unwrap, or container-contract values — those are closed sets.
 - Silently override a built-in or another plugin's registration.
-- Intercept or transform clipboard ingestion. Pasted text is parsed as authored, under whatever
-  grammars are active — there is no pre-parse paste-transform hook on this surface. A host
-  application that wants to rewrite document content does so at the document level: read
-  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer
-  guide's re-sync contract), which replaces the document in one step.
+- Intercept loading or typing, or rewrite the whole document from a paste. The paste-transform hook
+  below is **paste-scoped and pre-parse only**: it sees the clipboard text, never the load path or
+  keystrokes, and a whole-document migration still belongs at the document level — read
+  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer guide's
+  re-sync contract), which replaces the document in one step.
 
 Most of this boundary is enforced by **shape**: the factories never hand you a raw context key or a
 mutation handle, so the disallowed move is unavailable. The rest is enforced by **dev-mode checks
 that are stripped from a production build** — so a plugin developed against a production build gets
 no signal. **Develop against a dev build.**
+
+### Paste transforms
+
+`registerPasteTransform` records a **content-keyed, pre-parse** rewrite of pasted plain text. Each
+transform is a `{ name, transform(text) }` unit: `transform` returns a replacement string, or `null`
+to decline ("not mine"). Transforms run at every paste site before the clipboard text is parsed, in
+**install order** — each sees the previous transform's output — so a plugin keys off the _content_ it
+recognizes rather than the block it lands in. The name is unique (register-once; a duplicate throws,
+naming the owning plugin) and scopes the transform for attribution.
+
+Two habits keep a transform sound:
+
+- **Decline cheaply, then convert precisely.** Probe the text for your marker first and return `null`
+  when it is absent — the pipeline runs on every paste, so a fast reject keeps the common case free.
+- **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped
+  lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only
+  the blocks it means to is fence-safe. Keep the transform **idempotent** — re-running it on its own
+  output must decline or reproduce it (a dev warning fires otherwise, catching paste feedback loops).
+
+The admonitions dogfood is the worked example: it probes for a GitHub-alert blockquote (`> [!NOTE]`),
+and when one is present converts only the top-level blockquote alerts to `:::name` directive source
+through a parse-scoped converter, so an alert-shaped line inside a pasted fence survives literally.
+The transform serves pastes; a host button running the same converter over `getSource()` serves
+already-loaded documents.
 
 ### Misuse outcomes
 

@@ -17,7 +17,6 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	isInlineKindDeclared,
-	isBlockKindRegistered,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode
@@ -81,10 +80,13 @@ export function buildMathWidget(node: InlineNode, raw: string, render: MathRende
 
 // ── Registration ─────────────────────────────────────────────────────────────
 
-export function registerMathInline(): void {
-	if (isInlineKindDeclared(MATH_INLINE)) return; // idempotent for HMR / re-import
+export function registerMathInline(renderer: MathRenderer = katexRenderer): void {
+	// Keyed on the declared-inline-kind registry, not a module-local latch: the same
+	// test reset that clears the inline syntax/widget registries this guards also
+	// clears this key, so a reset → re-register re-runs the whole inline path cleanly.
+	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	const render = createMemoizedRenderer(katexRenderer);
+	const render = createMemoizedRenderer(renderer);
 
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
 	registerInlineWidgetKind(kind, {
@@ -111,7 +113,6 @@ function isBlockMathOpener(text: string): boolean {
 }
 
 export function registerMathBlock(): void {
-	if (isBlockKindRegistered(MATH_BLOCK)) return; // idempotent for HMR / re-import
 	const mathBlock = declarePluginKind(MATH_BLOCK);
 
 	// A source-holding leaf like `fencedCode`, not a container: no `container`
