@@ -14,6 +14,7 @@ import { performCrossBlockDelete } from './ops';
 import { assertCharOffset } from '../primitives';
 import { applyCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
@@ -133,7 +134,9 @@ async function replaceTableWithPaste(
 	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
 
-	const parsed = parse(pasted);
+	// This whole-table-selection route never reaches pasteDispatch, so the paste
+	// transforms run here too — the rule lives in the helper, applied at both sites.
+	const parsed = parse(applyPasteTransforms(pasted));
 	if (parsed.children.length === 0) return;
 	const blocks = materializeBlankLines(parsed.children);
 

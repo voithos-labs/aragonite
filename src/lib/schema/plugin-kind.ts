@@ -5,8 +5,8 @@ import {
 	type PluginBlockKind,
 	type PluginInlineKind
 } from '../core/nodes';
-
-const NAME_PATTERN = /^[a-z][a-zA-Z0-9-]*$/;
+import { currentInstallingPlugin, pluginKindOwner, recordPluginKindOwner } from './plugin-install';
+import { isValidPluginName } from './plugin-name';
 
 const declaredPluginKinds = new Set<string>();
 
@@ -15,7 +15,7 @@ const declaredPluginKinds = new Set<string>();
 const RESERVED_KIND_NAMES = new Set<string>(['document']);
 
 export function declarePluginKind(name: string): PluginBlockKind {
-	if (!NAME_PATTERN.test(name)) {
+	if (!isValidPluginName(name)) {
 		throw new Error(
 			`declarePluginKind: invalid kind name "${name}" — lowercase first letter, then letters/digits/hyphens`
 		);
@@ -27,9 +27,15 @@ export function declarePluginKind(name: string): PluginBlockKind {
 		throw new Error(`declarePluginKind: "${name}" is a reserved structural sentinel`);
 	}
 	if (declaredPluginKinds.has(name)) {
-		throw new Error(`declarePluginKind: "${name}" was already declared by another plugin`);
+		const owner = pluginKindOwner(name);
+		throw new Error(
+			`declarePluginKind: "${name}" was already declared by another plugin` +
+				(owner ? ` — first declared by plugin '${owner}'` : '')
+		);
 	}
 	declaredPluginKinds.add(name);
+	const installer = currentInstallingPlugin();
+	if (installer) recordPluginKindOwner(name, installer);
 	return name as PluginBlockKind;
 }
 
@@ -55,7 +61,7 @@ export function __clearDeclaredPluginKindsForTests(): void {
 const declaredPluginInlineKinds = new Set<string>();
 
 export function declarePluginInlineKind(name: string): PluginInlineKind {
-	if (!NAME_PATTERN.test(name)) {
+	if (!isValidPluginName(name)) {
 		throw new Error(
 			`declarePluginInlineKind: invalid kind name "${name}" — lowercase first letter, then letters/digits/hyphens`
 		);

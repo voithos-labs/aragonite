@@ -1,23 +1,27 @@
 /**
- * Admonitions plugin — public entry. One `installAdmonitions()` call teaches the
- * editor the five admonition kinds (`:::note` … `:::caution`), binds the
- * component, and returns the GitHub-alert paste transform for the host to wire in.
- * Register before the editor mounts so the seed parses to the admonition kind.
+ * Admonitions plugin — public entry. `admonitionsPlugin()` teaches the editor the
+ * five admonition kinds (`:::note` … `:::caution`) and binds the component; the
+ * GitHub-alert paste helpers are re-exported for the host to wire into its own
+ * paste flow. The plugin unit installs the setup once per process.
  */
 import {
+	definePlugin,
 	registerBlockComponent,
 	defineBlockComponent,
-	isBlockComponentRegistered
+	type EditorPlugin
 } from '$lib/plugin';
 import { registerAdmonitions } from './register';
 import { admonitionKind } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
 
-export function installAdmonitions(): void {
-	registerAdmonitions();
-	if (!isBlockComponentRegistered(admonitionKind())) {
-		registerBlockComponent(admonitionKind(), defineBlockComponent(AdmonitionBlock));
-	}
+export function admonitionsPlugin(): EditorPlugin {
+	return definePlugin({
+		name: 'admonitions',
+		setup() {
+			registerAdmonitions();
+			registerBlockComponent(admonitionKind(), defineBlockComponent(AdmonitionBlock));
+		}
+	});
 }
 
 // convertGithubAlerts is naive full-text: it rewrites alert-shaped lines even

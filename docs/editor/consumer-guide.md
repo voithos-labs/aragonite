@@ -52,6 +52,20 @@ Mounting two or more editors in one JavaScript context is supported. The boundar
 
 So two editors share one grammar but never share state.
 
+## Plugins
+
+Extend the grammar with **plugin units** — the [plugin author guide](plugin-guide.md) covers writing them. To install, pass an array to the `plugins` prop; it installs once at mount, before the first parse, in array order:
+
+```svelte
+<Editor {source} {plugins} />
+```
+
+Build the array once at module scope rather than inline in the markup — an inline array re-mints the units each render (a harmless dev-warn). Definitions are **process-global**, the [multiple-instances](#multiple-instances) boundary: passing the same plugin to two editors registers it once, so there is no per-instance plugin configuration — per-plugin options ride the plugin's factory.
+
+For a `parse()` pipeline with no `<Editor>` mounted, call `installPlugins(units)` from the `aragonite` barrel to make the grammar live.
+
+A later editor may mount carrying a plugin an earlier one never had — the late install is legal and serves the new editor's own parse. An already-parsed editor does not re-parse against the newer grammar; a dev-warn names the late registration.
+
 ## Theming
 
 The module owns its CSS. Two stylesheets ship under `styles/`:
@@ -97,8 +111,9 @@ Optional props customize URL/image handling and editor affordances:
 | `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
+| `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                    |
 
-**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, `blockDragHandles`, and `plugins` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Keyboard shortcuts
 
@@ -160,6 +175,6 @@ Payload envelopes (the per-op arms change; read the source type rather than enum
 
 Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. How edits are applied internally is not part of the consumer contract.
 
-Paste is part of that boundary: pasted text is parsed as authored, and there is no hook to transform clipboard content before it is parsed. The supported way to rewrite a document programmatically — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop (the re-sync contract under Public API). The replacement is one document swap: undo history and the caret do not survive it, which is the honest shape for an import-or-convert affordance.
+Paste is part of that boundary: pasted text is parsed as authored. A _plugin_ can rewrite that text before it is parsed through a content-keyed, paste-scoped hook (`registerPasteTransform`, in the plugin guide) — scoped to pastes, never the load path or typing. The consumer-side lever for rewriting a whole document — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop (the re-sync contract under Public API). The replacement is one document swap: undo history and the caret do not survive it, which is the honest shape for an import-or-convert affordance.
 
 A transformer working over `parse`'s output can rely on the composition contract: the serialized document is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children, so a rewrite can replace individual blocks' bytes and reassemble without touching the rest.

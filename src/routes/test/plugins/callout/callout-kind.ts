@@ -22,7 +22,6 @@ import {
 	registerChromeLeaf,
 	registerDirective,
 	serializeDirective,
-	isBlockKindRegistered,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
@@ -97,12 +96,11 @@ export function rebuildCalloutRaw(node: CstNode): void {
 }
 
 export function registerCalloutKind(): void {
-	// The shared directive grammar + generic render must be live for the callout
-	// names to resolve. Idempotent, so calling it here also re-establishes the opener
-	// after a registry reset in the unit suites — the same public entry the route uses.
+	// The shared directive grammar + generic render must be live before the callout
+	// names resolve. Idempotent, so it re-runs cleanly after a schema reset — the
+	// plugin unit owns once-per-process, so this setup never guards against re-entry.
 	activateDirectives();
 
-	if (isBlockKindRegistered(NOTE)) return; // idempotent for HMR / re-import
 	const note = declarePluginKind(NOTE);
 	const noteTitle = declarePluginKind(NOTE_TITLE);
 

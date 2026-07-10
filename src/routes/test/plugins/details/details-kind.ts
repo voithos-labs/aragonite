@@ -24,7 +24,6 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	registerChromeLeaf,
-	isBlockKindRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
 	parse,
@@ -70,7 +69,6 @@ export function rebuildDetailsRaw(node: CstNode): void {
 }
 
 export function registerDetailsKind(): void {
-	if (isBlockKindRegistered(DETAILS)) return; // idempotent for HMR / re-import
 	const details = declarePluginKind(DETAILS);
 	const detailsSummary = declarePluginKind(DETAILS_SUMMARY);
 

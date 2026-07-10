@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
+import { getInlineSyntax, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { registerMathBlock, MATH_BLOCK } from '../../../routes/test/plugins/latex/latex-kind';
-import { registerLatex } from '../../../routes/test/plugins/latex/register';
+import { latexPlugin } from '../../../routes/test/plugins/latex/register';
 
 // The block opener and the inline `$` trigger register through independent
-// registries, so both are reset — else a `registerLatex()` test would leave
+// registries, so both are reset — else a `latexPlugin()` install would leave
 // inline live and the gating test would pass for the wrong reason.
 function resetLatexState(): void {
 	__resetSchemaRegistriesForTests();
@@ -96,9 +97,28 @@ describe('block math round-trip', () => {
 	}
 });
 
-describe('registerLatex wires the block opener', () => {
-	it('makes a $$…$$ fence parse as a mathBlock through registerLatex()', () => {
-		registerLatex();
+describe('latexPlugin wires the block opener', () => {
+	it('makes a $$…$$ fence parse as a mathBlock through the installed plugin', () => {
+		installPlugins([latexPlugin()]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
+	});
+});
+
+// Guard policy: a schema reset clears the block registry + installed-plugin set but
+// leaves the inline syntax/widget registries live. A reinstall must re-register the
+// block kind (mathBlock was cleared) yet NOT re-register inline — its guard is keyed
+// on the surviving declared-inline-kind, so a mis-keyed guard would re-run
+// declarePluginInlineKind / registerInlineSyntax('$') and throw on the survivor.
+describe('latexPlugin reinstall after a schema reset', () => {
+	it('re-registers the block kind and leaves the inline path intact', () => {
+		installPlugins([latexPlugin()]);
+		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
+		expect(getInlineSyntax('$')).toBeDefined();
+
+		__resetSchemaRegistriesForTests();
+		installPlugins([latexPlugin()]);
+
+		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
+		expect(getInlineSyntax('$')).toBeDefined();
 	});
 });

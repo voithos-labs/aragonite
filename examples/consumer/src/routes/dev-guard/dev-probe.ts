@@ -2,24 +2,26 @@
  * `:::devprobe` — a directive-backed container kind that exists only to trip one
  * DEV-mode guard through the packaged editor: its component passes an explicit
  * `isCollapsed` dep the descriptor never declares, so `createContainerBlock`
- * dev-warns at render. Idempotent (HMR / re-import); dev-guard harness only.
+ * dev-warns at render. Installed once per process through the `plugins` prop;
+ * dev-guard harness only.
  */
 
 import {
+	activateDirectives,
+	definePlugin,
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockComponent,
 	registerBlockKind,
 	registerBlockComponent,
 	registerDirective,
-	isBlockKindRegistered,
-	isBlockComponentRegistered,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
 	serializeDirective,
 	serializeChildren,
 	type CstNode,
+	type EditorPlugin,
 	type ParsedDirective
 } from 'aragonite/plugin';
 import DevProbeBlock from './DevProbeBlock.svelte';
@@ -66,33 +68,37 @@ function rebuildDevProbeRaw(node: CstNode): void {
 	});
 }
 
-export function registerDevProbe(): void {
-	if (!isBlockKindRegistered(DEVPROBE)) {
-		registerBlockKind(declarePluginKind(DEVPROBE), {
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			container: {
-				contract: 'opaque',
-				rebuildRaw: rebuildDevProbeRaw,
-				unwrapRole: {
-					firstChildBackspace: 'lift-first-child',
-					middleChildBackspace: 'default-merge'
+export function devProbePlugin(): EditorPlugin {
+	return definePlugin({
+		name: 'devprobe',
+		setup() {
+			activateDirectives();
+			registerBlockKind(declarePluginKind(DEVPROBE), {
+				mergeRole: 'container',
+				editable: true,
+				supportsInline: false,
+				container: {
+					contract: 'opaque',
+					rebuildRaw: rebuildDevProbeRaw,
+					unwrapRole: {
+						firstChildBackspace: 'lift-first-child',
+						middleChildBackspace: 'default-merge'
+					}
 				}
+			});
+
+			const devprobe = declaredPluginKind(DEVPROBE);
+			// The directive registry survives a schema reset; re-registering an already
+			// claimed name throws, so this stays guarded even though the plugin unit
+			// owns once-per-process for the rest of setup.
+			if (!isDirectiveRegistered('container', DEVPROBE)) {
+				registerDirective('container', DEVPROBE, {
+					kind: devprobe,
+					fromDirective: devprobeFromDirective
+				});
 			}
-		});
-	}
 
-	const devprobe = declaredPluginKind(DEVPROBE);
-
-	if (!isDirectiveRegistered('container', DEVPROBE)) {
-		registerDirective('container', DEVPROBE, {
-			kind: devprobe,
-			fromDirective: devprobeFromDirective
-		});
-	}
-
-	if (!isBlockComponentRegistered(DEVPROBE)) {
-		registerBlockComponent(devprobe, defineBlockComponent(DevProbeBlock));
-	}
+			registerBlockComponent(devprobe, defineBlockComponent(DevProbeBlock));
+		}
+	});
 }

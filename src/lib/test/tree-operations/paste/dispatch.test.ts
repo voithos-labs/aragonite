@@ -11,6 +11,10 @@ import {
 	__resetPasteSurfacesForTests,
 	registerPasteSurface
 } from '../../../tree-operations/paste-surfaces';
+import {
+	__resetPasteTransformsForTests,
+	registerPasteTransform
+} from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
 import { createSharingState } from '../../../tree-operations/sharing';
 import {
@@ -334,5 +338,60 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+});
+
+// ── Paste transforms rewrite the clipboard text before strategy selection ────
+
+describe('pasteDispatch — paste transforms', () => {
+	beforeEach(() => {
+		__resetPasteSurfacesForTests();
+		__resetPasteTransformsForTests();
+		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	});
+
+	it('a transform that rewrites prose into a heading flips the paste inline → structural', async () => {
+		registerPasteTransform({ name: 'headingize', transform: () => '# heading\n' });
+
+		const doc = parse('target\n');
+		const blockEdit = makeStubBlockEdit();
+		const controller = makeStubController();
+		const docScope = {
+			node: doc,
+			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
+		};
+		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
+			async ({ mutate }) => {
+				mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
+			}
+		);
+
+		// A single-paragraph clipboard would paste inline; the transform makes it a
+		// heading, so dispatch must route structural instead.
+		await pasteDispatch(
+			{ pastedText: 'plain prose', targetPath: [0], offset: 6 },
+			{ doc, blockEdit, controller }
+		);
+
+		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
+		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+
+	it('a transform that empties the text makes the paste a no-op', async () => {
+		registerPasteTransform({ name: 'eraser', transform: () => '' });
+
+		const doc = parse('hello world\n');
+		const blockEdit = makeStubBlockEdit();
+		const controller = makeStubController();
+
+		const result = await pasteDispatch(
+			{ pastedText: 'anything', targetPath: [0], offset: 0 },
+			{ doc, blockEdit, controller }
+		);
+
+		expect(result).toEqual({});
+		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(controller.commitMultiScope).not.toHaveBeenCalled();
 	});
 });

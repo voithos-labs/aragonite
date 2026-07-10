@@ -1,26 +1,26 @@
 /**
- * Idempotent registration of the `:::note` callout: the container kind + its
- * component. Safe to import more than once — HMR re-evaluates this module while
- * the registries persist, so each registration guards on the live registry state
- * (via the public idempotence probe) rather than a module-local flag.
- *
- * The reserved-child-0 `note-title` chrome leaf (kind + descriptor + component)
- * is registered by `registerCalloutKind` via `registerChromeLeaf`, so this file
- * only wires the container component.
+ * The callout plugin: the `:::note` container model (kind + `note-title` chrome
+ * leaf, registered by `registerCalloutKind`) plus the container component. The
+ * plugin unit installs this setup once per process, so it runs unguarded and
+ * re-registers cleanly after a schema reset.
  */
 
 import {
+	definePlugin,
 	registerBlockComponent,
 	defineBlockComponent,
-	isBlockComponentRegistered,
-	declaredPluginKind
+	declaredPluginKind,
+	type EditorPlugin
 } from '$lib/plugin';
 import { registerCalloutKind, NOTE } from './callout-kind';
 import CalloutBlock from './CalloutBlock.svelte';
 
-export function registerCallout(): void {
-	registerCalloutKind();
-	if (!isBlockComponentRegistered(NOTE)) {
-		registerBlockComponent(declaredPluginKind(NOTE), defineBlockComponent(CalloutBlock));
-	}
+export function calloutPlugin(): EditorPlugin {
+	return definePlugin({
+		name: 'callout',
+		setup() {
+			registerCalloutKind();
+			registerBlockComponent(declaredPluginKind(NOTE), defineBlockComponent(CalloutBlock));
+		}
+	});
 }
