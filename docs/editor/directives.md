@@ -3,7 +3,7 @@
 A **directive** is a plugin's entry into the `:::name` / `::name` / `:name` syntax family — the
 remark-directive model, adapted to aragonite's kind-per-component world and its byte-lossless
 round-trip invariant. This guide is for plugin authors. For the block-registration machinery
-directives build on, read `adding-a-block.md` first.
+directives build on, read the [plugin author guide](plugin-guide.md) first.
 
 Directives are **opt-in**: a consumer that never activates the grammar keeps `:::` unclaimed and
 parses as plain GFM.
@@ -68,7 +68,11 @@ key, so a container and a leaf may share a name. Registration is once — a dupl
 - **Unregistered name → generic fallback.** `:::anything` with no matching registration round-trips
   through a generic kind, rendering as a plain labelled box with a dimmed marker.
 - **Many names may map to one kind.** A plugin can register `note` and `warning` against a single
-  kind that reads the name back from its own metadata.
+  kind that reads the name back from its own metadata. When two plugins claim the same
+  `(tier, name)`, the idempotence guard the plugin guide recommends — skip `registerDirective` when
+  `isDirectiveRegistered` already reports the name claimed — resolves the clash silently first-wins:
+  the later plugin's registration is skipped with no error, and the name stays bound to whichever
+  plugin registered first.
 
 ### Per-tier factory contract
 

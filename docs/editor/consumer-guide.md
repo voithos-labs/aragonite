@@ -1,6 +1,6 @@
 # Editor Consumer Guide
 
-How to embed, theme, and wire the editor as a library. Contributor-facing internals live in `docs/design/editor/editor.md` and `adding-a-block.md`.
+How to embed, theme, and wire the editor as a library. Extending it with your own block or inline content instead? See the [plugin author guide](plugin-guide.md).
 
 ## Public API
 
@@ -98,11 +98,13 @@ Optional props customize URL/image handling and editor affordances:
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 
-**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. (The render-memo completeness contract behind this is G4.7 in `docs/design/editor/invariants.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Keyboard shortcuts
 
 These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linux and Cmd on macOS. Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste) — Shift+F10 or the Context Menu key opens it from the keyboard. Per-block chords can be rebound or disabled via the `keybindings` prop.
+
+Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), not the shifted symbol.
 
 | Action                     | Chord                                            |
 | -------------------------- | ------------------------------------------------ |
@@ -156,4 +158,8 @@ Payload envelopes (the per-op arms change; read the source type rather than enum
 
 ## Mutations
 
-Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. The internal model (one commit primitive over three scopes, plus a separate undo/redo-apply path) is a contributor concern, documented once at `docs/design/editor/editor.md` § Commit Primitive / Event Seam.
+Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. How edits are applied internally is not part of the consumer contract.
+
+Paste is part of that boundary: pasted text is parsed as authored, and there is no hook to transform clipboard content before it is parsed. The supported way to rewrite a document programmatically — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop (the re-sync contract under Public API). The replacement is one document swap: undo history and the caret do not survive it, which is the honest shape for an import-or-convert affordance.
+
+A transformer working over `parse`'s output can rely on the composition contract: the serialized document is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children, so a rewrite can replace individual blocks' bytes and reassemble without touching the rest.

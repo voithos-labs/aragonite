@@ -127,7 +127,7 @@ export { isCollapsedContainer } from './schema/reserved-chrome';
 // Register a name→kind directive, read the opener info into structure, and
 // serialize a fence losslessly.
 export { activateDirectives } from './components/blocks/directive/activate-directives';
-export { registerDirective } from './core/directive/registry';
+export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
 export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';

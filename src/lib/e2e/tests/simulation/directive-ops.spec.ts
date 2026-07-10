@@ -20,11 +20,11 @@ import {
 // nested-state audit) had ever seen under a state-accumulating watcher. Mirrors
 // math-ops / plugin-ops: a loaded document on the plugins route (whose
 // `activateDirectives()` call activates the grammar + generic render, and whose
-// `registerCallout` registers `note`/`warning` as the registered container names),
-// the directive gesture vocabulary, all oracles re-checked after every move, fixed
-// rng for determinism.
+// plugin installs claim note/warning via callout and tip/important/caution via
+// admonitions), the directive gesture vocabulary, all oracles re-checked after
+// every move, fixed rng for determinism.
 //
-// `:::note` (registered → callout factory) and `:::tip` (unregistered → generic
+// `:::note` (registered → callout factory) and `:::mystery` (unregistered → generic
 // container) drive both dispatch paths at parse; the gestures then insert a leaf and
 // a text widget by real typing, reveal-commit the widget, edit each tier's editable
 // surface, drive the leaf's not-mergeable structural path and a container-body
@@ -33,7 +33,11 @@ import {
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
-	':::tip\nGeneric body.\n:::\n\n' +
+	// `mystery` must stay a name NO harness plugin claims — the generic-tier
+	// assertions depend on it. The composed harness owns note/warning (callout)
+	// and tip/important/caution (admonitions); a plugin claiming `mystery` fails
+	// the generic count assertion loudly, by design.
+	':::mystery\nGeneric body.\n:::\n\n' +
 	'Middle paragraph.\n\n' +
 	':::note Note title\nRegistered body.\n:::\n\n' +
 	'Tail paragraph.\n';

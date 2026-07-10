@@ -1,0 +1,131 @@
+/**
+ * Registration for the admonition kind: directive dispatch, container descriptor,
+ * the kind-cycle command, and the title chrome leaf. Reuses the shared `:::name`
+ * grammar rather than a hand-written opener — the fence bytes are the round-trip
+ * truth, rebuilt from children + metadata by `rebuildAdmonitionRaw`.
+ */
+import {
+	activateDirectives,
+	registerBlockKind,
+	registerBlockCommand,
+	registerChromeLeaf,
+	registerDirective,
+	serializeDirective,
+	serializeChildren,
+	trimTrailingLineEnding,
+	isBlockKindRegistered,
+	isDirectiveRegistered,
+	setPluginMetadata,
+	getPluginMetadata,
+	type CstNode,
+	type ParsedDirective,
+	type PluginBlockKind
+} from '$lib/plugin';
+import {
+	ADMONITION,
+	ADMONITION_KINDS,
+	declareAdmonitionKinds,
+	admonitionTitleKind,
+	isAdmonitionName,
+	type AdmonitionMetadata
+} from './kinds';
+
+function makeTitleChild(text: string): CstNode {
+	return {
+		kind: admonitionTitleKind(),
+		leadingTrivia: '',
+		raw: text ? `${text}\n` : '\n'
+	};
+}
+
+/**
+ * Build the container from a parsed `:::note` fence. Child 0 is the title
+ * (the opener line's info, editable); children 1+ are the parsed body. The
+ * verbatim fence bytes go to metadata so `raw` can be rebuilt after any edit.
+ */
+function admonitionFromDirective(kind: PluginBlockKind) {
+	return (parsed: ParsedDirective): CstNode => {
+		const title = parsed.fence.info.trim();
+		const node: CstNode = {
+			kind,
+			leadingTrivia: parsed.leadingTrivia,
+			raw: parsed.raw,
+			innerPrefix: parsed.body?.prefix ?? '',
+			children: [makeTitleChild(title), ...(parsed.body?.children ?? [])],
+			innerSuffix: parsed.body?.suffix ?? ''
+		};
+		setPluginMetadata<AdmonitionMetadata>(node, {
+			name: parsed.fence.name,
+			colonCount: parsed.fence.colonCount,
+			closerColonCount: parsed.closerColonCount,
+			closerNewline: parsed.closerNewline
+		});
+		return node;
+	};
+}
+
+/** Re-emit `raw` from children + metadata after any structural or title edit. */
+function rebuildAdmonitionRaw(node: CstNode): void {
+	const meta = getPluginMetadata<AdmonitionMetadata>(node);
+	const children = node.children ?? [];
+	const title = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
+	node.raw = serializeDirective({
+		colonCount: meta?.colonCount ?? 3,
+		name: meta?.name ?? ADMONITION_KINDS[0],
+		info: title ? ` ${title}` : '',
+		innerPrefix: node.innerPrefix ?? '',
+		body: serializeChildren(children.slice(1)),
+		innerSuffix: node.innerSuffix ?? '',
+		closerColonCount: meta?.closerColonCount ?? 3,
+		closerNewline: meta?.closerNewline ?? true
+	});
+}
+
+export function registerAdmonitions(): void {
+	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
+	if (isBlockKindRegistered(ADMONITION)) return; // idempotent for hot-reload / re-import
+
+	const { admonition, title } = declareAdmonitionKinds();
+	const build = admonitionFromDirective(admonition);
+
+	// All five names resolve to one kind; the kind reads its variant back from
+	// metadata. Any unregistered `:::name` falls through to the generic fallback.
+	for (const name of ADMONITION_KINDS) {
+		if (!isDirectiveRegistered('container', name)) {
+			registerDirective('container', name, { kind: admonition, fromDirective: build });
+		}
+	}
+
+	// Cycle the focused admonition's kind. `updateMetadata` is the sanctioned
+	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable
+	// edit — and because the name flows into raw, the switch survives a round-trip.
+	const cycleKind = registerBlockCommand(admonition, 'admonition.cycleKind', (ctx) => {
+		const meta = getPluginMetadata<AdmonitionMetadata>(ctx.node);
+		const dir = ctx.arg === 'prev' ? -1 : 1;
+		const current = meta?.name ?? ADMONITION_KINDS[0];
+		const at = ADMONITION_KINDS.indexOf(current as (typeof ADMONITION_KINDS)[number]);
+		const from = at < 0 ? 0 : at;
+		const next = ADMONITION_KINDS[(from + dir + ADMONITION_KINDS.length) % ADMONITION_KINDS.length];
+		ctx.updateMetadata({ name: next });
+		return true;
+	});
+
+	registerBlockKind(admonition, {
+		mergeRole: 'container',
+		editable: true,
+		supportsInline: false,
+		container: {
+			// The title lives in the opener line, so raw is not a strip of the
+			// children: 'opaque' marks raw authoritative.
+			contract: 'opaque',
+			rebuildRaw: rebuildAdmonitionRaw,
+			reservedChrome: { kind: title },
+			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		},
+		keymap: [{ chord: 'Mod+7', command: cycleKind }]
+	});
+
+	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+}
+
+export { isAdmonitionName };
