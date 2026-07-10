@@ -7,7 +7,11 @@ export default defineConfig({
 	testDir: './tests',
 	webServer: [
 		{ command: 'npm run preview', port: 4180, reuseExistingServer: !process.env.CI },
-		{ command: 'npm run dev -- --port 4181', port: 4181, reuseExistingServer: !process.env.CI }
+		{
+			command: 'npm run dev -- --port 4181 --strictPort',
+			port: 4181,
+			reuseExistingServer: !process.env.CI
+		}
 	],
 	projects: [
 		{ name: 'preview', testIgnore: /dev-guard/, use: { baseURL: 'http://localhost:4180' } },

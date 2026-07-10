@@ -12,6 +12,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('callout mounts as a container and round-trips an edit', async ({ page }) => {
+	await expect(page.locator('.callout-block')).toBeVisible();
 	const body = page.locator('[contenteditable="true"]', { hasText: 'Callout body' });
 	await body.click();
 	await body.press('End');
@@ -21,6 +22,7 @@ test('callout mounts as a container and round-trips an edit', async ({ page }) =
 });
 
 test('details renders its summary chrome and body', async ({ page }) => {
+	await expect(page.locator('.details-block .details-toggle')).toBeVisible();
 	await expect(page.getByText('Summary')).toBeVisible();
 	await expect(page.getByText('Details body')).toBeVisible();
 	expect(await getSource(page)).toContain('<details open>');
@@ -34,6 +36,7 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 });
 
 test('admonition renders its title chrome and round-trips its source', async ({ page }) => {
+	await expect(page.locator('.admonition[data-kind="tip"]')).toBeVisible();
 	await expect(page.getByText('Consumer tip')).toBeVisible();
 	expect(await getSource(page)).toContain(':::tip Consumer tip');
 });

@@ -17,7 +17,7 @@ export function isAdmonitionName(value: unknown): value is AdmonitionName {
 	return typeof value === 'string' && (ADMONITION_KINDS as readonly string[]).includes(value);
 }
 
-/** Header text for an untitled admonition: the capitalized kind name. */
+/** Capitalize a kind name for the box's aria-label (e.g. "Tip admonition"). */
 export function capitalize(name: string): string {
 	return name.charAt(0).toUpperCase() + name.slice(1);
 }
