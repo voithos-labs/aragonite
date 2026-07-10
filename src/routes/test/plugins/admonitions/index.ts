@@ -20,6 +20,9 @@ export function installAdmonitions(): void {
 	}
 }
 
+// convertGithubAlerts is naive full-text: it rewrites alert-shaped lines even
+// inside code fences. For a whole document, prefer convertGithubAlertsInDocument,
+// which scopes through the parser and leaves fenced code untouched.
 export { convertGithubAlerts, hasGithubAlert } from './gh-alert';
 export type { AlertConversion } from './gh-alert';
 export { convertGithubAlertsInDocument } from './convert-document';
