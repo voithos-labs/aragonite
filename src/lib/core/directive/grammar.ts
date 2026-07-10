@@ -1,7 +1,7 @@
 /**
  * Pure fence grammar for the `:::name` directive primitive: opener/closer
  * recognition and lossless serialization. Framework-free and CST-free — the
- * parser and serializer wire these into the tree in later dispatches.
+ * parser and serializer consume these to build and re-emit the tree.
  *
  * Byte round-trip is the master invariant: `serializeDirective` reproduces the
  * opener colons, the verbatim `info` (leading separator included), the body
