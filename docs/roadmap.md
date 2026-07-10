@@ -55,8 +55,11 @@ what they teach is still cheap to act on.
    - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
-     the claim), grouping `BlockComponent`'s optional capability probes into named facets, and an
-     a11y strings table (announcements are hardcoded English today).
+     the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
+     a11y strings table (announcements are hardcoded English today), and the dist-pruning stance —
+     the tarball ships every internal module's `.d.ts` (encapsulation is exports-map-level: deep
+     imports blocked, files greppable), and the clean-room author read them as the designed
+     types-reference; decide prune vs. document-as-contract.
    - **Freeze litmus**: the contract must not preclude a consumer-built rendered reading mode
      (markers hidden, widgets rendered) — always-visible-styled-source is the editor's default, not
      a wall; verify no frozen surface hard-binds it.
@@ -81,11 +84,15 @@ not _build-now_:
   `plugin-contract.md` § Target shapes. Invariant enforcement stays editor-owned — this augments a
   commit, it does not bypass the invariants.
 - **First-class plugin paste** — the paste-surface mechanism is built and used internally by the
-  chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided:
-  1.0-eligible, build-on-driver.** Exposure is one additive export; the clean-room admonitions build
-  (item 1) is the forcing function — expose it there if that extension needs custom paste, else
-  defer. The richer _conversion config_ (Editor.js `pasteConfig` analog) is 1.2 DX ergonomics over
-  the same mechanism.
+  chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided at the
+  clean-room build: stays internal at 1.0.** The driver (GitHub-alert → admonition conversion)
+  needed a content-keyed pre-parse clipboard transform, which the target-kind-keyed surface cannot
+  express — registering for prose kinds collides with the built-in default surfaces, and the type
+  closure drags commit-coordinator machinery public. Exposing it would have frozen an export that
+  fails its own driving use case. The missing seam is the 1.2 _conversion config_ (Editor.js
+  `pasteConfig` analog) — now empirically validated as content-keyed and paste-scoped, distinct
+  from the target-keyed surface; the driver shipped meanwhile on the documented document-rewrite
+  pattern (`getSource()` → transform → `source` re-sync).
 - **Generic `:::name` directive primitive** (remark-directive) — **shipped 0.9.11**: one opener owning
   all `:::`/`::`/`:` syntax, dispatch by name, three tiers, a lossless generic fallback, and a public
   `activateDirectives()`. Byte-losslessness is confirmed (adversarial round-trip property), so the one
