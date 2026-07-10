@@ -10,6 +10,7 @@ import {
 	registerBlockCommand,
 	registerChromeLeaf,
 	registerDirective,
+	registerPasteTransform,
 	serializeDirective,
 	serializeChildren,
 	trimTrailingLineEnding,
@@ -27,6 +28,7 @@ import {
 	isAdmonitionName,
 	type AdmonitionMetadata
 } from './kinds';
+import { githubAlertsPasteTransform } from './convert-document';
 
 function makeTitleChild(text: string): CstNode {
 	return {
@@ -123,6 +125,10 @@ export function registerAdmonitions(): void {
 	});
 
 	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+
+	// Pasted GitHub-alert blockquotes convert to `:::name` source pre-parse — the
+	// fence-safe sibling of the host convert button (which serves loaded documents).
+	registerPasteTransform(githubAlertsPasteTransform);
 }
 
 export { isAdmonitionName };

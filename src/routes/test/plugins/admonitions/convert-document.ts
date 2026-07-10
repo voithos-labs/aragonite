@@ -10,7 +10,8 @@
  * GitHub alerts are a top-level construct in practice.
  */
 import { parse } from '$lib';
-import { convertAlertBlockquoteRaw, type AlertConversion } from './gh-alert';
+import type { PasteTransform } from '$lib/plugin';
+import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
 
 export function convertGithubAlertsInDocument(source: string): AlertConversion {
 	const doc = parse(source);
@@ -29,3 +30,18 @@ export function convertGithubAlertsInDocument(source: string): AlertConversion {
 	parts.push(doc.suffix);
 	return { converted: parts.join(''), changed };
 }
+
+/**
+ * The admonitions paste transform: rewrite pasted GitHub-alert blockquotes into
+ * `:::name` source before the editor parses. The cheap line probe short-circuits
+ * the common no-alert paste; the CST-scoped converter is fence-safe, so an
+ * alert-shaped line pasted inside a code fence stays literal.
+ */
+export const githubAlertsPasteTransform: PasteTransform = {
+	name: 'admonitions.github-alerts',
+	transform(text) {
+		if (!hasGithubAlert(text)) return null;
+		const { converted, changed } = convertGithubAlertsInDocument(text);
+		return changed ? converted : null;
+	}
+};

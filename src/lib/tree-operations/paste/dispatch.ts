@@ -22,6 +22,7 @@ import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
+import { applyPasteTransforms } from './paste-transforms';
 import { materializeBlankLines, pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
@@ -64,7 +65,12 @@ export async function pasteDispatch(
 ): Promise<PasteDispatchResult> {
 	if (!input.pastedText) return {};
 
-	const parsed = parse(input.pastedText);
+	// Content-keyed plugin transforms rewrite the clipboard text once, before any
+	// branch below reads it; a transform that empties the text is an empty paste.
+	const pastedText = applyPasteTransforms(input.pastedText);
+	if (!pastedText) return {};
+
+	const parsed = parse(pastedText);
 	if (parsed.children.length === 0) return {};
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
@@ -80,7 +86,7 @@ export async function pasteDispatch(
 		isBlockNode(chromeParent) &&
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
-		const flattened = input.pastedText.replace(/(\r?\n)+/g, ' ').trim();
+		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete);
 		applyInlineResult(input.targetPath, result, ctx);
@@ -148,7 +154,7 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, input.pastedText, input.preDelete);
+		const result = hook(targetNode, input.offset, pastedText, input.preDelete);
 		applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
