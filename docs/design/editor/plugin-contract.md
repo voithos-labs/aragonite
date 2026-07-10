@@ -314,9 +314,11 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   family and dispatches by name (`registerDirective`) across three tiers — container, single-line leaf,
   and atomic inline text — so N plugins never collide on opener priority. A registered name renders
   through its own first-class kind; an unregistered name round-trips byte-for-byte through a generic
-  fallback, so a document survives its plugin being uninstalled. `parseDirectiveAttributes` is an
-  opt-in, one-way `info → { label, id, classes, properties }` reader over the remark convention — the
-  verbatim opener info stays the round-trip truth. Activation is opt-in through a side-effect import;
+  fallback, so a document survives its plugin being uninstalled. The `fromDirective` factory is
+  required for container, optional for leaf, and rejected for text (kind-only), enforced at
+  registration. `parseDirectiveAttributes` is an opt-in, one-way `info → { label, id, classes,
+properties }` reader over the remark convention — the verbatim opener info stays the round-trip
+  truth. Activation is the explicit idempotent `activateDirectives()` call (not an import side effect);
   the authoring symbols alone do not claim `:::`. See `docs/editor/directives.md`.
 - **Planned pre-1.0** (roadmap): plugin-minted command ids.
 
