@@ -6,6 +6,11 @@
 	import { registerCallout } from './callout/register';
 	import { registerDetails } from './details/register';
 	import { registerLatex } from './latex/register';
+	import {
+		installAdmonitions,
+		convertGithubAlertsInDocument,
+		hasGithubAlert
+	} from './admonitions/index';
 	import { activateDirectives } from '$lib/plugin';
 
 	let { data }: { data: PageData } = $props();
@@ -19,6 +24,7 @@
 	registerCallout();
 	registerDetails();
 	registerLatex();
+	installAdmonitions();
 
 	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
@@ -34,6 +40,37 @@
 	// the revealed source must stay a single text node so the offset walk is exact.
 	const MATH_BLOCK_MULTILINE_SEED =
 		'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n';
+	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
+	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
+	// convert affordance untouched — the conversion route's positive and negative. `note`
+	// and `warning` are deliberately absent: the co-registered callout dogfood claims those
+	// two directive names first, so an admonition seed must use kinds callout does not own.
+	const ADMONITIONS_SEED = [
+		'# Admonitions',
+		'',
+		':::important',
+		'Untitled — the kind name stands in for the missing title.',
+		':::',
+		'',
+		':::tip Pro tip',
+		'A titled tip.',
+		':::',
+		'',
+		':::caution Heads up',
+		'A titled caution.',
+		':::',
+		'',
+		'Migrate the blockquote alert below with the Convert button:',
+		'',
+		'> [!CAUTION]',
+		'> Still a blockquote alert.',
+		'',
+		'```markdown',
+		'> [!NOTE]',
+		'> Inside a fence — must not convert.',
+		'```',
+		''
+	].join('\n');
 
 	// The callout is the default document (the landed callout e2e reads it directly);
 	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math` an
@@ -46,15 +83,17 @@
 	let source = $state(
 		data.seed === 'details'
 			? DETAILS_SEED
-			: data.seed === 'math'
-				? MATH_SEED
-				: data.seed === 'math-multiline'
-					? MATH_MULTILINE_SEED
-					: data.seed === 'mathblock'
-						? MATH_BLOCK_SEED
-						: data.seed === 'mathblock-multiline'
-							? MATH_BLOCK_MULTILINE_SEED
-							: CALLOUT_SEED
+			: data.seed === 'admonitions'
+				? ADMONITIONS_SEED
+				: data.seed === 'math'
+					? MATH_SEED
+					: data.seed === 'math-multiline'
+						? MATH_MULTILINE_SEED
+						: data.seed === 'mathblock'
+							? MATH_BLOCK_SEED
+							: data.seed === 'mathblock-multiline'
+								? MATH_BLOCK_MULTILINE_SEED
+								: CALLOUT_SEED
 	);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
@@ -71,9 +110,42 @@
 			}
 		});
 	});
+
+	// The docs' sanctioned document-rewrite pattern: read getSource(), rewrite the
+	// GitHub-alert blockquotes to `:::name` source, and write it back through the
+	// `source` prop. One document swap — undo history and caret do not survive.
+	function convertAlerts() {
+		if (!editor) return;
+		const { converted, changed } = convertGithubAlertsInDocument(editor.getSource());
+		if (changed) source = converted;
+	}
+
+	// Enablement follows both channels: `source` for programmatic swaps, the `edit`
+	// event for user typing. A marker inside a code fence must not light the button,
+	// so the cheap text probe gates the parse-scoped confirmation.
+	function canConvertSource(s: string): boolean {
+		return hasGithubAlert(s) && convertGithubAlertsInDocument(s).changed;
+	}
+	let canConvert = $state(false);
+	$effect(() => {
+		canConvert = canConvertSource(source);
+	});
+	$effect(() => {
+		if (!editor) return;
+		return editor.getEvents().on('edit', () => {
+			canConvert = canConvertSource(editor!.getSource());
+		});
+	});
 </script>
 
 <div class="plugins-harness aragonite-editor-theme">
+	{#if data.seed === 'admonitions'}
+		<div class="harness-controls">
+			<button onclick={convertAlerts} disabled={!canConvert} data-testid="convert-alerts">
+				Convert GitHub alerts
+			</button>
+		</div>
+	{/if}
 	<Editor bind:this={editor} {source} {keybindings} />
 </div>
 
@@ -83,5 +155,11 @@
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
+	}
+
+	.harness-controls {
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.4rem;
 	}
 </style>
