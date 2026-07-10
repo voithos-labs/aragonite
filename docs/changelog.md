@@ -2,6 +2,15 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.12 — Clean-room freeze validation
+
+Roadmap items 1+2, completed. The plugin API's _discoverability_ — what the DX thesis actually rests on — tested under third-party conditions, and the package boundary now carries the plugin surface as a permanent gate.
+
+- **The clean-room build.** A walled-off author with ONLY the packed tarball and the public docs pack built a full admonitions extension: five directive kinds, editable titles, per-kind styling, an undoable kind-switch chord, GitHub-alert conversion, byte round-trip including the plugin-uninstalled fallback — one support question in the whole run, zero dev-console warnings. Promoted as the third reference extension (`src/routes/test/plugins/admonitions/`) with its own e2e battery on the new shared plugin-spec helpers.
+- **The paste forcing function fired, honestly.** `registerPasteSurface` exposure **rejected** with evidence: the target-kind-keyed hook cannot serve content-keyed pre-parse conversion, and its type closure drags commit-coordinator machinery public. The missing seam is the 1.2 conversion config — now empirically validated by a real consumer need — and the feature shipped on the documented document-rewrite pattern (`getSource()` → transform → `source` re-sync) instead.
+- **Package boundary gated.** Every boundary-clean dogfood (callout, details, inline math, directives, admonitions) builds and runs through the packed tarball in `examples/consumer` — a sync step with a fail-loud `$lib` rewrite gate, per-extension smoke specs with plugin-discriminating assertions, and a dev-guard project proving the devWarn channel crosses the boundary under `vite dev` (and stays silent in a production build). Block-math stays repo-side by design (post-1.0 editable-leaf dogfood; recorded in issues). Tarball contents audited: encapsulation is exports-map-level, kept deliberately.
+- **The public docs pack.** `docs/editor/plugin-guide.md` — the authoring entry point, every barrel export covered and pinned by a coverage guard test — plus a pack builder with a dead-link validator (minted after review caught the wall-grep's blind spot). Support-channel findings shipped as docs: the mutation/paste boundary, the serialize composition contract, the chord model, chrome empty-state guidance, and directive-name first-wins arbitration. The callout dogfood dropped its one deep import via the new public `isDirectiveRegistered` probe.
+
 ### 0.9.11 — The `:::name` directive primitive
 
 Roadmap item 1 (sub-project B), completed. One shared opener owns all `:::`/`::`/`:` fences and dispatches by name into the editor's kind system — so N plugins never collide on opener priority. The remark-directive model, adapted to the CST's byte-lossless round-trip.
