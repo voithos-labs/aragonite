@@ -21,4 +21,4 @@ The reveal is a CST-free view toggle — only a real edit + commit mutates the s
 ## Edge cases
 
 - Escape after editing the revealed source: the edit is discarded and the original widget is rebuilt from the untouched raw — the source is unchanged.
-- The trailing-brace revert (a `:abbr[HTML]{` mid-type transiently reverts the atom to literal text until `}` closes it) must not error the reveal path — the widget may appear/disappear across input, as with inline math.
+- The trailing-brace revert (a `:abbr[HTML]{` mid-type transiently reverts the atom to literal text until `}` closes it) is inherited from the inline-widget primitive and unit-covered by the decline table in `text-recognizer.test.ts` — not an e2e scenario here. It is recorded so the reveal path's appear/disappear-across-input behavior (as with inline math) stays documented.

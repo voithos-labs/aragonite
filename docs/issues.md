@@ -104,6 +104,19 @@ Two gaps left by the LaTeX acceptance suite:
 **Why deferred:** each acceptance axis already maps to a falsifiable test; these close residual
 coverage when the LaTeX test surface is next extended.
 
+### Plugin-e2e helpers are duplicated across the plugin specs
+
+**Severity:** minor (test-org follow-up)
+**Files:** the plugin e2e specs under `src/lib/e2e/tests/plugins/` (directive, latex, callout)
+
+`revealByClick`, `gotoPlugins`, `readDoc`, `waitForDoc`, and `roundTripStable` are near-verbatim
+across the directive and latex/callout plugin specs. This is test scaffolding, not a product
+defect, but it drifts: a fix to one copy silently misses the others.
+
+**Fix direction:** extract a shared plugin-e2e helper module and route the specs through it.
+
+**Why deferred:** a test-org task, not a defect; schedule with the next plugin-e2e extension.
+
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
@@ -158,6 +171,22 @@ because that is what a callout is.
 
 **Target:** demo polish (`docs/roadmap.md` § Pre-1.0) — decide the reference-plugin chrome
 aesthetic there; no code change needed before then.
+
+### Directive rebuild normalizes CRLF line ends to `\n`
+
+**Severity:** minor
+**Files:** `src/lib/core/directive/grammar.ts` (`serializeDirective`)
+
+`serializeDirective` hardcodes `\n` for the opener and closer line ends, so a post-EDIT rebuild of
+a CRLF-authored directive normalizes those chrome lines to `\n`. Parse→serialize stays CRLF-safe —
+an opaque container emits its `raw` verbatim — so only a rebuild (triggered by a structural edit)
+normalizes. Shared with the callout/details precedent, whose chrome rebuild does the same.
+
+**Fix direction:** thread the authored line ending through metadata (as the container already
+threads its colon counts) so the rebuild reproduces CRLF.
+
+**Why deferred:** the byte round-trip holds without edits, and this matches the existing
+container-chrome rebuild behavior; fold into a line-ending-fidelity pass.
 
 ## Plugin inline widgets
 
@@ -223,3 +252,20 @@ while focus has left.
 inline-widget reveal.
 
 **Why deferred:** no reachable bug; mirror the guard when reveal reaches those surfaces.
+
+### `needsScan`'s `PROBE_WWW` arm skips the plugin inline-syntax probe
+
+**Severity:** trivial (unreachable today)
+**Files:** `src/lib/core/inline/scan/index.ts` (`needsScan`)
+
+On the fast-bail path, the `:` (`PROBE_SCHEME`) arm probes the plugin inline-syntax registry before
+declining, but the sibling `w`/`W` (`PROBE_WWW`) arm checks only the literal `www.` pattern — a
+plugin registering `w`/`W` as an inline trigger would be missed there. No such plugin exists and the
+empty-registry path is unaffected, so nothing reachable regresses. This is the sibling-path parity
+shape: one rule (probe the registry) carried at one of two conditional-probe arms.
+
+**Fix direction:** mirror the registry probe into the `PROBE_WWW` arm, or document that
+conditional-probe characters cannot be plugin inline triggers.
+
+**Why deferred:** no reachable bug — the divergence only surfaces if a plugin claims `w`/`W`, which
+nothing does; mirror the probe when the fast-bail arms are next touched.
