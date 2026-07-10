@@ -157,3 +157,5 @@ Payload envelopes (the per-op arms change; read the source type rather than enum
 ## Mutations
 
 Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. How edits are applied internally is not part of the consumer contract.
+
+Paste is part of that boundary: pasted text is parsed as authored, and there is no hook to transform clipboard content before it is parsed. The supported way to rewrite a document programmatically — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop (the re-sync contract under Public API). The replacement is one document swap: undo history and the caret do not survive it, which is the honest shape for an import-or-convert affordance.
