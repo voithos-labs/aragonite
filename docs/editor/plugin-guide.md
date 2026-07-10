@@ -196,6 +196,13 @@ types describe their inputs and outputs.
 | -------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe |
 
+**Paste transforms** _(pre-freeze / unstable)_
+
+| Export                   | Role                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `registerPasteTransform` | Register a content-keyed pre-parse clipboard rewrite (paste-scoped, install-order) |
+| `PasteTransform`         | The transform's shape — a unique name and a `transform(text) → string \| null`     |
+
 ## 3. Walkthrough: a directive container end-to-end
 
 We build a `:::note` container — a titled, editable box whose title is a real editable line and
@@ -464,6 +471,8 @@ A plugin **may**:
 - Store primitive per-node metadata, and commit metadata through the sanctioned update path.
 - Contribute per-kind keymaps over the command vocabulary.
 - Render as an unknown kind and degrade to a visible raw fallback.
+- Transform pasted plain text before it is parsed — a content-keyed, paste-scoped hook (see
+  [Paste transforms](#paste-transforms)).
 
 A plugin **may not**:
 
@@ -474,16 +483,40 @@ A plugin **may not**:
 - Pass reactive tree state by value across a module boundary — hand it through getters only.
 - Invent merge-role, unwrap, or container-contract values — those are closed sets.
 - Silently override a built-in or another plugin's registration.
-- Intercept or transform clipboard ingestion. Pasted text is parsed as authored, under whatever
-  grammars are active — there is no pre-parse paste-transform hook on this surface. A host
-  application that wants to rewrite document content does so at the document level: read
-  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer
-  guide's re-sync contract), which replaces the document in one step.
+- Intercept loading or typing, or rewrite the whole document from a paste. The paste-transform hook
+  below is **paste-scoped and pre-parse only**: it sees the clipboard text, never the load path or
+  keystrokes, and a whole-document migration still belongs at the document level — read
+  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer guide's
+  re-sync contract), which replaces the document in one step.
 
 Most of this boundary is enforced by **shape**: the factories never hand you a raw context key or a
 mutation handle, so the disallowed move is unavailable. The rest is enforced by **dev-mode checks
 that are stripped from a production build** — so a plugin developed against a production build gets
 no signal. **Develop against a dev build.**
+
+### Paste transforms
+
+`registerPasteTransform` records a **content-keyed, pre-parse** rewrite of pasted plain text. Each
+transform is a `{ name, transform(text) }` unit: `transform` returns a replacement string, or `null`
+to decline ("not mine"). Transforms run at every paste site before the clipboard text is parsed, in
+**install order** — each sees the previous transform's output — so a plugin keys off the _content_ it
+recognizes rather than the block it lands in. The name is unique (register-once; a duplicate throws,
+naming the owning plugin) and scopes the transform for attribution.
+
+Two habits keep a transform sound:
+
+- **Decline cheaply, then convert precisely.** Probe the text for your marker first and return `null`
+  when it is absent — the pipeline runs on every paste, so a fast reject keeps the common case free.
+- **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped
+  lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only
+  the blocks it means to is fence-safe. Keep the transform **idempotent** — re-running it on its own
+  output must decline or reproduce it (a dev warning fires otherwise, catching paste feedback loops).
+
+The admonitions dogfood is the worked example: it probes for a GitHub-alert blockquote (`> [!NOTE]`),
+and when one is present converts only the top-level blockquote alerts to `:::name` directive source
+through a parse-scoped converter, so an alert-shaped line inside a pasted fence survives literally.
+The transform serves pastes; a host button running the same converter over `getSource()` serves
+already-loaded documents.
 
 ### Misuse outcomes
 

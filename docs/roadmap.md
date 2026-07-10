@@ -75,10 +75,12 @@ not _build-now_:
   needed a content-keyed pre-parse clipboard transform, which the target-kind-keyed surface cannot
   express — registering for prose kinds collides with the built-in default surfaces, and the type
   closure drags commit-coordinator machinery public. Exposing it would have frozen an export that
-  fails its own driving use case. The missing seam is the 1.2 _conversion config_ (Editor.js
-  `pasteConfig` analog) — now empirically validated as content-keyed and paste-scoped, distinct
-  from the target-keyed surface; the driver shipped meanwhile on the documented document-rewrite
-  pattern (`getSource()` → transform → `source` re-sync).
+  fails its own driving use case. The conversion-config seam (Editor.js `pasteConfig` analog) —
+  content-keyed and paste-scoped, distinct from the target-keyed surface — **shipped pre-1.0 as
+  `registerPasteTransform`**: pasted text runs through named, install-ordered transforms before the
+  parse, and the GitHub-alert → admonition driver migrated onto it (the document-rewrite pattern,
+  `getSource()` → transform → `source` re-sync, stays the consumer-side answer for whole-document
+  migration). `registerPasteSurface` stays internal, unchanged.
 - **Generic `:::name` directive primitive** (remark-directive) — **shipped 0.9.11**: one opener owning
   all `:::`/`::`/`:` syntax, dispatch by name, three tiers, a lossless generic fallback, and a public
   `activateDirectives()`. Byte-losslessness is confirmed (adversarial round-trip property), so the one

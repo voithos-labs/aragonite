@@ -304,6 +304,13 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
   through edits), and an opaque container contract (raw is authoritative, not a strip
   decomposition), both invariant-guarded.
+- **Paste transforms (shipped pre-1.0, unstable-labeled).** `registerPasteTransform` records a
+  content-keyed, pre-parse rewrite of pasted plain text: named, register-once (a duplicate throws,
+  attributed to the owning plugin), run in install order at every paste site before the parse. It is
+  **paste-scoped and content-keyed** — distinct from the internal, target-kind-keyed
+  `registerPasteSurface` (which stays unexposed): a transform keys off the clipboard _content_ it
+  recognizes, not the block kind the paste lands in — the shape the GitHub-alert → admonition
+  conversion needs, and the 1.2 conversion-config direction validated a milestone early.
 - **Inline authoring (shipped, unstable-labeled).** The inline mirror of the block surface on
   `aragonite/plugin`: an inline-kind mint with an idempotence probe (`declarePluginInlineKind`,
   `declaredPluginInlineKind`, `isInlineKindDeclared`); an inline-syntax recognition hook
