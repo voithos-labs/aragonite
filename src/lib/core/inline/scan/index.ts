@@ -52,7 +52,8 @@ function needsScan(raw: string, start: number, end: number): boolean {
 		}
 		if (cls === 1) return true;
 		if (cls === PROBE_SCHEME) {
-			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true;
+			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true; // ://
+			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true; // registered ':'
 		} else if (
 			(raw.charCodeAt(i + 1) | 0x20) === 0x77 &&
 			(raw.charCodeAt(i + 2) | 0x20) === 0x77 &&
