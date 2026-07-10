@@ -1,6 +1,6 @@
 # Editor Consumer Guide
 
-How to embed, theme, and wire the editor as a library. Contributor-facing internals live in `docs/design/editor/editor.md` and `adding-a-block.md`.
+How to embed, theme, and wire the editor as a library. Extending it with your own block or inline content instead? See the [plugin author guide](plugin-guide.md).
 
 ## Public API
 
@@ -98,7 +98,7 @@ Optional props customize URL/image handling and editor affordances:
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 
-**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. (The render-memo completeness contract behind this is G4.7 in `docs/design/editor/invariants.md`.) `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Keyboard shortcuts
 
@@ -156,4 +156,4 @@ Payload envelopes (the per-op arms change; read the source type rather than enum
 
 ## Mutations
 
-Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. The internal model (one commit primitive over three scopes, plus a separate undo/redo-apply path) is a contributor concern, documented once at `docs/design/editor/editor.md` § Commit Primitive / Event Seam.
+Consumers never assemble a mutation ceremony — edits happen through the component, and every commit surfaces on the `edit` channel above. How edits are applied internally is not part of the consumer contract.
