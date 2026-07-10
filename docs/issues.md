@@ -28,6 +28,22 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 ## Code structure
 
+### KaTeX block-math component is excluded from the package-boundary gate (by design)
+
+**Severity:** n/a — recorded exclusion, not a defect
+**Files:** `src/routes/test/plugins/latex/BlockMath.svelte`; `scripts/sync-consumer-plugins.mjs` (manifest)
+
+The block-math component consumes editor internals (editable-surface, selection, cursor, and
+reorder plumbing) that are deliberately post-1.0 — it is dogfood for the 1.2 general
+editable-leaf tier, not a consumer of the frozen surface. The consumer sync manifest therefore
+excludes it (only `latex-kind.ts` + `math-renderer.ts` cross the boundary; inline `$…$` math is
+fully tarball-gated), and the sync script fails loud if any synced file still reaches past the
+public barrels.
+
+**Why deferred:** the tier boundary is the roadmap's own; this entry records why "every dogfood
+extension runs through the packed tarball" carries a block-math carve-out. Re-fold when the
+editable-leaf tier ships.
+
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
 **Severity:** minor (a11y; table blocks only)
