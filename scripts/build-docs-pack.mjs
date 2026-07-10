@@ -3,8 +3,9 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+// README stays out (user call): it serves repo navigation, and npm auto-includes
+// it in the tarball anyway — the guides are the pack's entry points.
 const MANIFEST = [
-	'README.md',
 	'docs/editor/consumer-guide.md',
 	'docs/editor/plugin-guide.md',
 	'docs/editor/directives.md',
