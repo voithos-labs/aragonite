@@ -1,55 +1,19 @@
 import { expect, type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from './helpers';
 
-// Shared probe surface for the `<details>` collapsible e2e suites (T4 core, the
+// Suite-specific probes for the `<details>` collapsible e2e suites (T4 core, the
 // reveal-degrade proof, the windowing stress scenarios). Collapse is a windowing
 // clamp: closed ⇒ only the summary row mounts, every body child genuinely
-// unmounts. These helpers read the CST by path, the serialized bytes, and the
-// mounted body-host count — the three observables the gate asserts against.
+// unmounts. The shared page/read/error probes come from ./helpers; this module
+// adds the mounted-host, spacer, desync, and scroll-height observables the
+// collapse-clamp gates assert against.
 
-export class DetailsPage extends EditorPage {
+export { activeBlockPath, capturedErrors, readContainer as readDetails } from './helpers';
+
+export class DetailsPage extends PluginsPage {
 	async gotoDetails() {
-		await this.page.goto('/test/plugins?seed=details');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await this.gotoPlugins('details');
 	}
-}
-
-export interface DetailsState {
-	rootCount: number;
-	kind: string;
-	childCount: number;
-	childKinds: string[];
-	childTexts: string[];
-	raw: string;
-}
-
-export async function readDetails(page: Page, index: number): Promise<DetailsState> {
-	return page.evaluate((i) => {
-		const doc = (window as any).__test.getDocument();
-		const d = doc.children[i];
-		return {
-			rootCount: doc.children.length,
-			kind: d?.kind ?? '',
-			childCount: d?.children?.length ?? 0,
-			childKinds: (d?.children ?? []).map((c: { kind?: string }) => c.kind ?? ''),
-			childTexts: (d?.children ?? []).map((c: { raw?: string }) =>
-				(c.raw ?? '').replace(/\n+$/, '')
-			),
-			raw: d?.raw ?? ''
-		};
-	}, index);
-}
-
-// CST path of the block holding the DOM caret — the oracle for "the caret landed".
-export async function activeBlockPath(page: Page): Promise<number[] | null> {
-	return page.evaluate(() => {
-		const el = document.activeElement?.closest('[data-block-path]');
-		const attr = el?.getAttribute('data-block-path');
-		return attr ? (JSON.parse(attr) as number[]) : null;
-	});
 }
 
 // Body children mount as `.block-host`s inside the box; the count drops to the
@@ -62,10 +26,6 @@ export async function bodyHostCount(page: Page): Promise<number> {
 // collapse clamp is active (the clamped window has no spacers).
 export async function detailsSpacerCount(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelectorAll('.details-block .vr-spacer').length);
-}
-
-export async function capturedErrors(page: Page): Promise<string[]> {
-	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
 export interface RefDesync {

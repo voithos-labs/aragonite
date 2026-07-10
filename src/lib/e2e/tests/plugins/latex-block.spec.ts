@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, roundTripStable } from './helpers';
 
 /**
  * Block `$$…$$` display math: render-primary, source-on-focus (design §"Block math",
@@ -11,13 +11,9 @@ import { EditorPage } from '../../editor-page';
  * `$$…$$` text of `.math-block-source`. Seed: `Before` / `$$x^2$$` / `After`.
  */
 
-class BlockMathPage extends EditorPage {
+class BlockMathPage extends PluginsPage {
 	async gotoMathBlock(seed: 'mathblock' | 'mathblock-multiline' = 'mathblock'): Promise<void> {
-		await this.page.goto(`/test/plugins?seed=${seed}`);
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await this.gotoPlugins(seed);
 		await expect(this.render).toHaveCount(1);
 	}
 
@@ -33,7 +29,9 @@ class BlockMathPage extends EditorPage {
 		return this.page.locator('.math-block-render .katex');
 	}
 
-	/** Click the folded render to reveal its source, settling on the swap. */
+	/** Click the folded render to reveal its source. Block math swaps in a distinct
+	 *  `.math-block-source` element rather than removing the widget, so it settles on
+	 *  that element's arrival — not on the shared `revealWidget` count-to-zero. */
 	async revealByClick(): Promise<void> {
 		await this.render.click();
 		await expect(this.source).toHaveCount(1);
@@ -112,7 +110,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		expect(await editor.sourceText()).toContain('$$x^2$$');
 		// Reveal is a view toggle — the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('$$x^2$$');
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	test('editing the source and blurring re-renders KaTeX and persists the edit', async ({
@@ -130,7 +128,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 		await expect(editor.source).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toContain('$$ax^2$$');
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	test('A1: the reveal caret lands at the source edge and a typed char lands inside it', async ({
@@ -164,7 +162,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		// Blur with no edit is a pure view toggle — the bytes survive.
 		await editor.getBlock(2).click();
 		await expect(editor.renderedKatex).toHaveCount(1);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	test('ArrowRight from the previous block reveals; ArrowRight past the end folds and moves on', async ({

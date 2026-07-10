@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 
 /**
  * Text-tier directive widget: `:name[label]{attrs}` renders as an atomic
@@ -16,13 +16,9 @@ import { EditorPage } from '../../editor-page';
 
 const SEED = 'see :abbr[HTML] here\n\nNext\n';
 
-class DirectiveTextPage extends EditorPage {
+class DirectiveTextPage extends PluginsPage {
 	async gotoText(): Promise<void> {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await this.gotoPlugins();
 		await this.loadContent(SEED);
 		await expect(this.widget).toHaveCount(1);
 	}
@@ -33,8 +29,7 @@ class DirectiveTextPage extends EditorPage {
 
 	/** Click the rendered widget to reveal its source, settling on the swap. */
 	async revealByClick(): Promise<void> {
-		await this.widget.click();
-		await expect(this.widget).toHaveCount(0);
+		await revealWidget(this.widget);
 	}
 }
 
@@ -55,7 +50,7 @@ test.describe('plugin inline directive: select → reveal-source editing', () =>
 		await expect(editor.widget).toHaveAttribute('data-source-start', '4');
 		await expect(editor.widget).toHaveAttribute('data-source-end', '15');
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
-		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(page)).toBe(true);
 	});
 
 	test('ArrowRight selects the widget, then steps over its trailing edge', async ({ page }) => {
@@ -105,7 +100,7 @@ test.describe('plugin inline directive: select → reveal-source editing', () =>
 		await expect(editor.widget).toHaveCount(1);
 		await editor.bridge.waitForSourceContains(':abbr[XHTML] here');
 		expect(await editor.bridge.getSource()).toContain('see :abbr[XHTML] here');
-		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(page)).toBe(true);
 
 		// One undo restores the pre-edit source — the whole reveal edit is one entry.
 		await editor.undo();
