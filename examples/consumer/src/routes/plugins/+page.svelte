@@ -4,12 +4,14 @@
 	import { activateDirectives } from 'aragonite/plugin';
 	import { registerCallout } from '../../plugins/callout/register';
 	import { registerDetails } from '../../plugins/details/register';
+	import { installAdmonitions } from '../../plugins/admonitions/index';
 	import { registerLatexInline } from '../../latex-register';
 
 	// Registration precedes the Editor mount so the seed parses to plugin kinds.
 	activateDirectives();
 	registerCallout();
 	registerDetails();
+	installAdmonitions();
 	registerLatexInline();
 
 	const SEED = [
@@ -25,6 +27,10 @@
 		'</details>',
 		'',
 		'Math $x^2$ inline',
+		'',
+		':::tip Consumer tip',
+		'Admonition body',
+		':::',
 		'',
 		':::mystery',
 		'Unregistered directive body',
