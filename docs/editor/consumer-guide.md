@@ -52,6 +52,20 @@ Mounting two or more editors in one JavaScript context is supported. The boundar
 
 So two editors share one grammar but never share state.
 
+## Plugins
+
+Extend the grammar with **plugin units** — the [plugin author guide](plugin-guide.md) covers writing them. To install, pass an array to the `plugins` prop; it installs once at mount, before the first parse, in array order:
+
+```svelte
+<Editor {source} {plugins} />
+```
+
+Build the array once at module scope rather than inline in the markup — an inline array re-mints the units each render (a harmless dev-warn). Definitions are **process-global**, the [multiple-instances](#multiple-instances) boundary: passing the same plugin to two editors registers it once, so there is no per-instance plugin configuration — per-plugin options ride the plugin's factory.
+
+For a `parse()` pipeline with no `<Editor>` mounted, call `installPlugins(units)` from the `aragonite` barrel to make the grammar live.
+
+A later editor may mount carrying a plugin an earlier one never had — the late install is legal and serves the new editor's own parse. An already-parsed editor does not re-parse against the newer grammar; a dev-warn names the late registration.
+
 ## Theming
 
 The module owns its CSS. Two stylesheets ship under `styles/`:
@@ -97,8 +111,9 @@ Optional props customize URL/image handling and editor affordances:
 | `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
+| `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                    |
 
-**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, and `blockDragHandles` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — the `resolve*`, `imageLoadPolicy`, `onLinkActivate`, `blockDragHandles`, and `plugins` props. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks — set them at mount and treat them as fixed for the editor's lifetime. `theme` and `searchBar` are the exceptions — they read live and may change after mount.
 
 ## Keyboard shortcuts
 
