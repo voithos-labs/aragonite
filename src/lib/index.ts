@@ -14,6 +14,13 @@ export type { ImageLoadPolicy } from './core/inline-render';
 export type { SearchState, SearchOptions } from './reactivity/search-state.svelte';
 export type { Match } from './search/document-scan';
 
+// ── Plugins ────────────────────────────────────────────────────────────────────
+
+// installPlugins for editor-less `parse()` pipelines that need the grammar live
+// without mounting <Editor>; EditorPlugin types the `plugins` prop.
+export { installPlugins } from './schema/plugin-install';
+export type { EditorPlugin } from './schema/plugin-install';
+
 // ── Selection + keybinding public types ────────────────────────────────────────
 
 export type { EditorSelection } from './selection/primitives';
