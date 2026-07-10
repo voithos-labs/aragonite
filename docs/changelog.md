@@ -2,6 +2,15 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.11 — The `:::name` directive primitive
+
+Roadmap item 1 (sub-project B), completed. One shared opener owns all `:::`/`::`/`:` fences and dispatches by name into the editor's kind system — so N plugins never collide on opener priority. The remark-directive model, adapted to the CST's byte-lossless round-trip.
+
+- **Three tiers, one grammar.** Container (`:::name … :::`, nested block children), leaf (`::name`, single-line block), text (`:name[label]{attrs}`, an atomic inline widget with source-reveal on focus). Colon count is the tier boundary; container nesting uses fence-length, like fenced code.
+- **Dispatch by name, lossless fallback.** A registered `(tier, name)` resolves to the plugin's own first-class kind (full descriptor power); an unregistered name round-trips **byte-for-byte** through a generic fallback kind and renders generically — a document survives its plugin being uninstalled. `registerDirective` validates per tier (container requires a factory, text is kind-only).
+- **Public activation.** `activateDirectives()` on `aragonite/plugin` — an explicit, idempotent, call-based activation (no magic side-effect import); a barrel import alone never claims `:::`. The `:::note` callout dogfood migrated onto the primitive (its hand-rolled opener deleted), proving the primitive subsumes the per-plugin-opener path.
+- **Proven byte-lossless.** A `fast-check` adversarial round-trip property (all tiers, nesting, non-ASCII, registered + unregistered) with a rebuild-inverse that catches faithless fence-byte capture, plus a directive simulation gesture putting the surface under the corruption oracle. `parseDirectiveAttributes` is an opt-in `[label]{attrs}` reader. Authoring guide at `docs/editor/directives.md`.
+
 ### 0.9.10 — Inline-widget editing registry + KaTeX
 
 The third plugin authoring seam: the image live-widget path is generalized so a plugin inline kind gets atomic caret-addressing, with KaTeX as the driving first-party consumer.
