@@ -70,6 +70,18 @@ key, so a container and a leaf may share a name. Registration is once — a dupl
 - **Many names may map to one kind.** A plugin can register `note` and `warning` against a single
   kind that reads the name back from its own metadata.
 
+### Per-tier factory contract
+
+`fromDirective` — the factory that builds a node from the parsed fence — is required, optional, or
+rejected by tier, enforced at registration so a mismatch fails loud instead of silently no-op'ing at
+dispatch:
+
+| Tier      | `fromDirective` | Why                                                              |
+| --------- | --------------- | ---------------------------------------------------------------- |
+| Container | **required**    | a kind-only container would orphan the generic `rebuildRaw` path |
+| Leaf      | optional        | kind-only restamps the kind; a factory builds the node           |
+| Text      | **rejected**    | inline nodes are kind-only — a factory is never consulted        |
+
 ### The losslessness guarantee
 
 A document authored with a directive **whose plugin is not installed** opens, edits, and serializes
@@ -94,15 +106,16 @@ container path). An inverse is an additive follow-on if a consumer needs it.
 
 ## Activation
 
-Directives ship inert. A consumer activates the grammar with a single **side-effect import** of the
-`register-directive` activation seam — the same opt-in the in-repo dogfood plugins use. That import
-wires the grammar, the generic fallback kinds and render, the block openers, and the inline `:`
-recognizer together at module load. Registration happens deterministically at load, not lazily on the
-first `registerDirective`, so whether `:::` is claimed never depends on registration timing.
+Directives ship inert. A consumer turns the grammar on by **calling `activateDirectives()`** — a
+single idempotent function on `aragonite/plugin`. One call activates everything: the generic fallback
+kinds and their render, the `:::`/`::` block openers, and the inline `:` recognizer. Call it once at
+startup, **before the editor first parses** — the opener must register before a parse consumes the
+grammar, or an already-parsed document will not re-parse (a dev-mode warn flags a late call).
 
-The `aragonite/plugin` authoring symbols are **inert on their own** — importing `registerDirective`
-does not claim `:::`. A plugin both imports the activation seam _and_ registers its directives; a
-pure-GFM consumer that does neither keeps `:::` unclaimed.
+Activation is a **call, not an import side effect**: importing an `aragonite/plugin` authoring symbol
+does not claim `:::`. A plugin calls `activateDirectives()` _and_ registers its directives; a pure-GFM
+consumer that does neither keeps `:::` unclaimed. The call is idempotent, so multiple plugins (and HMR
+re-runs) can each call it safely.
 
 ## Public authoring surface
 
@@ -111,6 +124,7 @@ open-source release):
 
 | Entry                      | Role                                                                   |
 | -------------------------- | ---------------------------------------------------------------------- |
+| `activateDirectives`       | turn the grammar on; call once at startup, before the first parse      |
 | `registerDirective`        | map a `(tier, name)` to a kind                                         |
 | `parseDirectiveAttributes` | opt-in `info → { label, id, classes, properties }` reader (no inverse) |
 | `serializeDirective`       | lossless fence serializer a registered kind's `rebuildRaw` uses        |
