@@ -5,7 +5,9 @@ import { serialize } from '$lib/core/serializer';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
 import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
-import '$lib/core/directive/register'; // side-effect activation of the directive grammar
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+
+activateDirectiveGrammar(); // openers + ':' recognizer + generic kinds, before any parse
 
 const cases = [
 	':::note\nbody\n:::\n',

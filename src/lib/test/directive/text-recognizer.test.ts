@@ -7,8 +7,10 @@ import type { InlineNode } from '$lib/core/nodes';
 import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
 import { buildCoreInlineWidget, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
-import '$lib/core/directive/register'; // side-effect: declares directiveText + widget + ':' recognizer
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
+
+activateDirectiveGrammar(); // declares directiveText + widget + ':' recognizer, before any parse
 
 const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 const recognize = (raw: string, pos: number, end: number) =>
