@@ -6,7 +6,9 @@ import { parseInline } from '$lib/core/inline';
 import { declarePluginKind, declarePluginInlineKind } from '$lib/schema/plugin-kind';
 import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import '$lib/core/directive/register'; // side-effect: opener + ':' recognizer + generic kinds
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+
+activateDirectiveGrammar(); // opener + ':' recognizer + generic kinds, before any parse
 
 // Sibling-path parity (I1): the leaf and text tiers must dispatch a registered
 // name to the plugin's own kind exactly as the container tier does, and fall back

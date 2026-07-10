@@ -6,10 +6,7 @@
 	import { registerCallout } from './callout/register';
 	import { registerDetails } from './details/register';
 	import { registerLatex } from './latex/register';
-	// Bare side-effect import IS the directive opt-in: it activates the grammar and
-	// binds the generic `:::name` container component (no function call, unlike the
-	// dogfoods above), so the generic-directive e2e can reach a real editing surface.
-	import '$lib/components/blocks/directive/register-directive';
+	import { activateDirectives } from '$lib/plugin';
 
 	let { data }: { data: PageData } = $props();
 
@@ -17,6 +14,10 @@
 	// `<details>` resolve to their plugin container kinds and `$…$` to inline math
 	// rather than plain prose. If this ordering breaks, the editability gate
 	// silently tests a paragraph.
+	// `activateDirectives()` turns on the generic `:::name` grammar + render so the
+	// generic-directive e2e reaches a real editing surface; the dogfoods add their
+	// own names on top (each idempotently re-activates too).
+	activateDirectives();
 	registerCallout();
 	registerDetails();
 	registerLatex();
