@@ -1,24 +1,28 @@
 /**
- * Idempotent registration entry for the LaTeX extension: inline `$…$` math and
- * block `$$…$$` display math (kind + opener + the render-primary `BlockMath`
- * component). Safe to import more than once — each half guards on live registry
- * state, so HMR re-evaluation re-registers cleanly rather than throwing. Mirrors
- * `details/register.ts`.
+ * The LaTeX plugin: inline `$…$` math and block `$$…$$` display math (kind +
+ * opener + the render-primary `BlockMath` component). `latexPlugin({ renderer })`
+ * swaps the inline math engine; block math keeps its own (dogfood) renderer. The
+ * plugin unit installs this setup once per process, so it runs unguarded.
  */
 
 import {
+	definePlugin,
 	registerBlockComponent,
 	defineBlockComponent,
-	isBlockComponentRegistered,
-	declaredPluginKind
+	declaredPluginKind,
+	type EditorPlugin
 } from '$lib/plugin';
 import { registerMathInline, registerMathBlock, MATH_BLOCK } from './latex-kind';
+import { katexRenderer, type MathRenderer } from './math-renderer';
 import BlockMath from './BlockMath.svelte';
 
-export function registerLatex(): void {
-	registerMathInline();
-	registerMathBlock();
-	if (!isBlockComponentRegistered(MATH_BLOCK)) {
-		registerBlockComponent(declaredPluginKind(MATH_BLOCK), defineBlockComponent(BlockMath));
-	}
+export function latexPlugin(options?: { renderer?: MathRenderer }): EditorPlugin {
+	return definePlugin({
+		name: 'latex',
+		setup() {
+			registerMathInline(options?.renderer ?? katexRenderer);
+			registerMathBlock();
+			registerBlockComponent(declaredPluginKind(MATH_BLOCK), defineBlockComponent(BlockMath));
+		}
+	});
 }

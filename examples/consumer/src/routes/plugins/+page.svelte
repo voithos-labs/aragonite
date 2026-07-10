@@ -1,18 +1,20 @@
+<script module lang="ts">
+	import { calloutPlugin } from '../../plugins/callout/register';
+	import { detailsPlugin } from '../../plugins/details/register';
+	import { admonitionsPlugin } from '../../plugins/admonitions/index';
+	import { latexInlinePlugin } from '../../latex-register';
+
+	// Module scope so the factories run once per process, not once per (SSR) render —
+	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
+	// dev-warn. The prop installs before the Editor parses `source`, so the seed
+	// resolves to plugin kinds; callout/admonitions turn the `:::name` grammar on, so
+	// `:::mystery` still renders as the generic directive fallback.
+	const plugins = [calloutPlugin(), detailsPlugin(), admonitionsPlugin(), latexInlinePlugin()];
+</script>
+
 <script lang="ts">
 	import { Editor, type EditorInstance } from 'aragonite';
 	import 'aragonite/styles/editor-theme.css';
-	import { activateDirectives } from 'aragonite/plugin';
-	import { registerCallout } from '../../plugins/callout/register';
-	import { registerDetails } from '../../plugins/details/register';
-	import { installAdmonitions } from '../../plugins/admonitions/index';
-	import { registerLatexInline } from '../../latex-register';
-
-	// Registration precedes the Editor mount so the seed parses to plugin kinds.
-	activateDirectives();
-	registerCallout();
-	registerDetails();
-	installAdmonitions();
-	registerLatexInline();
 
 	const SEED = [
 		':::note Title',
@@ -49,4 +51,4 @@
 	});
 </script>
 
-<Editor bind:this={editor} source={SEED} theme="light" />
+<Editor bind:this={editor} source={SEED} theme="light" {plugins} />
