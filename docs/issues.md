@@ -120,19 +120,6 @@ Two gaps left by the LaTeX acceptance suite:
 **Why deferred:** each acceptance axis already maps to a falsifiable test; these close residual
 coverage when the LaTeX test surface is next extended.
 
-### Plugin-e2e helpers are duplicated across the plugin specs
-
-**Severity:** minor (test-org follow-up)
-**Files:** the plugin e2e specs under `src/lib/e2e/tests/plugins/` (directive, latex, callout)
-
-`revealByClick`, `gotoPlugins`, `readDoc`, `waitForDoc`, and `roundTripStable` are near-verbatim
-across the directive and latex/callout plugin specs. This is test scaffolding, not a product
-defect, but it drifts: a fix to one copy silently misses the others.
-
-**Fix direction:** extract a shared plugin-e2e helper module and route the specs through it.
-
-**Why deferred:** a test-org task, not a defect; schedule with the next plugin-e2e extension.
-
 ## Plugin containers
 
 ### A plugin rebinding chrome Enter to block.split leaves a dead undo entry

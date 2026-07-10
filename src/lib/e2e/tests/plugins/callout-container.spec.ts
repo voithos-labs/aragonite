@@ -1,80 +1,9 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, readContainer, waitForContainer, roundTripStable } from './helpers';
 
-// The plugins harness reuses the editor demo's probe surface but seeds a single
-// `:::note` callout; only the route differs, so a thin subclass overriding goto
-// keeps every real-interaction helper (typeText, undo, waitForUndoBatchFlush).
-class PluginsPage extends EditorPage {
-	async gotoPlugins() {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
-interface CalloutState {
-	rootCount: number;
-	kind: string;
-	childCount: number;
-	childTexts: string[];
-	// The callout node's OWN raw — the value rebuildCalloutRaw must regenerate from
-	// children after every structural edit. childTexts (leaf raws, edited directly)
-	// and roundTripStable (self-consistency of the emitted source) both stay green on
-	// a stale container raw; only this asserts the rebuild actually ran.
-	raw: string;
-}
-
-// Read the callout by CST path through the bridge: document root child [0] is the
-// callout; its children are the paragraphs the edits must move. Trailing newlines
-// are stripped so childTexts read as the visible text.
-async function readCallout(page: Page): Promise<CalloutState> {
-	return page.evaluate(() => {
-		const doc = (window as any).__test.getDocument();
-		const note = doc.children[0];
-		return {
-			rootCount: doc.children.length,
-			kind: note?.kind ?? '',
-			childCount: note?.children?.length ?? 0,
-			childTexts: (note?.children ?? []).map((c: { raw?: string }) =>
-				(c.raw ?? '').replace(/\n+$/, '')
-			),
-			raw: note?.raw ?? ''
-		};
-	});
-}
-
-async function waitForCallout(
-	page: Page,
-	predicate: (s: CalloutState) => boolean,
-	timeout = 2000
-): Promise<CalloutState> {
-	await page.waitForFunction(
-		(predSrc) => {
-			const doc = (window as any).__test.getDocument();
-			const note = doc.children[0];
-			const state = {
-				rootCount: doc.children.length,
-				kind: note?.kind ?? '',
-				childCount: note?.children?.length ?? 0,
-				childTexts: (note?.children ?? []).map((c: { raw?: string }) =>
-					(c.raw ?? '').replace(/\n+$/, '')
-				),
-				raw: note?.raw ?? ''
-			};
-			return new Function('s', `return (${predSrc})(s);`)(state);
-		},
-		predicate.toString(),
-		{ timeout, polling: 16 }
-	);
-	return readCallout(page);
-}
-
-async function roundTripStable(page: Page): Promise<boolean> {
-	return page.evaluate(() => (window as any).__test.roundTripStable());
-}
+// The plugins harness seeds a single `:::note` callout. Read the callout by CST
+// path through the bridge: document root child [0] is the callout; its children
+// are the paragraphs the edits must move — never the document root.
 
 test.describe('plugin container: :::note callout editability', () => {
 	let editor: PluginsPage;
@@ -89,7 +18,7 @@ test.describe('plugin container: :::note callout editability', () => {
 	}) => {
 		// Seed parsed as a real container, not a fallback paragraph. Child 0 is the
 		// reserved editable title (Fork-A spike); the body paragraph follows it.
-		let state = await readCallout(page);
+		let state = await readContainer(page);
 		expect(state.kind).toBe('note');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(2);
@@ -99,7 +28,7 @@ test.describe('plugin container: :::note callout editability', () => {
 		await page.locator('.callout-block [contenteditable="true"]', { hasText: /^First$/ }).click();
 		await page.keyboard.press('End');
 		await editor.typeText(' one');
-		state = await waitForCallout(page, (s) => s.childTexts[1] === 'First one');
+		state = await waitForContainer(page, 0, (s) => s.childTexts[1] === 'First one');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(2);
 		await editor.waitForUndoBatchFlush();
@@ -107,14 +36,14 @@ test.describe('plugin container: :::note callout editability', () => {
 		// Split: Enter mid-body must add a THIRD child to the callout — a broken
 		// container would instead grow the document root (rootCount === 2).
 		await page.keyboard.press('Enter');
-		state = await waitForCallout(page, (s) => s.childCount === 3);
+		state = await waitForContainer(page, 0, (s) => s.childCount === 3);
 		expect(state.rootCount).toBe(1);
 		expect(state.childTexts[1]).toBe('First one');
 		expect(await roundTripStable(page)).toBe(true);
 
 		// Type into the new body child.
 		await editor.typeText('two');
-		const afterSplitTyping = await waitForCallout(page, (s) => s.childTexts[2] === 'two');
+		const afterSplitTyping = await waitForContainer(page, 0, (s) => s.childTexts[2] === 'two');
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(3);
 		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
@@ -131,7 +60,7 @@ test.describe('plugin container: :::note callout editability', () => {
 		// folds it back into the previous body paragraph — never into the title.
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
-		const afterMerge = await waitForCallout(page, (s) => s.childCount === 2);
+		const afterMerge = await waitForContainer(page, 0, (s) => s.childCount === 2);
 		expect(afterMerge.rootCount).toBe(1);
 		expect(afterMerge.childTexts).toEqual(['Title', 'First onetwo']);
 		expect(afterMerge.raw).toBe(':::note Title\nFirst onetwo\n:::\n');
@@ -141,7 +70,7 @@ test.describe('plugin container: :::note callout editability', () => {
 
 		// Undo the merge → back to the captured three-child split state, uncorrupted.
 		await editor.undo();
-		const undoneMerge = await waitForCallout(page, (s) => s.childCount === 3);
+		const undoneMerge = await waitForContainer(page, 0, (s) => s.childCount === 3);
 		expect(undoneMerge.rootCount).toBe(1);
 		expect(undoneMerge.childTexts).toEqual(afterSplitTyping.childTexts);
 		// Undo restored the container's own raw, not just the leaf children.
@@ -150,7 +79,7 @@ test.describe('plugin container: :::note callout editability', () => {
 
 		// Undo the "two" typing → the last body child loses its text, root untouched.
 		await editor.undo();
-		const undoneTyping = await waitForCallout(page, (s) => s.childTexts[2] === '');
+		const undoneTyping = await waitForContainer(page, 0, (s) => s.childTexts[2] === '');
 		expect(undoneTyping.rootCount).toBe(1);
 		expect(undoneTyping.childCount).toBe(3);
 		expect(await roundTripStable(page)).toBe(true);
