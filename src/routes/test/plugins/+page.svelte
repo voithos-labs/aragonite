@@ -10,13 +10,11 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Runs before the child <Editor> mounts and parses `source`, so `:::note` /
-	// `<details>` resolve to their plugin container kinds and `$…$` to inline math
-	// rather than plain prose. If this ordering breaks, the editability gate
-	// silently tests a paragraph.
-	// `activateDirectives()` turns on the generic `:::name` grammar + render so the
-	// generic-directive e2e reaches a real editing surface; the dogfoods add their
-	// own names on top (each idempotently re-activates too).
+	// These run before the child <Editor> mounts and parses `source`, so `:::note` /
+	// `<details>` / `$…$` resolve to their plugin kinds rather than plain prose — if the
+	// ordering breaks, the editability gate silently tests a paragraph. activateDirectives()
+	// turns on the generic `:::name` grammar + render (the generic-directive e2e needs a real
+	// editing surface); the dogfoods add their own names on top, each idempotently re-activating.
 	activateDirectives();
 	registerCallout();
 	registerDetails();

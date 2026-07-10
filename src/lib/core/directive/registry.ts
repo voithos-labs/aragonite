@@ -23,7 +23,7 @@ export interface ParsedDirective {
 
 export interface DirectiveDefinition {
 	kind: AnyBlockKind | PluginInlineKind;
-	/** Omit to let the opener build a generic lossless node (a later dispatch). */
+	/** Omit to let the opener build a generic lossless node. */
 	fromDirective?(parsed: ParsedDirective): CstNode | InlineNode;
 }
 
