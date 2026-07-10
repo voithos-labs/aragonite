@@ -1,16 +1,17 @@
+<script module lang="ts">
+	import { devProbePlugin } from './dev-probe';
+
+	// Module scope so the factory runs once per process, not once per (SSR) render.
+	// The prop installs before the Editor parses `source`, so the seed materializes
+	// the devprobe kind — an unmaterialized kind renders nothing and trips no guard.
+	const plugins = [devProbePlugin()];
+</script>
+
 <script lang="ts">
 	import { Editor } from 'aragonite';
 	import 'aragonite/styles/editor-theme.css';
-	import { activateDirectives } from 'aragonite/plugin';
-	import { registerDevProbe } from './dev-probe';
-
-	// Registration precedes the Editor mount so the seed parses to the devprobe kind
-	// and the block materializes — an unmaterialized kind renders nothing and, with
-	// nothing to render, trips no guard.
-	activateDirectives();
-	registerDevProbe();
 
 	const SEED = ':::devprobe\nbody\n:::\n';
 </script>
 
-<Editor source={SEED} theme="light" />
+<Editor source={SEED} theme="light" {plugins} />

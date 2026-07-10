@@ -1,30 +1,26 @@
+<script module lang="ts">
+	import { calloutPlugin } from './callout/register';
+	import { detailsPlugin } from './details/register';
+	import { latexPlugin } from './latex/register';
+	import { admonitionsPlugin } from './admonitions/index';
+
+	// Module scope so the factories run once per process, not once per (SSR) render:
+	// re-minting fresh same-name plugin objects each render would trip installPlugins'
+	// first-wins dev-warn. A stable array is also the pattern a consumer should copy.
+	// The prop installs before the child <Editor> parses `source`, so `:::note` /
+	// `<details>` / `$…$` resolve to plugin kinds; callout/admonitions setups turn on
+	// the generic `:::name` grammar the generic-directive e2e drives.
+	const plugins = [calloutPlugin(), detailsPlugin(), latexPlugin(), admonitionsPlugin()];
+</script>
+
 <script lang="ts">
 	import { Editor } from '$lib';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
-	import { registerCallout } from './callout/register';
-	import { registerDetails } from './details/register';
-	import { registerLatex } from './latex/register';
-	import {
-		installAdmonitions,
-		convertGithubAlertsInDocument,
-		hasGithubAlert
-	} from './admonitions/index';
-	import { activateDirectives } from '$lib/plugin';
+	import { convertGithubAlertsInDocument, hasGithubAlert } from './admonitions/index';
 
 	let { data }: { data: PageData } = $props();
-
-	// These run before the child <Editor> mounts and parses `source`, so `:::note` /
-	// `<details>` / `$…$` resolve to their plugin kinds rather than plain prose — if the
-	// ordering breaks, the editability gate silently tests a paragraph. activateDirectives()
-	// turns on the generic `:::name` grammar + render (the generic-directive e2e needs a real
-	// editing surface); the dogfoods add their own names on top, each idempotently re-activating.
-	activateDirectives();
-	registerCallout();
-	registerDetails();
-	registerLatex();
-	installAdmonitions();
 
 	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
@@ -146,7 +142,7 @@
 			</button>
 		</div>
 	{/if}
-	<Editor bind:this={editor} {source} {keybindings} />
+	<Editor bind:this={editor} {source} {keybindings} {plugins} />
 </div>
 
 <style>

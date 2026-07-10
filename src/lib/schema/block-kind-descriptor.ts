@@ -1,6 +1,7 @@
 import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { enqueueRegistrationCheck } from './registration-pending';
+import { pluginKindOwner } from './plugin-install';
 import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
@@ -243,9 +244,11 @@ const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	if (registry.has(kind)) {
+		const owner = pluginKindOwner(kind);
 		throw new Error(
 			`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
-				`use augmentBlockKind to merge fields into an existing registration.`
+				`use augmentBlockKind to merge fields into an existing registration.` +
+				(owner ? ` — first declared by plugin '${owner}'` : '')
 		);
 	}
 	registry.set(kind, normalizeRegistration(registration));

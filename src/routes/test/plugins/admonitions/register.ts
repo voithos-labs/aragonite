@@ -10,10 +10,10 @@ import {
 	registerBlockCommand,
 	registerChromeLeaf,
 	registerDirective,
+	registerPasteTransform,
 	serializeDirective,
 	serializeChildren,
 	trimTrailingLineEnding,
-	isBlockKindRegistered,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
@@ -22,13 +22,13 @@ import {
 	type PluginBlockKind
 } from '$lib/plugin';
 import {
-	ADMONITION,
 	ADMONITION_KINDS,
 	declareAdmonitionKinds,
 	admonitionTitleKind,
 	isAdmonitionName,
 	type AdmonitionMetadata
 } from './kinds';
+import { githubAlertsPasteTransform } from './convert-document';
 
 function makeTitleChild(text: string): CstNode {
 	return {
@@ -83,7 +83,6 @@ function rebuildAdmonitionRaw(node: CstNode): void {
 
 export function registerAdmonitions(): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
-	if (isBlockKindRegistered(ADMONITION)) return; // idempotent for hot-reload / re-import
 
 	const { admonition, title } = declareAdmonitionKinds();
 	const build = admonitionFromDirective(admonition);
@@ -126,6 +125,10 @@ export function registerAdmonitions(): void {
 	});
 
 	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+
+	// Pasted GitHub-alert blockquotes convert to `:::name` source pre-parse — the
+	// fence-safe sibling of the host convert button (which serves loaded documents).
+	registerPasteTransform(githubAlertsPasteTransform);
 }
 
 export { isAdmonitionName };
