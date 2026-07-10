@@ -408,6 +408,11 @@ A plugin **may not**:
 - Pass reactive tree state by value across a module boundary — hand it through getters only.
 - Invent merge-role, unwrap, or container-contract values — those are closed sets.
 - Silently override a built-in or another plugin's registration.
+- Intercept or transform clipboard ingestion. Pasted text is parsed as authored, under whatever
+  grammars are active — there is no pre-parse paste-transform hook on this surface. A host
+  application that wants to rewrite document content does so at the document level: read
+  `getSource()`, transform the Markdown, and write the editor's `source` prop (the consumer
+  guide's re-sync contract), which replaces the document in one step.
 
 Most of this boundary is enforced by **shape**: the factories never hand you a raw context key or a
 mutation handle, so the disallowed move is unavailable. The rest is enforced by **dev-mode checks
