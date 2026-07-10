@@ -258,5 +258,19 @@ test.describe('plugin-container ops simulation', () => {
 		await g.pause();
 		await g.undo();
 		await checkOracles('cross-container-undo');
+
+		// ── Paste a GitHub alert → the admonitions pre-parse transform ──────────
+		// The transform rewrites the pasted `> [!TIP]` blockquote to a `:::tip`
+		// admonition before the parse, bringing the content-keyed paste surface
+		// under the round-trip/nested-state/no-errors oracles.
+		tailIdx = (await rootCount(page)) - 1;
+		await g.clickToReposition([tailIdx], 0);
+		await page.keyboard.press('End');
+		await g.pasteGithubAlert();
+		await checkOracles('github-alert-paste');
+
+		await g.pause();
+		await g.undo();
+		await checkOracles('github-alert-paste-undo');
 	});
 });

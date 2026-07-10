@@ -139,3 +139,13 @@ export { registerDirective, isDirectiveRegistered } from './core/directive/regis
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
 export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
+
+// ── Paste transforms (pre-freeze / unstable) ──────────────────────────────────
+// Being refined against the conversion-config direction until the open-source
+// release — NOT yet frozen; shape may change. registerPasteTransform records a
+// content-keyed, pre-parse clipboard rewrite: it inspects the raw pasted text and
+// either replaces it or declines (null). Transforms run in install order at every
+// paste site, before the text is parsed — paste-scoped only; loading and typing
+// are untouched.
+export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
+export type { PasteTransform } from './tree-operations/paste/paste-transforms';

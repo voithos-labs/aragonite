@@ -37,7 +37,7 @@ import {
 	insertColumnRight,
 	insertRowBelow
 } from './gestures/table';
-import { setCalloutKind, toggleCollapse } from './gestures/plugin';
+import { pasteGithubAlert, setCalloutKind, toggleCollapse } from './gestures/plugin';
 import {
 	editContainerBody,
 	editLeafInfo,
@@ -307,6 +307,12 @@ export class Gestures {
 	// rewrite. Only reachable over a loaded document holding a `:::note` callout.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
+	}
+
+	// Real GitHub-alert paste (Mod+V) the admonitions pre-parse transform rewrites
+	// to a :::tip admonition. Resyncs around the transform + reparse.
+	pasteGithubAlert(): Promise<void> {
+		return pasteGithubAlert(this.ctx);
 	}
 
 	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
