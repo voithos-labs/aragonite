@@ -18,8 +18,8 @@ import {
 // unregistered name to the generic lossless kinds) — none of which the corruption
 // oracle stack (structured error + `[invariant:…]` watcher, live-CST round-trip,
 // nested-state audit) had ever seen under a state-accumulating watcher. Mirrors
-// math-ops / plugin-ops: a loaded document on the plugins route (whose bare
-// `register-directive` import activates the grammar + generic render, and whose
+// math-ops / plugin-ops: a loaded document on the plugins route (whose
+// `activateDirectives()` call activates the grammar + generic render, and whose
 // `registerCallout` registers `note`/`warning` as the registered container names),
 // the directive gesture vocabulary, all oracles re-checked after every move, fixed
 // rng for determinism.

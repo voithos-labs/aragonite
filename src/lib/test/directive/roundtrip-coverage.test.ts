@@ -18,7 +18,9 @@ import {
 	type ParsedDirective
 } from '$lib/core/directive/registry';
 import { arbGfmDoc } from '../invariants/arbitraries';
-import '$lib/core/directive/register'; // side-effect: activate the :::/:: openers + the ':' recognizer
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+
+activateDirectiveGrammar(); // :::/:: openers + the ':' recognizer, before any parse
 
 // The acceptance gate for the directive primitive: a fast-check arbitrary that
 // spans the whole construct space (all three tiers, colon counts, nesting,

@@ -14,6 +14,7 @@
  */
 
 import {
+	activateDirectives,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
@@ -30,8 +31,6 @@ import {
 	type ParsedDirective
 } from '$lib/plugin';
 import { isDirectiveRegistered } from '$lib/core/directive/registry';
-import { registerDirectiveKinds } from '$lib/core/directive/kinds';
-import { registerDirectiveOpeners } from '$lib/core/directive/container-opener';
 
 export const NOTE = 'note';
 export const NOTE_TITLE = 'note-title';
@@ -98,13 +97,10 @@ export function rebuildCalloutRaw(node: CstNode): void {
 }
 
 export function registerCalloutKind(): void {
-	// The shared `:::` opener + generic fallback kinds must be live for the callout
-	// names to resolve. Both are idempotent; calling them here (rather than a
-	// run-once side-effect import of the activation seam) re-establishes the opener
-	// after a registry reset in the unit suites — the route activates the same seam
-	// via `register-directive`.
-	registerDirectiveKinds();
-	registerDirectiveOpeners();
+	// The shared directive grammar + generic render must be live for the callout
+	// names to resolve. Idempotent, so calling it here also re-establishes the opener
+	// after a registry reset in the unit suites — the same public entry the route uses.
+	activateDirectives();
 
 	if (isBlockKindRegistered(NOTE)) return; // idempotent for HMR / re-import
 	const note = declarePluginKind(NOTE);
