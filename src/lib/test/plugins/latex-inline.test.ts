@@ -43,7 +43,7 @@ describe('inline math is dormant until registered', () => {
 // when the char before `$` is not whitespace. The close is NOT digit-guarded, so
 // `$x^2$` closes on a digit.
 describe('$ flanking recognition', () => {
-	beforeEach(registerMathInline);
+	beforeEach(() => registerMathInline());
 
 	const cases: Array<[string, boolean]> = [
 		['$x$', true],
@@ -67,7 +67,7 @@ describe('$ flanking recognition', () => {
 });
 
 describe('inline math round-trip', () => {
-	beforeEach(registerMathInline);
+	beforeEach(() => registerMathInline());
 
 	it('serializes $x$ byte-for-byte', () => {
 		expect(serialize(parse('$x$'))).toBe('$x$');
@@ -82,7 +82,7 @@ describe('inline math round-trip', () => {
 });
 
 describe('math widget DOM', () => {
-	beforeEach(registerMathInline);
+	beforeEach(() => registerMathInline());
 
 	function expectWidgetShell(el: HTMLElement, start: number, end: number): void {
 		expect(el.hasAttribute('data-inline-widget')).toBe(true);
@@ -123,5 +123,25 @@ describe('math widget DOM', () => {
 		expect(getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])).toEqual({
 			revealSource: true
 		});
+	});
+});
+
+// The injectable renderer is the extension's consumer seam (latexPlugin({ renderer }));
+// registerMathInline's param must flow into the registered widget's build closure, not
+// a hardcoded engine — a regression to createMemoizedRenderer(katexRenderer) drops it.
+describe('custom renderer threading', () => {
+	const tagRenderer: MathRenderer = (source) => {
+		const dom = document.createElement('span');
+		dom.className = 'tagged-math';
+		dom.textContent = `tagged:${source}`;
+		return { dom };
+	};
+
+	it('routes a registered custom renderer into the widget the descriptor builds', () => {
+		registerMathInline(tagRenderer);
+		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
+		expect(buildCoreInlineWidget(node, '$x$')?.querySelector('.tagged-math')?.textContent).toBe(
+			'tagged:x'
+		);
 	});
 });
