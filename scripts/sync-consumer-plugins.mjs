@@ -12,7 +12,17 @@ const OUT = 'examples/consumer/src/plugins';
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte'],
 	details: ['details-kind.ts', 'register.ts', 'DetailsBlock.svelte'],
-	latex: ['latex-kind.ts', 'math-renderer.ts']
+	latex: ['latex-kind.ts', 'math-renderer.ts'],
+	// index.ts crosses too: registering the component is behind installAdmonitions(),
+	// so the consumer route imports the barrel, not register.ts alone.
+	admonitions: [
+		'kinds.ts',
+		'register.ts',
+		'AdmonitionBlock.svelte',
+		'gh-alert.ts',
+		'convert-document.ts',
+		'index.ts'
+	]
 };
 
 rmSync(OUT, { recursive: true, force: true });

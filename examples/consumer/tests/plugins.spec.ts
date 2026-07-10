@@ -33,6 +33,11 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 	expect(await getSource(page)).toContain('$x^2$');
 });
 
+test('admonition renders its title chrome and round-trips its source', async ({ page }) => {
+	await expect(page.getByText('Consumer tip')).toBeVisible();
+	expect(await getSource(page)).toContain(':::tip Consumer tip');
+});
+
 test('unregistered directive round-trips byte-for-byte through the generic fallback', async ({
 	page
 }) => {
