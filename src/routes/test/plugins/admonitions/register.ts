@@ -13,7 +13,6 @@ import {
 	serializeDirective,
 	serializeChildren,
 	trimTrailingLineEnding,
-	isBlockKindRegistered,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
@@ -22,7 +21,6 @@ import {
 	type PluginBlockKind
 } from '$lib/plugin';
 import {
-	ADMONITION,
 	ADMONITION_KINDS,
 	declareAdmonitionKinds,
 	admonitionTitleKind,
@@ -83,7 +81,6 @@ function rebuildAdmonitionRaw(node: CstNode): void {
 
 export function registerAdmonitions(): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
-	if (isBlockKindRegistered(ADMONITION)) return; // idempotent for hot-reload / re-import
 
 	const { admonition, title } = declareAdmonitionKinds();
 	const build = admonitionFromDirective(admonition);

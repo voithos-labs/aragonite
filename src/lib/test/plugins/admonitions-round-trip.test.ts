@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { parse, serialize } from '$lib';
+import { installPlugins, parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import {
-	installAdmonitions,
+	admonitionsPlugin,
 	convertGithubAlerts
 } from '../../../routes/test/plugins/admonitions/index';
 import type { AdmonitionMetadata } from '../../../routes/test/plugins/admonitions/kinds';
 
 beforeAll(() => {
-	installAdmonitions();
+	installPlugins([admonitionsPlugin()]);
 });
 
 function roundTrips(src: string): boolean {
