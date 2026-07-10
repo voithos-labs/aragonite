@@ -9,9 +9,9 @@
 
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import { setPluginMetadata, type CstNode } from '../nodes';
+import { setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parse } from '../parser';
-import { matchDirectiveOpener, isDirectiveCloser, type DirectiveFence } from './grammar';
+import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveDirective, type ParsedDirective } from './registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
 
@@ -29,8 +29,25 @@ export function registerDirectiveOpeners(): void {
 			if (!fence) return null;
 
 			if (fence.tier === 'leaf') {
-				const node: CstNode = { kind: leaf, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
-				setPluginMetadata<DirectiveFence>(node, fence);
+				const def = resolveDirective('leaf', fence.name);
+				if (def?.fromDirective) {
+					const parsed: ParsedDirective = {
+						fence,
+						body: undefined,
+						leadingTrivia: ctx.leadingTrivia,
+						raw: ctx.line.raw,
+						closerColonCount: 0,
+						closerNewline: false
+					};
+					return { node: def.fromDirective(parsed) as CstNode, nextIndex: ctx.index + 1 };
+				}
+				// A leaf re-derives its content range from `node.raw`, so a generic leaf
+				// needs no metadata; a kind-only registration just restamps the kind.
+				const node: CstNode = {
+					kind: (def?.kind ?? leaf) as AnyBlockKind,
+					leadingTrivia: ctx.leadingTrivia,
+					raw: ctx.line.raw
+				};
 				return { node, nextIndex: ctx.index + 1 };
 			}
 

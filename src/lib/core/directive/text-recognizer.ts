@@ -10,7 +10,8 @@
  * `parseDirectiveAttributes`); recognition only delimits the atomic span.
  */
 
-import type { InlineNode, PluginInlineKind } from '../nodes';
+import type { AnyInlineKind, InlineNode, PluginInlineKind } from '../nodes';
+import { resolveDirective } from './registry';
 
 const isNameStart = (code: number): boolean =>
 	(code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a); // A-Z a-z
@@ -52,6 +53,7 @@ export function recognizeTextDirective(
 	if (i >= end || !isNameStart(raw.charCodeAt(i))) return null;
 	i++;
 	while (i < end && isNameChar(raw.charCodeAt(i))) i++;
+	const nameEnd = i;
 
 	// Conservative gate: a bare `:name` (`:smile:`, `10:30`) stays literal unless
 	// `[` or `{` follows the name immediately.
@@ -74,5 +76,10 @@ export function recognizeTextDirective(
 		i = attrsEnd;
 	}
 
-	return { kind, start: pos, end: i };
+	// Sibling-path parity with the block opener: a registered name resolves to the
+	// plugin's own inline kind, an unregistered name keeps the generic `kind`. The
+	// name slice + lookup are off the per-keystroke path — reached only past the
+	// `[`/`{` gate on a fully balanced span.
+	const def = resolveDirective('text', raw.slice(pos + 1, nameEnd));
+	return { kind: (def?.kind ?? kind) as AnyInlineKind, start: pos, end: i };
 }
