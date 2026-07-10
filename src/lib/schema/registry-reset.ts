@@ -5,14 +5,16 @@ import { __removePluginCommandsForTests, __resetCommandWarningsForTests } from '
 import { __resetBlockCommandsForTests } from './block-commands';
 import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
 import { __resetRegistrationChecksForTests } from './registration-checks';
+import { __resetInstalledPluginsForTests } from './plugin-install';
 
 /**
  * Test-only. Clears every non-built-in registration; built-ins survive. Also
- * clears the dead-key warn dedup and the registration-check latches — state
- * that shadows a registry must never outlive its reset: a warned id would
- * swallow a re-mint's first-time warn, and a surviving first-flush or
- * grammar-consumed latch would mislabel the next test's registrations as
- * post-bootstrap or late.
+ * clears the dead-key warn dedup, the registration-check latches, and the
+ * installed-plugin set — state that shadows a registry must never outlive its
+ * reset: a warned id would swallow a re-mint's first-time warn, a surviving
+ * first-flush or grammar-consumed latch would mislabel the next test's
+ * registrations as post-bootstrap or late, and a surviving installed-set would
+ * no-op re-installs into the wiped grammar.
  */
 export function __resetSchemaRegistriesForTests(): void {
 	__removePluginBlockKindsForTests();
@@ -23,4 +25,5 @@ export function __resetSchemaRegistriesForTests(): void {
 	__resetCommandWarningsForTests();
 	__clearDeclaredPluginKindsForTests();
 	__resetRegistrationChecksForTests();
+	__resetInstalledPluginsForTests();
 }

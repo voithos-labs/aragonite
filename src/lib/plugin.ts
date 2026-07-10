@@ -8,6 +8,14 @@ import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/ch
 import type { AnyBlockKind } from './core/nodes';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
+// ── Plugin unit (pre-freeze / unstable) ──────────────────────────────────────
+// Being refined until the open-source release — NOT yet frozen; shape may change.
+// definePlugin validates a { name, setup } unit at definition time; the editor's
+// `plugins` prop installs each once per process, so a consumer rarely calls
+// installPlugins directly. isPluginInstalled is the idempotence probe.
+export { definePlugin, isPluginInstalled } from './schema/plugin-install';
+export type { EditorPlugin } from './schema/plugin-install';
+
 // ── Kind declaration ─────────────────────────────────────────────────────────
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';

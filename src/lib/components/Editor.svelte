@@ -75,6 +75,7 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
+	import { installPlugins } from '../schema/plugin-install';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
@@ -93,8 +94,13 @@
 		blockDragHandles = true,
 		searchBar = true,
 		keybindings,
-		theme = 'dark'
+		theme = 'dark',
+		plugins
 	}: EditorProps = $props();
+
+	// Install before initDocument parses `source`, so plugin openers/directives are
+	// live for the seed grammar. Set-once by contract — a later prop change is ignored.
+	if (plugins?.length) installPlugins(plugins);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
