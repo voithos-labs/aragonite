@@ -15,8 +15,9 @@
   consumers, the in-repo dogfood extensions, and an internal limestone integration validate
   it. Until the release cut, these shapes may change without notice; nothing external binds.
 
-The plugin DX system (`plugins` prop, manifest, scaffold, hot-reload, reference fleet) stays
-post-1.0 — see the roadmap.
+The plugin **unit** (`definePlugin`) and its `plugins` prop shipped pre-1.0 (see § The pre-freeze
+authoring surface); the rest of the DX system — declarative manifest, scaffold, hot-reload dev loop,
+reference fleet — stays 1.2 (see the roadmap).
 
 ## Why freeze now
 
@@ -68,20 +69,20 @@ shape they bind to is the breaking restructure.
 > command mint, inline-widget editing registry) to pre-1.0; the _DX system_ stays 1.2. The
 > verdict logic itself is unchanged.
 
-| Surface                                                                  | Verdict              | In the freeze?                          | Reason                                                                                                                                                                                            |
-| ------------------------------------------------------------------------ | -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CstNode.kind` widening to `AnyBlockKind`                                | breaking-if-deferred | **Yes — implemented**                   | A closed `switch (node.kind)` in external code goes non-exhaustive the moment a plugin kind appears                                                                                               |
-| Registry model: global, register-once, conflict-on-duplicate             | breaking-if-deferred | **Yes — implemented**                   | Flipping silent-override → conflict after plugins bind changes observable behavior they relied on                                                                                                 |
-| Plugin-kind naming + collision rules (`declarePluginKind`)               | breaking-if-deferred | **Yes — implemented**                   | The collision contract is what a plugin's kind name binds to                                                                                                                                      |
-| Events access seam (`getEvents()` canonical)                             | additive-later       | **Ratified now; alternatives additive** | Keeping `getEvents()` is non-breaking and a future alternative path is additive — the freeze ratifies it as _the_ canonical entry point so consumers bind to one                                  |
-| `EditEvent` / `EditorError` payload shapes                               | additive-later       | Bound as-is; extensible                 | New fields/origins never break a _receiver_                                                                                                                                                       |
-| Plugin manifest / `plugins` prop                                         | additive-later       | **Sketched, built at 1.2**              | A new optional prop and its element type are additive; the shape needs the 1.2 reference plugins to validate                                                                                      |
-| Plugin-op vocabulary extension                                           | additive-later       | Sketched                                | No plugin ops exist; extension mechanism is additive                                                                                                                                              |
-| `EditEvent` snapshot/real-delta discriminant                             | additive-later       | **Deferred**                            | Its binding consumer (persistent version history) is post-v1 app-infra, and its semantic must be designed _with_ that consumer (see Deferred)                                                     |
-| 0.8.2 inline-parser stage hook                                           | n/a                  | **Excluded**                            | Deferred to its real 1.2/1.3 consumer                                                                                                                                                             |
-| Selection coordinate-addressing / inline-widget / component-portal seams | additive-later       | **Excluded (1.2)**                      | Per-hook seams built against this foundation; additive                                                                                                                                            |
-| Runtime unregister / replace                                             | n/a                  | **Excluded (Plugin System II)**         | The static-registry model has no runtime unload                                                                                                                                                   |
-| 0.8.5 lazy `inlineContent` (contract narrowing)                          | breaking-if-deferred | **Yes — implemented**                   | Dropping the `inlineContent` field from `CstNode` removes a public-type member; a plugin binds inline content through the `getInlineContent` accessor — narrowed now, while cheap, before binding |
+| Surface                                                                  | Verdict              | In the freeze?                                                                      | Reason                                                                                                                                                                                            |
+| ------------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CstNode.kind` widening to `AnyBlockKind`                                | breaking-if-deferred | **Yes — implemented**                                                               | A closed `switch (node.kind)` in external code goes non-exhaustive the moment a plugin kind appears                                                                                               |
+| Registry model: global, register-once, conflict-on-duplicate             | breaking-if-deferred | **Yes — implemented**                                                               | Flipping silent-override → conflict after plugins bind changes observable behavior they relied on                                                                                                 |
+| Plugin-kind naming + collision rules (`declarePluginKind`)               | breaking-if-deferred | **Yes — implemented**                                                               | The collision contract is what a plugin's kind name binds to                                                                                                                                      |
+| Events access seam (`getEvents()` canonical)                             | additive-later       | **Ratified now; alternatives additive**                                             | Keeping `getEvents()` is non-breaking and a future alternative path is additive — the freeze ratifies it as _the_ canonical entry point so consumers bind to one                                  |
+| `EditEvent` / `EditorError` payload shapes                               | additive-later       | Bound as-is; extensible                                                             | New fields/origins never break a _receiver_                                                                                                                                                       |
+| Plugin manifest / `plugins` prop                                         | additive-later       | **Sketched, built at 1.2** [pivot: unit + prop shipped pre-1.0; manifest stays 1.2] | A new optional prop and its element type are additive; the shape needs the 1.2 reference plugins to validate                                                                                      |
+| Plugin-op vocabulary extension                                           | additive-later       | Sketched                                                                            | No plugin ops exist; extension mechanism is additive                                                                                                                                              |
+| `EditEvent` snapshot/real-delta discriminant                             | additive-later       | **Deferred**                                                                        | Its binding consumer (persistent version history) is post-v1 app-infra, and its semantic must be designed _with_ that consumer (see Deferred)                                                     |
+| 0.8.2 inline-parser stage hook                                           | n/a                  | **Excluded**                                                                        | Deferred to its real 1.2/1.3 consumer                                                                                                                                                             |
+| Selection coordinate-addressing / inline-widget / component-portal seams | additive-later       | **Excluded (1.2)**                                                                  | Per-hook seams built against this foundation; additive                                                                                                                                            |
+| Runtime unregister / replace                                             | n/a                  | **Excluded (Plugin System II)**                                                     | The static-registry model has no runtime unload                                                                                                                                                   |
+| 0.8.5 lazy `inlineContent` (contract narrowing)                          | breaking-if-deferred | **Yes — implemented**                                                               | Dropping the `inlineContent` field from `CstNode` removes a public-type member; a plugin binds inline content through the `getInlineContent` accessor — narrowed now, while cheap, before binding |
 
 ## The frozen foundation
 
@@ -163,9 +164,9 @@ Registration model
   dev-only consequence; the modules carry no HMR-accept magic). All reset affordances are internal,
   never exposed.
 
-**Why global, given the 1.2 per-instance `plugins` prop?** The roadmap flagged the apparent
+**Why global, given the per-instance `plugins` prop?** The roadmap flagged the apparent
 tension. It resolves cleanly: kind _definitions_ are global because, like custom elements, a
-kind cannot be defined differently for two editors in one process. The `plugins` prop (1.2) is
+kind cannot be defined differently for two editors in one process. The `plugins` prop is
 a registration _trigger and declaration of intent_ — passing the same plugin to two editors
 registers once. If per-instance _enablement_ (editor A renders callouts, editor B does not) is
 ever needed, that is a per-instance policy/allowlist layer over the global definitions, not
@@ -208,14 +209,10 @@ members can be added later without breaking a receiver. They need no change for 
 
 Sketched so later work builds toward a known direction. None is frozen: each is additive. The
 plugin-op vocabulary extension is the pre-1.0 command mint's territory but stays deferred within it
-until a novel-op consumer exists (metadata edits already emit the typed `metadataUpdate`); the plugin
-object / `plugins` prop ships with the 1.2 DX system.
+until a novel-op consumer exists (metadata edits already emit the typed `metadataUpdate`). The plugin
+unit and `plugins` prop shipped pre-1.0 (see § The pre-freeze authoring surface); a declarative
+manifest over the imperative unit remains additive-later.
 
-- **Plugin object + `plugins` prop.** A plugin is an identified unit that performs its global
-  registrations. Direction: a declarative manifest (the framework owns registration order and
-  conflict detection) over an imperative `register()` (the plugin calls `register*` itself) —
-  to be confirmed against the reference plugins. The `plugins` prop on `Editor` is the
-  registration trigger (idempotent across instances per the global model).
 - **Plugin-op vocabulary extension.** A mechanism for a plugin to contribute an
   `OperationKind` (and its detail type) so its structural edits emit typed `EditEvent`s and
   participate in `EditorError.context.op`. Additive over `OperationDetailMap`.
@@ -259,6 +256,24 @@ When added, it is an additive field, designed against its real consumer.
 ## The pre-freeze authoring surface (1.0)
 
 Everything a plugin author reaches today comes through the `aragonite/plugin` subpath:
+
+- **Plugin unit + `plugins` prop (shipped pre-1.0, unstable-labeled).** `definePlugin({ name, setup })`
+  packages a plugin's global registrations into one installable unit; the editor's set-once `plugins`
+  prop installs each once per process, before the instance's first parse (`installPlugins` on the main
+  barrel is the editor-less entry for `parse()` pipelines; `isPluginInstalled` probes an install). The
+  decided shape is an **imperative `setup`** unit — a declarative manifest stays **additive-later** (a
+  `definePlugin` overload, not a restructure). Install is once-per-process keyed by name: same-identity
+  re-install no-ops, same-name/different-identity is first-wins with a dev-warn, a setup that throws
+  stays failed. Kind declarations made during a setup are attributed to their plugin, so a
+  duplicate-registration error names the first declarer. All four dogfood extensions and the consumer
+  examples install through it.
+
+  _Freeze litmus._ The unit's frozen shape must leave additive room for (a) a per-instance _enablement_
+  policy layer over the global definitions (editor A renders a kind, editor B does not), (b)
+  lazy/deferred setup, and (c) a declarative-manifest overload — none needed by a pre-freeze consumer,
+  all additive. One boundary is load-bearing: the ambient marker that attributes a setup's kind
+  declarations to its plugin is **synchronous-only by design** — a future async or lazy setup path must
+  thread the owning plugin explicitly rather than widen the ambient mechanism.
 
 - **Registration base (frozen):** kind declaration (plus `declaredPluginKind`, the checked
   accessor that recovers a declared brand in another module without a cast), descriptor /
