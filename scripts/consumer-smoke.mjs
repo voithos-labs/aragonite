@@ -21,6 +21,7 @@ run('node scripts/verify-pack.mjs'); // published paths present AND no test file
 // which would make an edit → repack loop test stale bits.
 rmSync('examples/consumer/node_modules/aragonite', { recursive: true, force: true });
 run(`npm install ../../${tarball}`, { cwd: 'examples/consumer' });
+run('node scripts/sync-consumer-plugins.mjs'); // dogfood plugin sources → consumer, $lib rewritten
 run('npm run check', { cwd: 'examples/consumer' }); // public entry points type-resolve from outside
 run('npm run build', { cwd: 'examples/consumer' }); // bundle + exports validation
 run(`npx playwright install ${withDeps}chromium`, { cwd: 'examples/consumer' });
