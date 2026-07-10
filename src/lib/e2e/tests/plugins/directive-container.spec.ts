@@ -1,96 +1,26 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage, readContainer, waitForContainer, roundTripStable } from './helpers';
 
 // The generic `:::name` container: an unregistered directive falls back to
 // `DirectiveContainerBlock`, which renders a dimmed read-only `:::name` marker
 // over a nested editable BlockList. Same opaque-container machinery as the
 // callout dogfood, so this mirrors callout-container.spec.ts: read the container
 // by CST path through the `__test` bridge, drive real keyboard for edits.
-class DirectivePage extends EditorPage {
-	async gotoPlugins() {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
-interface DirectiveState {
-	rootCount: number;
-	kind: string;
-	childCount: number;
-	childTexts: string[];
-	// The container node's OWN raw — the value rebuildDirectiveContainerRaw must
-	// regenerate from children after every body edit. childTexts (leaf raws) and
-	// roundTripStable both stay green on a stale container raw; only this asserts
-	// the rebuild ran.
-	raw: string;
-}
-
-// Document root child [0] is the directive; its children are the body blocks the
-// edits must move. Trailing newlines are stripped so childTexts read as visible text.
-async function readDirective(page: Page): Promise<DirectiveState> {
-	return page.evaluate(() => {
-		const doc = (window as any).__test.getDocument();
-		const node = doc.children[0];
-		return {
-			rootCount: doc.children.length,
-			kind: node?.kind ?? '',
-			childCount: node?.children?.length ?? 0,
-			childTexts: (node?.children ?? []).map((c: { raw?: string }) =>
-				(c.raw ?? '').replace(/\n+$/, '')
-			),
-			raw: node?.raw ?? ''
-		};
-	});
-}
-
-async function waitForDirective(
-	page: Page,
-	predicate: (s: DirectiveState) => boolean,
-	timeout = 2000
-): Promise<DirectiveState> {
-	await page.waitForFunction(
-		(predSrc) => {
-			const doc = (window as any).__test.getDocument();
-			const node = doc.children[0];
-			const state = {
-				rootCount: doc.children.length,
-				kind: node?.kind ?? '',
-				childCount: node?.children?.length ?? 0,
-				childTexts: (node?.children ?? []).map((c: { raw?: string }) =>
-					(c.raw ?? '').replace(/\n+$/, '')
-				),
-				raw: node?.raw ?? ''
-			};
-			return new Function('s', `return (${predSrc})(s);`)(state);
-		},
-		predicate.toString(),
-		{ timeout, polling: 16 }
-	);
-	return readDirective(page);
-}
-
-async function roundTripStable(page: Page): Promise<boolean> {
-	return page.evaluate(() => (window as any).__test.roundTripStable());
-}
 
 const SEED = ':::foo\nhello\n:::\n';
 
 test.describe('plugin container: generic :::name directive', () => {
-	let editor: DirectivePage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new DirectivePage(page);
+		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
 	});
 
 	test('unregistered :::foo renders as a directive container with a marker and editable body', async () => {
 		await editor.loadContent(SEED);
 
-		const state = await readDirective(editor.page);
+		const state = await readContainer(editor.page);
 		expect(state.kind).toBe('directiveContainer');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(1);
@@ -113,7 +43,7 @@ test.describe('plugin container: generic :::name directive', () => {
 		await page.keyboard.press('End');
 		await editor.typeText(' world');
 
-		const state = await waitForDirective(page, (s) => s.childTexts[0] === 'hello world');
+		const state = await waitForContainer(page, 0, (s) => s.childTexts[0] === 'hello world');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(1);
 		// A within-paragraph edit: the container raw is regenerated from the body, so
@@ -134,11 +64,11 @@ test.describe('plugin container: generic :::name directive', () => {
 		// Enter mid-container must grow the container's children, never the document
 		// root — a broken container would push a sibling to the root (rootCount === 2).
 		await page.keyboard.press('Enter');
-		let state = await waitForDirective(page, (s) => s.childCount === 2);
+		let state = await waitForContainer(page, 0, (s) => s.childCount === 2);
 		expect(state.rootCount).toBe(1);
 
 		await editor.typeText('second');
-		state = await waitForDirective(page, (s) => s.childTexts[1] === 'second');
+		state = await waitForContainer(page, 0, (s) => s.childTexts[1] === 'second');
 		expect(state.rootCount).toBe(1);
 		expect(state.childTexts).toEqual(['hello', 'second']);
 		// The rebuild ran over ALL children — the new block reaches the container raw.
