@@ -368,7 +368,9 @@ kind:
 ```
 
 The chords are live: focus the note and press `Mod+7` / `Mod+8` to switch it between `note` and
-`tip` — then read `editor.getSource()` back and watch the opener line change with it. Add a collapse
+`tip` — then read `editor.getSource()` back and watch the opener line change with it. Chord strings
+follow the consumer guide's chord model — fixed-order `Mod`/`Alt`/`Shift` plus the key's own value;
+shifted-symbol chords are not modeled, so bind plain digits and letters. Add a collapse
 toggle by giving `reservedChrome` an `isCollapsed` probe over the node — every focus walk, merge,
 and window clamp then reads that one declaration.
 
@@ -384,7 +386,9 @@ Content that is _itself editable_ comes in three tiers, each backed by a tree gu
 
 The chrome leaf is deliberately narrow: it is always present, single-line and unsplittable (paste
 flattens to inline), and is cleared — never deleted — by a destructive range, staying the same kind
-through every edit. A general editable standalone leaf is deferred to a later release. Nested-editor
+through every edit. The contract guarantees the empty leaf's presence, not its look — an empty-state
+affordance (say, placeholder text over an untitled chrome leaf) is yours to build with CSS on the
+leaf's block class. A general editable standalone leaf is deferred to a later release. Nested-editor
 interiors — a second editor state serialized as a blob — are **rejected permanently**: they break
 byte-lossless round-trip.
 
