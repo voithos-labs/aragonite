@@ -23,6 +23,7 @@ import {
 	registerDirective,
 	serializeDirective,
 	isBlockKindRegistered,
+	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
 	serializeChildren,
@@ -30,7 +31,6 @@ import {
 	type CstNode,
 	type ParsedDirective
 } from '$lib/plugin';
-import { isDirectiveRegistered } from '$lib/core/directive/registry';
 
 export const NOTE = 'note';
 export const NOTE_TITLE = 'note-title';
