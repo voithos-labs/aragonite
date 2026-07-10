@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { primaryModifier } from '../../platform';
-import { PluginsPage } from './reserved-chrome-helpers';
+import { PluginsPage, roundTripStable } from './helpers';
 
 /**
  * Command-mint dogfood driver: the `:::note` callout mints `callout.setKind` and
@@ -34,7 +34,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 
 		await editor.bridge.waitForSourceContains(':::warning');
 		expect((await editor.bridge.getSource()).trim()).toBe(':::warning\nbody\n:::');
-		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(page)).toBe(true);
 	});
 
 	test('the type-change fires exactly one metadataUpdate edit op', async ({ page }) => {
