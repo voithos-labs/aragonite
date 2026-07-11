@@ -18,15 +18,36 @@ Remaining work, ordered. Sequencing principle: **risk first, validation before f
 likely to change later plans or to reveal contract gaps (the clean-room build) run early enough that
 what they teach is still cheap to act on.
 
-1. **Scale-gate verify** — `perf:check` green on the prod build in CI; the accept-documented limits
-   (single-giant-paragraph keystroke, extreme flat-document load) stay accurate.
-2. **Shard the CI e2e** — split the Playwright battery across a parallel job matrix; config, pays
-   every PR. Fold in completing the invariant-watcher fixture adoption sweep (shipped in 14 specs;
-   remaining specs are a one-line import each) — finish it before external contributors arrive, since
-   the fixture is the safety net for people who haven't internalized the invariants.
-3. **Demo polish (last)** — a showcase route exercising every block kind plus the dogfood
-   extensions, a theme toggle, prop toggles; keep and polish the debug panel.
-4. **Freeze cut at release** — in order:
+The platform surface is API-complete (0.9.13–0.9.16: the plugin unit, paste transforms,
+portal widgets, the reference plugin, the editable-leaf tier). The dominant remaining risk has
+inverted — it is no longer "the API is missing something" but "the validation is one clean-room
+run deep, and every consumer since was in-repo and same-day." The remaining items answer that.
+
+1. **Limestone internal integration** — the last unchecked box in the validation list above and
+   the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
+   resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
+   integration code lives in limestone; what belongs here is running it before the freeze and
+   landing its findings while they are still cheap. Additive API needs it surfaces ship as
+   pre-freeze refinements.
+2. **CI hardening** — `perf:check` green on the prod build in CI with the accept-documented
+   limits staying accurate (single-giant-paragraph keystroke, extreme flat-document load);
+   shard the Playwright battery across a parallel job matrix (pays every PR); complete the
+   invariant-watcher fixture adoption sweep (a one-line import per remaining spec) before
+   external contributors arrive; and diagnose the attribution-axes settle timeout
+   (`docs/issues.md`) so the perf story carries no standing red into the public repo.
+3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, the
+   0.9.16 tarball and public docs only, building something the new seams carry (e.g. a
+   footnotes or spoiler plugin over the editable-leaf tier plus a paste transform). The first
+   run validated container/chrome discoverability; nothing has third-party-validated the unit,
+   transforms, portal widgets, or the leaf tier. One support question is the benchmark.
+4. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
+   the real showcase route (every block kind + every dogfood, theme and prop toggles, polished
+   debug panel). This is the "surpass Obsidian" argument made visible. It also carries the
+   recorded reference-plugin aesthetic decision (`docs/issues.md` — card-like chrome vs
+   document-not-pile-of-blocks): the dogfoods' look becomes what plugin authors copy, so decide
+   it deliberately; lean restrained (gutter-rail) for house plugins while documenting that
+   chrome is the author's call.
+5. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -54,6 +75,13 @@ what they teach is still cheap to act on.
      post-1.0 normalize-on-commit / veto seam (§ Pre-freeze plugin direction decisions) is not "did
      we preclude the hook" but "can a plugin append a mutation without breaking the aliasing
      invariant."
+   - **Freeze litmus (accumulated surface checks)**: the per-surface litmuses recorded in
+     `plugin-contract.md` § pre-freeze authoring surface — the plugin unit's additive room
+     (enablement layer / lazy setup / declarative-manifest overload), the synchronous-only
+     ambient attribution boundary, and `FenceOpen`'s verbatim-byte return contract — each
+     re-verified at the cut.
+   - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
+     version; additive needs ship as 1.x minors.
 
 ### Pre-freeze plugin direction decisions
 
@@ -97,11 +125,31 @@ neither can hold. Two habits keep the ladder honest: every bug fix records a one
 new feature class adds a simulation gesture so the corruption oracle's coverage tracks the product's
 surface. The complexity is essential — cap the downside, don't simplify.
 
-(prob have interface versions post freeze, so breaking changes get a new version)
-
 ## Post-1.0 sketch
 
 Subject to reconsideration after v1 ships.
+
+### 1.1 — Presentation modes (the live-preview ladder)
+
+Styled source stays the default and the editing substrate; these make it a choice rather than
+a ceiling. Evaluated 2026-07: achievable without fighting the architecture — the operative
+caret invariant since widgets is "every DOM region declares its raw span", not
+"textContent equals raw" — so hidden markers are source-spanned islands over shipped
+machinery. Three rungs, each independently shippable:
+
+1. **Reading mode** — markers hidden, widgets rendered, read-only; a stylesheet plus a
+   read-only mode, buildable by a consumer through public surfaces (the 1.0 freeze litmus
+   guarantees the contract allows it; this rung makes it real, with a consumer toggle as the
+   proof).
+2. **Block-granular live preview** — unfocused blocks render markers-hidden; the focused block
+   shows styled source. The editable-leaf render-primary swap (block math) generalized to
+   built-in prose kinds. Likely the bulk of the perceived live-preview win at a fraction of
+   rung 3's cost.
+3. **Inline-granular live preview** — the full Notion/Obsidian feel: marker islands +
+   reveal-on-caret-proximity (the shipped reveal kernel with a caret-containment trigger) +
+   caret-affinity semantics (the one genuinely new piece; prior art: ProseMirror stored marks).
+   A scanner-rework-sized milestone. **Decide after rung 2 ships** — real usage tells whether
+   block-granular already feels like enough.
 
 ### 1.2 — Plugin DX + deferred generalizations
 
@@ -111,7 +159,8 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7); `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
 - **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax, validated by the 1.3 footnotes/emoji plugins.
-- **Rendered reading mode as a consumer-buildable view** — always-visible-styled-source is a deliberate default and a taste some users won't share; prove a consumer can build a markers-hidden reading view through public surfaces without forking the render path (the 1.0 freeze litmus guarantees the contract allows it; this item makes it real).
+- **Render-primary authoring gaps** (the reference builds' recorded walls, `docs/issues.md`): a public focus-actions seam for render-only containers (the childless-container caret dead-end behind mermaid's `focusable: false`), and a command→component channel so view-state block commands stop needing a plugin-owned bridge.
+- **Decoded-entity inline widget** — `&copy;` renders its glyph as an atomic component widget (the portal seam's natural next consumer); re-adds the trimmed `deleteGranularity`/`onEdge` editing-policy fields with entity editing as their driving consumer.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
@@ -123,14 +172,16 @@ History view, inline markdown diff, three-way merge UI for markdown conflicts, c
 
 ### 2.0+ — Platform-level
 
-Canvas/spatial view, graph view, dataview-shape queries, executable code blocks; then (3.0) a notebook environment with shared kernel state. Driven by the plugin API where possible.
+Canvas/spatial view, graph view, dataview-shape queries, executable code blocks, notebook
+environments — platform ambitions that live with consumers and their repos; the editor's role
+is supplying the plugin surfaces they need, shipped as 1.x minors (breaking → 2.0).
 
-consumer specific (limestone): shared env for executable code block, start with python and javascript. Probably this type of executable code block will be a plugin in the limestone codebase.
+## Downstream boundary
 
-## Downstream (consumer-owned, not this repo)
-
-These belong to consumers (the limestone app), and may surface additive editor-API needs — shipped here as 1.x minors; a breaking change triggers 2.0:
-
-- **Shell integration** — wiring the editor into an app: save/load semantics, dirty-state, scroll restoration, image URL resolution (`resolveImageUrl` against the document dir), link resolution/activation, multi-instance state scoping, a frontmatter properties panel.
-- **Persistent version history / collaboration** — a CRDT-friendly or op-log document representation. The current snapshot undo model is not that shape; a joint design spike decides whether to unify undo, history, and collaboration onto one representation.
-- **Web app / cloud sync** — browser editing, sync, real-time collaboration. Open-source and self-hostable per the thesis.
+Consumer-owned work (shell integration, sync, collaboration, app features) lives in consumer
+repos and their own roadmaps — not here. Two standing editor-side commitments: additive API
+needs surfaced by consumers ship as 1.x minors, breaking changes ride a major; and the one
+joint decision worth naming — the **persistent version-history / collaboration representation
+spike** — stays joint because it constrains editor internals (the snapshot undo model is not
+CRDT/op-log shaped, and unifying undo, history, and collaboration onto one representation is a
+design decision the editor and its first consumer must make together).
