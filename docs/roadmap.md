@@ -23,7 +23,18 @@ portal widgets, the reference plugin, the editable-leaf tier). The dominant rema
 inverted — it is no longer "the API is missing something" but "the validation is one clean-room
 run deep, and every consumer since was in-repo and same-day." The remaining items answer that.
 
-1. **Limestone internal integration** — the last unchecked box in the validation list above and
+1. **CI + contributor hardening** — runs first because the limestone integration is
+   collaborative: a second developer enters the repo, so the item's own "before external
+   contributors arrive" clause is due, and it generates no API findings — nothing is learned
+   later by front-loading it. `perf:check` green on the prod build in CI with the
+   accept-documented limits staying accurate (single-giant-paragraph keystroke, extreme
+   flat-document load); shard the Playwright battery across a parallel job matrix (pays every
+   PR); complete the invariant-watcher fixture adoption sweep (a one-line import per remaining
+   spec); and diagnose the attribution-axes settle timeout (`docs/issues.md`) so a newcomer
+   never has to learn which red is "known pre-existing." Plus the contributor front door,
+   pulled forward thin: a minimal CONTRIBUTING (setup, gate tiers, commit conventions, pointer
+   to `docs/culture.md`) — the full culture.md promotion with PR flow stays at the freeze cut.
+2. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
    integration code lives in limestone; what belongs here is running it before the freeze and
@@ -34,12 +45,6 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
    package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
    tarball, exports-map encapsulation already proven.
-2. **CI hardening** — `perf:check` green on the prod build in CI with the accept-documented
-   limits staying accurate (single-giant-paragraph keystroke, extreme flat-document load);
-   shard the Playwright battery across a parallel job matrix (pays every PR); complete the
-   invariant-watcher fixture adoption sweep (a one-line import per remaining spec) before
-   external contributors arrive; and diagnose the attribution-axes settle timeout
-   (`docs/issues.md`) so the perf story carries no standing red into the public repo.
 3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, the
    0.9.16 tarball and public docs only, building something the new seams carry. The first
    run validated container/chrome discoverability; nothing has third-party-validated the unit,
@@ -67,9 +72,10 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
      against the contract on paper and confirm no breaking-if-deferred gap — reading cost now versus
      breaking change later.
-   - **Promote `docs/culture.md` into the public CONTRIBUTING** — the incident-backed rule set
-     exists; at release it gains the practical wrapper (setup, PR flow, gate tiers) and becomes the
-     front door for contributors who haven't lived the repo's history.
+   - **Complete the CONTRIBUTING** — the minimal front door ships in item 1; at release it
+     absorbs `docs/culture.md` (the incident-backed rule set) and gains the public wrapper (PR
+     flow, external-contributor setup), becoming the front door for contributors who haven't
+     lived the repo's history.
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
      `git log`.
