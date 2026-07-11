@@ -5,13 +5,29 @@ import { serialize } from '$lib/core/serializer';
 import { computeInlineContent } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import {
-	buildCoreInlineWidget,
-	__resetInlineWidgetsForTests
-} from '$lib/core/inline/inline-widgets';
+import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { registerMathInline, MATH_INLINE } from '../../../routes/test/plugins/latex/latex-kind';
+
+// The atomic-island wrapper the render layer's portal builder stamps around a
+// component widget, with interior text that is NOT the source bytes — modelling
+// KaTeX's rendered glyphs. Mounting the real MathInline component (Svelte + KaTeX)
+// is reserved for the e2e; the walk under test keys only on the four attributes and
+// the presence of nonzero non-source interior, all of which this reproduces.
+function stampMathWidget(node: InlineNode): HTMLElement {
+	const wrapper = document.createElement('span');
+	wrapper.dataset.inlineWidget = '';
+	wrapper.dataset.sourceStart = String(node.start);
+	wrapper.dataset.sourceEnd = String(node.end);
+	wrapper.setAttribute('contenteditable', 'false');
+	for (const glyph of ['x', '2']) {
+		const g = document.createElement('span');
+		g.textContent = glyph;
+		wrapper.appendChild(g);
+	}
+	return wrapper;
+}
 
 // Nonzero-interior byte-survival audit (A11 / G1.9). Inline math is the FIRST live
 // widget that renders real interior text nodes: KaTeX emits glyph text (`x`, `2`, …)
@@ -41,12 +57,12 @@ afterEach(() => {
 });
 
 // Mount the block as the render path builds it: outer text, the rendered math widget
-// (real KaTeX via the registered descriptor), outer text.
+// (the stamped atomic island with glyph-like interior), outer text.
 function mountRenderedBlock(): { el: HTMLElement; widget: HTMLElement } {
 	const math = computeInlineContent(parse(BLOCK_RAW).children[0]).find(
 		(n) => n.kind === MATH_INLINE
 	) as InlineNode;
-	const widget = buildCoreInlineWidget(math, BLOCK_RAW) as HTMLElement;
+	const widget = stampMathWidget(math);
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
 	el.append(document.createTextNode('a '), widget, document.createTextNode(' b'));
