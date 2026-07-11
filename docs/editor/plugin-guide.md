@@ -148,14 +148,28 @@ types describe their inputs and outputs.
 
 **Inline authoring** _(pre-freeze / unstable)_
 
-| Export                                                                                                                                          | Role                                                                                                       |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `declarePluginInlineKind`                                                                                                                       | Mint an inline kind                                                                                        |
-| `declaredPluginInlineKind`                                                                                                                      | Recover a declared inline kind's brand in another module                                                   |
-| `isInlineKindDeclared`                                                                                                                          | Idempotence probe for an inline-kind declaration                                                           |
-| `registerInlineSyntax`                                                                                                                          | Hook the scanner on a trigger character with your recognizer                                               |
-| `registerInlineWidgetKind`                                                                                                                      | Register an inline kind as a live atomic widget with its editing policy                                    |
-| `PluginInlineKind`, `InlineNode`, `InlineSyntaxRecognizer`, `InlineWidgetDescriptor`, `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The inline kind and node types, the recognizer contract, and the widget descriptor plus its editing shapes |
+| Export                                                                                                                                                                        | Role                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `declarePluginInlineKind`                                                                                                                                                     | Mint an inline kind                                                                                                            |
+| `declaredPluginInlineKind`                                                                                                                                                    | Recover a declared inline kind's brand in another module                                                                       |
+| `isInlineKindDeclared`                                                                                                                                                        | Idempotence probe for an inline-kind declaration                                                                               |
+| `registerInlineSyntax`                                                                                                                                                        | Hook the scanner on a trigger character with your recognizer                                                                   |
+| `registerInlineWidgetKind`                                                                                                                                                    | Register an inline kind as a live atomic widget — a `component` (recommended) or a hand-built `buildWidget`                    |
+| `PluginInlineKind`, `InlineNode`, `InlineSyntaxRecognizer`, `InlineWidgetDescriptor`, `InlineWidgetComponentProps`, `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The inline kind and node types, the recognizer contract, and the widget descriptor plus its component-props and editing shapes |
+
+A widget kind renders through one of two paths, and the descriptor rejects declaring both:
+
+- **A `component` (recommended).** Supply a Svelte component; the editor wraps it in the atomic
+  island — stamping the marker attributes the cursor and selection machinery need — and mounts it
+  with frozen `{ inline, source }` props. A keyed reuse pool keeps one live instance per
+  `(kind, source)` across the editor's rebuild-everything-per-keystroke render: typing next to a
+  widget adopts its instance rather than remounting it, and the instance is remounted only when its
+  source text changes. Error handling: a **synchronous mount-time throw** is caught — the widget
+  falls back to its raw source and an `error` event fires — but the component mounts as its own
+  effect root, so nothing catches its post-mount runtime errors. They are yours to handle: render a
+  legible error for bad input instead of throwing (the KaTeX widget shows an inline message).
+- **A hand-built `buildWidget`.** Return the island DOM yourself when you need DOM-level control; you
+  own the marker-attribute stamping. This is the lower-level path the image widget uses.
 
 **Commands and keybindings**
 
