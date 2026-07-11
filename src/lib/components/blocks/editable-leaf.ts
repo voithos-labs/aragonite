@@ -1,0 +1,420 @@
+/**
+ * The editable-leaf seam a plugin block component builds on: a text-editing
+ * block surface with native caret/IME/undo/cross-block-selection parity.
+ * Collapses the editable-surface plumbing, its fourteen context pulls, the
+ * shared-keydown + chord dispatch, reorder commands, and the reveal/commit
+ * ceremony into one factory — a plugin never touches an editor context key.
+ * Mirrors BlockMath's wiring; the component supplies only its view (markup,
+ * render/source effects) around the returned handlers.
+ *
+ * Two modes:
+ *   'plain'          — the source contenteditable is always mounted; every
+ *                      keystroke commits to the CST (prose-like undo batching).
+ *                      The component calls `syncSource()` to mirror external
+ *                      changes into its element with the caret restored.
+ *   'render-primary' — a rendered view swaps to the source on reveal; edits
+ *                      are ephemeral DOM until focus leaves, then commit as ONE
+ *                      undo entry. The component owns the swap flag + visuals
+ *                      (`isRevealed`/`setRevealed`) and both views' rendering.
+ *
+ * `commitSource` parses the edited text and lands it through the block-edit
+ * ladder: same kind updates in place, a kind change remounts, multi-block text
+ * structurally replaces the block with every parsed block (caret following the
+ * edit position).
+ *
+ * Call synchronously during component init — the factory reads the editor's
+ * ancestor contexts.
+ */
+
+import { getContext, tick } from 'svelte';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions,
+	HistoryActions
+} from '../../action-contracts';
+import type { StickyColumnDirection } from '../../block-component';
+import type { CstNode } from '../../core/nodes';
+import {
+	BLOCK_EDIT_KEY,
+	BLOCK_EL_LOOKUP_KEY,
+	CONTAINER_EDIT_KEY,
+	CONTROLLER_KEY,
+	DOC_KEY,
+	EDITOR_LIFETIME_KEY,
+	EDITOR_ROOT_KEY,
+	FOCUS_KEY,
+	HISTORY_KEY,
+	KEYBINDING_OVERRIDES_KEY,
+	PASTE_COORDINATOR_KEY,
+	REORDER_ACTION_KEY,
+	SELECTION_KEY,
+	STICKY_COLUMN_KEY,
+	type BlockElLookup,
+	type DocumentGetter,
+	type KeybindingOverridesGetter
+} from '../../editor-keys';
+import type { ReorderAction } from '../../editor-actions/reorder-action';
+import type { UndoController } from '../../editor-actions/deps';
+import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { SelectionState } from '../../selection/selection-state.svelte';
+import {
+	createRangeFromOffsets,
+	setCursorOffset,
+	getCursorOffset,
+	getSelectionFocusOffset
+} from '../../cursor/content-offsets';
+import { handleSharedKeydown } from '../../selection/shared-keydown';
+import { createEditableSurface } from './editable-surface';
+import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
+import { createSourceReveal } from '../../cursor/reveal-source';
+import { trimTrailingLineEnding } from '../../core/lines';
+import { eventToChord } from '../../schema/keybindings';
+import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+
+export type EditableLeafMode = 'plain' | 'render-primary';
+
+/**
+ * Reactive inputs the host component feeds in as getters (Design Rule 5): each
+ * is re-read live so a structural op or undo replacement is observed, never
+ * snapshotted.
+ */
+export interface EditableLeafDeps {
+	get node(): CstNode;
+	get index(): number;
+	get path(): number[];
+	/** The source contenteditable; null while unmounted (render-primary's rendered view). */
+	getEl(): HTMLElement | null;
+	mode?: EditableLeafMode;
+	/** render-primary only: the component owns the swap flag and both views. */
+	isRevealed?(): boolean;
+	setRevealed?(revealed: boolean): void;
+}
+
+export interface EditableLeaf {
+	/** The block's source minus its trailing line ending — the editable text. */
+	readonly sourceText: string;
+
+	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
+	focus(offset: number): void;
+	focusAtColumn(x: number, from: StickyColumnDirection): void;
+	getCursorOffset(): number | null;
+	getSelectedText(): string;
+	setSelection(start: number, end: number): void;
+	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
+	runCommand(id: CommandId): boolean;
+
+	// ── Source-element event handlers ─────────────────────────────────────────
+	onInput(): void;
+	onCompositionStart(): void;
+	onCompositionEnd(): void;
+	handleKeydown(e: KeyboardEvent): Promise<void>;
+	onPointerDown(e: PointerEvent): void;
+	/** render-primary: commit-on-blur (fold + one CST commit). Plain: no-op. */
+	onFocusOut(): void;
+	/** render-primary: reveal-on-click for the rendered view (shift-click extends a selection instead). */
+	onRenderPointerDown(e: PointerEvent): void;
+
+	// ── Programmatic edits ─────────────────────────────────────────────────────
+	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
+	reveal(offset?: number): Promise<void>;
+	/** Commit edited source as one undo entry; the parse decides update / kind change / structural split. */
+	commitSource(edited: string): void;
+
+	// ── View hooks ─────────────────────────────────────────────────────────────
+	/**
+	 * Plain mode: sync `sourceText` into the source element as a single text
+	 * node, restoring the caret when the text changed under a live caret. Call
+	 * from a `$effect` — reading `sourceText` inside tracks the node's raw.
+	 */
+	syncSource(): void;
+	/** Effect-cleanup hook: park focus on the editor root when the source unmounts while focused. */
+	parkFocus(el: HTMLElement | null): void;
+}
+
+export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
+	const mode: EditableLeafMode = deps.mode ?? 'plain';
+	if (mode === 'render-primary' && (!deps.isRevealed || !deps.setRevealed)) {
+		throw new Error('createEditableLeaf: render-primary mode requires isRevealed + setRevealed');
+	}
+	// Plain mode's source is always the editable view.
+	const isRevealed = mode === 'render-primary' ? deps.isRevealed! : () => true;
+
+	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const controller = getContext<UndoController>(CONTROLLER_KEY);
+	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
+	const selection = getContext<SelectionState>(SELECTION_KEY);
+	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
+	const getDoc = getContext<DocumentGetter>(DOC_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+
+	let composing = false;
+	let preEditOffset = 0;
+	let pendingCursor: number | null = null;
+
+	const sourceText = (): string => trimTrailingLineEnding(deps.node.raw);
+
+	const editableSurface = createEditableSurface({
+		getEl: () => deps.getEl(),
+		getAmbientLength: () => 0,
+		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
+		isInputSuppressed: () => mode === 'render-primary',
+		backend: {
+			getRaw: () => {
+				const el = deps.getEl();
+				return el ? (getCursorOffset(el) ?? null) : null;
+			},
+			setRaw: (offset) => {
+				const el = deps.getEl();
+				if (el) setCursorOffset(el, offset);
+			},
+			buildRange: (start, end) => {
+				const el = deps.getEl();
+				return el ? createRangeFromOffsets(el, start, end) : null;
+			}
+		},
+		getMyPath: () => deps.path,
+		getIndex: () => deps.index,
+		getComposing: () => composing,
+		setComposing: (value) => {
+			composing = value;
+		},
+		getPreEditOffset: () => preEditOffset,
+		setPreEditOffset: (offset) => {
+			preEditOffset = offset;
+		},
+		// render-primary never restores a pending caret — focus has already left on
+		// commit, and a re-render must not yank it back.
+		setPendingCursor: (offset) => {
+			if (mode === 'plain') pendingCursor = offset;
+		},
+		selection,
+		getDoc,
+		getBlockElByPath,
+		focusActions,
+		getEditorRoot,
+		getEditorLifetime: () => editorLifetime ?? null,
+		stickyColumn,
+		containerEdit,
+		blockEdit,
+		controller,
+		history,
+		getKeybindingOverrides: keybindingOverrides,
+		pasteCoordinator,
+		getFocusOffset: () => {
+			const el = deps.getEl();
+			return el ? getSelectionFocusOffset(el) : null;
+		},
+		getTextLen: () => (deps.getEl()?.textContent ?? '').length,
+		readText: () => deps.getEl()?.textContent ?? '',
+		commitInput: (text, preEdit, saved) => {
+			if (mode === 'plain') blockEdit.updateBlockContent(deps.index, text + '\n', preEdit, saved);
+		}
+	});
+
+	const surface = editableSurface.surface;
+	const crossBlock = editableSurface.crossBlock;
+
+	// The caret core; the swap is the component's reveal flag. Block commits on
+	// blur via `commitReveal` (never the kernel's Escape-cancel `commit()`), so
+	// only `reveal()` is driven here. Plain mode's swap thunks are inert.
+	const revealKernel = createSourceReveal({
+		get container() {
+			return deps.getEl();
+		},
+		get sourceStart() {
+			return 0;
+		},
+		get sourceEnd() {
+			return sourceText().length;
+		},
+		get source() {
+			return sourceText();
+		},
+		getAmbientLength: () => 0,
+		isRevealed,
+		showSource: () => deps.setRevealed?.(true),
+		showRendered: () => deps.setRevealed?.(false)
+	});
+
+	// ── Commit ─────────────────────────────────────────────────────────────────
+
+	function commitSource(edited: string): void {
+		// One undo entry: the anchor is where the caret entered the edit; the
+		// post-edit caret follows the edit position (a structural split lands it
+		// in the block it falls in).
+		blockEdit.updateBlockContent(deps.index, edited + '\n', preEditOffset, edited.length);
+	}
+
+	function commitReveal(): void {
+		if (mode !== 'render-primary' || !isRevealed()) return;
+		// A cross-block selection sweeping through keeps the source revealed so its
+		// rects measure real text; it folds when the selection clears.
+		if (selection.isCrossBlock) return;
+		const edited = deps.getEl()?.textContent ?? sourceText();
+		deps.setRevealed!(false); // reactive re-render of the edited source
+		if (edited === sourceText()) return; // pure view toggle, nothing for the CST
+		commitSource(edited);
+	}
+
+	// ── BlockComponent surface ─────────────────────────────────────────────────
+
+	function focus(offset: number): void {
+		if (mode === 'render-primary') {
+			void revealKernel.reveal(offset);
+			return;
+		}
+		surface.focus(offset);
+	}
+
+	// Sticky-column entry: mount the source, then land at the column nearest x
+	// on the first/last visual line — the code-block traversal contract.
+	function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		void (async () => {
+			if (!isRevealed()) {
+				deps.setRevealed!(true);
+				await tick();
+			}
+			if (!deps.getEl()) return;
+			surface.focusAtColumn(x, from);
+		})();
+	}
+
+	function runCommand(id: CommandId): boolean {
+		switch (id) {
+			case 'block.moveUp':
+				reorder.nudgeReorderUnit(deps.path, -1);
+				return true;
+			case 'block.moveDown':
+				reorder.nudgeReorderUnit(deps.path, 1);
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	// ── View sync ──────────────────────────────────────────────────────────────
+
+	// Chromium with `white-space: pre` won't paint a caret on the line after a
+	// trailing `\n` unless something follows it; typed text routes before the
+	// `\n`. A trailing `<br>` anchors the caret on the new line without touching
+	// `textContent` (mirrors CodeBlock's anchor).
+	function anchorTrailingNewline(el: HTMLElement): void {
+		if (!el.textContent?.endsWith('\n')) return;
+		const anchor = document.createElement('br');
+		anchor.dataset.caretAnchor = '';
+		el.appendChild(anchor);
+	}
+
+	function syncSource(): void {
+		const text = sourceText();
+		const el = deps.getEl();
+		if (!el) return;
+		const pending = pendingCursor;
+		pendingCursor = null;
+		if ((el.textContent ?? '') !== text) {
+			el.textContent = text;
+			anchorTrailingNewline(el);
+			// Restore only under a live caret — an external rewrite (undo,
+			// structural replace) must not steal focus.
+			if (pending !== null && document.activeElement === el) setCursorOffset(el, pending);
+		}
+	}
+
+	// ── Event handlers ─────────────────────────────────────────────────────────
+
+	// Insert a literal newline into the single source text node, keeping the
+	// offset walk exact (a native Enter would split it into <div>/<br>).
+	function insertNewlineAtCaret(): void {
+		const el = deps.getEl();
+		if (!el) return;
+		const text = el.textContent ?? '';
+		const offset = getCursorOffset(el) ?? text.length;
+		el.textContent = text.slice(0, offset) + '\n' + text.slice(offset);
+		anchorTrailingNewline(el);
+		setCursorOffset(el, offset + 1);
+	}
+
+	async function handleKeydown(e: KeyboardEvent): Promise<void> {
+		const el = deps.getEl();
+		if (composing || !el) return;
+		preEditOffset = getCursorOffset(el) ?? 0;
+
+		if (await handleSharedKeydown(e, editableSurface.sharedCtx)) return;
+
+		const chord = eventToChord(e);
+		if (
+			chord &&
+			dispatchKeyCommand(
+				chord,
+				{ kind: deps.node.kind, runCommand },
+				{ history },
+				keybindingOverrides()
+			)
+		) {
+			e.preventDefault();
+			return;
+		}
+
+		// Enter stays inside the leaf as a literal newline (multiline source);
+		// it never splits the block. Plain mode commits the insertion.
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			insertNewlineAtCaret();
+			if (mode === 'plain') editableSurface.onInput();
+		}
+	}
+
+	function onPointerDown(e: PointerEvent): void {
+		if (crossBlock.handlePointerDown(e)) return;
+	}
+
+	function onRenderPointerDown(e: PointerEvent): void {
+		// Shift-click extends a selection (handled once revealed); a plain click reveals.
+		if (e.shiftKey) return;
+		e.preventDefault();
+		void revealKernel.reveal(0);
+	}
+
+	return {
+		get sourceText() {
+			return sourceText();
+		},
+
+		focus,
+		focusAtColumn,
+		getCursorOffset: () => (isRevealed() ? surface.getCursorOffset() : null),
+		getSelectedText: () => (isRevealed() ? surface.getSelectedText() : ''),
+		setSelection: (start, end) => {
+			if (isRevealed()) surface.setSelection(start, end);
+		},
+		measurePartialRects: (startOffset, endOffset) =>
+			isRevealed() ? surface.measurePartialRects(startOffset, endOffset) : [],
+		runCommand,
+
+		onInput: editableSurface.onInput,
+		onCompositionStart: editableSurface.onCompositionStart,
+		onCompositionEnd: editableSurface.onCompositionEnd,
+		handleKeydown,
+		onPointerDown,
+		onFocusOut: commitReveal,
+		onRenderPointerDown,
+
+		reveal: (offset = 0) =>
+			mode === 'render-primary'
+				? revealKernel.reveal(offset)
+				: Promise.resolve(surface.focus(offset)),
+		commitSource,
+
+		syncSource,
+		parkFocus: (el) => parkFocusOnEditorRoot(el, getEditorRoot())
+	};
+}

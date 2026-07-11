@@ -35,6 +35,20 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 	expect(await getSource(page)).toContain('$x^2$');
 });
 
+test('block math renders KaTeX and reveals its source on click (editable-leaf tier)', async ({
+	page
+}) => {
+	const render = page.locator('.math-block-render');
+	await expect(render).toBeVisible();
+	await expect(render.locator('.katex')).toBeVisible();
+
+	await render.click();
+	const source = page.locator('.math-block-source');
+	await expect(source).toBeVisible();
+	await expect(source).toHaveText('$$e^{i\\pi} + 1 = 0$$');
+	expect(await getSource(page)).toContain('$$e^{i\\pi} + 1 = 0$$');
+});
+
 test('admonition renders its title chrome and round-trips its source', async ({ page }) => {
 	await expect(page.locator('.admonition[data-kind="tip"]')).toBeVisible();
 	await expect(page.getByText('Consumer tip')).toBeVisible();

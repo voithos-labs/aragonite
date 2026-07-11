@@ -9,6 +9,7 @@
 		createContainerBlock,
 		getPluginMetadata,
 		trimTrailingLineEnding,
+		normalizeLineEndings,
 		type BlockComponent,
 		type CstNode
 	} from '$lib/plugin';
@@ -138,7 +139,7 @@
 		mode = 'render';
 		// The textarea API value is LF-normalized, so compare the seed the same
 		// way — an untouched CRLF block must not rewrite its bytes on blur.
-		if (value === editSeed.replace(/\r\n/g, '\n')) return;
+		if (value === normalizeLineEndings(editSeed)) return;
 		updateOwnMetadata({ code: value.length > 0 ? value + '\n' : '' });
 		// Only a keyboard commit refocuses; a blur commit must not yank the
 		// focus back from wherever the user clicked.
