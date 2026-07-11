@@ -52,21 +52,30 @@ function buildErrorNode(message: string): HTMLElement {
 
 // ── Memoized wrapper ──────────────────────────────────────────────────────────
 
+const MEMO_CAP = 256;
+
 /**
  * Memoize the render *work*, not a live node: a single DOM node cannot occupy two
  * places, and the same formula is commonly rendered in several spots. We cache
  * `inner`'s result and clone it on every call (the cache node stays pristine), so
  * `inner` runs once per key while each caller gets its own detached node.
+ *
+ * Bounded LRU: every keystroke while editing source mints a new key, so an
+ * unbounded map is a leak. Map iteration is insertion-ordered — re-inserting on
+ * a hit makes the first key the least recently used.
  */
-export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
+export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): MathRenderer {
 	const cache = new Map<string, { dom: HTMLElement; error?: string }>();
 	return (source, opts) => {
 		const key = `${source}\x00${opts.display}`;
 		let entry = cache.get(key);
-		if (!entry) {
+		if (entry) {
+			cache.delete(key);
+		} else {
 			entry = inner(source, opts);
-			cache.set(key, entry);
+			if (cache.size >= cap) cache.delete(cache.keys().next().value as string);
 		}
+		cache.set(key, entry);
 		return { dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error };
 	};
 }

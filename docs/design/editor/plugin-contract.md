@@ -302,6 +302,14 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   one chrome row. The factory also returns a metadata-commit handle (`updateOwnMetadata`) for
   behavioral fields like a collapsible's open state — merged, raw-rebuilt, and undoable in one
   commit.
+- **Editable-leaf authoring (shipped pre-1.0, unstable-labeled).** `createEditableLeaf` — the
+  container factory's sibling for leaves: getter deps (`node`/`index`/`path` + `getEl()`), its
+  own context reads, and a returned surface the component re-exports as one-liners. Two modes:
+  `plain` (always-editable, per-keystroke commits, prose undo batching, factory-owned view sync)
+  and `render-primary` (component-owned render↔source swap; the reveal→edit→blur cycle commits
+  as one undo entry). Commits land through the block-edit ladder, so multi-block text
+  structurally re-splits at the shared choke point. Block math is the render-primary validator;
+  the `%%` memo harness kind is the plain validator.
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
   through edits), and an opaque container contract (raw is authoritative, not a strip
   decomposition), both invariant-guarded.
@@ -350,18 +358,20 @@ properties }` reader over the remark convention — the verbatim opener info sta
 
 ## Editable-content tiers
 
-Every mechanism for plugin content that is _itself editable_ falls in one of three tiers,
+Every mechanism for plugin content that is _itself editable_ falls in one of four tiers,
 each bound to a CST guarantee (prior-art record: the plugin-system research doc):
 
-| Tier          | Shape                                                                      | Status  |
-| ------------- | -------------------------------------------------------------------------- | ------- |
-| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog | shipped |
-| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns         | shipped |
-| Atomic widget | opaque non-text embed, caret-addressable at its edges                      | shipped |
+| Tier          | Shape                                                                       | Status               |
+| ------------- | --------------------------------------------------------------------------- | -------------------- |
+| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog  | shipped              |
+| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns          | shipped              |
+| Editable leaf | a recognizer-backed standalone text block with native caret/IME/undo parity | shipped (pre-freeze) |
+| Atomic widget | opaque non-text embed, caret-addressable at its edges                       | shipped              |
 
-A _general_ editable leaf (recognizer-backed standalone text block) is deliberately post-1.0;
-the chrome leaf is narrower on purpose. **Rejected permanently:** nested-editor interiors (a
-second editor state serialized as a blob) — they break byte-lossless round-trip.
+A _general_ editable leaf was deliberately deferred past this foundation [pivot: shipped
+pre-1.0 as `createEditableLeaf` (0.9.16), pre-freeze beside the container factory]; the chrome
+leaf stays narrower on purpose. **Rejected permanently:** nested-editor interiors (a second
+editor state serialized as a blob) — they break byte-lossless round-trip.
 
 ## What a plugin may and may not do
 

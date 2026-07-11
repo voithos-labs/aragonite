@@ -81,6 +81,29 @@ describe('createMemoizedRenderer', () => {
 		for (const eq of equations) render(eq, { display: false });
 		expect(inner).toHaveBeenCalledTimes(75);
 	});
+
+	// Every keystroke while editing source mints a new key, so the cache must be
+	// bounded: past the cap the least-recently-used entry is evicted, and a hit
+	// refreshes recency so hot formulas survive churn.
+	it('evicts the least-recently-used entry past the cap; a hit refreshes recency', () => {
+		const inner = vi.fn((_source: string, _opts: { display: boolean }) => ({
+			dom: document.createElement('span')
+		}));
+		const render = createMemoizedRenderer(inner, 2);
+
+		render('a', { display: false });
+		render('b', { display: false });
+		render('a', { display: false }); // hit — 'a' becomes most recent
+		expect(inner).toHaveBeenCalledTimes(2);
+
+		render('c', { display: false }); // evicts 'b' (LRU), not 'a'
+		expect(inner).toHaveBeenCalledTimes(3);
+
+		render('a', { display: false }); // still cached
+		expect(inner).toHaveBeenCalledTimes(3);
+		render('b', { display: false }); // evicted — renders again
+		expect(inner).toHaveBeenCalledTimes(4);
+	});
 });
 
 describe('katexRenderer', () => {

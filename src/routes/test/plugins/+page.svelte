@@ -5,6 +5,7 @@
 	import { admonitionsPlugin } from './admonitions/index';
 	import { mermaidPlugin } from './mermaid/register';
 	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
+	import { memoPlugin } from './memo/register';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'
@@ -17,7 +18,8 @@
 		detailsPlugin(),
 		latexPlugin(),
 		admonitionsPlugin(),
-		mermaidPlugin({ renderer: mermaidHarnessRenderer })
+		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
+		memoPlugin()
 	];
 </script>
 
@@ -47,6 +49,9 @@
 	// the revealed source must stay a single text node so the offset walk is exact.
 	const MATH_BLOCK_MULTILINE_SEED =
 		'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n';
+	// A plain-mode `%%` memo leaf between two paragraphs, so the editable-leaf e2e
+	// can drive real typing, arrow traversal, undo batching, and selection sweeps.
+	const MEMO_SEED = 'Before\n\n%% memo text\n\nAfter\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -109,32 +114,23 @@
 	].join('\n');
 
 	// The callout is the default document (the landed callout e2e reads it directly);
-	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math` an
-	// inline-math paragraph, `?seed=math-multiline` the two-line reveal-hit-test doc,
-	// `?seed=mathblock` a block `$$…$$` leaf, `?seed=mathblock-multiline` an `aligned`
-	// fence, `?seed=mermaid` the diagram-block doc. The seed arrives via the load data,
-	// so the server and client render the same document. One-time snapshot: the harness
-	// never re-navigates client-side, and the test probes then own `source`.
+	// `?seed=<name>` swaps in another plugin's document. The seed arrives via the
+	// load data, so the server and client render the same document. One-time
+	// snapshot: the harness never re-navigates client-side, and the test probes
+	// then own `source`.
+	const SEEDS: Record<string, string> = {
+		details: DETAILS_SEED,
+		admonitions: ADMONITIONS_SEED,
+		math: MATH_SEED,
+		'math-multiline': MATH_MULTILINE_SEED,
+		mathblock: MATH_BLOCK_SEED,
+		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,
+		mathtable: MATH_TABLE_SEED,
+		mermaid: MERMAID_SEED,
+		memo: MEMO_SEED
+	};
 	// svelte-ignore state_referenced_locally
-	let source = $state(
-		data.seed === 'details'
-			? DETAILS_SEED
-			: data.seed === 'admonitions'
-				? ADMONITIONS_SEED
-				: data.seed === 'math'
-					? MATH_SEED
-					: data.seed === 'math-multiline'
-						? MATH_MULTILINE_SEED
-						: data.seed === 'mathblock'
-							? MATH_BLOCK_SEED
-							: data.seed === 'mathblock-multiline'
-								? MATH_BLOCK_MULTILINE_SEED
-								: data.seed === 'mathtable'
-									? MATH_TABLE_SEED
-									: data.seed === 'mermaid'
-										? MERMAID_SEED
-										: CALLOUT_SEED
-	);
+	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
 

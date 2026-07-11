@@ -82,14 +82,24 @@ export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 
 // ── Parse / serialize helpers ────────────────────────────────────────────────
 // The recognizer/serializer halves of an opener: parse a body to a Document,
-// join child bytes back, and read a child's display text without dropping a CRLF.
-// Re-exported here so an opener needn't reach into core/ deep paths that the
-// packaged artifact doesn't expose.
+// join child bytes back, read a child's display text without dropping a CRLF,
+// and normalize external text to LF before it enters the tree. Re-exported here
+// so an opener needn't reach into core/ deep paths that the packaged artifact
+// doesn't expose.
 export { parse } from './core/parser';
 export type { Document } from './core/nodes';
 export { concatChildren as serializeChildren } from './core/serializer';
-export { trimTrailingLineEnding } from './core/lines';
+export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
 export type { ParsedLine } from './core/lines';
+
+// ── Fence grammar (pre-freeze / unstable) ────────────────────────────────────
+// Being refined against the fence-claiming reference plugins until the
+// open-source release — NOT yet frozen; shape may change. The built-in
+// CommonMark fence recognizers, so a plugin claiming a fence (```mermaid) never
+// reimplements the fence rules: match an opener line (verbatim indent/info
+// bytes included, for byte-exact rebuilds) and test a closer line against it.
+export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
+export type { FenceOpen } from './core/parsers/fenced-code';
 
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';
@@ -126,6 +136,21 @@ export type { ChromeLeafOptions };
 // Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
 // collapse getter and the model-layer walks share one definition.
 export { isCollapsedContainer } from './schema/reserved-chrome';
+
+// ── Editable-leaf authoring surface (pre-freeze / unstable) ──────────────────
+// Being refined against the block-math work until the open-source release —
+// NOT yet frozen; shape may change. Lets a plugin build a text-editing leaf
+// block with native caret/IME/undo/cross-block-selection parity — plain
+// (always-editable, per-keystroke commits) or render-primary (rendered view,
+// reveal-to-edit, one commit on blur) — without touching any editor context
+// key. The createContainerBlock sibling for leaves.
+export { createEditableLeaf } from './components/blocks/editable-leaf';
+export type {
+	EditableLeaf,
+	EditableLeafDeps,
+	EditableLeafMode
+} from './components/blocks/editable-leaf';
+export type { StickyColumnDirection } from './block-component';
 
 // ── Directive authoring (pre-freeze / unstable) ──────────────────────────────
 // Being refined against the `:::name` directive work until the open-source
