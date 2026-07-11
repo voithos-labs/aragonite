@@ -41,18 +41,26 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    external contributors arrive; and diagnose the attribution-axes settle timeout
    (`docs/issues.md`) so the perf story carries no standing red into the public repo.
 3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, the
-   0.9.16 tarball and public docs only, building something the new seams carry (e.g. a
-   footnotes or spoiler plugin over the editable-leaf tier plus a paste transform). The first
+   0.9.16 tarball and public docs only, building something the new seams carry. The first
    run validated container/chrome discoverability; nothing has third-party-validated the unit,
-   transforms, portal widgets, or the leaf tier. One support question is the benchmark.
+   transforms, portal widgets, or the leaf tier. One support question is the benchmark. The
+   subject should exercise **editable-leaf plain mode** — its only consumer today is the
+   synthetic memo fixture — plus a paste transform; natural candidates are an Obsidian-style
+   `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
+   conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
+   plain-mode battery onto the real plugin and retire memo.
 4. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
    the real showcase route (every block kind + every reference plugin — the fixture dogfoods
    stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
-   panel). This is the "surpass Obsidian" argument made visible. It also carries the
-   recorded reference-plugin aesthetic decision (`docs/issues.md` — card-like chrome vs
-   document-not-pile-of-blocks): the reference plugins' look becomes what plugin authors copy,
-   so decide it deliberately; lean restrained (gutter-rail) for house plugins while documenting
-   that chrome is the author's call.
+   panel). This is the "surpass Obsidian" argument made visible. It also owns **route
+   legibility**: the showcase lands on a human-named route (arguably the dev app's `/` —
+   clone, `npm run dev`, see the pitch), the `?plugins=1` toggle retires, and `/test/*`
+   becomes uniformly machine-facing — today the demo living at `/test/editor` is the one
+   human page in a machine tree. It also carries the recorded reference-plugin aesthetic
+   decision (`docs/issues.md` — card-like chrome vs document-not-pile-of-blocks): the
+   reference plugins' look becomes what plugin authors copy, so decide it deliberately; lean
+   restrained (gutter-rail) for house plugins while documenting that chrome is the author's
+   call.
 5. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
