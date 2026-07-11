@@ -8,6 +8,7 @@
 	} from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { CstNode } from '../../../core/nodes';
+	import type { EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -15,6 +16,7 @@
 		CONTROLLER_KEY,
 		BROKEN_IMAGE_URLS_KEY,
 		DOC_KEY,
+		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
@@ -115,6 +117,7 @@
 		getContext<() => import('../../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
 	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -276,8 +279,15 @@
 		get linkSignature(): string {
 			return linkRef?.signature ?? '';
 		},
-		brokenUrlCache
+		brokenUrlCache,
+		reportRenderError: (error) =>
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
+
+	// Destroy the block's pooled widget instances when it unmounts (windowed out or
+	// document swap). Mirrors the parkFocus cleanup below: an effect cleanup fires on
+	// teardown, the seam block unmount reliably reaches.
+	$effect(() => () => textRender.dispose());
 
 	// ── BlockComponent interface ────────────────────────────────────────
 

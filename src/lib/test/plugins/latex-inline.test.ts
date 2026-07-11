@@ -7,16 +7,16 @@ import type { InlineNode } from '$lib/core/nodes';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import {
 	buildCoreInlineWidget,
+	getInlineWidgetComponent,
 	getInlineWidgetEditing,
 	__resetInlineWidgetsForTests
 } from '$lib/core/inline/inline-widgets';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { registerMathInline, MATH_INLINE } from '../../../routes/test/plugins/latex/latex-kind';
 import {
-	registerMathInline,
-	buildMathWidget,
-	MATH_INLINE
-} from '../../../routes/test/plugins/latex/latex-kind';
-import type { MathRenderer } from '../../../routes/test/plugins/latex/math-renderer';
+	renderInlineMath,
+	type MathRenderer
+} from '../../../routes/test/plugins/latex/math-renderer';
 
 function resetInlineState(): void {
 	__resetInlineSyntaxForTests();
@@ -81,40 +81,25 @@ describe('inline math round-trip', () => {
 	});
 });
 
-describe('math widget DOM', () => {
+// Post-migration mechanics: math renders through a `component`, so the descriptor
+// carries no synchronous builder — the render layer's injected portal builder owns
+// the atomic-island shell (asserted in the e2e). The shell-stamping unit tests moved
+// with `buildMathWidget`'s deletion; the reveal-source policy and the dispatch
+// contract are what stay unit-provable here.
+describe('math widget dispatch', () => {
 	beforeEach(() => registerMathInline());
 
-	function expectWidgetShell(el: HTMLElement, start: number, end: number): void {
-		expect(el.hasAttribute('data-inline-widget')).toBe(true);
-		expect(el.getAttribute('contenteditable')).toBe('false');
-		expect(el.dataset.sourceStart).toBe(String(start));
-		expect(el.dataset.sourceEnd).toBe(String(end));
-	}
-
-	it('emits the atomic-widget shell and renders the delimiter-stripped source', () => {
-		const fakeRender: MathRenderer = (source, { display }) => {
-			const dom = document.createElement('span');
-			dom.className = 'fake-math';
-			dom.textContent = `${source}|${display}`;
-			return { dom };
-		};
-		const node = { kind: MATH_INLINE, start: 2, end: 7 } as InlineNode;
-
-		const el = buildMathWidget(node, 'a $x^2$ b', fakeRender);
-
-		expectWidgetShell(el, 2, 7);
-		// Inline math renders in text mode (display=false) over the `$`-stripped source.
-		expect(el.querySelector('.fake-math')?.textContent).toBe('x^2|false');
+	it('registers a component rather than a synchronous builder', () => {
+		expect(getInlineWidgetComponent(MATH_INLINE as InlineNode['kind'])).toBeDefined();
 	});
 
-	it('produces a contract-compliant shell through the registered descriptor', () => {
+	it('a component kind builds nothing without a portal builder, and delegates to it verbatim', () => {
 		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
-
-		const el = buildCoreInlineWidget(node, '$x$');
-
-		expect(el).not.toBeNull();
-		expectWidgetShell(el as HTMLElement, 0, 3);
-		expect((el as HTMLElement).childElementCount).toBeGreaterThan(0);
+		// No portal builder → null (the render layer falls back to the raw span).
+		expect(buildCoreInlineWidget(node, '$x$')).toBeNull();
+		// With one → the dispatch returns its element untouched (the pool owns stamping).
+		const portal = document.createElement('span');
+		expect(buildCoreInlineWidget(node, '$x$', () => portal)).toBe(portal);
 	});
 
 	// reveal-source is the editing contract the widget-interaction layer reads to
@@ -127,21 +112,27 @@ describe('math widget DOM', () => {
 });
 
 // The injectable renderer is the extension's consumer seam (latexPlugin({ renderer }));
-// registerMathInline's param must flow into the registered widget's build closure, not
-// a hardcoded engine — a regression to createMemoizedRenderer(katexRenderer) drops it.
+// registerMathInline's param must flow into the module-wired inline renderer MathInline
+// reads, not a hardcoded engine — a regression to a fixed katexRenderer drops it.
 describe('custom renderer threading', () => {
-	const tagRenderer: MathRenderer = (source) => {
+	const displayModes: boolean[] = [];
+	const tagRenderer: MathRenderer = (source, { display }) => {
+		displayModes.push(display);
 		const dom = document.createElement('span');
 		dom.className = 'tagged-math';
 		dom.textContent = `tagged:${source}`;
 		return { dom };
 	};
 
-	it('routes a registered custom renderer into the widget the descriptor builds', () => {
+	it('routes a registered custom renderer into the inline math render, in text mode', () => {
 		registerMathInline(tagRenderer);
-		const node = { kind: MATH_INLINE, start: 0, end: 3 } as InlineNode;
-		expect(buildCoreInlineWidget(node, '$x$')?.querySelector('.tagged-math')?.textContent).toBe(
-			'tagged:x'
-		);
+		// MathInline renders through renderInlineMath over the `$`-stripped interior;
+		// the renderer's node is returned directly (the pool wrapper is the island).
+		const { dom } = renderInlineMath('x');
+		expect(dom.className).toBe('tagged-math');
+		expect(dom.textContent).toBe('tagged:x');
+		// Inline `$…$` is text-mode math — a display:true regression would render
+		// centered block math for every inline formula and no other test would catch it.
+		expect(displayModes).toEqual([false]);
 	});
 });

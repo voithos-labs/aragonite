@@ -21,7 +21,8 @@ import {
 	type InlineNode,
 	type CstNode
 } from '$lib/plugin';
-import { createMemoizedRenderer, katexRenderer, type MathRenderer } from './math-renderer';
+import { katexRenderer, setInlineMathRenderer, type MathRenderer } from './math-renderer';
+import MathInline from './MathInline.svelte';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -57,27 +58,6 @@ function recognizeMath(
 	return null;
 }
 
-// ── Widget ───────────────────────────────────────────────────────────────────
-
-/**
- * The atomic-widget shell for an inline math span. Carries the generic
- * `[data-inline-widget]` marker plus `data-source-start`/`-end` = the node's
- * offsets — the offset walk and Task 14's byte-survival audit key on exactly
- * these. Renders the `$`-stripped source in text mode via the injected renderer.
- */
-export function buildMathWidget(node: InlineNode, raw: string, render: MathRenderer): HTMLElement {
-	const shell = document.createElement('span');
-	shell.className = 'math-inline-widget';
-	shell.dataset.inlineWidget = '';
-	shell.dataset.sourceStart = String(node.start);
-	shell.dataset.sourceEnd = String(node.end);
-	shell.setAttribute('contenteditable', 'false');
-
-	const source = raw.slice(node.start + 1, node.end - 1);
-	shell.appendChild(render(source, { display: false }).dom);
-	return shell;
-}
-
 // ── Registration ─────────────────────────────────────────────────────────────
 
 export function registerMathInline(renderer: MathRenderer = katexRenderer): void {
@@ -86,12 +66,14 @@ export function registerMathInline(renderer: MathRenderer = katexRenderer): void
 	// clears this key, so a reset → re-register re-runs the whole inline path cleanly.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	const render = createMemoizedRenderer(renderer);
+	// The engine travels by module (MathInline reads it) — the frozen props channel
+	// carries no renderer. Set before the component ever mounts.
+	setInlineMathRenderer(renderer);
 
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
-		buildWidget: (node, raw) => buildMathWidget(node, raw, render),
+		component: MathInline,
 		editing: { revealSource: true }
 	});
 }
