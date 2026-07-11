@@ -28,22 +28,6 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 
 ## Code structure
 
-### KaTeX block-math component is excluded from the package-boundary gate (by design)
-
-**Severity:** n/a — recorded exclusion, not a defect
-**Files:** `src/routes/test/plugins/latex/BlockMath.svelte`; `scripts/sync-consumer-plugins.mjs` (manifest)
-
-The block-math component consumes editor internals (editable-surface, selection, cursor, and
-reorder plumbing) that are deliberately post-1.0 — it is dogfood for the 1.2 general
-editable-leaf tier, not a consumer of the frozen surface. The consumer sync manifest therefore
-excludes it (only `latex-kind.ts` + `math-renderer.ts` cross the boundary; inline `$…$` math is
-fully tarball-gated), and the sync script fails loud if any synced file still reaches past the
-public barrels.
-
-**Why deferred:** the tier boundary is the roadmap's own; this entry records why "every dogfood
-extension runs through the packed tarball" carries a block-math carve-out. Re-fold when the
-editable-leaf tier ships.
-
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
 **Severity:** minor (a11y; table blocks only)
@@ -74,23 +58,22 @@ The prose branch now reads its own per-path bucket from the match index; the tab
 
 The mermaid dogfood's synced sources typecheck against the packed tarball (boundary proven),
 but no consumer route ships it — the `mermaid` engine is a heavy devDependency the consumer
-example's CI budget doesn't justify (the block-math precedent). The render-primary recipe in
-the plugin guide is the durable record. Re-fold if the consumer example ever gains a
-budget-insensitive smoke tier.
+example's CI budget doesn't justify. The render-primary recipe in the plugin guide is the
+durable record. Re-fold if the consumer example ever gains a budget-insensitive smoke tier.
 
-### Render-primary wall ledger: fence grammar, focus seam, command→component bridge
+### Render-primary wall ledger: focus seam, command→component bridge
 
 **Severity:** minor (authoring friction; each additive)
 **Files:** `src/routes/test/plugins/mermaid/` (the consumer that surfaced them); `docs/editor/plugin-guide.md` § render-primary recipe
 
-Three walls the reference build recorded, each a 1.2 candidate: (1) the CommonMark fence
-matcher isn't on `aragonite/plugin`, so a fence-claiming plugin reimplements it (drift risk —
-re-export candidate); (2) a childless opaque container dead-ends the factory's caret traversal
-with no public focus-actions seam — the reference block ships `focusable: false`, and
-editor-native focus/edit for such blocks is the editable-leaf tier's territory; (3) block
-commands have no component channel, so view-state commands need a plugin-owned
-node→component bridge every render-primary plugin will rebuild. Also minor:
-`normalizeLineEndings` not public; the container shim hardcodes `editable: true`.
+Two walls the reference build recorded, each a 1.2 candidate (the ledger's fence-matcher and
+`normalizeLineEndings` items shipped as `aragonite/plugin` re-exports): (1) a childless opaque
+container dead-ends the factory's caret traversal with no public focus-actions seam — the
+reference block ships `focusable: false`; the editable-leaf tier (shipped 0.9.16) is the escape
+for blocks that adopt a native source view, but a container that stays render-only still has no
+focus seam; (2) block commands have no component channel, so view-state commands need a
+plugin-owned node→component bridge every render-primary plugin will rebuild. Also minor: the
+container shim hardcodes `editable: true`.
 
 ## Test coverage
 
@@ -102,15 +85,6 @@ node→component bridge every render-primary plugin will rebuild. Also minor:
 9 of 13 attribution axes fail on `page.waitForFunction` (60s) waiting for `settle()` after `__test.setSource` of a 1MB fixture. Proven pre-existing: axis1 fails identically at 0.9.7 (`d7135f3`), so this is not a 0.9.8 regression. The failure means the in-page document never reaches the expected byte length within the timeout — diagnose the settle predicate against current `setSource` behavior on 1MB fixtures before trusting any attribution numbers.
 
 **Why deferred:** baseline-proven pre-existing; the diagnosis belongs to a perf-harness pass, not the conformance/registry batch that surfaced it.
-
-### `lineInterruptsParagraph` is a second grammar-read seam without flush/latch
-
-**Severity:** trivial (unreachable today)
-**Files:** `src/lib/schema/block-openers.ts`
-
-`getOrderedOpeners` flushes pending registration checks and trips the grammar-consumed latch; `lineInterruptsParagraph` reads the same grammar but does neither. Unreachable outside a parse that already ran opener dispatch, but it is the sibling-path shape (a rule at N−1 of N entry paths) one refactor away from real.
-
-**Why deferred:** no reachable bug; mirror the two calls when the seam is next touched.
 
 ### Two latent fail-loud conformance divergences the corpus cannot spell
 
@@ -247,64 +221,20 @@ it forces the re-add. The exact trimmed shape, recorded so the re-add restores i
 **Why deferred:** freezing inert fields and later giving them behavior is the one path that breaks an
 author's config; trimming now and re-adding with the consumer is the additive-safe choice.
 
-### LaTeX render-memo cache is unbounded
-
-**Severity:** minor (harness)
-**Files:** `src/routes/test/plugins/latex/math-renderer.ts` (`createMemoizedRenderer`)
-
-The memoized renderer keys rendered output on the source string in an unbounded `Map` — every keystroke
-while editing source mints a new key, so the cache grows without eviction. It lives in the dev/e2e
-harness (kept out of `dist/`), so it touches no frozen library API.
-
-**Fix direction:** bound it (LRU or size cap).
-
-**Why deferred:** harness-only, no frozen surface; bound it before math widgets ship broadly.
-
-### Block-math edit past the fence leaves a stuck error until reload
-
-**Severity:** minor
-**Files:** `src/routes/test/plugins/latex/BlockMath.svelte`
-
-Editing a block-math source so it appends past the fence (`$$x^2$$` followed by a blank line and
-`hello`) leaves the node its math kind — a no-op reparse — so a stuck KaTeX error node persists until
-reload. `serialize` still emits the raw bytes intact, so there is no data loss (the round-trip
-invariant holds).
-
-**Fix direction:** re-fence, or reparse-to-blocks, on commit in the block-math component.
-
-**Why deferred:** component-level behavior; no byte loss and no library API or invariant implication.
-
-### TableCellBlock and CodeBlock have unguarded pending-cursor effects (latent reveal-source parity)
+### TableCellBlock has an unguarded pending-cursor effect (latent reveal-source parity)
 
 **Severity:** trivial (latent; unreachable today)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` and
-`src/lib/components/blocks/code/CodeBlock.svelte` vs
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` vs
 `src/lib/components/blocks/text/TextEditableBlock.svelte`
 
 `TextEditableBlock` gained a `document.activeElement === el` guard on its pending-cursor `$effect`
-during the inline-widget feature; the analogous effects in `TableCellBlock` and in `CodeBlock`
-(its `setCursorOffsetHelper(el, pendingCursorOffset)` restore) are unguarded. Unreachable today —
-no source-reveal is wired to table cells or code blocks, so no blur-commit sets a pending cursor
-while focus has left.
+during the inline-widget feature, and `CodeBlock` gained it when multi-block content commits made
+a structural split reachable from a code edit (0.9.16). The analogous effect in `TableCellBlock`
+is still unguarded — unreachable today: cell edits are context-dependent-kind (never structural)
+and no source-reveal is wired to cells, so no blur-commit sets a pending cursor while focus has
+left.
 
-**Fix direction:** add the same `document.activeElement === el` guard if either surface ever gains
-inline-widget reveal.
+**Fix direction:** add the same `document.activeElement === el` guard if the cell surface ever
+gains inline-widget reveal.
 
-**Why deferred:** no reachable bug; mirror the guard when reveal reaches those surfaces.
-
-### `needsScan`'s `PROBE_WWW` arm skips the plugin inline-syntax probe
-
-**Severity:** trivial (unreachable today)
-**Files:** `src/lib/core/inline/scan/index.ts` (`needsScan`)
-
-On the fast-bail path, the `:` (`PROBE_SCHEME`) arm probes the plugin inline-syntax registry before
-declining, but the sibling `w`/`W` (`PROBE_WWW`) arm checks only the literal `www.` pattern — a
-plugin registering `w`/`W` as an inline trigger would be missed there. No such plugin exists and the
-empty-registry path is unaffected, so nothing reachable regresses. This is the sibling-path parity
-shape: one rule (probe the registry) carried at one of two conditional-probe arms.
-
-**Fix direction:** mirror the registry probe into the `PROBE_WWW` arm, or document that
-conditional-probe characters cannot be plugin inline triggers.
-
-**Why deferred:** no reachable bug — the divergence only surfaces if a plugin claims `w`/`W`, which
-nothing does; mirror the probe when the fast-bail arms are next touched.
+**Why deferred:** no reachable bug; mirror the guard when reveal reaches the cell surface.

@@ -89,8 +89,14 @@ export function getOrderedOpeners(): readonly BlockOpener[] {
 	return orderedCache;
 }
 
-/** Registry-derived paragraph-interrupt check. */
+/**
+ * Registry-derived paragraph-interrupt check. A grammar read like
+ * getOrderedOpeners, so it carries the same seam duties: flush pending
+ * registration checks, trip the grammar-consumed latch.
+ */
 export function lineInterruptsParagraph(lineText: string): boolean {
+	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
+	markGrammarConsumed();
 	if (!interruptCache) {
 		interruptCache = [...openers.values()]
 			.map((o) => o.interruptsParagraph)

@@ -173,7 +173,11 @@
 			pendingSelection = null;
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
-			setCursorOffsetHelper(el, pendingCursorOffset);
+			// Restore only while this block still owns focus: an edit whose text
+			// reparses to multiple blocks moves the caret to the split-off sibling
+			// (structural commit's afterTick); an unguarded restore would yank it
+			// back. Mirrors TextEditableBlock's activeElement guard.
+			if (document.activeElement === el) setCursorOffsetHelper(el, pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});

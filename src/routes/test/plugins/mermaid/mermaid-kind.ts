@@ -16,6 +16,9 @@ import {
 	registerBlockCommand,
 	setPluginMetadata,
 	getPluginMetadata,
+	matchFenceOpen,
+	matchFenceClose,
+	type FenceOpen,
 	type CstNode
 } from '$lib/plugin';
 
@@ -38,27 +41,12 @@ export interface MermaidMetadata {
 }
 
 // ── Fence grammar ─────────────────────────────────────────────────────────────
-// The CommonMark fence rules, reimplemented: the built-in matchFenceOpen/Close
-// live in core/parsers and are not on the plugin barrel, so a fence-claiming
-// plugin must carry its own copy (backtick info may not contain backticks;
-// closer is a bare run >= the opener length at <= 3 indent).
+// The barrel's built-in matcher, gated on the info string's first word — the
+// CommonMark fence rules stay the editor's, never a plugin copy.
 
-const BACKTICK_OPEN = /^( {0,3})(`{3,})([^`]*)$/;
-const TILDE_OPEN = /^( {0,3})(~{3,})(.*)$/;
-
-function matchMermaidFence(
-	text: string
-): { indent: string; char: string; length: number; infoRaw: string } | null {
-	const m = text.match(BACKTICK_OPEN) ?? text.match(TILDE_OPEN);
-	if (!m) return null;
-	const [, indent, fence, infoRaw] = m;
-	if (infoRaw.trim().split(/\s+/)[0] !== MERMAID) return null;
-	return { indent, char: fence[0], length: fence.length, infoRaw };
-}
-
-function isFenceClose(text: string, char: string, minLength: number): boolean {
-	const m = text.match(char === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/);
-	return m !== null && m[1].length >= minLength;
+function matchMermaidFence(text: string): FenceOpen | null {
+	const fence = matchFenceOpen(text);
+	return fence && fence.info.split(/\s+/)[0] === MERMAID ? fence : null;
 }
 
 /** Recompute `raw` from metadata — the opener's inverse, and the byte path every code edit rides. */
@@ -139,7 +127,7 @@ export function registerMermaidKind(): void {
 
 			let closeIdx = -1;
 			for (let i = ctx.index + 1; i < ctx.end; i++) {
-				if (isFenceClose(ctx.lines[i].text, fence.char, fence.length)) {
+				if (matchFenceClose(ctx.lines[i].text, fence.marker, fence.length)) {
 					closeIdx = i;
 					break;
 				}
@@ -160,7 +148,7 @@ export function registerMermaidKind(): void {
 			setPluginMetadata<MermaidMetadata>(node, {
 				code,
 				openerIndent: fence.indent,
-				fenceChar: fence.char,
+				fenceChar: fence.marker,
 				fenceLength: fence.length,
 				infoRaw: fence.infoRaw,
 				openerLineEnding: ctx.line.lineEnding,
