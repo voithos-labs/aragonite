@@ -475,7 +475,56 @@ leaf's block class. A general editable standalone leaf is deferred to a later re
 interiors — a second editor state serialized as a blob — are **rejected permanently**: they break
 byte-lossless round-trip.
 
-## 5. What a plugin may and may not do
+## 5. Recipe: a render-primary block (diagram, canvas, embed)
+
+Some blocks are not text: a diagram, a chart, an embed — content that renders as a picture and is
+edited through its own UI, not through the editor's caret. The Mermaid reference plugin is the
+worked example; the shape generalizes to any render-primary block:
+
+```
+fence claim ──▶ opaque container, NO children ──▶ component renders the diagram
+                  code lives in metadata            edit UI is plugin-owned
+                  rebuildRaw re-emits the fence     commits ride updateOwnMetadata
+```
+
+- **Claim your grammar, decline everything else.** The opener accepts exactly the fences the
+  built-in `fencedCode` would, gated on the info string's first word, and must price **ahead** of
+  `fencedCode` — unlike a kind that slots between built-ins, a fence claim competes with a superset
+  matcher. Declining returns the fence to `fencedCode`, which is also your uninstall story: without
+  the plugin the same bytes parse as a plain code block and round-trip byte-identically. Pin both
+  states with round-trip tests. The built-in fence matcher is not on the barrel — a fence-claiming
+  plugin carries its own copy of the CommonMark fence rules.
+- **Code in metadata, an empty container around it.** Register the kind with
+  `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text
+  and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed
+  plugin metadata — primitive values only — and `rebuildRaw` re-emits the exact bytes from them.
+  Build the parsed node's `raw` by calling your own rebuild, so opener and rebuild agree by
+  construction.
+- **Edit mode commits through `updateOwnMetadata`.** The component swaps its body to a plugin-owned
+  `<textarea>` seeded from metadata; commit (Ctrl+Enter, blur) writes the new code with the
+  container factory's `updateOwnMetadata` — one undoable entry, your `rebuildRaw` re-emitting the
+  fence so `getSource()` reflects the edit byte-exactly. Escape cancels without touching the tree.
+- **Inject the renderer.** The engine is the consumer's dependency: take it as a plugin option
+  (`mermaidPlugin({ renderer })`) and pass it by module to the component. Memoize per source text
+  so re-renders of unchanged code do zero engine work, resolve failures to a legible inline error
+  (never a throw), and render a static code fallback with a note when no renderer is configured.
+- **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays — anything
+  draggable must `stopPropagation()` on pointerdown, or the drag starts a cross-block selection. A
+  focus view is just a fixed-position overlay in the component's own tree: mount it in place, focus
+  it on open, close on Escape.
+- **Commands need a node → component bridge.** A minted block-command resolves to the focused node
+  and a metadata writer — there is no component channel — so view-state commands (open the editor,
+  open the overlay) go through a plugin-owned map from node to the mounted component's hooks,
+  re-bound when an undo replaces the node.
+
+**What you give up today.** The code text is not editor-native: no cross-block selection through
+it, and the textarea's caret/IME is the browser's, not the editor's. The block also opts out of
+caret traversal — the container factory's focus surface walks into children, and this container has
+none, so export `focusable: false` and let arrows glide past; mouse and commands reach the block.
+The general editable-leaf tier (§ 4) is the roadmapped answer for a source view with a native
+caret.
+
+## 6. What a plugin may and may not do
 
 A plugin **may**:
 
@@ -544,7 +593,7 @@ Why the dev build is where plugin development belongs — what each mistake does
 | An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
 | An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same — uncaught                                     |
 
-## 6. Verifying your plugin
+## 7. Verifying your plugin
 
 **Round-trip is the contract.** Read the live document back with `editor.getSource()` (see the
 [consumer guide](consumer-guide.md)) and confirm it equals what you authored. Test the case that
