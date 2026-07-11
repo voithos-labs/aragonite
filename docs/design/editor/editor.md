@@ -114,7 +114,7 @@ This means:
 - `parse(source)` produces a mutable `Document` with `CstNode` children
 - The editor works with these nodes directly — no wrapping or cloning on load
 - Edits mutate nodes in place
-- Single-block re-parse uses `parse()` on the block's `raw` text, then transfers the result into the existing tree
+- Re-parse uses `parse()` on the block's `raw` text, then transfers the result into the existing tree — in place when the text stays one block, splicing in the extra blocks when it parses to several
 - Undo snapshots share the live tree's nodes; mutations copy the shared spine before writing (see § Undo/Redo)
 - `serialize()` reads `raw` fields only — structurally typed, works on any object with the right shape
 
@@ -135,7 +135,7 @@ The CST is the document-level source of truth. Within a single block during acti
 
 ### Normal Text Input
 
-User types → browser updates DOM → `input` event reads `textContent` → CST `raw` updated → single-block re-parse refreshes metadata and inline content → if the block's kind changed, re-render with the new component type.
+User types → browser updates DOM → `input` event reads `textContent` → CST `raw` updated → re-parse refreshes metadata and inline content → if the block's kind changed, re-render with the new component type. When the edited text re-parses to **multiple** blocks (a hard-break line followed by an interrupter, an early fence close), the block structurally replaces itself with all of them — the first keeps the slot's identity, the rest splice in as following siblings, and the caret follows the edit position into whichever block it lands in. This is the choke point that keeps the live CST from cramming multi-block text into one node's `raw`.
 
 The common case (no kind change) requires no DOM patching — the browser's update and the CST agree. Prose blocks rebuild their styled span tree by computing the inline tree from `raw` on every input (`computeInlineContent` — see § Reactive State Plumbing); cursor offsets map to `raw` positions unchanged.
 
@@ -173,7 +173,7 @@ Two cross-block focus behaviors compose with the atomic-widget primitive:
 - **Vertical-skip**: blocks whose only inline content is widgets implement `isVerticallyTransparent()` returning true. ArrowUp/Down dispatch passes through them in the requested direction without stopping. Container blocks (list item, blockquote) recurse — a list item with one image-only paragraph is itself transparent.
 - **Edge-widget select**: when cross-block ArrowLeft/Right lands at the `'end'` / `'start'` of a paragraph that ends/starts with a widget, the dispatcher calls `selectEdgeWidget('end' | 'start')` instead of placing a no-op caret at the widget edge. One press selects; the existing widget-selected ArrowLeft/Right then steps out (or cross-blocks if there's no text before/after the widget).
 
-To add a new atomic inline widget kind: register it in the inline-widget registry (`core/inline/inline-widgets.ts`) so recognition is single-sourced, then render its DOM root with `[data-inline-widget]` — the generic atomic-widget marker the cursor walker, selection painter, and raw reader all key off — and set `data-source-start` / `data-source-end` to the widget's raw range. Images add an `[data-image-widget]` marker for image-specific paths, but the generic machinery only needs `[data-inline-widget]`. The translation, vertical-skip, and edge-select all dispatch on these attributes alone — no per-widget plumbing needed.
+To add a new atomic inline widget kind, register it in the inline-widget registry (`core/inline/inline-widgets.ts`) so recognition is single-sourced. A kind then renders one of two ways. The recommended path supplies a Svelte **component**: the render layer wraps it in the atomic island — stamping the `[data-inline-widget]` / `data-source-start` / `data-source-end` / `contenteditable="false"` marker attributes itself — and reuses a live instance across the block's per-keystroke rebuild (see `docs/design/editor/inline-parsing.md`). The hand-built path supplies DOM directly and must render its own root with `[data-inline-widget]` — the generic atomic-widget marker the cursor walker, selection painter, and raw reader all key off — and set `data-source-start` / `data-source-end` to the widget's raw range. Either way, images add an `[data-image-widget]` marker for image-specific paths, but the generic machinery only needs `[data-inline-widget]`. The translation, vertical-skip, and edge-select all dispatch on these attributes alone — no per-widget plumbing needed.
 
 ## Orchestration
 
@@ -236,7 +236,7 @@ No auto-merge with the block above the container occurs — each Backspace press
 
 **Reorder** — move the node among its siblings; IDs don't change. Reachable two ways over one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (a single insertion line marks the drop, one commit on release, autoscroll brings off-screen targets into reach). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
 
-**Block type change** (via re-parse) — when re-parsing a block's updated `raw` produces a different block kind, the node is replaced with a new node of the correct type. The ID is preserved.
+**Block type change** (via re-parse) — when re-parsing a block's updated `raw` produces a different block kind, the node is replaced with a new node of the correct type; its ID is preserved. When the re-parse yields **multiple** blocks, the block is replaced by all of them: the first keeps the original slot's ID and leading trivia, the rest splice in as following siblings with fresh IDs.
 
 ### Focus Traversal
 
@@ -394,7 +394,9 @@ Always intercepted. If there is a selection (single or cross-block), delete the 
 
 #### Paste dispatch pipeline
 
-Paste routes through a single dispatcher (`tree-operations/paste/dispatch.ts`) that consults strategies in priority order:
+Before the clipboard text is parsed, registered **content-keyed paste transforms** rewrite it in registration order — a plugin seam for pre-parse conversions (e.g. GitHub-alert blockquotes → directive syntax). The rewrite runs wherever clipboard text reaches `parse()`: the dispatcher entry and the whole-table-selection route that bypasses the dispatcher.
+
+Paste then routes through a single dispatcher (`tree-operations/paste/dispatch.ts`) that consults strategies in priority order:
 
 1. **Container-matching unwrap** — when the clipboard's top block declares `containerPaste` and a same-kind ancestor passes its `matchesAncestor` predicate (list: matching ordered flag; blockquote: any), splice items into the matching ancestor instead of nesting a sub-container. Empty target → splice replaces it; non-empty target in cross-block context → merge first item into target leaf, splice remaining items as siblings.
 2. **Sibling absorb** — for clipboard-top kinds declaring `siblingAbsorb` (list) whose `matchesAncestor` accepts the nearest list ancestor, when container-match declined (single-block non-empty target): splice pasted items as siblings in the enclosing list, renumber from 1, and normalize markers to parent style. Final markers are computed before splice (Svelte 5 reactivity invariant).
@@ -492,7 +494,7 @@ Both arrays are the `{#each}` key source for their respective `BlockList`. They 
 - **Merge**: Remove the ID at the absorbed block's index.
 - **Delete**: Remove the ID at the deleted block's index.
 - **Reorder**: Move the ID to match the new position.
-- **Re-parse** (block type change): The ID at that index does not change — only the node object is swapped.
+- **Re-parse** (block type change): The ID at that index does not change — only the node object is swapped. A re-parse that yields multiple blocks keeps that ID on the first and inserts fresh IDs for the spliced-in blocks, exactly as a split does.
 
 ### State registry
 
