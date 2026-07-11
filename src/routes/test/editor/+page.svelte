@@ -1,3 +1,29 @@
+<script module lang="ts">
+	import { calloutPlugin } from '../plugins/callout/register';
+	import { detailsPlugin } from '../plugins/details/register';
+	import { latexPlugin } from '../plugins/latex/register';
+	import { admonitionsPlugin } from '../plugins/admonitions/index';
+	import { mermaidPlugin } from '../plugins/mermaid/register';
+	import { mermaidHarnessRenderer } from '../plugins/mermaid/harness-renderer';
+	import { memoPlugin } from '../plugins/memo/register';
+
+	// The `?plugins=1` showcase installs every dogfood unit through the canonical
+	// `<Editor plugins>` prop. Built once at module scope: the factories run once
+	// per process, and importing the plugin modules is inert (registration runs
+	// only inside installPlugins, which the default path never calls), so the
+	// param-less `/test/editor` stays plugin-free for the batteries that share this
+	// route. Order mirrors the /test/plugins harness — callout claims `:::note` /
+	// `:::warning` ahead of admonitions, so those names resolve to the callout kind.
+	const dogfoodPlugins = [
+		calloutPlugin(),
+		detailsPlugin(),
+		latexPlugin(),
+		admonitionsPlugin(),
+		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
+		memoPlugin()
+	];
+</script>
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Editor } from '$lib';
@@ -6,12 +32,21 @@
 	import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
 	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
-	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
+	import { SHOWCASE_CONTENT, SHOWCASE_PLUGIN_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import type { PageData } from './$types';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
 
-	let source = $state(SHOWCASE_CONTENT);
+	let { data }: { data: PageData } = $props();
+	// One-time snapshot from the SSR-consistent load; the harness never re-navigates
+	// client-side, so capturing the prop's initial value is the intent. Off by
+	// default, so the batteries that share this route see a plugin-free editor.
+	// svelte-ignore state_referenced_locally
+	const pluginsOn = data.plugins;
+
+	// svelte-ignore state_referenced_locally
+	let source = $state(pluginsOn ? SHOWCASE_PLUGIN_CONTENT : SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
@@ -86,7 +121,11 @@
 <div class="test-harness aragonite-editor-theme">
 	<header class="demo-header">
 		<div class="demo-heading">
-			<h1 class="demo-title">aragonite</h1>
+			<h1 class="demo-title">
+				aragonite{#if pluginsOn}<span class="demo-mode-badge" data-testid="plugins-mode-badge"
+						>plugins</span
+					>{/if}
+			</h1>
 			<p class="demo-note">
 				Live demo of the CST block editor. The debug panel on the right inspects the syntax tree,
 				selection, undo stack, and operations log as you type.
@@ -106,6 +145,7 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					theme={$currentThemeType}
+					plugins={pluginsOn ? dogfoodPlugins : undefined}
 				/>
 			{/key}
 		</div>
@@ -187,6 +227,18 @@
 		font-size: 1.1rem;
 		font-weight: 600;
 		font-family: var(--font-editor, ui-monospace, monospace);
+	}
+	.demo-mode-badge {
+		margin-left: 0.5rem;
+		padding: 0.1rem 0.4rem;
+		border-radius: 0.25rem;
+		font-size: 0.65rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		vertical-align: middle;
+		color: var(--color-text-secondary, #888);
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
 	}
 	.demo-note {
 		margin: 0.25rem 0 0;
