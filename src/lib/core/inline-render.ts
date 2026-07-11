@@ -31,6 +31,12 @@ export interface RenderInlineOptions {
 			imageLoadPolicy: ImageLoadPolicy;
 		}
 	) => Node;
+	/**
+	 * Builds a `component`-kind widget's DOM by mounting its Svelte component in the
+	 * atomic-island wrapper. Injected by the component layer so `core/` owns no
+	 * portal specifics; absent or null → the widget falls back to its raw source.
+	 */
+	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 }
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
@@ -251,7 +257,7 @@ export function renderInlineNodes(
 			}
 
 			case 'rawHtml': {
-				const widget = buildCoreInlineWidget(node, raw);
+				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
 				if (widget) {
 					frag.appendChild(widget);
 				} else {
@@ -264,10 +270,11 @@ export function renderInlineNodes(
 			}
 
 			default: {
-				// Registered plugin widget kinds (e.g. math) render via the registry;
-				// anything still unrecognized falls back to its raw source, mirroring
-				// the unknown-block fallback so every byte round-trips.
-				const widget = buildCoreInlineWidget(node, raw);
+				// Registered plugin widget kinds (e.g. math) render via the registry —
+				// a component kind through the injected portal builder, a buildWidget
+				// kind synchronously; anything still unrecognized falls back to its raw
+				// source, mirroring the unknown-block fallback so every byte round-trips.
+				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
 				if (widget) {
 					frag.appendChild(widget);
 					break;

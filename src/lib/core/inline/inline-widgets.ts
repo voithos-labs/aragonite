@@ -3,12 +3,28 @@
  * (contenteditable=false islands marked [data-inline-widget]). Single source of
  * truth for "is this inline node a live widget, and how is its widget-ness
  * recognized." Recognition is registry-owned; DOM building dispatches by layer:
- * core-built widgets (e.g. <br>) carry a builder here; the image widget builder
- * is injected per-render (it holds per-instance state) and registers no builder.
+ * core-built widgets (e.g. <br>) carry a `buildWidget`; a `component` kind mounts
+ * a Svelte component through the injected portal builder; the image widget builder
+ * is injected per-render (it holds per-instance state) and registers neither.
  */
 
+import type { Component } from 'svelte';
 import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
+
+/**
+ * Props a `component` widget kind is mounted with. A frozen-at-mount snapshot: the
+ * component keeps these values for its whole life. The reuse pool remounts on a
+ * source change and re-stamps the wrapper offsets on reuse, so a live instance
+ * never sees `source` change under it — it always describes the source it was built
+ * for. `inline.start`/`end` are equally frozen and CAN lag once adjacent typing
+ * shifts the widget; the live position is the wrapper's re-stamped `data-source-*`
+ * attributes, never these fields. Read them; do not treat them as reactive.
+ */
+export interface InlineWidgetComponentProps {
+	inline: InlineNode;
+	source: string;
+}
 
 /**
  * Per-kind editing behavior for a live inline widget.
@@ -42,8 +58,12 @@ export interface InlineWidgetDescriptor {
 	/** True when a node of this kind renders as a live widget given its raw slice. */
 	isWidget(node: InlineNode, raw: string): boolean;
 	/** Core widget DOM builder. Omitted for kinds whose builder is injected
-	 *  per-render (image). */
+	 *  per-render (image) or that mount a `component` instead. */
 	buildWidget?(node: InlineNode, raw: string): HTMLElement;
+	/** Svelte component mounted as the widget body — the recommended path. The
+	 *  render layer wraps it in the atomic-island span and mounts it through the
+	 *  injected portal builder. Mutually exclusive with `buildWidget`. */
+	component?: Component<InlineWidgetComponentProps>;
 	editing?: InlineWidgetEditingPolicy;
 }
 
@@ -57,6 +77,12 @@ export function registerInlineWidgetKind(
 		throw new Error(
 			`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
 				`register-once — a re-registration would clobber a built-in (image/rawHtml).`
+		);
+	}
+	if (descriptor.component && descriptor.buildWidget) {
+		throw new Error(
+			`registerInlineWidgetKind: "${kind}" declares both a component and a buildWidget — ` +
+				`a widget kind renders through exactly one. Drop one.`
 		);
 	}
 	registry.set(kind, descriptor);
@@ -95,6 +121,15 @@ export function getInlineWidgetEditing(kind: AnyInlineKind): InlineWidgetEditing
 	return registry.get(kind)?.editing;
 }
 
+/** The Svelte component a kind mounts as its widget body, or undefined for a
+ *  core-builder / injected-builder kind. The render layer reads this to route a
+ *  component kind through the injected portal builder. */
+export function getInlineWidgetComponent(
+	kind: AnyInlineKind
+): Component<InlineWidgetComponentProps> | undefined {
+	return registry.get(kind)?.component;
+}
+
 /**
  * Every live widget node reachable from `nodes`, in document order. Recurses
  * into children so a widget nested inside a non-widget container — e.g. the
@@ -118,12 +153,22 @@ export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: stri
 	return out;
 }
 
-/** Build a core-layer widget's DOM, or null when the node is not a widget or its
- *  kind builds via an injected per-render builder (image). */
-export function buildCoreInlineWidget(node: InlineNode, raw: string): HTMLElement | null {
+/**
+ * Build a live inline widget's DOM from the registry. A `buildWidget` kind builds
+ * synchronously here; a `component` kind routes through the injected
+ * `buildPortalWidget` (the component layer owns Svelte mounting — `core/` stays
+ * framework-free). Returns null when the node is not a widget, its kind builds via
+ * an injected per-render builder (image), or the portal builder is absent/failed.
+ */
+export function buildCoreInlineWidget(
+	node: InlineNode,
+	raw: string,
+	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null
+): HTMLElement | null {
 	const descriptor = registry.get(node.kind);
-	if (!descriptor || !descriptor.buildWidget || !descriptor.isWidget(node, raw)) return null;
-	return descriptor.buildWidget(node, raw);
+	if (!descriptor || !descriptor.isWidget(node, raw)) return null;
+	if (descriptor.component) return buildPortalWidget?.(node, raw) ?? null;
+	return descriptor.buildWidget ? descriptor.buildWidget(node, raw) : null;
 }
 
 registerInlineWidgetKind('image', {

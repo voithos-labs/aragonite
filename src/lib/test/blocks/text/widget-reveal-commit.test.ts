@@ -19,16 +19,27 @@ import {
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import {
-	buildCoreInlineWidget,
-	__resetInlineWidgetsForTests
-} from '$lib/core/inline/inline-widgets';
+import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '../../../../routes/test/plugins/latex/latex-kind';
+
+// The atomic-island wrapper the render layer's portal builder stamps around the math
+// component. This layer reads only the four marker attributes and the source text
+// node between the flanking prose, so a stamped wrapper is a faithful stand-in;
+// mounting the real MathInline (Svelte + KaTeX) is the e2e's job.
+function stampMathWidget(node: InlineNode): HTMLElement {
+	const wrapper = document.createElement('span');
+	wrapper.dataset.inlineWidget = '';
+	wrapper.dataset.sourceStart = String(node.start);
+	wrapper.dataset.sourceEnd = String(node.end);
+	wrapper.setAttribute('contenteditable', 'false');
+	wrapper.textContent = 'x';
+	return wrapper;
+}
 
 interface Commit {
 	index: number;
@@ -64,7 +75,7 @@ function mountMathBlock() {
 	el.setAttribute('contenteditable', 'true');
 	el.append(
 		document.createTextNode(node.raw.slice(0, math.start)),
-		buildCoreInlineWidget(math, node.raw)!,
+		stampMathWidget(math),
 		document.createTextNode(display.slice(math.end))
 	);
 	document.body.appendChild(el);
@@ -204,5 +215,74 @@ describe('commitReveal — cross-block bail', () => {
 		// node an endpoint is anchored in.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(true);
+	});
+});
+
+describe('cancelReveal — identity-exact fold-back', () => {
+	// Two byte-identical widgets: the cancel swap must restore the EXACT element it
+	// detached. Any rebuild-by-lookup (the pool keys on `${kind} ${source}`) can
+	// return the other instance, and replaceWith would MOVE it — vacating its slot
+	// and desyncing DOM from CST.
+	it('Escape restores the same element it swapped out, leaving its twin untouched', async () => {
+		const node: CstNode = parse('Twice $x^2$ and $x^2$ again').children[0];
+		const [first, second] = computeInlineContent(node).filter(
+			(n: InlineNode) => n.kind === MATH_INLINE
+		);
+		const firstWidget = stampMathWidget(first);
+		const secondWidget = stampMathWidget(second);
+		const display = trimTrailingLineEnding(node.raw);
+
+		const el = document.createElement('div');
+		el.setAttribute('contenteditable', 'true');
+		el.append(
+			document.createTextNode(node.raw.slice(0, first.start)),
+			firstWidget,
+			document.createTextNode(node.raw.slice(first.end, second.start)),
+			secondWidget,
+			document.createTextNode(display.slice(second.end))
+		);
+		document.body.appendChild(el);
+		el.focus();
+
+		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const interaction = createWidgetInteraction({
+			get node() {
+				return node;
+			},
+			get index() {
+				return 0;
+			},
+			get myPath() {
+				return [0];
+			},
+			getEl: () => el,
+			getAmbientLength: () => 0,
+			getEditorContentWidth: () => 800,
+			widgetSelection,
+			getSnapTarget: () => null,
+			setSnapTarget: () => {},
+			setPendingCursor: () => {},
+			readRawText: () => '',
+			setRevealing: () => {},
+			isCrossBlock: () => false,
+			get linkRef() {
+				return undefined;
+			}
+		} as unknown as WidgetInteractionDeps);
+
+		// Reveal the SECOND widget, then Escape-cancel.
+		widgetSelection.select({
+			paragraphPath: [0],
+			sourceStart: second.start,
+			preSelectOffset: second.start
+		});
+		await interaction.handleSelectedWidgetKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node
+		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+		// Identity, not equivalence: the detached element itself returns, in place.
+		expect(el.childNodes[1]).toBe(firstWidget);
+		expect(el.childNodes[3]).toBe(secondWidget);
+		expect((el.childNodes[3] as HTMLElement).dataset.sourceStart).toBe(String(second.start));
 	});
 });
