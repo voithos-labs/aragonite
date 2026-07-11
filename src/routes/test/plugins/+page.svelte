@@ -32,6 +32,9 @@
 	// A block `$$…$$` leaf between two paragraphs, so the block-math e2e can drive
 	// focus/click reveal, blur re-render, and arrow nav in and out of the block.
 	const MATH_BLOCK_SEED = 'Before\n\n$$x^2$$\n\nAfter\n';
+	// Inline math inside a table cell, so the portal-widget e2e can prove the cell
+	// render surface pools component widgets (mount id stable while typing in the cell).
+	const MATH_TABLE_SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
 	// A multi-line `aligned` fence: the render must survive internal `\n`s (A7), and
 	// the revealed source must stay a single text node so the offset walk is exact.
 	const MATH_BLOCK_MULTILINE_SEED =
@@ -89,7 +92,9 @@
 							? MATH_BLOCK_SEED
 							: data.seed === 'mathblock-multiline'
 								? MATH_BLOCK_MULTILINE_SEED
-								: CALLOUT_SEED
+								: data.seed === 'mathtable'
+									? MATH_TABLE_SEED
+									: CALLOUT_SEED
 	);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();

@@ -9,10 +9,11 @@ const OUT = 'examples/consumer/src/plugins';
 
 // BlockMath.svelte + latex/register.ts are deliberately absent: block math is
 // dogfood for the post-1.0 editable-leaf tier and cannot cross the boundary.
+// MathInline.svelte does cross — it is the recommended component-widget path.
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte'],
 	details: ['details-kind.ts', 'register.ts', 'DetailsBlock.svelte'],
-	latex: ['latex-kind.ts', 'math-renderer.ts'],
+	latex: ['latex-kind.ts', 'math-renderer.ts', 'MathInline.svelte'],
 	// index.ts crosses too: registering the component is behind installAdmonitions(),
 	// so the consumer route imports the barrel, not register.ts alone.
 	admonitions: [

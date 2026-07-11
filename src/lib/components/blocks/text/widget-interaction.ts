@@ -21,8 +21,7 @@ import { getInlineContent } from '../../../core/inline/inline-cache';
 import {
 	isInlineWidget,
 	flattenInlineWidgets,
-	getInlineWidgetEditing,
-	buildCoreInlineWidget
+	getInlineWidgetEditing
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -116,6 +115,12 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const start = inline.start;
 		const end = inline.end;
 		const source = deps.node.raw.slice(start, end);
+		// The element the swap detaches, restored VERBATIM on cancel. Identity is
+		// load-bearing: two byte-identical widgets share a reuse-pool key, so any
+		// rebuild-by-lookup can return the OTHER live instance — and replaceWith
+		// would MOVE it, vacating its slot and desyncing DOM from CST. Only the
+		// captured element is guaranteed to be the one this reveal swapped out.
+		let revealedWidget: HTMLElement | null = null;
 		// The imperative span-swap IS the inline mechanism: replace the opaque
 		// [data-inline-widget] island with a text node and back.
 		const reveal = createSourceReveal({
@@ -140,16 +145,18 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					`[data-inline-widget][data-source-start="${start}"]`
 				);
 				if (!widget) return;
+				revealedWidget = widget;
 				activeSourceNode = document.createTextNode(source);
 				widget.replaceWith(activeSourceNode);
 			},
-			// Cancel rebuilds the ORIGINAL widget from the unchanged raw (the edit is
-			// discarded); the persist path re-renders reactively instead, so this only
-			// fires on Escape.
+			// Cancel re-inserts the exact element the swap detached — the edit is
+			// discarded and the raw unchanged, so it is still current. The persist
+			// path re-renders reactively instead, so this only fires on Escape.
 			showRendered: () => {
-				if (activeSourceNode === null) return;
-				activeSourceNode.replaceWith(buildRevealWidget(inline));
+				if (activeSourceNode === null || revealedWidget === null) return;
+				activeSourceNode.replaceWith(revealedWidget);
 				activeSourceNode = null;
+				revealedWidget = null;
 			}
 		});
 		activeReveal = reveal;
@@ -159,17 +166,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		deps.widgetSelection.clear();
 		deps.setRevealing(true);
 		await reveal.reveal();
-	}
-
-	function buildRevealWidget(inline: InlineNode): HTMLElement {
-		const widget = buildCoreInlineWidget(inline, deps.node.raw);
-		if (!widget) {
-			throw new Error(
-				`reveal-source: kind "${inline.kind}" opts into revealSource but registers no core ` +
-					`widget builder — buildCoreInlineWidget returned null.`
-			);
-		}
-		return widget;
 	}
 
 	// Persist the ephemeral source edit, or fold back untouched. The reactive

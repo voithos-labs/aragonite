@@ -12,12 +12,14 @@
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
 	import type { CstNode } from '../../../core/nodes';
+	import type { EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
 		DOC_KEY,
+		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
@@ -112,6 +114,7 @@
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 
@@ -260,7 +263,9 @@
 		get linkRef() {
 			return linkRef;
 		},
-		resolveLinkUrl
+		resolveLinkUrl,
+		reportRenderError: (error) =>
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
 
 	$effect(() => {
@@ -271,6 +276,9 @@
 			pendingCursorOffset = null;
 		}
 	});
+
+	// Destroy the cell's pooled widget instances on unmount (table teardown / windowing).
+	$effect(() => () => cellRender.dispose());
 
 	// Windowed out while focused: hand focus to the editor root so the next
 	// keystroke routes through its document-level listener instead of falling to
