@@ -1,6 +1,6 @@
 # Adding a New Block Type
 
-How to add a block type to the CST editor. See `docs/design/editor/editor.md` for the architecture.
+How to add a **built-in** block type to the CST editor. See `docs/design/editor/editor.md` for the architecture. Authoring a block kind from a plugin — a container via `createContainerBlock`, an editable leaf via `createEditableLeaf` — goes through the `aragonite/plugin` surface instead; see `docs/editor/plugin-guide.md`.
 
 ## Where Blocks Live
 
