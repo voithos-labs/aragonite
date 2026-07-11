@@ -2,6 +2,13 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.15 — Mermaid reference plugin
+
+The first **reference plugin**: a `mermaid`-fence diagram block written as a first adopter would write it — every import from `aragonite/plugin` — validating the "render-primary block with plugin-owned editing" recipe for blocks whose content renders as a picture (diagram, canvas, embed) rather than text.
+
+- **The recipe, validated live.** A fence-claiming opener priced ahead of `fencedCode` (a superset matcher, so the claim must run first; declining returns the fence untouched); an **opaque container with no children** whose code and fence bytes live in typed plugin metadata, `rebuildRaw` re-emitting the exact bytes; edit mode as a plugin-owned `<textarea>` committing through the container factory's `updateOwnMetadata` — one undoable entry, byte-exact in `getSource()`. The renderer is injected (`mermaidPlugin({ renderer })`; `mermaid` stays a devDependency), memoized per code text, parse failures rendering a legible inline error; absent a renderer the block shows its code statically. Pan/zoom on the rendered SVG and a fixed-position focus overlay (button + a minted `mermaid.focus` command on `Mod+M`, Escape closes) prove interior interactivity inside the component's own DOM. Uninstall safety is by construction — without the plugin the same bytes parse as plain `fencedCode` — pinned by a fast-check round-trip property over adversarial fence shapes (CRLF, `~~~`, missing closer at EOF, indented fences, unicode) in **both** install states. Written up as the plugin guide's render-primary recipe.
+- **Findings, honestly.** `updateOwnMetadata` was reachable and sufficient — the anticipated metadata-commit gap did not exist. Two real walls: the built-in fence matcher isn't on the barrel (a fence claim reimplements the CommonMark fence rules), and a childless container dead-ends the factory's caret traversal with no public focus-actions seam — the reference block ships `focusable: false` (arrows glide past; mouse and commands reach it), and block commands need a plugin-owned node→component bridge for view-state (no component channel on the command context). The general editable-leaf tier remains the roadmapped answer for editor-native code editing.
+
 ### 0.9.14 — Component-portal inline widgets
 
 A plugin can now supply a **Svelte component** as an atomic inline widget instead of hand-building DOM — the recommended inline-widget path — made churn-safe under the editor's rebuild-everything-per-keystroke render by a keyed reuse pool.
