@@ -102,8 +102,6 @@ kill it:
   gate's). Capture to a file; check the exit explicitly.
 - Long batteries run alone — never concurrently with other work on the same tree; contention
   produces phantom failures that cost real investigation time.
-- Agent-specific process (controller-owned gates, brief templates, review contract):
-  `CLAUDE.md` § Subagents and `.claude/skills/aragonite-dispatch`.
 
 ## Records
 
