@@ -27,11 +27,9 @@ perf-results/
 # Raw conformance sweep output; the curated divergence set lives in baseline.json
 conformance-results/
 
-# Subagent-driven-development scratch (briefs, reports, progress ledger)
-.superpowers/
-
-# Brainstorm/plan process artifacts — durable record lives in changelog + design docs
+# Personal agent workflow
+CLAUDE.md
+.claude/
+/superpowers/
 docs/superpowers/
-
-# Reviewer's ad-hoc concerns notes — local reference, not a tracked deliverable
-docs/concerns.md
+.superpowers/
