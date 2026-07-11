@@ -188,6 +188,14 @@ A widget kind renders through one of two paths, and the descriptor rejects decla
 | `isCollapsedContainer`                                                                                            | Read a container's collapse state, so a component and the model layer agree                                               |
 | `ContainerBlock`, `ContainerBlockComponent`, `ContainerBlockDeps`, `ContainerBlockListProps`, `ChromeLeafOptions` | The container API, the component surface it returns, the deps it takes, the child-list props, and the chrome-leaf options |
 
+**Editable-leaf authoring** _(pre-freeze / unstable)_
+
+| Export                                                 | Role                                                                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `createEditableLeaf`                                   | Wire a text-editing leaf surface — plain or render-primary — with native caret/IME/undo/cross-block-selection parity |
+| `EditableLeaf`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports and wires, its getter deps, and the two modes                                 |
+| `StickyColumnDirection`                                | The vertical-entry direction `focusAtColumn` receives when the caret traverses into your block                       |
+
 **Parse / serialize helpers**
 
 | Export                   | Role                                                                |
@@ -195,7 +203,16 @@ A widget kind renders through one of two paths, and the descriptor rejects decla
 | `parse`                  | Parse a body of Markdown into a document you can lift children from |
 | `serializeChildren`      | Join child nodes back into their exact source bytes                 |
 | `trimTrailingLineEnding` | Read a child's display text without dropping a trailing line ending |
+| `normalizeLineEndings`   | Normalize external text (a plugin-owned input surface) to LF        |
 | `Document`, `ParsedLine` | The parsed-document shape, and a single parsed source line          |
+
+**Fence grammar** _(pre-freeze / unstable)_
+
+| Export            | Role                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `matchFenceOpen`  | Recognize a CommonMark fence-opener line, verbatim indent/info bytes included                 |
+| `matchFenceClose` | Test a line as the closer for a matched opener (marker + minimum run length)                  |
+| `FenceOpen`       | The matched opener's shape: marker, run length, trimmed `info`, verbatim `indent` + `infoRaw` |
 
 **CST node access and metadata**
 
@@ -459,21 +476,51 @@ and window clamp then reads that one declaration.
 
 ## 4. Editable-content tiers
 
-Content that is _itself editable_ comes in three tiers, each backed by a tree guarantee:
+Content that is _itself editable_ comes in four tiers, each backed by a tree guarantee:
 
-| Tier              | What it hosts                                                        | Status  |
-| ----------------- | -------------------------------------------------------------------- | ------- |
-| **Container**     | Real document blocks in a nested child list — the walkthrough's body | shipped |
-| **Chrome leaf**   | One reserved, single-line, plain-text child the container's raw owns | shipped |
-| **Atomic widget** | An opaque, non-text embed, caret-addressable only at its edges       | shipped |
+| Tier              | What it hosts                                                         | Status                 |
+| ----------------- | --------------------------------------------------------------------- | ---------------------- |
+| **Container**     | Real document blocks in a nested child list — the walkthrough's body  | shipped                |
+| **Chrome leaf**   | One reserved, single-line, plain-text child the container's raw owns  | shipped                |
+| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection parity | shipped _(pre-freeze)_ |
+| **Atomic widget** | An opaque, non-text embed, caret-addressable only at its edges        | shipped                |
 
 The chrome leaf is deliberately narrow: it is always present, single-line and unsplittable (paste
 flattens to inline), and is cleared — never deleted — by a destructive range, staying the same kind
 through every edit. The contract guarantees the empty leaf's presence, not its look — an empty-state
 affordance (say, placeholder text over an untitled chrome leaf) is yours to build with CSS on the
-leaf's block class. A general editable standalone leaf is deferred to a later release. Nested-editor
-interiors — a second editor state serialized as a blob — are **rejected permanently**: they break
-byte-lossless round-trip.
+leaf's block class. Nested-editor interiors — a second editor state serialized as a blob — are
+**rejected permanently**: they break byte-lossless round-trip.
+
+### The editable leaf
+
+`createEditableLeaf` is the container factory's sibling for leaves: it reads the editor's contexts
+itself (deps are live getters — `node`, `index`, `path` — plus `getEl()` returning your source
+contenteditable) and hands back everything a text-editing block needs. **Native parity** is the
+tier's whole claim: the editor's caret and sticky-column traversal enter and leave your block like
+any built-in text block, IME composition is respected, undo batches like prose, and a cross-block
+selection sweeps through your text. Two modes:
+
+- **`'plain'`** — the source is always the editable view; every keystroke commits to the tree
+  (prose-like undo batching). Your component binds the returned handlers onto its contenteditable
+  and calls `syncSource()` from one `$effect` — the factory owns the text sync, the Chromium
+  trailing-newline caret anchor, and the caret restore after external rewrites.
+- **`'render-primary'`** — a rendered view by default; focus, click, or arrow-traversal reveals the
+  raw source in your contenteditable, and leaving it commits **once** — the whole
+  reveal→edit→blur cycle is one undo entry. You own the swap flag (`isRevealed`/`setRevealed`) and
+  both views' rendering; the factory owns everything else, `onRenderPointerDown` included.
+
+**Commit semantics.** A commit parses the edited text and lands it through the editor's own edit
+ladder: same-kind text updates the node in place (caret preserved), a kind change remounts the
+block, and text that parses to **multiple blocks structurally replaces the leaf with all of them**,
+the caret following the edit position into whichever block it falls in. Editing past your own fence
+therefore re-splits the document instead of wedging foreign text into your node, and the
+byte round-trip (`serialize(parse(source)) === source`) holds through every commit.
+
+Block math (`$$…$$` in the LaTeX dogfood plugin) is the worked example: its component script is the
+factory call, two view effects (KaTeX render, source populate), and one-line re-exports of the
+returned `BlockComponent` surface. Registration is the ordinary leaf recipe — `registerBlockKind`
+(no container group), `registerBlockOpener`, `registerBlockComponent`.
 
 ## 5. Recipe: a render-primary block (diagram, canvas, embed)
 
@@ -492,8 +539,9 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
   `fencedCode` — unlike a kind that slots between built-ins, a fence claim competes with a superset
   matcher. Declining returns the fence to `fencedCode`, which is also your uninstall story: without
   the plugin the same bytes parse as a plain code block and round-trip byte-identically. Pin both
-  states with round-trip tests. The built-in fence matcher is not on the barrel — a fence-claiming
-  plugin carries its own copy of the CommonMark fence rules.
+  states with round-trip tests. Match the fence with the barrel's `matchFenceOpen` /
+  `matchFenceClose`, gated on the info string's first word — never carry a copy of the CommonMark
+  fence rules.
 - **Code in metadata, an empty container around it.** Register the kind with
   `container: { contract: 'opaque', rebuildRaw }` and give nodes `children: []`. The source text
   and every fence byte the rebuild needs (indent, marker, info string, closer shape) go into typed
@@ -517,12 +565,13 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
   open the overlay) go through a plugin-owned map from node to the mounted component's hooks,
   re-bound when an undo replaces the node.
 
-**What you give up today.** The code text is not editor-native: no cross-block selection through
-it, and the textarea's caret/IME is the browser's, not the editor's. The block also opts out of
-caret traversal — the container factory's focus surface walks into children, and this container has
-none, so export `focusable: false` and let arrows glide past; mouse and commands reach the block.
-The general editable-leaf tier (§ 4) is the roadmapped answer for a source view with a native
-caret.
+**What you give up with the textarea.** The code text is not editor-native: no cross-block
+selection through it, and the textarea's caret/IME is the browser's, not the editor's. The block
+also opts out of caret traversal — the container factory's focus surface walks into children, and
+this container has none, so export `focusable: false` and let arrows glide past; mouse and commands
+reach the block. The editable-leaf tier (§ 4) is the answer when you want a source view with a
+native caret — rebuilding the render-primary block on `createEditableLeaf` (block math's shape) is
+the recipe's upgrade path.
 
 ## 6. What a plugin may and may not do
 
