@@ -25,6 +25,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
+import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -247,7 +248,16 @@ export function deleteNode(
 
 // ── Update Content ──
 
-/** Update raw and re-parse. Kind changes return replacePreservingFirst (same slot, id kept); otherwise noop. */
+/**
+ * Update raw and re-parse. Single-block text keeps the node in its slot: a
+ * kind change returns replacePreservingFirst(…, 1, 1), a same-kind edit noop.
+ * Multi-block text replaces the node with EVERY parsed block (the first keeps
+ * the slot's identity and trivia; text-leading blanks fold into its raw, the
+ * single-block path's own shape) — a same-kind first block used to be a
+ * raw-only write, cramming the trailing blocks into one node and desyncing
+ * the live CST from parse(serialize(doc)) (the block-math stuck-fence class,
+ * equally reachable by paragraph hard-break + interrupter-line typing).
+ */
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
@@ -264,17 +274,50 @@ export function updateNodeContent(
 		return { op: 'noop' };
 	}
 
-	const reparsed = reparseAsNode(newText, node.leadingTrivia);
+	const parsed = parse(newText).children;
+	const first: CstNode | undefined = parsed[0];
+	if (first) ensureEditableContainers(first);
 
 	// Copy all fields so leaf↔container transitions propagate children and container structure.
-	node.raw = newText;
-	node.kind = reparsed.kind;
-	node.metadata = reparsed.metadata;
-	node.children = reparsed.children;
-	node.innerPrefix = reparsed.innerPrefix;
-	node.innerSuffix = reparsed.innerSuffix;
+	node.raw = parsed.length > 1 ? first.leadingTrivia + first.raw : newText;
+	node.kind = first?.kind ?? 'paragraph';
+	node.metadata = first?.metadata;
+	node.children = first?.children;
+	node.innerPrefix = first?.innerPrefix;
+	node.innerSuffix = first?.innerSuffix;
+
+	if (parsed.length > 1) {
+		const rest = parsed.slice(1);
+		for (const sibling of rest) ensureEditableContainers(sibling);
+		parent.children.splice(blockIndex + 1, 0, ...rest);
+		return replacePreservingFirst(blockIndex, 1, 1 + rest.length);
+	}
 
 	return node.kind !== oldKind ? replacePreservingFirst(blockIndex, 1, 1) : { op: 'noop' };
+}
+
+/**
+ * Map a post-edit caret offset (in the committed text) to the parsed block it
+ * falls in, as a local display offset. The first block's body starts at 0
+ * (`updateNodeContent` folds text-leading blanks into its raw); an offset
+ * inside inter-block trivia lands at the next block's start; past-the-end
+ * clamps to the last block's end.
+ */
+export function focusTargetInReplacement(
+	nodes: CstNode[],
+	offset: number
+): { index: number; offset: number } {
+	let pos = 0;
+	for (let i = 0; i < nodes.length; i++) {
+		const bodyStart = i === 0 ? 0 : pos + nodes[i].leadingTrivia.length;
+		const bodyEnd = bodyStart + trimTrailingLineEnding(nodes[i].raw).length;
+		if (offset <= bodyEnd) {
+			return { index: i, offset: Math.max(0, offset - bodyStart) };
+		}
+		pos = bodyStart + nodes[i].raw.length;
+	}
+	const last = nodes.length - 1;
+	return { index: last, offset: trimTrailingLineEnding(nodes[last].raw).length };
 }
 
 // ── Reparse helper (private) ──
@@ -282,6 +325,16 @@ export function updateNodeContent(
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) {
+		if (import.meta.env.DEV && doc.children.length > 1) {
+			// Split/merge halves are single-block for every reachable gesture; a
+			// multi-block half here silently DROPS blocks past the first. Fail
+			// loud if a future gesture reaches it — updateNodeContent is the
+			// multi-block-aware path.
+			devWarn(
+				'tree-ops',
+				`reparseAsNode: raw parsed to ${doc.children.length} blocks; all but the first are dropped`
+			);
+		}
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;
 		ensureEditableContainers(node);
