@@ -2,7 +2,13 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
-### 0.9.13 — The plugin unit: `definePlugin` + the `plugins` prop
+### 0.9.14 — Component-portal inline widgets
+
+A plugin can now supply a **Svelte component** as an atomic inline widget instead of hand-building DOM — the recommended inline-widget path — made churn-safe under the editor's rebuild-everything-per-keystroke render by a keyed reuse pool.
+
+- **The `component` descriptor field.** `registerInlineWidgetKind` accepts a `component` (mounted with frozen `{ inline, source }` props) as an alternative to `buildWidget`; declaring both throws, naming the kind. The render layer wraps the component in the atomic island — stamping the `data-inline-widget` / `data-source-*` / `contenteditable=false` marker attributes the cursor and selection machinery key on — and mounts it through an injected portal builder, so `core/` stays framework-free. `InlineWidgetComponentProps` is on the `aragonite/plugin` barrel.
+- **The keyed reuse pool.** One live instance per `(kind, source)` survives a block's per-keystroke rebuild: typing next to a widget adopts its instance (offsets re-stamped) rather than remounting it, and an instance is remounted only when its source text changes. `mount`/`unmount` from Svelte enter the repo for the first time, contained to this seam; a synchronous mount throw is caught and routed to the editor's `error` channel (`origin: 'render'`, by path), the widget falling back to its raw source. The pool is imperative string-keyed state, never reactive — the render path reads no cache. Wired on both render surfaces (paragraph prose and table cells); the source-reveal cancel restores the exact element it detached, so byte-identical duplicate widgets and mount identity survive reveal→Escape.
+- **KaTeX inline migrated as the validator.** Inline `$…$` renders through a `MathInline` component instead of the hand-built shell; the injected renderer (`latexPlugin({ renderer })`) reaches it by module wiring, and its memoization still spans the document. The migration proved the seam end-to-end: adoption keeps a formula's mount identity stable across adjacent typing and mints a new one on a source edit.
 
 The authoring registrations gain an installable **unit**, so a consumer wires an extension by passing it — not by hand-ordering `register*` calls behind idempotence guards.
 
