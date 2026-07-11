@@ -2,13 +2,16 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { readDoc, waitForDoc, roundTripStable } from './helpers';
 
-// The main `/test/editor` harness installs every dogfood plugin behind `?plugins=1`.
-// The route is also the fixture for the e2e/simulation/perf batteries, which assume
-// plugin-free grammar, so the load-bearing gate is the DEFAULT-OFF pin: without the
-// param, plugin markers stay inert. The positive test proves the toggle wires the
-// whole array; the pin proves the param-less path is plugin-free.
+// The main `/test/editor` harness installs the reference plugins behind
+// `?plugins=1` — the consumer-realistic set, so admonitions owns all five
+// `:::name` kinds here. The fixture-only dogfoods (callout, memo) live on
+// /test/plugins with their batteries (src/routes/test/plugins/README.md). The
+// route is also the fixture for the e2e/simulation/perf batteries, which assume
+// plugin-free grammar, so the load-bearing gate is the DEFAULT-OFF pin: without
+// the param, plugin markers stay inert. The positive test proves the toggle
+// wires the whole array; the pin proves the param-less path is plugin-free.
 
-const PLUGIN_KINDS = ['note', 'admonition', 'details', 'mathBlock', 'mermaid', 'memo'];
+const PLUGIN_KINDS = ['admonition', 'details', 'mathBlock', 'mermaid'];
 
 test.describe('/test/editor plugin showcase toggle', () => {
 	let editor: EditorPage;
@@ -17,24 +20,24 @@ test.describe('/test/editor plugin showcase toggle', () => {
 		editor = new EditorPage(page);
 	});
 
-	test('?plugins=1 installs every dogfood and round-trips the showcase seed', async ({ page }) => {
+	test('?plugins=1 installs every reference plugin and round-trips the showcase seed', async ({
+		page
+	}) => {
 		await editor.goto('?plugins=1');
 
-		// Spot-check kinds spread across the install order: callout (first), an
-		// admonition kind callout does not claim, details, math, mermaid, memo (last).
+		// Spot-check kinds spread across the install order: admonitions (owning
+		// `:::note` with no callout co-registered), details, math, mermaid (last).
 		const doc = await waitForDoc(page, (s) =>
-			['note', 'admonition', 'details', 'mermaid'].every((k) => s.kinds.includes(k))
+			['admonition', 'details', 'mermaid'].every((k) => s.kinds.includes(k))
 		);
-		expect(doc.kinds).toContain('note');
 		expect(doc.kinds).toContain('admonition');
 		expect(doc.kinds).toContain('details');
 		expect(doc.kinds).toContain('mathBlock');
 		expect(doc.kinds).toContain('mermaid');
-		expect(doc.kinds).toContain('memo');
 
 		// A hand-authored combined plugin document is exactly where byte round-trip
-		// breaks (details blank-line wrap, `$$` fencing, `%%` placement); prove it
-		// serializes back under the live plugin grammar.
+		// breaks (details blank-line wrap, `$$` fencing); prove it serializes back
+		// under the live plugin grammar.
 		expect(await roundTripStable(page)).toBe(true);
 
 		await expect(page.getByTestId('plugins-mode-badge')).toBeVisible();
@@ -49,7 +52,7 @@ test.describe('/test/editor plugin showcase toggle', () => {
 		const doc = await readDoc(page);
 		// The whole point: with no plugins installed, `:::note` is inert Markdown.
 		expect(doc.kinds[0]).toBe('paragraph');
-		expect(doc.kinds[0]).not.toBe('note');
+		expect(doc.kinds[0]).not.toBe('admonition');
 		expect(doc.kinds[0]).not.toBe('directiveContainer');
 		// No plugin kind reaches the param-less document — the guarantee every other
 		// battery leans on.

@@ -252,24 +252,24 @@ Comments are preserved as styled-literal source: <!-- like this -->. Disallowed 
 End of showcase.
 `;
 
-// The `/test/editor?plugins=1` seed: one readable document exercising every dogfood
-// plugin (callout, admonitions, collapsible details, inline + block math, a mermaid
-// diagram and an invalid one, a `%%` memo) alongside built-ins. Array-joined rather
-// than a template literal because the mermaid/code fences and inline code carry
-// backticks; math backslashes are escaped for the string, not the Markdown. Loads
-// only behind the toggle, so the plugin grammar never reaches the default route.
+// The `/test/editor?plugins=1` seed: one readable document exercising every
+// reference plugin (admonitions, collapsible details, inline + block math, a
+// mermaid diagram and an invalid one) alongside built-ins; the fixture-only
+// dogfoods (callout, memo) are deliberately absent — see
+// src/routes/test/plugins/README.md. Array-joined rather than a template literal
+// because the mermaid/code fences and inline code carry backticks; math
+// backslashes are escaped for the string, not the Markdown. Loads only behind
+// the toggle, so the plugin grammar never reaches the default route.
 export const SHOWCASE_PLUGIN_CONTENT = [
 	'# aragonite — plugin showcase',
 	'',
-	'Loaded only with `?plugins=1`. Every dogfood plugin appears here once, in a readable document, so each can be tested by hand next to the built-in blocks.',
+	'Loaded only with `?plugins=1`. Every reference plugin appears here once, in a readable document, so each can be tested by hand next to the built-in blocks.',
 	'',
-	'## Callouts and admonitions',
+	'## Admonitions',
 	'',
-	':::note Directive callout',
-	'The callout plugin claims `:::note` and `:::warning`. Inside the fences ordinary Markdown keeps working — **bold**, `inline code`, and links.',
+	':::note Directive admonition',
+	'The admonitions plugin claims the five GitHub-alert kinds. Inside the fences ordinary Markdown keeps working — **bold**, `inline code`, and links.',
 	':::',
-	'',
-	'Admonitions add the remaining kinds. Callout owns `note` and `warning`, so an admonition uses a kind those do not claim:',
 	'',
 	':::tip Pro tip',
 	'A titled tip — the title rides the opener line.',
@@ -320,10 +320,6 @@ export const SHOWCASE_PLUGIN_CONTENT = [
 	'notadiagram',
 	'broken',
 	'```',
-	'',
-	'## Memo',
-	'',
-	'%% A `%%` memo is a plain editable leaf — a margin note that round-trips verbatim.',
 	'',
 	'Built-in blocks keep working alongside every plugin:',
 	'',

@@ -28,7 +28,12 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
    integration code lives in limestone; what belongs here is running it before the freeze and
    landing its findings while they are still cheap. Additive API needs it surfaces ship as
-   pre-freeze refinements.
+   pre-freeze refinements. The integration also forces the first-party plugin distribution
+   question — the dogfoods live in the dev harness, not the package. Position: the internal run
+   consumes reference plugins by copying source (the consumer-example sync pattern); if that
+   chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
+   package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
+   tarball, exports-map encapsulation already proven.
 2. **CI hardening** — `perf:check` green on the prod build in CI with the accept-documented
    limits staying accurate (single-giant-paragraph keystroke, extreme flat-document load);
    shard the Playwright battery across a parallel job matrix (pays every PR); complete the
@@ -41,12 +46,13 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    run validated container/chrome discoverability; nothing has third-party-validated the unit,
    transforms, portal widgets, or the leaf tier. One support question is the benchmark.
 4. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
-   the real showcase route (every block kind + every dogfood, theme and prop toggles, polished
-   debug panel). This is the "surpass Obsidian" argument made visible. It also carries the
+   the real showcase route (every block kind + every reference plugin — the fixture dogfoods
+   stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
+   panel). This is the "surpass Obsidian" argument made visible. It also carries the
    recorded reference-plugin aesthetic decision (`docs/issues.md` — card-like chrome vs
-   document-not-pile-of-blocks): the dogfoods' look becomes what plugin authors copy, so decide
-   it deliberately; lean restrained (gutter-rail) for house plugins while documenting that
-   chrome is the author's call.
+   document-not-pile-of-blocks): the reference plugins' look becomes what plugin authors copy,
+   so decide it deliberately; lean restrained (gutter-rail) for house plugins while documenting
+   that chrome is the author's call.
 5. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
