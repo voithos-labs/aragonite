@@ -1,6 +1,6 @@
 /**
- * G4.4 — `await tick()` is the only sanctioned sequencing primitive (CLAUDE.md
- * Design Rule #2). Scans editor source for `setTimeout`/`setInterval`/
+ * G4.4 — `await tick()` is the only sanctioned sequencing primitive
+ * (`docs/culture.md` § Sharp edges). Scans editor source for `setTimeout`/`setInterval`/
  * `queueMicrotask`/`requestAnimationFrame` and fails on any occurrence outside
  * the allowlist of legitimate animation-throttle / wall-clock-debounce uses.
  *
