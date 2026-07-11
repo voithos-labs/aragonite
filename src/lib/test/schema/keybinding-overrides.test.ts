@@ -11,6 +11,7 @@ import {
 	resolveGlobalBinding
 } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {
@@ -33,6 +34,15 @@ describe('normalizeKeybindingOverrides', () => {
 		const command = mintCommandId('demo.setKind');
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+K', command, arg: 'warning' }]);
 		expect(lookupOverride(map, 'global', 'Mod+Shift+K')).toMatchObject({ command, arg: 'warning' });
+	});
+
+	it('scopes a minted command chord to a declared plugin kind (widened kind)', () => {
+		const kind = declarePluginKind('kb-override-demo');
+		const command = mintCommandId('demo.run');
+		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+M', command, kind }]);
+		expect(lookupOverride(map, 'global', 'Mod+Shift+M')).toBeUndefined();
+		expect(lookupOverride(map, kind, 'Mod+Shift+M')).toMatchObject({ command });
+		expect(map.byKind.get(kind)?.size).toBe(1);
 	});
 
 	it('compiles a disable to the "disabled" sentinel', () => {

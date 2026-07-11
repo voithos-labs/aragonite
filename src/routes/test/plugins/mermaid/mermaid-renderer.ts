@@ -16,6 +16,9 @@ export interface MermaidRenderResult {
 	error?: string;
 }
 
+/** Exported so the eviction test derives its churn count from the real bound. */
+export const MERMAID_MEMO_CAP = 256;
+
 let activeRenderer: MermaidRenderer | null = null;
 let cache = new Map<string, Promise<MermaidRenderResult>>();
 let renderSeq = 0;
@@ -33,11 +36,14 @@ export function hasMermaidRenderer(): boolean {
  * Memoized per code text — re-renders of unchanged code do zero engine work
  * (the async sibling of the math renderer's memoization; an SVG string needs no
  * per-caller clone). A parse failure resolves to a legible `error`, never a
- * throw, and is cached like a success (same code, same failure).
+ * throw, and is cached like a success (same code, same failure). Bounded like
+ * the math memo: LRU via Map insertion order, re-inserted on hit.
  */
 export function renderMermaid(code: string): Promise<MermaidRenderResult> {
 	let entry = cache.get(code);
-	if (!entry) {
+	if (entry) {
+		cache.delete(code);
+	} else {
 		const renderer = activeRenderer;
 		entry = renderer
 			? renderer(code, `aragonite-mermaid-${renderSeq++}`).then(
@@ -45,7 +51,8 @@ export function renderMermaid(code: string): Promise<MermaidRenderResult> {
 					(reason) => ({ error: reason instanceof Error ? reason.message : String(reason) })
 				)
 			: Promise.resolve({ error: 'renderer not configured' });
-		cache.set(code, entry);
+		if (cache.size >= MERMAID_MEMO_CAP) cache.delete(cache.keys().next().value as string);
 	}
+	cache.set(code, entry);
 	return entry;
 }

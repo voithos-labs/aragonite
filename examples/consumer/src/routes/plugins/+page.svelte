@@ -2,14 +2,14 @@
 	import { calloutPlugin } from '../../plugins/callout/register';
 	import { detailsPlugin } from '../../plugins/details/register';
 	import { admonitionsPlugin } from '../../plugins/admonitions/index';
-	import { latexInlinePlugin } from '../../latex-register';
+	import { latexPlugin } from '../../plugins/latex/register';
 
 	// Module scope so the factories run once per process, not once per (SSR) render —
 	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
 	// dev-warn. The prop installs before the Editor parses `source`, so the seed
 	// resolves to plugin kinds; callout/admonitions turn the `:::name` grammar on, so
 	// `:::mystery` still renders as the generic directive fallback.
-	const plugins = [calloutPlugin(), detailsPlugin(), admonitionsPlugin(), latexInlinePlugin()];
+	const plugins = [calloutPlugin(), detailsPlugin(), admonitionsPlugin(), latexPlugin()];
 </script>
 
 <script lang="ts">
@@ -29,6 +29,8 @@
 		'</details>',
 		'',
 		'Math $x^2$ inline',
+		'',
+		'$$e^{i\\pi} + 1 = 0$$',
 		'',
 		':::tip Consumer tip',
 		'Admonition body',

@@ -2,7 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
 	setMermaidRenderer,
 	hasMermaidRenderer,
-	renderMermaid
+	renderMermaid,
+	MERMAID_MEMO_CAP
 } from '../../../routes/test/plugins/mermaid/mermaid-renderer';
 
 // The renderer is module-global; leave it unset for the suite's other files.
@@ -42,6 +43,25 @@ describe('renderMermaid memoization', () => {
 
 		setMermaidRenderer(async () => '<svg>two</svg>');
 		expect((await renderMermaid('graph TD')).svg).toBe('<svg>two</svg>');
+	});
+
+	// The math renderer's bound, mirrored: code text keys the cache, so churn
+	// past the cap must evict the least-recently-used entry, not grow forever.
+	it('evicts the least-recently-used entry past the cap', async () => {
+		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
+		setMermaidRenderer(renderer);
+
+		await renderMermaid('first');
+		for (let i = 0; i < MERMAID_MEMO_CAP - 1; i++) await renderMermaid(`fill-${i}`);
+		await renderMermaid('first'); // hit — refreshed, still cached at exactly cap
+		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP);
+
+		await renderMermaid('overflow'); // past cap — evicts the LRU fill entry
+		await renderMermaid('first'); // survived on recency
+		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP + 1);
+
+		await renderMermaid('fill-0'); // evicted — renders again
+		expect(renderer).toHaveBeenCalledTimes(MERMAID_MEMO_CAP + 2);
 	});
 });
 
