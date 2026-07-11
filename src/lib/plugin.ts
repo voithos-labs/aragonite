@@ -37,6 +37,7 @@ export type { InlineSyntaxRecognizer } from './core/inline/scan/plugin-syntax';
 export { registerInlineWidgetKind } from './core/inline/inline-widgets';
 export type {
 	InlineWidgetDescriptor,
+	InlineWidgetComponentProps,
 	InlineWidgetEditingPolicy,
 	InlineWidgetEditingContext
 } from './core/inline/inline-widgets';

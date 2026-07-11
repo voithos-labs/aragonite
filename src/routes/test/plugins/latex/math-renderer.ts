@@ -70,3 +70,20 @@ export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
 		return { dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error };
 	};
 }
+
+// ── Inline renderer wiring ────────────────────────────────────────────────────
+
+// MathInline mounts with frozen `{ inline, source }` props (no renderer channel), so
+// the injected engine travels by module — the moral equivalent of the closure the
+// old buildMathWidget captured. `latexPlugin({ renderer })` sets it at install; the
+// memoization spans the whole document, so a formula repeated across widgets renders
+// once.
+let activeInlineRenderer: MathRenderer = createMemoizedRenderer(katexRenderer);
+
+export function setInlineMathRenderer(renderer: MathRenderer): void {
+	activeInlineRenderer = createMemoizedRenderer(renderer);
+}
+
+export function renderInlineMath(source: string): { dom: HTMLElement; error?: string } {
+	return activeInlineRenderer(source, { display: false });
+}
