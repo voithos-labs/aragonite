@@ -23,7 +23,10 @@ const MANIFEST = {
 		'gh-alert.ts',
 		'convert-document.ts',
 		'index.ts'
-	]
+	],
+	// harness-renderer.ts stays repo-side: the renderer is injected, so the
+	// consumer supplies its own engine wiring (the latex-register precedent).
+	mermaid: ['mermaid-kind.ts', 'mermaid-renderer.ts', 'register.ts', 'MermaidBlock.svelte']
 };
 
 rmSync(OUT, { recursive: true, force: true });

@@ -67,6 +67,31 @@ The chrome branch filters deletion candidates to subtree roots and identity-gate
 
 The prose branch now reads its own per-path bucket from the match index; the table-cell branch still walks the full match list because its cell addressing needs a seam the overlay doesn't have. Extend the bucket read to cells when that seam is next touched.
 
+### Mermaid reference plugin is excluded from the consumer example (by design)
+
+**Severity:** n/a — recorded exclusion, not a defect
+**Files:** `src/routes/test/plugins/mermaid/`; `examples/consumer/` (no mermaid route)
+
+The mermaid dogfood's synced sources typecheck against the packed tarball (boundary proven),
+but no consumer route ships it — the `mermaid` engine is a heavy devDependency the consumer
+example's CI budget doesn't justify (the block-math precedent). The render-primary recipe in
+the plugin guide is the durable record. Re-fold if the consumer example ever gains a
+budget-insensitive smoke tier.
+
+### Render-primary wall ledger: fence grammar, focus seam, command→component bridge
+
+**Severity:** minor (authoring friction; each additive)
+**Files:** `src/routes/test/plugins/mermaid/` (the consumer that surfaced them); `docs/editor/plugin-guide.md` § render-primary recipe
+
+Three walls the reference build recorded, each a 1.2 candidate: (1) the CommonMark fence
+matcher isn't on `aragonite/plugin`, so a fence-claiming plugin reimplements it (drift risk —
+re-export candidate); (2) a childless opaque container dead-ends the factory's caret traversal
+with no public focus-actions seam — the reference block ships `focusable: false`, and
+editor-native focus/edit for such blocks is the editable-leaf tier's territory; (3) block
+commands have no component channel, so view-state commands need a plugin-owned
+node→component bridge every render-primary plugin will rebuild. Also minor:
+`normalizeLineEndings` not public; the container shim hardcodes `editable: true`.
+
 ## Test coverage
 
 ### Attribution perf axes time out on 1MB setSource settle (pre-existing)
