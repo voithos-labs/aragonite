@@ -7,13 +7,19 @@ import { join } from 'node:path';
 const SRC = 'src/routes/test/plugins';
 const OUT = 'examples/consumer/src/plugins';
 
-// BlockMath.svelte + latex/register.ts are deliberately absent: block math is
-// dogfood for the post-1.0 editable-leaf tier and cannot cross the boundary.
-// MathInline.svelte does cross — it is the recommended component-widget path.
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte'],
 	details: ['details-kind.ts', 'register.ts', 'DetailsBlock.svelte'],
-	latex: ['latex-kind.ts', 'math-renderer.ts', 'MathInline.svelte'],
+	// The whole plugin crosses: MathInline on the component-widget path,
+	// BlockMath on the editable-leaf tier (createEditableLeaf). katex is a
+	// consumer devDependency.
+	latex: [
+		'latex-kind.ts',
+		'math-renderer.ts',
+		'MathInline.svelte',
+		'BlockMath.svelte',
+		'register.ts'
+	],
 	// index.ts crosses too: registering the component is behind installAdmonitions(),
 	// so the consumer route imports the barrel, not register.ts alone.
 	admonitions: [
@@ -25,7 +31,7 @@ const MANIFEST = {
 		'index.ts'
 	],
 	// harness-renderer.ts stays repo-side: the renderer is injected, so the
-	// consumer supplies its own engine wiring (the latex-register precedent).
+	// consumer supplies its own engine wiring.
 	mermaid: ['mermaid-kind.ts', 'mermaid-renderer.ts', 'register.ts', 'MermaidBlock.svelte']
 };
 
