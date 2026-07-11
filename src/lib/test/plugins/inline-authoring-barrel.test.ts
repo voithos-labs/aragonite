@@ -44,6 +44,7 @@ describe('aragonite/plugin inline authoring surface', () => {
 		for (const seam of [
 			'augmentInlineWidgetKind',
 			'getInlineWidgetEditing',
+			'getInlineWidgetComponent',
 			'getInlineSyntax',
 			'hasInlineSyntax',
 			'__resetInlineSyntaxForTests',

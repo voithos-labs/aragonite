@@ -16,6 +16,7 @@ import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-re
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
+import { createSvelteWidgetPool } from '../widget-portal';
 
 export interface TextRenderDeps {
 	get el(): HTMLElement | null;
@@ -29,6 +30,10 @@ export interface TextRenderDeps {
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
 	brokenUrlCache: Set<string>;
+	/** A widget component's synchronous mount throw is routed here — the editor's
+	 *  `error` channel, matching BlockHost's render-boundary origin. Absent → errors
+	 *  are not surfaced (the widget still falls back to its raw source). */
+	reportRenderError?: (error: unknown) => void;
 }
 
 export interface TextRender {
@@ -40,10 +45,17 @@ export interface TextRender {
 	 * key is unchanged.
 	 */
 	render(opts?: { forceRebuild?: boolean }): void;
+	/** Destroy every pooled widget instance — called when the block unmounts. */
+	dispose(): void;
 }
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
+	const widgetPool = createSvelteWidgetPool(deps.reportRenderError);
+
+	function buildPortalWidget(node: InlineNode, raw: string): HTMLElement | null {
+		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
+	}
 
 	// The dimmed marker portion of the raw (a heading's `## `, a directive leaf's
 	// `::name`). Any kind whose descriptor narrows the content range past 0 carries
@@ -79,7 +91,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				resolveLinkUrl: deps.resolveLinkUrl,
 				imageLoadPolicy: deps.imageLoadPolicy,
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
-					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache })
+					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
+				buildPortalWidget
 			})
 		);
 		return frag;
@@ -125,9 +138,19 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
+			// Bracket the rebuild: portal widgets acquired during the build are adopted
+			// for this pass; the sweep destroys any that the previous DOM held but this
+			// build did not re-acquire (a widget whose source changed or was deleted).
+			widgetPool.beginPass();
 			el.replaceChildren(buildInlineDOM(content));
+			widgetPool.sweep();
 			lastRenderedKey = renderKey;
 		} else {
+			// A non-prose kind builds no inline widgets, so an empty pass here sweeps any
+			// pooled widget stranded by an in-place prose→non-prose kind change (the same
+			// TextEditableBlock instance is reused across the transition).
+			widgetPool.beginPass();
+			widgetPool.sweep();
 			const display = deps.getDisplayText();
 			const markerPrefix = getBlockMarkerPrefix();
 			if (markerPrefix) {
@@ -150,5 +173,5 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		ensureBr(el);
 	}
 
-	return { render };
+	return { render, dispose: () => widgetPool.dispose() };
 }
