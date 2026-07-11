@@ -15,7 +15,7 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
 
-**Target:** the inline-widget editing registry (pre-1.0 — `docs/roadmap.md` § Pre-1.0, the KaTeX item); entities are a natural early consumer. Decoded rendering is prototyped; entity keyboard interaction (edge-delete, arrow step-over, shift-extend) needs the registry's atomic-inline caret-addressing, currently hardcoded to `kind === 'image'`.
+**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (see the freeze-forward entry below) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
 
 ### Table cell Shift+Enter inserts `<br>` but renders it as literal text
 
@@ -95,6 +95,17 @@ The prose branch now reads its own per-path bucket from the match index; the tab
 Two divergence shapes are unreachable by the current corpus alphabets but would surface as fail-loud fresh divergences if the corpus ever gains the needed bytes: (1) an entity-decoded newline after a space (`foo &#10;bar`) — our softbreak trimming keys on `\n` bytes regardless of provenance; (2) C1 numeric references (`&#128;`) — the reference applies HTML5's cp1252 remap while we follow CommonMark §2.5's letter (ours spec-correct, probe-verified). If either surfaces, class it as deliberate with these rationales rather than chasing it as a scanner bug.
 
 **Why deferred:** unreachable today; recorded so a future corpus widening inherits the adjudications.
+
+### Invariant-watcher fixture has no per-tag allow/require; first opt-out consumer asserts inline
+
+**Severity:** trivial (test-fixture affordance)
+**Files:** `src/lib/e2e/tests/plugins/plugins-prop-staggered.spec.ts` (the opt-out consumer); the invariant-watcher fixture
+
+The staggered-mount spec expects exactly one `invariant:late-opener-registration` fire, but the
+watcher fixture is a boolean with no per-tag allowlist — so the spec opts out and asserts the
+fire itself. Sound for one consumer (a local `poll(...).toBe(1)` requires the warn, which an
+allowlist would let vanish silently); on a second opt-out consumer, promote per-tag
+require/allow into the fixture per the choke-point rule.
 
 ### No composition-driving harness; IME guards are pinned by parity, not by tests
 
