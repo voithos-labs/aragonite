@@ -119,7 +119,7 @@ Optional props customize URL/image handling and editor affordances:
 
 These are the current keyboard-driven affordances. `Mod` is Ctrl on Windows/Linux and Cmd on macOS. Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste) — Shift+F10 or the Context Menu key opens it from the keyboard. Per-block chords can be rebound or disabled via the `keybindings` prop.
 
-Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), not the shifted symbol.
+Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), not the shifted symbol. An override's `kind` scope also takes a **plugin** kind — name it via the plugin's exported kind constant (the branded string; a raw literal won't typecheck).
 
 | Action                     | Chord                                            |
 | -------------------------- | ------------------------------------------------ |

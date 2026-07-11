@@ -97,6 +97,8 @@ neither can hold. Two habits keep the ladder honest: every bug fix records a one
 new feature class adds a simulation gesture so the corruption oracle's coverage tracks the product's
 surface. The complexity is essential — cap the downside, don't simplify.
 
+(prob have interface versions post freeze, so breaking changes get a new version)
+
 ## Post-1.0 sketch
 
 Subject to reconsideration after v1 ships.
@@ -106,9 +108,8 @@ Subject to reconsideration after v1 ships.
 The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that makes the Svelte/TypeScript plugin thesis real, plus the generalizations deferred until more consumers exist:
 
 - **DX system:** plugin scaffold, hot-reload dev loop, in-repo reference-plugin fleet (each exercising a different extension shape — callout, KaTeX, export command, image gallery, smart-HTML-paste), plugin docs site, plugin DX test suite — plus a declarative-manifest overload on the shipped `definePlugin` unit if a consumer wants one.
-- **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Widen `KeybindingOverride.kind` to plugin kinds here too, so a consumer can rebind a plugin container's command chords (additive; command mint left it `BlockKind`-only). Ships on the command-mint foundation (0.9.7).
+- **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7); `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
-- **General editable-leaf tier** — a recognizer-backed standalone plugin text block; the 1.0 chrome leaf is deliberately narrower (see the tier model in `plugin-contract.md`).
 - **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax, validated by the 1.3 footnotes/emoji plugins.
 - **Rendered reading mode as a consumer-buildable view** — always-visible-styled-source is a deliberate default and a taste some users won't share; prove a consumer can build a markers-hidden reading view through public surfaces without forking the render path (the 1.0 freeze litmus guarantees the contract allows it; this item makes it real).
 

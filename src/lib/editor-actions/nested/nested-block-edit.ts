@@ -12,10 +12,15 @@ import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	updateNodeContent as performUpdate,
+	focusTargetInReplacement,
 	ensureUnsharedChild,
 	reconcileTaskMetadata,
 	foldPasteReplacement
 } from '../../tree-operations';
+import {
+	stampStructuralChange,
+	type StructuralChange
+} from '../../tree-operations/structural-change';
 import { pastedContentFocusIndex } from '../../tree-operations/paste/hooks';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
@@ -25,6 +30,7 @@ import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
+import { focusMovedOutsideReplacement } from '../replacement-focus';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -148,6 +154,7 @@ export function createNestedBlockEdit(
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
+				let change: StructuralChange = { op: 'noop' };
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
 					path: deps.path,
@@ -155,7 +162,9 @@ export function createNestedBlockEdit(
 					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						return performUpdate({ children: scope.children }, innerIndex, text);
+						change = performUpdate({ children: scope.children }, innerIndex, text);
+						stampStructuralChange(scope.children, change, scope.sharing);
+						return change;
 					},
 					op: {
 						kind: 'updateContent',
@@ -163,6 +172,15 @@ export function createNestedBlockEdit(
 						eventPath: leafPath
 					},
 					afterTick: () => {
+						const count = change.op === 'replace' ? change.newCount : 1;
+						if (focusMovedOutsideReplacement(deps.path, innerIndex, count)) return;
+						if (change.op === 'replace' && change.newCount > 1) {
+							const children = deps.node.children ?? [];
+							const blocks = children.slice(change.at, change.at + change.newCount);
+							const target = focusTargetInReplacement(blocks, focusOffset);
+							state.innerBlockRefs[change.at + target.index]?.focus(target.offset);
+							return;
+						}
 						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
 					}
 				});
