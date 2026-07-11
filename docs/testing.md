@@ -21,26 +21,26 @@ npm run test:e2e       # all E2E tests (auto-starts dev server)
 
 Unit tests can be scoped to a single concept area:
 
-| Script                       | Covers                                                                                          |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `test:editor:core`           | Parser, serializer, round-trip invariants                                                       |
-| `test:editor:tree-ops`       | Tree mutation helpers                                                                           |
-| `test:editor:editor-actions` | Editor action bundles and commit primitives                                                     |
-| `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                       |
-| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                       |
-| `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules              |
-| `test:editor:reactivity`     | Block-list state and state registry                                                             |
-| `test:editor:selection`      | Selection-state logic                                                                           |
-| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                                                         |
-| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                        |
-| `test:editor:plugins`        | Plugin dogfood kinds — callout/details round-trips, chrome-leaf behavior                        |
-| `test:editor:simulation`     | Simulation-engine internals — seeded RNG, expectation tracker                                   |
-| `test:editor:undo`           | Undo stack and entry management                                                                 |
-| `test:editor:search`         | Find/replace engine — document scan and search state                                            |
-| `test:editor:conformance`    | commonmark.js differ slice — spec examples + seeded corpus vs the committed divergence baseline |
-| `test:editor:debug`          | Debug engine helpers and operations log                                                         |
-| `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards                                    |
-| `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens, instrument behavior |
+| Script                       | Covers                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test:editor:core`           | Parser, serializer, round-trip invariants                                                                                                     |
+| `test:editor:tree-ops`       | Tree mutation helpers                                                                                                                         |
+| `test:editor:editor-actions` | Editor action bundles and commit primitives                                                                                                   |
+| `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                                                                     |
+| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                                                                     |
+| `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                                                            |
+| `test:editor:reactivity`     | Block-list state and state registry                                                                                                           |
+| `test:editor:selection`      | Selection-state logic                                                                                                                         |
+| `test:editor:blocks`         | Per-block unit tests (code block, etc.)                                                                                                       |
+| `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                                                                      |
+| `test:editor:plugins`        | Plugin dogfood kinds and authoring seams — container round-trips, chrome leaves, directive tiers, paste transforms, reference-plugin metadata |
+| `test:editor:simulation`     | Simulation-engine internals — seeded RNG, expectation tracker                                                                                 |
+| `test:editor:undo`           | Undo stack and entry management                                                                                                               |
+| `test:editor:search`         | Find/replace engine — document scan and search state                                                                                          |
+| `test:editor:conformance`    | commonmark.js differ slice — spec examples + seeded corpus vs the committed divergence baseline                                               |
+| `test:editor:debug`          | Debug engine helpers and operations log                                                                                                       |
+| `test:editor:invariants`     | Invariant catalog — property/fuzz tests + source-scan guards                                                                                  |
+| `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens, instrument behavior                                               |
 
 E2E tests are grouped into Playwright projects:
 
@@ -53,7 +53,7 @@ E2E tests are grouped into Playwright projects:
 | `test:e2e:blocks:image`      | Image block specs only                                                                                                                                                                                                    |
 | `test:e2e:blocks:table`      | Table block specs only                                                                                                                                                                                                    |
 | `test:e2e:blocks:blockquote` | Blockquote block specs only                                                                                                                                                                                               |
-| `test:e2e:plugins`           | Plugin-authoring specs — plugin containers, reserved chrome, collapse                                                                                                                                                     |
+| `test:e2e:plugins`           | Plugin-authoring specs — plugin containers, reserved chrome, collapse, the plugins prop / staggered mount, component-portal widgets, editable-leaf editing                                                                |
 | `test:e2e:clipboard`         | Cut / copy / paste (excludes exploration)                                                                                                                                                                                 |
 | `test:e2e:exploration`       | Clipboard exploration / manual-verification scenarios                                                                                                                                                                     |
 | `test:e2e:selection`         | Cross-block selection behavior                                                                                                                                                                                            |

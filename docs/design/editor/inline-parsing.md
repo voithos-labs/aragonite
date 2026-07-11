@@ -89,6 +89,12 @@ Kind-to-DOM mapping:
 - Marker text is always extracted from `raw` by slicing, never reconstructed from parsed fields. This guarantees textContent matches raw regardless of original syntax spacing.
 - Hard line breaks use `\n` text nodes, not `<br>` elements. Text nodes produce consistent textContent across browsers; `<br>` behavior varies.
 
+### Widget render paths
+
+An atomic-widget kind renders one of two ways. A **hand-built** kind emits its own DOM root carrying the `[data-inline-widget]` / `data-source-start` / `data-source-end` / `contenteditable="false"` attributes. A **component** kind supplies a Svelte component instead — the recommended path: the render layer wraps it in the atomic island, stamps those same attributes itself, and mounts the component inside with a frozen `{ inline, source }` snapshot. Mounting is injected into the core layer, so `core/` stays framework-free — the registry only records that a kind is a component widget, not how to mount one.
+
+Because the editor rebuilds a block's whole inline DOM on every keystroke, component widgets ride a **keyed reuse pool**: a live instance is keyed by its kind and source text, so a rebuild adopts the unchanged instance — re-stamping only its shifted `data-source-*` offsets — rather than remounting it, and remounts only when the source text changes. Typing next to a rendered formula keeps its mount (and its render cost) stable; editing the formula mints a new one. An instance left unadopted by a rebuild is torn down at pass end, and a mount that throws is caught, reported on the editor's `error` channel, and falls back to the raw source span.
+
 ## Cursor Mapping
 
 Cursor offsets map directly to `raw` positions because markers are visible text in the DOM — `textContent` position equals `raw` offset. Save is trivial (count characters). Restore walks the inline tree's `start`/`end` ranges to find the target DOM text node.
