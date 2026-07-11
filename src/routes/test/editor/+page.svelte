@@ -1,26 +1,24 @@
 <script module lang="ts">
-	import { calloutPlugin } from '../plugins/callout/register';
 	import { detailsPlugin } from '../plugins/details/register';
 	import { latexPlugin } from '../plugins/latex/register';
 	import { admonitionsPlugin } from '../plugins/admonitions/index';
 	import { mermaidPlugin } from '../plugins/mermaid/register';
 	import { mermaidHarnessRenderer } from '../plugins/mermaid/harness-renderer';
-	import { memoPlugin } from '../plugins/memo/register';
 
-	// The `?plugins=1` showcase installs every dogfood unit through the canonical
-	// `<Editor plugins>` prop. Built once at module scope: the factories run once
-	// per process, and importing the plugin modules is inert (registration runs
-	// only inside installPlugins, which the default path never calls), so the
-	// param-less `/test/editor` stays plugin-free for the batteries that share this
-	// route. Order mirrors the /test/plugins harness — callout claims `:::note` /
-	// `:::warning` ahead of admonitions, so those names resolve to the callout kind.
-	const dogfoodPlugins = [
-		calloutPlugin(),
+	// The `?plugins=1` showcase installs the reference plugins — the set a real
+	// consumer would install — through the canonical `<Editor plugins>` prop. The
+	// fixture-only dogfoods (callout, memo) stay on /test/plugins with their e2e
+	// batteries; see src/routes/test/plugins/README.md for the classification.
+	// Without callout co-registered, admonitions claims all five `:::name` kinds.
+	// Built once at module scope: the factories run once per process, and
+	// importing the plugin modules is inert (registration runs only inside
+	// installPlugins, which the default path never calls), so the param-less
+	// `/test/editor` stays plugin-free for the batteries that share this route.
+	const referencePlugins = [
 		detailsPlugin(),
 		latexPlugin(),
 		admonitionsPlugin(),
-		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
-		memoPlugin()
+		mermaidPlugin({ renderer: mermaidHarnessRenderer })
 	];
 </script>
 
@@ -145,7 +143,7 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					theme={$currentThemeType}
-					plugins={pluginsOn ? dogfoodPlugins : undefined}
+					plugins={pluginsOn ? referencePlugins : undefined}
 				/>
 			{/key}
 		</div>
