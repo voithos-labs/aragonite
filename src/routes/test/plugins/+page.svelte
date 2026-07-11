@@ -3,14 +3,22 @@
 	import { detailsPlugin } from './details/register';
 	import { latexPlugin } from './latex/register';
 	import { admonitionsPlugin } from './admonitions/index';
+	import { mermaidPlugin } from './mermaid/register';
+	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'
 	// first-wins dev-warn. A stable array is also the pattern a consumer should copy.
 	// The prop installs before the child <Editor> parses `source`, so `:::note` /
-	// `<details>` / `$…$` resolve to plugin kinds; callout/admonitions setups turn on
-	// the generic `:::name` grammar the generic-directive e2e drives.
-	const plugins = [calloutPlugin(), detailsPlugin(), latexPlugin(), admonitionsPlugin()];
+	// `<details>` / `$…$` / ```mermaid resolve to plugin kinds; callout/admonitions
+	// setups turn on the generic `:::name` grammar the generic-directive e2e drives.
+	const plugins = [
+		calloutPlugin(),
+		detailsPlugin(),
+		latexPlugin(),
+		admonitionsPlugin(),
+		mermaidPlugin({ renderer: mermaidHarnessRenderer })
+	];
 </script>
 
 <script lang="ts">
@@ -71,13 +79,42 @@
 		''
 	].join('\n');
 
+	// Two rendering diagrams, one invalid-code diagram (no diagram type, so the
+	// engine rejects deterministically), and a plain ```js fence that must stay
+	// fencedCode, with a trailing paragraph for the editor-keeps-working check.
+	const MERMAID_SEED = [
+		'# Mermaid',
+		'',
+		'```mermaid',
+		'graph TD',
+		'\tA[Start] --> B[Finish]',
+		'```',
+		'',
+		'```mermaid',
+		'sequenceDiagram',
+		'\tAlice->>Bob: Hello',
+		'```',
+		'',
+		'```mermaid',
+		'notadiagram',
+		'broken',
+		'```',
+		'',
+		'```js',
+		'const x = 1;',
+		'```',
+		'',
+		'After',
+		''
+	].join('\n');
+
 	// The callout is the default document (the landed callout e2e reads it directly);
 	// `?seed=details` swaps in the details seed for the collapse route, `?seed=math` an
 	// inline-math paragraph, `?seed=math-multiline` the two-line reveal-hit-test doc,
 	// `?seed=mathblock` a block `$$…$$` leaf, `?seed=mathblock-multiline` an `aligned`
-	// fence. The seed arrives via the load data, so the server and client render the
-	// same document. One-time snapshot: the harness never re-navigates client-side, and
-	// the test probes then own `source`.
+	// fence, `?seed=mermaid` the diagram-block doc. The seed arrives via the load data,
+	// so the server and client render the same document. One-time snapshot: the harness
+	// never re-navigates client-side, and the test probes then own `source`.
 	// svelte-ignore state_referenced_locally
 	let source = $state(
 		data.seed === 'details'
@@ -94,7 +131,9 @@
 								? MATH_BLOCK_MULTILINE_SEED
 								: data.seed === 'mathtable'
 									? MATH_TABLE_SEED
-									: CALLOUT_SEED
+									: data.seed === 'mermaid'
+										? MERMAID_SEED
+										: CALLOUT_SEED
 	);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
