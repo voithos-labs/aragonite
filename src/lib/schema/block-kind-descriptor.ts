@@ -34,6 +34,16 @@ export interface UnwrapRole {
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
+	/**
+	 * Editor-level whole-block focus policy for an opaque, childless block (e.g. a
+	 * render-primary plugin diagram). `'whole-block'` opts the kind into the
+	 * ThematicBreak-style focus-then-delete model: arrow traversal stops on it, a
+	 * caret-adjacent Backspace/Delete focuses it before a second press deletes, and
+	 * the merge-fallback twins focus it instead of deleting or no-oping. Absent =
+	 * the block is not an editor-level focus target on its own. Closed vocabulary —
+	 * a plugin may not invent values. Leaf-level, so it survives `stripContainerOnlyKeys`.
+	 */
+	blockFocus?: 'whole-block';
 	isContainer: boolean;
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).

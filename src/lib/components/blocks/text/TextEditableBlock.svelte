@@ -54,7 +54,6 @@
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
-	import { findFirstEdgeWidget, findLastEdgeWidget } from './widget-adjacency';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
@@ -305,26 +304,8 @@
 		return widgetInteraction.isVerticallyTransparent();
 	}
 
-	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
-		const inlines = getInlineContent(node, linkRef?.current, linkRef?.signature ?? '');
-		if (inlines.length === 0) return false;
-		const target =
-			side === 'start'
-				? findFirstEdgeWidget(inlines, node.raw)
-				: findLastEdgeWidget(inlines, node.raw);
-		if (!target) return false;
-		// Focus the contenteditable so subsequent key events route to this
-		// block's keydown handler, where the widget-selected branch can run.
-		el?.focus();
-		// Cross-block entry: the caret arrived at the boundary the user was
-		// stepping toward — start-side enters at target.start, end-side at
-		// target.end. Anchors undo at the visual landing position.
-		widgetSelection.select({
-			paragraphPath: myPath,
-			sourceStart: target.start,
-			preSelectOffset: side === 'start' ? target.start : target.end
-		});
-		return true;
+	export function enterEdgeWidget(side: 'start' | 'end'): boolean {
+		return widgetInteraction.enterEdgeWidget(side);
 	}
 
 	export function runCommand(id: CommandId, arg?: unknown): boolean {
@@ -397,7 +378,7 @@
 		getCursorOffset,
 		focusAtColumn,
 		isVerticallyTransparent,
-		selectEdgeWidget,
+		enterEdgeWidget,
 		runCommand
 	} satisfies BlockComponent);
 

@@ -30,6 +30,12 @@ export interface ContainerBlockComponentDeps {
 	 *  focus extremum entering the container clamps to it instead of no-oping on
 	 *  an unmounted last child (the caret-walk-into-collapsed rule). */
 	readonly isCollapsed?: () => boolean;
+	/** Whole-block-focus element for an opaque childless container (a plugin
+	 *  diagram): when supplied, caret entry focuses this element instead of
+	 *  walking into children (which no-op on `children: []`), and the cursor
+	 *  offset reads 0 while it or a descendant holds focus (ThematicBreak's model).
+	 *  Returns null when the element is absent (e.g. a render error state). */
+	readonly getFocusEl?: () => HTMLElement | null | undefined;
 }
 
 /**
@@ -48,7 +54,7 @@ export type ContainerBlockComponent = BlockComponent &
 			| 'revealByPath'
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'
-			| 'selectEdgeWidget'
+			| 'enterEdgeWidget'
 		>
 	>;
 
@@ -59,6 +65,13 @@ export function createContainerBlockComponent(
 		editable: true,
 		focusable: true,
 		focus(offset: number) {
+			// Whole-block focus: any caret entry lands on the block itself, the
+			// element offset carries no meaning (ThematicBreak's model).
+			const focusEl = deps.getFocusEl?.();
+			if (focusEl) {
+				focusEl.focus();
+				return;
+			}
 			if (deps.nodeChildrenLength === 0) return;
 			// Collapsed: only child 0 (the chrome row) is mounted, so a walk-in from
 			// below — which targets the last child — clamps to it rather than no-oping
@@ -73,6 +86,8 @@ export function createContainerBlockComponent(
 			}
 		},
 		getCursorOffset() {
+			const focusEl = deps.getFocusEl?.();
+			if (focusEl) return focusEl.contains(document.activeElement) ? 0 : null;
 			for (const ref of deps.innerBlockRefs) {
 				const offset = ref?.getCursorOffset();
 				if (offset !== null && offset !== undefined) return offset;
@@ -125,16 +140,23 @@ export function createContainerBlockComponent(
 				: (ref.getBlockComponentByPath?.(rest) ?? null);
 		},
 		focusAtColumn(x: number, from: StickyColumnDirection) {
+			// Whole-block focus has no column to land in — a vertical (ArrowUp/Down)
+			// entry focuses the block itself, mirroring the plain-arrow path.
+			const focusEl = deps.getFocusEl?.();
+			if (focusEl) {
+				focusEl.focus();
+				return;
+			}
 			if (deps.nodeChildrenLength === 0) return;
 			dispatchFocusAtColumn(deps.innerBlockRefs, x, from);
 		},
 		isVerticallyTransparent(): boolean {
 			return isVerticallyTransparentNode(deps.node);
 		},
-		selectEdgeWidget(side: 'start' | 'end'): boolean {
+		enterEdgeWidget(side: 'start' | 'end'): boolean {
 			if (deps.nodeChildrenLength === 0) return false;
 			const edge = side === 'start' ? 0 : deps.nodeChildrenLength - 1;
-			return deps.innerBlockRefs[edge]?.selectEdgeWidget?.(side) ?? false;
+			return deps.innerBlockRefs[edge]?.enterEdgeWidget?.(side) ?? false;
 		}
 	};
 }

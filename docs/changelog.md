@@ -2,6 +2,14 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.18 — Caret-entry UX: widgets reveal, opaque blocks focus
+
+Two owner-reported caret UX defects on the plugin surfaces, each fixed as its class.
+
+- **Horizontal caret entry into a reveal-capable inline widget opens the source reveal** (Obsidian model). ArrowLeft/Backspace from the right or ArrowRight/Delete from the left of inline math (and directive text widgets) reveals the raw source with the caret at the entered edge; walking out folds it. Replaces the widget-selected park — a state with **zero visual rendering** for math (the caret vanished, and a second Backspace silently deleted the whole formula). The dispatch keys off the same `revealSource` policy the click path already used, at one seam (`enterWidget`) covering all four sibling entry sites, including the cross-block edge landing (`selectEdgeWidget` renamed `enterEdgeWidget` — it now enters per policy). Images keep select-then-step / select-then-delete; Shift+Arrow extension never reveals; the now-dead Enter-to-reveal branch is deleted.
+- **Opaque childless plugin blocks are whole-block focus targets** (`blockFocus: 'whole-block'` descriptor + a focus-el getter on the container factory — public surface, mermaid as consumer). Arrows stop on the block with a focus highlight instead of gliding past; Backspace at the start of the block below (or Delete above — the forward twin, fixed together) focuses it first, a second press deletes in one undoable commit; Enter inserts a paragraph below; Alt+Arrow reorders; clicking the diagram then Backspace deletes; keys from the plugin's own edit textarea never reach the block affordances. Previously the block was undeletable except by selection sweep: its `not-mergeable` + descriptor-editable config dead-ended the merge fallback on a childless container.
+- **The editable-container backfill no longer stuffs a phantom paragraph into childless-by-design kinds.** Pre-existing: every parse→load backfilled the opaque mermaid container with a `paragraph {raw:'\n'}` child, permanently violating opaque raw↔children faithfulness — latent because no commit ever ran the checker over the node until the new Enter/reorder gestures fired `[invariant:opaque-stale-raw]`. Whole-block-focus kinds now skip the backfill (the block itself is the caret target). Miss-analysis: the backfill had unit pins for list/blockquote but none asserting it _declines_ a kind whose design is childless; the invariant existed but nothing committed over a loaded mermaid node in any suite.
+
 ### 0.9.17 — CI + contributor hardening, showcase quality
 
 The pre-freeze collaboration prep: the repo a second developer clones has green sharded CI, a contributor front door, and a showcase whose plugins behave.

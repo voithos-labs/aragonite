@@ -33,7 +33,7 @@ class DirectiveTextPage extends PluginsPage {
 	}
 }
 
-test.describe('plugin inline directive: select → reveal-source editing', () => {
+test.describe('plugin inline directive: caret-entry / click reveal-source editing', () => {
 	let editor: DirectiveTextPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -53,30 +53,63 @@ test.describe('plugin inline directive: select → reveal-source editing', () =>
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('ArrowRight selects the widget, then steps over its trailing edge', async ({ page }) => {
+	test('ArrowRight left of the widget reveals its source at the leading edge', async ({ page }) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "see " is 4 chars: 4 steps reach the widget's left edge, the 5th selects it.
-		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-		// The next press steps over the atom to its trailing edge, so a typed char lands
-		// immediately after the source — not inside the folded widget.
+		// "see " is 4 chars: 4 steps reach the widget's leading edge; the 5th ENTERS
+		// it — entry reveals the source in place (no invisible select-then-step).
+		for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
-		await page.keyboard.type('X');
-
-		await editor.bridge.waitForSourceContains(':abbr[HTML]X here');
-		await expect(editor.widget).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML]X here');
-	});
-
-	test('keyboard-selecting the widget and pressing Enter reveals the source', async ({ page }) => {
-		await editor.getBlock(0).click();
-		await page.keyboard.press('Home');
-		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('Enter');
 
 		await expect(editor.widget).toHaveCount(0);
-		// Reveal is a view toggle — the source has not changed.
+		// Reveal is a view toggle — the CST source is unchanged.
 		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
+		// Caret at the leading edge: a typed char lands BEFORE the directive source.
+		await page.keyboard.type('Z');
+		expect(await editor.getBlockText(0)).toContain('Z:abbr[HTML]');
+	});
+
+	test('ArrowLeft right of the widget reveals its source at the trailing edge', async ({
+		page
+	}) => {
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		// " here" is 5 chars: 5 steps reach the widget's trailing edge; the 6th enters.
+		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('ArrowLeft');
+
+		await expect(editor.widget).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
+		// Caret at the trailing edge: a typed char lands AFTER the directive source.
+		await page.keyboard.type('Z');
+		expect(await editor.getBlockText(0)).toContain(':abbr[HTML]Z');
+	});
+
+	test('Backspace right of the widget reveals it, source intact (no whole-widget delete)', async ({
+		page
+	}) => {
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('Backspace');
+
+		// First Backspace reveals with the directive source fully intact.
+		await expect(editor.widget).toHaveCount(0);
+		expect(await editor.getBlockText(0)).toContain(':abbr[HTML]');
+		expect(await editor.bridge.getSource()).toContain('see :abbr[HTML] here');
+	});
+
+	test('cross-block ArrowLeft from below onto a block ending with the widget reveals it', async ({
+		page
+	}) => {
+		await editor.loadContent('lead :abbr[HTML]\n\nbelow\n');
+		await expect(editor.widget).toHaveCount(1);
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('ArrowLeft');
+
+		await expect(editor.widget).toHaveCount(0);
+		await page.keyboard.type('Z');
+		expect(await editor.getBlockText(0)).toContain(':abbr[HTML]Z');
 	});
 
 	test('clicking the rendered widget reveals its source without touching the CST', async () => {

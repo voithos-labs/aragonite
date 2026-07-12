@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
 import { ALL_BLOCK_KINDS } from '../../core/nodes';
 import {
 	getBlockKindDescriptor,
+	registerBlockKind,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
+import { declarePluginKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {
@@ -152,5 +155,45 @@ describe('containerContract — strip / grid / opaque container-shape union', ()
 		for (const kind of GRID) {
 			expect(getBlockKindDescriptor(kind).containerContract, kind).toBe('grid');
 		}
+	});
+});
+
+// blockFocus is a leaf-level, additive descriptor field: it must survive
+// normalization untouched (it is NOT container-only, so stripContainerOnlyKeys
+// keeps it) whether the kind registers as a leaf or with a container group — the
+// mermaid case, an opaque container that also opts into whole-block focus.
+describe('blockFocus — whole-block-focus opt-in', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	it('no built-in kind declares blockFocus', () => {
+		for (const kind of ALL_BLOCK_KINDS) {
+			expect(getBlockKindDescriptor(kind).blockFocus, `${kind}.blockFocus`).toBeUndefined();
+		}
+	});
+
+	it('survives leaf registration', () => {
+		const kind = declarePluginKind('spec-leaf-focus');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			blockFocus: 'whole-block'
+		});
+		expect(getBlockKindDescriptor(kind).blockFocus).toBe('whole-block');
+	});
+
+	it('survives registration alongside a container group (opaque childless block)', () => {
+		const kind = declarePluginKind('spec-container-focus');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			blockFocus: 'whole-block',
+			container: { contract: 'opaque', rebuildRaw: () => {} }
+		});
+		const d = getBlockKindDescriptor(kind);
+		expect(d.blockFocus).toBe('whole-block');
+		expect(d.isContainer).toBe(true);
+		expect(d.containerContract).toBe('opaque');
 	});
 });

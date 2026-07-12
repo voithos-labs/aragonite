@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
 function makeRef(): BlockComponent {
 	return {
@@ -146,5 +146,78 @@ describe('createContainerBlockComponent', () => {
 
 	it('isVerticallyTransparent is false for a text-bearing container', () => {
 		expect(container([makeRef()]).isVerticallyTransparent?.()).toBe(false);
+	});
+});
+
+// Whole-block focus (opaque childless plugin block, e.g. mermaid): when a focus
+// element getter is supplied, caret entry lands on that element instead of walking
+// absent children, and the cursor offset reads 0 only while it (or a descendant)
+// holds focus — the ThematicBreak model, exposed through the container shim.
+describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
+	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return refs;
+			},
+			get nodeChildrenLength() {
+				return refs.length;
+			},
+			get node() {
+				return {
+					kind: 'mermaid' as AnyBlockKind,
+					leadingTrivia: '',
+					raw: '',
+					children: []
+				} as CstNode;
+			},
+			getFocusEl: () => focusEl
+		});
+	}
+
+	function focusableEl(): HTMLElement {
+		const el = document.createElement('div');
+		el.tabIndex = 0;
+		document.body.appendChild(el);
+		return el;
+	}
+
+	it('focus() lands on the focus element, never the children', () => {
+		const el = focusableEl();
+		const child = makeRef();
+		wholeBlock(el, [child]).focus(0);
+		expect(document.activeElement).toBe(el);
+		expect(child.focus).not.toHaveBeenCalled();
+	});
+
+	it('focusAtColumn() also lands on the focus element (vertical entry)', () => {
+		const el = focusableEl();
+		wholeBlock(el).focusAtColumn?.(120, 'above');
+		expect(document.activeElement).toBe(el);
+	});
+
+	it('getCursorOffset() is 0 while the focus element holds focus', () => {
+		const el = focusableEl();
+		el.focus();
+		expect(wholeBlock(el).getCursorOffset()).toBe(0);
+	});
+
+	it('getCursorOffset() is 0 while a descendant holds focus (click on the viewport)', () => {
+		const el = focusableEl();
+		const inner = document.createElement('button');
+		el.appendChild(inner);
+		inner.focus();
+		expect(el.contains(document.activeElement)).toBe(true);
+		expect(wholeBlock(el).getCursorOffset()).toBe(0);
+	});
+
+	it('getCursorOffset() is null when the focus element does not hold focus', () => {
+		const el = focusableEl();
+		document.body.focus(); // move focus off el
+		expect(wholeBlock(el).getCursorOffset()).toBeNull();
+	});
+
+	it('a null focus element (render error state) makes focus a no-op, not a throw', () => {
+		expect(() => wholeBlock(null).focus(0)).not.toThrow();
+		expect(wholeBlock(null).getCursorOffset()).toBeNull();
 	});
 });
