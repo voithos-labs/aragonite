@@ -4,10 +4,12 @@ A ` ```mermaid ` fence claims a childless plugin container whose code lives in m
 the component renders the diagram SVG through an injected renderer, with a
 plugin-owned textarea edit mode committing through `updateOwnMetadata` as one
 undoable entry, focus-gated pan/zoom on the rendered SVG, and a fixed-position
-focus overlay. The block opts out of caret traversal (mouse + commands reach it);
-a plain fence with any other info string must stay the built-in `fencedCode`.
-Focus is a whole-block cue (accent border, no inner outline); the toolbar
-(Edit / Focus / Reset view) stays hidden until the block is hovered or focused.
+focus overlay. The block takes editor-level whole-block focus (`blockFocus: 'whole-block'`) —
+arrows stop on it and a caret-adjacent Backspace/Delete focuses then deletes it in two steps,
+covered in the sibling `mermaid-focus` requirements; a plain fence with any other info string
+must stay the built-in `fencedCode`. Focus is a whole-block cue (accent border, no inner
+outline); the toolbar (Edit / Focus / Reset view) stays hidden until the block is hovered or
+focused.
 
 ## Happy paths
 

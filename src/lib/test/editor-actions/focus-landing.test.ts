@@ -47,16 +47,16 @@ describe('consumeStickyLanding', () => {
 	});
 
 	for (const side of ['start', 'end'] as const) {
-		it(`'${side}' prefers edge-widget select when the block accepts`, async () => {
-			const block = mockRef({ focus: vi.fn(), selectEdgeWidget: vi.fn(() => true) });
+		it(`'${side}' prefers edge-widget entry when the block accepts`, async () => {
+			const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => true) });
 			await consumeStickyLanding(block, 0, side, createStickyColumnState(), vi.fn());
-			expect(block.selectEdgeWidget).toHaveBeenCalledWith(side);
+			expect(block.enterEdgeWidget).toHaveBeenCalledWith(side);
 			expect(block.focus).not.toHaveBeenCalled();
 		});
 	}
 
-	it('falls through to the caret when selectEdgeWidget declines', async () => {
-		const block = mockRef({ focus: vi.fn(), selectEdgeWidget: vi.fn(() => false) });
+	it('falls through to the caret when enterEdgeWidget declines', async () => {
+		const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
 		await consumeStickyLanding(block, 0, 'end', createStickyColumnState(), vi.fn());
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});

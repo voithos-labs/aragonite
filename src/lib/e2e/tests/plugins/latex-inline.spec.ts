@@ -139,15 +139,25 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(source).toContain('visual line here');
 	});
 
-	test('keyboard-selecting the widget and pressing Enter reveals the source', async ({ page }) => {
+	test('keyboard caret-entry from the left reveals the source at the leading edge', async ({
+		page
+	}) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "Before " is 7 chars: 7 steps reach the widget's left edge, the 8th selects it.
-		for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('Enter');
+		// "Before " is 7 chars: 7 steps reach the widget's leading edge; the 8th
+		// ENTERS it. Under the Obsidian model an entry reveals the source in place —
+		// it no longer parks in an invisible widget-selected state awaiting Enter.
+		for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
 
 		await expect(editor.mathWidget).toHaveCount(0);
-		expect(await editor.getBlockText(0)).toContain('$x^2$');
+		// Reveal is a view toggle — the CST source is unchanged.
+		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+		// Caret at the leading edge: a typed char lands BEFORE the opening `$`.
+		await page.keyboard.type('Z');
+		const revealed = await editor.getBlockText(0);
+		expect(revealed).toContain('Z$x^2$');
+		expect(revealed).not.toContain('$x^2$Z');
 	});
 
 	test('editing the source and pressing Enter re-renders KaTeX and persists the edit', async ({

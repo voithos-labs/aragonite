@@ -13,8 +13,10 @@ The reveal is a CST-free view toggle — only a real edit + commit mutates the s
 
 ## User interactions
 
-- ArrowRight across the widget (atomic cursor contract): one press past the left edge selects the widget, the next steps over its trailing edge so a typed char lands immediately after the widget's source, not inside it.
-- Keyboard-select the widget then Enter: the rendered atom is replaced by its editable source (widget count drops to zero) with the CST source unchanged.
+- ArrowRight left of the widget (Home, ArrowRight to the leading edge, one more to enter): the source reveals in place at the leading edge (widget count drops to zero); a typed char lands before the directive source, and the CST source is unchanged.
+- ArrowLeft right of the widget (End, ArrowLeft to the trailing edge, one more to enter): the source reveals at the trailing edge; a typed char lands after the directive source.
+- Backspace right of the widget: the source reveals with the directive span fully intact — NOT a silent whole-widget delete.
+- Cross-block ArrowLeft from the block below onto a block ending with the widget: the source reveals at the trailing edge (the near edge the move arrived at).
 - Click the widget: its source is revealed as editable text (widget count drops to zero); the source has not changed (view toggle only).
 - Edit the revealed source then blur to a sibling block: the widget re-forms, the source round-trips the edit byte-for-byte, and a single undo restores the pre-edit source.
 

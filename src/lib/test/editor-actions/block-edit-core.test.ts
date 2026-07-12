@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
@@ -168,6 +171,67 @@ describe('block-edit core — shared structural decisions', () => {
 		const { scope, commits } = stubScope([leaf('hello\n')]);
 		await createBlockEditCore(scope).updateBlockMetadata(0, {});
 		expect(commits).toHaveLength(0);
+	});
+});
+
+// A whole-block-focus kind (opaque childless plugin block) is FOCUSED at offset 0
+// with no commit in either merge direction — the branch sits before the
+// `!isBlockEditable` check, so the policy overrides the delete-non-editable
+// fallback regardless of editability. Both directions are pinned: the dominant
+// bug class here is sibling-path parity (a rule enforced on one twin, missed on
+// the other). The non-editable cases give the cleanest red — pre-fix they delete;
+// the editable case is mermaid's real config, where pre-fix merge-prev moves the
+// caret to CURSOR_END into a childless container (the reported no-op dead-end).
+describe('block-edit core — whole-block-focus fallback', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	function wholeBlockNode(editable: boolean): CstNode {
+		const kind = declarePluginKind('spec-whole-block');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable,
+			supportsInline: false,
+			blockFocus: 'whole-block'
+		});
+		return { kind, leadingTrivia: '', raw: 'diagram\n', children: [] };
+	}
+
+	it('merge-prev focuses a non-editable whole-block previous block instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([wholeBlockNode(false), leaf('text\n')], true, [
+			focus.ref,
+			undefined
+		]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
+		expect(commits).toHaveLength(0); // no undo entry — a focus move, not a mutation
+		expect(focus.calls).toEqual([0]); // whole-block focus at offset 0
+	});
+
+	it('merge-next focuses a non-editable whole-block next block instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('text\n'), wholeBlockNode(false)], true, [
+			undefined,
+			focus.ref
+		]);
+		await createBlockEditCore(scope).mergeWithNextInterior(0);
+		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
+		expect(commits).toHaveLength(0);
+		expect(focus.calls).toEqual([0]);
+	});
+
+	it('merge-prev into an editable whole-block block (mermaid) focuses it at 0, not CURSOR_END', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([wholeBlockNode(true), leaf('text\n')], true, [
+			focus.ref,
+			undefined
+		]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(2);
+		expect(commits).toHaveLength(0);
+		// Pre-fix the editable-but-unmergeable else branch moved the caret to
+		// CURSOR_END, which walked into the childless container and no-op'd.
+		expect(focus.calls).toEqual([0]);
 	});
 });
 

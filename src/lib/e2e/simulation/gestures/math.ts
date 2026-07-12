@@ -120,16 +120,18 @@ export async function deleteAroundInlineMath(ctx: SimContext, blockIndex: number
 }
 
 /**
- * Delete the inline widget that ends block `blockIndex` via the atomic
- * select-then-delete path: caret at the block end sits just past the widget, one
- * Backspace selects it, the next removes it. Mirrors the image widget's delete.
+ * Delete the inline widget that ends block `blockIndex` atomically: Shift+ArrowLeft
+ * from the block end selects the widget as one unit (atomic selection extension),
+ * Backspace removes its bytes. Caret-adjacent Backspace no longer reaches this —
+ * for a reveal-capable kind it opens the source reveal, whose edits stay ephemeral
+ * until commit, so a backspace-backspace path never changes `getSource()`.
  */
 export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();
 
 	await editor.focusBlockEnd(blockIndex);
-	await page.keyboard.press('Backspace');
+	await page.keyboard.press('Shift+ArrowLeft');
 	await page.keyboard.press('Backspace');
 
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);

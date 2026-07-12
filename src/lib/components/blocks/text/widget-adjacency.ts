@@ -5,7 +5,7 @@
  * component owns selection/DOM; these own the offset math.
  */
 
-import type { InlineNode } from '../../../core/nodes';
+import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { isInlineWidget, flattenInlineWidgets } from '../../../core/inline/inline-widgets';
 
 export interface WidgetRange {
@@ -15,6 +15,9 @@ export interface WidgetRange {
 
 export interface WidgetAtCursor extends WidgetRange {
 	atRight: boolean;
+	// The widget kind drives the caret-entry policy (reveal-capable vs select) at
+	// the call site; carried here so the handler needn't re-walk the inline content.
+	kind: AnyInlineKind;
 }
 
 /** The live widget the caret sits against, or null. `atRight` distinguishes a
@@ -27,8 +30,10 @@ export function widgetAtCursor(
 	if (offset === null) return null;
 	// Recurse so a widget nested inside a link (`[![alt][ref]][repo]`) is seen.
 	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
-		if (offset === inline.start) return { start: inline.start, end: inline.end, atRight: false };
-		if (offset === inline.end) return { start: inline.start, end: inline.end, atRight: true };
+		if (offset === inline.start)
+			return { start: inline.start, end: inline.end, atRight: false, kind: inline.kind };
+		if (offset === inline.end)
+			return { start: inline.start, end: inline.end, atRight: true, kind: inline.kind };
 	}
 	return null;
 }
@@ -47,15 +52,14 @@ export function findWidgetNodeByStart(
 }
 
 /** First widget reachable from the leading edge, skipping blank text. Returns
- *  null once any non-blank, non-widget inline intervenes. */
+ *  the inline node (its `kind` drives the caret-entry policy) or null once any
+ *  non-blank, non-widget inline intervenes. */
 export function findFirstEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
 	raw: string
-): WidgetRange | null {
+): InlineNode | null {
 	for (const inline of inlines) {
-		if (isInlineWidget(inline, raw)) {
-			return { start: inline.start, end: inline.end };
-		}
+		if (isInlineWidget(inline, raw)) return inline;
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return null;
 	}
@@ -66,12 +70,10 @@ export function findFirstEdgeWidget(
 export function findLastEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
 	raw: string
-): WidgetRange | null {
+): InlineNode | null {
 	for (let i = inlines.length - 1; i >= 0; i--) {
 		const inline = inlines[i];
-		if (isInlineWidget(inline, raw)) {
-			return { start: inline.start, end: inline.end };
-		}
+		if (isInlineWidget(inline, raw)) return inline;
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return null;
 	}

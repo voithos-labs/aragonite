@@ -30,22 +30,27 @@
 		get path() {
 			return myPath;
 		},
-		getBoxEl: () => boxEl
+		getBoxEl: () => boxEl,
+		// The rendered viewport is the whole-block focus surface (tabindex=0, already
+		// the click-focus target and the :focus-within highlight anchor), so keyboard
+		// and mouse focus share one state. Null in the error/loading/edit states,
+		// where the block simply isn't an arrow-focus target.
+		getFocusEl: () => boxEl?.querySelector<HTMLElement>('.mermaid-viewport') ?? null
 	});
 
-	// The factory's focus surface walks into children and this container has
-	// none, so every caret entry would dead-end on a no-op. Opting out of caret
-	// traversal instead (focusable false) makes arrows glide past the block —
-	// mouse and chords reach it. The rest of the surface re-exports the shim.
+	// A childless opaque container opts into editor-level whole-block focus: the
+	// factory routes caret entry, focus-then-delete, Enter-below, arrow traversal,
+	// and Alt-arrow reorder at the block level (ThematicBreak's model). The rest of
+	// the surface re-exports the shim.
 	export const editable = containerApi.editable;
-	export const focusable = false;
+	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
 	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);

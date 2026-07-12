@@ -1,7 +1,10 @@
 # Feature: Plugin Inline Math — Select → Reveal-Source Editing
 
-Inline `$…$` math renders as an atomic KaTeX widget. Selecting it (a click on the
-widget, or keyboard-select + Enter) reveals the editable `$…$` source in place. The
+Inline `$…$` math renders as an atomic KaTeX widget. Focusing it (a click on the
+widget, or a horizontal caret entry against its edge) reveals the editable `$…$`
+source in place — the caret never parks in an invisible widget-selected state. The
+full caret-entry gesture matrix (arrow / backspace / delete, both edges, within-block
+and cross-block, plus the image-selects contrast) lives in `latex-inline-caret-entry.md`. The
 edit is ephemeral DOM — no per-keystroke CST commit (design axis A2, "re-render on
 commit, not keystroke") — and re-renders on commit (blur / Enter). Escape discards
 the edit and restores the rendered widget. The caret lands in the source across the
@@ -17,8 +20,9 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
 
 - click the rendered math: the `$…$` source appears in place, the KaTeX widget is
   gone, and the serialized source is unchanged — reveal is a view toggle, not an edit
-- keyboard-select the widget (Home, ArrowRight to its edge, one more to select) and
-  press Enter: same reveal
+- keyboard caret-entry from the left (Home, ArrowRight to the widget's leading edge,
+  one more to enter it): the source reveals in place at the leading edge — no
+  invisible select-then-Enter step; a typed char lands before the opening `$`
 - edit the revealed source and press Enter: KaTeX re-renders and the edited `$…$`
   bytes are in the source (round-trip stable)
 

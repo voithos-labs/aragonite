@@ -198,7 +198,7 @@
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget!;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
 	export const revealByPath = containerApi.revealByPath!;
 

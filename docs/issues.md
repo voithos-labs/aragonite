@@ -61,19 +61,17 @@ but no consumer route ships it — the `mermaid` engine is a heavy devDependency
 example's CI budget doesn't justify. The render-primary recipe in the plugin guide is the
 durable record. Re-fold if the consumer example ever gains a budget-insensitive smoke tier.
 
-### Render-primary wall ledger: focus seam, command→component bridge
+### Render-primary wall ledger: command→component bridge
 
-**Severity:** minor (authoring friction; each additive)
-**Files:** `src/routes/test/plugins/mermaid/` (the consumer that surfaced them); `docs/editor/plugin-guide.md` § render-primary recipe
+**Severity:** minor (authoring friction; additive)
+**Files:** `src/routes/test/plugins/mermaid/` (the consumer that surfaced it); `docs/editor/plugin-guide.md` § render-primary recipe
 
-Two walls the reference build recorded, each a 1.2 candidate (the ledger's fence-matcher and
-`normalizeLineEndings` items shipped as `aragonite/plugin` re-exports): (1) a childless opaque
-container dead-ends the factory's caret traversal with no public focus-actions seam — the
-reference block ships `focusable: false`; the editable-leaf tier (shipped 0.9.16) is the escape
-for blocks that adopt a native source view, but a container that stays render-only still has no
-focus seam; (2) block commands have no component channel, so view-state commands need a
-plugin-owned node→component bridge every render-primary plugin will rebuild. Also minor: the
-container shim hardcodes `editable: true`.
+One wall left from the reference build, a 1.2 candidate (the ledger's fence-matcher and
+`normalizeLineEndings` items shipped as `aragonite/plugin` re-exports; the focus-seam wall
+closed with whole-block focus — `blockFocus: 'whole-block'` + the factory's focus-el getter,
+mermaid as the consumer): block commands have no component channel, so view-state commands
+need a plugin-owned node→component bridge every render-primary plugin will rebuild. Also
+minor: the container shim hardcodes `editable: true`.
 
 ## Test coverage
 
@@ -147,7 +145,20 @@ fire itself. Sound for one consumer (a local `poll(...).toBe(1)` requires the wa
 allowlist would let vanish silently); on a second opt-out consumer, promote per-tag
 require/allow into the fixture per the choke-point rule.
 
-### No composition-driving harness; IME guards are pinned by parity, not by tests
+### Simulation gestures missing for widget caret-entry reveal and whole-block focus
+
+**Severity:** minor (test coverage; culture rule "new feature class → new simulation gesture")
+**Files:** `src/lib/e2e/simulation/` (gesture set); the surfaces: inline-widget arrow-entry
+reveal (`widget-interaction.ts` `enterWidget`), whole-block focus/delete (`plugin/container.ts`
+`handleWholeBlockKeydown`)
+
+The caret-entry reveal (arrows/Backspace/Delete against a reveal-capable widget) and the
+whole-block focus model (arrow-stop, two-step delete, Enter-below on an opaque childless
+container) shipped with per-feature e2e + unit pins but no simulation gestures, so the
+corruption oracle does not yet exercise them mid-session against accumulated state.
+
+**Target:** next simulation-suite pass — an arrow-walk-through-inline-math gesture in a prose
+note and a mermaid focus/delete/undo detour in the fenced-code/image session.
 
 **Severity:** minor (test gap)
 **Files:** `src/lib/components/blocks/code/CodeBlock.svelte`, `src/lib/components/blocks/text/` (composition handlers)

@@ -22,6 +22,7 @@ import type {
 import type { CstNode } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
+import { displayLength } from '../../core/lines';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -32,9 +33,11 @@ import {
 	CONTROLLER_KEY,
 	FOCUS_KEY,
 	KEYBINDING_OVERRIDES_KEY,
+	REORDER_ACTION_KEY,
 	STICKY_COLUMN_KEY,
 	type KeybindingOverridesGetter
 } from '../../editor-keys';
+import type { ReorderAction } from '../reorder-action';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
@@ -62,6 +65,18 @@ export interface ContainerBlockDeps {
 	get index(): number;
 	get path(): number[];
 	getBoxEl(): HTMLElement | undefined;
+	/**
+	 * Opt into editor-level whole-block focus for an opaque, childless container
+	 * (a render-primary plugin diagram): the getter returns the element that takes
+	 * DOM focus (e.g. a `tabindex=0` viewport). When supplied, `containerApi.focus`
+	 * lands here instead of walking absent children, `getCursorOffset` reads 0
+	 * while it holds focus, and the factory keydown gains the ThematicBreak-style
+	 * whole-block affordances (focus-then-delete, Enter-below, arrow traversal,
+	 * Alt-arrow reorder). The kind must also declare `blockFocus: 'whole-block'`.
+	 * Read live (Design Rule 5); returns null when the element is absent (a render
+	 * error/loading state) — the affordances then no-op rather than corrupt.
+	 */
+	getFocusEl?: () => HTMLElement | null | undefined;
 	/**
 	 * Collapse clamp — while true only the chrome row (child 0) mounts; body
 	 * children genuinely unmount. Optional: a container that declares
@@ -226,6 +241,16 @@ export function buildContainerKindTarget(
 	};
 }
 
+// A key that originates in a plugin's own text-editing surface (an edit
+// textarea, an input, a nested contenteditable) belongs to that surface, never
+// the whole-block affordances — so a Backspace inside the mermaid edit textarea
+// edits text, it does not delete the block.
+function isEditableEventTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	const tag = target.tagName;
+	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
+}
+
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -233,6 +258,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const controller = getContext<UndoController>(CONTROLLER_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
+	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 
 	const listState = createBlockListState(() => deps.node);
 
@@ -325,7 +351,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		},
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
-		isCollapsed: collapsed
+		isCollapsed: collapsed,
+		getFocusEl: deps.getFocusEl
 	});
 
 	const blockListProps: ContainerBlockListProps = {
@@ -357,11 +384,69 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
-		if (!chord) return;
-		if (dispatchKindCommand(chord, kindTarget, keybindingOverrides())) {
+		if (chord && dispatchKindCommand(chord, kindTarget, keybindingOverrides())) {
 			e.preventDefault();
+			return;
 		}
+		handleWholeBlockKeydown(e);
 	};
+
+	// ThematicBreak's focus-model affordances for a whole-block-focus container,
+	// dispatched from the wrapper's bubble phase so a viewport-focused key reaches
+	// them (ThematicBreakBlock.svelte is the parity reference). Gated three ways so
+	// a child-bearing container or a plugin's own editing surface is never touched:
+	//   1. the kind opted in (getFocusEl supplied),
+	//   2. the whole-block focus element actually holds focus — excludes a focused
+	//      toolbar button (a sibling of the focus element), which would otherwise
+	//      double-fire its click and an Enter split, and
+	//   3. the event did not originate in an editable surface (belt-and-suspenders
+	//      for a plugin that mounts a textarea/contenteditable inside the block).
+	function handleWholeBlockKeydown(e: KeyboardEvent): void {
+		if (!deps.getFocusEl) return;
+		const focusEl = deps.getFocusEl();
+		if (!focusEl || !focusEl.contains(document.activeElement)) return;
+		if (isEditableEventTarget(e.target)) return;
+
+		if (e.key === 'ArrowUp' && e.altKey) {
+			e.preventDefault();
+			void reorder.nudgeReorderUnit(deps.path, -1);
+			return;
+		}
+		if (e.key === 'ArrowDown' && e.altKey) {
+			e.preventDefault();
+			void reorder.nudgeReorderUnit(deps.path, 1);
+			return;
+		}
+
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			void parentBlockEdit.splitBlock(deps.index, displayLength(deps.node.raw));
+			return;
+		}
+
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			e.preventDefault();
+			void parentBlockEdit.deleteBlock(deps.index);
+			return;
+		}
+
+		const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
+		if (!plainArrow) return;
+
+		if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			void parentFocus.moveFocus(deps.index - 1, { stickyColumnFrom: 'below' });
+		} else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			void parentFocus.moveFocus(deps.index - 1, 'end');
+		} else if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			void parentFocus.moveFocus(deps.index + 1, { stickyColumnFrom: 'above' });
+		} else if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			void parentFocus.moveFocus(deps.index + 1, 'start');
+		}
+	}
 
 	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown };
 }

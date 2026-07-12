@@ -105,6 +105,10 @@ export function registerMermaidKind(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Opaque childless artifact: arrows stop on it, a caret-adjacent
+		// Backspace/Delete focuses before a second press deletes (ThematicBreak's
+		// focus-then-delete model). The component supplies the focus surface.
+		blockFocus: 'whole-block',
 		container: {
 			// No children: raw is authoritative and rebuilt from metadata alone,
 			// which is exactly the 'opaque' contract (exempt from the strip
