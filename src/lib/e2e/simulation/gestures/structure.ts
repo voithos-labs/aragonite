@@ -58,6 +58,30 @@ export async function reorder(ctx: SimContext, blockIndex: number, dir: -1 | 1):
 }
 
 /**
+ * Attempt a reorder on a block leaf INSIDE a plugin (opaque) container via
+ * Alt+Arrow. The resolver declines at the opaque boundary, so both directions are
+ * a clean no-op — nothing commits and the source stays byte-identical. Driving it
+ * puts the decline path under the corruption oracle: a regression to the pre-fix
+ * teleport would permute the top-level array and change the source, so the
+ * no-change guard throws loudly instead of recording a corrupted tree as truth.
+ * `bodyPath` is a body leaf, never the reserved chrome (which binds no Alt+Arrow).
+ */
+export async function reorderInContainer(ctx: SimContext, bodyPath: number[]): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await ctx.editor.clickBlockAtPath(bodyPath, 0);
+	await ctx.page.keyboard.press('Alt+ArrowUp');
+	await ctx.page.keyboard.press('Alt+ArrowDown');
+	await ctx.editor.waitForNoSourceMutation();
+	const after = await ctx.editor.bridge.getSource();
+	if (after !== before) {
+		throw new Error(
+			`reorderInContainer: expected an opaque-boundary no-op, but the source changed:\n${before}\n→\n${after}`
+		);
+	}
+	ctx.tracker.resync(after);
+}
+
+/**
  * Tab to nest a freshly-created EMPTY list item one level deeper, the move that
  * lifts the two-level ceiling. Indenting a filled trailing item doesn't nest it
  * under its sibling, but indenting the empty item Enter just created does — so the

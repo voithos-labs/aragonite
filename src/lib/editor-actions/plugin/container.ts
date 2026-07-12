@@ -343,7 +343,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get window() {
 			return windowing.window;
 		},
-		reorderable: true
+		// Opaque containers are a reorder boundary (resolveReorderUnit declines inside
+		// them), so a handle on a chrome or body row would be a dead affordance. The
+		// container itself stays reorderable through its parent's BlockList.
+		reorderable: false
 	};
 
 	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>

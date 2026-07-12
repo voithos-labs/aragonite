@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
@@ -166,6 +166,14 @@ test.describe('plugin-container ops simulation', () => {
 			await assertNestedStateConsistent(ctx);
 		};
 		await checkOracles('loaded');
+
+		// ── Nested reorder inside an opaque container declines (byte-exact no-op) ──
+		// The note sits mid-document, so a mis-scoped reorder would teleport it to a
+		// different root index; the gesture asserts the source is byte-identical,
+		// putting the resolver's opaque-boundary decline under the oracle stack.
+		const declineNoteIdx = await topLevelIndexOf(page, 'note');
+		await g.reorderInContainer([declineNoteIdx, 1]);
+		await checkOracles('note-body-reorder-declined');
 
 		// ── Callout chrome + body typing ────────────────────────────────────────
 		let noteIdx = await topLevelIndexOf(page, 'note');

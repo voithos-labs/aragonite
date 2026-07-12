@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -6,6 +6,10 @@ import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
@@ -162,5 +166,76 @@ describe('reorder action — blockquote', () => {
 		await h.reorder.moveReorderUnit([0, 0], 2); // drag bq child 0 -> last
 		const { undo } = h.deps.undoManager.getStacks();
 		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]); // into the blockquote, not [0]
+	});
+});
+
+describe('reorder action — plugin (opaque) container declines', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	// TOP / :::spec (reserved chrome + one body) / BOTTOM — the report's teleport
+	// seed. A pre-decline resolver hands back the container's DOCUMENT slot, so a
+	// body-leaf nudge/move permutes the top-level array (the teleport). The decline
+	// returns null, so run() bails before commit: no permutation, no undo, no edit.
+	function makeDeclineHarness() {
+		const chromeKind = declarePluginKind('spec-chrome');
+		const containerKind = declarePluginKind('spec-container');
+		registerBlockKind(chromeKind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			contextDependentKind: true
+		});
+		registerBlockKind(containerKind, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
+		});
+		const container: CstNode = {
+			kind: containerKind,
+			leadingTrivia: '\n',
+			raw: ':::spec\nBody\n:::\n',
+			children: [
+				{ kind: chromeKind, leadingTrivia: '', raw: '\n' },
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
+			]
+		};
+		const harness = makeEditorActionsDeps([
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'TOP\n' },
+			container,
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'BOTTOM\n' }
+		]);
+		const controller = createUndoController(harness.deps);
+		const reorder = createReorderAction(harness.deps, controller);
+		return { harness, reorder };
+	}
+
+	it('a body-leaf nudge is a no-op: no permutation, no undo entry, no edit event', async () => {
+		const { harness, reorder } = makeDeclineHarness();
+		const before = serialize(harness.doc);
+		let edits = 0;
+		harness.events.on('edit', () => edits++);
+
+		await reorder.nudgeReorderUnit([1, 1], -1); // body paragraph "up"
+
+		// Assertions ordered so each fails independently under the pre-fix teleport:
+		// the commit emits an edit + pushes an undo entry BEFORE the permutation shows
+		// in the bytes, so checking those first keeps `edits`/`undo` non-vacuous.
+		expect(edits).toBe(0);
+		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(serialize(harness.doc)).toBe(before);
+	});
+
+	it('a body-leaf drag move is a no-op — the teleport is gone', async () => {
+		const { harness, reorder } = makeDeclineHarness();
+		const before = serialize(harness.doc);
+		let edits = 0;
+		harness.events.on('edit', () => edits++);
+
+		await reorder.moveReorderUnit([1, 1], 0); // body paragraph dragged to index 0
+
+		expect(edits).toBe(0);
+		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(serialize(harness.doc)).toBe(before);
 	});
 });
