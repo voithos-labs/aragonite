@@ -1,10 +1,12 @@
-# aragonite
+This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extendable, lean, fast, have a graceful ui/ux, and have hella good plugin interface. So you know, just some simplistic and easy to achieve goals. 
 
-A CST-based block editor for GFM Markdown, built with SvelteKit + TypeScript. Raw Markdown is the source of truth — the editor parses it into a lossless concrete syntax tree, renders styled blocks with dimmed syntax markers, and round-trips byte-for-byte (`serialize(parse(source)) === source`).
+(Spoiler alert: its not simple. Read the [changelog](docs/changelog.md) to experience my suffering induced by trying to achieve those goals to varying degrees of success.)
 
-Extracted from [limestone](https://github.com/DanielZFLiu/limestone), where it was developed as an embeddable module; aragonite is its standalone home. The library lives in `src/lib/`; `src/routes/test/editor` is a demo/dev harness.
+(And this is not even the first iteration of this editor; this is like my, fourth? try to write this piece of lovely shit.)
 
-## Use it
+For those of you who don't want to sit through a monologue, here's how to use the editor:
+
+TODO: publish aragonite to npm and write a short snippet here for users to npm install svelte and aragonite
 
 ```svelte
 <script>
@@ -14,39 +16,25 @@ Extracted from [limestone](https://github.com/DanielZFLiu/limestone), where it w
 	let editor;
 </script>
 
-<Editor bind:this={editor} source={'# Hello\n\nStart typing.'} theme="dark" />
+<Editor bind:this={editor} source={'# Hello\n'} theme="dark" />
+```
+
+To save the source, just do something like:
+
+```svelte
 <button onclick={() => save(editor.getSource())}>Save</button>
 ```
+(obviously define the save function)
 
-`source` seeds the document at mount; `editor.getSource()` pulls the current Markdown back out. The full public surface is the barrel at `src/lib/index.ts`.
+For more info go read [consumer-guide](docs/editor/consumer-guide.md). ok bye.
 
-## Develop
+Now, for those who don't have better things to do.
 
-Prerequisites: [Node.js](https://nodejs.org/) (LTS).
+# Origin
+It begun one afternoon when I realized Obsidian wasn't open source. 
 
-```bash
-npm install
-```
+Ok, actually, nothing so dramatic. Not a villain, not going to go through my entire backstory. The short of it is, two years ago, two dumbasses (Finn and I) decided to make a better Obsidian. We wanted to retain the benefits of Obsidian - store notes in a folder, use open note formats like .md so users aren't locked in, and have a good plugin platform; we also wanted to improve certain things, like making the codebase open source, have cheaper cloud sync/note share/online collab, have a better editing experience, etc etc. The editor library itself became aragonite, and the app became limestone, the companion codebase to aragonite.
 
-| Command               | Purpose                                       |
-| --------------------- | --------------------------------------------- |
-| `npm run dev`         | Demo app at `/test/editor`                    |
-| `npm test`            | Full suite — unit (Vitest) + E2E (Playwright) |
-| `npm run test:editor` | Unit tests                                    |
-| `npm run test:e2e`    | E2E tests                                     |
-| `npm run check`       | Type-check (svelte-check)                     |
-| `npm run format`      | Prettier write                                |
+In our naiveness, we figured making an editor app should be easy. It's not, not by a long shot. And its only two years later, on my fourth iteration of aragonite, that I gained a respect for Obsidian; for all its blemishes, it should be respected for it achieved.
 
-See `package.json` for per-area test scripts.
-
-## Docs
-
-- [`docs/design/editor/editor.md`](docs/design/editor/editor.md) — editor design spec
-- [`docs/editor/consumer-guide.md`](docs/editor/consumer-guide.md) — public API, theming, props, events
-- [`docs/editor/adding-a-block.md`](docs/editor/adding-a-block.md) — adding a new block type
-- [`docs/roadmap.md`](docs/roadmap.md) — forward-looking plan
-- [`docs/changelog.md`](docs/changelog.md) — shipped version history
-
-## License
-
-MIT.
+# Lossless
