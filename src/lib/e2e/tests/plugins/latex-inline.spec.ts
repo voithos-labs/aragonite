@@ -248,9 +248,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		page.on('pageerror', (e) => pageErrors.push(String(e)));
 
 		await editor.revealByClick();
-		await page.keyboard.press('End');
-		// Extend down into the next paragraph — the anchor endpoint stays in the revealed
-		// source text node while the focus endpoint crosses the block boundary.
+		// Extend down into the next paragraph straight from the reveal caret — the
+		// anchor endpoint stays INSIDE the revealed source text node while the focus
+		// endpoint crosses the block boundary. (An End press first would escape the
+		// source and legitimately fold the reveal under containment scoping — on a
+		// slow machine that selectionchange processes before the cross-block one.)
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
