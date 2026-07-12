@@ -147,6 +147,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		b.placeCaretIn(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
@@ -163,6 +164,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		b.placeCaretIn(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 
 		expect(b.pendingCursors).toEqual([]);
 		const sel = window.getSelection()!;
@@ -176,6 +178,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		b.placeCaretIn(b.sourceNode(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 
 		expect(b.interaction.isRevealing()).toBe(true);
 	});
@@ -187,6 +190,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		b.placeCaretIn(b.trailingText(), 1);
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 
 		expect(b.interaction.isRevealing()).toBe(true);
 		expect(b.commits).toEqual([]);
@@ -220,6 +224,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		const settling = b.revealFirst(); // NOT awaited: parked at the pre-placeCaret tick
 
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 		await settling;
 
 		expect(b.interaction.isRevealing()).toBe(true);
@@ -229,6 +234,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		// Settled: the same escape folds normally again.
 		b.placeCaretIn(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
+		await new Promise((r) => setTimeout(r));
 		expect(b.interaction.isRevealing()).toBe(false);
 	});
 });

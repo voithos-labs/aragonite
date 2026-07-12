@@ -106,11 +106,13 @@ export class EditorPage {
 		return (await this.getBlock(index).textContent()) ?? '';
 	}
 
+	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
+	// and 2s under-provisioned saturated parallel-worker runs.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
+			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
 		} else {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
+			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 5000 });
 		}
 	}
 

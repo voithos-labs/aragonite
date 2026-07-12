@@ -77,6 +77,24 @@ container shim hardcodes `editable: true`.
 
 ## Test coverage
 
+### Cross-block-through-revealed-source blur spec is battery-order-sensitive
+
+**Severity:** minor (test flake; the guarded semantics are unit-pinned)
+**Files:** `src/lib/e2e/tests/plugins/latex-inline.spec.ts` (fixme'd final test),
+`src/lib/test/blocks/text/widget-reveal-collapse.test.ts` (the cross-block bail unit pin)
+
+The spec passes 55/55 in focused runs at any load (--repeat-each=5 --workers=4) but its
+`waitForCrossBlock` times out deterministically inside the full plugins battery: the
+Shift+ArrowDown keyboard-extend never engages cross-block. Falsified causes: the End-press
+escape (removed), the 2s wait ceiling (widened to 5s), KaTeX font-swap geometry (fonts.ready
+settle added). Whatever battery-context state breaks the visual-line detection for this
+gesture is unpinned. The product semantics (a cross-block sweep keeps the source revealed;
+blur bails instead of folding) are unit-covered by the interaction factory's cross-block
+bail case.
+
+**Fix direction:** reproduce by bisecting the battery's spec set in front of this file to
+find the state carrier, then pin the keyboard-extend geometry read it perturbs.
+
 ### CI-only [invariant:stale-raw] fire: blockquote raw stale during list unindent/paste ops
 
 **Severity:** important (a real invariant violation, timing-shielded locally)
