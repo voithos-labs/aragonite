@@ -9,6 +9,12 @@
  */
 
 import katex from 'katex';
+// The stylesheet is the engine's dependency, not the route's: `htmlAndMathml`
+// emits a `.katex-mathml` a11y tree this CSS clips to a 1px box — unloaded, every
+// equation paints twice (the render plus the TeX echoed as text). Importing it
+// here means no route installing the plugin can forget it; a consumer swapping in
+// another engine owns that engine's stylesheet the same way.
+import 'katex/dist/katex.min.css';
 
 export type MathRenderer = (
 	source: string,

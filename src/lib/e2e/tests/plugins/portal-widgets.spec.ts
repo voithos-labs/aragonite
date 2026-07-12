@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
+import { PluginsPage, clickWidgetCenter } from './helpers';
 
 /**
  * The component-portal seam guarantee: a keyed reuse pool keeps one live instance
@@ -48,7 +48,7 @@ test.describe('component-portal inline widgets', () => {
 		await expect(editor.mathWidget).toHaveCount(1);
 		const idBefore = await editor.mountId();
 
-		await editor.mathWidget.click();
+		await clickWidgetCenter(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
 		// Step past the opening `$`, insert inside the formula, commit.
 		await page.keyboard.press('ArrowRight');
@@ -69,7 +69,7 @@ test.describe('component-portal inline widgets', () => {
 		await editor.gotoPlugins('math');
 		await expect(editor.mathWidget).toHaveCount(1);
 
-		await editor.mathWidget.click();
+		await clickWidgetCenter(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
@@ -92,7 +92,7 @@ test.describe('component-portal inline widgets', () => {
 		// exact detached element, so no pool state is disturbed and no duplicate can
 		// mount — the id must hold through both cycles and the next real render.
 		for (let cycle = 0; cycle < 2; cycle++) {
-			await editor.mathWidget.click();
+			await clickWidgetCenter(editor.mathWidget);
 			await expect(editor.mathWidget).toHaveCount(0);
 			await page.keyboard.press('Escape');
 			await expect(editor.mathWidget).toHaveCount(1);
@@ -122,7 +122,7 @@ test.describe('component-portal inline widgets', () => {
 		// Reveal the SECOND widget, then Escape. A key-only fold-back lookup returns the
 		// oldest pooled instance, and replaceWith MOVES the first widget's element into
 		// the second's slot — the first formula vanishes and DOM diverges from the CST.
-		await editor.mathWidget.nth(1).click();
+		await clickWidgetCenter(editor.mathWidget.nth(1));
 		await expect(editor.mathWidget).toHaveCount(1);
 		await page.keyboard.press('Escape');
 

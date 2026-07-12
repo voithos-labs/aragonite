@@ -19,39 +19,17 @@ import {
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '../../../../routes/test/plugins/latex/latex-kind';
-
-// The atomic-island wrapper the render layer's portal builder stamps around the math
-// component. This layer reads only the four marker attributes and the source text
-// node between the flanking prose, so a stamped wrapper is a faithful stand-in;
-// mounting the real MathInline (Svelte + KaTeX) is the e2e's job.
-function stampMathWidget(node: InlineNode): HTMLElement {
-	const wrapper = document.createElement('span');
-	wrapper.dataset.inlineWidget = '';
-	wrapper.dataset.sourceStart = String(node.start);
-	wrapper.dataset.sourceEnd = String(node.end);
-	wrapper.setAttribute('contenteditable', 'false');
-	wrapper.textContent = 'x';
-	return wrapper;
-}
+import { stampMathWidget, resetInlineState } from './math-widget-fixture';
 
 interface Commit {
 	index: number;
 	raw: string;
 	before: number;
 	after: number;
-}
-
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
 }
 
 beforeEach(() => {
