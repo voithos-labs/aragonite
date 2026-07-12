@@ -16,6 +16,7 @@ import {
 	outdent,
 	outdentEmptyItem,
 	reorder,
+	reorderInContainer,
 	softEnter,
 	startQuote,
 	toggleTask,
@@ -198,6 +199,15 @@ export class Gestures {
 	/** Move the top-level block at `blockIndex` up (dir -1) or down (dir 1) via Alt+Arrow. */
 	reorder(blockIndex: number, dir: -1 | 1): Promise<void> {
 		return reorder(this.ctx, blockIndex, dir);
+	}
+
+	/**
+	 * Attempt a reorder on a body leaf inside a plugin (opaque) container. The
+	 * boundary declines, so it is a byte-exact no-op; a regression to the teleport
+	 * changes the source and the gesture throws.
+	 */
+	reorderInContainer(bodyPath: number[]): Promise<void> {
+		return reorderInContainer(this.ctx, bodyPath);
 	}
 
 	/**

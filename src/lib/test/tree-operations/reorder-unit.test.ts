@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import type { CstNode, Document } from '$lib/core/nodes';
 
 describe('resolveReorderUnit', () => {
 	it('top-level block resolves to itself under the document', () => {
@@ -54,5 +58,75 @@ describe('resolveReorderUnit', () => {
 	it('returns null for the empty path — no slot to move', () => {
 		const doc = parse('a\n\nb\n');
 		expect(resolveReorderUnit(doc, [])).toBeNull();
+	});
+});
+
+// A plugin (opaque) container is not a reorderable parent: the resolver stops at
+// its boundary and declines rather than walking past it to the document slot (the
+// teleport). A native reorderable parent NESTED in the body still wins first, so
+// the decline can't over-reach a legitimate inner list/blockquote.
+describe('resolveReorderUnit — plugin (opaque) container', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	// TOP paragraph + an opaque container whose child 0 is reserved chrome and whose
+	// remaining children are the passed body. Container sits at document index 1.
+	function opaqueContainer(body: CstNode[]): Document {
+		const chromeKind = declarePluginKind('spec-chrome');
+		const containerKind = declarePluginKind('spec-container');
+		registerBlockKind(chromeKind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			contextDependentKind: true
+		});
+		registerBlockKind(containerKind, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
+		});
+		const container: CstNode = {
+			kind: containerKind,
+			leadingTrivia: '',
+			raw: '',
+			children: [{ kind: chromeKind, leadingTrivia: '', raw: '\n' }, ...body]
+		};
+		return {
+			kind: 'document',
+			prefix: '',
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'top\n' }, container],
+			suffix: ''
+		};
+	}
+
+	it('a body leaf declines to null — no walk-past to the document slot', () => {
+		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
+		// Pre-fix this returned { parentPath: [], index: 1, parentKind: 'document' } —
+		// the whole container's slot, which is the teleport.
+		expect(resolveReorderUnit(doc, [1, 1])).toBeNull();
+	});
+
+	it('the reserved chrome leaf is never a reorder unit', () => {
+		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
+		expect(resolveReorderUnit(doc, [1, 0])).toBeNull();
+	});
+
+	it('a native blockquote nested in the body still reorders within itself (no over-reach)', () => {
+		const blockquote: CstNode = {
+			kind: 'blockquote',
+			leadingTrivia: '',
+			raw: '',
+			children: [
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' },
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'b\n' }
+			]
+		};
+		const doc = opaqueContainer([blockquote]);
+		// Leaf-first: the blockquote wins before the opaque boundary is reached.
+		expect(resolveReorderUnit(doc, [1, 1, 1])).toEqual({
+			parentPath: [1, 1],
+			index: 1,
+			parentKind: 'blockquote'
+		});
 	});
 });
