@@ -1,13 +1,13 @@
 # Plugin-System Prior-Art Research — Decision Report
 
 **Date:** 2026-07-01
-**Source:** background workflow `plugin-system-prior-art` (10 agents: 6 external prior-art — ProseMirror, Milkdown/TipTap, Lexical, CodeMirror 6, VS Code, Obsidian; 2 internal — current surface, invariant boundaries; synthesis; completeness critic). ~585k subagent tokens.
+**Source:** prior-art survey of ProseMirror, Milkdown/TipTap, Lexical, CodeMirror 6, VS Code, and Obsidian, plus an internal review of the current surface and invariant boundaries, with an adversarial critique pass over the synthesis.
 **Status:** research input for the pre-freeze plugin-authoring contract decision. Not a plan.
 **Frame honored:** maximize _expressiveness within the lossless-CST invariants_, not raw flexibility.
 
 ---
 
-## Controller verification note (2026-07-01)
+## Verification note (2026-07-01)
 
 The synthesis and its adversarial critique were re-checked against code. **Verified true:**
 
@@ -16,7 +16,7 @@ The synthesis and its adversarial critique were re-checked against code. **Verif
 - `checkStaleRaw` (`src/lib/invariants/node-shape.ts:73`) returns `null` unless `containerContract === 'strip'`; tests confirm grid and leaf are exempt (`src/lib/test/invariants/stale-raw.test.ts:124,130`). **The byte-level round-trip guard fires only on strip containers** — Fork A (§2.3) modeled as a non-strip container escapes it, and plugin leaf/grid/atomic kinds get no stale-raw guard even in dev. Confirmed; sharpens the Fork A cost.
 - `createContainerBlock` actually returns `{ blockListProps, containerApi }` (`src/lib/editor-actions/plugin-container.ts:53-58`), not the `{ surfaceProps, blockComponentApi }` the report's Tier-2a sketch stated — the critique's catch is correct.
 
-**Reported but not yet controller-verified** (plausible, cheap to confirm when we act): the startup-once + dev-only nature of `checkOpenerRegistry` / `checkRegistryCompleteness` / `checkKeymapCoherence` (critique's central enforcement correction), and the `runCommand(id, arg?): boolean` dispatch signature.
+**Reported but not yet verified against code** (plausible, cheap to confirm when we act): the startup-once + dev-only nature of `checkOpenerRegistry` / `checkRegistryCompleteness` / `checkKeymapCoherence` (critique's central enforcement correction), and the `runCommand(id, arg?): boolean` dispatch signature.
 
 ---
 
@@ -164,7 +164,7 @@ Mature systems draw the line the same way: **plugins get a separate state slot +
 
 ## Fork-A spike outcome (verified 2026-07-01)
 
-Spike committed `1863ec6` (branch `feat/ws-b-callout-container`, not pushed); full report `.superpowers/sdd/fork-a-spike-report.md`. **Controller-verified:** `check` 0 errors, `lint` clean, callout unit 10/10, `test:e2e:plugins` 13/13 (re-run), the diff touches no `src/lib` `selection`/`cursor`/`tree-operations` runtime (tripwire held), and the e2e asserts `focus.path===[1,0]` non-vacuously.
+A timeboxed spike branch (not merged) built the callout as a reserved child-0 chrome leaf. **Verified:** `check` 0 errors, `lint` clean, callout unit suite green, the plugins e2e battery green (re-run), the diff touches no `src/lib` `selection`/`cursor`/`tree-operations` runtime (tripwire held), and the e2e asserts `focus.path===[1,0]` non-vacuously.
 
 **Verdict: Fork A confirmed — native cross-select-into-chrome is FREE.** Modeling chrome as a reserved child-0 leaf inside the container's `BlockList` (Model a) makes it a char-offset prose leaf; cross-block select-in, caret, and undo all reach the deep path `[1,0]` with **zero** core-selection edits — none of the seven `kind === 'table'` gates fire.
 

@@ -163,28 +163,6 @@ not the bounded closer-synthesis the END case uses.
 **Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
 direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
 
-### Dogfood callout/details chrome is card-like, unreconciled with document-not-pile-of-blocks
-
-**Severity:** minor (dev-harness plugin styling; no functional impact)
-**Files:** `src/routes/test/plugins/callout/CalloutBlock.svelte`, `src/routes/test/plugins/details/DetailsBlock.svelte` (`<style>` chrome)
-
-Both dogfood containers style their chrome as a bordered, rounded, tinted box with a leading
-icon (`ℹ` / disclosure triangle) — `border` + `border-radius` + a low-alpha `color-mix` fill.
-That is the card-like affordance the editor's "a document should feel like a document, not a
-pile of blocks" principle steers away from. It rides today because these plugins validate the
-plugin _mechanism_, not a final aesthetic — but demo polish (roadmap item 6) promotes the
-dogfood extensions into the showcase, where their look becomes the reference plugin authors copy.
-
-**Open question, not a clear defect:** a callout/admonition is box-like by nature (Obsidian,
-Notion, GitHub alerts all box them), and the principle targets _ordinary prose_ reading as
-cards — plugin-authored container chrome is the author's call, not an editor affordance. The
-decision is whether the reference plugins should model the restrained house aesthetic (gutter
-rail / margin cue over a full box) to set author expectations, or keep the conventional box
-because that is what a callout is.
-
-**Target:** demo polish (`docs/roadmap.md` § Pre-1.0) — decide the reference-plugin chrome
-aesthetic there; no code change needed before then.
-
 ### Directive rebuild normalizes CRLF line ends to `\n`
 
 **Severity:** minor
@@ -202,6 +180,25 @@ threads its colon counts) so the rebuild reproduces CRLF.
 container-chrome rebuild behavior; fold into a line-ending-fidelity pass.
 
 ## Plugin inline widgets
+
+### Inline-widget source editing (reveal) is unwired in table cells
+
+**Severity:** minor (parity gap; cells render widgets but cannot edit them)
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte`,
+`src/lib/components/blocks/table/cell-render.ts` vs
+`src/lib/components/blocks/text/widget-interaction.ts` (the prose seam)
+
+Cells gained widget rendering/pooling in 0.9.14 (`createSvelteWidgetPool`) but never wired
+`createWidgetInteraction`: no click-to-reveal, no Enter-reveal, no blur commit, and no
+containment-scoped fold. Verified on the `mathtable` seed — clicking a cell's inline `$x^2$`
+widget leaves it rendered; source editing is simply unavailable inside cells. Distinct from
+the reveal collapse/switch fix (which lives at the TextEditableBlock choke point and covers
+every reveal-source kind there); wiring cells means threading the same interaction bundle
+through the cell surface, picking up the `document.activeElement` pending-cursor guard
+already flagged in "TableCellBlock has an unguarded pending-cursor effect".
+
+**Why deferred:** cell reveal is a feature wire-up, not a regression; fold into the
+cell-inline-render migration alongside the existing cell entries.
 
 ### Re-add `deleteGranularity` / `onEdge` when the inline-entity consumer lands
 
