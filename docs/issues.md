@@ -77,6 +77,18 @@ container shim hardcodes `editable: true`.
 
 ## Test coverage
 
+### CI perf gate: two 10MB rows exceed locally-calibrated ceilings on runners
+
+**Severity:** minor (calibration, not regression — the same build passes every ceiling locally)
+**Files:** `src/lib/e2e/tests/perf/perf-gate.perf.spec.ts` (ceilings); `.github/workflows/ci.yml` (perf job)
+
+First CI perf runs (29177807039 / 29178211384): typical gate rows land at 5-6.5ms p50 against
+7.5-8.4ms ceilings — runners are ~2.2x the local baselines the ceilings were derived from —
+and the two extreme shapes tip over: giant-single-blockquote-10MB 8.4ms vs 7.6 ceiling,
+reference-heavy-10MB 9.4ms vs 9.0. Decide the calibration policy (runner-derived baselines, a
+CI multiplier, or accept-documenting the 10MB rows) — this is the "accept-documented limits
+staying accurate" half of the CI-hardening roadmap item, now with data.
+
 ### CI-only [invariant:stale-raw] fire: blockquote raw stale during list unindent/paste ops
 
 **Severity:** important (a real invariant violation, timing-shielded locally)
