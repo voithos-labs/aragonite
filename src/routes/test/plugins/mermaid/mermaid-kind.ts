@@ -18,6 +18,7 @@ import {
 	getPluginMetadata,
 	matchFenceOpen,
 	matchFenceClose,
+	OPENER_PRIORITIES,
 	type FenceOpen,
 	type CstNode
 } from '$lib/plugin';
@@ -63,20 +64,15 @@ export function rebuildMermaidRaw(node: CstNode): void {
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
-// Block commands resolve to a (node, metadata-writer) context with no component
-// channel, so view-state commands (edit mode, focus overlay) need a plugin-owned
-// node → component bridge. The component binds its hooks per mounted node.
+// A minted block command reaches the mounted component through `ctx.hooks` — the
+// platform's command→component channel. The component supplies these view-state
+// handlers via `createContainerBlock`'s `commandHooks` getter; the handlers below
+// cast the opaque `ctx.hooks` back to this shape and decline when it is absent
+// (kind registered, no instance mounted).
 
 export interface MermaidUiHooks {
 	openEdit(): void;
 	openFocusView(): void;
-}
-
-const uiHooks = new Map<CstNode, MermaidUiHooks>();
-
-export function bindMermaidUiHooks(node: CstNode, hooks: MermaidUiHooks): () => void {
-	uiHooks.set(node, hooks);
-	return () => uiHooks.delete(node);
 }
 
 // ── Registration ─────────────────────────────────────────────────────────────
@@ -87,13 +83,13 @@ export function registerMermaidKind(): void {
 	// mermaid.edit carries no default chord — the edit affordance is the button;
 	// the minted command exists for consumer keymap bindings.
 	registerBlockCommand(mermaid, 'mermaid.edit', (ctx) => {
-		const hooks = uiHooks.get(ctx.node);
+		const hooks = ctx.hooks as MermaidUiHooks | undefined;
 		if (!hooks) return false;
 		hooks.openEdit();
 		return true;
 	});
 	const focusCommand = registerBlockCommand(mermaid, 'mermaid.focus', (ctx) => {
-		const hooks = uiHooks.get(ctx.node);
+		const hooks = ctx.hooks as MermaidUiHooks | undefined;
 		if (!hooks) return false;
 		hooks.openFocusView();
 		return true;
@@ -120,10 +116,10 @@ export function registerMermaidKind(): void {
 	});
 
 	registerBlockOpener(mermaid, {
-		// fencedCode@10 accepts EVERY fence, ```mermaid included, so unlike the
-		// details opener (which slots between built-ins at 65) this must price
-		// AHEAD of the superset matcher. 5 sits mid-gap below 10 and ties nothing.
-		priority: 5,
+		// `fencedCode` accepts EVERY fence, ```mermaid included, so unlike the details
+		// opener (which slots into a gap between built-ins) this must price AHEAD of
+		// that superset matcher — mid-gap below it, tying nothing.
+		priority: OPENER_PRIORITIES.fencedCode - 5,
 		interruptsParagraph: (line) => matchMermaidFence(line) !== null,
 		tryOpen(ctx) {
 			const fence = matchMermaidFence(ctx.line.text);

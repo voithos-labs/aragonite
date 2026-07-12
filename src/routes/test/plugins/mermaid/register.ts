@@ -6,24 +6,19 @@
  * The plugin unit installs this setup once per process, so it runs unguarded.
  */
 
-import {
-	definePlugin,
-	registerBlockComponent,
-	defineBlockComponent,
-	declaredPluginKind,
-	type EditorPlugin
-} from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
 import { registerMermaidKind, MERMAID } from './mermaid-kind';
 import { setMermaidRenderer, type MermaidRenderer } from './mermaid-renderer';
 import MermaidBlock from './MermaidBlock.svelte';
 
 export function mermaidPlugin(options?: { renderer?: MermaidRenderer }): EditorPlugin {
-	return definePlugin({
+	return definePluginBlock({
 		name: 'mermaid',
-		setup() {
+		kind: MERMAID,
+		component: MermaidBlock,
+		register() {
 			setMermaidRenderer(options?.renderer ?? null);
 			registerMermaidKind();
-			registerBlockComponent(declaredPluginKind(MERMAID), defineBlockComponent(MermaidBlock));
 		}
 	});
 }

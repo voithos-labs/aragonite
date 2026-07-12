@@ -17,9 +17,9 @@
 		resolveBinding,
 		getCommand,
 		isEditorGlobalChord,
-		dispatchKeyCommand,
 		type CommandId
 	} from '../../schema/commands';
+	import { dispatchKeyCommand } from '../../schema/block-commands';
 	import { displayLength } from '../../core/lines';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();

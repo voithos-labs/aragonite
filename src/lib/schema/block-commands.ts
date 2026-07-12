@@ -1,13 +1,15 @@
 /**
- * The `(kind, id) → handler` block-command registry plus the container-bubble
- * dispatch that resolves a handler by the focused block's kind. A plugin mints a
- * command id here and binds it to a block kind; `dispatchKindCommand` is the one
- * seam every container-bubble keydown routes through (no sibling-path copies).
+ * The `(kind, id) → handler` block-command registry AND both chord dispatchers —
+ * the leaf path (`dispatchKeyCommand`, the focused editable/chrome surface) and the
+ * container-bubble path (`dispatchKindCommand`). A plugin mints a command id here
+ * and binds it to a block kind; both dispatchers resolve a minted handler through
+ * one seam (`runMintedCommand`) — no forked registry read, no sibling-path copies.
  * Register-once, throw-on-duplicate — the `customElements` model (docs/culture.md
  * "Registries are code, not state"). Leaf layer: id minting delegates to
- * `./command-id`. Lives here, not `./commands`, to keep `commands.ts` free of a
- * runtime edge to `command-id`/`block-commands` (else `commands → block-commands
- * → command-id → commands` cycles).
+ * `./command-id`. The dispatchers live here, not `./commands`, so `commands.ts`
+ * carries no runtime edge to `command-id`/`block-commands` (else `commands →
+ * block-commands → command-id → commands` cycles); `commands.ts` supplies only the
+ * global registry and the chord→binding resolvers this file reads.
  */
 import type { AnyBlockKind, CstNode } from '../core/nodes';
 import {
@@ -16,13 +18,30 @@ import {
 	type AnyCommandId,
 	type PluginCommandId
 } from './command-id';
-import { resolveKindBinding, warnUnresolvedPluginCommand, isBuiltinCommandId } from './commands';
+import {
+	resolveBinding,
+	resolveKindBinding,
+	getCommand,
+	warnUnresolvedPluginCommand,
+	isBuiltinCommandId,
+	type GlobalCommandContext
+} from './commands';
+import type { KeyBinding } from './keybindings';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 
 export interface BlockCommandContext {
 	node: CstNode;
 	arg: unknown;
 	updateMetadata(patch: Record<string, unknown>): void;
+	/**
+	 * The mounted component's view-state hooks, when the dispatching surface owns
+	 * an instance — a render-primary plugin casts this to its own hooks type to
+	 * drive edit mode, a focus overlay, and the like. `undefined` when the kind is
+	 * registered but no component is mounted (a different tier, a cross-block
+	 * replay target); a handler must decline gracefully then. The platform never
+	 * learns the shape (`unknown` by design).
+	 */
+	hooks?: unknown;
 }
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;
@@ -63,34 +82,104 @@ export function __resetBlockCommandsForTests(): void {
 	__resetMintedCommandIdsForTests();
 }
 
-// ── Container-bubble dispatch ───────────────────────────────────────────
+// ── Chord dispatch ───────────────────────────────────────────────────────
 
 export interface KindCommandTarget {
 	kind: AnyBlockKind;
 	runCommand(id: AnyCommandId, arg?: unknown): boolean;
-	// Supplied only by containers hosting plugin block-commands (the plugin
-	// container factory). Built-in containers omit it — their registry tier is
-	// inert and dispatch falls straight through to `runCommand`.
-	getCommandContext?(): { node: CstNode; updateMetadata(patch: Record<string, unknown>): void };
+	// The node → metadata-commit bridge (plus optional component hooks) a minted
+	// block command resolves against. Supplied by the surfaces that hold the focused
+	// node and a commit route — the plugin container factory and the editable-leaf
+	// factory. A target that omits it (a built-in leaf/container, the cross-block
+	// replay target) resolves no minted command; dispatch falls through to
+	// `runCommand`.
+	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
 }
 
 /**
- * Resolve a chord against the target kind's keymap and run the command. Kind-only
- * — no global tier: undo/redo belong to the focused leaf, and a container bubble
- * re-firing them would double-fire (see `resolveKindBinding` in `./commands`).
- * A plugin command resolves through the registry when the container supplies a
- * command context; a built-in id falls through to the container's `runCommand`.
+ * A contained plugin block-command failure: the throwing handler's kind and
+ * command id plus the raw error. The dispatch seam catches the throw and hands
+ * this to the caller's sink, which routes it to the editor's error channel
+ * (`origin: 'command'`, see `editor-events.ts`). Kept caller-injected so this
+ * schema leaf keeps no edge to the editor shell that owns the event surface.
+ */
+export interface CommandErrorReport {
+	kind: AnyBlockKind;
+	command: AnyCommandId;
+	error: unknown;
+}
+export type CommandErrorSink = (report: CommandErrorReport) => void;
+
+/**
+ * The one seam both dispatchers route a minted `(kind, id)` command through: read
+ * the registry, run the handler against the target's command context, and CONTAIN
+ * a handler throw so a plugin bug becomes a reported no-op, never an uncaught
+ * error. Containment is unconditional (the safety guarantee lives here, not at the
+ * call sites); the sink is optional — an unwired caller still contains, it just
+ * doesn't report. Returns `'unresolved'` when no handler is registered or the
+ * target supplies no context, so the caller falls through to its own tiers.
+ */
+function runMintedCommand(
+	target: KindCommandTarget,
+	binding: KeyBinding,
+	onCommandError?: CommandErrorSink
+): boolean | 'unresolved' {
+	const handler = getBlockCommand(target.kind, binding.command);
+	if (!handler) return 'unresolved';
+	const cmdCtx = target.getCommandContext?.();
+	if (!cmdCtx) return 'unresolved';
+	try {
+		return handler({ ...cmdCtx, arg: binding.arg });
+	} catch (error) {
+		onCommandError?.({ kind: target.kind, command: binding.command, error });
+		return true;
+	}
+}
+
+/**
+ * Leaf-path dispatch: the focused editable/chrome surface. Full precedence —
+ * global (undo/redo) → minted block command → built-in kind command. Returns true
+ * when handled. A minted command resolves only when the target supplies a command
+ * context; otherwise it dead-keys (dev-warn) rather than reach a `runCommand` that
+ * can't resolve it.
+ */
+export function dispatchKeyCommand(
+	chord: string,
+	target: KindCommandTarget,
+	ctx: GlobalCommandContext,
+	overrides?: KeybindingOverrideMap,
+	onCommandError?: CommandErrorSink
+): boolean {
+	const binding = resolveBinding(chord, target.kind, overrides);
+	if (!binding) return false;
+	const globalRun = getCommand(binding.command);
+	if (globalRun) return globalRun(ctx);
+	const minted = runMintedCommand(target, binding, onCommandError);
+	if (minted !== 'unresolved') return minted;
+	if (!isBuiltinCommandId(binding.command)) {
+		warnUnresolvedPluginCommand(binding.command);
+		return false;
+	}
+	return target.runCommand(binding.command, binding.arg);
+}
+
+/**
+ * Container-bubble dispatch. Kind-only — no global tier: undo/redo belong to the
+ * focused leaf, and a container bubble re-firing them would double-fire (see
+ * `resolveKindBinding` in `./commands`). A minted command resolves through the
+ * shared seam when the container supplies a command context; a built-in id falls
+ * through to the container's `runCommand`.
  */
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
-	overrides?: KeybindingOverrideMap
+	overrides?: KeybindingOverrideMap,
+	onCommandError?: CommandErrorSink
 ): boolean {
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
-	const handler = getBlockCommand(target.kind, binding.command);
-	const cmdCtx = handler ? target.getCommandContext?.() : undefined;
-	if (handler && cmdCtx) return handler({ ...cmdCtx, arg: binding.arg });
+	const minted = runMintedCommand(target, binding, onCommandError);
+	if (minted !== 'unresolved') return minted;
 	if (!isBuiltinCommandId(binding.command)) {
 		warnUnresolvedPluginCommand(binding.command);
 		return false;

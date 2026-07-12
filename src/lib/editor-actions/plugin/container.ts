@@ -31,12 +31,14 @@ import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
 	CONTROLLER_KEY,
+	EDITOR_EVENTS_KEY,
 	FOCUS_KEY,
 	KEYBINDING_OVERRIDES_KEY,
 	REORDER_ACTION_KEY,
 	STICKY_COLUMN_KEY,
 	type KeybindingOverridesGetter
 } from '../../editor-keys';
+import { emitCommandError, type EditorEvents } from '../../editor-events';
 import type { ReorderAction } from '../reorder-action';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
@@ -90,6 +92,14 @@ export interface ContainerBlockDeps {
 	 * re-renders reactively.
 	 */
 	isCollapsed?: () => boolean;
+	/**
+	 * The mounted component's view-state hooks, handed to a minted block command as
+	 * `ctx.hooks` — so a command opens the plugin's edit mode or focus overlay
+	 * without a node-keyed side map. Read live at dispatch (Design Rule 5): return a
+	 * getter over the component's own handlers, never a captured value. The platform
+	 * treats it as `unknown`; the plugin casts it to its own type.
+	 */
+	commandHooks?: () => unknown;
 }
 
 /**
@@ -224,11 +234,12 @@ export function gateMoveFocusOnCollapse(
  * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
  * chord resolves only through a registered command, whose context routes
- * `updateMetadata` back to this container's own metadata commit. `kind` and the
- * context `node` are read live off `deps.node`, never snapshotted (Design Rule 5).
+ * `updateMetadata` back to this container's own metadata commit and carries the
+ * component's `commandHooks`. `kind`, the context `node`, and `hooks` are read live
+ * off `deps`, never snapshotted (Design Rule 5).
  */
 export function buildContainerKindTarget(
-	deps: Pick<ContainerBlockDeps, 'node'>,
+	deps: Pick<ContainerBlockDeps, 'node' | 'commandHooks'>,
 	updateOwnMetadata: ContainerBlock['updateOwnMetadata']
 ): KindCommandTarget {
 	return {
@@ -240,7 +251,8 @@ export function buildContainerKindTarget(
 			node: deps.node,
 			updateMetadata: (patch) => {
 				updateOwnMetadata(patch);
-			}
+			},
+			hooks: deps.commandHooks?.()
 		})
 	};
 }
@@ -253,6 +265,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 
 	const listState = createBlockListState(() => deps.node);
 
@@ -388,7 +401,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
-		if (chord && dispatchKindCommand(chord, kindTarget, keybindingOverrides())) {
+		if (
+			chord &&
+			dispatchKindCommand(chord, kindTarget, keybindingOverrides(), (report) =>
+				emitCommandError(editorEvents, report)
+			)
+		) {
 			e.preventDefault();
 			return;
 		}

@@ -62,7 +62,8 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand } from '../../../schema/block-commands';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 

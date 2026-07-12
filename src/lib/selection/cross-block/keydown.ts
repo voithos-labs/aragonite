@@ -9,7 +9,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
 import { eventToChord } from '../../schema/keybindings';
-import { dispatchKeyCommand } from '../../schema/commands';
+import { dispatchKeyCommand } from '../../schema/block-commands';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,

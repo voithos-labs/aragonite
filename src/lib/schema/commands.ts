@@ -1,9 +1,13 @@
 /**
- * The command vocabulary, the global command registry, and the key dispatch.
- * A command is a named document intent. GLOBAL commands (undo/redo) are free
- * functions over a minimal context; BLOCK-LOCAL commands are implemented by the
- * focused block component's runCommand. Per-kind keybindings live on
- * BlockKindDescriptor.keymap; this file also holds the editor-global table.
+ * The command vocabulary, the global command registry, and chord→binding
+ * resolution. A command is a named document intent. GLOBAL commands (undo/redo)
+ * are free functions over a minimal context; BLOCK-LOCAL commands are implemented
+ * by the focused block component's runCommand or a registered block-command
+ * handler. Per-kind keybindings live on BlockKindDescriptor.keymap; this file
+ * also holds the editor-global table. The chord dispatchers themselves live in
+ * `./block-commands` (both the leaf and container-bubble paths), which reads this
+ * file's resolvers and the block-command registry through one seam — kept there,
+ * not here, so this file carries no runtime edge to block-commands.
  *
  * Layering: this file is a schema leaf — it must not import action-contracts
  * (which pulls in tree-operations/undo). GlobalCommandContext is the minimal
@@ -53,11 +57,6 @@ export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
 }
 
-export interface CommandDispatchTarget {
-	kind: AnyBlockKind;
-	runCommand(id: AnyCommandId, arg?: unknown): boolean;
-}
-
 type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
 
@@ -95,10 +94,11 @@ const warnedUnresolvedIds = new Set<string>();
 /**
  * Dev-warn once per id that a bound command reached no runnable handler on the
  * dispatch path that fired — a dead key. Shared by both paths (leaf and
- * container-bubble). "Reachable", not "registered": a handler may be registered on
- * a kind whose dispatch tier isn't wired here — a plugin command bound on a leaf
- * kind, where the leaf registry tier is deferred — so this signals unreachability,
- * not necessarily a missing registration. Silent in production (devWarn).
+ * container-bubble). "Reachable", not "registered": both paths resolve a minted
+ * command only when the dispatch target supplies a command context, so a command
+ * bound where no context is available (a built-in leaf, the cross-block replay
+ * target) signals unreachability, not necessarily a missing registration. Silent
+ * in production (devWarn).
  */
 export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
 	if (warnedUnresolvedIds.has(id)) return;
@@ -192,25 +192,4 @@ export function resolveGlobalBinding(
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;
 	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? null;
-}
-
-/** Resolve the chord and run the command. Returns true when handled. */
-export function dispatchKeyCommand(
-	chord: string,
-	target: CommandDispatchTarget,
-	ctx: GlobalCommandContext,
-	overrides?: KeybindingOverrideMap
-): boolean {
-	const binding = resolveBinding(chord, target.kind, overrides);
-	if (!binding) return false;
-	const globalRun = getCommand(binding.command);
-	if (globalRun) return globalRun(ctx);
-	// A non-built-in id on the leaf path is a plugin id with no leaf handler (the
-	// leaf registry tier is deferred — plugin commands dispatch on the bubble path):
-	// dead-key rather than hand it to a leaf runCommand that can't resolve it.
-	if (!isBuiltinCommandId(binding.command)) {
-		warnUnresolvedPluginCommand(binding.command);
-		return false;
-	}
-	return target.runCommand(binding.command, binding.arg);
 }

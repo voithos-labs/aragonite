@@ -43,10 +43,6 @@ export function declareAdmonitionKinds(): { admonition: PluginBlockKind; title: 
 	};
 }
 
-export function admonitionKind(): PluginBlockKind {
-	return declaredPluginKind(ADMONITION);
-}
-
 export function admonitionTitleKind(): PluginBlockKind {
 	return declaredPluginKind(ADMONITION_TITLE);
 }

@@ -6,14 +6,13 @@
  */
 import {
 	activateDirectives,
+	chromeChild,
+	createDirectiveRebuild,
 	registerBlockKind,
 	registerBlockCommand,
 	registerChromeLeaf,
 	registerDirective,
 	registerPasteTransform,
-	serializeDirective,
-	serializeChildren,
-	trimTrailingLineEnding,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
@@ -30,14 +29,6 @@ import {
 } from './kinds';
 import { githubAlertsPasteTransform } from './convert-document';
 
-function makeTitleChild(text: string): CstNode {
-	return {
-		kind: admonitionTitleKind(),
-		leadingTrivia: '',
-		raw: text ? `${text}\n` : '\n'
-	};
-}
-
 /**
  * Build the container from a parsed `:::note` fence. Child 0 is the title
  * (the opener line's info, editable); children 1+ are the parsed body. The
@@ -51,7 +42,7 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 			leadingTrivia: parsed.leadingTrivia,
 			raw: parsed.raw,
 			innerPrefix: parsed.body?.prefix ?? '',
-			children: [makeTitleChild(title), ...(parsed.body?.children ?? [])],
+			children: [chromeChild(admonitionTitleKind(), title), ...(parsed.body?.children ?? [])],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata<AdmonitionMetadata>(node, {
@@ -66,22 +57,9 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 }
 
 /** Re-emit `raw` from children + metadata after any structural or title edit. */
-function rebuildAdmonitionRaw(node: CstNode): void {
-	const meta = getPluginMetadata<AdmonitionMetadata>(node);
-	const children = node.children ?? [];
-	const title = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
-	node.raw = serializeDirective({
-		colonCount: meta?.colonCount ?? 3,
-		name: meta?.name ?? ADMONITION_KINDS[0],
-		info: title ? ` ${title}` : '',
-		innerPrefix: node.innerPrefix ?? '',
-		body: serializeChildren(children.slice(1)),
-		innerSuffix: node.innerSuffix ?? '',
-		closerColonCount: meta?.closerColonCount ?? 3,
-		closerNewline: meta?.closerNewline ?? true,
-		lineEnding: meta?.lineEnding
-	});
-}
+const rebuildAdmonitionRaw = createDirectiveRebuild<AdmonitionMetadata>(
+	(meta) => meta?.name ?? ADMONITION_KINDS[0]
+);
 
 export function registerAdmonitions(): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse

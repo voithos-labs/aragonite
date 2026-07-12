@@ -4,23 +4,17 @@
  * GitHub-alert paste helpers are re-exported for the host to wire into its own
  * paste flow. The plugin unit installs the setup once per process.
  */
-import {
-	definePlugin,
-	registerBlockComponent,
-	defineBlockComponent,
-	type EditorPlugin
-} from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
 import { registerAdmonitions } from './register';
-import { admonitionKind } from './kinds';
+import { ADMONITION } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
 
 export function admonitionsPlugin(): EditorPlugin {
-	return definePlugin({
+	return definePluginBlock({
 		name: 'admonitions',
-		setup() {
-			registerAdmonitions();
-			registerBlockComponent(admonitionKind(), defineBlockComponent(AdmonitionBlock));
-		}
+		kind: ADMONITION,
+		component: AdmonitionBlock,
+		register: registerAdmonitions
 	});
 }
 

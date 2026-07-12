@@ -3,9 +3,9 @@ import {
 	getCommand,
 	GLOBAL_KEYMAP,
 	resolveBinding,
-	resolveKindBinding,
-	dispatchKeyCommand
+	resolveKindBinding
 } from '$lib/schema/commands';
+import { dispatchKeyCommand } from '$lib/schema/block-commands';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {

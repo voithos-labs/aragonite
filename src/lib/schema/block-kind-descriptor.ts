@@ -1,7 +1,7 @@
 import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { enqueueRegistrationCheck } from './registration-pending';
-import { pluginKindOwner } from './plugin-install';
+import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
 import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
@@ -315,13 +315,28 @@ function mergeBlockKindFields(
  * Merge fields into a plugin's own registration. The public authoring entry.
  * Rejects built-in kinds — a plugin augmenting a built-in silently rewrote its
  * descriptor process-globally; built-in wire-up uses the internal augmentBuiltin
- * seam. Also throws when the kind isn't already registered.
+ * seam. Rejects a kind owned by a DIFFERENT plugin for the same reason: the
+ * ownership recorded at `declarePluginKind` gates augmentation to the declaring
+ * plugin's own setup, so cross-plugin last-writer-wins is a loud throw, not a
+ * silent override. A kind with no recorded owner (declared outside any plugin
+ * install — the test/harness path) stays open. Also throws when the kind isn't
+ * already registered.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
 		throw new Error(
 			`augmentBlockKind: "${kind}" is a built-in kind — the plugin surface may only augment ` +
 				`plugin-declared kinds.`
+		);
+	}
+	const owner = pluginKindOwner(kind);
+	const installer = currentInstallingPlugin();
+	if (owner !== null && owner !== installer) {
+		throw new Error(
+			`augmentBlockKind: "${kind}" is owned by plugin '${owner}' — ` +
+				(installer
+					? `plugin '${installer}' may not augment another plugin's kind.`
+					: `only plugin '${owner}' may augment its own kind, from its setup.`)
 		);
 	}
 	mergeBlockKindFields('augmentBlockKind', kind, fields);

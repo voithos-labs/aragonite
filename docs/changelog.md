@@ -2,6 +2,54 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.20 — Plugin-platform hardening: the evaluation program, pulled forward
+
+A full platform evaluation (two audits: API/contract; every reference plugin read as a
+consumer), then everything it found shipped pre-freeze in one owner-directed program — so the
+limestone integration and the second clean-room run validate the improved surface, and no
+early adopter hits a wall we already knew about.
+
+- **Contract ambiguities closed (P0).** `augmentBlockKind` gains an ownership gate — a plugin
+  can no longer silently overwrite a sibling plugin's kind descriptor (red-first). Minted
+  block commands now dispatch on the plugin editable-leaf tier through the same
+  `runMintedCommand` seam as the container-bubble path (previously: silent dead-key). A
+  `'command'` error origin with containment at both dispatch choke points — a throwing plugin
+  handler becomes an attributed error event, never an uncaught window error. New
+  **`aragonite/testing`** subpath: one `resetPluginPlatformForTests()` aggregate (env-guarded,
+  barrel-tested), so third-party authors get the isolation the in-repo dogfood tests always
+  had; plugin-guide gains the testing recipe.
+- **The command→component channel** (the #1 recorded authoring wall): factory-level
+  `commandHooks` getter threads plugin UI hooks into `BlockCommandContext.hooks` on both
+  tiers — no node-keyed map, no lifecycle cleanup; the dispatch context is built inside the
+  owning component's factory. Mermaid's hand-rolled `uiHooks` bridge deleted (net negative
+  LOC).
+- **Renderer memo primitive**: `createBoundedMemo` (one signature unifying sync clone-on-read
+  and async promise/rejection caching) on the barrel; latex + mermaid migrated off their two
+  divergent local LRUs; the guide consolidates the renderer recipe (factory-option DI, error
+  fallback, engine-CSS ownership).
+- **Ceremony floor cut**: `createDirectiveRebuild`, `chromeChild`, `definePluginBlock` —
+  the copied rebuild/title-child/registration ceremony deleted from every dogfood. The
+  component re-export block is deliberately NOT collapsed (a capturing helper would
+  reintroduce the getter-snapshot corruption class); promoted documented→guarded via a
+  `satisfies ContainerBlockComponent` completeness check in every container dogfood, with the
+  platform-collapse idea ledgered for 1.2. Centralizing the rebuild also closed a CRLF gap:
+  title-mode directive containers had no line-ending-fidelity coverage.
+- **Folklore became contract.** `OPENER_PRIORITIES` exported and single-sourced (built-ins
+  register FROM the constant — drift is a compile error) with the guide's ladder table; the
+  theme-token manifest published (both-themes existence guard, the dead
+  `--color-text-secondary` reference fixed, fallback drift reconciled to dark-base values);
+  a new lint scan extends CSS-token ownership to the dogfood plugins.
+- **Docs as one current snapshot.** plugin-contract reconciled (shipped items no longer
+  "planned"; pivot annotations rewritten; `getInlineContent` reframed as internal); the
+  inline tier honestly contrasted with the block surface (no keymap/commands/node metadata);
+  the **tier × subsystem closure matrix** added to the contract as a required checklist —
+  every extension tier × every cross-cutting system (parse, focus, merge, selection paint,
+  search paint, reorder, undo, clipboard, simulation), gap cells marked from the ledger.
+- **The consumer example works from a fresh clone**: `src/plugins/` stays sync-generated but
+  self-heals via pre-hooks; the rotted 0.9.16 tarball pin replaced by a version-agnostic
+  `file:../..` link (smoke-verified to still install the real packed tarball in CI); seven
+  stale root tarballs removed; quickstart documented.
+
 ### 0.9.19 — Selection/focus completeness + the issues-ledger work-down
 
 The 0.9.18 follow-through (owner-directed): every block state selects, focuses, and deletes like a first-class citizen, and the known-issues ledger shrank from 19 entries to 7 — each remainder now a genuine keeper with a target or rationale.
