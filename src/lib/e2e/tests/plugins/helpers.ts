@@ -34,11 +34,24 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
+// Click a widget where a user aims: the VISIBLE math. locator.click()'s default
+// point is the first content quad's center, and with katex.css loaded the clipped
+// 1px `.katex-mathml` half degenerates that point to a corner outside the island —
+// silently missing the reveal hit-test. Target `.katex-html` (the painted glyphs)
+// when present; fall back to the island's border-box center.
+export async function clickWidgetCenter(widget: Locator): Promise<void> {
+	const visible = widget.locator('.katex-html');
+	const target = (await visible.count()) > 0 ? visible.first() : widget;
+	const box = await target.boundingBox();
+	if (!box) throw new Error('widget has no bounding box');
+	await target.click({ position: { x: box.width / 2, y: box.height / 2 } });
+}
+
 // Reveal a render-primary widget by clicking it and settling on the fold-out: the
 // rendered widget vanishes (count 0) and its source becomes editable text. Block
 // math reveals a distinct `.math-block-source` element, so it settles its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
-	await widget.click();
+	await clickWidgetCenter(widget);
 	await expect(widget).toHaveCount(0);
 }
 

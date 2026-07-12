@@ -73,6 +73,8 @@ The module owns its CSS. Two stylesheets ship under `styles/`:
 - **`editor.css`** — structural painting rules. Auto-imported by the component; nothing to do.
 - **`editor-theme.css`** — the default token palette (light + dark). Import it for the default look, or replace it wholesale to retheme. **It is the authoritative manifest** — read it for the exact token set and values rather than copying them here.
 
+Plugin render engines may carry their own stylesheet (KaTeX's `katex.min.css`, say) — that CSS is the plugin's to load, not the editor module's; see the [plugin author guide](plugin-guide.md).
+
 ### Scope
 
 Tokens are declared on the editor's own root (`.editor`), never on `:root` — the module does not inject custom properties into a consumer's global scope. To give the same palette to non-editor chrome (a surrounding toolbar, a placeholder editor), add the `aragonite-editor-theme` class to a wrapper; it inherits the identical token set with no token declarations of your own.

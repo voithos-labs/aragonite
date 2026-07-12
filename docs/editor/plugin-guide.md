@@ -168,6 +168,9 @@ A widget kind renders through one of two paths, and the descriptor rejects decla
   falls back to its raw source and an `error` event fires — but the component mounts as its own
   effect root, so nothing catches its post-mount runtime errors. They are yours to handle: render a
   legible error for bad input instead of throwing (the KaTeX widget shows an inline message).
+  A render engine's stylesheet is also yours — import it in the module that owns the renderer so no
+  route can forget it: KaTeX needs `import 'katex/dist/katex.min.css'`, or the MathML accessibility
+  half of its output lays out unclipped and every equation paints twice.
 - **A hand-built `buildWidget`.** Return the island DOM yourself when you need DOM-level control; you
   own the marker-attribute stamping. This is the lower-level path the image widget uses.
 
@@ -556,6 +559,8 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
   (`mermaidPlugin({ renderer })`) and pass it by module to the component. Memoize per source text
   so re-renders of unchanged code do zero engine work, resolve failures to a legible inline error
   (never a throw), and render a static code fallback with a note when no renderer is configured.
+  The engine's stylesheet travels with the renderer module too — a KaTeX-based renderer requires
+  `katex/dist/katex.min.css`.
 - **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays — anything
   draggable must `stopPropagation()` on pointerdown, or the drag starts a cross-block selection. A
   focus view is just a fixed-position overlay in the component's own tree: mount it in place, focus

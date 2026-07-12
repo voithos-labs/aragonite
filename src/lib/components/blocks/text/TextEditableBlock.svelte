@@ -597,6 +597,11 @@
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
+		// A press on a reveal-source widget is an owned gesture: suppress the
+		// browser's caret-placement default so the only selection writer between
+		// here and the reveal's own placement is the reveal itself. Click still
+		// fires; snapClickToWidgetEdge dispatches the reveal from it.
+		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -606,6 +611,21 @@
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
+
+	// While a widget's source is revealed, a caret/selection move that escapes it —
+	// same-block clicks, arrow-exits — folds the reveal. Blur keeps owning the
+	// focus-leaving fold; a mid-IME selection move must not commit, so composition
+	// suppresses the fold like it suppresses onInput.
+	$effect(() => {
+		const root = el;
+		if (!root) return;
+		const handler = () => {
+			if (composing) return;
+			widgetInteraction.foldRevealIfSelectionEscaped();
+		};
+		document.addEventListener('selectionchange', handler);
+		return () => document.removeEventListener('selectionchange', handler);
+	});
 
 	function onClick(): void {
 		const x = lastClickClientX;
