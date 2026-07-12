@@ -58,17 +58,27 @@ since in-repo and same-day. The remaining items answer that.
    human page in a machine tree. The reference-plugin aesthetic decision is made and shipped
    (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
    plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
-   whatever it adds.
+   whatever it adds. Demo polish also owns **reading mode (presentation ladder rung 1), pulled
+   forward from 1.1**: markers hidden, widgets rendered, read-only — built as a consumer would
+   (public surfaces only), shipped as a showcase toggle. Two birds: the 1.0 first impression is
+   not markers-everywhere (styled-source-always is a power-user aesthetic), and the freeze
+   litmus "the contract must not preclude a rendered reading mode" becomes a working proof
+   instead of a paper check — a contract gap surfaces pre-freeze, while it is cheap. Rungs 2–3
+   (live preview) stay at 1.1, explicitly the FIRST post-1.0 milestone.
 4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
      against the contract on paper and confirm no breaking-if-deferred gap — reading cost now versus
      breaking change later.
-   - **Complete the CONTRIBUTING** — the minimal front door ships in item 1; at release it
-     absorbs `docs/culture.md` (the incident-backed rule set) and gains the public wrapper (PR
-     flow, external-contributor setup), becoming the front door for contributors who haven't
-     lived the repo's history.
+   - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
+     at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
+     quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
+     a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT; the PR
+     flow and external-contributor setup; dev-loop friction retired or documented (the SSR
+     registrar-poison entry in `docs/issues.md` is contributor experience — resolve or give it
+     an honest workaround section); a first pass of curated entry-level issues. The bar stays
+     high — the reading order is what changes.
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
      `git log`.
@@ -197,4 +207,8 @@ needs surfaced by consumers ship as 1.x minors, breaking changes ride a major; a
 joint decision worth naming — the **persistent version-history / collaboration representation
 spike** — stays joint because it constrains editor internals (the snapshot undo model is not
 CRDT/op-log shaped, and unifying undo, history, and collaboration onto one representation is a
-design decision the editor and its first consumer must make together).
+design decision the editor and its first consumer must make together). Working direction
+(owner, 2026-07): limestone supplies the collaboration infrastructure; the likely editor-side
+shape is an **overridable history seam** — the undo/redo module behind an interface a consumer
+can replace — decided at the limestone integration, scheduled deliberately rather than ambient
+(the longer the decision floats, the more code accretes against the snapshot shape).
