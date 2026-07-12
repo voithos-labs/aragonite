@@ -2,7 +2,7 @@
 // Each test exercises a paste-position / shape variant (start/middle/end, mismatched marker suffix,
 // trailing-newline absence, DOM ambient sync, single-item) of the one invariant; they cluster as
 // parametric variants and stay together for cohesion.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Same-type list paste (ordered into ordered, unordered into unordered) should

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 const INLINE_CONTENT = `A paragraph with **bold text** and *italic text* here.

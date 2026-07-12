@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Paste of a list whose ordered flag does not match any ancestor list should

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
 // Cells render row-major: 0=A 1=B (header) · 2="hello" 3="world" (body row).

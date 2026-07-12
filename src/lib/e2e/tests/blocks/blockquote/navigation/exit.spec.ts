@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 // Enter on a blockquote's empty trailing line exits the quote. The exited

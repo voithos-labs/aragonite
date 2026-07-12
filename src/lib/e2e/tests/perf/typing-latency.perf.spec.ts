@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';

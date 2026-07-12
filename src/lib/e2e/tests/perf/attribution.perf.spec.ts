@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { generateUniformBlocks, generateFixture } from '../../../test/perf/fixtures/generate';
