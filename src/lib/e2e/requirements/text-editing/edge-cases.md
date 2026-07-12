@@ -4,7 +4,7 @@ Boundary behavior for Enter/Backspace and kind-change reversals.
 
 ## Edge cases
 
-- Enter at offset 0: creates empty block before, original content moves to second block
+- Enter at offset 0: covered by enter-at-block-start.md
 - Backspace at start of first block: does nothing (no previous block to merge with)
 - Backspace at start of heading after heading: does not merge (heading+heading ineligible), moves focus
 - heading absorbs following paragraph on merge: Backspace at start of paragraph after heading merges into heading

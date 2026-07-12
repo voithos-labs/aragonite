@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 test.describe('text editing — edge cases', () => {
@@ -7,35 +7,6 @@ test.describe('text editing — edge cases', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-	});
-
-	test('Enter at offset 0 — leading blank line absorbed as trivia, single block round-trips', async () => {
-		// Regression: G3. performSplit at offset 0 of a non-empty block
-		// synthesized an empty leading paragraph (raw='\n') that collapses
-		// into trivia on reparse, so liveChildren=2 desynced from
-		// reparsedCount=1. The action now routes to a leadingTrivia bump,
-		// keeping the live tree and serialize+reparse view aligned.
-		await editor.loadContent('Content\n');
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals('\nContent\n');
-
-		const probe = await editor.page.evaluate(() => {
-			const doc = (window as any).__test.getDocument();
-			return {
-				liveChildren: doc.children.length,
-				leadingTrivia: doc.children[0]?.leadingTrivia,
-				raw: doc.children[0]?.raw,
-				reparsedCount: (window as any).__test.getBlockCount(),
-				domBlocks: document.querySelectorAll('.block-host').length
-			};
-		});
-
-		expect(probe.liveChildren).toBe(1);
-		expect(probe.reparsedCount).toBe(1);
-		expect(probe.leadingTrivia).toBe('\n');
-		expect(probe.raw).toBe('Content\n');
-		expect(probe.domBlocks).toBe(1);
 	});
 
 	test('Backspace at start of first block does nothing', async () => {

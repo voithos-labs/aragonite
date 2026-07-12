@@ -57,7 +57,7 @@
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
 	import { computeFenceExit } from './code-fence-exit';
-	import { classifyFenceBoundary } from './code-fence-boundary';
+	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
 	import { metadataOf } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
@@ -220,9 +220,15 @@
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
 			const branchPreEditOffset = getCursorOffsetHelper(el) ?? 0;
+			// Sibling of codeNewline's opener guard: a soft break splices the same
+			// `\n`, so its selection clamps out of the opener line too.
+			const range = currentRange();
 			const result = computeCodeEnter({
 				display: getDisplayText(),
-				selection: currentRange(),
+				selection: {
+					start: clampEnterOffsetToBody(node, range.start),
+					end: clampEnterOffsetToBody(node, range.end)
+				},
 				mode: 'soft'
 			});
 			blockEdit.updateBlockContent(index, result.newText + '\n', branchPreEditOffset);
@@ -365,20 +371,25 @@
 			return true;
 		}
 
+		// Opener-side mirror of the closer guards above: a `\n` spliced into the
+		// opener line corrupts the fence, so the splice clamps to the body start.
+		// The undo anchor stays on the true pre-edit caret (`offset`).
+		const splice = clampEnterOffsetToBody(node, offset);
+
 		// Electric indent: between an empty bracket pair, expand into three lines
 		// with an extra indent on the middle line. Quote pairs stay inline.
-		if (isBetweenEmptyBracketPair(text, offset)) {
-			const indent = getLineLeadingWhitespace(text, offset);
+		if (isBetweenEmptyBracketPair(text, splice)) {
+			const indent = getLineLeadingWhitespace(text, splice);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
-			const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
+			const newText = text.slice(0, splice) + '\n' + inner + '\n' + indent + text.slice(splice);
 			blockEdit.updateBlockContent(index, newText + '\n', offset);
-			pendingCursorOffset = offset + 1 + inner.length;
+			pendingCursorOffset = splice + 1 + inner.length;
 			return true;
 		}
 
 		const enter = computeCodeEnter({
 			display: text,
-			selection: { start: offset, end: offset },
+			selection: { start: splice, end: splice },
 			mode: 'normal'
 		});
 		blockEdit.updateBlockContent(index, enter.newText + '\n', offset);
