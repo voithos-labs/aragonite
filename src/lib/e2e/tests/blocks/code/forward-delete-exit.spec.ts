@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 // Forward-Delete at a fenced code block's closer boundary (exitNext): a focus

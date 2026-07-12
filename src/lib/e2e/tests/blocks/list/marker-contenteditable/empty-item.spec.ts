@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 test.describe('list marker — empty item rendering and typing', () => {

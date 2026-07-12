@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 // Tab / Shift+Tab behavior inside a code block: literal-tab insertion,

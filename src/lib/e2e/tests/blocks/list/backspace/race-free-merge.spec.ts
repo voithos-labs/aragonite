@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 // J3 regression: the typed marker raced the merge — landing on a stale block
