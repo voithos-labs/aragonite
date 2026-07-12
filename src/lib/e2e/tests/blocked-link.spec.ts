@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
 test.describe('blocked-scheme links are inert', () => {
