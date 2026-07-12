@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { dispatchKeyCommand, __resetCommandWarningsForTests } from '$lib/schema/commands';
+import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { registerBlockCommand, __resetBlockCommandsForTests } from '$lib/schema/block-commands';
+import {
+	dispatchKeyCommand,
+	registerBlockCommand,
+	__resetBlockCommandsForTests
+} from '$lib/schema/block-commands';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 
 // devWarn is silent under test by default — force dev/non-test so the dead-key
@@ -17,8 +21,9 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 
 	it('dead-keys and dev-warns exactly once per id, never reaching runCommand', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		// A leaf-registered plugin command is unreachable on the leaf path (its
-		// registry tier is deferred to the bubble path) — so it dead-keys.
+		// A minted command resolves on the leaf path only when the target supplies a
+		// command context. This target omits `getCommandContext`, so the command is
+		// unreachable here and dead-keys.
 		const id = registerBlockCommand('paragraph', 'demo.leafOnly', () => true);
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }

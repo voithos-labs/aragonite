@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import {
 	registerBlockKind,
 	augmentBlockKind,
 	augmentBuiltin,
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
+import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const minimal = {
@@ -48,6 +49,73 @@ describe('container-group augments are gated on the registered category', () => 
 		expect(() => augmentBuiltin('paragraph', { container: { rebuildRaw: () => {} } })).toThrow(
 			/registered as a leaf/
 		);
+	});
+});
+
+describe('augmentBlockKind ownership gate', () => {
+	// Owner is recorded only while a plugin's setup runs (declarePluginKind reads
+	// currentInstallingPlugin), so ownership scenarios drive through installPlugins.
+	it("rejects a plugin augmenting another plugin's kind, naming both", () => {
+		installPlugins([
+			definePlugin({
+				name: 'owner-plugin',
+				setup() {
+					registerBlockKind(declarePluginKind('ownedKind'), minimal);
+				}
+			})
+		]);
+
+		expect(() =>
+			installPlugins([
+				definePlugin({
+					name: 'intruder-plugin',
+					setup() {
+						augmentBlockKind(declaredPluginKind('ownedKind'), { renderImagesAsWidgets: true });
+					}
+				})
+			])
+		).toThrow(/owner-plugin[\s\S]*intruder-plugin|intruder-plugin[\s\S]*owner-plugin/);
+	});
+
+	it('allows a plugin to augment its own kind from its setup', () => {
+		installPlugins([
+			definePlugin({
+				name: 'self-plugin',
+				setup() {
+					const kind = declarePluginKind('selfOwnedKind');
+					registerBlockKind(kind, minimal);
+					augmentBlockKind(kind, { renderImagesAsWidgets: true });
+				}
+			})
+		]);
+		expect(
+			tryGetBlockKindDescriptor(declaredPluginKind('selfOwnedKind'))?.renderImagesAsWidgets
+		).toBe(true);
+	});
+
+	it('rejects a top-level augment of an owned kind after install (only its plugin may)', () => {
+		installPlugins([
+			definePlugin({
+				name: 'owner-plugin',
+				setup() {
+					registerBlockKind(declarePluginKind('ownedKind'), minimal);
+				}
+			})
+		]);
+
+		// No install is active here (currentInstallingPlugin() is null), so this is a
+		// consumer/harness augment of a plugin-owned kind — still a silent override.
+		expect(() =>
+			augmentBlockKind(declaredPluginKind('ownedKind'), { renderImagesAsWidgets: true })
+		).toThrow(/only plugin 'owner-plugin'/);
+	});
+
+	it('leaves an ownerless (harness-declared) kind open to augmentation', () => {
+		// Declared outside any install → no recorded owner → the test/harness path stays open.
+		const kind = declarePluginKind('ownerlessKind');
+		registerBlockKind(kind, minimal);
+		augmentBlockKind(kind, { renderImagesAsWidgets: true });
+		expect(tryGetBlockKindDescriptor(kind)?.renderImagesAsWidgets).toBe(true);
 	});
 });
 

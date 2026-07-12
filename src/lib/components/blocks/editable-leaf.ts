@@ -41,6 +41,7 @@ import {
 	CONTAINER_EDIT_KEY,
 	CONTROLLER_KEY,
 	DOC_KEY,
+	EDITOR_EVENTS_KEY,
 	EDITOR_LIFETIME_KEY,
 	EDITOR_ROOT_KEY,
 	FOCUS_KEY,
@@ -54,6 +55,7 @@ import {
 	type DocumentGetter,
 	type KeybindingOverridesGetter
 } from '../../editor-keys';
+import { emitCommandError, type EditorEvents } from '../../editor-events';
 import type { ReorderAction } from '../../editor-actions/reorder-action';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -71,7 +73,8 @@ import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { eventToChord } from '../../schema/keybindings';
-import { dispatchKeyCommand, type CommandId } from '../../schema/commands';
+import { type CommandId } from '../../schema/commands';
+import { dispatchKeyCommand, type BlockCommandContext } from '../../schema/block-commands';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -90,6 +93,13 @@ export interface EditableLeafDeps {
 	/** render-primary only: the component owns the swap flag and both views. */
 	isRevealed?(): boolean;
 	setRevealed?(revealed: boolean): void;
+	/**
+	 * The mounted component's view-state hooks, handed to a minted block command as
+	 * `ctx.hooks` (the container factory's sibling channel). Read live at dispatch
+	 * (Design Rule 5): return a getter over the component's own handlers, never a
+	 * captured value. The platform treats it as `unknown`; the plugin casts it.
+	 */
+	commandHooks?: () => unknown;
 }
 
 export interface EditableLeaf {
@@ -133,6 +143,25 @@ export interface EditableLeaf {
 	parkFocus(el: HTMLElement | null): void;
 }
 
+/**
+ * The node → metadata bridge (plus the component's `commandHooks`) a minted block
+ * command resolves against on the leaf tier — the container factory's
+ * `buildContainerKindTarget` sibling, extracted so both tiers build their command
+ * context through a tested seam. `node` and `hooks` are read when this runs (once
+ * per dispatch), so a node swap or a hook rebind is observed live (Design Rule 5);
+ * `updateMetadata` rides the sanctioned commit ceremony, never a bypass.
+ */
+export function buildLeafCommandContext(
+	deps: Pick<EditableLeafDeps, 'node' | 'index' | 'commandHooks'>,
+	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
+): Omit<BlockCommandContext, 'arg'> {
+	return {
+		node: deps.node,
+		updateMetadata: (patch) => blockEdit.updateBlockMetadata(deps.index, patch),
+		hooks: deps.commandHooks?.()
+	};
+}
+
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
 	if (mode === 'render-primary' && (!deps.isRevealed || !deps.setRevealed)) {
@@ -155,6 +184,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 
 	let composing = false;
 	let preEditOffset = 0;
@@ -301,6 +331,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	}
 
+	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit);
+
 	// ── View sync ──────────────────────────────────────────────────────────────
 
 	// Chromium with `white-space: pre` won't paint a caret on the line after a
@@ -355,9 +387,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			chord &&
 			dispatchKeyCommand(
 				chord,
-				{ kind: deps.node.kind, runCommand },
+				{ kind: deps.node.kind, runCommand, getCommandContext },
 				{ history },
-				keybindingOverrides()
+				keybindingOverrides(),
+				(report) => emitCommandError(editorEvents, report)
 			)
 		) {
 			e.preventDefault();

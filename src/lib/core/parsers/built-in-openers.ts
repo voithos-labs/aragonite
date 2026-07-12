@@ -7,6 +7,7 @@
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';
+import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { matchFenceOpen, parseFencedCode } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchThematicBreak } from './thematic-break';
@@ -21,7 +22,7 @@ import {
 import { parseLinkReferenceDefinition } from './link-reference';
 
 registerBlockOpener('fencedCode', {
-	priority: 10,
+	priority: OPENER_PRIORITIES.fencedCode,
 	tryOpen(ctx) {
 		const fence = matchFenceOpen(ctx.line.text);
 		if (!fence) return null;
@@ -31,7 +32,7 @@ registerBlockOpener('fencedCode', {
 });
 
 registerBlockOpener('heading', {
-	priority: 20,
+	priority: OPENER_PRIORITIES.heading,
 	tryOpen(ctx) {
 		const heading = matchHeading(ctx.line.text);
 		if (!heading) return null;
@@ -51,7 +52,7 @@ registerBlockOpener('heading', {
 // Setext heading's `---` underline is disambiguated inside parseParagraph;
 // at dispatch a bare thematic line can't be an underline (no open paragraph).
 registerBlockOpener('thematicBreak', {
-	priority: 30,
+	priority: OPENER_PRIORITIES.thematicBreak,
 	tryOpen(ctx) {
 		const marker = matchThematicBreak(ctx.line.text);
 		if (!marker) return null;
@@ -74,7 +75,7 @@ registerBlockOpener('thematicBreak', {
 });
 
 registerBlockOpener('blockquote', {
-	priority: 40,
+	priority: OPENER_PRIORITIES.blockquote,
 	tryOpen(ctx) {
 		if (!matchBlockquote(ctx.line.text)) return null;
 		return parseBlockquote(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
@@ -83,7 +84,7 @@ registerBlockOpener('blockquote', {
 });
 
 registerBlockOpener('list', {
-	priority: 50,
+	priority: OPENER_PRIORITIES.list,
 	tryOpen(ctx) {
 		if (!matchListItem(ctx.line.text)) return null;
 		return parseList(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
@@ -92,7 +93,7 @@ registerBlockOpener('list', {
 });
 
 registerBlockOpener('indentedCode', {
-	priority: 60,
+	priority: OPENER_PRIORITIES.indentedCode,
 	tryOpen(ctx) {
 		if (!matchIndentedCode(ctx.line.text)) return null;
 		// GFM §4.4: indented code cannot interrupt a paragraph — opens only
@@ -104,7 +105,7 @@ registerBlockOpener('indentedCode', {
 });
 
 registerBlockOpener('htmlBlock', {
-	priority: 70,
+	priority: OPENER_PRIORITIES.htmlBlock,
 	tryOpen(ctx) {
 		if (matchHtmlBlock(ctx.line.text) === null) return null;
 		return parseHtmlBlock(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
@@ -113,7 +114,7 @@ registerBlockOpener('htmlBlock', {
 });
 
 registerBlockOpener('linkReferenceDefinition', {
-	priority: 80,
+	priority: OPENER_PRIORITIES.linkReferenceDefinition,
 	tryOpen(ctx) {
 		return parseLinkReferenceDefinition(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 	},

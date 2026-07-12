@@ -19,6 +19,7 @@
  */
 
 import {
+	chromeChild,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
@@ -29,6 +30,7 @@ import {
 	parse,
 	serializeChildren,
 	trimTrailingLineEnding,
+	OPENER_PRIORITIES,
 	type CstNode
 } from '$lib/plugin';
 
@@ -41,14 +43,6 @@ const CLOSE_LINE = /^<\/details>$/;
 
 interface DetailsMetadata {
 	open: boolean;
-}
-
-function makeSummaryChild(text: string): CstNode {
-	return {
-		kind: declaredPluginKind(DETAILS_SUMMARY),
-		leadingTrivia: '',
-		raw: text ? `${text}\n` : '\n'
-	};
 }
 
 /**
@@ -90,7 +84,8 @@ export function registerDetailsKind(): void {
 	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
 
 	registerBlockOpener(details, {
-		priority: 65, // before htmlBlock (70), which else claims `<details>` as a type-6 block
+		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
+		priority: OPENER_PRIORITIES.htmlBlock - 5,
 		// defensive parity, not current behavior: htmlBlock@70's type-6 interrupt
 		// already covers the canonical opener and details wins the re-dispatch at 65 —
 		// this guards against a future priority/interrupt regression.
@@ -136,7 +131,10 @@ export function registerDetailsKind(): void {
 				leadingTrivia: ctx.leadingTrivia,
 				raw,
 				innerPrefix: body.prefix,
-				children: [makeSummaryChild(summaryMatch[1]), ...body.children],
+				children: [
+					chromeChild(declaredPluginKind(DETAILS_SUMMARY), summaryMatch[1]),
+					...body.children
+				],
 				innerSuffix: body.suffix
 			};
 			setPluginMetadata<DetailsMetadata>(node, { open: openMatch[1] !== undefined });

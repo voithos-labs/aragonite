@@ -48,17 +48,27 @@ Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items a
 
 **Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use, so they also bypass the consumer `keybindings` override prop. Expressing a whole-table `block.moveUp/moveDown` cleanly is part of migrating the table chords onto the declarative keymap — its own deliberate change (the consumer-guide's rebindability promise should be scoped or fulfilled with it). Code and thematic-break keyboard reorder shipped; the table case is flagged here.
 
-### Render-primary wall ledger: command→component bridge
+### Container shim hardcodes the component `editable` flag
 
-**Severity:** minor (authoring friction; additive)
-**Files:** `src/routes/test/plugins/mermaid/` (the consumer that surfaced it); `docs/editor/plugin-guide.md` § render-primary recipe
+**Severity:** minor (latent capability gap; no current misbehavior)
+**Files:** `src/lib/editor-actions/container-block-component.ts` (the shim),
+`src/lib/editor-actions/plugin/container.ts` (`ContainerBlockDeps`)
 
-One wall left from the reference build, a 1.2 candidate (the ledger's fence-matcher and
-`normalizeLineEndings` items shipped as `aragonite/plugin` re-exports; the focus-seam wall
-closed with whole-block focus — `blockFocus: 'whole-block'` + the factory's focus-el getter,
-mermaid as the consumer): block commands have no component channel, so view-state commands
-need a plugin-owned node→component bridge every render-primary plugin will rebuild. Also
-minor: the container shim hardcodes `editable: true`.
+The container `BlockComponent` shim hardcodes `editable: true`, so a plugin container cannot declare
+its surface non-editable (an opaque diagram whose only edit path is its own UI). No runtime consumer
+reads the component-surface `editable` flag today — merge (`merge-rules.ts`) and search
+(`document-scan.ts`) key on the descriptor's `editable` — so this is a contract-correctness gap, not
+a bug: mermaid works at `editable: true`.
+
+**Fix direction:** an `editable` override on `ContainerBlockComponentDeps` threaded from the factory,
+the kind declaring the value on its descriptor and the shim reading it — but only after settling
+which gates should read the component flag versus the descriptor flag (today only the descriptor
+flag has readers).
+
+**Why deferred:** the command→component channel wall this entry once bundled has shipped (a minted
+command reaches the mounted component through `ctx.hooks`, threaded by the container/leaf factories'
+`commandHooks` getter; mermaid migrated off its node→hooks map). The residual `editable` flag has no
+reader, so the fix is cosmetic until a consumer needs a non-editable container surface.
 
 ## Test coverage
 
@@ -130,6 +140,27 @@ normalizes.
 **Why deferred:** the byte round-trip holds without edits; the `<details>` HTML rebuild is a distinct
 serializer from the shared `serializeDirective`, so it needs its own threading. Fold into a
 line-ending-fidelity pass.
+
+### Container components re-export the component surface member-by-member
+
+**Severity:** trivial (authoring ergonomics; guarded, not a defect)
+**Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
+
+A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
+`bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
+individual top-level declarations, with no spread. That is ~11 identical lines in every container
+component (callout, details, admonition, mermaid). A trailing `satisfies ContainerBlockComponent`
+now turns a forgotten member into a compile error, so the block is guarded — but the ceremony
+remains.
+
+**Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
+have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through
+(`publishRefSlot`, `SelectionOverlay`, the parent's `innerBlockRefs` walks). Collapses the block to a
+single line, but changes ref normalization for the single most load-bearing dispatch component and
+the whole ref chain, across every block kind — blast radius only the simulation + VR suites observe.
+
+**Target:** 1.2 — carry it with the container-seam ergonomics pass, not as a standalone pre-freeze
+change to the ref chain.
 
 ## Plugin inline widgets
 

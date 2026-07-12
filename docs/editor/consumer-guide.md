@@ -91,14 +91,23 @@ Three paths, by scope:
 2. **Add a named theme** — define `.editor[data-editor-theme='solarized'] { … }` and pass `theme="solarized"`. The base block supplies fallbacks for any token the custom theme omits, so a partial theme overrides only what it names.
 3. **Replace wholesale** — skip `editor-theme.css` and ship your own token file scoped to `.editor`.
 
-### Token contracts
+### Theme tokens
 
-All tokens are editor-owned and shipped with light + dark values, so the module renders correctly host-less in both modes. Override any of them the same way — at `.editor` or a wrapper (never `:root`; see [Overriding](#overriding-and-custom-themes)).
+Every token is editor-owned and declared in `editor-theme.css` — **that file is the authoritative manifest** for the full set and exact values. The role table below is the stable **host-chrome contract**: the tokens the editor and plugins read to blend into your app. Override any at `.editor` or a wrapper (never `:root`; see [Overriding](#overriding-and-custom-themes)).
 
-| Group       | Tokens                                                                                                | Role                                                                                                          |
-| ----------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Content** | `--syntax-*`, `--code-tok-*`, `--font-editor`, `--md-*`, `--selection-overlay-bg`, `--search-match-*` | The editor's own visual language                                                                              |
-| **Chrome**  | `--color-*`                                                                                           | App-chrome flavored (bg/text/border/accent) — override to match your app palette; reads keep inline fallbacks |
+| Role            | Token(s)                                                                        |
+| --------------- | ------------------------------------------------------------------------------- |
+| **Font**        | `--font-editor` _(mode-independent — one value)_                                |
+| **Text**        | `--color-text`, `--color-text-primary`                                          |
+| **Muted**       | `--color-text-muted`, `--color-ui-muted`, `--color-ui-dulled`                   |
+| **Accent**      | `--color-accent`                                                                |
+| **Borders**     | `--color-border`                                                                |
+| **Backgrounds** | `--color-bg`, `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted` |
+| **Danger**      | `--color-danger`                                                                |
+
+**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. `--font-editor` is the one exception: mode-independent, declared once. The editor's own visual language (`--syntax-*`, `--code-tok-*`, `--md-*`, `--selection-overlay-bg`, `--search-match-*`) is dark-based or mode-independent — read `editor-theme.css` for those.
+
+**Plugin fallbacks.** A plugin reading a token keeps an inline fallback (`var(--color-text-muted, #aaaaaa)`) so it renders host-less. The fallback fires only outside `.editor` scope, where no token is declared — so match it to the token's **dark base** value in `editor-theme.css`, never the light one.
 
 ## Behavior / policy props
 
@@ -155,17 +164,17 @@ Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with 
 
 Subscribe to the observer surface via `editor.getEvents()`. Three channels:
 
-| Channel           | Fires                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `edit`            | After every commit (structural ops, the debounced typing flush, undo/redo)                    |
-| `selectionChange` | Whenever the selection changes; payload is the snapshot or null                               |
-| `error`           | On a failure the editor contains rather than propagates (subscriber / render / commit origin) |
+| Channel           | Fires                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| `edit`            | After every commit (structural ops, the debounced typing flush, undo/redo)                              |
+| `selectionChange` | Whenever the selection changes; payload is the snapshot or null                                         |
+| `error`           | On a failure the editor contains rather than propagates (subscriber / render / commit / command origin) |
 
 Payload envelopes (the per-op arms change; read the source type rather than enumerating them here):
 
 - **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op` (the operation kind). `path` is doc-absolute for every op — nested ops and the typing flush included — and resolves from the document root to the operated node. `detail` is the per-op payload defined in `schema/operations.ts`.
 - **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
-- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit` and `context` carries the block path or op kind when known.
+- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command` and `context` carries the block path or op kind when known (and, for a `command` throw, the block kind, command id, and owning plugin).
 
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
 

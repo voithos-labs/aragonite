@@ -8,7 +8,8 @@
 		TableContext
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
 	import type { CstNode } from '../../../core/nodes';

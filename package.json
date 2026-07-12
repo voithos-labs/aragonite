@@ -1,6 +1,6 @@
 {
 	"name": "aragonite",
-	"version": "0.9.19",
+	"version": "0.9.20",
 	"description": "CST block editor for GFM Markdown",
 	"type": "module",
 	"license": "MIT",
@@ -16,6 +16,11 @@
 			"types": "./dist/plugin.d.ts",
 			"svelte": "./dist/plugin.js",
 			"default": "./dist/plugin.js"
+		},
+		"./testing": {
+			"types": "./dist/testing.d.ts",
+			"svelte": "./dist/testing.js",
+			"default": "./dist/testing.js"
 		},
 		"./styles/editor-theme.css": "./dist/styles/editor-theme.css"
 	},

@@ -4,7 +4,13 @@
 	// the descriptor's `reservedChrome.isCollapsed` probe. The factory derives its
 	// window/focus clamp from that probe, so this component threads no collapse dep;
 	// it reads `isCollapsedContainer` only for its own disclosure UI.
-	import { BlockList, createContainerBlock, isCollapsedContainer, type CstNode } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		isCollapsedContainer,
+		type ContainerBlockComponent,
+		type CstNode
+	} from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
@@ -47,6 +53,23 @@
 	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
+
+	// Completeness guard: `bind:this` reads each instance export individually, so the
+	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
+	// new ContainerBlockComponent member is added and left un-forwarded above.
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 </script>
 
 <div class="details-block" bind:this={boxEl}>

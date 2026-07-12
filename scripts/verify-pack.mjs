@@ -10,6 +10,8 @@ const REQUIRED = [
 	'dist/index.d.ts',
 	'dist/plugin.js',
 	'dist/plugin.d.ts',
+	'dist/testing.js',
+	'dist/testing.d.ts',
 	'dist/components/Editor.svelte',
 	'dist/styles/editor.css',
 	'dist/styles/editor-theme.css'

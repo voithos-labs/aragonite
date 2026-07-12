@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createEditorEvents } from '$lib/editor-events';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
+import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
+import type { AnyBlockKind } from '$lib/core/nodes';
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {
@@ -182,5 +184,48 @@ describe('editor-events — error channel', () => {
 		expect(() => events.emit('error', { origin: 'render', error: new Error('x') })).not.toThrow();
 		expect(spy).toHaveBeenCalled();
 		spy.mockRestore();
+	});
+});
+
+describe('emitCommandError', () => {
+	afterEach(() => __resetInstalledPluginsForTests());
+
+	it("emits origin:'command' attributing the kind, command, and recorded plugin owner", () => {
+		recordPluginKindOwner('demoNote', 'admonitions');
+		const events = createEditorEvents();
+		const captured: EditorError[] = [];
+		events.on('error', (e) => captured.push(e));
+		const boom = new Error('handler boom');
+
+		emitCommandError(events, {
+			kind: 'demoNote' as AnyBlockKind,
+			command: 'note.setVariant',
+			error: boom
+		});
+
+		expect(captured).toHaveLength(1);
+		expect(captured[0].origin).toBe('command');
+		expect(captured[0].error).toBe(boom);
+		expect(captured[0].context).toEqual({
+			kind: 'demoNote',
+			command: 'note.setVariant',
+			plugin: 'admonitions'
+		});
+	});
+
+	it('omits the plugin when the kind has no recorded owner', () => {
+		const events = createEditorEvents();
+		const captured: EditorError[] = [];
+		events.on('error', (e) => captured.push(e));
+
+		emitCommandError(events, { kind: 'paragraph', command: 'x.y', error: new Error('e') });
+
+		expect(captured[0].context).toEqual({ kind: 'paragraph', command: 'x.y', plugin: undefined });
+	});
+
+	it('no-ops without an events surface (a mount that never provided the context)', () => {
+		expect(() =>
+			emitCommandError(undefined, { kind: 'paragraph', command: 'x.y', error: new Error('e') })
+		).not.toThrow();
 	});
 });

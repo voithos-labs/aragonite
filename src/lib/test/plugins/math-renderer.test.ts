@@ -65,45 +65,9 @@ describe('createMemoizedRenderer', () => {
 		expect(inner).toHaveBeenCalledTimes(4);
 	});
 
-	// A2 — flat latency to 75+ equations: N distinct sources cost N renders, and a
-	// full re-render pass over all N adds nothing. The large-doc thesis (a note
-	// with 75 equations must not re-render all 75 on every edit) reduces to this.
-	it('renders 75 equations once each; a full re-render pass adds nothing (A2)', () => {
-		const inner = vi.fn((_source: string, _opts: { display: boolean }) => ({
-			dom: document.createElement('span')
-		}));
-		const render = createMemoizedRenderer(inner);
-		const equations = Array.from({ length: 75 }, (_, i) => `x_{${i}}`);
-
-		for (const eq of equations) render(eq, { display: false });
-		expect(inner).toHaveBeenCalledTimes(75);
-
-		for (const eq of equations) render(eq, { display: false });
-		expect(inner).toHaveBeenCalledTimes(75);
-	});
-
-	// Every keystroke while editing source mints a new key, so the cache must be
-	// bounded: past the cap the least-recently-used entry is evicted, and a hit
-	// refreshes recency so hot formulas survive churn.
-	it('evicts the least-recently-used entry past the cap; a hit refreshes recency', () => {
-		const inner = vi.fn((_source: string, _opts: { display: boolean }) => ({
-			dom: document.createElement('span')
-		}));
-		const render = createMemoizedRenderer(inner, 2);
-
-		render('a', { display: false });
-		render('b', { display: false });
-		render('a', { display: false }); // hit — 'a' becomes most recent
-		expect(inner).toHaveBeenCalledTimes(2);
-
-		render('c', { display: false }); // evicts 'b' (LRU), not 'a'
-		expect(inner).toHaveBeenCalledTimes(3);
-
-		render('a', { display: false }); // still cached
-		expect(inner).toHaveBeenCalledTimes(3);
-		render('b', { display: false }); // evicted — renders again
-		expect(inner).toHaveBeenCalledTimes(4);
-	});
+	// The bounded-LRU mechanics (eviction, recency, clone identity) are pinned once
+	// on the shared primitive in bounded-memo.test.ts; these cases pin the wrapper's
+	// own contract — cloneOnRead wiring and the (source, display) composite key.
 });
 
 describe('katexRenderer', () => {

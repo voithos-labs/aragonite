@@ -15,6 +15,9 @@ import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 // installPlugins directly. isPluginInstalled is the idempotence probe.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin } from './schema/plugin-install';
+// The single-block plugin unit: one kind, one component, one register step. The
+// common case that needn't touch definePlugin + registerBlockComponent directly.
+export { definePluginBlock } from './schema/define-plugin-block';
 
 // ── Kind declaration ─────────────────────────────────────────────────────────
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
@@ -64,6 +67,9 @@ export type { BlockComponent, BlockComponentProps } from './block-component';
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
 export type { BlockOpener, OpenContext } from './schema/block-openers';
+// The built-in priority ladder a plugin opener prices against — see the plugin
+// guide's opener-priority section for the two placement rules.
+export { OPENER_PRIORITIES } from './schema/opener-priorities';
 
 // ── Command vocabulary + keybindings ─────────────────────────────────────────
 // CommandId names the built-in command a keymap binding targets; KeyBinding is
@@ -133,6 +139,9 @@ export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions)
 	bindChromeLeaf(kind, TextEditableBlock, opts);
 }
 export type { ChromeLeafOptions };
+// Mint the reserved child-0 node for the chrome leaf a container declares — the
+// title/summary text plus its trailing newline.
+export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 // Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
 // collapse getter and the model-layer walks share one definition.
 export { isCollapsedContainer } from './schema/reserved-chrome';
@@ -165,6 +174,17 @@ export { registerDirective, isDirectiveRegistered } from './core/directive/regis
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
 export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
+// Build the `rebuildRaw` for a directive container whose child 0 is an editable
+// title — owns the title→opener, body serialization, and CRLF line-ending threading.
+export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
+
+// ── Renderer utilities ────────────────────────────────────────────────────────
+// A bounded LRU memo for a plugin renderer's per-source work: sync (with an
+// optional clone-on-read for live DOM nodes) or async (the value is the render
+// promise, so in-flight work is shared and a rejection is cached). See the plugin
+// guide's renderer recipe.
+export { createBoundedMemo } from './bounded-memo';
+export type { BoundedMemoOptions } from './bounded-memo';
 
 // ── Paste transforms (pre-freeze / unstable) ──────────────────────────────────
 // Being refined against the conversion-config direction until the open-source

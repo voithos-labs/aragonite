@@ -1,0 +1,149 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+	dispatchKeyCommand,
+	registerBlockCommand,
+	__resetBlockCommandsForTests
+} from '$lib/schema/block-commands';
+import { __resetCommandWarningsForTests } from '$lib/schema/commands';
+import { normalizeChordStrict } from '$lib/schema/keybindings';
+import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { buildLeafCommandContext } from '$lib/components/blocks/editable-leaf';
+import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import type { AnyCommandId } from '$lib/schema/command-id';
+
+// Branded plugin kinds, declared once at module scope (the reset clears commands,
+// not kind declarations; a per-test declare would double-throw).
+const leaf = declarePluginKind('demoLeaf');
+const leafAlt = declarePluginKind('demoLeafAlt');
+
+const leafNode = (kind: AnyBlockKind = leaf): CstNode => ({ kind, leadingTrivia: '', raw: '' });
+
+function bindKindChord(
+	kind: AnyBlockKind,
+	chord: string,
+	command: AnyCommandId
+): KeybindingOverrideMap {
+	const normalized = normalizeChordStrict(chord);
+	if (normalized === null) throw new Error(`unexpected chord normalization for "${chord}"`);
+	return {
+		global: new Map(),
+		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]])
+	};
+}
+
+const history = { history: { requestUndo() {}, requestRedo() {} } };
+
+afterEach(() => {
+	__resetCommandWarningsForTests();
+	__resetBlockCommandsForTests();
+});
+
+describe('editable-leaf command context', () => {
+	it('routes updateMetadata to blockEdit.updateBlockMetadata at the live index', () => {
+		const updateBlockMetadata = vi.fn();
+		const index = 3;
+		const ctx = buildLeafCommandContext(
+			{
+				get node() {
+					return leafNode();
+				},
+				get index() {
+					return index;
+				},
+				commandHooks: undefined
+			},
+			{ updateBlockMetadata }
+		);
+
+		ctx.updateMetadata({ code: 'x' });
+		expect(updateBlockMetadata).toHaveBeenCalledWith(3, { code: 'x' });
+	});
+
+	it('threads commandHooks so a handler reaches the component; absent → undefined', () => {
+		const hooks = { openEdit: vi.fn() };
+		const withHooks = buildLeafCommandContext(
+			{
+				get node() {
+					return leafNode();
+				},
+				get index() {
+					return 0;
+				},
+				commandHooks: () => hooks
+			},
+			{ updateBlockMetadata: vi.fn() }
+		);
+		expect(withHooks.hooks).toBe(hooks);
+
+		const without = buildLeafCommandContext(
+			{
+				get node() {
+					return leafNode();
+				},
+				get index() {
+					return 0;
+				},
+				commandHooks: undefined
+			},
+			{ updateBlockMetadata: vi.fn() }
+		);
+		expect(without.hooks).toBeUndefined();
+	});
+
+	it('reads deps.node live so a node swap is observed (Design Rule 5)', () => {
+		let node = leafNode();
+		const build = () =>
+			buildLeafCommandContext(
+				{
+					get node() {
+						return node;
+					},
+					get index() {
+						return 0;
+					},
+					commandHooks: undefined
+				},
+				{ updateBlockMetadata: vi.fn() }
+			);
+
+		expect(build().node).toBe(node);
+		node = leafNode(leafAlt);
+		expect(build().node.kind).toBe(leafAlt);
+	});
+
+	// The leaf tier reaches a minted handler through the same dispatch seam as the
+	// container tier: a chord on the focused leaf resolves the registered command
+	// and hands it the leaf's command context, hooks included.
+	it('dispatches a minted command on the leaf path with hooks reaching the handler', () => {
+		const hooks = { openFocusView: vi.fn() };
+		const handler = vi.fn((ctx: { hooks?: unknown }) => {
+			(ctx.hooks as { openFocusView(): void } | undefined)?.openFocusView();
+			return true;
+		});
+		const id = registerBlockCommand(leaf, 'leaf.focus', handler);
+		const overrides = bindKindChord(leaf, 'Mod+Shift+K', id);
+		const node = leafNode();
+		const target = {
+			kind: leaf,
+			runCommand: () => false,
+			getCommandContext: () =>
+				buildLeafCommandContext(
+					{
+						get node() {
+							return node;
+						},
+						get index() {
+							return 0;
+						},
+						commandHooks: () => hooks
+					},
+					{ updateBlockMetadata: vi.fn() }
+				)
+		};
+
+		const handled = dispatchKeyCommand('Mod+Shift+K', target, history, overrides);
+		expect(handled).toBe(true);
+		expect(hooks.openFocusView).toHaveBeenCalledTimes(1);
+	});
+});

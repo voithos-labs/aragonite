@@ -21,8 +21,19 @@ import {
 import { normalizeChord, type KeyBinding } from '../../schema/keybindings';
 import { registerPasteSurface } from '../../tree-operations/paste-surfaces';
 import { defaultInlineHook } from '../../tree-operations/paste/hooks';
-import type { AnyBlockKind } from '../../core/nodes';
+import type { AnyBlockKind, CstNode } from '../../core/nodes';
 import type { BlockComponent, BlockComponentProps } from '../../block-component';
+
+/**
+ * Build the reserved child-0 node a directive container mints for its chrome leaf
+ * (a callout title, a details summary) — single-line text plus its trailing
+ * newline, empty title collapsing to a bare newline so the empty leaf still holds
+ * a line. Pair of `registerChromeLeaf`: that registers the kind, this mints an
+ * instance of it.
+ */
+export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
+	return { kind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' };
+}
 
 export interface ChromeLeafOptions {
 	/** CSS class on the leaf's surface, for chrome styling. */

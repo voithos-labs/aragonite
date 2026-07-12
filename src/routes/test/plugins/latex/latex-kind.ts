@@ -17,6 +17,7 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	isInlineKindDeclared,
+	OPENER_PRIORITIES,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode
@@ -108,9 +109,9 @@ export function registerMathBlock(): void {
 
 	registerBlockOpener(mathBlock, {
 		// `$$` collides with no built-in matcher, so priority is only collision
-		// avoidance; 15 sits just past the sibling verbatim fence (fencedCode@10)
-		// and ties nothing (built-ins step by 10; the callout/details harness use 45/65).
-		priority: 15,
+		// avoidance; sits just past the sibling verbatim fence (`fencedCode`) and
+		// ties nothing (built-ins step by 10; the callout/details harness use 45/65).
+		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
 		tryOpen(ctx) {
 			const text = ctx.line.text;
