@@ -87,6 +87,8 @@ The baseline is a ratchet: a divergence not in it fails the slice, and a stale e
 
 Tests the editor component in a real Chromium browser. No Tauri backend needed — the editor is self-contained.
 
+Every spec imports `test`/`expect` from the shared fixtures module (`src/lib/e2e/fixtures.ts`), never from `@playwright/test` directly: the shared `test` fails any spec whose page emits an `[invariant:…]` console fire, so dev-guard violations surface at the spec that triggered them instead of passing silently. A spec that intentionally injects invariant fires opts out with `test.use({ expectInvariants: true })` and asserts the fires itself.
+
 ### Architecture
 
 ```

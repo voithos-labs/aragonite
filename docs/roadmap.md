@@ -23,17 +23,12 @@ portal widgets, the reference plugin, the editable-leaf tier). The dominant rema
 inverted — it is no longer "the API is missing something" but "the validation is one clean-room
 run deep, and every consumer since was in-repo and same-day." The remaining items answer that.
 
-1. **CI + contributor hardening** — runs first because the limestone integration is
-   collaborative: a second developer enters the repo, so the item's own "before external
-   contributors arrive" clause is due, and it generates no API findings — nothing is learned
-   later by front-loading it. `perf:check` green on the prod build in CI with the
-   accept-documented limits staying accurate (single-giant-paragraph keystroke, extreme
-   flat-document load); shard the Playwright battery across a parallel job matrix (pays every
-   PR); complete the invariant-watcher fixture adoption sweep (a one-line import per remaining
-   spec); and diagnose the attribution-axes settle timeout (`docs/issues.md`) so a newcomer
-   never has to learn which red is "known pre-existing." Plus the contributor front door,
-   pulled forward thin: a minimal CONTRIBUTING (setup, gate tiers, commit conventions, pointer
-   to `docs/culture.md`) — the full culture.md promotion with PR flow stays at the freeze cut.
+1. **Attribution-axes diagnosis** — the one piece of CI hardening left (the sharded battery,
+   the prod-build perf gate, the watcher sweep, and the minimal CONTRIBUTING shipped in
+   0.9.17): diagnose the attribution axes' settle timeout on 1MB fixtures (`docs/issues.md`)
+   so the perf story carries no standing red anywhere — today the axes are excluded from the
+   CI gate as recorded diagnostics. The full culture.md promotion with PR flow stays at the
+   freeze cut.
 2. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
