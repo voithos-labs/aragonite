@@ -104,13 +104,15 @@ function mountMathBlock() {
 
 	const interaction = createWidgetInteraction(deps);
 
+	// Arrow-entry from the LEFT of the widget opens its reveal at the leading edge and
+	// anchors undo at the widget's leading offset (math.start) — the anchor the commit
+	// assertions below depend on. Entry from the right would anchor at math.end.
 	async function reveal(): Promise<void> {
-		widgetSelection.select({
-			paragraphPath: [0],
-			sourceStart: math.start,
-			preSelectOffset: math.start
-		});
-		await interaction.handleSelectedWidgetKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+		interaction.handleWidgetAtCursorKeydown(
+			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
+			math.start
+		);
+		await new Promise((r) => setTimeout(r));
 	}
 
 	return {
@@ -248,13 +250,12 @@ describe('cancelReveal — identity-exact fold-back', () => {
 			}
 		} as unknown as WidgetInteractionDeps);
 
-		// Reveal the SECOND widget, then Escape-cancel.
-		widgetSelection.select({
-			paragraphPath: [0],
-			sourceStart: second.start,
-			preSelectOffset: second.start
-		});
-		await interaction.handleSelectedWidgetKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+		// Reveal the SECOND widget via arrow-entry from its left, then Escape-cancel.
+		interaction.handleWidgetAtCursorKeydown(
+			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
+			second.start
+		);
+		await new Promise((r) => setTimeout(r));
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 

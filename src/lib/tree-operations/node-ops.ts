@@ -349,6 +349,11 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
  * has a target (a list item with no content after the marker, etc.).
  */
 export function ensureEditableContainers(node: CstNode): void {
+	// A whole-block-focus kind (opaque childless diagram) is childless by design —
+	// the block itself is the caret target. Backfilling it would strand a phantom
+	// paragraph its raw can never account for (opaque-stale-raw fires on the
+	// first commit that checks the node).
+	if (getBlockKindDescriptor(node.kind).blockFocus === 'whole-block') return;
 	if (node.children !== undefined) {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header

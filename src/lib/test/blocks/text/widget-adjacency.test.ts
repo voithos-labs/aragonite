@@ -30,7 +30,8 @@ describe('widgetAtCursor', () => {
 		expect(widgetAtCursor(0, imageInlines, IMAGE_RAW)).toEqual({
 			start: 0,
 			end: 11,
-			atRight: false
+			atRight: false,
+			kind: 'image'
 		});
 	});
 
@@ -38,7 +39,8 @@ describe('widgetAtCursor', () => {
 		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW)).toEqual({
 			start: 0,
 			end: 11,
-			atRight: true
+			atRight: true,
+			kind: 'image'
 		});
 	});
 
@@ -57,7 +59,12 @@ describe('widgetAtCursor', () => {
 	it('treats a <br> rawHtml node as a live widget but a non-live tag as plain', () => {
 		const brRaw = 'a<br>b';
 		const brInlines = [text(0, 1, 'a'), rawHtml(1, 5), text(5, 6, 'b')];
-		expect(widgetAtCursor(1, brInlines, brRaw)).toEqual({ start: 1, end: 5, atRight: false });
+		expect(widgetAtCursor(1, brInlines, brRaw)).toEqual({
+			start: 1,
+			end: 5,
+			atRight: false,
+			kind: 'rawHtml'
+		});
 
 		const spanRaw = 'a<span>b';
 		const spanInlines = [text(0, 1, 'a'), rawHtml(1, 7), text(7, 8, 'b')];
@@ -105,7 +112,8 @@ describe('widget nested inside a link node', () => {
 		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW)).toEqual({
 			start: 1,
 			end: 13,
-			atRight: false
+			atRight: false,
+			kind: 'image'
 		});
 	});
 
@@ -113,7 +121,8 @@ describe('widget nested inside a link node', () => {
 		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW)).toEqual({
 			start: 1,
 			end: 13,
-			atRight: true
+			atRight: true,
+			kind: 'image'
 		});
 	});
 });
@@ -122,13 +131,13 @@ describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
 	it('finds a leading widget after skipping blank text', () => {
 		const raw = '  ![a](x.png)\n';
 		const inlines = [text(0, 2, '  '), image(2, 13)];
-		expect(findFirstEdgeWidget(inlines, raw)).toEqual({ start: 2, end: 13 });
+		expect(findFirstEdgeWidget(inlines, raw)).toMatchObject({ start: 2, end: 13, kind: 'image' });
 	});
 
 	it('finds a trailing widget after skipping blank text', () => {
 		const raw = '![a](x.png)  \n';
 		const inlines = [image(0, 11), text(11, 13, '  ')];
-		expect(findLastEdgeWidget(inlines, raw)).toEqual({ start: 0, end: 11 });
+		expect(findLastEdgeWidget(inlines, raw)).toMatchObject({ start: 0, end: 11, kind: 'image' });
 	});
 
 	it('returns null when non-blank text precedes the first widget', () => {

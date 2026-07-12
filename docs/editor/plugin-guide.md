@@ -422,7 +422,7 @@ can drive the block.
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
 	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
 </script>
@@ -571,12 +571,15 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
   re-bound when an undo replaces the node.
 
 **What you give up with the textarea.** The code text is not editor-native: no cross-block
-selection through it, and the textarea's caret/IME is the browser's, not the editor's. The block
-also opts out of caret traversal — the container factory's focus surface walks into children, and
-this container has none, so export `focusable: false` and let arrows glide past; mouse and commands
-reach the block. The editable-leaf tier (§ 4) is the answer when you want a source view with a
-native caret — rebuilding the render-primary block on `createEditableLeaf` (block math's shape) is
-the recipe's upgrade path.
+selection through it, and the textarea's caret/IME is the browser's, not the editor's. Because the
+container has no children, a caret cannot land _inside_ it — so opt into **whole-block focus**:
+declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocusEl` getter
+returning the element that takes DOM focus (a `tabindex=0` viewport). Arrows then stop on the block
+(ThematicBreak's model), a caret-adjacent Backspace/Delete focuses it before a second press
+deletes, Enter inserts a paragraph below, and Alt+arrows reorder it — keyboard and click share the
+one focus state, and keys inside your own editing surface never trigger a block delete. The
+editable-leaf tier (§ 4) is the answer when you want a source view with a native caret — rebuilding
+the render-primary block on `createEditableLeaf` (block math's shape) is the recipe's upgrade path.
 
 ## 6. What a plugin may and may not do
 

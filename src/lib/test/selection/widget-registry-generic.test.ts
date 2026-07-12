@@ -2,7 +2,7 @@
  * Regression: widget edge-select and vertical-transparency are registry-generic,
  * not image-coupled. A non-image live widget — the built-in `<br>` rawHtml
  * widget — must travel the same predicates the selection/focus entry layer uses:
- * `findFirst/LastEdgeWidget` (behind `selectEdgeWidget`) and
+ * `findFirst/LastEdgeWidget` (behind `enterEdgeWidget`) and
  * `isVerticallyTransparentNode` (behind cross-block vertical traversal). Re-couple
  * recognition to `kind === 'image'` and the `<br>` assertions below go red.
  *
@@ -45,28 +45,38 @@ describe('vertical transparency for a non-image widget', () => {
 });
 
 describe('edge-widget helpers for a non-image widget', () => {
-	it('locate the <br> in the real parsed inline content selectEdgeWidget walks', () => {
+	it('locate the <br> in the real parsed inline content enterEdgeWidget walks', () => {
 		const para = parse('<br> <br>\n').children[0];
 		const inlines = getInlineContent(para);
-		expect(findFirstEdgeWidget(inlines, para.raw)).toEqual({ start: 0, end: 4 });
-		expect(findLastEdgeWidget(inlines, para.raw)).toEqual({ start: 5, end: 9 });
+		expect(findFirstEdgeWidget(inlines, para.raw)).toMatchObject({
+			start: 0,
+			end: 4,
+			kind: 'rawHtml'
+		});
+		expect(findLastEdgeWidget(inlines, para.raw)).toMatchObject({
+			start: 5,
+			end: 9,
+			kind: 'rawHtml'
+		});
 	});
 
 	// Blank padding at a paragraph edge is trivia the parser can't keep inside a
 	// paragraph, so hand-build to pin the skip-blank-text branch for a `<br>`.
 	it('findFirstEdgeWidget skips leading blank text to a <br>', () => {
 		const raw = '  <br>\n';
-		expect(findFirstEdgeWidget([text(0, 2, '  '), rawHtml(2, 6)], raw)).toEqual({
+		expect(findFirstEdgeWidget([text(0, 2, '  '), rawHtml(2, 6)], raw)).toMatchObject({
 			start: 2,
-			end: 6
+			end: 6,
+			kind: 'rawHtml'
 		});
 	});
 
 	it('findLastEdgeWidget skips trailing blank text to a <br>', () => {
 		const raw = '<br>  \n';
-		expect(findLastEdgeWidget([rawHtml(0, 4), text(4, 6, '  ')], raw)).toEqual({
+		expect(findLastEdgeWidget([rawHtml(0, 4), text(4, 6, '  ')], raw)).toMatchObject({
 			start: 0,
-			end: 4
+			end: 4,
+			kind: 'rawHtml'
 		});
 	});
 

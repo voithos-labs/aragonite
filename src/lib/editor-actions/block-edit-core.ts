@@ -29,6 +29,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { UndoEntryMode } from '../action-contracts';
 import type { CommitScope } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
@@ -104,6 +105,15 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const currKind = children[i].kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
+				// A whole-block-focus neighbor (opaque childless plugin block) is
+				// focused, not deleted: press one highlights it, a second press on the
+				// now-focused block deletes it. No commit, no undo entry — this is a
+				// focus move, not a mutation. Ordered before the delete/move fallbacks
+				// so a not-mergeable-but-editable kind (mermaid) never dead-ends here.
+				if (getBlockKindDescriptor(prevKind).blockFocus === 'whole-block') {
+					scope.refAt(i - 1)?.focus(0);
+					return;
+				}
 				if (!isBlockEditable(prevKind)) {
 					await scope.commit({
 						snapshot: { index: i, offset: 0 },
@@ -143,6 +153,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const nextKind = children[i + 1].kind;
 
 			if (!isMergeEligible(currKind, nextKind)) {
+				// Forward twin of the whole-block-focus fallback: Delete at the end of
+				// the block above focuses the opaque neighbor instead of deleting it.
+				if (getBlockKindDescriptor(nextKind).blockFocus === 'whole-block') {
+					scope.refAt(i + 1)?.focus(0);
+					return;
+				}
 				if (!isBlockEditable(nextKind)) {
 					await scope.commit({
 						snapshot: { index: i, offset: CURSOR_END },

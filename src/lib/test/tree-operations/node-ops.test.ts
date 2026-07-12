@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { ensureEditableContainers } from '../../tree-operations/node-ops';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
+import { registerBlockKind } from '../../schema/block-kind-descriptor';
+import { declarePluginKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 
 describe('ensureEditableContainers', () => {
@@ -63,6 +67,45 @@ describe('ensureEditableContainers', () => {
 		ensureEditableContainers(bq);
 		expect(bq.innerPrefix).toBe('');
 		expect(bq.children).toHaveLength(1);
+	});
+});
+
+// A whole-block-focus kind is childless BY DESIGN — the block itself is the
+// caret target, so the backfill's "cursor always has a target" rationale does
+// not apply. A backfilled phantom paragraph makes the opaque node permanently
+// fail checkOpaqueStaleRaw (raw can never account for a child it doesn't
+// contain), which fired on the first commits to ever run the checker over a
+// live mermaid node (Enter-split, Alt-arrow reorder).
+describe('ensureEditableContainers — whole-block-focus kinds stay childless', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	function wholeBlockNode(): CstNode {
+		const kind = declarePluginKind('node-ops-whole-block');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			blockFocus: 'whole-block',
+			container: { contract: 'opaque', rebuildRaw: () => {} }
+		});
+		return { kind, leadingTrivia: '', raw: '```x\ny\n```\n', children: [] };
+	}
+
+	it('does not backfill a whole-block-focus opaque container', () => {
+		const node = wholeBlockNode();
+		ensureEditableContainers(node);
+		expect(node.children).toEqual([]);
+		expect(node.innerPrefix).toBeUndefined();
+	});
+
+	it('a backfilled-then-committed node would fire opaque-stale-raw; skipping keeps it clean', () => {
+		const node = wholeBlockNode();
+		ensureEditableContainers(node);
+		// The staleness checker reparses raw through the registry; without an
+		// opener for the test kind it bails on the reparse branch — so assert the
+		// faithfulness precondition directly: children contribute zero bytes.
+		expect((node.children ?? []).map((c) => c.raw).join('')).toBe('');
+		expect(checkOpaqueStaleRaw(node)).toBeNull();
 	});
 });
 

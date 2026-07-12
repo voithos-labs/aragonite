@@ -101,13 +101,16 @@ function mountTwoMathBlock() {
 		}
 	} as unknown as WidgetInteractionDeps);
 
+	// Arrow-entry from the right of the first widget opens its reveal at the trailing
+	// edge (the Obsidian model — no select-then-Enter). handleWidgetAtCursorKeydown
+	// runs startReveal's synchronous prefix (showSource + revealSettling) before it
+	// returns, so the reveal is already swapping when the caller inspects it.
 	async function revealFirst(): Promise<void> {
-		widgetSelection.select({
-			paragraphPath: [0],
-			sourceStart: first.start,
-			preSelectOffset: first.start
-		});
-		await interaction.handleSelectedWidgetKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+		interaction.handleWidgetAtCursorKeydown(
+			new KeyboardEvent('keydown', { key: 'ArrowLeft' }),
+			first.end
+		);
+		await new Promise((r) => setTimeout(r));
 	}
 
 	function placeCaretIn(target: Node, offset: number): void {

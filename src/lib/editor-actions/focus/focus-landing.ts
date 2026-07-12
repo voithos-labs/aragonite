@@ -27,10 +27,10 @@ export async function consumeStickyLanding(
 		return;
 	}
 
-	// Prefer widget select over a no-op caret at the widget's edge — one
-	// visible step instead of "land on edge, press again to select".
-	if (position === 'start' && block.selectEdgeWidget?.('start')) return;
-	if (position === 'end' && block.selectEdgeWidget?.('end')) return;
+	// Enter an edge widget rather than dropping a no-op caret at its boundary —
+	// reveal-capable widgets open their source, images select (one visible step).
+	if (position === 'start' && block.enterEdgeWidget?.('start')) return;
+	if (position === 'end' && block.enterEdgeWidget?.('end')) return;
 
 	if (isStickyMove) {
 		const x = stickyColumn.get();

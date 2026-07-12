@@ -14,7 +14,7 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
-import type { CstNode, InlineNode } from '../../../core/nodes';
+import type { AnyInlineKind, CstNode, InlineNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -32,6 +32,8 @@ import { caretIsInTextContent } from './click-snap-guard';
 import {
 	widgetAtCursor,
 	findWidgetNodeByStart,
+	findFirstEdgeWidget,
+	findLastEdgeWidget,
 	rawHasNoTextBefore,
 	rawHasNoTextAfter
 } from './widget-adjacency';
@@ -75,6 +77,10 @@ export interface WidgetInteraction {
 	handleShiftArrowIntoWidget(e: KeyboardEvent): boolean;
 	/** Plain Arrow/Delete/typing while the caret sits against a widget edge. */
 	handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean;
+	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
+	 *  source reveal; any other widget is selected (image overlay). Returns whether
+	 *  an edge widget was entered. */
+	enterEdgeWidget(side: 'start' | 'end'): boolean;
 	/** Snap a click that landed outside any text node to the nearest widget edge. */
 	snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
@@ -135,10 +141,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		revealedWidget = null;
 	}
 
-	async function startReveal(inline: InlineNode, caretBefore: number): Promise<void> {
+	async function startReveal(
+		widget: { start: number; end: number },
+		caretBefore: number,
+		atSourceOffset = 0
+	): Promise<void> {
 		if (activeReveal) return;
-		const start = inline.start;
-		const end = inline.end;
+		const start = widget.start;
+		const end = widget.end;
 		const source = deps.node.raw.slice(start, end);
 		// The imperative span-swap IS the inline mechanism: replace the opaque
 		// [data-inline-widget] island with a text node and back.
@@ -184,7 +194,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// fold for the rest of the block's life.
 		revealSettling = true;
 		try {
-			await reveal.reveal();
+			await reveal.reveal(atSourceOffset);
 		} finally {
 			revealSettling = false;
 		}
@@ -366,7 +376,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		);
 		if (!target) return;
 		el.focus();
-		void startReveal(target, target.start);
+		// A click can't map to a source glyph — land at the leading edge (offset 0).
+		void startReveal(target, target.start, 0);
 	}
 
 	function isRevealing(): boolean {
@@ -429,13 +440,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
 			});
 			if (consumed) return true;
-			// Enter on a reveal-source widget swaps the rendered island for its editable
-			// `$…$` source (click-into is the other trigger — snapClickToWidgetEdge).
-			if (policy?.revealSource && e.key === 'Enter') {
-				e.preventDefault();
-				await startReveal(inline, selectedWidget.preSelectOffset);
-				return true;
-			}
 		}
 		// A kind that claims no Shift+Arrow key still swallows it — stepping out is
 		// reserved for plain Arrow (the branches below).
@@ -519,6 +523,31 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return true;
 	}
 
+	// The reveal-vs-select entry dispatch, shared by within-block caret entry and
+	// cross-block edge landing — the ONE seam the policy split lives at (the click
+	// path keys off the same `revealSource` predicate). A reveal-capable kind opens
+	// its source reveal at the entered edge (Obsidian model — the caret never parks
+	// in an invisible widget-selected state); anything else selects (image overlay).
+	// `fromTrailingEdge` is the direction the caret entered from: it fixes both the
+	// reveal caret target (trailing edge = source length, leading = 0) and the undo /
+	// pre-select anchor (the widget's trailing vs leading offset).
+	function enterWidget(
+		widget: { start: number; end: number; kind: AnyInlineKind },
+		fromTrailingEdge: boolean
+	): void {
+		const enteredOffset = fromTrailingEdge ? widget.end : widget.start;
+		if (getInlineWidgetEditing(widget.kind)?.revealSource) {
+			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
+			void startReveal(widget, enteredOffset, atSourceOffset);
+		} else {
+			deps.widgetSelection.select({
+				paragraphPath: deps.myPath,
+				sourceStart: widget.start,
+				preSelectOffset: enteredOffset
+			});
+		}
+	}
+
 	function handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean {
 		if (activeReveal) return false;
 		if (effectiveOffset === null) return false;
@@ -526,24 +555,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const widgetAt = widgetAtCursor(effectiveOffset, inlinesOf(node), node.raw);
 		if (!widgetAt) return false;
 
-		if (!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace')) {
+		// Caret-entry against a widget edge: ArrowLeft/Backspace from the trailing
+		// edge, ArrowRight/Delete from the leading edge.
+		const enterFromRight =
+			!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
+		const enterFromLeft =
+			!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
+		if (enterFromRight || enterFromLeft) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
-			deps.widgetSelection.select({
-				paragraphPath: deps.myPath,
-				sourceStart: widgetAt.start,
-				preSelectOffset: widgetAt.end
-			});
-			return true;
-		}
-		if (!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete')) {
-			e.preventDefault();
-			deps.setSnapTarget(null);
-			deps.widgetSelection.select({
-				paragraphPath: deps.myPath,
-				sourceStart: widgetAt.start,
-				preSelectOffset: widgetAt.start
-			});
+			enterWidget(widgetAt, enterFromRight);
 			return true;
 		}
 		// Chromium inserts into a text node natively, but drops printable keys at
@@ -561,6 +582,21 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return true;
 		}
 		return false;
+	}
+
+	function enterEdgeWidget(side: 'start' | 'end'): boolean {
+		const inlines = inlinesOf(deps.node);
+		if (inlines.length === 0) return false;
+		const target =
+			side === 'start'
+				? findFirstEdgeWidget(inlines, deps.node.raw)
+				: findLastEdgeWidget(inlines, deps.node.raw);
+		if (!target) return false;
+		// Focus the contenteditable so subsequent keys route to this block's handler.
+		deps.getEl()?.focus();
+		// A 'start' landing arrives at the widget's leading edge, 'end' at the trailing.
+		enterWidget(target, side === 'end');
+		return true;
 	}
 
 	function snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void {
@@ -648,6 +684,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		handleSelectedWidgetKeydown,
 		handleShiftArrowIntoWidget,
 		handleWidgetAtCursorKeydown,
+		enterEdgeWidget,
 		snapClickToWidgetEdge,
 		isRevealing,
 		handleRevealingKeydown,
