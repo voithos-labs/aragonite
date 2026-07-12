@@ -15,13 +15,18 @@
 		path,
 		blockRef,
 		blockEl,
-		isContainer = false
+		isContainer = false,
+		hasChildHosts = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
 		/** Container blocks skip overlays — their children paint their own. */
 		isContainer?: boolean;
+		/** False for a childless container (render-primary plugin block): no child
+		 *  block-hosts exist to paint, so this block takes the full-block overlay
+		 *  itself, like a non-text leaf. */
+		hasChildHosts?: boolean;
 	} = $props();
 
 	const selection = getContext<SelectionState>(SELECTION_KEY);
@@ -33,7 +38,7 @@
 	const containerPaintsRects = $derived(isContainer && !!blockRef?.measurePartialRects);
 
 	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (isContainer && !containerPaintsRects) return 'outside';
+		if (isContainer && !containerPaintsRects && hasChildHosts) return 'outside';
 		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}

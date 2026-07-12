@@ -1,3 +1,11 @@
+<script module lang="ts">
+	// Per-instance mount id (stable across the instance's whole life) plus a
+	// per-render counter: the A2 acceptance oracle. Editing one equation must
+	// re-render only that one — untouched blocks keep both their mount id (no
+	// remount) and their render count (no redundant KaTeX work).
+	let nextMountId = 0;
+</script>
+
 <script lang="ts">
 	// Render-primary block math: a `$$…$$` leaf showing its KaTeX display render
 	// by default, revealing the raw source in a contenteditable on focus/click,
@@ -10,6 +18,8 @@
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
 	const render = createMemoizedRenderer(katexRenderer);
+	const mountId = nextMountId++;
+	let renderCount = 0;
 
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let renderEl: HTMLDivElement | undefined = $state();
@@ -51,6 +61,8 @@
 	$effect(() => {
 		if (revealed || !renderEl) return;
 		renderEl.replaceChildren(render(mathInner(leaf.sourceText), { display: true }).dom);
+		renderCount += 1;
+		renderEl.dataset.renderCount = String(renderCount);
 	});
 
 	// Source view: populate the contenteditable ONCE per reveal as a single text
@@ -119,6 +131,7 @@
 	<div
 		bind:this={renderEl}
 		class="math-block-render"
+		data-mount-id={mountId}
 		role="button"
 		tabindex="-1"
 		aria-label="Math (click to edit)"

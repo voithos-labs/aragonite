@@ -272,7 +272,10 @@
 		if (!el) return;
 		cellRender.render({ forceRebuild: pendingCursorOffset !== null });
 		if (pendingCursorOffset !== null) {
-			cursor.setRaw(pendingCursorOffset);
+			// Restore only while this cell still owns focus — an unguarded restore
+			// would yank the global selection back into a blurred cell. Mirrors the
+			// activeElement guards in TextEditableBlock and CodeBlock.
+			if (document.activeElement === el) cursor.setRaw(pendingCursorOffset);
 			pendingCursorOffset = null;
 		}
 	});

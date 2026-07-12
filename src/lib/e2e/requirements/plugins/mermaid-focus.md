@@ -37,5 +37,12 @@ paragraph `tail text` — so the block has an editable neighbor on each side.
 
 - After the two-step delete, focus lands on the surviving neighbor (the existing delete-path
   landing), so a following Mod+Z undo resolves at the editor-global tier
-- The error/loading state has no viewport, so whole-block focus is inert there (not covered
-  here — the fixture uses a valid diagram)
+- The error/loading/static states are whole-block focus surfaces of their own — covered by
+  the sibling `mermaid-broken-focus` requirements (this file's fixture uses a valid diagram)
+
+## Miss-analysis
+
+- 2026-07 (defect: the broken-fence block was a caret trap): this file's first edition
+  explicitly carved the error state out as "inert" instead of pinning its behavior — a
+  requirement that names a state must state what the user CAN do there, never wave it off;
+  the sibling `mermaid-broken-focus.md` now pins every affordance in the error state.

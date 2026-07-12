@@ -19,6 +19,8 @@ export interface ParsedDirective {
 	raw: string;
 	closerColonCount: number;
 	closerNewline: boolean;
+	/** Authored line ending (`\n` or `\r\n`) of the opener line — a factory stores it so a rebuild reproduces CRLF chrome lines. */
+	lineEnding: string;
 }
 
 export interface DirectiveDefinition {

@@ -33,24 +33,8 @@ export function createContainerEditActions(
 			rebuildUnsharedChain(chain, deps.sharing);
 		},
 
-		commitContainer({
-			containerNode,
-			path,
-			state,
-			snapshot,
-			mutate,
-			op,
-			afterTick
-		}): Promise<void> {
-			return controller.commitContainerStructural({
-				containerNode,
-				path,
-				state,
-				snapshot,
-				mutate,
-				op,
-				afterTick
-			});
+		commitContainer(args): Promise<void> {
+			return controller.commitContainerStructural(args);
 		}
 	};
 }

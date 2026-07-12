@@ -4,10 +4,15 @@ import { PluginsPage, clickWidgetCenter } from './helpers';
 /**
  * Acceptance-axis coverage for the LaTeX extension, each test labelled with the
  * spec's axis id. These assert the differentiators that only a real browser can
- * prove: A1 (reveal transition holds scroll + geometry + caret), A7 (every
- * multiline environment renders), A5 (invalid math shows a legible message, not
- * KaTeX's raw strip). A2 (render memoization) is a unit axis — see
- * math-renderer.test.ts. Round-trip (A11) is unit-covered; not re-tested here.
+ * prove: A1 (reveal transition holds scroll + geometry + caret), A2 (editing one
+ * of N live equations re-renders only that one), A7 (every multiline environment
+ * renders), A5 (invalid math shows a legible message, not KaTeX's raw strip). The
+ * A2 memo primitive is also unit-pinned (math-renderer.test.ts); this file adds the
+ * live edit-one-of-N pin. Round-trip (A11) is unit-covered; not re-tested here.
+ *
+ * A1 flakiness watch: the block-reveal fixture is tall enough that folding a block
+ * can trip a windowing geometry re-estimate. Read an A1 failure here as a
+ * windowing-geometry interaction FIRST, before suspecting a reveal regression.
  */
 
 // A pad tall enough that the block-math fixture scrolls in a default viewport, so
@@ -73,6 +78,17 @@ class AcceptancePage extends PluginsPage {
 		const box = await this.blockRender.boundingBox();
 		if (!box) throw new Error('block render has no bounding box');
 		return box.y;
+	}
+
+	/** Per-block render oracle (A2): stable `mountId` (no remount) + `count` bumped
+	 *  each time the KaTeX render effect runs (a re-render). In document order. */
+	async renderMarkers(): Promise<Array<{ mountId: string | null; count: string | null }>> {
+		return this.blockRender.evaluateAll((els) =>
+			els.map((el) => ({
+				mountId: el.getAttribute('data-mount-id'),
+				count: el.getAttribute('data-render-count')
+			}))
+		);
 	}
 }
 
@@ -142,6 +158,44 @@ test.describe('latex acceptance axes', () => {
 
 		const nextTopAfter = (await editor.getBlock(1).boundingBox())?.y ?? NaN;
 		expect(Math.abs(nextTopAfter - nextTopBefore)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE);
+	});
+
+	// A2 — editing one of N live block equations re-renders only that one. The memo
+	// primitive is unit-proven; this binds it to the live document, where the concern
+	// is redundant KaTeX work across untouched blocks. Distinct formulas so a stray
+	// cross-block render is unambiguous. Paragraphs separate the equations so blurring
+	// the edited one commits to a paragraph, not by revealing a neighbouring block.
+	test('A2: editing one block equation re-renders only that equation', async ({ page }) => {
+		await editor.loadContent(
+			'Para 0.\n\n$$a^2$$\n\nPara 1.\n\n$$b^2$$\n\nPara 2.\n\n$$c^2$$\n\nPara 3.\n'
+		);
+		await expect(editor.blockRender).toHaveCount(3);
+		await editor.waitForRenderFlush();
+
+		const before = await editor.renderMarkers();
+		expect(new Set(before.map((m) => m.mountId)).size).toBe(3); // three distinct instances
+
+		// Reveal only the MIDDLE equation, insert inside its fence, commit by blurring
+		// to a paragraph (getBlock(4) is "Para 2.").
+		await clickWidgetCenter(editor.blockRender.nth(1));
+		await expect(editor.blockSource).toHaveCount(1);
+		await page.keyboard.press('Home');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('z');
+		await editor.getBlock(4).click();
+
+		await editor.bridge.waitForSourceContains('$$zb^2$$');
+		await expect(editor.blockRender).toHaveCount(3);
+		await editor.waitForRenderFlush();
+
+		const after = await editor.renderMarkers();
+		// Untouched equations: same instance, zero extra renders.
+		expect(after[0]).toEqual(before[0]);
+		expect(after[2]).toEqual(before[2]);
+		// Edited equation: same instance (no remount), but it DID re-render.
+		expect(after[1].mountId).toBe(before[1].mountId);
+		expect(Number(after[1].count)).toBeGreaterThan(Number(before[1].count));
 	});
 
 	// A7 — every multiline environment renders KaTeX with no error node. Table-driven

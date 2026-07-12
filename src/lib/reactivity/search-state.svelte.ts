@@ -1,7 +1,12 @@
 import type { Document } from '../core/nodes';
 import { compileMatcher } from '../search/matcher';
 import { scanDocument, type Match } from '../search/document-scan';
-import { groupMatchesByPath, pathKey, type IndexedMatch } from '../search/match-index';
+import {
+	groupMatchesByAncestor,
+	groupMatchesByPath,
+	pathKey,
+	type IndexedMatch
+} from '../search/match-index';
 
 const EMPTY_MATCHES: IndexedMatch[] = [];
 
@@ -29,8 +34,10 @@ export function createSearchState(deps: SearchDeps) {
 	let replacement = $state('');
 	let options = $state<SearchOptions>({ caseSensitive: false, wholeWord: false, regex: false });
 	let matches = $state<Match[]>([]);
-	// One grouping per rescan, shared by every overlay — see match-index.
+	// One grouping per rescan, shared by every overlay — see match-index. The
+	// ancestor index is lazy ($derived): docs without grid surfaces never build it.
 	const matchesByPath = $derived(groupMatchesByPath(matches));
+	const matchesByAncestor = $derived(groupMatchesByAncestor(matches));
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
 	// Count of the last replace/replaceAll, surfaced as "N replaced" feedback.
@@ -74,6 +81,11 @@ export function createSearchState(deps: SearchDeps) {
 		},
 		matchesForPath(path: number[]): IndexedMatch[] {
 			return matchesByPath.get(pathKey(path)) ?? EMPTY_MATCHES;
+		},
+		// Grid-overlay seam (cells have no BlockHost overlay of their own).
+		// Deliberately off the public SearchState interface — see its note.
+		matchesForDescendants(path: number[]): IndexedMatch[] {
+			return matchesByAncestor.get(pathKey(path)) ?? EMPTY_MATCHES;
 		},
 		get activeIndex() {
 			return activeIndex;
@@ -143,6 +155,10 @@ export function createSearchState(deps: SearchDeps) {
 		rescan
 	};
 }
+/** Full runtime surface, including internal-only seams the public SearchState
+ *  omits. Internal components type the search context with this. */
+export type InternalSearchState = ReturnType<typeof createSearchState>;
+
 /** Public controller surface — what `editor.getSearch()` exposes. Internal-only
  *  members (`rescan`, `revealActive`) are deliberately omitted: adding a public
  *  member later is non-breaking, removing one is breaking, so keep this minimal. */

@@ -577,7 +577,10 @@ declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocus
 returning the element that takes DOM focus (a `tabindex=0` viewport). Arrows then stop on the block
 (ThematicBreak's model), a caret-adjacent Backspace/Delete focuses it before a second press
 deletes, Enter inserts a paragraph below, and Alt+arrows reorder it — keyboard and click share the
-one focus state, and keys inside your own editing surface never trigger a block delete. The
+one focus state, and keys inside your own editing surface never trigger a block delete. Supply a
+focus element for **every steady state** — error, loading, and static fallbacks included — so a
+broken render stays keyboard-reachable; if the getter returns null anyway, the editor degrades to
+focusing your chrome box and warns in dev. The
 editable-leaf tier (§ 4) is the answer when you want a source view with a native caret — rebuilding
 the render-primary block on `createEditableLeaf` (block math's shape) is the recipe's upgrade path.
 

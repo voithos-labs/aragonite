@@ -34,6 +34,13 @@ export interface ScopeCommitArgs {
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: () => void;
+	/**
+	 * Structural op that can legitimately no-op (chrome split, no-target merge):
+	 * when `mutate` reports no structural change, the ceremony discards the
+	 * snapshot instead of minting a dead undo entry. Never set on content/metadata
+	 * commits — their `noop` still carries a byte change. See action-contracts `DiscardIfNoop`.
+	 */
+	discardIfNoop?: boolean;
 }
 
 export interface CommitScope {
@@ -54,7 +61,7 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
 		collapseEmptyReplaceToDelete: false,
-		commit({ snapshot, eventTarget, op, mutate, afterTick }): Promise<void> {
+		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
 			return controller.commitStructural({
 				snapshot:
 					snapshot === 'skip' ? 'skip' : { path: [snapshot.index], offset: snapshot.offset },
@@ -65,7 +72,8 @@ export function createTopLevelScope(
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: [eventTarget] },
-				afterTick
+				afterTick,
+				discardIfNoop
 			});
 		}
 	};
@@ -78,7 +86,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		children: () => deps.node.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
 		collapseEmptyReplaceToDelete: true,
-		commit({ snapshot, eventTarget, op, mutate, afterTick }): Promise<void> {
+		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
 			return deps.parent.containerEdit.commitContainer({
 				containerNode: deps.node,
 				path: deps.path,
@@ -94,7 +102,8 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: [...deps.path, eventTarget] },
-				afterTick
+				afterTick,
+				discardIfNoop
 			});
 		}
 	};

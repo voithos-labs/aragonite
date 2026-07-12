@@ -58,7 +58,8 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 			name: parsed.fence.name,
 			colonCount: parsed.fence.colonCount,
 			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline
+			closerNewline: parsed.closerNewline,
+			lineEnding: parsed.lineEnding
 		});
 		return node;
 	};
@@ -77,7 +78,8 @@ function rebuildAdmonitionRaw(node: CstNode): void {
 		body: serializeChildren(children.slice(1)),
 		innerSuffix: node.innerSuffix ?? '',
 		closerColonCount: meta?.closerColonCount ?? 3,
-		closerNewline: meta?.closerNewline ?? true
+		closerNewline: meta?.closerNewline ?? true,
+		lineEnding: meta?.lineEnding
 	});
 }
 
