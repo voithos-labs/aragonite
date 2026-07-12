@@ -35,6 +35,10 @@
 	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 	const MATH_SEED = 'Before $x^2$ after\n\nNext\n';
+	// Two inline equations in ONE paragraph — the showcase shape that surfaced the
+	// reveal collapse/switch class: a same-block click-away must fold the revealed
+	// source, and clicking the second widget while the first is revealed must switch.
+	const MATH_TWO_SEED = 'Sum $E=mc^2$ and $a^2+b^2=c^2$ tail\n\nNext\n';
 	// Math on the first visual line; a soft-wrapped second line (pre-wrap renders the
 	// internal newline as a break) column-aligns real text beneath the widget, for the
 	// reveal hit-test's X-and-Y coverage.
@@ -122,6 +126,7 @@
 		details: DETAILS_SEED,
 		admonitions: ADMONITIONS_SEED,
 		math: MATH_SEED,
+		'math-two': MATH_TWO_SEED,
 		'math-multiline': MATH_MULTILINE_SEED,
 		mathblock: MATH_BLOCK_SEED,
 		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,

@@ -12,6 +12,7 @@
  * points it always has.
  */
 
+import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { CstNode, InlineNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
@@ -82,6 +83,13 @@ export interface WidgetInteraction {
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Commit the revealed source when focus leaves the block. */
 	commitRevealOnBlur(): void;
+	/** While source is revealed, fold when the caret/selection escapes it but
+	 *  stays inside the block (blur owns the focus-leaving fold). */
+	foldRevealIfSelectionEscaped(): void;
+	/** The point sits on a reveal-source widget — pointerdown uses this to
+	 *  preventDefault the browser's caret task so nothing races the reveal's
+	 *  own placement. */
+	isPointOnRevealWidget(x: number, y: number): boolean;
 }
 
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
@@ -109,18 +117,29 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	let revealWidgetEnd = 0;
 	let revealCaretBefore = 0;
 	let revealOriginalDisplay = '';
+	// The element the swap detaches, restored VERBATIM on cancel/fold. Identity is
+	// load-bearing: two byte-identical widgets share a reuse-pool key, so any
+	// rebuild-by-lookup can return the OTHER live instance — and replaceWith
+	// would MOVE it, vacating its slot and desyncing DOM from CST. Only the
+	// captured element is guaranteed to be the one this reveal swapped out.
+	let revealedWidget: HTMLElement | null = null;
+	// The swap window between showSource and the kernel's caret landing: a
+	// selectionchange delivered inside it reads a pre-reveal selection and must
+	// not be mistaken for an escape.
+	let revealSettling = false;
+
+	function restoreRenderedWidget(): void {
+		if (activeSourceNode === null || revealedWidget === null) return;
+		activeSourceNode.replaceWith(revealedWidget);
+		activeSourceNode = null;
+		revealedWidget = null;
+	}
 
 	async function startReveal(inline: InlineNode, caretBefore: number): Promise<void> {
 		if (activeReveal) return;
 		const start = inline.start;
 		const end = inline.end;
 		const source = deps.node.raw.slice(start, end);
-		// The element the swap detaches, restored VERBATIM on cancel. Identity is
-		// load-bearing: two byte-identical widgets share a reuse-pool key, so any
-		// rebuild-by-lookup can return the OTHER live instance — and replaceWith
-		// would MOVE it, vacating its slot and desyncing DOM from CST. Only the
-		// captured element is guaranteed to be the one this reveal swapped out.
-		let revealedWidget: HTMLElement | null = null;
 		// The imperative span-swap IS the inline mechanism: replace the opaque
 		// [data-inline-widget] island with a text node and back.
 		const reveal = createSourceReveal({
@@ -151,13 +170,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			},
 			// Cancel re-inserts the exact element the swap detached — the edit is
 			// discarded and the raw unchanged, so it is still current. The persist
-			// path re-renders reactively instead, so this only fires on Escape.
-			showRendered: () => {
-				if (activeSourceNode === null || revealedWidget === null) return;
-				activeSourceNode.replaceWith(revealedWidget);
-				activeSourceNode = null;
-				revealedWidget = null;
-			}
+			// path re-renders reactively instead, so this fires on Escape and the
+			// no-edit click-away fold.
+			showRendered: restoreRenderedWidget
 		});
 		activeReveal = reveal;
 		revealWidgetEnd = end;
@@ -165,7 +180,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		revealOriginalDisplay = trimTrailingLineEnding(deps.node.raw);
 		deps.widgetSelection.clear();
 		deps.setRevealing(true);
-		await reveal.reveal();
+		// finally, not a plain clear: a wedged-true flag would disable the escape
+		// fold for the rest of the block's life.
+		revealSettling = true;
+		try {
+			await reveal.reveal();
+		} finally {
+			revealSettling = false;
+		}
 	}
 
 	// Persist the ephemeral source edit, or fold back untouched. The reactive
@@ -217,6 +239,114 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		activeReveal = null;
 		deps.setRevealing(false);
 		await reveal.commit();
+	}
+
+	// Click-away fold for an UNEDITED reveal: restore the widget synchronously and
+	// write no caret — the escaping click owns the caret, and the kernel commit's
+	// trailing-edge placement would hijack it.
+	function foldRevealNoEdit(): void {
+		if (!activeReveal) return;
+		activeReveal = null;
+		deps.setRevealing(false);
+		restoreRenderedWidget();
+	}
+
+	// Escape fold: while source is revealed, a caret/selection move that leaves the
+	// source but stays inside the block folds the reveal (clean → widget restored
+	// in place; edited → the commit path, one undo entry). Blur keeps owning the
+	// focus-leaving fold; a cross-block sweep keeps the source revealed so its
+	// rects measure real text. Containment is decided by RAW OFFSET through the
+	// canonical walk, boundary-inclusive: a caret at the source's edge may anchor
+	// in the ADJACENT text node (the browser's choice), and node identity would
+	// misread that as an escape.
+	function foldRevealIfSelectionEscaped(): void {
+		if (!activeReveal || !activeSourceNode || revealSettling) return;
+		if (deps.isCrossBlock()) return;
+		const el = deps.getEl();
+		const sel = window.getSelection();
+		if (!el || !sel || sel.rangeCount === 0) return;
+		const { anchorNode, focusNode } = sel;
+		if (!anchorNode || !focusNode) return;
+		if (!el.contains(anchorNode) || !el.contains(focusNode)) return;
+		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return;
+		const ambient = deps.getAmbientLength();
+		const sourceStart = Math.max(0, rawOffsetAtNode(el, activeSourceNode, 0) - ambient);
+		const sourceEnd = sourceStart + activeSourceNode.length;
+		const anchorOff = Math.max(0, rawOffsetAtNode(el, anchorNode, sel.anchorOffset) - ambient);
+		const focusOff = Math.max(0, rawOffsetAtNode(el, focusNode, sel.focusOffset) - ambient);
+		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
+		if (inSource(anchorOff) || inSource(focusOff)) return;
+		if (deps.readRawText() === revealOriginalDisplay) {
+			foldRevealNoEdit();
+			return;
+		}
+		commitReveal();
+	}
+
+	// Point-in-rect walk over the block's reveal-source widgets — the ONE hit test
+	// the pointerdown ownership probe, the click dispatch, and the post-fold
+	// re-resolve all share.
+	function hitTestRevealWidget(
+		el: HTMLElement,
+		x: number,
+		y: number
+	): { inline: InlineNode } | null {
+		for (const inline of inlinesOf(deps.node)) {
+			if (!isInlineWidget(inline, deps.node.raw)) continue;
+			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
+			const widget = el.querySelector(
+				`[data-inline-widget][data-source-start="${inline.start}"]`
+			) as HTMLElement | null;
+			if (!widget) continue;
+			const rect = widget.getBoundingClientRect();
+			if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+				return { inline };
+			}
+		}
+		return null;
+	}
+
+	function isPointOnRevealWidget(x: number, y: number): boolean {
+		const el = deps.getEl();
+		return el !== null && hitTestRevealWidget(el, x, y) !== null;
+	}
+
+	// A click on a reveal-source widget is ONE owned gesture: resolve the target
+	// BEFORE folding (the fold shifts layout, so the click point only means
+	// something against pre-fold geometry), fold any active reveal (clean →
+	// in-place restore; edited → commit + settle), then re-locate the target by
+	// OFFSET — an edited commit shifts raw positions by its length delta. The
+	// pointerdown preventDefault already suppressed the browser's caret task, so
+	// nothing races the kernel's placement.
+	async function revealFromClick(clickX: number, clickY: number): Promise<void> {
+		const el = deps.getEl();
+		if (!el) return;
+		const hit = hitTestRevealWidget(el, clickX, clickY);
+		if (!hit) return;
+		let targetStart = hit.inline.start;
+		if (activeReveal) {
+			const revealedStart =
+				activeSourceNode === null
+					? Number.POSITIVE_INFINITY
+					: Math.max(0, rawOffsetAtNode(el, activeSourceNode, 0) - deps.getAmbientLength());
+			const rawBefore = deps.node.raw.length;
+			if (deps.readRawText() === revealOriginalDisplay) {
+				foldRevealNoEdit();
+			} else {
+				commitReveal();
+				await tick();
+				if (revealedStart < targetStart) targetStart += deps.node.raw.length - rawBefore;
+			}
+		}
+		const target = inlinesOf(deps.node).find(
+			(n) =>
+				n.start === targetStart &&
+				isInlineWidget(n, deps.node.raw) &&
+				getInlineWidgetEditing(n.kind)?.revealSource
+		);
+		if (!target) return;
+		el.focus();
+		void startReveal(target, target.start);
 	}
 
 	function isRevealing(): boolean {
@@ -422,26 +552,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// below: reveal fires only when the pointer is inside the widget's box, so a
 		// column-aligned click on real text on another visual line falls through to
 		// the caret path instead of revealing.
-		if (clickY !== null) {
-			for (const inline of inlinesOf(deps.node)) {
-				if (!isInlineWidget(inline, deps.node.raw)) continue;
-				if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
-				const widget = el.querySelector(
-					`[data-inline-widget][data-source-start="${inline.start}"]`
-				) as HTMLElement | null;
-				if (!widget) continue;
-				const rect = widget.getBoundingClientRect();
-				const insideWidget =
-					clickX >= rect.left &&
-					clickX <= rect.right &&
-					clickY >= rect.top &&
-					clickY <= rect.bottom;
-				if (insideWidget) {
-					el.focus();
-					void startReveal(inline, inline.start);
-					return;
-				}
-			}
+		if (clickY !== null && hitTestRevealWidget(el, clickX, clickY)) {
+			void revealFromClick(clickX, clickY);
+			return;
 		}
 		// Don't override a click that landed in a real text node — native caret
 		// renders there and a synthetic overlay would compete.
@@ -518,6 +631,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		snapClickToWidgetEdge,
 		isRevealing,
 		handleRevealingKeydown,
-		commitRevealOnBlur
+		commitRevealOnBlur,
+		foldRevealIfSelectionEscaped,
+		isPointOnRevealWidget
 	};
 }

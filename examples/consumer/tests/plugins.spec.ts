@@ -35,6 +35,17 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 	expect(await getSource(page)).toContain('$x^2$');
 });
 
+test('math paints once — katex.min.css rides the synced renderer module', async ({ page }) => {
+	// Without the stylesheet KaTeX's `.katex-mathml` a11y half lays out at glyph
+	// size beside the render, echoing the TeX source as plain text.
+	const widget = page.locator('.math-inline-widget').first();
+	await expect(widget.locator('.katex-html')).toHaveCount(1);
+	const mathmlBox = await widget.locator('.katex-mathml').boundingBox();
+	expect(mathmlBox).not.toBeNull();
+	expect(mathmlBox!.width).toBeLessThanOrEqual(2);
+	expect(mathmlBox!.height).toBeLessThanOrEqual(2);
+});
+
 test('block math renders KaTeX and reveals its source on click (editable-leaf tier)', async ({
 	page
 }) => {

@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
+import { PluginsPage, clickWidgetCenter } from './helpers';
 
 /**
  * Acceptance-axis coverage for the LaTeX extension, each test labelled with the
@@ -97,7 +97,7 @@ test.describe('latex acceptance axes', () => {
 		const renderTopBefore = await editor.blockRenderTop();
 
 		// Reveal: the source textbox is a taller affordance, but the scroll must hold.
-		await editor.blockRender.click();
+		await clickWidgetCenter(editor.blockRender);
 		await expect(editor.blockSource).toHaveCount(1);
 		await editor.waitForRenderFlush();
 		expect(Math.abs((await editor.editorScrollTop()) - baselineScroll)).toBeLessThanOrEqual(
@@ -128,7 +128,7 @@ test.describe('latex acceptance axes', () => {
 		await expect(editor.inlineWidget).toHaveCount(1);
 		const nextTopBefore = (await editor.getBlock(1).boundingBox())?.y ?? NaN;
 
-		await editor.inlineWidget.click();
+		await clickWidgetCenter(editor.inlineWidget);
 		await expect(editor.inlineWidget).toHaveCount(0);
 		await page.keyboard.type('z');
 		await page.keyboard.press('Enter');
