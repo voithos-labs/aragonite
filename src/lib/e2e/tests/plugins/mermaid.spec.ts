@@ -61,9 +61,21 @@ class MermaidPage extends PluginsPage {
 		return this.page.getByTestId('mermaid-overlay');
 	}
 
+	get firstViewport() {
+		return this.page.locator('.mermaid-viewport').first();
+	}
+
+	/** Toolbar buttons stay hidden until the block is hovered/focused; a real user
+	 *  hovers to reveal them, so reveal then click. */
+	async clickToolbar(testId: string): Promise<void> {
+		const block = this.blocks.first();
+		await block.hover();
+		await block.getByTestId(testId).click();
+	}
+
 	/** Open the first diagram's edit mode and replace its whole code. */
 	async editFirstDiagram(newCode: string): Promise<void> {
-		await this.blocks.first().getByTestId('mermaid-edit').click();
+		await this.clickToolbar('mermaid-edit');
 		await expect(this.textarea).toHaveValue(FIRST_CODE);
 		await this.page.keyboard.press('ControlOrMeta+a');
 		await this.page.keyboard.type(newCode);
@@ -136,7 +148,7 @@ test.describe('mermaid reference plugin', () => {
 	});
 
 	test('focus view opens via the button and Escape closes it', async ({ page }) => {
-		await editor.blocks.first().getByTestId('mermaid-focus').click();
+		await editor.clickToolbar('mermaid-focus');
 		await expect(editor.overlay).toHaveCount(1);
 
 		await page.keyboard.press('Escape');
@@ -144,12 +156,32 @@ test.describe('mermaid reference plugin', () => {
 	});
 
 	test('Mod+M on the focused diagram viewport opens the focus view', async ({ page }) => {
-		await editor.page.locator('.mermaid-viewport').first().click();
+		await editor.firstViewport.click();
 		await page.keyboard.press('ControlOrMeta+m');
 		await expect(editor.overlay).toHaveCount(1);
 
 		await page.keyboard.press('Escape');
 		await expect(editor.overlay).toHaveCount(0);
+	});
+
+	test('single click focuses the viewport; double click enters edit mode', async () => {
+		await editor.firstViewport.click();
+		await expect(editor.firstViewport).toBeFocused();
+		await expect(editor.textarea).toHaveCount(0);
+
+		await editor.firstViewport.dblclick();
+		await expect(editor.textarea).toHaveValue(FIRST_CODE);
+	});
+
+	test('Tab in the source inserts a tab and stays in edit mode', async ({ page }) => {
+		await editor.clickToolbar('mermaid-edit');
+		await expect(editor.textarea).toHaveValue(FIRST_CODE);
+
+		await page.keyboard.press('ControlOrMeta+Home');
+		await page.keyboard.press('Tab');
+
+		await expect(editor.textarea).toHaveValue('\t' + FIRST_CODE);
+		await expect(editor.textarea).toBeFocused();
 	});
 
 	test('round-trip stability after the full edit + focus-view flow', async ({ page }) => {

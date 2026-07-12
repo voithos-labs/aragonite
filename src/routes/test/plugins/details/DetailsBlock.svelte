@@ -63,36 +63,38 @@
 </div>
 
 <style>
+	/* Sibling of the admonition gutter-rail: a neutral hairline rail plus a
+	   disclosure caret in the gutter — restrained, but clearly interactive. Mirrors
+	   the admonition's rail gap and caret column so the two read as a family. */
+	.details-block {
+		position: relative;
+		margin: 0.8em 0;
+		padding: 0.15em 0 0.15em 1.7em;
+		border-left: 3px solid var(--color-border, #3d4047);
+	}
+
 	/* The toggle is a real focusable button (keyboard disclosure), so unlike the
 	   callout's pseudo-element icon it is a sibling of BlockList. That is fine:
 	   the windowing lookup resolves `:scope > .block-list`, which tolerates a
 	   sibling — it only needs BlockList to stay a DIRECT child, not the sole one. */
-	.details-block {
-		position: relative;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 6px;
-		background: color-mix(in srgb, var(--color-ui-muted, #a4a4a4) 8%, transparent);
-		padding: 8px 12px 8px 34px;
-		margin: 6px 0;
-	}
 	.details-toggle {
 		position: absolute;
-		left: 8px;
-		top: 8px;
-		width: 18px;
-		height: 18px;
+		left: 0.45em;
+		top: 2px;
+		width: 1.1em;
+		height: 1.4em;
 		padding: 0;
 		border: none;
 		background: transparent;
 		cursor: pointer;
-		color: var(--color-text-secondary, #888);
+		color: var(--color-text-muted, #aaaaaa);
 	}
 	.details-toggle::before {
 		content: '';
 		display: block;
 		width: 0;
 		height: 0;
-		margin: 5px 0 0 5px;
+		margin: 0.45em 0 0 0.25em;
 		border-left: 6px solid currentColor;
 		border-top: 4px solid transparent;
 		border-bottom: 4px solid transparent;
@@ -102,7 +104,7 @@
 		transform: rotate(90deg);
 	}
 	.details-toggle:focus-visible {
-		outline: 2px solid var(--color-accent, #4a7fff);
+		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: 1px;
 		border-radius: 3px;
 	}
