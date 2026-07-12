@@ -1,7 +1,6 @@
 export type { NodeParent, MergeIntoPrevResult } from './node-ops';
 export {
 	splitNode,
-	bumpLeadingTrivia,
 	mergeWithPrevious,
 	mergeWithNext,
 	mergeIntoPrevDeepLeaf,

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { classifyFenceBoundary } from '../../../components/blocks/code/code-fence-boundary';
+import {
+	classifyFenceBoundary,
+	clampEnterOffsetToBody
+} from '../../../components/blocks/code/code-fence-boundary';
+import { computeCodeEnter } from '../../../components/blocks/code/code-enter';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import type { CstNode } from '../../../core/nodes';
 
 function fencedCode(
@@ -116,5 +121,44 @@ describe('classifyFenceBoundary', () => {
 		expect(classifyFenceBoundary({ node: tilde, offset: 14, forward: true })).toEqual({
 			kind: 'exitNext'
 		});
+	});
+});
+
+describe('clampEnterOffsetToBody', () => {
+	// raw `` ```js\nconst x = 1\n``` \n``: opener text=[0,5), bodyStart=6.
+	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
+
+	it('clamps a caret before or inside the opener text to the body start', () => {
+		for (const offset of [0, 1, 4]) {
+			expect(clampEnterOffsetToBody(closed, offset)).toBe(6);
+		}
+	});
+
+	it('leaves the end of the opener text alone — splicing there is already safe', () => {
+		expect(clampEnterOffsetToBody(closed, 5)).toBe(5);
+	});
+
+	it('leaves body offsets alone', () => {
+		expect(clampEnterOffsetToBody(closed, 6)).toBe(6);
+		expect(clampEnterOffsetToBody(closed, 10)).toBe(10);
+	});
+
+	it('opener-only fence clamps interior offsets to the opener end', () => {
+		const fresh = fencedCode('```', '', false);
+		expect(clampEnterOffsetToBody(fresh, 1)).toBe(3);
+		expect(clampEnterOffsetToBody(fresh, 3)).toBe(3);
+	});
+
+	it('Enter at raw offset 0 keeps the opener intact and adds a blank first body line', () => {
+		const display = trimTrailingLineEnding(closed.raw);
+		const offset = clampEnterOffsetToBody(closed, 0);
+		const enter = computeCodeEnter({
+			display,
+			selection: { start: offset, end: offset },
+			mode: 'normal'
+		});
+		expect(enter.newText).toBe('```js\n\nconst x = 1\n```');
+		// Caret stays with the content, now on the second body line.
+		expect(enter.newCursor).toBe(7);
 	});
 });
