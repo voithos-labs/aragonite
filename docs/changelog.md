@@ -2,6 +2,15 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.17 — CI + contributor hardening, showcase quality
+
+The pre-freeze collaboration prep: the repo a second developer clones has green sharded CI, a contributor front door, and a showcase whose plugins behave.
+
+- **CI hardened.** The Playwright battery shards 4-way per run; a prod-build `perf:check` job gates the keystroke rows (environment-scaled ceilings via `PERF_RUNNER_SCALE` — local stays the tight unscaled gate); the invariant-watcher fixture is adopted by every e2e spec, so any `[invariant:…]` fire fails the spec that triggered it (the one intentional-fire suite opts out). The watcher paid for itself on its first CI run — see the detached-scope fix below. Attribution axes stay recorded diagnostics outside the gate (`docs/issues.md`).
+- **Contributor front door.** Minimal `CONTRIBUTING.md` (setup, gate tiers, commit + culture pointers), a `docs/README.md` index, self-contained `docs/code-style.md` / `docs/commit-conventions.md`.
+- **Editor fixes, each red-first.** Enter at content offset 0 splits instead of no-op (text kinds) or byte corruption (fenced-code opener; a third unguarded sibling seam found and closed). Opaque plugin containers decline nested reorder — dragging an inner block no longer teleports the whole container, and chrome rows carry no dead drag handles. The multi-scope commit no longer rebuilds or invariant-checks scope nodes its own mutation detached (the watcher-surfaced CI-only stale-raw fires). KaTeX renders once (`katex.min.css` beside the injected renderer — the stylesheet is documented as the consumer's responsibility). Inline-widget reveal folds on caret escape: pointerdown-owned click gesture, raw-offset boundary-inclusive containment, tick-surviving escape check, one-gesture widget switching.
+- **Showcase quality.** `?plugins=1` carries the reference plugins only (fixture dogfoods classified in `src/routes/test/plugins/README.md`); admonitions/details moved to restrained gutter-rail chrome with the untitled-title wrap fixed; mermaid gained focused-only zoom/pan, double-click edit, Tab-as-indent, theme-token toolbar and overlay.
+
 ### 0.9.16 — The editable-leaf tier
 
 The plugin platform's last big tier: **`createEditableLeaf`** on `aragonite/plugin` (pre-freeze), a text-editing plugin block with native caret/IME/undo/cross-block-selection parity — the container factory's sibling for leaves.
