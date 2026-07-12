@@ -65,5 +65,8 @@ function decodeNumeric(body: string): string | null {
 	if (codePoint === 0) return REPLACEMENT;
 	if (codePoint > 0x10ffff) return REPLACEMENT;
 	if (codePoint >= 0xd800 && codePoint <= 0xdfff) return REPLACEMENT;
+	// C1 range (0x80–0x9F, e.g. `&#128;`) decodes verbatim, no cp1252 remap: if a
+	// corpus widening ever spells one, a divergence from an HTML5 reference is
+	// deliberate — we follow CommonMark §2.5's letter (probe-verified spec-correct).
 	return String.fromCodePoint(codePoint);
 }

@@ -61,11 +61,14 @@ export function serializeDirective(parts: {
 	closerColonCount?: number;
 	/** Whether the closer ends with a newline; defaults to true. False for a document-final directive. */
 	closerNewline?: boolean;
+	/** Authored line ending for the synthesized opener + closer chrome lines; defaults to `\n`. Threaded so a CRLF-authored directive rebuilds CRLF-safe (the body carries its own bytes). */
+	lineEnding?: string;
 }): string {
+	const lineEnding = parts.lineEnding ?? '\n';
 	const opener = ':'.repeat(parts.colonCount);
 	const closer = ':'.repeat(parts.closerColonCount ?? parts.colonCount);
-	const closerEnd = (parts.closerNewline ?? true) ? '\n' : '';
-	return `${opener}${parts.name}${parts.info}\n${parts.innerPrefix}${parts.body}${parts.innerSuffix}${closer}${closerEnd}`;
+	const closerEnd = (parts.closerNewline ?? true) ? lineEnding : '';
+	return `${opener}${parts.name}${parts.info}${lineEnding}${parts.innerPrefix}${parts.body}${parts.innerSuffix}${closer}${closerEnd}`;
 }
 
 // ── Attributes ────────────────────────────────────────────────────────────────

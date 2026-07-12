@@ -43,7 +43,9 @@ import type { WindowResult } from '../../reactivity/block-window.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
+	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
+	isEditableEventTarget,
 	type ContainerBlockComponent
 } from '../container-block-component';
 import type { UndoController } from '../deps';
@@ -73,8 +75,10 @@ export interface ContainerBlockDeps {
 	 * while it holds focus, and the factory keydown gains the ThematicBreak-style
 	 * whole-block affordances (focus-then-delete, Enter-below, arrow traversal,
 	 * Alt-arrow reorder). The kind must also declare `blockFocus: 'whole-block'`.
-	 * Read live (Design Rule 5); returns null when the element is absent (a render
-	 * error/loading state) — the affordances then no-op rather than corrupt.
+	 * Read live (Design Rule 5). Supply a surface for EVERY steady state (error,
+	 * loading, static fallback included) — a null degrades to focusing the box
+	 * element with a dev warning, so the block stays keyboard-reachable rather
+	 * than a caret trap; only a plugin editable holding focus keeps a null null.
 	 */
 	getFocusEl?: () => HTMLElement | null | undefined;
 	/**
@@ -241,16 +245,6 @@ export function buildContainerKindTarget(
 	};
 }
 
-// A key that originates in a plugin's own text-editing surface (an edit
-// textarea, an input, a nested contenteditable) belongs to that surface, never
-// the whole-block affordances — so a Backspace inside the mermaid edit textarea
-// edits text, it does not delete the block.
-function isEditableEventTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	const tag = target.tagName;
-	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
-}
-
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -339,6 +333,16 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isCollapsed: collapsed
 	});
 
+	// One composed surface feeds the shim AND the keydown gate below, so a
+	// fallback-focused box passes the same containment check the affordances use.
+	const wholeBlockSurface = deps.getFocusEl
+		? composeWholeBlockFocusSurface(
+				deps.getFocusEl,
+				() => deps.getBoxEl(),
+				() => deps.node.kind
+			)
+		: undefined;
+
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
@@ -352,7 +356,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
 		isCollapsed: collapsed,
-		getFocusEl: deps.getFocusEl
+		getFocusEl: wholeBlockSurface
 	});
 
 	const blockListProps: ContainerBlockListProps = {
@@ -402,8 +406,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	//   3. the event did not originate in an editable surface (belt-and-suspenders
 	//      for a plugin that mounts a textarea/contenteditable inside the block).
 	function handleWholeBlockKeydown(e: KeyboardEvent): void {
-		if (!deps.getFocusEl) return;
-		const focusEl = deps.getFocusEl();
+		if (!wholeBlockSurface) return;
+		const focusEl = wholeBlockSurface();
 		if (!focusEl || !focusEl.contains(document.activeElement)) return;
 		if (isEditableEventTarget(e.target)) return;
 

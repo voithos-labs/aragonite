@@ -106,6 +106,18 @@ describe('serializeDirective', () => {
 		});
 		expect(out).toBe(':::x\ny\n::::\n');
 	});
+	it('reproduces a CRLF line ending on the synthesized opener and closer lines', () => {
+		const out = serializeDirective({
+			colonCount: 3,
+			name: 'note',
+			info: ' Title',
+			innerPrefix: '',
+			body: 'body\r\n',
+			innerSuffix: '',
+			lineEnding: '\r\n'
+		});
+		expect(out).toBe(':::note Title\r\nbody\r\n:::\r\n');
+	});
 });
 
 describe('parseDirectiveAttributes', () => {

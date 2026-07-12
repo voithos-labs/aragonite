@@ -24,6 +24,12 @@ import {
 const MATH_DOC =
 	'Alpha lead paragraph.\n\n' + 'Beta middle paragraph.\n\n' + 'Gamma tail paragraph.\n';
 
+// A mermaid diagram flanked by prose so the whole-block-focus detour has an
+// editable neighbour on each side. The diagram renders through the plugin's
+// dynamic-import engine, so the SVG wait is generous.
+const MERMAID_DOC =
+	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
+
 class MathSimPage extends EditorPage {
 	async gotoPlugins(): Promise<void> {
 		await this.page.goto('/test/plugins');
@@ -72,6 +78,18 @@ test.describe('math-ops simulation', () => {
 		await g.editInlineMath('y');
 		await checkOracles('inline-edited');
 
+		// Caret-entry reveal: arrow-walk through the widget and back out (byte-identical
+		// entry+fold), then Backspace-enter, insert inside the formula, and commit by
+		// escaping the trailing edge (the reveal commit-on-escape path).
+		await g.walkThroughInlineMath(0);
+		await expect(page.locator('.math-inline-widget')).toHaveCount(1);
+		await checkOracles('inline-walk-through');
+
+		await g.backspaceRevealEditInlineMath(0, 'z');
+		// The insert landed inside the fence, not as loose text after the widget.
+		expect(await editor.bridge.getSource()).toContain('$yx^2z$');
+		await checkOracles('inline-reveal-commit');
+
 		// Delete text flanking the surviving widget (byte survival under an adjacent
 		// edit), then the widget itself.
 		await g.deleteAroundInlineMath(0);
@@ -97,5 +115,40 @@ test.describe('math-ops simulation', () => {
 
 		await g.undo();
 		await checkOracles('block-insert-undo');
+	});
+
+	test('mermaid whole-block focus, two-step delete, and Enter-below stay corruption-free', async ({
+		page
+	}) => {
+		const errors = attachErrorCollector(page);
+		await errors.start();
+
+		await editor.loadContent(MERMAID_DOC);
+		await editor.waitForRenderFlush();
+		// The diagram renders through a dynamic import the dev server transforms on
+		// first hit; wait for the SVG before driving the focus gestures.
+		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
+
+		const tracker = new ExpectationTracker(await editor.bridge.getSource());
+		const ctx: SimContext = { page, editor, tracker, errors, label: 'mermaid-focus' };
+		const g = new Gestures(ctx, makeRng(1));
+
+		const checkOracles = async (label: string): Promise<void> => {
+			ctx.label = label;
+			await assertNoErrors(ctx);
+			await assertRoundTripStable(ctx);
+			await assertNestedStateConsistent(ctx);
+		};
+		await checkOracles('loaded');
+
+		// Diagram sits at [1]; the prose below it is [2].
+		await g.arrowFocusMermaid(2);
+		await checkOracles('arrow-focus');
+
+		await g.enterBelowUndoMermaid();
+		await checkOracles('enter-below-undo');
+
+		await g.backspaceTwoStepDeleteUndoMermaid(2);
+		await checkOracles('two-step-delete-undo');
 	});
 });

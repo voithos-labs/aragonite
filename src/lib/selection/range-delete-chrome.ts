@@ -17,14 +17,12 @@ import { walkBetween, assertCharOffset } from './primitives';
 import {
 	comparePaths,
 	isPathSubtreeBetween,
-	isStrictAncestorOf,
 	lowestCommonAncestor,
 	pathHasPrefix,
 	pathsEqual
 } from './path-math';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { nodeAt } from '../tree-operations/node-ops';
+import { replaceAtPath } from '../tree-operations/path-mutate';
+import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
 
@@ -98,14 +96,9 @@ export function chromeAwareRangeDelete(
 		deletionCandidates = deletionCandidates.filter((p) => !pathHasPrefix(p, endC.path));
 		deletionCandidates.push(endC.path.slice());
 	}
-	// Subtree roots only: one splice per covered subtree, never a child-by-child
-	// emptying of a container that is about to die.
-	const deletionPaths = deletionCandidates.filter(
-		(p) => !deletionCandidates.some((q) => isStrictAncestorOf(q, p))
-	);
+	const deletionPaths = filterToSubtreeRoots(deletionCandidates);
 
 	for (const p of deletionPaths) ensureUnsharedPath(doc, p.slice(0, -1), sharing);
-	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	// End truncates in place first (its path is still live) — the wall: its
@@ -127,18 +120,7 @@ export function chromeAwareRangeDelete(
 
 	for (const chrome of clearTargets) chrome.raw = '\n';
 
-	// Identity-gated reverse-doc-order deletion: a deeper delete + cascade can
-	// shift a survivor into an outer slot (see range-delete.ts).
-	const reverseSortedIndices = deletionPaths
-		.map((_, i) => i)
-		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
-	for (const i of reverseSortedIndices) {
-		const path = deletionPaths[i];
-		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-		}
-	}
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
 
 	// Start truncates in place; every deletion sits after it in doc order, so
 	// start.path is still live.

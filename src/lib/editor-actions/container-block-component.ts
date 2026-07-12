@@ -14,6 +14,62 @@ import {
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { CstNode } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
+import { devWarn } from '../dev-warn';
+
+// ── Whole-block focus surface ───────────────────────────────────────────────
+
+/**
+ * A key that originates in a plugin's own text-editing surface (an edit
+ * textarea, an input, a nested contenteditable) belongs to that surface, never
+ * the whole-block affordances — so a Backspace inside a mermaid edit textarea
+ * edits text, it does not delete the block.
+ */
+export function isEditableEventTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	const tag = target.tagName;
+	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
+}
+
+/**
+ * The class guard behind `getFocusEl`: a whole-block `focus()` whose declared
+ * element is absent must degrade to a focusable box, never a silent no-op that
+ * strands the caret (the broken-mermaid trap). One composed getter feeds every
+ * consumer — the shim's focus/offset members and the factory keydown gate — so
+ * they agree on the surface by construction. The one legitimate null survives:
+ * a plugin-owned editable inside the box holding focus (edit mode) keeps its
+ * keys and its caret. Falling back dev-warns once per mount, naming the kind.
+ */
+export function composeWholeBlockFocusSurface(
+	getFocusEl: () => HTMLElement | null | undefined,
+	getBoxEl: () => HTMLElement | null | undefined,
+	getKind: () => string
+): () => HTMLElement | null {
+	let warned = false;
+	return () => {
+		const declared = getFocusEl();
+		if (declared) return declared;
+		const box = getBoxEl();
+		if (!box) return null;
+		const active = document.activeElement;
+		if (isEditableEventTarget(active) && box.contains(active)) return null;
+		if (!warned) {
+			warned = true;
+			devWarn(
+				'container-block',
+				`whole-block kind "${getKind()}" supplied no focus element for this state; falling back to the box`
+			);
+		}
+		return box;
+	};
+}
+
+// The declared surface carries its own tabindex (a tabindex=0 viewport); the
+// fallback box is a plain div, focusable only once a tabindex is minted. Never
+// overwrite an explicit one — that could remove tab-reachability.
+function focusWholeBlockEl(el: HTMLElement): void {
+	if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
+	el.focus();
+}
 
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
@@ -34,7 +90,9 @@ export interface ContainerBlockComponentDeps {
 	 *  diagram): when supplied, caret entry focuses this element instead of
 	 *  walking into children (which no-op on `children: []`), and the cursor
 	 *  offset reads 0 while it or a descendant holds focus (ThematicBreak's model).
-	 *  Returns null when the element is absent (e.g. a render error state). */
+	 *  The container factory hands the shim a getter already composed through
+	 *  `composeWholeBlockFocusSurface`, so a null only remains when there is
+	 *  genuinely nothing to focus (pre-mount, or a plugin editable holds focus). */
 	readonly getFocusEl?: () => HTMLElement | null | undefined;
 }
 
@@ -69,7 +127,7 @@ export function createContainerBlockComponent(
 			// element offset carries no meaning (ThematicBreak's model).
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
-				focusEl.focus();
+				focusWholeBlockEl(focusEl);
 				return;
 			}
 			if (deps.nodeChildrenLength === 0) return;
@@ -144,7 +202,7 @@ export function createContainerBlockComponent(
 			// entry focuses the block itself, mirroring the plain-arrow path.
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
-				focusEl.focus();
+				focusWholeBlockEl(focusEl);
 				return;
 			}
 			if (deps.nodeChildrenLength === 0) return;

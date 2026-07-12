@@ -2,9 +2,8 @@
 	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../block-component';
 	import { SEARCH_KEY, EDITOR_ROOT_KEY } from '../editor-keys';
-	import type { SearchState } from '../reactivity/search-state.svelte';
+	import type { InternalSearchState } from '../reactivity/search-state.svelte';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
-	import { isStrictAncestorOf } from '../selection/path-math';
 
 	let {
 		path,
@@ -20,7 +19,7 @@
 		isContainer?: boolean;
 	} = $props();
 
-	const search = getContext<SearchState | undefined>(SEARCH_KEY);
+	const search = getContext<InternalSearchState | undefined>(SEARCH_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 
 	// A grid container (table) supplies cellRect, so its descendant cell matches
@@ -55,7 +54,11 @@
 			rects = containerPaintsCells ? measureCells(s, blockRect) : measureLeaf(s, ref, blockRect);
 		}
 
-		function measureLeaf(state: SearchState, leaf: BlockComponent | undefined, blockRect: DOMRect) {
+		function measureLeaf(
+			state: InternalSearchState,
+			leaf: BlockComponent | undefined,
+			blockRect: DOMRect
+		) {
 			if (!leaf?.measurePartialRects) return [];
 			const out: Painted[] = [];
 			// Only this leaf's matches (grouped once per rescan), not a full-document scan.
@@ -74,19 +77,20 @@
 
 		// Several matches can land in one cell; collapse to one highlight, active
 		// if any of its matches is the active match.
-		function measureCells(state: SearchState, blockRect: DOMRect) {
+		function measureCells(state: InternalSearchState, blockRect: DOMRect) {
 			if (!ref?.cellRect) return [];
 			const byCell = new Map<string, { rowIdx: number; colIdx: number; active: boolean }>();
-			state.matches.forEach((m, i) => {
-				if (!isStrictAncestorOf(path, m.path)) return;
-				const rowIdx = m.path[path.length];
-				const colIdx = m.path[path.length + 1];
-				if (rowIdx == null || colIdx == null) return;
+			// Only this grid's descendant matches (bucketed once per rescan), not a
+			// full-document scan — the cell twin of measureLeaf's bucket read.
+			for (const { match, index } of state.matchesForDescendants(path)) {
+				const rowIdx = match.path[path.length];
+				const colIdx = match.path[path.length + 1];
+				if (rowIdx == null || colIdx == null) continue;
 				const key = `${rowIdx},${colIdx}`;
 				const existing = byCell.get(key);
-				const active = (existing?.active ?? false) || i === state.activeIndex;
+				const active = (existing?.active ?? false) || index === state.activeIndex;
 				byCell.set(key, { rowIdx, colIdx, active });
-			});
+			}
 			const out: Painted[] = [];
 			for (const { rowIdx, colIdx, active } of byCell.values()) {
 				const r = ref.cellRect(rowIdx, colIdx);

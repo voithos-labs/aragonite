@@ -145,6 +145,11 @@ function foldCodeText(text: string): string {
  * content. Spaces only — the reference keeps a tab before a softbreak, so
  * trimming tabs here would manufacture divergence. Hard breaks are separate
  * nodes by this point, so their two-space marker is never in text.
+ *
+ * Keys on `\n` bytes regardless of provenance: if a corpus widening ever spells
+ * an entity-decoded newline after a space (`foo &#10;bar`), the resulting
+ * divergence is deliberate — §6.8 is a line-ending rule and the decoded byte is
+ * indistinguishable here from a source newline.
  */
 function trimSoftbreakSpaces(text: string): string {
 	return text.replace(/ +\n/g, '\n');

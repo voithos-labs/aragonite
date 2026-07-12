@@ -70,7 +70,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},
-				afterTick: () => scope.refAt(i + 1)?.focus(0)
+				afterTick: () => scope.refAt(i + 1)?.focus(0),
+				// A single-line/chrome block splits to nothing (splitNode noops on a
+				// contextDependentKind); discard so a rebound Enter mints no dead entry.
+				discardIfNoop: true
 			});
 		},
 
@@ -120,7 +123,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						eventTarget: i - 1,
 						op: { kind: 'delete' },
 						mutate: (view) => performDelete({ children: view.children }, i - 1, view.sharing),
-						afterTick: () => scope.refAt(i - 1)?.focus(0)
+						afterTick: () => scope.refAt(i - 1)?.focus(0),
+						discardIfNoop: true
 					});
 				} else {
 					scope.refAt(i - 1)?.focus(CURSOR_END);
@@ -143,7 +147,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					if (!merged) return;
 					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
 					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
-				}
+				},
+				// A no-target merge (opaque prev leaf) changes nothing; discard the entry
+				// but keep afterTick — mergedElseFocusPrevious still lands the caret.
+				discardIfNoop: true
 			});
 		},
 
@@ -165,7 +172,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						eventTarget: i + 1,
 						op: { kind: 'delete' },
 						mutate: (view) => performDelete({ children: view.children }, i + 1, view.sharing),
-						afterTick: () => scope.refAt(i)?.focus(CURSOR_END)
+						afterTick: () => scope.refAt(i)?.focus(CURSOR_END),
+						discardIfNoop: true
 					});
 				} else {
 					scope.refAt(i + 1)?.focus(0);
@@ -183,7 +191,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},
-				afterTick: () => scope.refAt(i)?.focus(mergeOffset)
+				afterTick: () => scope.refAt(i)?.focus(mergeOffset),
+				discardIfNoop: true
 			});
 		},
 
@@ -196,7 +205,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
 					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(0);
-				}
+				},
+				discardIfNoop: true
 			});
 		},
 

@@ -27,6 +27,17 @@ export type CommitSnapshotArg = { path: number[]; offset: number } | 'skip';
  */
 export type UndoEntryMode = 'own' | 'join';
 
+/**
+ * Opt-in for structural commits (split/merge/delete) that can legitimately no-op
+ * — a chrome `block.split` (single-line, unsplittable) or a merge with no
+ * reachable text leaf. When the mutation reports no structural change, the
+ * ceremony discards the pre-captured snapshot: no undo entry, no edit event, no
+ * publish (`afterTick` still runs — caret placement is a view concern). NOT for
+ * content/metadata commits, whose `noop` StructuralChange means "structure held,
+ * bytes changed" and MUST still publish.
+ */
+export type DiscardIfNoop = boolean;
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {
@@ -156,6 +167,7 @@ export interface CommitMultiScopeArgs<
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
+	discardIfNoop?: DiscardIfNoop;
 }
 
 export interface CommitStructuralArgs {
@@ -165,6 +177,7 @@ export interface CommitStructuralArgs {
 	afterTick?: () => void;
 	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
 	touchedNodes?: CstNode[];
+	discardIfNoop?: DiscardIfNoop;
 }
 
 export interface CommitContainerStructuralArgs {
@@ -179,6 +192,7 @@ export interface CommitContainerStructuralArgs {
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
+	discardIfNoop?: DiscardIfNoop;
 }
 
 /**

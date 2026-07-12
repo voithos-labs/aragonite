@@ -82,6 +82,9 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 
 		// The late details opener fires exactly one tagged invariant on editor 2's
 		// mount; the fixture's blanket guard is off, so assert that boundary here.
+		// Sound for one consumer (this local `.toBe(1)` requires the warn, which an
+		// allowlist would let vanish silently). A SECOND opt-out consumer promotes a
+		// per-tag require/allow into the invariant-watcher fixture (choke-point rule).
 		await expect
 			.poll(() => invariantFires.filter((f) => f.includes('late-opener-registration')).length)
 			.toBe(1);

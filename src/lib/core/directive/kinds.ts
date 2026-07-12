@@ -34,6 +34,8 @@ export interface DirectiveContainerMetadata {
 	info: string;
 	closerColonCount: number;
 	closerNewline: boolean;
+	/** Authored line ending (`\n` or `\r\n`) for the opener + closer chrome lines. */
+	lineEnding: string;
 }
 
 export function registerDirectiveKinds(): void {
@@ -130,6 +132,7 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 		body: serializeChildren(node.children ?? []),
 		innerSuffix: node.innerSuffix ?? '',
 		closerColonCount: meta.closerColonCount,
-		closerNewline: meta.closerNewline
+		closerNewline: meta.closerNewline,
+		lineEnding: meta.lineEnding
 	});
 }

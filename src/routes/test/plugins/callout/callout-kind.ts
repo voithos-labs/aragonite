@@ -39,6 +39,7 @@ interface CalloutMetadata {
 	colonCount: number;
 	closerColonCount: number;
 	closerNewline: boolean;
+	lineEnding: string;
 }
 
 function makeTitleChild(text: string): CstNode {
@@ -68,7 +69,8 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 		calloutType: parsed.fence.name,
 		colonCount: parsed.fence.colonCount,
 		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline
+		closerNewline: parsed.closerNewline,
+		lineEnding: parsed.lineEnding
 	});
 	return node;
 }
@@ -91,7 +93,8 @@ export function rebuildCalloutRaw(node: CstNode): void {
 		body: serializeChildren(children.slice(1)),
 		innerSuffix: node.innerSuffix ?? '',
 		closerColonCount: meta?.closerColonCount ?? meta?.colonCount ?? 3,
-		closerNewline: meta?.closerNewline ?? true
+		closerNewline: meta?.closerNewline ?? true,
+		lineEnding: meta?.lineEnding
 	});
 }
 

@@ -24,12 +24,14 @@ import {
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
+	backspaceRevealEditInlineMath,
 	deleteAroundInlineMath,
 	deleteInlineMathWidget,
 	editBlockMath,
 	editInlineMath,
 	insertBlockMath,
-	insertInlineMath
+	insertInlineMath,
+	walkThroughInlineMath
 } from './gestures/math';
 import {
 	deleteColumn,
@@ -38,6 +40,11 @@ import {
 	insertColumnRight,
 	insertRowBelow
 } from './gestures/table';
+import {
+	arrowFocusMermaid,
+	backspaceTwoStepDeleteUndoMermaid,
+	enterBelowUndoMermaid
+} from './gestures/mermaid';
 import { pasteGithubAlert, setCalloutKind, toggleCollapse } from './gestures/plugin';
 import {
 	editContainerBody,
@@ -274,6 +281,35 @@ export class Gestures {
 
 	deleteInlineMathWidget(blockIndex: number): Promise<void> {
 		return deleteInlineMathWidget(this.ctx, blockIndex);
+	}
+
+	/** Arrow-enter a block-final inline widget, walk through the revealed source and
+	 *  out its leading edge, fold — a byte-identical caret-entry-reveal round trip. */
+	walkThroughInlineMath(blockIndex: number): Promise<void> {
+		return walkThroughInlineMath(this.ctx, blockIndex);
+	}
+
+	/** Backspace-enter a block-final inline widget, insert inside the formula, and
+	 *  commit by escaping the trailing edge — the caret-escape reveal-commit path. */
+	backspaceRevealEditInlineMath(blockIndex: number, insert: string): Promise<void> {
+		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
+	}
+
+	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────
+	// ArrowUp-stop, Enter-below, and the Backspace-from-below two-step delete on an
+	// opaque childless diagram. Each gates on a focus/structural signal and resyncs;
+	// the delete and Enter detours net to identity via undo.
+
+	arrowFocusMermaid(belowIndex: number): Promise<void> {
+		return arrowFocusMermaid(this.ctx, belowIndex);
+	}
+
+	enterBelowUndoMermaid(): Promise<void> {
+		return enterBelowUndoMermaid(this.ctx);
+	}
+
+	backspaceTwoStepDeleteUndoMermaid(belowIndex: number): Promise<void> {
+		return backspaceTwoStepDeleteUndoMermaid(this.ctx, belowIndex);
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
