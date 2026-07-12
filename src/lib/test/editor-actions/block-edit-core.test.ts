@@ -52,11 +52,20 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
-	it('split at offset 0 of a non-empty block bumps trivia without adding a block', async () => {
-		const { scope, commits, children } = stubScope([leaf('hello\n')]);
+	it('split at offset 0 puts an empty block above and keeps the caret on the content', async () => {
+		const content = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('hello\n')], true, [
+			undefined,
+			content.ref
+		]);
 		await createBlockEditCore(scope).split(0, 0);
-		expect(children).toHaveLength(1);
+		expect(children).toHaveLength(2);
+		expect(children[0].raw).toBe('\n');
+		expect(children[0].kind).toBe('paragraph');
+		expect(children[1].raw).toBe('hello\n');
+		expect(commits[0].op.kind).toBe('split');
 		expect(commits[0].op.detail).toEqual({ at: 0 });
+		expect(content.calls).toEqual([0]);
 	});
 
 	it('merge-prev of two paragraphs is eligible and concatenates', async () => {

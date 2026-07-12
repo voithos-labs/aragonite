@@ -16,7 +16,6 @@ import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import {
 	splitNode as performSplit,
-	bumpLeadingTrivia,
 	mergeWithNext as performMergeNext,
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
@@ -56,25 +55,11 @@ export interface BlockEditCore {
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	return {
 		async split(i, offset) {
-			const children = scope.children();
-			if (offset === 0 && displayLength(children[i].raw) > 0) {
-				// performSplit at offset 0 of a non-empty block would synthesize an
-				// empty leading paragraph whose '\n' collapses into trivia on reparse,
-				// desyncing the live tree from serialize(parse(source)). Bump the
-				// block's own leadingTrivia instead. (Empty blocks fall through to the
-				// normal [empty, empty] split — intended rapid-Enter behavior.)
-				await scope.commit({
-					snapshot: { index: i, offset: 0 },
-					eventTarget: i,
-					op: { kind: 'split', detail: { at: 0 } },
-					mutate: (view) => {
-						view.unshareChild(i);
-						return bumpLeadingTrivia({ children: view.children }, i);
-					},
-					afterTick: () => scope.refAt(i)?.focus(0)
-				});
-				return;
-			}
+			// Offset 0 is not special: empty block above, content below, caret
+			// staying on the content — the leading empty half collapsing to trivia
+			// on reparse is the same tolerated live state Enter-at-end produces.
+			// A trivia-bump short-circuit here once made Enter at block start an
+			// invisible no-op.
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
