@@ -85,29 +85,55 @@
 				x = 0;
 				y = 0;
 			},
-			onwheel(e: WheelEvent) {
-				e.preventDefault();
-				e.stopPropagation();
-				scale = Math.min(4, Math.max(0.25, scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+			zoomBy(deltaY: number) {
+				scale = Math.min(4, Math.max(0.25, scale * (deltaY < 0 ? 1.15 : 1 / 1.15)));
 			},
-			onpointerdown(e: PointerEvent) {
-				// A pan drag must never leak upward and start a cross-block selection.
-				e.stopPropagation();
+			beginPan(e: PointerEvent) {
 				(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 				drag = { pointerId: e.pointerId, fromX: e.clientX, fromY: e.clientY, atX: x, atY: y };
 			},
-			onpointermove(e: PointerEvent) {
+			movePan(e: PointerEvent) {
 				if (!drag || e.pointerId !== drag.pointerId) return;
 				x = drag.atX + (e.clientX - drag.fromX);
 				y = drag.atY + (e.clientY - drag.fromY);
 			},
-			onpointerup(e: PointerEvent) {
+			endPan(e: PointerEvent) {
 				if (drag?.pointerId === e.pointerId) drag = null;
 			}
 		};
 	}
 	const view = createPanZoom();
 	const overlayView = createPanZoom();
+
+	// Pan and zoom are focus-gated so the in-document diagram never hijacks the
+	// page: unfocused it is inert to wheel and drag (click-to-focus only), so a
+	// bare wheel scrolls the page and a stray drag can't pan. Focused, Ctrl/Cmd+
+	// wheel zooms and a drag pans. Block focus is any descendant focus (the
+	// viewport or a toolbar button), matching the :focus-within styling.
+	const isFocused = () => !!boxEl?.contains(document.activeElement);
+
+	function onViewportWheel(e: WheelEvent): void {
+		if (!isFocused() || !(e.ctrlKey || e.metaKey)) return;
+		e.preventDefault();
+		e.stopPropagation();
+		view.zoomBy(e.deltaY);
+	}
+
+	function onViewportPointerDown(e: PointerEvent): void {
+		// Never leak upward into a cross-block selection; never preventDefault, so
+		// the browser's focus-on-mousedown still lands (the first click focuses,
+		// and only a drag on the now-focused block pans).
+		e.stopPropagation();
+		if (isFocused()) view.beginPan(e);
+	}
+
+	function onOverlayWheel(e: WheelEvent): void {
+		// The focus modal is a dedicated zoom surface with nothing behind to
+		// scroll, so a bare wheel zooms here — unlike the in-document view.
+		e.preventDefault();
+		e.stopPropagation();
+		overlayView.zoomBy(e.deltaY);
+	}
 
 	// ── Edit mode ───────────────────────────────────────────────────────────────
 
@@ -156,6 +182,12 @@
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
 			cancelEdit();
+		} else if (e.key === 'Tab') {
+			// A code surface indents in place; it never tab-exits (Escape is the exit).
+			// execCommand inserts through the input event, so `draft` binds and the
+			// textarea's native undo stays whole — a raw draft splice would break both.
+			e.preventDefault();
+			document.execCommand('insertText', false, '\t');
 		}
 	}
 
@@ -224,10 +256,14 @@
 				tabindex="0"
 				role="img"
 				aria-label="Mermaid diagram"
-				onwheel={view.onwheel}
-				onpointerdown={view.onpointerdown}
-				onpointermove={view.onpointermove}
-				onpointerup={view.onpointerup}
+				onwheel={onViewportWheel}
+				onpointerdown={onViewportPointerDown}
+				onpointermove={(e) => view.movePan(e)}
+				onpointerup={(e) => view.endPan(e)}
+				ondblclick={(e) => {
+					e.stopPropagation();
+					openEdit();
+				}}
 			>
 				<div class="mermaid-canvas" style:transform={view.transform}>
 					{@html rendered.svg}
@@ -256,10 +292,13 @@
 			</div>
 			<div
 				class="mermaid-overlay-viewport"
-				onwheel={overlayView.onwheel}
-				onpointerdown={overlayView.onpointerdown}
-				onpointermove={overlayView.onpointermove}
-				onpointerup={overlayView.onpointerup}
+				onwheel={onOverlayWheel}
+				onpointerdown={(e) => {
+					e.stopPropagation();
+					overlayView.beginPan(e);
+				}}
+				onpointermove={(e) => overlayView.movePan(e)}
+				onpointerup={(e) => overlayView.endPan(e)}
 			>
 				<div class="mermaid-canvas" style:transform={overlayView.transform}>
 					{#if rendered?.svg}
@@ -280,31 +319,74 @@
 		border-radius: 6px;
 		margin: 6px 0;
 		padding: 4px;
+		transition:
+			border-color 0.12s ease,
+			background-color 0.12s ease;
 	}
 
+	/* Whole-block focus cue, matching CodeBlock's border shift — one gentle
+	   treatment on the block root, no inner outline. Any descendant focus counts,
+	   so the block reads active while editing or using its toolbar too. */
+	.mermaid-block:focus-within {
+		border-color: var(--color-accent, #567b67);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+	}
+
+	/* A transient control cluster, floated top-right and revealed on hover/focus
+	   so the diagram carries no chrome at rest (SearchBar's elevated-surface +
+	   ghost-button convention). */
 	.mermaid-toolbar {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		z-index: 2;
 		display: flex;
 		gap: 4px;
-		justify-content: flex-end;
+		padding: 3px;
+		border-radius: 6px;
+		background: var(--color-bg-elevated, #2a2c33);
+		border: 1px solid var(--color-border, #3d4047);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.12s ease;
+	}
+
+	.mermaid-block:hover .mermaid-toolbar,
+	.mermaid-block:focus-within .mermaid-toolbar {
+		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.mermaid-toolbar button,
 	.mermaid-overlay-bar button {
-		font-size: 12px;
+		font-family: var(--font-editor, ui-monospace, monospace);
+		font-size: 11px;
 		padding: 2px 8px;
+		color: var(--color-text, #d6d9e0);
+		background: transparent;
+		border: 1px solid var(--color-border, #3d4047);
+		border-radius: 3px;
+		cursor: pointer;
+	}
+
+	.mermaid-toolbar button:hover,
+	.mermaid-overlay-bar button:hover {
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 
 	.mermaid-viewport {
 		overflow: hidden;
-		cursor: grab;
+		cursor: pointer;
 		outline: none;
 		min-height: 40px;
+		user-select: none;
 	}
 
+	/* Focused, a drag pans — hint it with the grab cursor. Unfocused the viewport
+	   is click-to-focus only, so the default pointer stands. */
 	.mermaid-viewport:focus {
-		outline: 2px solid var(--color-accent, #567b67);
-		outline-offset: 2px;
-		border-radius: 2px;
+		cursor: grab;
 	}
 
 	.mermaid-canvas {
@@ -343,17 +425,17 @@
 	.mermaid-error {
 		padding: 4px 8px;
 		font-size: 0.85em;
-		color: var(--color-text-secondary, #888);
+		color: var(--color-text-muted, #888);
 	}
 
 	.mermaid-error {
-		color: var(--color-error, #b3554e);
+		color: var(--color-danger, #b3554e);
 	}
 
 	.mermaid-loading {
 		padding: 12px;
 		font-size: 0.85em;
-		color: var(--color-text-secondary, #888);
+		color: var(--color-text-muted, #888);
 	}
 
 	.mermaid-overlay {
@@ -362,10 +444,11 @@
 		z-index: 100;
 		display: flex;
 		flex-direction: column;
-		background: var(--color-bg-primary, #fff);
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		background: var(--color-bg-elevated, #2a2c33);
+		border: 1px solid var(--color-border, #3d4047);
 		border-radius: 8px;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+		color: var(--color-text, #d6d9e0);
 		outline: none;
 	}
 
@@ -374,12 +457,13 @@
 		gap: 4px;
 		justify-content: flex-end;
 		padding: 8px;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-bottom: 1px solid var(--color-border, #3d4047);
 	}
 
 	.mermaid-overlay-viewport {
 		flex: 1;
 		overflow: hidden;
 		cursor: grab;
+		user-select: none;
 	}
 </style>

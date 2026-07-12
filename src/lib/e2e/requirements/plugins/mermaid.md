@@ -3,9 +3,11 @@
 A ` ```mermaid ` fence claims a childless plugin container whose code lives in metadata;
 the component renders the diagram SVG through an injected renderer, with a
 plugin-owned textarea edit mode committing through `updateOwnMetadata` as one
-undoable entry, pan/zoom on the rendered SVG, and a fixed-position focus overlay.
-The block opts out of caret traversal (mouse + commands reach it); a plain fence
-with any other info string must stay the built-in `fencedCode`.
+undoable entry, focus-gated pan/zoom on the rendered SVG, and a fixed-position
+focus overlay. The block opts out of caret traversal (mouse + commands reach it);
+a plain fence with any other info string must stay the built-in `fencedCode`.
+Focus is a whole-block cue (accent border, no inner outline); the toolbar
+(Edit / Focus / Reset view) stays hidden until the block is hovered or focused.
 
 ## Happy paths
 
@@ -19,6 +21,13 @@ with any other info string must stay the built-in `fencedCode`.
   presence/absence asserted)
 - The `Mod+M` kind-chord opens the focus view when the diagram viewport has focus
   (the minted block-command path)
+
+## User interactions
+
+- Single click on the rendered view focuses the viewport without revealing the
+  source; a double click enters edit mode (textarea seeded with the fence code)
+- Tab inside the source textarea inserts a tab character at the caret and stays
+  in edit mode (Escape, not Tab, is the exit)
 
 ## Error cases
 

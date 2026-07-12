@@ -63,6 +63,8 @@
 </div>
 
 <style>
+	/* Restrained gutter-rail, not a card: a kind-colored left rail and accent title
+	   row, body text plain — a document, not a boxed callout. */
 	.admonition {
 		--adm-accent: var(--adm-note);
 		/* Fixed hex per kind, not theme tokens: GitHub's alert palette is canonically
@@ -74,12 +76,9 @@
 		--adm-caution: #e5534b;
 
 		position: relative;
-		margin: 0.6em 0;
-		border: 1px solid color-mix(in srgb, var(--adm-accent) 40%, transparent);
+		margin: 0.8em 0;
+		padding: 0.15em 0 0.15em 1em;
 		border-left: 3px solid var(--adm-accent);
-		border-radius: 6px;
-		background: color-mix(in srgb, var(--adm-accent) 7%, transparent);
-		padding: 0.35em 0.85em 0.55em;
 	}
 
 	.admonition[data-kind='note'] {
@@ -98,20 +97,24 @@
 		--adm-accent: var(--adm-caution);
 	}
 
-	/* The title chrome leaf (child 0) is the header row. */
+	/* The title chrome leaf (child 0) is the header row: icon + title on one line,
+	   in the kind accent. Positioned so its pseudo-elements anchor to the row. */
 	.admonition :global(.admonition-title) {
+		position: relative;
 		font-weight: 600;
 		color: var(--adm-accent);
-		padding-left: 2.1em;
+		padding-left: 1.7em;
 		min-height: 1.4em;
 		line-height: 1.4em;
 	}
 
-	/* Kind icon, tinted to the accent via a mask so one glyph recolors per kind. */
+	/* Kind icon, tinted to the accent via a mask so one glyph recolors per kind.
+	   Sits in the gutter at the row's start; body text below aligns to this edge. */
 	.admonition :global(.admonition-title)::before {
 		content: '';
 		position: absolute;
-		left: 0.7em;
+		left: 0;
+		top: 2px;
 		width: 1.1em;
 		height: 1.4em;
 		background-color: var(--adm-accent);
@@ -137,10 +140,23 @@
 		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 1.3h6l4 4v6l-4 4H5l-4-4V5.3zM7.1 4h1.8v5H7.1zm0 6h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 
-	/* Untitled: show the capitalized kind name where the caret sits. */
+	/* The empty title leaf holds a lone <br>; under pre-wrap that paints a trailing
+	   empty line, so cap the untitled title to one row — otherwise the title-to-body
+	   gap is a line taller than the titled variants. */
+	.admonition[data-title-empty='true'] :global(.admonition-title) {
+		height: 1.4em;
+	}
+
+	/* Untitled: show the capitalized kind name where the caret sits. Absolute like
+	   the icon — the empty leaf holds a <br>, so inline generated content would wrap
+	   onto a second row; pinning it to the row keeps titled/untitled geometry equal. */
 	.admonition[data-title-empty='true'] :global(.admonition-title)::after {
+		position: absolute;
+		left: 1.7em;
+		top: 2px;
 		opacity: 0.72;
 		font-weight: 600;
+		line-height: 1.4em;
 		pointer-events: none;
 		user-select: none;
 	}
