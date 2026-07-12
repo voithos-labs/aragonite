@@ -77,6 +77,29 @@ container shim hardcodes `editable: true`.
 
 ## Test coverage
 
+### CI-only [invariant:stale-raw] fire: blockquote raw stale during list unindent/paste ops
+
+**Severity:** important (a real invariant violation, timing-shielded locally)
+**Files:** list unindent/shift-tab and paste-over-list-selection operation paths (ancestry
+raw rebuild); surfaced by `src/lib/e2e/tests/` shift-tab.spec.ts, unindent-registry.spec.ts,
+silent-drop-list-paste-over-list-selection.spec.ts under the invariant-watcher fixture
+
+First CI run with the watcher-armed battery (run 29177807039, e2e shards 2/4 and 4/4) failed
+five specs on `[invariant:stale-raw] blockquote raw is stale relative to its children
+{kind: blockquote, raw: }` — an empty blockquote raw observed at a commit boundary. The same
+specs are green locally under the watcher, so the fire is timing-dependent (slower runners
+widen a window in which a blockquote ancestor's raw has not been rebuilt in the same commit
+as its child mutation). The watcher did its job: this class was previously invisible because
+no spec failed on invariant console fires.
+
+**Fix direction:** reproduce by running the three spec files under CPU throttling (or a
+retry loop on CI); then trace the unindent/paste commit paths for a blockquote ancestry
+rebuild that happens outside the committing mutation. The metadata-driven raw invariant
+(`updateBlockMetadata` § design spec) is the pattern the fix should land on.
+
+**Why open:** found at session end by the first sharded CI run; needs a bounded
+investigation with the repro first — do not patch the invariant checker to quiet it.
+
 ### Attribution perf axes time out on 1MB setSource settle (pre-existing)
 
 **Severity:** minor (diagnostic instruments only — the `PERF-GATE` rows and typing-latency rows pass with 2-3× headroom, so `perf:check`'s regression gate is intact)
