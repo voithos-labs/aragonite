@@ -57,6 +57,10 @@ jobs:
       # The gate rows are accept-documented against the prod build; a dev-server
       # run would measure vite transform overhead, not the editor.
       PERF_PROD: '1'
+      # Runners measured ~2.2x the calibration machine (runs 29177807039 /
+      # 29178211384); 2.5 keeps this job a gross-regression net while the local
+      # unscaled gate stays the tight one.
+      PERF_RUNNER_SCALE: '2.5'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
