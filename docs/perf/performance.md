@@ -21,6 +21,7 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 
 - **Gated:** `npm run perf:check` enforces the keystroke (`e2e`) rows — every renderable shape at ≤1MB and the 10MB keystroke (all O(viewport), flat and single-container alike); `amplification.test.ts` asserts the structural `counters`.
 - **Report-only:** the `parse` / `snapshot*` / `ancestryRebuild` rows are dev references — environment-sensitive (orders of magnitude, not targets; see baseline.json's note).
+- **Environment scaling:** ceilings derive from baselines measured on the calibration machine; a slower environment scales the whole ceiling via `PERF_RUNNER_SCALE` instead of re-blessing baselines per host. Local runs stay unscaled (the tight gate); CI sets the scale in the workflow from its measured slowdown, making the CI perf job a gross-regression net.
 
 ## Key architectural decisions
 
