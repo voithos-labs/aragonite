@@ -1,5 +1,5 @@
 // Exactly one edit event per structural list-context op (Tab / Shift+Tab / Enter mid-item / Enter at end).
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { countEditEvents } from './helpers';
 

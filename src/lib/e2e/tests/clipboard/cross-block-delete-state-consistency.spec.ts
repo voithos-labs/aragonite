@@ -2,7 +2,7 @@
 // registered BlockListState, node.children.length === innerBlockIds.length ===
 // innerBlockRefs.length. Scenarios exercise deletes touching nested containers
 // at different depths.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 type StateViolation = {

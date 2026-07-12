@@ -1,7 +1,7 @@
 // Single concern: ArrowDown traversal correctness after structural ops near containers. Each test
 // loads a different multi-block document and runs a different structural op (split, M1 merge,
 // cross-container merge); they share the same regression invariant about stale container indices.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Regressions: structural ops (split/merge/delete) shift indices; container-block navigation must remain correct after.

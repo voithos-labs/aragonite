@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Reorder resolves the unit from the caret path and moves it among its siblings;

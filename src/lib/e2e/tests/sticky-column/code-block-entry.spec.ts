@@ -1,7 +1,7 @@
 // Single concern: sticky-column landing-X symmetry on code-block entry. Each test exercises a different
 // code-block shape (single body line, multi-body, info string, js-highlighted, default-content);
 // they share helpers and one invariant, so they read better as parametric variants in one file than as a directory.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 

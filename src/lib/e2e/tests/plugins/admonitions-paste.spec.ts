@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { primaryModifier } from '../../platform';
 import { PluginsPage, readDoc, roundTripStable } from './helpers';
 
