@@ -251,36 +251,56 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		restoreRenderedWidget();
 	}
 
-	// Escape fold: while source is revealed, a caret/selection move that leaves the
-	// source but stays inside the block folds the reveal (clean → widget restored
-	// in place; edited → the commit path, one undo entry). Blur keeps owning the
-	// focus-leaving fold; a cross-block sweep keeps the source revealed so its
-	// rects measure real text. Containment is decided by RAW OFFSET through the
-	// canonical walk, boundary-inclusive: a caret at the source's edge may anchor
-	// in the ADJACENT text node (the browser's choice), and node identity would
-	// misread that as an escape.
-	function foldRevealIfSelectionEscaped(): void {
-		if (!activeReveal || !activeSourceNode || revealSettling) return;
-		if (deps.isCrossBlock()) return;
+	// The selection currently reads as an escape: both endpoints in the block,
+	// neither in the revealed source. Containment is decided by RAW OFFSET through
+	// the canonical walk, boundary-inclusive: a caret at the source's edge may
+	// anchor in the ADJACENT text node (the browser's choice), and node identity
+	// would misread that as an escape.
+	function selectionEscapedSource(): boolean {
+		if (!activeReveal || !activeSourceNode || revealSettling) return false;
+		if (deps.isCrossBlock()) return false;
 		const el = deps.getEl();
 		const sel = window.getSelection();
-		if (!el || !sel || sel.rangeCount === 0) return;
+		if (!el || !sel || sel.rangeCount === 0) return false;
 		const { anchorNode, focusNode } = sel;
-		if (!anchorNode || !focusNode) return;
-		if (!el.contains(anchorNode) || !el.contains(focusNode)) return;
-		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return;
+		if (!anchorNode || !focusNode) return false;
+		if (!el.contains(anchorNode) || !el.contains(focusNode)) return false;
+		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return false;
 		const ambient = deps.getAmbientLength();
 		const sourceStart = Math.max(0, rawOffsetAtNode(el, activeSourceNode, 0) - ambient);
 		const sourceEnd = sourceStart + activeSourceNode.length;
 		const anchorOff = Math.max(0, rawOffsetAtNode(el, anchorNode, sel.anchorOffset) - ambient);
 		const focusOff = Math.max(0, rawOffsetAtNode(el, focusNode, sel.focusOffset) - ambient);
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
-		if (inSource(anchorOff) || inSource(focusOff)) return;
-		if (deps.readRawText() === revealOriginalDisplay) {
-			foldRevealNoEdit();
-			return;
-		}
-		commitReveal();
+		return !inSource(anchorOff) && !inSource(focusOff);
+	}
+
+	// Escape fold: while source is revealed, a caret/selection move that leaves the
+	// source but stays inside the block folds the reveal (clean → widget restored
+	// in place; edited → the commit path, one undo entry). Blur keeps owning the
+	// focus-leaving fold; a cross-block sweep keeps the source revealed so its
+	// rects measure real text. An escape must SURVIVE A TICK to fold: the editor's
+	// own machinery (cross-block entry clearing the native selection for custom
+	// rendering) manufactures transient escape-shaped states that a slow machine
+	// delivers before the cross-block flag flips — re-verifying after tick makes
+	// them unfoldable while a real user escape still folds.
+	let foldCheckQueued = false;
+	function foldRevealIfSelectionEscaped(): void {
+		if (foldCheckQueued || !selectionEscapedSource()) return;
+		foldCheckQueued = true;
+		void (async () => {
+			try {
+				await tick();
+			} finally {
+				foldCheckQueued = false;
+			}
+			if (!selectionEscapedSource()) return;
+			if (deps.readRawText() === revealOriginalDisplay) {
+				foldRevealNoEdit();
+				return;
+			}
+			commitReveal();
+		})();
 	}
 
 	// Point-in-rect walk over the block's reveal-source widgets — the ONE hit test
