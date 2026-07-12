@@ -18,18 +18,15 @@ Remaining work, ordered. Sequencing principle: **risk first, validation before f
 likely to change later plans or to reveal contract gaps (the clean-room build) run early enough that
 what they teach is still cheap to act on.
 
-The platform surface is API-complete (0.9.13–0.9.16: the plugin unit, paste transforms,
-portal widgets, the reference plugin, the editable-leaf tier). The dominant remaining risk has
-inverted — it is no longer "the API is missing something" but "the validation is one clean-room
-run deep, and every consumer since was in-repo and same-day." The remaining items answer that.
+The platform surface is API-complete and hardened (0.9.13–0.9.16: the plugin unit, paste
+transforms, portal widgets, the reference plugin, the editable-leaf tier; 0.9.20: the
+evaluation-driven hardening program — ownership gates, leaf-tier command dispatch, command
+error containment, the `aragonite/testing` seam, the command→component channel, the renderer
+memo primitive, ceremony helpers, published priority/token contracts, the closure matrix).
+The dominant remaining risk is validation depth — one clean-room run deep, every consumer
+since in-repo and same-day. The remaining items answer that.
 
-1. **Attribution-axes diagnosis** — the one piece of CI hardening left (the sharded battery,
-   the prod-build perf gate, the watcher sweep, and the minimal CONTRIBUTING shipped in
-   0.9.17): diagnose the attribution axes' settle timeout on 1MB fixtures (`docs/issues.md`)
-   so the perf story carries no standing red anywhere — today the axes are excluded from the
-   CI gate as recorded diagnostics. The full culture.md promotion with PR flow stays at the
-   freeze cut.
-2. **Limestone internal integration** — the last unchecked box in the validation list above and
+1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
    integration code lives in limestone; what belongs here is running it before the freeze and
@@ -40,8 +37,10 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
    package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
    tarball, exports-map encapsulation already proven.
-3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, the
-   0.9.16 tarball and public docs only, building something the new seams carry. The first
+2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+   current tarball and public docs only, building something the new seams carry — **and
+   writing tests for their plugin**, so the run probes the third-party testing story item 1
+   ships, not just authoring discoverability. The first
    run validated container/chrome discoverability; nothing has third-party-validated the unit,
    transforms, portal widgets, or the leaf tier. One support question is the benchmark. The
    subject should exercise **editable-leaf plain mode** — its only consumer today is the
@@ -49,7 +48,7 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-4. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
+3. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
    the real showcase route (every block kind + every reference plugin — the fixture dogfoods
    stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
    panel). This is the "surpass Obsidian" argument made visible. It also owns **route
@@ -60,7 +59,7 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
    plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
    whatever it adds.
-5. **Freeze cut at release** — in order:
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -173,7 +172,7 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7); `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
 - **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax, validated by the 1.3 footnotes/emoji plugins.
-- **Render-primary authoring gaps** (the reference builds' recorded walls, `docs/issues.md`): a public focus-actions seam for render-only containers (the childless-container caret dead-end behind mermaid's `focusable: false`), and a command→component channel so view-state block commands stop needing a plugin-owned bridge.
+- **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 - **Decoded-entity inline widget** — `&copy;` renders its glyph as an atomic component widget (the portal seam's natural next consumer); re-adds the trimmed `deleteGranularity`/`onEdge` editing-policy fields with entity editing as their driving consumer.
 
 ### 1.3 — Beyond-GFM (as plugins)

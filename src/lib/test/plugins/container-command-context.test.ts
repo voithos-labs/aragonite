@@ -68,6 +68,57 @@ describe('plugin container kind-command target', () => {
 		expect(handler.mock.calls[0][0]).toMatchObject({ node });
 	});
 
+	it('threads commandHooks so a handler reaches the mounted component', () => {
+		const hooks = { openEdit: vi.fn() };
+		const handler = vi.fn((ctx: { hooks?: unknown }) => {
+			(ctx.hooks as { openEdit(): void } | undefined)?.openEdit();
+			return true;
+		});
+		const id = registerBlockCommand(note, 'note.edit', handler);
+		const overrides = bindKindChord(note, 'Mod+Shift+K', id);
+		const node = noteNode();
+
+		const handled = dispatchKindCommand(
+			'Mod+Shift+K',
+			buildContainerKindTarget(
+				{
+					get node() {
+						return node;
+					},
+					commandHooks: () => hooks
+				},
+				vi.fn()
+			),
+			overrides
+		);
+
+		expect(handled).toBe(true);
+		expect(handler.mock.calls[0][0]).toMatchObject({ node, hooks });
+		expect(hooks.openEdit).toHaveBeenCalledTimes(1);
+	});
+
+	it('supplies hooks as undefined when no commandHooks getter is given', () => {
+		const handler = vi.fn((_ctx: { hooks?: unknown }) => true);
+		const id = registerBlockCommand(note, 'note.noHooks', handler);
+		const overrides = bindKindChord(note, 'Mod+Shift+K', id);
+		const node = noteNode();
+
+		dispatchKindCommand(
+			'Mod+Shift+K',
+			buildContainerKindTarget(
+				{
+					get node() {
+						return node;
+					}
+				},
+				vi.fn()
+			),
+			overrides
+		);
+
+		expect(handler.mock.calls[0][0].hooks).toBeUndefined();
+	});
+
 	it('reads deps.node live so a node swap is observed, never snapshotted (Design Rule 5)', () => {
 		let node = noteNode();
 		const target = buildContainerKindTarget(

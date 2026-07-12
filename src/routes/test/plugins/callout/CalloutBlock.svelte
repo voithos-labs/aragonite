@@ -4,7 +4,12 @@
 	// reaches for (block-list state, the five ancestor contexts, container-exit,
 	// windowing, the BlockComponent shim). This component supplies only its own
 	// chrome around the returned BlockList props.
-	import { BlockList, createContainerBlock, type CstNode } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		type ContainerBlockComponent,
+		type CstNode
+	} from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
@@ -34,6 +39,23 @@
 	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
+
+	// Completeness guard: `bind:this` reads each instance export individually, so the
+	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
+	// new ContainerBlockComponent member is added and left un-forwarded above.
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -62,7 +84,7 @@
 		top: 8px;
 		font-size: 14px;
 		line-height: 1.4;
-		color: var(--color-text-secondary, #888);
+		color: var(--color-text-muted, #aaaaaa);
 	}
 
 	/* Reserved child-0 chrome: the `note-title` leaf, CSS-promoted to a title row

@@ -170,6 +170,6 @@
 	}
 
 	.math-block-render:hover {
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.08));
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 </style>

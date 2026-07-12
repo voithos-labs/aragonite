@@ -5,22 +5,15 @@
  * re-registers cleanly after a schema reset.
  */
 
-import {
-	definePlugin,
-	registerBlockComponent,
-	defineBlockComponent,
-	declaredPluginKind,
-	type EditorPlugin
-} from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
 import { registerCalloutKind, NOTE } from './callout-kind';
 import CalloutBlock from './CalloutBlock.svelte';
 
 export function calloutPlugin(): EditorPlugin {
-	return definePlugin({
+	return definePluginBlock({
 		name: 'callout',
-		setup() {
-			registerCalloutKind();
-			registerBlockComponent(declaredPluginKind(NOTE), defineBlockComponent(CalloutBlock));
-		}
+		kind: NOTE,
+		component: CalloutBlock,
+		register: registerCalloutKind
 	});
 }

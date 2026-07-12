@@ -5,17 +5,38 @@
  * factory, not to be a useful block. Dev/e2e harness only.
  */
 
-import { declarePluginKind, registerBlockKind, registerBlockOpener } from '$lib/plugin';
+import {
+	declarePluginKind,
+	registerBlockKind,
+	registerBlockCommand,
+	registerBlockOpener
+} from '$lib/plugin';
 
 export const MEMO_BLOCK = 'memo';
 
 export function registerMemoBlock(): void {
 	const memo = declarePluginKind(MEMO_BLOCK);
 
+	// Two harness-only block commands exercise the editable-leaf tier's minted-command
+	// dispatch: `memo.tag` commits metadata through the sanctioned route (one
+	// metadataUpdate edit), `memo.boom` throws so the seam's containment + 'command'
+	// error routing surface end-to-end. Bound below on the memo keymap.
+	const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
+		ctx.updateMetadata({ memoTagged: true });
+		return true;
+	});
+	const boom = registerBlockCommand(memo, 'memo.boom', () => {
+		throw new Error('memo.boom: intentional handler failure (harness)');
+	});
+
 	registerBlockKind(memo, {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		supportsInline: false
+		supportsInline: false,
+		keymap: [
+			{ chord: 'Mod+Shift+K', command: tag },
+			{ chord: 'Mod+Shift+J', command: boom }
+		]
 	});
 
 	registerBlockOpener(memo, {

@@ -45,8 +45,9 @@ describe('renderMermaid memoization', () => {
 		expect((await renderMermaid('graph TD')).svg).toBe('<svg>two</svg>');
 	});
 
-	// The math renderer's bound, mirrored: code text keys the cache, so churn
-	// past the cap must evict the least-recently-used entry, not grow forever.
+	// The LRU mechanics are pinned generically in bounded-memo.test.ts; this proves
+	// renderMermaid wires the real MERMAID_MEMO_CAP bound, so churn evicts rather
+	// than grows forever.
 	it('evicts the least-recently-used entry past the cap', async () => {
 		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
 		setMermaidRenderer(renderer);

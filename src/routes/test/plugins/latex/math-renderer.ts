@@ -15,6 +15,7 @@ import katex from 'katex';
 // here means no route installing the plugin can forget it; a consumer swapping in
 // another engine owns that engine's stylesheet the same way.
 import 'katex/dist/katex.min.css';
+import { createBoundedMemo } from '$lib/plugin';
 
 export type MathRenderer = (
 	source: string,
@@ -61,29 +62,17 @@ function buildErrorNode(message: string): HTMLElement {
 const MEMO_CAP = 256;
 
 /**
- * Memoize the render *work*, not a live node: a single DOM node cannot occupy two
- * places, and the same formula is commonly rendered in several spots. We cache
- * `inner`'s result and clone it on every call (the cache node stays pristine), so
- * `inner` runs once per key while each caller gets its own detached node.
- *
- * Bounded LRU: every keystroke while editing source mints a new key, so an
- * unbounded map is a leak. Map iteration is insertion-ordered — re-inserting on
- * a hit makes the first key the least recently used.
+ * Memoize the render *work* keyed on `(source, display)`, cloning the cached node
+ * on every read so `inner` runs once per key while each caller gets its own
+ * detached node. The bounded-LRU cache is the platform's `createBoundedMemo`; the
+ * clone-on-read is why math uses the primitive's `cloneOnRead` hook.
  */
 export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): MathRenderer {
-	const cache = new Map<string, { dom: HTMLElement; error?: string }>();
-	return (source, opts) => {
-		const key = `${source}\x00${opts.display}`;
-		let entry = cache.get(key);
-		if (entry) {
-			cache.delete(key);
-		} else {
-			entry = inner(source, opts);
-			if (cache.size >= cap) cache.delete(cache.keys().next().value as string);
-		}
-		cache.set(key, entry);
-		return { dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error };
-	};
+	const memo = createBoundedMemo<string, { dom: HTMLElement; error?: string }>({
+		cap,
+		cloneOnRead: (entry) => ({ dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error })
+	});
+	return (source, opts) => memo(`${source}\x00${opts.display}`, () => inner(source, opts));
 }
 
 // ── Inline renderer wiring ────────────────────────────────────────────────────

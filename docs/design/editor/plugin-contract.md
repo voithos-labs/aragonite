@@ -6,8 +6,9 @@
 
 - **Registration base — frozen since 0.8.3.** Node identity (`AnyBlockKind`), the
   register-once/conflict-on-duplicate registry model, plugin-kind naming
-  (`declarePluginKind`), accessor-only inline content, and the `getEvents()` seam. These
-  shapes will not change in a breaking way.
+  (`declarePluginKind`), the no-node-field inline-content shape (a kind declares `supportsInline`;
+  the tree carries no cache), and the `getEvents()` seam. These shapes will not change in a
+  breaking way.
 - **Authoring surface — exposed _pre-freeze_ on `aragonite/plugin`.** The container factory,
   the chrome leaf + reserved-chrome contract, and their supporting descriptor fields (see
   § The pre-freeze authoring surface). Built pre-1.0, refined against real consumers, and
@@ -64,25 +65,23 @@ shape they bind to is the breaking restructure.
 
 ## Decision table
 
-> Historical record of the 0.8.3 freeze scoping. Where a row says "1.2", the
-> 1.0-as-plugin-platform pivot since moved the _authoring_ pieces (container contract,
-> command mint, inline-widget editing registry) to pre-1.0; the _DX system_ stays 1.2. The
-> verdict logic itself is unchanged.
+> The durable content is the verdict column — breaking-if-deferred versus additive-later, the
+> 0.8.3 scoping logic. The status column reads current: where each surface actually landed.
 
-| Surface                                                                  | Verdict              | In the freeze?                                                                                         | Reason                                                                                                                                                                                            |
-| ------------------------------------------------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CstNode.kind` widening to `AnyBlockKind`                                | breaking-if-deferred | **Yes — implemented**                                                                                  | A closed `switch (node.kind)` in external code goes non-exhaustive the moment a plugin kind appears                                                                                               |
-| Registry model: global, register-once, conflict-on-duplicate             | breaking-if-deferred | **Yes — implemented**                                                                                  | Flipping silent-override → conflict after plugins bind changes observable behavior they relied on                                                                                                 |
-| Plugin-kind naming + collision rules (`declarePluginKind`)               | breaking-if-deferred | **Yes — implemented**                                                                                  | The collision contract is what a plugin's kind name binds to                                                                                                                                      |
-| Events access seam (`getEvents()` canonical)                             | additive-later       | **Ratified now; alternatives additive**                                                                | Keeping `getEvents()` is non-breaking and a future alternative path is additive — the freeze ratifies it as _the_ canonical entry point so consumers bind to one                                  |
-| `EditEvent` / `EditorError` payload shapes                               | additive-later       | Bound as-is; extensible                                                                                | New fields/origins never break a _receiver_                                                                                                                                                       |
-| Plugin manifest / `plugins` prop                                         | additive-later       | **Sketched, built at 1.2** [pivot: unit + prop shipped pre-1.0; manifest stays 1.2]                    | A new optional prop and its element type are additive; the shape needs the 1.2 reference plugins to validate                                                                                      |
-| Plugin-op vocabulary extension                                           | additive-later       | Sketched                                                                                               | No plugin ops exist; extension mechanism is additive                                                                                                                                              |
-| `EditEvent` snapshot/real-delta discriminant                             | additive-later       | **Deferred**                                                                                           | Its binding consumer (persistent version history) is post-v1 app-infra, and its semantic must be designed _with_ that consumer (see Deferred)                                                     |
-| 0.8.2 inline-parser stage hook                                           | n/a                  | **Excluded**                                                                                           | Deferred to its real 1.2/1.3 consumer                                                                                                                                                             |
-| Selection coordinate-addressing / inline-widget / component-portal seams | additive-later       | **Excluded (1.2)** [pivot: component-portal shipped pre-1.0 (0.9.14); coordinate-addressing stays 1.2] | Per-hook seams built against this foundation; additive                                                                                                                                            |
-| Runtime unregister / replace                                             | n/a                  | **Excluded (Plugin System II)**                                                                        | The static-registry model has no runtime unload                                                                                                                                                   |
-| 0.8.5 lazy `inlineContent` (contract narrowing)                          | breaking-if-deferred | **Yes — implemented**                                                                                  | Dropping the `inlineContent` field from `CstNode` removes a public-type member; a plugin binds inline content through the `getInlineContent` accessor — narrowed now, while cheap, before binding |
+| Surface                                                                  | Verdict              | In the freeze?                                                                        | Reason                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------ | -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CstNode.kind` widening to `AnyBlockKind`                                | breaking-if-deferred | **Yes — implemented**                                                                 | A closed `switch (node.kind)` in external code goes non-exhaustive the moment a plugin kind appears                                                                                                                  |
+| Registry model: global, register-once, conflict-on-duplicate             | breaking-if-deferred | **Yes — implemented**                                                                 | Flipping silent-override → conflict after plugins bind changes observable behavior they relied on                                                                                                                    |
+| Plugin-kind naming + collision rules (`declarePluginKind`)               | breaking-if-deferred | **Yes — implemented**                                                                 | The collision contract is what a plugin's kind name binds to                                                                                                                                                         |
+| Events access seam (`getEvents()` canonical)                             | additive-later       | **Ratified now; alternatives additive**                                               | Keeping `getEvents()` is non-breaking and a future alternative path is additive — the freeze ratifies it as _the_ canonical entry point so consumers bind to one                                                     |
+| `EditEvent` / `EditorError` payload shapes                               | additive-later       | Bound as-is; extensible                                                               | New fields/origins never break a _receiver_                                                                                                                                                                          |
+| Plugin manifest / `plugins` prop                                         | additive-later       | **Unit + prop shipped pre-1.0; manifest stays 1.2**                                   | A new optional prop and its element type are additive; the declarative manifest overload still awaits the 1.2 reference plugins to validate                                                                          |
+| Plugin-op vocabulary extension                                           | additive-later       | Sketched                                                                              | No plugin ops exist; extension mechanism is additive                                                                                                                                                                 |
+| `EditEvent` snapshot/real-delta discriminant                             | additive-later       | **Deferred**                                                                          | Its binding consumer (persistent version history) is post-v1 app-infra, and its semantic must be designed _with_ that consumer (see Deferred)                                                                        |
+| 0.8.2 inline-parser stage hook                                           | n/a                  | **Excluded**                                                                          | Deferred to its real 1.2/1.3 consumer                                                                                                                                                                                |
+| Selection coordinate-addressing / inline-widget / component-portal seams | additive-later       | **Inline-widget + component-portal shipped pre-1.0; coordinate-addressing stays 1.2** | Per-hook seams built against this foundation; additive                                                                                                                                                               |
+| Runtime unregister / replace                                             | n/a                  | **Excluded (Plugin System II)**                                                       | The static-registry model has no runtime unload                                                                                                                                                                      |
+| 0.8.5 lazy `inlineContent` (contract narrowing)                          | breaking-if-deferred | **Yes — implemented**                                                                 | Dropping the `inlineContent` field from `CstNode` removes a public-type member; a plugin binds inline content by declaring `supportsInline`, not by reading a node field — narrowed now, while cheap, before binding |
 
 ## The frozen foundation
 
@@ -108,12 +107,13 @@ render-path throw contained by the per-block error boundary as a failed-block fa
 descriptor completeness is bootstrap-checked (G1.2 over the closed union); validating that a
 plugin registered its descriptor is a 1.2 plugin-lifecycle concern.
 
-### Node shape — inline content is accessor-only
+### Node shape — inline content is not a node field
 
-`CstNode` carries no `inlineContent` field. A prose node's inline tree is derived from `raw`, so
-it is obtained on demand through the `getInlineContent` accessor (the render path computes it
-locally), never read off the node. An inline-bearing plugin kind declares `supportsInline` on its
-descriptor and gets lazy inline for free; it must not assume a node-field cache.
+`CstNode` carries no `inlineContent` field. A prose node's inline tree is derived from `raw`: the
+render path computes it locally, and the editor's non-render internals read it through an internal,
+non-reactive accessor — not a surface a plugin calls. What a plugin binds to is a single descriptor
+flag: an inline-bearing kind declares `supportsInline` and gets lazy inline for free, with no
+node-field cache to assume.
 
 This narrows the frozen contract — `inlineContent` was a public member of the node type. It is
 done now, by the freeze's own criterion: a derived-cache field leaking into the node shape is the
@@ -161,8 +161,10 @@ Registration model
   plugin/test kinds isolate without losing the grammar); the paste-surface registry, living in
   `tree-operations/`, keeps its own full-clear reset. For dev HMR, a registration module cannot be
   hot-swapped in place under register-once — editing one requires a page reload (a deliberate,
-  dev-only consequence; the modules carry no HMR-accept magic). All reset affordances are internal,
-  never exposed.
+  dev-only consequence; the modules carry no HMR-accept magic). The per-registry resets stay
+  internal; the one sanctioned public seam is the `aragonite/testing` subpath's
+  `resetPluginPlatformForTests()`, which aggregates them so a third-party plugin's own test suite
+  can re-install between cases, and throws outside a detected test environment.
 
 **Why global, given the per-instance `plugins` prop?** The roadmap flagged the apparent
 tension. It resolves cleanly: kind _definitions_ are global because, like custom elements, a
@@ -202,8 +204,8 @@ members can be added later without breaking a receiver. They need no change for 
   vocabulary derived from `OperationDetailMap`. Emitted from the commit ceremony (structural
   ops) and the keystroke-debounce flush (`op: 'input'`).
 - **`EditorError`** — `{ origin, error, context? }` with `origin` in
-  `'subscriber' | 'render' | 'commit'` and `error: unknown` (correct for a boundary). Routed
-  through the `error` event channel with a recursion guard.
+  `'subscriber' | 'render' | 'commit' | 'command'` and `error: unknown` (correct for a boundary).
+  Routed through the `error` event channel with a recursion guard.
 
 ## Target shapes (designed ahead)
 
@@ -216,8 +218,9 @@ manifest over the imperative unit remains additive-later.
 - **Plugin-op vocabulary extension.** A mechanism for a plugin to contribute an
   `OperationKind` (and its detail type) so its structural edits emit typed `EditEvent`s and
   participate in `EditorError.context.op`. Additive over `OperationDetailMap`.
-- **Error-origin extension.** Additional `EditorError.origin` values (e.g. a plugin/parse/command
-  origin) and possibly a structured plugin-error shape.
+- **Error-origin extension.** The `command` origin — a contained plugin block-command throw,
+  attributed to its kind, command id, and owning plugin — has shipped. A `parse` origin and a
+  structured plugin-error shape remain additive-later.
 - **Normalize-on-commit / veto seam.** A sanctioned hook for a plugin to veto a commit or append
   derived mutations atomically within the commit ceremony (ProseMirror
   `filterTransaction`/`appendTransaction`, CM6 `transactionFilter`). Post-1.0: additive over the
@@ -291,6 +294,11 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   bytes), and `trimTrailingLineEnding` (CRLF-correct display text) — the recognizer and
   serializer halves an opener and `rebuildRaw` need, promoted off `core/` deep paths so the
   packaged artifact carries them.
+- **Renderer + opener utilities (shipped):** `createBoundedMemo`, a bounded LRU memo for a
+  renderer's per-source work (sync, with an optional clone-on-read for live DOM, or async, with the
+  render promise as the cached value so in-flight work is shared and a rejection caches); and
+  `OPENER_PRIORITIES`, the published built-in priority ladder a plugin opener prices its own
+  placement against — an offset from a named built-in, never a bare integer.
 - **Container authoring:** a factory that wires a nested-`BlockList` container (list state,
   ancestor contexts, nested actions, windowing, the `BlockComponent` surface) so a plugin
   container is as thin as the built-in blockquote. It returns a `ContainerBlockComponent` —
@@ -318,8 +326,11 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
   structurally re-splits at the shared choke point. Block math is the render-primary validator;
   the `%%` memo harness kind is the plain validator.
 - **Supporting descriptor fields:** context-dependent kinds (no standalone recognizer — kept
-  through edits), and an opaque container contract (raw is authoritative, not a strip
-  decomposition), both invariant-guarded.
+  through edits), an opaque container contract (raw is authoritative, not a strip decomposition),
+  and whole-block focus (`blockFocus: 'whole-block'`, opting an opaque childless block into the
+  focus-then-delete model — arrow traversal stops on it, a caret-adjacent Backspace focuses it
+  before a second press deletes, and the merge-fallback twins focus rather than dead-end), all
+  invariant-guarded.
 - **Paste transforms (shipped pre-1.0, unstable-labeled).** `registerPasteTransform` records a
   content-keyed, pre-parse rewrite of pasted plain text: named, register-once (a duplicate throws,
   attributed to the owning plugin), run in install order at every paste site before the parse. It is
@@ -361,7 +372,15 @@ Everything a plugin author reaches today comes through the `aragonite/plugin` su
 properties }` reader over the remark convention — the verbatim opener info stays the round-trip
   truth. Activation is the explicit idempotent `activateDirectives()` call (not an import side effect);
   the authoring symbols alone do not claim `:::`. See `docs/editor/directives.md`.
-- **Planned pre-1.0** (roadmap): plugin-minted command ids.
+- **Command mint (shipped, unstable-labeled).** `registerBlockCommand` binds a `(kind, name)`
+  block-command and hands back its id, which a plugin binds in its kind's keymap. Dispatch reaches
+  the two surfaces that can supply a handler its context — the editable leaf's keymap and the
+  container bubble — and that context carries the mounted component's own view-state handles
+  (`ctx.hooks`, threaded by the container/leaf factories' `commandHooks` getter), so a view-state
+  command drives the live component with no node-keyed side map. A handler throw is contained at the
+  dispatch seam and surfaces as an `error` of origin `command`, attributed to kind, command, and
+  owning plugin; a command bound on a built-in kind's leaf dead-keys, since those surfaces supply no
+  context.
 
 ## Editable-content tiers
 
@@ -375,10 +394,54 @@ each bound to a CST guarantee (prior-art record: the plugin-system research doc)
 | Editable leaf | a recognizer-backed standalone text block with native caret/IME/undo parity | shipped (pre-freeze) |
 | Atomic widget | opaque non-text embed, caret-addressable at its edges                       | shipped              |
 
-A _general_ editable leaf was deliberately deferred past this foundation [pivot: shipped
-pre-1.0 as `createEditableLeaf` (0.9.16), pre-freeze beside the container factory]; the chrome
-leaf stays narrower on purpose. **Rejected permanently:** nested-editor interiors (a second
-editor state serialized as a blob) — they break byte-lossless round-trip.
+A _general_ editable leaf shipped pre-1.0 as `createEditableLeaf`, pre-freeze beside the container
+factory; the chrome leaf stays narrower on purpose. **Rejected permanently:** nested-editor
+interiors (a second editor state serialized as a blob) — they break byte-lossless round-trip.
+
+## The tier × subsystem closure matrix
+
+The standing lesson is the 0.9.18 whole-block-focus incident: the tier shipped **closed under 2 of
+~9 cross-cutting systems and leaked 4 holes, found across three fix waves.** A new extension tier
+meets every editor subsystem whether or not its author considered them, so "it renders and
+round-trips" is a fraction of done.
+
+**The rule.** Every extension tier — and every new per-kind capability on an existing tier — must
+define its behavior under each cross-cutting system _before it ships_: it fills its matrix row, a ✓
+or a ledgered gap, never a blank. A blank cell is an unasked question, which is exactly how the
+0.9.18 holes shipped.
+
+The rows are the five interaction-tiers a caret meets; they refine the editable-content tiers above.
+The block-level **whole-block-focus opaque** tier — a childless opaque block that is its own focus
+target, e.g. a diagram — is split out from the **inline widget**, the atomic embed inside prose;
+the editable-content table folds that block-level case under Container.
+
+_Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partial (ledgered edge) · gap
+(ledgered hole)._
+
+| Tier                     | Round-trip | Focus | Merge / backspace | Selection paint | Search paint | Reorder | Undo | Clipboard | Sim oracle |
+| ------------------------ | ---------- | ----- | ----------------- | --------------- | ------------ | ------- | ---- | --------- | ---------- |
+| Container                | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ◐¹        | ✓          |
+| Chrome leaf              | ✓          | ✓     | ✓                 | ✓               | ✓            | n/a²    | ✓    | ◐¹        | ✓          |
+| Editable leaf            | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ✓         | ✓          |
+| Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | gap³         | ✓       | ✓    | ✓         | ✓          |
+| Inline widget            | ✓          | ✓     | ✓⁴                | ✓               | ✓            | n/a⁵    | ✓    | ✓         | ✓          |
+
+1. **◐ Clipboard.** A cross-block copy whose end lands mid-chrome round-trips the container; one
+   whose _start_ is mid-chrome and extends into the body drops the container wrapper (ledgered,
+   `docs/issues.md`; folded into the post-1.0 clipboard generalization).
+2. **n/a Reorder.** A chrome leaf is the container's reserved child 0 — no independent block
+   identity to move.
+3. **gap Search paint.** A match inside a childless opaque container paints no highlight:
+   MatchOverlay's childless-container gate zeroes the rects and the container shim supplies no
+   `measurePartialRects` (ledgered, `docs/issues.md`; design call pending). The twin SelectionOverlay
+   gate is already closed — search paint lags it.
+4. **✓ Merge / backspace.** A caret-edge Backspace/Delete reveals the widget's source or atomically
+   deletes it; block-level merge stays the host prose block's concern.
+5. **n/a Reorder.** An inline widget is not a block; reorder is a block-level gesture.
+
+One capability gap rides the inline-widget tier without mapping to a single column: **reveal-to-edit
+works in prose but is unwired in table cells** (ledgered, `docs/issues.md`) — a host-surface parity
+gap, tracked on the tier rather than a cell.
 
 ## What a plugin may and may not do
 
@@ -388,8 +451,8 @@ enforcement record.
 A plugin **may**: register kinds/components/openers (once — duplicates throw); declare
 `rebuildRaw` and have the commit ceremony invoke it; build containers and chrome through the
 factories; store primitive per-node metadata; commit metadata through the sanctioned update
-path; contribute per-kind keymaps over the command vocabulary; render as an unknown kind and
-degrade safely.
+path; mint its own block-commands and contribute per-kind keymaps over the command vocabulary;
+render as an unknown kind and degrade safely.
 
 A plugin **may not**: treat its DOM as authoritative or mutate the tree from the view layer
 (boundary events flow up; the CST wins); write bytes through node references captured before
@@ -418,10 +481,10 @@ development belongs:
 ## Enforcement
 
 The contract's load-bearing rules are guarded by the invariant catalog
-(`docs/design/editor/invariants.md`): opener coherence at bootstrap over the live registry, and
-kind-table completeness and keymap coherence at bootstrap but over the built-in kinds only until
-the registry-derived hardening lands — a plugin keymap's command ids are type-checked, not yet
-bootstrap-validated;
+(`docs/design/editor/invariants.md`): opener coherence at bootstrap over the live registry;
+kind-table completeness at bootstrap; keymap coherence over the live registries — a plugin keymap's
+command ids validate against the minted `PluginCommandId`s (the earlier built-ins-only gap is
+closed), and a container's `reservedChrome` declaration gets bootstrap coherence;
 opaque-container staleness, rebuild determinism, and the reserved-chrome slot at every commit; a
 plugin opener's return checked at parse (non-advancing throws, raw-mismatch warns); duplicate
 registration throws at the call site. The plugins e2e project fails on any dev-invariant fire.

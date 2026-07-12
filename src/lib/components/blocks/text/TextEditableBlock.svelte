@@ -67,7 +67,8 @@
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand } from '../../../schema/block-commands';
 	import {
 		perfEnabled,
 		recordBlockRender,

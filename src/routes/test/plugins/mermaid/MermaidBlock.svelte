@@ -10,10 +10,10 @@
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
-		type BlockComponent,
+		type ContainerBlockComponent,
 		type CstNode
 	} from '$lib/plugin';
-	import { bindMermaidUiHooks, type MermaidMetadata } from './mermaid-kind';
+	import { type MermaidMetadata } from './mermaid-kind';
 	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -40,7 +40,11 @@
 			return myPath;
 		},
 		getBoxEl: () => boxEl,
-		getFocusEl: focusSurfaceEl
+		getFocusEl: focusSurfaceEl,
+		// A minted command (mermaid.edit / mermaid.focus, incl. the Mod+M chord)
+		// reaches this instance through ctx.hooks — read live per dispatch, so an
+		// undo that replaces the node still hits the current handlers.
+		commandHooks: () => ({ openEdit, openFocusView })
 	});
 
 	// A childless opaque container opts into editor-level whole-block focus: the
@@ -58,7 +62,22 @@
 	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
-	void ({ editable, focusable, focus, getCursorOffset } satisfies BlockComponent);
+	// Completeness guard: `bind:this` reads each instance export individually, so the
+	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
+	// new ContainerBlockComponent member is added and left un-forwarded above.
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
 	const displayCode = $derived(trimTrailingLineEnding(code));
@@ -247,11 +266,6 @@
 			closeFocusView();
 		}
 	}
-
-	// Block commands (mermaid.edit / mermaid.focus, incl. the Mod+M chord) reach
-	// this instance through the plugin's node → hooks bridge; re-binds when undo
-	// replaces the node.
-	$effect(() => bindMermaidUiHooks(node, { openEdit, openFocusView }));
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -484,7 +498,7 @@
 		padding: 8px;
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.9em;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.08));
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border-radius: 4px;
 		white-space: pre;
 		overflow-x: auto;
@@ -494,17 +508,17 @@
 	.mermaid-error {
 		padding: 4px 8px;
 		font-size: 0.85em;
-		color: var(--color-text-muted, #888);
+		color: var(--color-text-muted, #aaaaaa);
 	}
 
 	.mermaid-error {
-		color: var(--color-danger, #b3554e);
+		color: var(--color-danger, #e06c75);
 	}
 
 	.mermaid-loading {
 		padding: 12px;
 		font-size: 0.85em;
-		color: var(--color-text-muted, #888);
+		color: var(--color-text-muted, #aaaaaa);
 	}
 
 	.mermaid-overlay {

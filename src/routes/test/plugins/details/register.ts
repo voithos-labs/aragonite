@@ -5,22 +5,15 @@
  * so it runs unguarded and re-registers cleanly after a schema reset.
  */
 
-import {
-	definePlugin,
-	registerBlockComponent,
-	defineBlockComponent,
-	declaredPluginKind,
-	type EditorPlugin
-} from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
 import { registerDetailsKind, DETAILS } from './details-kind';
 import DetailsBlock from './DetailsBlock.svelte';
 
 export function detailsPlugin(): EditorPlugin {
-	return definePlugin({
+	return definePluginBlock({
 		name: 'details',
-		setup() {
-			registerDetailsKind();
-			registerBlockComponent(declaredPluginKind(DETAILS), defineBlockComponent(DetailsBlock));
-		}
+		kind: DETAILS,
+		component: DetailsBlock,
+		register: registerDetailsKind
 	});
 }

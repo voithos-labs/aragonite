@@ -15,18 +15,16 @@
 
 import {
 	activateDirectives,
+	chromeChild,
+	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
 	registerBlockCommand,
 	registerChromeLeaf,
 	registerDirective,
-	serializeDirective,
 	isDirectiveRegistered,
 	setPluginMetadata,
-	getPluginMetadata,
-	serializeChildren,
-	trimTrailingLineEnding,
 	type CstNode,
 	type ParsedDirective
 } from '$lib/plugin';
@@ -42,14 +40,6 @@ interface CalloutMetadata {
 	lineEnding: string;
 }
 
-function makeTitleChild(text: string): CstNode {
-	return {
-		kind: declaredPluginKind(NOTE_TITLE),
-		leadingTrivia: '',
-		raw: text ? `${text}\n` : '\n'
-	};
-}
-
 /**
  * Build a callout node from a resolved `:::note`/`:::warning` fence. The opener
  * info is the bare title (callout's opaque convention — no `[label]{attrs}`); the
@@ -62,7 +52,10 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [makeTitleChild(title), ...(parsed.body?.children ?? [])],
+		children: [
+			chromeChild(declaredPluginKind(NOTE_TITLE), title),
+			...(parsed.body?.children ?? [])
+		],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<CalloutMetadata>(node, {
@@ -76,27 +69,14 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 }
 
 /**
- * Reconstruct `raw` from children after a structural edit. Child 0 is the title
- * (emitted into the opener line); children 1+ are the fenced body. Invoked by the
- * commit primitive whenever the callout's children mutate, and by the `setKind`
- * command's metadata commit (which rewrites `calloutType`).
+ * Reconstruct `raw` from children after a structural edit — the container-rebuild
+ * inverse the commit primitive runs when the callout's children mutate, and the
+ * `setKind` command's metadata commit. The variant name lives in metadata (no
+ * hardcoded type), so a `:::warning` survives the round-trip.
  */
-export function rebuildCalloutRaw(node: CstNode): void {
-	const meta = getPluginMetadata<CalloutMetadata>(node);
-	const children = node.children ?? [];
-	const title = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
-	node.raw = serializeDirective({
-		colonCount: meta?.colonCount ?? 3,
-		name: meta?.calloutType ?? NOTE,
-		info: title ? ` ${title}` : '',
-		innerPrefix: node.innerPrefix ?? '',
-		body: serializeChildren(children.slice(1)),
-		innerSuffix: node.innerSuffix ?? '',
-		closerColonCount: meta?.closerColonCount ?? meta?.colonCount ?? 3,
-		closerNewline: meta?.closerNewline ?? true,
-		lineEnding: meta?.lineEnding
-	});
-}
+export const rebuildCalloutRaw = createDirectiveRebuild<CalloutMetadata>(
+	(meta) => meta?.calloutType ?? NOTE
+);
 
 export function registerCalloutKind(): void {
 	// The shared directive grammar + generic render must be live before the callout
