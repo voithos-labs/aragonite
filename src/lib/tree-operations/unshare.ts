@@ -120,6 +120,25 @@ export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): voi
 }
 
 /**
+ * Longest prefix of `chain` still attached under `root`, identity-checked level
+ * by level. A commit mutation may splice one scope's node out of the tree (an
+ * emptied nested list, a consumed range endpoint); rebuilding the detached
+ * node's raw against its emptied children writes `raw: ''` and the commit-time
+ * staleness check then fires on a node the document no longer contains.
+ * Ancestors above the detachment point still need their rebuild — hence prefix,
+ * not all-or-nothing. A node MOVED to a new parent counts as detached from this
+ * chain: the mover owns its rebuild, and its new spine is the mover's chain.
+ */
+export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode[] {
+	let parentChildren = root.children;
+	for (let i = 0; i < chain.length; i++) {
+		if (!parentChildren.includes(chain[i])) return chain.slice(0, i);
+		parentChildren = chain[i].children ?? [];
+	}
+	return chain;
+}
+
+/**
  * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
  * innermost-first. Chain-based rather than path-based so it stays correct after
  * mutations shifted sibling indices — node references survive splices. One

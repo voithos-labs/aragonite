@@ -77,18 +77,6 @@ container shim hardcodes `editable: true`.
 
 ## Test coverage
 
-### CI perf gate: two 10MB rows exceed locally-calibrated ceilings on runners
-
-**Severity:** minor (calibration, not regression — the same build passes every ceiling locally)
-**Files:** `src/lib/e2e/tests/perf/perf-gate.perf.spec.ts` (ceilings); `.github/workflows/ci.yml` (perf job)
-
-First CI perf runs (29177807039 / 29178211384): typical gate rows land at 5-6.5ms p50 against
-7.5-8.4ms ceilings — runners are ~2.2x the local baselines the ceilings were derived from —
-and the two extreme shapes tip over: giant-single-blockquote-10MB 8.4ms vs 7.6 ceiling,
-reference-heavy-10MB 9.4ms vs 9.0. Decide the calibration policy (runner-derived baselines, a
-CI multiplier, or accept-documenting the 10MB rows) — this is the "accept-documented limits
-staying accurate" half of the CI-hardening roadmap item, now with data.
-
 ### CI-only [invariant:stale-raw] fire: blockquote raw stale during list unindent/paste ops
 
 **Severity:** important (a real invariant violation, timing-shielded locally)
@@ -215,37 +203,6 @@ threads its colon counts) so the rebuild reproduces CRLF.
 container-chrome rebuild behavior; fold into a line-ending-fidelity pass.
 
 ## Plugin inline widgets
-
-### KaTeX output renders doubled (visual + MathML halves) without katex.css
-
-**Severity:** important (math is unusable-looking wherever the consumer forgets the stylesheet; showcase affected)
-**Files:** `src/routes/test/plugins/latex/math-renderer.ts`; fix parked on `wip/latex-reveal`
-
-`katexRenderer` emits `output:'htmlAndMathml'`; nothing loads `katex/dist/katex.min.css`,
-whose rules clip the MathML half — so every equation paints twice. The fix (CSS import
-co-located with the renderer + docs sentences making the stylesheet the consumer's
-responsibility + a render-correctness e2e pin) is complete on `wip/latex-reveal` but its
-quad-geometry change splits the reveal e2e click strategies (center-click hits inline-math
-widgets, default click hits the portal specs' targets) — reconcile one click helper across
-the reveal spec families before landing.
-
-### Inline-widget reveal collapse is blur-scoped; same-block click-away does not fold
-
-**Severity:** minor (UX friction; reveal itself is stable)
-**Files:** `src/lib/components/blocks/text/widget-interaction.ts` (fold triggers); wanted
-semantics + mechanism map parked on `wip/latex-reveal` (fixme'd collapse spec, future unit suite)
-
-Clicking prose in the same paragraph as a revealed `$…$` source does not fold it back
-(only blur/another block does), and clicking widget B while A is revealed is a dead click.
-A containment-scoped fold was built and reverted: the initiating click's own caret task is
-delivered with load-dependent ordering relative to the reveal's caret placement, and a
-boundary caret anchors in the adjacent text node — three guard strategies each left a
-different subset of the reveal e2e red under parallel workers.
-
-**Fix direction:** the reveal kernel must own click caret placement synchronously (capture
-at mousedown, preventDefault the browser's default caret task, reveal + place in one owned
-sequence); then the containment fold — by raw offset through `cursor/widget-offset.ts`,
-boundary-inclusive, which is the right check — has no racing writer.
 
 ### Inline-widget source editing (reveal) is unwired in table cells
 

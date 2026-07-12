@@ -15,7 +15,11 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import { pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
 import { nodeAt } from '../../tree-operations/node-ops';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import {
+	attachedChainPrefix,
+	ensureUnsharedPath,
+	rebuildUnsharedChain
+} from '../../tree-operations/unshare';
 import { createTextBatch } from './text-batch';
 import type {
 	CommitContainerStructuralArgs,
@@ -381,24 +385,33 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Resolve one scope into an owned mutation view: verify the path still
-	 * resolves to the scope node, unshare its spine, attach a working children
-	 * array (write-then-re-read contract — tree-operations/unshare.ts header),
-	 * and copy ids/refs for descriptor application.
+	 * Verify a scope's path still resolves to its node. Runs over ALL scopes
+	 * BEFORE any spine is unshared: preparing an earlier scope copies spine
+	 * nodes that a later, overlapping scope's captured reference still points
+	 * at, so checking mid-preparation false-fires on the ceremony's own copies
+	 * (promoteNestedItem's parentItem scope shipped that fire).
+	 */
+	function assertScopeIdentity(s: MultiScopeTarget): void {
+		if ((s.node as unknown) === (deps.doc as unknown)) return;
+		// A stale-but-in-range path would unshare and rebuild the wrong spine.
+		assertInvariant('multi-scope-commit-path', () =>
+			nodeAt(deps.doc, s.path) === s.node
+				? null
+				: {
+						code: 'multi-scope-commit-path',
+						message: `commit: path [${s.path.join(',')}] does not resolve to scope node (${s.node.kind})`
+					}
+		);
+	}
+
+	/**
+	 * Resolve one scope into an owned mutation view: unshare its spine, attach
+	 * a working children array (write-then-re-read contract —
+	 * tree-operations/unshare.ts header), and copy ids/refs for descriptor
+	 * application. Path identity is asserted by the pristine pre-pass.
 	 */
 	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
-		if (!isDoc) {
-			// A stale-but-in-range path would unshare and rebuild the wrong spine.
-			assertInvariant('multi-scope-commit-path', () =>
-				nodeAt(deps.doc, s.path) === s.node
-					? null
-					: {
-							code: 'multi-scope-commit-path',
-							message: `commit: path [${s.path.join(',')}] does not resolve to scope node (${s.node.kind})`
-						}
-			);
-		}
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
@@ -461,6 +474,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			kind: 'container',
 			snapshot,
 			mutate: () => {
+				for (const s of scopes) assertScopeIdentity(s);
 				prepared = scopes.map(prepareScopeView);
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				// Dynamically-built scope arrays degrade to array typing, so the
@@ -475,9 +489,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					publishScopeView(prepared[i], changeList[i]);
 				}
 				// Deepest chains first: an inner scope's raw must be current before
-				// an outer chain's rebuild concatenates it.
+				// an outer chain's rebuild concatenates it. Chains truncate to their
+				// attached prefix: a scope the mutation spliced out (emptied nested
+				// list, consumed endpoint) must not have its raw rebuilt from its
+				// emptied children — its live ancestors still get theirs.
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
-					rebuildUnsharedChain(p.chain, deps.sharing);
+					rebuildUnsharedChain(attachedChainPrefix(deps.doc, p.chain), deps.sharing);
 				}
 			},
 			publish: () => {
@@ -486,9 +503,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op,
 			afterTick,
-			// The doc scope's node has no block descriptor — exclude it from kind-keyed checks.
+			// Detached scopes are no longer committed tree state — checking one
+			// would fire stale-raw on a node the document no longer contains. The
+			// doc scope's node has no block descriptor — excluded by the kind filter.
 			touchedNodes: () =>
-				prepared.map((p) => p.owned).filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
+				prepared
+					.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
+					.map((p) => p.owned)
+					.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
