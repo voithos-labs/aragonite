@@ -11,9 +11,9 @@ import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, assertCharOffset } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { nodeAt } from '../tree-operations/node-ops';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import { replaceAtPath } from '../tree-operations/path-mutate';
+import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
@@ -112,20 +112,7 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	// Identity-check before splice: a deeper delete + cascade may shift a
-	// survivor into an outer path's slot. Cascade is identity-gated alongside
-	// the delete so we never walk a survivor's ancestors with a stale path.
-	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
-	const reverseSortedIndices = deletionPaths
-		.map((_, i) => i)
-		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
-	for (const i of reverseSortedIndices) {
-		const path = deletionPaths[i];
-		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-		}
-	}
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
 
 	replaceAtPath(doc, start.path, replacement);
 

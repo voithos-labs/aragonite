@@ -32,6 +32,7 @@ export interface AdmonitionMetadata {
 	colonCount: number;
 	closerColonCount: number;
 	closerNewline: boolean;
+	lineEnding: string;
 }
 
 /** Declare both kinds once; safe to call repeatedly (re-import / HMR). */

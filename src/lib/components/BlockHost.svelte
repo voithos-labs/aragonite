@@ -48,6 +48,9 @@
 	let myPath = $derived([...parentPath, index]);
 
 	let isContainer = $derived(getBlockKindDescriptor(node.kind).isContainer);
+	// A childless container (render-primary plugin block) mounts no child hosts,
+	// so overlay painting can't be delegated downward — see SelectionOverlay.
+	let hasChildHosts = $derived(isContainer && (node.children?.length ?? 0) > 0);
 
 	let hostEl: HTMLElement | null = $state(null);
 	let ref: BlockComponent | undefined = $state();
@@ -164,7 +167,7 @@
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
-	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
+	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
 	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
 	<!-- Rendered LAST so `:scope > :not(.selection-overlay)` (block-el lookup,
 		 caret placement) still resolves the block content as its first match. -->

@@ -202,17 +202,20 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				 * in-place kind change (`op: 'noop'`) must point at its leaf here.
 				 */
 				touchedNodes?: CstNode[];
+				discardIfNoop?: boolean;
 		  }
 		| {
 				kind: 'container';
 				snapshot: CommitSnapshotArg;
 				/**
-				 * Apply the inner mutation directly to container state. Callbacks own
+				 * Apply the inner mutation directly to container state; return whether
+				 * anything actually changed (false when every scope no-op'd — the
+				 * `discardIfNoop` twin of a document-branch `op: 'noop'`). Callbacks own
 				 * their own scope copies + atomic publish back to node.children and
 				 * the scope's BlockListState. No StructuralChange is returned to the
 				 * primitive — descriptor application happens inside the callback.
 				 */
-				mutate: () => void;
+				mutate: () => boolean;
 				/** Post-mutation reactivity nudge (e.g. doc.children = [...doc.children]). */
 				publish: () => void;
 				op?: ScopedOpDescriptor;
@@ -229,6 +232,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				 * scopes `mutate` prepared, so it only resolves after `mutate` ran.
 				 */
 				rollback?: () => void;
+				discardIfNoop?: boolean;
 		  };
 
 	async function __commit(args: CommitArgs): Promise<void> {
@@ -264,6 +268,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// pre-mutation array still reaches an intact tree at every depth.
 		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
 
+		// A `discardIfNoop` structural op that changed nothing (chrome split, a
+		// no-target merge) rolls back the snapshot pushed above — the benign twin
+		// of the throw path: same stack/tree restore, minus the error emit. Skips
+		// publish and the edit event; afterTick still runs (caret is a view
+		// concern, so the no-target merge's focus fallback survives).
+		let discarded = false;
 		try {
 			if (args.kind === 'document') {
 				const childrenCopy = [...deps.doc.children];
@@ -271,20 +281,35 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				const refsCopy = [...deps.blockRefs];
 
 				const change = args.mutate(childrenCopy);
-				applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
-
-				args.publish(childrenCopy, idsCopy, refsCopy);
-				if (import.meta.env.DEV) {
-					assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+				if (args.discardIfNoop && change.op === 'noop') {
+					// Document branch never published, so only the undo stack needs restoring.
+					if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+					discarded = true;
+				} else {
+					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
+					args.publish(childrenCopy, idsCopy, refsCopy);
+					if (import.meta.env.DEV) {
+						assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
+					}
 				}
 			} else {
-				args.mutate();
-				args.publish();
-				if (import.meta.env.DEV) {
-					assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
+				const changed = args.mutate();
+				if (args.discardIfNoop && !changed) {
+					// The in-place mutation ran (spine unshare, per-scope publish, raw
+					// rebuild) but every scope no-op'd — roll it back exactly as a throw
+					// would: top-level array first, then the rollback thunk.
+					if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+					if (savedDocChildren) deps.doc.children = savedDocChildren;
+					args.rollback?.();
+					discarded = true;
+				} else {
+					args.publish();
+					if (import.meta.env.DEV) {
+						assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
+					}
 				}
 			}
-			if (import.meta.env.DEV) {
+			if (!discarded && import.meta.env.DEV) {
 				// G1.9 commit seam: a missed copy-path-on-write in this commit's
 				// mutations corrupts the freshest entry — catch it here, not at
 				// some distant undo. assertInvariant routes to devWarn (never
@@ -311,7 +336,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			return;
 		}
 
-		if (args.op) {
+		if (!discarded && args.op) {
 			deps.events.emit('edit', toEditEvent(args.op, args.op.eventPath, Date.now()));
 		}
 
@@ -323,7 +348,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	/** `snapshot: 'skip'` lets composite operations share a single undo entry. */
 
 	async function commitStructural(args: CommitStructuralArgs): Promise<void> {
-		const { snapshot, mutate, op, afterTick, touchedNodes } = args;
+		const { snapshot, mutate, op, afterTick, touchedNodes, discardIfNoop } = args;
 		await __commit({
 			kind: 'document',
 			snapshot,
@@ -335,19 +360,21 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op,
 			afterTick,
-			touchedNodes
+			touchedNodes,
+			discardIfNoop
 		});
 	}
 
 	/** Single-scope case of commitMultiScope; kept as a named entry for its callers. */
 	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
-		const { containerNode, path, state, snapshot, mutate, op, afterTick } = args;
+		const { containerNode, path, state, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		await commitMultiScope({
 			scopes: [{ node: containerNode, state, path }],
 			snapshot,
 			mutate: ([scope]) => [mutate(scope)],
 			op,
-			afterTick
+			afterTick,
+			discardIfNoop
 		});
 	}
 
@@ -468,7 +495,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<void> {
-		const { scopes, snapshot, mutate, op, afterTick } = args;
+		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		let prepared: PreparedScope[] = [];
 		await __commit({
 			kind: 'container',
@@ -496,6 +523,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
 					rebuildUnsharedChain(attachedChainPrefix(deps.doc, p.chain), deps.sharing);
 				}
+				return changeList.some((c) => c.op !== 'noop');
 			},
 			publish: () => {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
@@ -503,6 +531,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			op,
 			afterTick,
+			discardIfNoop,
 			// Detached scopes are no longer committed tree state — checking one
 			// would fire stale-raw on a node the document no longer contains. The
 			// doc scope's node has no block descriptor — excluded by the kind filter.

@@ -1,8 +1,9 @@
 # Feature: LaTeX acceptance axes (A1 / A2 / A5 / A7)
 
 Falsifiable acceptance criteria for the first-party LaTeX extension, each mapped to
-the design spec's Goal-2 axis id. A2 and A5's adapter proof are unit axes
-(`math-renderer.test.ts`); the browser-only axes live in `latex-acceptance.spec.ts`.
+the design spec's Goal-2 axis id. A2's memo primitive and A5's adapter proof are
+unit-pinned (`math-renderer.test.ts`); the browser axes — including A2's live
+edit-one-of-N re-render pin — live in `latex-acceptance.spec.ts`.
 
 ## A1 — reveal transition (flagship): no view-jump, no caret loss
 
@@ -13,10 +14,13 @@ the design spec's Goal-2 axis id. A2 and A5's adapter proof are unit axes
   char typed after commit falls past the widget, not at a block edge.
 - Inline round-trip does not shift the following block vertically.
 
-## A2 — render memoized (flagship, unit)
+## A2 — render memoized (flagship)
 
-- Editing one equation re-renders only it; untouched equations stay cache hits.
-- A full re-render pass over N equations after the first adds zero renders (flat to 75+).
+- Editing one equation re-renders only it; untouched equations stay cache hits (unit).
+- A full re-render pass over N equations after the first adds zero renders (flat to 75+) (unit).
+- Live document, N distinct block equations: revealing one, editing its source, and
+  committing bumps only that block's render count and never remounts it; the other
+  blocks keep both their mount id and their render count (e2e).
 
 ## A5 — invalid math is legible, never a raw strip
 

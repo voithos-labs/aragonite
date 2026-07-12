@@ -95,7 +95,14 @@ describe('rebuildDirectiveContainerRaw', () => {
 
 	it('re-emits opener colons, verbatim info, inner trivia, and the closer', () => {
 		const node = build(
-			{ name: 'x', colonCount: 3, info: ' t', closerColonCount: 3, closerNewline: true },
+			{
+				name: 'x',
+				colonCount: 3,
+				info: ' t',
+				closerColonCount: 3,
+				closerNewline: true,
+				lineEnding: '\n'
+			},
 			{ innerPrefix: '\n', children: [paragraph('body\n')], innerSuffix: '\n' }
 		);
 		rebuildDirectiveContainerRaw(node);
@@ -104,7 +111,14 @@ describe('rebuildDirectiveContainerRaw', () => {
 
 	it('widens the opener and closer to a deeper colon count', () => {
 		const node = build(
-			{ name: 'x', colonCount: 4, info: '', closerColonCount: 4, closerNewline: true },
+			{
+				name: 'x',
+				colonCount: 4,
+				info: '',
+				closerColonCount: 4,
+				closerNewline: true,
+				lineEnding: '\n'
+			},
 			{ innerPrefix: '', children: [paragraph('body\n')], innerSuffix: '' }
 		);
 		rebuildDirectiveContainerRaw(node);
@@ -113,7 +127,14 @@ describe('rebuildDirectiveContainerRaw', () => {
 
 	it('drops the closer newline for a document-final directive', () => {
 		const node = build(
-			{ name: 'x', colonCount: 3, info: '', closerColonCount: 3, closerNewline: false },
+			{
+				name: 'x',
+				colonCount: 3,
+				info: '',
+				closerColonCount: 3,
+				closerNewline: false,
+				lineEnding: '\n'
+			},
 			{ innerPrefix: '', children: [paragraph('body\n')], innerSuffix: '' }
 		);
 		rebuildDirectiveContainerRaw(node);

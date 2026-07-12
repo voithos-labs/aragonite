@@ -226,6 +226,13 @@ manifest over the imperative unit remains additive-later.
   editor-owned; this augments a commit, it does not bypass the invariants. The 1.0 freeze litmus
   verifies no frozen surface precludes it (`docs/roadmap.md` § Pre-freeze plugin direction
   decisions).
+- **Inline-widget editing-policy re-add.** Two `InlineWidgetEditingPolicy` fields were trimmed (commit
+  `fe99476`) because nothing consumed them, keeping the pre-freeze inline surface free of inert
+  configuration. Freezing an inert field and later giving it behavior is the one path that breaks an
+  author's config, so they re-add **additively** with the deferred inline-entity / atomic-inline
+  consumer — entity editing is _defined by_ delete granularity (atomic `&copy;` delete versus image's
+  select-then-delete), which forces the re-add. The shapes, recorded so the re-add restores them
+  verbatim: `deleteGranularity: 'atomic' | 'select-then-delete'` and `onEdge: 'select' | 'step-over'`.
 
 ### Deferred (additive): the `EditEvent` snapshot/real-delta discriminant
 

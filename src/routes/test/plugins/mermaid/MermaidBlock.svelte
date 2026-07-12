@@ -20,6 +20,15 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
+	// The whole-block focus surface in EVERY steady state: the rendered viewport,
+	// or the error/loading/static card (`.mermaid-surface`, tabindex=0) — so a
+	// broken diagram is still an arrow stop, a two-step-delete target, and a
+	// recovery entry point, never a caret trap. Only edit mode has neither
+	// element mounted: the textarea owns focus there.
+	function focusSurfaceEl(): HTMLElement | null {
+		return boxEl?.querySelector<HTMLElement>('.mermaid-viewport, .mermaid-surface') ?? null;
+	}
+
 	const { containerApi, updateOwnMetadata, handleKeydown } = createContainerBlock({
 		get node() {
 			return node;
@@ -31,11 +40,7 @@
 			return myPath;
 		},
 		getBoxEl: () => boxEl,
-		// The rendered viewport is the whole-block focus surface (tabindex=0, already
-		// the click-focus target and the :focus-within highlight anchor), so keyboard
-		// and mouse focus share one state. Null in the error/loading/edit states,
-		// where the block simply isn't an arrow-focus target.
-		getFocusEl: () => boxEl?.querySelector<HTMLElement>('.mermaid-viewport') ?? null
+		getFocusEl: focusSurfaceEl
 	});
 
 	// A childless opaque container opts into editor-level whole-block focus: the
@@ -65,8 +70,18 @@
 		const current = code;
 		if (!hasMermaidRenderer()) return;
 		let stale = false;
-		void renderMermaid(current).then((result) => {
-			if (!stale) rendered = result;
+		void renderMermaid(current).then(async (result) => {
+			if (stale) return;
+			// A result swap can replace the focused surface element (error card →
+			// viewport once an edit fixes the code); hand focus to the new surface
+			// so recovery never drops the user's focus to the page.
+			const hadFocus =
+				document.activeElement !== null && document.activeElement === focusSurfaceEl();
+			rendered = result;
+			if (hadFocus) {
+				await tick();
+				focusSurfaceEl()?.focus();
+			}
 		});
 		return () => {
 			stale = true;
@@ -140,6 +155,19 @@
 		overlayView.zoomBy(e.deltaY);
 	}
 
+	// The error/loading/static card mirrors the viewport's click contract:
+	// pointerdown never leaks into a cross-block drag (focus still lands via the
+	// browser default), and dblclick opens the editor — the recovery path for a
+	// broken diagram.
+	function onSurfacePointerDown(e: PointerEvent): void {
+		e.stopPropagation();
+	}
+
+	function onSurfaceDblClick(e: MouseEvent): void {
+		e.stopPropagation();
+		openEdit();
+	}
+
 	// ── Edit mode ───────────────────────────────────────────────────────────────
 
 	let mode = $state<'render' | 'edit'>('render');
@@ -147,8 +175,8 @@
 	let draft = $state('');
 	let editSeed = '';
 
-	function refocusViewport(): void {
-		void tick().then(() => boxEl?.querySelector<HTMLElement>('.mermaid-viewport')?.focus());
+	function refocusBlock(): void {
+		void tick().then(() => focusSurfaceEl()?.focus());
 	}
 
 	function openEdit(): void {
@@ -161,7 +189,7 @@
 
 	function cancelEdit(): void {
 		mode = 'render';
-		refocusViewport();
+		refocusBlock();
 	}
 
 	function commitEdit(refocus: boolean): void {
@@ -174,7 +202,7 @@
 		updateOwnMetadata({ code: value.length > 0 ? value + '\n' : '' });
 		// Only a keyboard commit refocuses; a blur commit must not yank the
 		// focus back from wherever the user clicked.
-		if (refocus) refocusViewport();
+		if (refocus) refocusBlock();
 	}
 
 	function onTextareaKeydown(e: KeyboardEvent): void {
@@ -209,7 +237,7 @@
 
 	function closeFocusView(): void {
 		focusView = false;
-		refocusViewport();
+		refocusBlock();
 	}
 
 	function onOverlayKeydown(e: KeyboardEvent): void {
@@ -249,11 +277,31 @@
 			</button>
 		</div>
 		{#if !hasMermaidRenderer()}
-			<pre class="mermaid-static">{displayCode}</pre>
-			<div class="mermaid-note">Mermaid renderer not configured</div>
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="mermaid-surface"
+				tabindex="0"
+				role="group"
+				aria-label="Mermaid source (renderer not configured)"
+				onpointerdown={onSurfacePointerDown}
+				ondblclick={onSurfaceDblClick}
+			>
+				<pre class="mermaid-static">{displayCode}</pre>
+				<div class="mermaid-note">Mermaid renderer not configured</div>
+			</div>
 		{:else if rendered?.error}
-			<div class="mermaid-error">Mermaid error: {rendered.error}</div>
-			<pre class="mermaid-static">{displayCode}</pre>
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="mermaid-surface"
+				tabindex="0"
+				role="group"
+				aria-label="Mermaid render error"
+				onpointerdown={onSurfacePointerDown}
+				ondblclick={onSurfaceDblClick}
+			>
+				<div class="mermaid-error">Mermaid error: {rendered.error}</div>
+				<pre class="mermaid-static">{displayCode}</pre>
+			</div>
 		{:else if rendered?.svg}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
@@ -275,7 +323,17 @@
 				</div>
 			</div>
 		{:else}
-			<div class="mermaid-loading">Rendering diagram…</div>
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="mermaid-surface"
+				tabindex="0"
+				role="group"
+				aria-label="Mermaid diagram loading"
+				onpointerdown={onSurfacePointerDown}
+				ondblclick={onSurfaceDblClick}
+			>
+				<div class="mermaid-loading">Rendering diagram…</div>
+			</div>
 		{/if}
 	{/if}
 
@@ -386,6 +444,12 @@
 		outline: none;
 		min-height: 40px;
 		user-select: none;
+	}
+
+	/* The non-rendered states share the viewport's focus contract: no inner
+	   outline — the block-level :focus-within border shift is the cue. */
+	.mermaid-surface {
+		outline: none;
 	}
 
 	/* Focused, a drag pans — hint it with the grab cursor. Unfocused the viewport

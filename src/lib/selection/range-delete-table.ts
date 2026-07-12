@@ -11,8 +11,8 @@ import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
 import { walkBetween, assertCharOffset } from './primitives';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import { replaceAtPath } from '../tree-operations/path-mutate';
+import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
 	comparePaths,
 	lowestCommonAncestor,
@@ -200,12 +200,12 @@ interface DeletionPlan {
 }
 
 /**
- * Strictly-between covered subtrees (every nesting level) plus endpoint paths
- * the caller marks for removal, honoring the chrome wall: a surviving end
- * container's covered chrome CLEARS instead of deleting (returned as an
- * unshared chain for the caller's raw write + rebuild), and a consumed
- * container replaces its own endpoint/descendant splices with one unit delete
- * (chrome-branch parity).
+ * Covered subtree roots (chrome-ceremony parity: one splice per covered
+ * subtree) plus endpoint paths the caller marks for removal, honoring the
+ * chrome wall: a surviving end container's covered chrome CLEARS instead of
+ * deleting (returned as an unshared chain for the caller's raw write +
+ * rebuild), and a consumed container replaces its own endpoint/descendant
+ * splices with one unit delete.
  */
 function collectDeletionPlan(
 	doc: Document,
@@ -220,7 +220,7 @@ function collectDeletionPlan(
 	);
 	const chromeClearPath = wall && !wall.consumed ? [...wall.container.path, 0] : null;
 	let chromeClearChain: CstNode[] | null = null;
-	const candidates: number[][] = [];
+	let candidates: number[][] = [];
 	for (const p of between) {
 		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
 			const chain = ensureUnsharedPath(doc, p, sharing);
@@ -231,11 +231,10 @@ function collectDeletionPlan(
 	}
 	candidates.push(...endpointPaths);
 	if (wall?.consumed) {
-		const outside = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
-		outside.push(wall.container.path.slice());
-		return { deletionPaths: outside, chromeClearChain };
+		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
+		candidates.push(wall.container.path.slice());
 	}
-	return { deletionPaths: candidates, chromeClearChain };
+	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
 }
 
 function clearChrome(plan: DeletionPlan): void {
@@ -252,20 +251,6 @@ function rebuildChromeAncestry(plan: DeletionPlan, sharing: SharingState): void 
 function ownDeletionParents(doc: Document, deletionPaths: number[][], sharing: SharingState): void {
 	for (const path of deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-}
-
-/** Delete in reverse doc order so earlier indices don't shift later targets. */
-function deleteInReverseDocOrder(doc: Document, deletionPaths: number[][]): void {
-	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSorted) {
-		deleteAtPath(doc, path);
-	}
-}
-
-function cascadeCleanupAll(doc: Document, deletionPaths: number[][], lcaPath: number[]): void {
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
 	}
 }
 
@@ -318,14 +303,13 @@ function deleteFromProseIntoTable(
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	clearChrome(plan);
-	deleteInReverseDocOrder(doc, plan.deletionPaths);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
 	if (startIsChrome) {
 		// The wall: a chrome start truncates by raw write — kind and node kept.
 		startBlock.raw = terminateLine(startHead, startBlock.raw);
 	} else {
 		replaceAtPath(doc, start.path, truncatedReplacement!);
 	}
-	cascadeCleanupAll(doc, plan.deletionPaths, lcaPath);
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
@@ -401,8 +385,7 @@ function deleteFromTableIntoProse(
 		tailNode = nodeAt(doc, end.path) as CstNode;
 	}
 	clearChrome(plan);
-	deleteInReverseDocOrder(doc, plan.deletionPaths);
-	cascadeCleanupAll(doc, plan.deletionPaths, lcaPath);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
@@ -492,8 +475,7 @@ function deleteAcrossTwoTables(
 	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	clearChrome(plan);
-	deleteInReverseDocOrder(doc, plan.deletionPaths);
-	cascadeCleanupAll(doc, plan.deletionPaths, lcaPath);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 

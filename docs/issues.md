@@ -15,7 +15,7 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
 
-**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (see the freeze-forward entry below) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
+**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (their shapes + additive-re-add rationale live in `docs/design/editor/plugin-contract.md` § Target shapes (designed ahead)) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
 
 ### Table cell Shift+Enter inserts `<br>` but renders it as literal text
 
@@ -25,6 +25,17 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct GFM representation, since cells can't carry raw newlines, and round-trip preserves the `<br>` bytes. But the cell displays it as literal text; a rendered line break depends on a follow-up migration that routes cell content through the same widget-aware inline pipeline as prose.
 
 **Why deferred:** the byte-level behavior is correct (round-trip safe); only the in-cell rendering lags. Folds into the cell-inline-render migration.
+
+### MatchOverlay paints no highlight for a match inside a childless opaque container
+
+**Severity:** minor (search-highlight parity)
+**Files:** `src/lib/components/MatchOverlay.svelte`
+
+Same class as the just-fixed SelectionOverlay container gate: `MatchOverlay`'s `isContainer && !containerPaintsCells` path zeroes the rects for a childless opaque container, and its leaf path needs a `measurePartialRects` the container shim never supplies — so a search match inside a mermaid (or other childless opaque) block paints no highlight even though the match is found and navigable.
+
+**Fix direction:** decide between a full-block paint (highlight the whole opaque block for any interior match) and a measure fallback that routes the leaf `measurePartialRects` through the container shim — mirroring the SelectionOverlay `hasChildHosts` precedent.
+
+**Why deferred:** needs a design call (full-block paint vs measure fallback), shared with the SelectionOverlay container-gate work; the match is still found and navigable, only its highlight is missing.
 
 ## Code structure
 
@@ -36,30 +47,6 @@ Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct
 Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items among their siblings via the `block.moveUp/moveDown` keymap, matching the drag handle's tooltip. A table has no non-cell focus surface, and inside a cell Alt+↑/↓ is already bound — in `cell-keydown-plan.ts`'s hard-coded `SHORTCUTS` — to ROW reorder, so there is no free gesture to reorder the whole table block, and its drag handle's keyboard equivalent is missing.
 
 **Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use, so they also bypass the consumer `keybindings` override prop. Expressing a whole-table `block.moveUp/moveDown` cleanly is part of migrating the table chords onto the declarative keymap — its own deliberate change (the consumer-guide's rebindability promise should be scoped or fulfilled with it). Code and thematic-break keyboard reorder shipped; the table case is flagged here.
-
-### Table-branch range-delete ceremony lacks the chrome branch's hardening
-
-**Severity:** minor (latent; benign only because cascade deletes solely empty containers)
-**Files:** `src/lib/selection/range-delete-table.ts` vs `range-delete-chrome.ts`
-
-The chrome branch filters deletion candidates to subtree roots and identity-gates each delete; the table branch splices nested covered paths child-by-child and cascades over pre-deletion paths. Unify on the chrome branch's ceremony on the next pass over this file.
-
-### MatchOverlay's cell branch still scans all matches
-
-**Severity:** minor (perf; search-open only)
-**Files:** `src/lib/components/MatchOverlay.svelte` (grid/table branch)
-
-The prose branch now reads its own per-path bucket from the match index; the table-cell branch still walks the full match list because its cell addressing needs a seam the overlay doesn't have. Extend the bucket read to cells when that seam is next touched.
-
-### Mermaid reference plugin is excluded from the consumer example (by design)
-
-**Severity:** n/a — recorded exclusion, not a defect
-**Files:** `src/routes/test/plugins/mermaid/`; `examples/consumer/` (no mermaid route)
-
-The mermaid dogfood's synced sources typecheck against the packed tarball (boundary proven),
-but no consumer route ships it — the `mermaid` engine is a heavy devDependency the consumer
-example's CI budget doesn't justify. The render-primary recipe in the plugin guide is the
-durable record. Re-fold if the consumer example ever gains a budget-insensitive smoke tier.
 
 ### Render-primary wall ledger: command→component bridge
 
@@ -93,105 +80,14 @@ bail case.
 **Fix direction:** reproduce by bisecting the battery's spec set in front of this file to
 find the state carrier, then pin the keyboard-extend geometry read it perturbs.
 
-### CI-only [invariant:stale-raw] fire: blockquote raw stale during list unindent/paste ops
-
-**Severity:** important (a real invariant violation, timing-shielded locally)
-**Files:** list unindent/shift-tab and paste-over-list-selection operation paths (ancestry
-raw rebuild); surfaced by `src/lib/e2e/tests/` shift-tab.spec.ts, unindent-registry.spec.ts,
-silent-drop-list-paste-over-list-selection.spec.ts under the invariant-watcher fixture
-
-First CI run with the watcher-armed battery (run 29177807039, e2e shards 2/4 and 4/4) failed
-five specs on `[invariant:stale-raw] blockquote raw is stale relative to its children
-{kind: blockquote, raw: }` — an empty blockquote raw observed at a commit boundary. The same
-specs are green locally under the watcher, so the fire is timing-dependent (slower runners
-widen a window in which a blockquote ancestor's raw has not been rebuilt in the same commit
-as its child mutation). The watcher did its job: this class was previously invisible because
-no spec failed on invariant console fires.
-
-**Fix direction:** reproduce by running the three spec files under CPU throttling (or a
-retry loop on CI); then trace the unindent/paste commit paths for a blockquote ancestry
-rebuild that happens outside the committing mutation. The metadata-driven raw invariant
-(`updateBlockMetadata` § design spec) is the pattern the fix should land on.
-
-**Why open:** found at session end by the first sharded CI run; needs a bounded
-investigation with the repro first — do not patch the invariant checker to quiet it.
-
-### Attribution perf axes time out on 1MB setSource settle (pre-existing)
-
-**Severity:** minor (diagnostic instruments only — the `PERF-GATE` rows and typing-latency rows pass with 2-3× headroom, so `perf:check`'s regression gate is intact)
-**Files:** `src/lib/e2e/tests/perf/attribution.perf.spec.ts`
-
-9 of 13 attribution axes fail on `page.waitForFunction` (60s) waiting for `settle()` after `__test.setSource` of a 1MB fixture. Proven pre-existing: axis1 fails identically at 0.9.7 (`d7135f3`), so this is not a 0.9.8 regression. The failure means the in-page document never reaches the expected byte length within the timeout — diagnose the settle predicate against current `setSource` behavior on 1MB fixtures before trusting any attribution numbers.
-
-**Why deferred:** baseline-proven pre-existing; the diagnosis belongs to a perf-harness pass, not the conformance/registry batch that surfaced it.
-
-### Two latent fail-loud conformance divergences the corpus cannot spell
-
-**Severity:** trivial (phantom-red prevention notes, not defects)
-**Files:** `src/lib/test/conformance/normalize.ts`, `src/lib/core/inline/character-refs.ts`
-
-Two divergence shapes are unreachable by the current corpus alphabets but would surface as fail-loud fresh divergences if the corpus ever gains the needed bytes: (1) an entity-decoded newline after a space (`foo &#10;bar`) — our softbreak trimming keys on `\n` bytes regardless of provenance; (2) C1 numeric references (`&#128;`) — the reference applies HTML5's cp1252 remap while we follow CommonMark §2.5's letter (ours spec-correct, probe-verified). If either surfaces, class it as deliberate with these rationales rather than chasing it as a scanner bug.
-
-**Why deferred:** unreachable today; recorded so a future corpus widening inherits the adjudications.
-
-### Invariant-watcher fixture has no per-tag allow/require; first opt-out consumer asserts inline
-
-**Severity:** trivial (test-fixture affordance)
-**Files:** `src/lib/e2e/tests/plugins/plugins-prop-staggered.spec.ts` (the opt-out consumer); the invariant-watcher fixture
-
-The staggered-mount spec expects exactly one `invariant:late-opener-registration` fire, but the
-watcher fixture is a boolean with no per-tag allowlist — so the spec opts out and asserts the
-fire itself. Sound for one consumer (a local `poll(...).toBe(1)` requires the warn, which an
-allowlist would let vanish silently); on a second opt-out consumer, promote per-tag
-require/allow into the fixture per the choke-point rule.
-
-### Simulation gestures missing for widget caret-entry reveal and whole-block focus
-
-**Severity:** minor (test coverage; culture rule "new feature class → new simulation gesture")
-**Files:** `src/lib/e2e/simulation/` (gesture set); the surfaces: inline-widget arrow-entry
-reveal (`widget-interaction.ts` `enterWidget`), whole-block focus/delete (`plugin/container.ts`
-`handleWholeBlockKeydown`)
-
-The caret-entry reveal (arrows/Backspace/Delete against a reveal-capable widget) and the
-whole-block focus model (arrow-stop, two-step delete, Enter-below on an opaque childless
-container) shipped with per-feature e2e + unit pins but no simulation gestures, so the
-corruption oracle does not yet exercise them mid-session against accumulated state.
-
-**Target:** next simulation-suite pass — an arrow-walk-through-inline-math gesture in a prose
-note and a mermaid focus/delete/undo detour in the fenced-code/image session.
+### IME composition sequences can't be driven in tests
 
 **Severity:** minor (test gap)
 **Files:** `src/lib/components/blocks/code/CodeBlock.svelte`, `src/lib/components/blocks/text/` (composition handlers)
 
 The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
 
-### LaTeX acceptance-axis follow-ups (A2 integration gap, A1 flakiness watch)
-
-**Severity:** minor (test coverage)
-**Files:** `src/lib/e2e/tests/plugins/latex-acceptance.spec.ts`; block-math component (`src/routes/test/plugins/latex/BlockMath.svelte`)
-
-Two gaps left by the LaTeX acceptance suite:
-
-- **A2 proven by construction, not end-to-end.** "Edit one of N live equations re-renders only that
-  one" is asserted for the memo primitive at the unit level. For block math it rests on a per-instance
-  memo plus Svelte reactivity — proven by construction, not by a live edit-one-of-N integration test.
-- **A1 fixture may cross the windowing watermark.** The block-reveal fixture is large enough that
-  folding a block can trigger a geometry re-estimate, a flakiness watch-point for the seeded multi-run.
-  Read an A1 failure there as a windowing-geometry interaction before a reveal regression.
-
-**Why deferred:** each acceptance axis already maps to a falsifiable test; these close residual
-coverage when the LaTeX test surface is next extended.
-
 ## Plugin containers
-
-### A plugin rebinding chrome Enter to block.split leaves a dead undo entry
-
-**Severity:** trivial (plugin misuse; unreachable via seam defaults)
-**Files:** `src/lib/editor-actions/plugin/chrome-leaf.ts` (chrome keymap), `src/lib/editor-actions/block-edit-core.ts` (`split`)
-
-The chrome keymap binds Enter to `chrome.descendToBody` by default. A plugin that rebinds it to `block.split` gets a noop split — the chrome is single-line, so nothing structurally changes — through a commit that still pushes an undo entry.
-
-**Why deferred:** reachable only by a plugin overriding the documented single-line chrome contract; not worth a guard until a real consumer needs `block.split` on chrome.
 
 ### Cross-block copy STARTING mid-chrome loses the container wrapper
 
@@ -215,21 +111,25 @@ not the bounded closer-synthesis the END case uses.
 **Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
 direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
 
-### Directive rebuild normalizes CRLF line ends to `\n`
+### `<details>` chrome rebuild normalizes CRLF line ends to `\n`
 
 **Severity:** minor
-**Files:** `src/lib/core/directive/grammar.ts` (`serializeDirective`)
+**Files:** `src/routes/test/plugins/details/details-kind.ts` (`rebuildDetailsRaw`)
 
-`serializeDirective` hardcodes `\n` for the opener and closer line ends, so a post-EDIT rebuild of
-a CRLF-authored directive normalizes those chrome lines to `\n`. Parse→serialize stays CRLF-safe —
-an opaque container emits its `raw` verbatim — so only a rebuild (triggered by a structural edit)
-normalizes. Shared with the callout/details precedent, whose chrome rebuild does the same.
+The `:::` directive path now threads the authored line ending through metadata, so a post-edit
+rebuild of a CRLF-authored directive, callout, or admonition reproduces `\r\n` on its opener and
+closer chrome lines (`serializeDirective` takes a `lineEnding`). The `<details>` plugin rebuilds its
+HTML chrome (`<details>` / `<summary>` / `</details>`) through a separate hand-rolled template that
+still hardcodes `\n`, so a CRLF-authored `<details>` block normalizes those lines on a structural
+edit. Parse→serialize stays CRLF-safe (an opaque container emits its `raw` verbatim); only a rebuild
+normalizes.
 
-**Fix direction:** thread the authored line ending through metadata (as the container already
-threads its colon counts) so the rebuild reproduces CRLF.
+**Fix direction:** thread the same authored line ending through `DetailsMetadata` and use it in
+`rebuildDetailsRaw`'s template, mirroring the directive fix.
 
-**Why deferred:** the byte round-trip holds without edits, and this matches the existing
-container-chrome rebuild behavior; fold into a line-ending-fidelity pass.
+**Why deferred:** the byte round-trip holds without edits; the `<details>` HTML rebuild is a distinct
+serializer from the shared `serializeDirective`, so it needs its own threading. Fold into a
+line-ending-fidelity pass.
 
 ## Plugin inline widgets
 
@@ -246,44 +146,29 @@ containment-scoped fold. Verified on the `mathtable` seed — clicking a cell's 
 widget leaves it rendered; source editing is simply unavailable inside cells. Distinct from
 the reveal collapse/switch fix (which lives at the TextEditableBlock choke point and covers
 every reveal-source kind there); wiring cells means threading the same interaction bundle
-through the cell surface, picking up the `document.activeElement` pending-cursor guard
-already flagged in "TableCellBlock has an unguarded pending-cursor effect".
+through the cell surface (its pending-cursor `$effect` already carries the
+`document.activeElement` guard the blur-commit path needs).
 
 **Why deferred:** cell reveal is a feature wire-up, not a regression; fold into the
 cell-inline-render migration alongside the existing cell entries.
 
-### Re-add `deleteGranularity` / `onEdge` when the inline-entity consumer lands
+## Dev workflow
 
-**Severity:** n/a — freeze-forward reminder, not a defect
-**Files:** `src/lib/core/inline/inline-widgets.ts` (`InlineWidgetEditingPolicy`), re-exported on
-`aragonite/plugin`
+### Editing a registrar-adjacent module under `vite dev` 500s every editor route
 
-Two fields were trimmed from the public `InlineWidgetEditingPolicy` (commit `fe99476`) because nothing
-consumed them, keeping the pre-freeze inline surface free of inert configuration. They must be re-added
-**additively** when the deferred inline-entity / atomic-inline feature lands — entity editing is
-_defined by_ delete granularity (atomic `&copy;` delete versus image's select-then-delete), so building
-it forces the re-add. The exact trimmed shape, recorded so the re-add restores it verbatim:
+**Severity:** minor (dev workflow; no production or built-output impact)
+**Files:** `src/lib/schema/*` registries, `src/lib/components/built-in-blocks.ts` (registrars)
 
-- `deleteGranularity: 'atomic' | 'select-then-delete'`
-- `onEdge: 'select' | 'step-over'`
+Editing any registrar-adjacent `$lib` module while `vite dev` is running invalidates the registrar
+modules but keeps the registry module instances alive. On the next SSR render the registrars re-run
+against a registry that still holds the prior evaluation's registrations, so the register-once contract
+throws (`registerBlockComponent: "paragraph" is already registered`) and every editor route 500s until a
+full `src/**` mtime touch (forcing registries + registrars to re-evaluate together) or a server restart.
 
-**Why deferred:** freezing inert fields and later giving them behavior is the one path that breaks an
-author's config; trimming now and re-adding with the consumer is the additive-safe choice.
+**Fix direction:** either a dev-only SSR idempotence guard at the registration seam — in tension with the
+culture rule "registries are code, not state" (register-once, throw-on-duplicate), so it needs a
+deliberate design that scopes the guard to the HMR/dev boundary without softening the production contract
+— or a documented touch/restart policy for registrar edits under the dev server.
 
-### TableCellBlock has an unguarded pending-cursor effect (latent reveal-source parity)
-
-**Severity:** trivial (latent; unreachable today)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` vs
-`src/lib/components/blocks/text/TextEditableBlock.svelte`
-
-`TextEditableBlock` gained a `document.activeElement === el` guard on its pending-cursor `$effect`
-during the inline-widget feature, and `CodeBlock` gained it when multi-block content commits made
-a structural split reachable from a code edit (0.9.16). The analogous effect in `TableCellBlock`
-is still unguarded — unreachable today: cell edits are context-dependent-kind (never structural)
-and no source-reveal is wired to cells, so no blur-commit sets a pending cursor while focus has
-left.
-
-**Fix direction:** add the same `document.activeElement === el` guard if the cell surface ever
-gains inline-widget reveal.
-
-**Why deferred:** no reachable bug; mirror the guard when reveal reaches the cell surface.
+**Why deferred:** dev-server-only; production and `svelte-package` output are unaffected. The mtime-touch
+self-heal is known and cheap, so this waits on the deliberate seam design.

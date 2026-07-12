@@ -28,6 +28,8 @@ export function registerDirectiveOpeners(): void {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
 
+			const lineEnding = ctx.line.raw.endsWith('\r\n') ? '\r\n' : '\n';
+
 			if (fence.tier === 'leaf') {
 				const def = resolveDirective('leaf', fence.name);
 				if (def?.fromDirective) {
@@ -37,7 +39,8 @@ export function registerDirectiveOpeners(): void {
 						leadingTrivia: ctx.leadingTrivia,
 						raw: ctx.line.raw,
 						closerColonCount: 0,
-						closerNewline: false
+						closerNewline: false,
+						lineEnding
 					};
 					return { node: def.fromDirective(parsed) as CstNode, nextIndex: ctx.index + 1 };
 				}
@@ -85,7 +88,8 @@ export function registerDirectiveOpeners(): void {
 					leadingTrivia: ctx.leadingTrivia,
 					raw,
 					closerColonCount,
-					closerNewline
+					closerNewline,
+					lineEnding
 				};
 				return { node: def.fromDirective(parsed) as CstNode, nextIndex: closerIdx + 1 };
 			}
@@ -103,7 +107,8 @@ export function registerDirectiveOpeners(): void {
 				colonCount: fence.colonCount,
 				info: fence.info,
 				closerColonCount,
-				closerNewline
+				closerNewline,
+				lineEnding
 			});
 			return { node, nextIndex: closerIdx + 1 };
 		}

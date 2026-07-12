@@ -2,6 +2,19 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.19 — Selection/focus completeness + the issues-ledger work-down
+
+The 0.9.18 follow-through (owner-directed): every block state selects, focuses, and deletes like a first-class citizen, and the known-issues ledger shrank from 19 entries to 7 — each remainder now a genuine keeper with a target or rationale.
+
+- **A childless opaque container inside a cross-block selection paints the full-block overlay.** SelectionOverlay's container gate deferred painting to child hosts that don't exist for a childless plugin block (mermaid showed nothing while selected); the gate now defers only when child hosts exist. Same-class gap in MatchOverlay recorded (design call pending).
+- **The error/loading/no-renderer mermaid states are no longer caret traps.** Each non-rendered steady state mounts a focusable surface; a `composeWholeBlockFocusSurface` choke point falls back to the block's box (devWarn, once) so no future plugin render-state can strand the caret; committing a source fix from the error card hands focus across the async card→viewport swap (third latent defect, found while pinning the recovery path).
+- **Range-delete ceremony unified at one choke point.** The table branch emptied covered containers child-by-child before deleting them — corrupting any undo snapshot holding the detached node (red-first) — and now shares the chrome branch's subtree-root + identity-gated ceremony (`range-delete-ceremony.ts`); the prose branch consumes the same gated delete.
+- **Structurally-noop commits no longer mint dead undo entries or events** — opt-in discard from the structural cores (metadata commits legitimately no-op and still commit), rolled back as the benign twin of the commit-throw path.
+- **Directive rebuilds preserve CRLF** — the authored line ending rides directive metadata through `serializeDirective` (generic, callout, admonitions; details' HTML rebuild remains ledgered).
+- **Attribution axes fixed after ~11 versions**: the 9 failing axes focused the document's LAST block, which windowing had unmounted — keystrokes landed on `<body>` and the settle hung; the ledger's byte-length diagnosis was falsified. Axes now focus an asserted-mounted block 0 (harness-only; the perf gate already did this — sibling-path parity).
+- **Simulation coverage caught up with 0.9.18**: caret-entry reveal walk-through and edit-commit detours, mermaid focus/two-step-delete/Enter detours — plus a silently-broken `editInlineMath` gesture (its click missed the KaTeX hit-target; the content-agnostic oracle never noticed) fixed with byte assertions. MatchOverlay cell search reads a per-ancestor bucket instead of scanning all matches; `TableCellBlock` gained the sibling pending-cursor guard; LaTeX A2 (edit one of N re-renders only that one) is now integration-pinned.
+- **Ledger hygiene:** conformance adjudications, the watcher promotion rule, and the `deleteGranularity`/`onEdge` re-add shapes moved to their code/contract homes; stale fixed/record entries removed; new entries: dev-server SSR registrar poison (root-caused this session), MatchOverlay gap.
+
 ### 0.9.18 — Caret-entry UX: widgets reveal, opaque blocks focus
 
 Two owner-reported caret UX defects on the plugin surfaces, each fixed as its class.
