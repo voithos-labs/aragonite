@@ -61,11 +61,10 @@ run deep, and every consumer since was in-repo and same-day." The remaining item
    legibility**: the showcase lands on a human-named route (arguably the dev app's `/` —
    clone, `npm run dev`, see the pitch), the `?plugins=1` toggle retires, and `/test/*`
    becomes uniformly machine-facing — today the demo living at `/test/editor` is the one
-   human page in a machine tree. It also carries the recorded reference-plugin aesthetic
-   decision (`docs/issues.md` — card-like chrome vs document-not-pile-of-blocks): the
-   reference plugins' look becomes what plugin authors copy, so decide it deliberately; lean
-   restrained (gutter-rail) for house plugins while documenting that chrome is the author's
-   call.
+   human page in a machine tree. The reference-plugin aesthetic decision is made and shipped
+   (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
+   plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
+   whatever it adds.
 5. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
