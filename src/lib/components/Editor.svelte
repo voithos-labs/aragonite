@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, tick } from 'svelte';
+	import { setContext, tick, onMount } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -24,6 +24,7 @@
 		KEYBINDING_OVERRIDES_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
+		PLUGIN_EDITOR_KEY,
 		REORDER_ACTION_KEY,
 		REORDER_ANNOUNCE_KEY,
 		RESOLVE_IMAGE_URL_KEY,
@@ -75,7 +76,8 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
-	import { installPlugins } from '../schema/plugin-install';
+	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
+	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
@@ -100,7 +102,10 @@
 
 	// Install before initDocument parses `source`, so plugin openers/directives are
 	// live for the seed grammar. Set-once by contract — a later prop change is ignored.
-	if (plugins?.length) installPlugins(plugins);
+	// Options ride each entry, kept per-instance even though installation is global.
+	// svelte-ignore state_referenced_locally
+	const pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
+	if (pluginEntries) installPlugins(pluginEntries.plugins);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
@@ -393,6 +398,31 @@
 	// the latest doc, not the snapshot captured when they mounted.
 	const getDoc: DocumentGetter = () => doc;
 
+	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it
+	// reuses the one live-doc closure — a second getDoc would be a TDZ reference here,
+	// and the culture rule is one getter, never a captured value.
+	const editorId = mintEditorId();
+	const pluginContexts = createEditorPluginContexts({
+		editorId,
+		getDoc,
+		events,
+		optionsFor: (name) => pluginEntries?.optionsByName.get(name)
+	});
+
+	// onMount, NEVER a plain $effect: attachAll synchronously runs plugin callbacks
+	// that read reactive state (e.g. editor.document.children.length), so an effect
+	// would register doc.children as a dependency — the first structural edit would
+	// re-run it, disposing every subscription, and a run-once guard would then block
+	// re-attach (the re-init-effect scar in docs/contributing/culture.md). onMount's
+	// callback is once-only and non-tracking, and fires after mount so getDoc reads
+	// the live $state doc.
+	onMount(() => {
+		pluginContexts.attachAll(({ plugin, error }) =>
+			events.emit('error', { origin: 'subscriber', error, context: { plugin } })
+		);
+		return () => pluginContexts.dispose();
+	});
+
 	// Lifetime signal: aborted when this Editor unmounts. Document-level
 	// listeners (drag-pointer) observe it to cancel mid-operation work.
 	const lifetimeController = new AbortController();
@@ -479,6 +509,7 @@
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
+	setContext(PLUGIN_EDITOR_KEY, (pluginName: string) => pluginContexts.get(pluginName));
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
 	setContext(LINK_REF_KEY, {

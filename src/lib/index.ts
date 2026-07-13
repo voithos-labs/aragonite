@@ -19,7 +19,7 @@ export type { Match } from './search/document-scan';
 // installPlugins for editor-less `parse()` pipelines that need the grammar live
 // without mounting <Editor>; EditorPlugin types the `plugins` prop.
 export { installPlugins } from './schema/plugin-install';
-export type { EditorPlugin } from './schema/plugin-install';
+export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 
 // ── Selection + keybinding public types ────────────────────────────────────────
 

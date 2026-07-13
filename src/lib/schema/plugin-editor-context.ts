@@ -18,6 +18,11 @@ export interface EditorPluginContexts {
 	dispose(): void;
 }
 
+// Process-monotonic instance id: `editor-1`, `editor-2`, … Stable per mount, so a
+// plugin can key per-instance state on `editor.editorId`.
+let n = 0;
+export const mintEditorId = () => `editor-${++n}`;
+
 export function createEditorPluginContexts(deps: {
 	editorId: string;
 	getDoc: () => Document;
