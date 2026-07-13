@@ -2,19 +2,17 @@ import { autolinkNode, describeScanCases, textNode } from './scan-test-helpers';
 
 // Spec autolinks (CommonMark §6.5): `<scheme:…>` URI and `<email>` forms per
 // the reference's grammar; url carries the reference's percent-encoded
-// destination byte-for-byte (mdurl encode — see scan/url.ts).
+// destination byte-for-byte (mdurl encode — see core/inline/scan/url.ts).
 
 describeScanCases('uri autolinks', [
 	['plain https uri', '<https://x.y>', [autolinkNode(0, 13, 'https://x.y')]],
 	[
-		// The old pipeline kept raw url bytes; the reference percent-encodes.
 		'non-ascii destination bytes are percent-encoded',
 		'<https://a.b/é>',
 		[autolinkNode(0, 15, 'https://a.b/%C3%A9')]
 	],
 	[
-		// The old pipeline's escape pre-pass fragmented this span (the
-		// autolink-uri-charset baseline class); §6.5 keeps backslashes literal.
+		// §6.5 keeps backslashes literal — no escape processing reaches inside the span.
 		'backslashes are uri content, not escapes',
 		'<https://example.com/\\[\\>',
 		[autolinkNode(0, 25, 'https://example.com/%5C%5B%5C')]
@@ -47,23 +45,17 @@ describeScanCases('email autolinks', [
 		[autolinkNode(0, 16, 'mailto:a.b+c_d@e-f.gh')]
 	],
 	[
-		// The old pipeline required a dotted domain; the spec regex does not.
 		'single-segment domain is valid per the spec regex',
 		'<a@b>',
 		[autolinkNode(0, 5, 'mailto:a@b')]
 	],
-	[
-		// The old pipeline accepted a dash-terminated interior segment.
-		'domain segment ending in dash is rejected',
-		'<a@b-.c>',
-		[textNode(0, 8, '<a@b-.c>')]
-	]
+	['domain segment ending in dash is rejected', '<a@b-.c>', [textNode(0, 8, '<a@b-.c>')]]
 ]);
 
 describeScanCases('autolinks win the `<` dispatch over brackets', [
 	[
-		// The reference lets the autolink absorb `](uri)`, so the link never
-		// closes — the old pipeline made the link (baseline class, now converged).
+		// The autolink absorbs `](uri)` into its destination, so the bracket never
+		// closes and `[foo` stays literal.
 		'autolink absorbs a would-be link tail',
 		'[foo<https://example.com/?search=](uri)>',
 		[textNode(0, 4, '[foo'), autolinkNode(4, 40, 'https://example.com/?search=%5D(uri)')]

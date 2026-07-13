@@ -161,7 +161,7 @@ describe('flushPendingRegistrationChecks', () => {
 
 // The first flush sweeps the live registry (getAllRegisteredKinds), not just the
 // built-in ALL_BLOCK_KINDS, so a plugin registered before the first mount is
-// validated like any other — the roadmap's pre-mount coverage gap.
+// validated like any other — closing the pre-mount coverage gap.
 describe('registry-derived first-flush sweep', () => {
 	it('flags a pre-mount plugin keymap binding an unknown command', () => {
 		const kind = declarePluginKind('pre-mount-keymap');

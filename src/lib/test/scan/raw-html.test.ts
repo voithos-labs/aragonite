@@ -1,9 +1,8 @@
 import { describeScanCases, emphasisNode, rawHtmlNode, textNode } from './scan-test-helpers';
 
-// Raw HTML (CommonMark §6.6) via the shared ../html-tag-grammar.ts forms.
-// The single left-to-right pass is the fix for the html-inline-parsing
-// baseline class: constructs starting inside a tag (entities, escapes,
-// emphasis) can no longer fragment it, because `<` claims first.
+// Raw HTML (CommonMark §6.6) via the shared core/inline/html-tag-grammar.ts forms.
+// `<` claims first in the single left-to-right pass, so a construct that starts
+// inside a tag (entity, escape, emphasis) cannot fragment it.
 
 describeScanCases('tag forms', [
 	['self-closing open tag', '<br/>', [rawHtmlNode(0, 5)]],
@@ -45,16 +44,15 @@ describeScanCases('tags claim ahead of inner constructs', [
 ]);
 
 describeScanCases('declarations end at the first `>` — escapes do not reach inside', [
-	// §2.4: backslash escapes do not work in raw HTML. The old pipeline's
-	// escape pre-pass claimed `\>` and broke the declaration (the last
-	// html-inline sweep mechanism).
+	// §2.4: backslash escapes do not work in raw HTML — a `\>` inside a declaration
+	// must not be claimed as an escape, or the declaration ends at the wrong `>`.
 	[
 		'escape-lookalike inside a declaration',
 		'x <!A \\> B>',
 		[textNode(0, 2, 'x '), rawHtmlNode(2, 8), textNode(8, 11, ' B>')]
 	],
 	[
-		'sweep exemplar: declaration with non-ascii and stray constructs',
+		'declaration with non-ascii and stray constructs',
 		'[#é0<!b<)中b\\>>中<中𐄀`)',
 		[textNode(0, 4, '[#é0'), rawHtmlNode(4, 13), textNode(13, 21, '>中<中𐄀`)')]
 	]

@@ -166,7 +166,7 @@ export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number
 
 /**
  * Walk the caret through a block-final inline widget and back out, asserting the
- * entry-reveal + escape-fold nets to identity (the 0.9.18 caret-entry reveal's
+ * entry-reveal + escape-fold nets to identity (the caret-entry reveal's
  * byte-survival class). From the block end — right of the widget — one ArrowLeft
  * crosses the trailing edge and opens the source reveal: the rendered island swaps
  * for editable `$…$` text, so the widget count drops. Further ArrowLefts step
@@ -198,9 +198,9 @@ export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number)
 
 /**
  * Enter a block-final inline widget with Backspace, insert a char inside the
- * formula, and commit by walking the caret out the trailing edge — the 0.9.18
- * caret-entry reveal's commit-on-escape path (distinct from the click→Enter/blur
- * commit `editInlineMath`/`editBlockMath` already cover). Backspace from the
+ * formula, and commit by walking the caret out the trailing edge — the caret-entry
+ * reveal's commit-on-escape path (distinct from the click→Enter/blur commit
+ * `editInlineMath`/`editBlockMath` already cover). Backspace from the
  * trailing edge opens the reveal (it never deletes a reveal-capable widget); one
  * ArrowLeft steps inside the closing `$` so the insert stays within the fence; the
  * edit is EPHEMERAL DOM until commit, asserted by `getSource()` holding unchanged

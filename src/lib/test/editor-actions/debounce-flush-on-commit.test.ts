@@ -4,7 +4,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// ── B4: pending typing batch must flush as one input event before structural commit ─
+// ── A pending typing batch flushes as one input event before a structural commit ─
 
 describe('debounce flush on structural commit (B4)', () => {
 	it('mid-batch structural commit emits one buffered op:input event before its own op event', async () => {

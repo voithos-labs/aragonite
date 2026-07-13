@@ -7,7 +7,7 @@ import { primaryModifier } from '../platform';
 // descended into. The stale slot is forged deterministically — capture the
 // mounted ref, let the scroll-out clear the slot, re-plant the captured ref —
 // because the natural cleanup race that leaves one behind is not reproducible
-// on demand (docs/issues.md, since shipped).
+// on demand.
 test.describe('reveal into a stale top-level ref slot', () => {
 	let editor: EditorPage;
 

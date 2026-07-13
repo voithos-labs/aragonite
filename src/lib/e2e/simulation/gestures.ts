@@ -60,8 +60,8 @@ import { lateCorrection } from './gestures/correction';
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
  * keyboard/mouse action, then either predicts (printable typing) or resyncs
  * the tracker (auto-behavior), and settles on an observable state predicate —
- * never a bare sleep. Phase 1 ships the subset the smoke needs; later batches
- * add new methods against this frozen surface without changing signatures.
+ * never a bare sleep. The surface is frozen: new gestures arrive as new methods,
+ * existing signatures don't change, so a note fixture never has to be rewritten.
  */
 export interface GestureOpts {
 	typoRate?: number;
@@ -117,12 +117,12 @@ export class Gestures {
 
 	/**
 	 * Real pointer click into a top-level block to reposition the caret, then
-	 * assert the focus block landed where intended (CRITICAL-2: a wrong-block
-	 * landing must never be silently recorded as truth). The caret offset is
-	 * accepted for the frozen signature but the click lands at the block's
-	 * natural hit point — the block path is the load-bearing assertion; the
-	 * offset resyncs to whatever the click produced. Offset-precise clicks into
-	 * nested blocks arrive with a Phase-2 gesture built on a public point API.
+	 * assert the focus block landed where intended — a wrong-block landing must
+	 * never be silently recorded as truth. The caret offset is accepted for the
+	 * frozen signature but the click lands at the block's natural hit point: the
+	 * block path is the load-bearing assertion; the offset resyncs to whatever the
+	 * click produced. Gestures needing an offset-precise or nested click go through
+	 * `editor.clickBlockAtPath` instead.
 	 */
 	async clickToReposition(targetBlockPath: number[], _offset: number): Promise<void> {
 		const { editor, tracker } = this.ctx;

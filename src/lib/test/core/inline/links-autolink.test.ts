@@ -23,14 +23,14 @@ describe('parseInline — autolinks', () => {
 	});
 
 	it('non-URL angle brackets are not autolinks', () => {
-		// `<world>` is no autolink (no URL/email pattern). After 0.6.7.1 it
-		// matches the §6.10 inline HTML grammar as a type-7 open tag — that's
-		// spec-correct and a separate concern from autolink detection.
+		// `<world>` is no autolink (no URL/email pattern). It does match the §6.6 raw
+		// HTML grammar as a type-7 open tag — spec-correct, and a separate concern
+		// from autolink detection, so this asserts only the absence.
 		const nodes = inlineOf('Hello <world> end');
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
 
-	it('autolink still stops at entity boundary (regression guard for 1d44f0f)', () => {
+	it('autolink stops at entity boundary (&amp;)', () => {
 		const nodes = inlineOf('see https://example.com/?a&amp;b end');
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(1);
@@ -196,8 +196,8 @@ describe('bare http/https autolink — trim + boundary (GFM §6.9)', () => {
 	});
 
 	it('autolink stops at named-entity boundary (&copy;)', () => {
-		// Sibling regression of the 1d44f0f guard — the named entity (&copy;) form
-		// exercises the same upstream-boundary path as the &amp; form above.
+		// Sibling of the &amp; case above: the named-entity form must halt the url at
+		// the same upstream boundary, so a fix applied to one arm can't skip the other.
 		const raw = 'foo https://example.com/?a=&copy; bar';
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
@@ -370,7 +370,7 @@ describe('bare email autolink (GFM §6.9)', () => {
 	});
 });
 
-describe('angle-bracket email autolink (CommonMark §6.8)', () => {
+describe('angle-bracket email autolink (CommonMark §6.5)', () => {
 	it('autolinks <foo@bar.com>', () => {
 		const raw = 'contact <foo@bar.com> please';
 		const nodes = inlineOf(raw);
@@ -464,9 +464,14 @@ describe('autolink interactions with other constructs', () => {
 });
 
 describe('parseInline — fast-bail output shape', () => {
+	// Both cases pin the SHAPE of an output that contains an autolink, so both open
+	// by asserting the autolink is there. Without that precondition neither can fail:
+	// a degenerate single-text-node output has no adjacent pair to find, and it
+	// reconstructs the raw bytes just as well as the real tiling does.
 	it('fast path output has no adjacent text siblings', () => {
 		const input = 'before  \nhttps://example.com after';
 		const nodes = inlineOf(input);
+		expect(nodes.some((n) => n.kind === 'autolink')).toBe(true);
 		for (let i = 1; i < nodes.length; i++) {
 			const prev = nodes[i - 1];
 			const cur = nodes[i];
@@ -481,6 +486,7 @@ describe('parseInline — fast-bail output shape', () => {
 	it('fast path: text+autolink+text reconstructs raw', () => {
 		const input = 'pre https://example.com post';
 		const nodes = inlineOf(input);
+		expect(nodes.map((n) => n.kind)).toEqual(['text', 'autolink', 'text']);
 		const reconstructed = nodes.map((n) => input.slice(n.start, n.end)).join('');
 		expect(reconstructed).toBe(input);
 	});

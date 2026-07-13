@@ -1,8 +1,8 @@
 /**
- * Both parsers map into this common shape before comparison, so the differ
- * (task A4) tests semantic agreement, not incidental AST-shape differences.
- * Only the fields a GFM inline construct actually carries survive; offsets,
- * link labels, image dimensions, and reference bookkeeping are dropped.
+ * Both parsers map into this common shape before comparison, so the differ tests
+ * semantic agreement, not incidental AST-shape differences. Only the fields a GFM
+ * inline construct actually carries survive; offsets, link labels, image dimensions,
+ * and reference bookkeeping are dropped.
  *
  * Audited reconciliations (each recorded in baseline.json's
  * normalizerReconciliations): empty-title coalescing on both sides; §6.1

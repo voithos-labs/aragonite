@@ -13,7 +13,7 @@ import { metadataOf, type CstNode } from '../../core/nodes';
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 
-// ── splitItemAtOffset descriptor correctness (B1) ──────────────────────────
+// ── splitItemAtOffset descriptor correctness ───────────────────────────────
 
 describe('list-context — splitItemAtOffset', () => {
 	it('keeps state ids/refs aligned with item.children after trailing-children split', async () => {
@@ -59,7 +59,7 @@ describe('list-context — splitItemAtOffset', () => {
 		await listContext.splitItemAtOffset(0, 0, 1);
 
 		// Post-split invariant: every BlockListState's id array must match the
-		// corresponding node.children length. Drift is the Theme B1 bug.
+		// corresponding node.children length — drift desyncs the keyed {#each}.
 		expect(liveItem().children).toHaveLength(1);
 		expect(itemState.innerBlockIds).toHaveLength(1);
 		expect(itemState.innerBlockIds[0]).toBe('para-a');
@@ -210,7 +210,7 @@ describe('list-context — insertItemAfter', () => {
 	});
 });
 
-// ── ordered-marker suffix normalization on indent / promote (F18) ──────────
+// ── ordered-marker suffix normalization on indent / promote ────────────────
 
 describe('list-context — ordered suffix adopts destination on move', () => {
 	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
@@ -303,7 +303,7 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 	});
 });
 
-// ── unordered glyph normalization on indent / promote (#2b) ─────────────────
+// ── unordered glyph normalization on indent / promote ───────────────────────
 
 describe('list-context — unordered glyph adopts destination on move', () => {
 	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);

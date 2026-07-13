@@ -172,10 +172,10 @@ describe('reorder action — blockquote', () => {
 describe('reorder action — plugin (opaque) container declines', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// TOP / :::spec (reserved chrome + one body) / BOTTOM — the report's teleport
-	// seed. A pre-decline resolver hands back the container's DOCUMENT slot, so a
-	// body-leaf nudge/move permutes the top-level array (the teleport). The decline
-	// returns null, so run() bails before commit: no permutation, no undo, no edit.
+	// TOP / :::spec (reserved chrome + one body) / BOTTOM — the teleport seed. A
+	// pre-decline resolver hands back the container's DOCUMENT slot, so a body-leaf
+	// nudge/move permutes the top-level array (the teleport). The decline returns
+	// null, so run() bails before commit: no permutation, no undo, no edit.
 	function makeDeclineHarness() {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');

@@ -1,9 +1,11 @@
 /**
  * G4.3 — container-author conformance kit. A parametrized harness run against
- * EVERY registered container kind (derived from the descriptor registry where
- * `isContainer`), so a 1.2 plugin container is auto-covered the moment it
- * registers: the completeness meta-test in `container-conformance.test.ts` fails
- * if a registered container kind has no profile here.
+ * EVERY registered BUILT-IN container kind (derived from the descriptor registry
+ * where `isContainer`), so a new built-in container kind is auto-covered the
+ * moment it registers: the completeness meta-test in `container-conformance.test.ts`
+ * fails if one has no profile here. Plugin container kinds are NOT covered — the
+ * kit's fixtures are parse-based and `CstNode.kind` is `BlockKind`, so a plugin
+ * kind can't appear in a parsed tree (see the filter in `container-conformance.test.ts`).
  *
  * The per-container invariants:
  *   (a) local-index addressing  — children are addressed by their LOCAL index at
@@ -38,9 +40,9 @@
  * mounts the DEFAULT nested-action bundle, not the per-kind `overrideFactory`
  * the real components supply (blockquote's Enter-exit, list's item-level
  * no-ops/delete/replace) — those overrides need the components, so they're out
- * of scope here; (2) grid focus
- * bubbling and a mounted-component focus walk would need the Svelte components
- * under jsdom. Both are recorded as boundaries with what WOULD be required.
+ * of scope here; (2) grid focus bubbling and a mounted-component focus walk
+ * would need the Svelte components under jsdom. Both are recorded as boundaries
+ * with what WOULD be required.
  */
 
 import { expect, vi } from 'vitest';
@@ -607,7 +609,8 @@ function findFirstOfKind(root: Document | CstNode, kind: BlockKind): CstNode | n
  * strategies the registries implement (the nested dispatcher indexes them
  * unguarded), a declared `containerPaste` must be shaped as the paste path
  * consumes it, and `rebuildRaw` must run non-throwing over a parsed fixture
- * (G1.3 owns the isContainer-iff-rebuildRaw presence rule).
+ * (the isContainer-iff-rebuildRaw pairing itself is unrepresentable under G3.6's
+ * grouped `container` registration, which retired the G1.3 runtime guard).
  */
 export function checkDeclarationSanity(kind: BlockKind, profile: ContainerProfile): void {
 	const descriptor = getBlockKindDescriptor(kind);

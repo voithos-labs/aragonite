@@ -492,11 +492,9 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 });
 
 // ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
-// Cost #2 (the one-time first-edit full-document re-render) is now fixed — the
-// LRD resolver is reassigned only on a real signature change, so the first edit
-// no longer re-renders every block. This capture confirms that: renders is now
-// bounded, not ~22k. Steady-state cost #1 (mounted-component flush) is unchanged
-// and remains the VR (0.8.6) target.
+// The one-time first-edit full-document re-render is fixed — the LRD resolver is
+// reassigned only on a real signature change, so the first edit no longer
+// re-renders every block. This capture confirms it: renders stays bounded, not ~22k.
 
 test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);

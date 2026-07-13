@@ -7,7 +7,7 @@
  *   - Editing / Block reorder → the per-kind + global keymap registry
  *     (`resolveBinding`, which falls through to the global table).
  *   - Tables → the cell keydown plan. The structural table chords live as
- *     predicates in `cell-keydown-plan.ts`, not the keymap (the S1 single-source
+ *     predicates in `cell-keydown-plan.ts`, not the keymap (the single-source
  *     gap tracked in docs/issues.md); a chord "resolves" when the plan is
  *     non-native for a synthesized key event.
  *   - Find / replace → literal presence in the search components

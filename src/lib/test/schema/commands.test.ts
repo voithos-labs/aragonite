@@ -129,8 +129,8 @@ describe('listItem keymap', () => {
 });
 
 describe('tableCell keymap', () => {
-	// Enter/Tab/Shift+Tab resolve to cell commands so IMPL-7's cross-block
-	// dispatch can route a post-delete chord to a focused cell's runCommand.
+	// Enter/Tab/Shift+Tab resolve to cell commands so the cross-block dispatch
+	// can route a post-delete chord to a focused cell's runCommand.
 	it('resolves Enter/Tab/Shift+Tab to cell commands', () => {
 		expect(resolveBinding('Enter', 'tableCell')?.command).toBe('cell.enter');
 		expect(resolveBinding('Tab', 'tableCell')?.command).toBe('cell.tab');

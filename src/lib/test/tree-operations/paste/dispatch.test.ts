@@ -183,7 +183,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 	});
 });
 
-// ── B6: container-matching merge runs its raw mutation inside commitMultiScope ─
+// ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
 function makeStubBlockListState(node: CstNode) {
 	const state: any = {
@@ -231,7 +231,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 
 		expect(captured.mutate).not.toBeNull();
 		// commitMultiScope was invoked with the pre-mutation raw — proves the
-		// snapshot would capture pre-mutation state (B6 fix).
+		// snapshot would capture pre-mutation state.
 		expect(rawAtCommitInvocation).toBe(rawBefore);
 		// After mutate ran inside the stub's call, the raw is now updated.
 		expect(targetLeaf.raw).not.toBe(rawBefore);
