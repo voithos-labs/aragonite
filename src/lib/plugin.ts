@@ -15,6 +15,10 @@ import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 // installPlugins directly. isPluginInstalled is the idempotence probe.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin } from './schema/plugin-install';
+// The setup-context spine: `setup(ctx)` registers `onEditor` callbacks that
+// receive a per-instance EditorContext (editorId, live document, subscribe-only
+// events, typed options).
+export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
 // The single-block plugin unit: one kind, one component, one register step. The
 // common case that needn't touch definePlugin + registerBlockComponent directly.
 export { definePluginBlock } from './schema/define-plugin-block';
