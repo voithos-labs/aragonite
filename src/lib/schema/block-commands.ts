@@ -28,6 +28,7 @@ import {
 } from './commands';
 import type { KeyBinding } from './keybindings';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
+import type { EditorContext } from './plugin-install';
 
 export interface BlockCommandContext {
 	node: CstNode;
@@ -42,6 +43,10 @@ export interface BlockCommandContext {
 	 * learns the shape (`unknown` by design).
 	 */
 	hooks?: unknown;
+	/** The dispatching instance's per-plugin EditorContext (document/events/options
+	 *  reads). Undefined when the target surface has no instance wiring. Document
+	 *  mutation arrives later as further fields here — never a second context object. */
+	editor?: EditorContext;
 }
 
 export type BlockCommandHandler = (ctx: BlockCommandContext) => boolean;

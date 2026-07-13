@@ -7,6 +7,11 @@ import {
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import {
+	recordPluginKindOwner,
+	__resetInstalledPluginsForTests,
+	type EditorContext
+} from '$lib/schema/plugin-install';
 import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
@@ -36,7 +41,10 @@ function bindKindChord(
 	};
 }
 
-afterEach(() => __resetBlockCommandsForTests());
+afterEach(() => {
+	__resetBlockCommandsForTests();
+	__resetInstalledPluginsForTests();
+});
 
 describe('plugin container kind-command target', () => {
 	it("routes a registered command's updateMetadata to the container's updateOwnMetadata", () => {
@@ -135,5 +143,27 @@ describe('plugin container kind-command target', () => {
 		node = noteNode(noteAlt);
 		expect(target.kind).toBe(noteAlt);
 		expect(target.getCommandContext?.().node).toBe(node);
+	});
+
+	it("exposes the owning plugin's EditorContext as ctx.editor, keyed by pluginKindOwner", () => {
+		const fakeEditorContext = { editorId: 'e1' } as unknown as EditorContext;
+		recordPluginKindOwner(note, 'admonitions');
+		const pluginEditor = vi.fn((name: string) =>
+			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
+		);
+		const node = noteNode();
+
+		const target = buildContainerKindTarget(
+			{
+				get node() {
+					return node;
+				}
+			},
+			vi.fn(),
+			pluginEditor
+		);
+
+		expect(target.getCommandContext?.().editor).toBe(fakeEditorContext);
+		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
 	});
 });
