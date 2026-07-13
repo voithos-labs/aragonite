@@ -45,7 +45,12 @@ import {
 	backspaceTwoStepDeleteUndoMermaid,
 	enterBelowUndoMermaid
 } from './gestures/mermaid';
-import { pasteGithubAlert, setCalloutKind, toggleCollapse } from './gestures/plugin';
+import {
+	pasteGithubAlert,
+	publishDocStats,
+	setCalloutKind,
+	toggleCollapse
+} from './gestures/plugin';
 import {
 	editContainerBody,
 	editLeafInfo,
@@ -359,6 +364,14 @@ export class Gestures {
 	// to a :::tip admonition. Resyncs around the transform + reparse.
 	pasteGithubAlert(): Promise<void> {
 		return pasteGithubAlert(this.ctx);
+	}
+
+	// Real global-command chord (Mod+Shift+S) for the doc-stats plugin. A read-only
+	// command: it republishes `window.__docStats` from the per-instance context and
+	// commits nothing, so the caller nets it to identity. Only reachable where the
+	// doc-stats plugin is installed (the plugins route).
+	publishDocStats(): Promise<void> {
+		return publishDocStats(this.ctx);
 	}
 
 	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
