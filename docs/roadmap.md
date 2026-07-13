@@ -14,19 +14,63 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-Remaining work, ordered. Sequencing principle: **risk first, validation before freeze** — the items most
-likely to change later plans or to reveal contract gaps (the clean-room build) run early enough that
-what they teach is still cheap to act on.
+The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20). Two risks remain:
+**validation depth** — one clean-room run deep, every consumer since in-repo and same-day — and the
+**extension-surface gap**, a whole class of plugin the platform cannot express. The items below
+answer both, ordered by **risk first, validation before freeze**.
 
-The platform surface is API-complete and hardened (0.9.13–0.9.16: the plugin unit, paste
-transforms, portal widgets, the reference plugin, the editable-leaf tier; 0.9.20: the
-evaluation-driven hardening program — ownership gates, leaf-tier command dispatch, command
-error containment, the `aragonite/testing` seam, the command→component channel, the renderer
-memo primitive, ceremony helpers, published priority/token contracts, the closure matrix).
-The dominant remaining risk is validation depth — one clean-room run deep, every consumer
-since in-repo and same-day. The remaining items answer that.
+1. **Extension-surface completion — the missing half of the platform.**
 
-1. **Limestone internal integration** — the last unchecked box in the validation list above and
+   aragonite has a NodeView system and no Decoration system. CodeMirror 6, ProseMirror and Obsidian
+   all rest on two primitives — **decorations** (annotate content you do not own) and **plugin-local
+   state**. aragonite exposes neither, only "own a kind and render it" — which it does better than
+   the field, since plugin content is genuinely editable and byte-lossless where Obsidian's
+   codeblock plugins render read-only HTML. That is the moat. But it strands everything that owns no
+   syntax: spellcheck, AI ghost text, inline comments, collab cursors, task badges, backlink
+   highlights.
+
+   Grounding — Obsidian's most-installed plugins: roughly half are app-shell (limestone's, § The two
+   plugin systems). Of those touching the editing surface, over half need document mutation and
+   nearly half need decorations; a custom block kind — the one thing aragonite has — is third.
+
+   **Every gap is additive: the freeze is safe, but not complete.** Build what an in-repo consumer
+   validates; pin the shape of what it cannot.
+
+   | Gap                                    | Why it matters                                                                                                                                                                                                                                                                                             |
+   | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | **Decorations + a public rect API**    | Search already _is_ a decoration engine with one hardcoded client — exposing it is a barrel decision over tested code, not an invention. The rect API unblocks decorations, selection toolbars and trigger popups at once; without it even a _consumer_ cannot build a selection toolbar. Pulled from 1.2. |
+   | **The document, in a block component** | A component gets its own node and nothing above it. A table-of-contents block cannot see the headings above it. One prop.                                                                                                                                                                                  |
+   | **`BlockCommandContext`'s shape**      | The one genuine breaking risk here. A command may only write metadata on its own node. If document mutation later arrives as a _different_ context object, every bound handler breaks. Pin the field names now; the implementation may land later.                                                         |
+   | **`setup(ctx)`**                       | `setup()` takes no arguments and runs once per _process_. That is why derived state, edit reaction and per-instance config are all impossible — a plugin never gets an editor handle. Establish that it takes a context, even a thin one.                                                                  |
+   | **A plugin-facing global command**     | `GlobalCommandId` is a closed two-member union. No palette entry, no "insert date", no chord that fires in an ordinary paragraph. Its context must be the _same_ object as `setup(ctx)`'s, or we ship two.                                                                                                 |
+   | **Height-oracle descriptor field**     | `estimate()` is a closed switch; a mermaid fence rendering 500px is estimated at ~40px, so scroll is wrong until it mounts — and mermaid is the showcase plugin. One optional field.                                                                                                                       |
+   | **Loud per-instance option collision** | Two editors, same plugin, different options: the second is ignored, warned only in dev. Editor B silently runs Editor A's settings — and split panes are not hypothetical for a notes app.                                                                                                                 |
+
+2. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
+   defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
+   styled source is a power-user aesthetic; a consumer evaluating aragonite against Obsidian sees
+   markers everywhere and bounces before reaching the good part. Styled source stays the editing
+   substrate — this makes it a choice, not a ceiling. Three rungs, each independently shippable,
+   built in order:
+
+   1. **Reading mode** — markers hidden, widgets rendered, read-only. Built through public surfaces
+      only, as a consumer would; shipped as a showcase toggle by item 5.
+   2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
+      editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
+      builds the marker-island rendering and the presentation-mode seam rung 3 refines.
+   3. **Inline-granular** — the target. Marker islands + reveal-on-caret-proximity (the shipped
+      reveal kernel with a caret-containment trigger) + caret-affinity semantics (the one genuinely
+      new piece; prior art: ProseMirror stored marks). Block-granular alone is not the Obsidian
+      feel — clicking into a paragraph should not turn the whole paragraph raw.
+
+   **The reason this is pre-1.0 is the contract, not the feature.** A plugin has no way to learn
+   what presentation mode it is in, so a plugin authored against a marker-always 1.0 renders wrong
+   the day preview ships — not an API break, but worse: it strands the ecosystem. And rung 3 reaches
+   into the _inline_ and _caret_ layers that plugins bind to (`registerInlineWidgetKind`, the editing
+   policy, edge entry). Building it after the freeze is the dangerous order; a paper litmus cannot
+   validate it, because a shape with no consumer cannot be validated.
+
+3. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
    integration code lives in limestone; what belongs here is running it before the freeze and
@@ -37,7 +81,7 @@ since in-repo and same-day. The remaining items answer that.
    chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
    package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
    tarball, exports-map encapsulation already proven.
-2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+4. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story item 1
    ships, not just authoring discoverability. The first
@@ -48,7 +92,7 @@ since in-repo and same-day. The remaining items answer that.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-3. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
+5. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
    the real showcase route (every block kind + every reference plugin — the fixture dogfoods
    stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
    panel). This is the "surpass Obsidian" argument made visible. It also owns **route
@@ -58,14 +102,11 @@ since in-repo and same-day. The remaining items answer that.
    human page in a machine tree. The reference-plugin aesthetic decision is made and shipped
    (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
    plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
-   whatever it adds. Demo polish also owns **reading mode (presentation ladder rung 1), pulled
-   forward from 1.1**: markers hidden, widgets rendered, read-only — built as a consumer would
-   (public surfaces only), shipped as a showcase toggle. Two birds: the 1.0 first impression is
-   not markers-everywhere (styled-source-always is a power-user aesthetic), and the freeze
-   litmus "the contract must not preclude a rendered reading mode" becomes a working proof
-   instead of a paper check — a contract gap surfaces pre-freeze, while it is cheap. Rungs 2–3
-   (live preview) stay at 1.1, explicitly the FIRST post-1.0 milestone.
-4. **Freeze cut at release** — in order:
+   whatever it adds. The showcase **surfaces item 2's presentation modes as toggles** — reading
+   mode and block-granular live preview beside styled source — so the first impression is not
+   markers-everywhere, and the freeze litmus "the contract must not preclude a rendered reading
+   mode" becomes a working proof instead of a paper check.
+6. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -103,8 +144,40 @@ since in-repo and same-day. The remaining items answer that.
      (enablement layer / lazy setup / declarative-manifest overload), the synchronous-only
      ambient attribution boundary, and `FenceOpen`'s verbatim-byte return contract — each
      re-verified at the cut.
+   - **Freeze litmus (extension surface)**: the two shapes item 1 pins rather than builds must
+     hold. `BlockCommandContext` must be able to grow document mutation as _fields_ (a later
+     second context object is a breaking restructure for every bound handler), and `setup(ctx)`
+     must be able to grow capabilities as fields on the same context a global command receives —
+     one context object, not two.
+   - **Freeze litmus (decoration tier)**: a decoration is only as good as its worst-painting
+     tier. Every tier in the closure matrix must supply `measurePartialRects`, including the
+     childless opaque container whose search-paint gap is ledgered today — otherwise the
+     decoration API ships with a hole the ecosystem inherits.
+   - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
+     each be able to learn the current presentation mode and render for it. Item 2 builds all three
+     rungs, so this is verified by a real consumer rather than on paper — which is the point: rung 3
+     is what proves the inline and caret contracts survive marker islands and caret affinity.
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
+
+### The two plugin systems
+
+There will be two, and the boundary must be stated or every reviewer reads the app half as a hole
+in the editor half.
+
+| Layer                 | Owns                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **aragonite plugins** | Anything that touches the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
+| **limestone plugins** | Anything that touches the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync       |
+
+Thirteen of Obsidian's top twenty-five plugins are app-shell — Obsidian only conflates the two
+because it _is_ the app. An editor library that grows a ribbon API has lost the plot. Vault-wide
+indexing (Dataview's `FullIndex`, Omnisearch) is limestone's too: `getEvents()` plus `parse()` is
+the right raw material, and the editor supplies the material, not the index.
+
+The line is not "editor = view": _single-document_ derived state (a table of contents, footnote
+numbering, tasks in this note) is the editor's, because it is a function of the one document the
+editor owns. That is why item 1 hands a block component its document.
 
 ### Pre-freeze plugin direction decisions
 
@@ -152,35 +225,30 @@ surface. The complexity is essential — cap the downside, don't simplify.
 
 Subject to reconsideration after v1 ships.
 
-### 1.1 — Presentation modes (the live-preview ladder)
+### 1.1 — Shell integration
 
-Styled source stays the default and the editing substrate; these make it a choice rather than
-a ceiling. Evaluated 2026-07: achievable without fighting the architecture — the operative
-caret invariant since widgets is "every DOM region declares its raw span", not
-"textContent equals raw" — so hidden markers are source-spanned islands over shipped
-machinery. Three rungs, each independently shippable:
+The editor inside a real app shell, where focus and navigation semantics are finally concrete.
+Settles what only an integrated surface can settle:
 
-1. **Reading mode** — markers hidden, widgets rendered, read-only; a stylesheet plus a
-   read-only mode, buildable by a consumer through public surfaces (the 1.0 freeze litmus
-   guarantees the contract allows it; this rung makes it real, with a consumer toggle as the
-   proof).
-2. **Block-granular live preview** — unfocused blocks render markers-hidden; the focused block
-   shows styled source. The editable-leaf render-primary swap (block math) generalized to
-   built-in prose kinds. Likely the bulk of the perceived live-preview win at a fraction of
-   rung 3's cost.
-3. **Inline-granular live preview** — the full Notion/Obsidian feel: marker islands +
-   reveal-on-caret-proximity (the shipped reveal kernel with a caret-containment trigger) +
-   caret-affinity semantics (the one genuinely new piece; prior art: ProseMirror stored marks).
-   A scanner-rework-sized milestone. **Decide after rung 2 ships** — real usage tells whether
-   block-granular already feels like enough.
+- **The per-block a11y naming model** — editable blocks carry `role=textbox` with no accessible
+  name, and the focusable `role=separator` on a thematic break reads as a slider to axe. Both are
+  ledgered axe exemptions today; both are consequences of the editor-root a11y structure and want
+  a real shell to decide against.
+- **The accent palette vs. WCAG AA** — `--color-accent` is below AA on both the editor and code
+  backgrounds at full opacity, so it fails contrast wherever it lands (link text, the code-fence
+  language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
+  that is a brand decision.
+
+_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 2.)_
 
 ### 1.2 — Plugin DX + deferred generalizations
 
 The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that makes the Svelte/TypeScript plugin thesis real, plus the generalizations deferred until more consumers exist:
 
 - **DX system:** plugin scaffold, hot-reload dev loop, in-repo reference-plugin fleet (each exercising a different extension shape — callout, KaTeX, export command, image gallery, smart-HTML-paste), plugin docs site, plugin DX test suite — plus a declarative-manifest overload on the shipped `definePlugin` unit if a consumer wants one.
-- **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7); `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
-- **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent.
+- **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7) and the pre-1.0 global-command mint; `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
+- **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
+- **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
 - **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax, validated by the 1.3 footnotes/emoji plugins.
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 - **Decoded-entity inline widget** — `&copy;` renders its glyph as an atomic component widget (the portal seam's natural next consumer); re-adds the trimmed `deleteGranularity`/`onEdge` editing-policy fields with entity editing as their driving consumer.
