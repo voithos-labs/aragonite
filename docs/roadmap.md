@@ -23,11 +23,14 @@ answer both, ordered by **risk first, validation before freeze**.
 
    aragonite has a NodeView system and no Decoration system. CodeMirror 6, ProseMirror and Obsidian
    all rest on two primitives — **decorations** (annotate content you do not own) and **plugin-local
-   state**. aragonite exposes neither, only "own a kind and render it" — which it does better than
+   state**. aragonite exposes a third instead: "own a kind and render it", which it does better than
    the field, since plugin content is genuinely editable and byte-lossless where Obsidian's
-   codeblock plugins render read-only HTML. That is the moat. But it strands everything that owns no
-   syntax: spellcheck, AI ghost text, inline comments, collab cursors, task badges, backlink
-   highlights.
+   codeblock plugins render read-only HTML. That is the moat.
+
+   Of the field's two, **plugin-local state is not a gap** — this architecture genuinely does not
+   need one (§ Pre-freeze plugin direction decisions). **Decorations are.** Everything that owns no
+   syntax has no home: spellcheck, AI ghost text, inline comments, collab cursors, task badges,
+   backlink highlights.
 
    Grounding — Obsidian's most-installed plugins: roughly half are app-shell (limestone's, § The two
    plugin systems). Of those touching the editing surface, over half need document mutation and
@@ -36,15 +39,15 @@ answer both, ordered by **risk first, validation before freeze**.
    **Every gap is additive: the freeze is safe, but not complete.** Build what an in-repo consumer
    validates; pin the shape of what it cannot.
 
-   | Gap                                    | Why it matters                                                                                                                                                                                                                                                                                             |
-   | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | **Decorations + a public rect API**    | Search already _is_ a decoration engine with one hardcoded client — exposing it is a barrel decision over tested code, not an invention. The rect API unblocks decorations, selection toolbars and trigger popups at once; without it even a _consumer_ cannot build a selection toolbar. Pulled from 1.2. |
-   | **The document, in a block component** | A component gets its own node and nothing above it. A table-of-contents block cannot see the headings above it. One prop.                                                                                                                                                                                  |
-   | **`BlockCommandContext`'s shape**      | The one genuine breaking risk here. A command may only write metadata on its own node. If document mutation later arrives as a _different_ context object, every bound handler breaks. Pin the field names now; the implementation may land later.                                                         |
-   | **`setup(ctx)`**                       | `setup()` takes no arguments and runs once per _process_. That is why derived state, edit reaction and per-instance config are all impossible — a plugin never gets an editor handle. Establish that it takes a context, even a thin one.                                                                  |
-   | **A plugin-facing global command**     | `GlobalCommandId` is a closed two-member union. No palette entry, no "insert date", no chord that fires in an ordinary paragraph. Its context must be the _same_ object as `setup(ctx)`'s, or we ship two.                                                                                                 |
-   | **Height-oracle descriptor field**     | `estimate()` is a closed switch; a mermaid fence rendering 500px is estimated at ~40px, so scroll is wrong until it mounts — and mermaid is the showcase plugin. One optional field.                                                                                                                       |
-   | **Loud per-instance option collision** | Two editors, same plugin, different options: the second is ignored, warned only in dev. Editor B silently runs Editor A's settings — and split panes are not hypothetical for a notes app.                                                                                                                 |
+   | Gap                                    | Why it matters                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+   | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | **Decorations + a public rect API**    | Search already _is_ a decoration engine with one hardcoded client — exposing it is a barrel decision over tested code, not an invention. A source is a **pure `doc → Range[]`**, memoized on change — _not_ a mapped-forward state field (§ Pre-freeze plugin direction decisions). The rect API unblocks decorations, selection toolbars and trigger popups at once; without it even a _consumer_ cannot build a selection toolbar. Pulled from 1.2. |
+   | **The document, in a block component** | A component gets its own node and nothing above it. A table-of-contents block cannot see the headings above it. One prop.                                                                                                                                                                                                                                                                                                                             |
+   | **`BlockCommandContext`'s shape**      | The one genuine breaking risk here. A command may only write metadata on its own node. If document mutation later arrives as a _different_ context object, every bound handler breaks. Pin the field names now; the implementation may land later.                                                                                                                                                                                                    |
+   | **`setup(ctx)`**                       | `setup()` takes no arguments and runs once per _process_, so a plugin never gets an editor handle — which is why derived state, edit reaction and per-instance config are all impossible. Minimum contents: the **document**, an **editor identity**, and the **events surface**. Those three are what make a plugin-state API unnecessary.                                                                                                           |
+   | **A plugin-facing global command**     | `GlobalCommandId` is a closed two-member union. No palette entry, no "insert date", no chord that fires in an ordinary paragraph. Its context must be the _same_ object as `setup(ctx)`'s, or we ship two.                                                                                                                                                                                                                                            |
+   | **Height-oracle descriptor field**     | `estimate()` is a closed switch; a mermaid fence rendering 500px is estimated at ~40px, so scroll is wrong until it mounts — and mermaid is the showcase plugin. One optional field.                                                                                                                                                                                                                                                                  |
+   | **Loud per-instance option collision** | Two editors, same plugin, different options: the second is ignored, warned only in dev. Editor B silently runs Editor A's settings — and split panes are not hypothetical for a notes app.                                                                                                                                                                                                                                                            |
 
 2. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
    defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
@@ -181,11 +184,21 @@ editor owns. That is why item 1 hands a block component its document.
 
 ### Pre-freeze plugin direction decisions
 
-Three convergent capabilities the field survey (`docs/research/plugin-extension-surfaces.md`)
-flagged as answered-by-omission rather than by decision. All three are **additive-later** by the
-freeze criterion — none _must_ ship before freeze — so each decision is _direction + validator_,
-not _build-now_:
+Convergent capabilities the field survey (`docs/research/plugin-extension-surfaces.md`) flagged as
+answered-by-omission rather than by decision. All are **additive-later** by the freeze criterion —
+none _must_ ship before freeze — so each decision is _direction + validator_, not _build-now_:
 
+- **Plugin-local state** (ProseMirror `StateField`/`PluginKey`, TipTap `addStorage`) — every other
+  ecosystem has one; aragonite should **not**. **Decided: no state API.** Half the need is already
+  met better — state belonging to a node goes _on_ the node, where it undoes, redoes and (if it
+  feeds `rebuildRaw`) round-trips for free, none of which a `StateField` gives you. The other half
+  evaporates: the dominant use of a state field elsewhere is holding a decoration set and **mapping
+  it forward** through changes, which is forced by positions being integers into a flat sequence.
+  aragonite's positions are `(path, offset)` into a CST re-derived on every edit — there is nothing
+  to map forward, so a decoration source is a pure `doc → Range[]`, memoized. Item 1's three
+  primitives — the document, an editor identity, a change signal — let a plugin build any state it
+  wants in its own `WeakMap`, while the platform stores nothing and owns no lifecycle. Recorded as a
+  decision so it is not cargo-culted back in later.
 - **Normalize-on-commit / veto seam** (ProseMirror `appendTransaction`/`filterTransaction`) — the
   highest-leverage lever for plugin _quality_: derived content, linked edits, auto-fix, structural
   guards. **Decided: yes, post-1.0.** No pre-freeze dogfood driver needs it, and the ceremony is

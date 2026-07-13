@@ -15,9 +15,12 @@ Surveyed: ProseMirror, TipTap/Milkdown, BlockNote, Lexical, CodeMirror 6, Slate,
 
 ProseMirror's canonical guidance is literally these two composed: put the decoration set in your plugin's state and map it forward. TipTap's `addProseMirrorPlugins` escape hatch exists _specifically_ because decorations and plugin state cannot be expressed in its declarative surface.
 
-**aragonite exposes neither.** It exposes the third path — _own a kind and render it_ — which it does better than the field: plugin content is genuinely editable and byte-lossless, where Obsidian's codeblock plugins render read-only HTML into a preview. That is the moat, and it is real.
+**aragonite exposes neither — but only one of them is a gap.** It exposes a third path instead: _own a kind and render it_, which it does better than the field, since plugin content is genuinely editable and byte-lossless where Obsidian's codeblock plugins render read-only HTML into a preview. That is the moat, and it is real.
 
-But the inversion is total. aragonite's model is "CST is truth, a plugin owns a kind." The decoration model is "overlay view-only state onto ranges the plugin doesn't own." So everything that owns no syntax has no home: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights.
+- **Plugin-local state is not a gap.** aragonite genuinely does not need it, for a structural reason — see the section below. Do not copy `StateField`.
+- **Decorations are.** aragonite's model is "CST is truth, a plugin owns a kind"; the decoration model is "overlay view-only state onto ranges the plugin doesn't own." So everything that owns no syntax has no home: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights.
+
+**The one real hole, then, is decorations** — plus the ordinary capabilities a plugin needs to reach the document at all (§ What authors actually build).
 
 ## The convergent taxonomy
 
@@ -31,7 +34,7 @@ What "add a plugin" means, across the field. Systems differ in ergonomics, not i
 | **View**               | `NodeView`                 | `createDOM`                   | `WidgetType`    | `toDOM`          | Svelte component ✅           |
 | **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | per-kind only ⚠️              |
 | **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | **none ❌**                   |
-| **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | per-_node_ metadata only ⚠️   |
+| **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | per-node metadata — see below |
 | **Clipboard / paste**  | `addPasteRules`            | —                             | —               | —                | content-keyed transform ✅    |
 
 Two structural lessons the field agrees on, both of which aragonite already honors:
@@ -40,6 +43,28 @@ Two structural lessons the field agrees on, both of which aragonite already hono
 - **Register-once, fail-loud, namespaced.** Every system that used silent last-writer-wins for its declarative layer grew a chronic collision tax. aragonite throws on duplicate registration.
 
 One structural advantage worth naming: **input rules come free.** ProseMirror and TipTap need a whole subsystem so that typing syntax produces structure. aragonite parses continuously over raw Markdown, so typing the syntax _is_ the input rule.
+
+## Plugin-local state — the primitive aragonite does not need
+
+The taxonomy's state row is the one place a naive reading misleads. aragonite should **not** grow a `StateField` / `addStorage` equivalent, and the reason is structural rather than a preference.
+
+**Half of it is already covered, and covered better.** State that belongs to a _node_ goes on the node. Per-node metadata is cloned into undo snapshots, so it undoes and redoes for free — where ProseMirror makes you map plugin state forward through every transaction by hand — and if it feeds `rebuildRaw`, it round-trips to disk for free as well. Mermaid's diagram source lives there and comes back byte-exact. The one constraint: metadata holds primitives only, because the undo clone is shallow (invariant G1.6).
+
+**The other half evaporates.** The dominant use of a `StateField` in ProseMirror and CodeMirror is holding a **decoration set and mapping it forward through changes**. They need that because a position is an integer into a flat sequence: type one character near the top and every cached position below it is stale, so the set must be re-mapped on every transaction. _That mapping problem is what forces the state slot to exist._
+
+aragonite has no such problem. A position is a `(path, offset)` into a CST re-derived from raw on each edit — there is nothing to map forward. A decoration source is therefore a **pure function `doc → Range[]`**, recomputed or memoized on change, not a mapped-forward field. The proof already ships: the search scan _is_ that pure function, and search is the one decoration client the editor has.
+
+**So the shape to build is three primitives, and no state API at all:**
+
+| Give a plugin                            | And it can                                                 |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| the **document**                         | compute anything derived from it                           |
+| an **editor identity** (`setup(ctx)`)    | key its own `WeakMap` — per-instance state, config, caches |
+| a **change signal** (the events surface) | invalidate that cache                                      |
+
+With those, a plugin builds whatever state it wants and **the platform stores nothing and owns no lifecycle** — nothing to leak, reset, or get wrong on undo. It is the same instinct as the rest of the editor: dependencies explicit, derive rather than cache, no runtime patching.
+
+Copying `StateField` would be importing a solution to a problem this architecture does not have.
 
 ## What authors actually build
 
