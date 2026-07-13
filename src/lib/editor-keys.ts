@@ -10,6 +10,7 @@
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
+import type { EditorContext } from './schema/plugin-install';
 
 export const LIST_CONTEXT_KEY = Symbol('list-context');
 
@@ -64,6 +65,11 @@ export const BROKEN_IMAGE_URLS_KEY = Symbol('broken-image-urls');
 
 /** Internal — editor event seam handed to BlockHost's error boundary. Not a plugin extension point. */
 export const EDITOR_EVENTS_KEY = Symbol('editor-events');
+
+/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
+ *  callbacks, global-command handlers, and BlockCommandContext.editor all share. */
+export const PLUGIN_EDITOR_KEY = Symbol('plugin-editor-context');
+export type PluginEditorLookup = (pluginName: string) => EditorContext;
 
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 

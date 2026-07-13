@@ -9,7 +9,9 @@ import type { KeybindingOverride } from './schema/keybinding-overrides';
 import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
 import type { SearchState } from './reactivity/search-state.svelte';
-import type { EditorPlugin } from './schema/plugin-install';
+import type { EditorPluginEntry } from './schema/plugin-install';
+
+export type { EditorPluginEntry } from './schema/plugin-install';
 
 export interface EditorProps {
 	source?: string;
@@ -26,8 +28,9 @@ export interface EditorProps {
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to
-	 *  this prop is ignored — installation is process-global and cannot re-run. */
-	plugins?: readonly EditorPlugin[];
+	 *  this prop is ignored — installation is process-global and cannot re-run. An
+	 *  entry may be a bare unit or `{ plugin, options }` for per-instance options. */
+	plugins?: readonly EditorPluginEntry[];
 }
 
 /** The `bind:this` surface a consumer can name and hold a ref to. */
