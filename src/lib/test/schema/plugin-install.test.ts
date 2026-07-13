@@ -73,7 +73,7 @@ describe('installPlugins', () => {
 		expect(isPluginInstalled('broken')).toBe(false);
 
 		// The reload advice names the dev-server restart too: a long-lived SSR/dev
-		// process keeps the poisoned `failed` map across a page reload (F6).
+		// process keeps the poisoned `failed` map across a page reload.
 		expect(() => installPlugins([plugin])).toThrow(
 			/failed during a previous install; reload the page \(or restart the dev server\)/
 		);
@@ -94,7 +94,7 @@ describe('installPlugins', () => {
 		} catch (err) {
 			firstThrow = err;
 		}
-		// The setup-wrap throw carries the version so a two-version collision is legible (F4).
+		// The setup-wrap throw carries the version so a two-version collision is legible.
 		expect((firstThrow as Error).message).toMatch(/^plugin 'broken-v@1\.2\.0':/);
 
 		// The blocked-re-install throw carries it too.

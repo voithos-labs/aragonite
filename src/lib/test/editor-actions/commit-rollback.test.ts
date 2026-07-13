@@ -91,8 +91,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const childrenBefore = concatChildren(originalContainer.children ?? []);
 
 		// Splice the live scope view, then trip the production arity check — the
-		// real "throws AFTER all splices completed" path F13 calls out. Without the
-		// rollback the spliced copy stays in deps.doc with stale ancestor raw.
+		// real "throws AFTER all splices completed" path. Without the rollback the
+		// spliced copy stays in deps.doc with stale ancestor raw.
 		// Array (not tuple) typing degrades the return so the wrong arity compiles.
 		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
 		await expect(

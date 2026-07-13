@@ -8,8 +8,9 @@ import { type SimContext, settleTypedSource } from '../invariants';
 const IMAGE_WIDGET = '[data-image-widget]';
 const RIGHT_HANDLE = '.md-resize-handle-right';
 
-// Mirrors TextEditableBlock's keyboard-resize constants: each Shift+Arrow steps
-// 20px and width never falls below 32 (an unsized image steps from 400).
+// Mirrors the widget's keyboard-resize constants (components/image/): each
+// Shift+Arrow steps 20px and width never falls below 32 (an unsized image steps
+// from 400).
 const KEYBOARD_STEP = 20;
 const KEYBOARD_MIN_WIDTH = 32;
 const FALLBACK_DEFAULT_WIDTH = 400;

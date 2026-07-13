@@ -17,7 +17,7 @@ import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { UndoController } from '$lib/editor-actions/deps';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 
-// Finding 7.7: absorbing a same-type list paste normalized markers only for the
+// Regression: absorbing a same-type list paste normalized markers only for the
 // ordered half. An unordered paste (`* one`) into a `- ` list kept its `*`, so
 // reference parsers split it into two lists downstream. Both halves normalize now.
 

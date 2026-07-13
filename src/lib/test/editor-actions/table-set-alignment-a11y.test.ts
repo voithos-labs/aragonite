@@ -6,7 +6,7 @@ import { parse } from '$lib/core/parser';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// Finding 5.2 (a11y): choosing an alignment from the table menu dropped keyboard
+// Regression (a11y): choosing an alignment from the table menu dropped keyboard
 // focus to <body> and announced nothing. setColumnAlignment now refocuses the
 // originating cell and announces via the live region.
 

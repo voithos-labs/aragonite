@@ -51,7 +51,7 @@ describe('G1.11 keymap coherence', () => {
 	});
 	// Guards the per-kind chord scoping: the dup check resets per kind, so two
 	// kinds binding the same chord is legal. Would false-positive if the seen-set
-	// were hoisted above the per-kind loop (the exact regression IMPL-3+ exposes).
+	// were hoisted above the per-kind loop.
 	it('allows two different kinds to bind the same chord', () => {
 		expect(
 			checkKeymapCoherence(

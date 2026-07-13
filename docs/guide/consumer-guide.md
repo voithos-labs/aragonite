@@ -13,7 +13,7 @@ That one fact explains most of the API:
   ────────                          ────────
   source ─────── mount ───────────▶ parse ─▶ CST ─▶ contenteditable
                                                         │ user edits
-  getSource() ◀── serialize ◀───────────────────────────┤
+  getSource() ◀── serialize ◀──────────────────────────┤
   getEvents() ◀── edit / selectionChange / error ───────┘
 ```
 

@@ -7,9 +7,8 @@ import {
 } from '../../core/inline/scan/scan-state';
 import { emphasisNode, textNode } from './scan-test-helpers';
 
-// The floor contract Task 4 binds to: a `]` handler calls
-// processEmphasis(ctx, bracket.delimiterFloor) so only delimiters inside the
-// bracket participate; scan end calls floor 0 for the rest.
+// The floor contract: a `]` handler calls processEmphasis(ctx, bracket.delimiterFloor)
+// so only delimiters inside the bracket participate; scan end calls floor 0 for the rest.
 
 function scanDelimiterFixture(raw: string): ScanContext {
 	const ctx = createScanContext(raw, 0, raw.length);

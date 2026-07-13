@@ -42,11 +42,10 @@ export class EditorPage {
 	 * Load a multi-MB generated fixture for virtual-rendering tests. `loadContent`
 	 * polls a full-document serialize with a 2s timeout, which times out at MB
 	 * scale; this settles on a cheap in-page doc-length probe (Σ leadingTrivia +
-	 * raw, plus prefix/suffix) with a long timeout instead. Returns the doc's
-	 * top-level block count. The fixture is set via `setSource` (state setup, not
-	 * a simulated edit) — windowing activates when the estimated height clears the
-	 * editor's watermark. `suffix` appends trailing markdown (e.g. a paragraph
-	 * below the fixture) so a sibling block exists for cross-block navigation.
+	 * raw, plus prefix/suffix) with a long timeout instead. The fixture is set via
+	 * `setSource` (state setup, not a simulated edit) — windowing activates when the
+	 * estimated height clears the editor's watermark. `suffix` appends trailing
+	 * markdown so a sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;

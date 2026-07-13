@@ -8,13 +8,12 @@ import type { NoteFixture } from './types';
  * blockquote, a fenced code block, several headings, and an image. All HOLD: built
  * char-by-char so end-state equality stays a primary oracle.
  *
- * Nesting follows the biology note's only tracker-safe cadence: type an item at
- * its creation level, `indent` it to nest, then `outdent` the empty trailing item
- * back to top level before typing the next. The single-source oracle predicts a
- * typed char only at a top-level item's end — an empty NESTED item trims its
- * marker in the serialized source, so typing the first char into one desyncs the
- * predictor. That caps clean typed nesting at the indent/outdent-around-content
- * shape, which reaches two levels; three is left to the harness-limits note.
+ * Nesting follows the biology note's indent/outdent-around-content cadence: type
+ * an item at its creation level, `indent` it to nest, then `outdent` the empty
+ * trailing item back to top level before typing the next. That shape reaches two
+ * levels and no further, which is what this note wants — three-level nesting needs
+ * the empty-item cadence (`pressEnter` → `indentEmptyItem` → `typeFreshItem`) and
+ * lives in the outline note.
  *
  * Indenting under an ordered item inherits the ordered type, so the nested
  * sub-items are ordered, not bullets — typing a `- ` marker into an ordered item

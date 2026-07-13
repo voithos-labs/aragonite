@@ -1,8 +1,8 @@
 /**
  * G4.1 — `createBlockListState` must be fed a live getter/closure, never a
  * by-value node. A by-value argument snapshots the node at factory-call time
- * and misses undo's deep-clone reassignment (see editor.md § Reactive State
- * Plumbing). Scans every editor source call site.
+ * and misses undo's deep-clone reassignment (see `docs/design/editor.md`
+ * § Reactive state plumbing). Scans every editor source call site.
  */
 
 import { describe, it, expect } from 'vitest';

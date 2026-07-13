@@ -13,10 +13,9 @@
  * on the editor harness, not on the doc node). The walker starts from each
  * top-level CST node and descends from there.
  *
- * Returns mismatches instead of asserting so the test file owns the diff —
- * Playwright's assertion output is more useful when the expectation lives in
- * the test, and composing with other checks (pageerror, console filters)
- * stays in the test's hands.
+ * Returns mismatches instead of asserting so the spec owns the diff: Playwright's
+ * assertion output reads better when the expectation lives in the test, and
+ * composing with other checks (pageerror, console filters) stays in its hands.
  *
  * Use after any structural mutation on a keyed container (M1 merge, list
  * indent/unindent, table row/column ops) to gate the invariant in tests.

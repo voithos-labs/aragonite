@@ -64,7 +64,7 @@ class MathPage extends PluginsPage {
 	}
 }
 
-// IME has no native Playwright driver (docs/concerns.md #3), so a composition is
+// IME has no native Playwright driver (docs/issues.md § Test coverage), so a composition is
 // simulated by firing the real compositionstart/input/compositionend the editor
 // listens to and inserting the composed text at the caret as the browser would —
 // the one gesture no automation API provides. Everything else here is real input.

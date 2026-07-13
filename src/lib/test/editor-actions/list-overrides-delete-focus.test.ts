@@ -15,7 +15,7 @@ import {
 import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// Finding 7.1: deleteBlock's afterTick clamped the focus index against the
+// Regression: deleteBlock's afterTick clamped the focus index against the
 // pre-commit node it captured, which is stale by +1 after the delete. Deleting
 // the LAST item then indexed past the new refs and lost the caret. The afterTick
 // must read the LIVE node (deps.node) — mirrors table-context's documented rule.

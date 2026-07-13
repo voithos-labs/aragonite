@@ -29,7 +29,7 @@ function stampMathWidget(node: InlineNode): HTMLElement {
 	return wrapper;
 }
 
-// Nonzero-interior byte-survival audit (A11 / G1.9). Inline math is the FIRST live
+// Nonzero-interior byte-survival audit (G1.9). Inline math is the FIRST live
 // widget that renders real interior text nodes: KaTeX emits glyph text (`x`, `2`, …)
 // whose bytes are NOT the `$…$` source. Every prior widget (image, `<br>`) had zero
 // interior textContent, so a read-back path that trusted `.textContent` instead of

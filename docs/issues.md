@@ -17,15 +17,6 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (their shapes + additive-re-add rationale live in `docs/design/plugin-contract.md` § Target shapes (designed ahead)) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
 
-### Table cell Shift+Enter inserts `<br>` but renders it as literal text
-
-**Severity:** minor (table cells only)
-**Files:** `src/lib/components/blocks/table/` (cell inline rendering)
-
-Shift+Enter inside a cell inserts a literal `<br>` at the cursor — the correct GFM representation, since cells can't carry raw newlines, and round-trip preserves the `<br>` bytes. But the cell displays it as literal text; a rendered line break depends on a follow-up migration that routes cell content through the same widget-aware inline pipeline as prose.
-
-**Why deferred:** the byte-level behavior is correct (round-trip safe); only the in-cell rendering lags. Folds into the cell-inline-render migration.
-
 ### MatchOverlay paints no highlight for a match inside a childless opaque container
 
 **Severity:** minor (search-highlight parity)
@@ -36,6 +27,31 @@ Same class as the just-fixed SelectionOverlay container gate: `MatchOverlay`'s `
 **Fix direction:** decide between a full-block paint (highlight the whole opaque block for any interior match) and a measure fallback that routes the leaf `measurePartialRects` through the container shim — mirroring the SelectionOverlay `hasChildHosts` precedent.
 
 **Why deferred:** needs a design call (full-block paint vs measure fallback), shared with the SelectionOverlay container-gate work; the match is still found and navigable, only its highlight is missing.
+
+## Test coverage gaps
+
+### The container conformance kit (G4.3) cannot cover a plugin container
+
+**Severity:** minor (coverage gap; pre-1.0 relevant — plugin authors are the intended beneficiaries)
+**Files:** `src/lib/test/invariants/container-conformance.test.ts`, `src/lib/test/invariants/container-conformance-kit.ts`
+
+The kit is catalogued as the **container-author** conformance harness, but its sweep is
+`getAllRegisteredKinds().filter(isBuiltinBlockKind)`. A plugin container therefore never runs
+through it: registering a kind does not opt it into the kit, and the completeness meta-test can
+only fail if someone adds a sixth _built-in_ container. The dogfood containers (callout, details,
+admonitions, mermaid) have their own tests, so this is a gap in the generic harness rather than
+untested behavior — but the harness is the thing a third-party author would expect to inherit.
+
+The filter has a sound stated reason (the kit's fixtures are parse-based and its kind list is typed
+over `BlockKind`), so lifting it is not a one-line change.
+
+**Fix direction:** let the kit take an explicit kind list so a plugin's own test suite can run it
+over its containers — the `aragonite/testing` subpath is the natural home, alongside
+`resetPluginPlatformForTests()`. That makes the kit a thing an author _uses_ rather than a thing
+they hope covers them.
+
+**Why deferred:** it is a harness generalization, not a defect, and it wants the second clean-room
+run to tell us what an author actually needs from it.
 
 ## Code structure
 
@@ -193,8 +209,9 @@ every reveal-source kind there); wiring cells means threading the same interacti
 through the cell surface (its pending-cursor `$effect` already carries the
 `document.activeElement` guard the blur-commit path needs).
 
-**Why deferred:** cell reveal is a feature wire-up, not a regression; fold into the
-cell-inline-render migration alongside the existing cell entries.
+**Why deferred:** cell reveal is a feature wire-up, not a regression. Cells already render
+widgets (0.9.14) and a `<br>` now paints as one, so the rendering half of the cell-inline
+work has landed; what remains is threading the interaction bundle through the cell surface.
 
 ## Dev workflow
 

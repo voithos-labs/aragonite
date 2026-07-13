@@ -15,7 +15,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// ── B2: top-level replaceBlock preserves id ──────────────────────────────────
+// ── Top-level replaceBlock preserves id ──────────────────────────────────────
 
 describe('top-level replaceBlock id preservation', () => {
 	it('first replacement inherits the original block id (single replacement)', async () => {
@@ -83,7 +83,7 @@ describe('top-level replaceBlock id preservation', () => {
 	});
 });
 
-// ── B3 + B10: nested replaceBlock id preservation + ensureEditableContainers ─
+// ── Nested replaceBlock id preservation + ensureEditableContainers ───────────
 
 function makeNestedSetup() {
 	const innerPara = makeNode('paragraph', 'hello\n');
@@ -181,7 +181,7 @@ describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 	});
 });
 
-// ── C3: list-overrides replaceBlock preserves the surviving item's id ────────
+// ── List-overrides replaceBlock preserves the surviving item's id ────────────
 
 // The surviving first item must keep its id so Svelte's keyed {#each} preserves
 // the component (IME / pending input) instead of destroy+recreate.

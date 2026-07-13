@@ -140,7 +140,7 @@ This paragraph contains <span class="hl">inline tags</span> and a <br /> hard br
 HTML comments like <!-- ignored --> and processing instructions <?php ?> are also recognized.
 ```
 
-Per CommonMark §6.10, six tag forms are recognized inside paragraphs and pass through to rendered output: open tags, close tags, comments, processing instructions, declarations, and CDATA sections. The GFM extension in Section 2 (Disallowed Raw HTML) escapes a small dangerous subset as literal text.
+Per CommonMark §6.6, six tag forms are recognized inside paragraphs and pass through to rendered output: open tags, close tags, comments, processing instructions, declarations, and CDATA sections. The GFM extension in Section 2 (Disallowed Raw HTML) escapes a small dangerous subset as literal text.
 
 **Soft Line Breaks vs Hard Line Breaks:**
 

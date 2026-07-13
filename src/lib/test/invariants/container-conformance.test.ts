@@ -21,9 +21,10 @@ const registeredContainerKinds = getAllRegisteredKinds()
 	.filter((k) => getBlockKindDescriptor(k).isContainer);
 
 // ── Completeness: the auto-coverage mechanism ───────────────────────────────────
-// A registered container with no profile FAILS here, so a 1.2 plugin container
-// can't slip through untested; a stale profile (no matching registered kind)
-// also fails, so the map can't silently drift from the registry.
+// A registered built-in container with no profile FAILS here, so a new built-in
+// container kind can't slip through untested; a stale profile (no matching
+// registered kind) also fails, so the map can't silently drift from the registry.
+// Plugin containers are outside this net — see the built-in filter above.
 
 describe('G4.3 container conformance — registry coverage', () => {
 	it('every registered container kind has a conformance profile', () => {

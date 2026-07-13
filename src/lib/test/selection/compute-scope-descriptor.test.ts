@@ -1,5 +1,5 @@
 /**
- * Audit for B5: mixed-depth cross-block delete + cascade cleanup. Exercises
+ * Mixed-depth cross-block delete + cascade cleanup. Exercises
  * every documented branch of computeScopeDescriptor with the shapes that
  * actually arise from rangeDelete + cascade — both-descend, only-end-descends
  * (with and without surviving siblings past endIdx), only-start-descends,
