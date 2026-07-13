@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { __computeScopeDescriptorForTests as computeScopeDescriptor } from '../../selection/cross-block/ops';
 
-describe('computeScopeDescriptor — mixed-depth audit (B5)', () => {
+describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── Both endpoints descend (no mixed-depth branch) ────────────────────
 
 	it('shared-ancestor scope: start and end both descend, middle range replaced', () => {

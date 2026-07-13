@@ -28,31 +28,6 @@ Same class as the just-fixed SelectionOverlay container gate: `MatchOverlay`'s `
 
 **Why deferred:** needs a design call (full-block paint vs measure fallback), shared with the SelectionOverlay container-gate work; the match is still found and navigable, only its highlight is missing.
 
-## Test coverage gaps
-
-### The container conformance kit (G4.3) cannot cover a plugin container
-
-**Severity:** minor (coverage gap; pre-1.0 relevant — plugin authors are the intended beneficiaries)
-**Files:** `src/lib/test/invariants/container-conformance.test.ts`, `src/lib/test/invariants/container-conformance-kit.ts`
-
-The kit is catalogued as the **container-author** conformance harness, but its sweep is
-`getAllRegisteredKinds().filter(isBuiltinBlockKind)`. A plugin container therefore never runs
-through it: registering a kind does not opt it into the kit, and the completeness meta-test can
-only fail if someone adds a sixth _built-in_ container. The dogfood containers (callout, details,
-admonitions, mermaid) have their own tests, so this is a gap in the generic harness rather than
-untested behavior — but the harness is the thing a third-party author would expect to inherit.
-
-The filter has a sound stated reason (the kit's fixtures are parse-based and its kind list is typed
-over `BlockKind`), so lifting it is not a one-line change.
-
-**Fix direction:** let the kit take an explicit kind list so a plugin's own test suite can run it
-over its containers — the `aragonite/testing` subpath is the natural home, alongside
-`resetPluginPlatformForTests()`. That makes the kit a thing an author _uses_ rather than a thing
-they hope covers them.
-
-**Why deferred:** it is a harness generalization, not a defect, and it wants the second clean-room
-run to tell us what an author actually needs from it.
-
 ## Code structure
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable

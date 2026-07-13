@@ -144,7 +144,7 @@ describe('nested replaceBlock id preservation', () => {
 	});
 });
 
-describe('nested replaceBlock ensureEditableContainers (B10)', () => {
+describe('nested replaceBlock ensureEditableContainers', () => {
 	it('synthesized empty list/listItem replacement gets a child paragraph cursor target', async () => {
 		const { bundle, deps } = makeNestedSetup();
 

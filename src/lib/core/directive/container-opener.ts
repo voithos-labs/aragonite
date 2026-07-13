@@ -8,6 +8,7 @@
  */
 
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
+import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
 import { setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parse } from '../parser';
@@ -22,7 +23,10 @@ export function registerDirectiveOpeners(): void {
 	const leaf = declaredPluginKind(DIRECTIVE_LEAF);
 
 	registerBlockOpener(container, {
-		priority: 45,
+		// Priced off the ladder, never as a bare integer: renumbering a built-in has
+		// to move this with it. A colon fence collides with no built-in matcher, so
+		// it only needs to sit in the gap between blockquote and list.
+		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
 		tryOpen(ctx) {
 			const fence = matchDirectiveOpener(ctx.line.text);

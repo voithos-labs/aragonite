@@ -9,7 +9,7 @@ function stubParentFocus() {
 	} satisfies FocusActions;
 }
 
-describe('gateMoveFocusOnCollapse (I-1)', () => {
+describe('gateMoveFocusOnCollapse', () => {
 	it('collapsed body target: delegates past the container, skipping the inner dispatch', async () => {
 		const moveWithin = vi.fn();
 		const parentFocus = stubParentFocus();

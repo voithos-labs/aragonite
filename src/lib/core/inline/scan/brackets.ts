@@ -13,7 +13,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
-import { ESCAPABLE_PUNCTUATION } from '../escapes';
+import { ESCAPABLE_PUNCTUATION } from '../../escapable';
 import { parseImageDimensions } from '../image-dimensions';
 import { normalizeLinkLabel, type ResolvedReference } from '../link-reference-resolver';
 import { processEmphasis } from './emphasis';

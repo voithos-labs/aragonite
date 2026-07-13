@@ -5,7 +5,7 @@
  */
 
 import { matchCharacterReference } from '../character-refs';
-import { ESCAPABLE_PUNCTUATION } from '../escapes';
+import { ESCAPABLE_PUNCTUATION } from '../../escapable';
 import { appendNode, type ScanContext } from './scan-state';
 
 export function handleBackslash(ctx: ScanContext): void {
