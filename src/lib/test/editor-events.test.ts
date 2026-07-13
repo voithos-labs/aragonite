@@ -223,6 +223,23 @@ describe('emitCommandError', () => {
 		expect(captured[0].context).toEqual({ kind: 'paragraph', command: 'x.y', plugin: undefined });
 	});
 
+	// A global command reports its owner directly and carries no kind: the direct
+	// `plugin` must win, never be clobbered by a (kind-less) owner lookup.
+	it('attributes a global command by its direct plugin, with no kind', () => {
+		recordPluginKindOwner('demoNote', 'admonitions');
+		const events = createEditorEvents();
+		const captured: EditorError[] = [];
+		events.on('error', (e) => captured.push(e));
+
+		emitCommandError(events, { command: 'stats.count', plugin: 'docstats', error: new Error('e') });
+
+		expect(captured[0].context).toEqual({
+			kind: undefined,
+			command: 'stats.count',
+			plugin: 'docstats'
+		});
+	});
+
 	it('no-ops without an events surface (a mount that never provided the context)', () => {
 		expect(() =>
 			emitCommandError(undefined, { kind: 'paragraph', command: 'x.y', error: new Error('e') })

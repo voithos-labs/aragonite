@@ -156,7 +156,10 @@ export function dispatchKeyCommand(
 	const binding = resolveBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	const globalRun = getCommand(binding.command);
-	if (globalRun) return globalRun(ctx);
+	// Inject the sink so a plugin-global handler's contained throw reports through
+	// the same channel as a block command's — the global tier is the only path that
+	// reaches a plugin-global handler.
+	if (globalRun) return globalRun({ ...ctx, onCommandError });
 	const minted = runMintedCommand(target, binding, onCommandError);
 	if (minted !== 'unresolved') return minted;
 	if (!isBuiltinCommandId(binding.command)) {

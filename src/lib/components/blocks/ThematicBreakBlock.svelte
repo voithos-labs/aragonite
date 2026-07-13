@@ -3,13 +3,17 @@
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
 	import type { CstNode } from '../../core/nodes';
+	import { emitCommandError, type EditorEvents } from '../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
+		EDITOR_EVENTS_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
+		PLUGIN_EDITOR_KEY,
 		REORDER_ACTION_KEY,
-		type KeybindingOverridesGetter
+		type KeybindingOverridesGetter,
+		type PluginEditorLookup
 	} from '../../editor-keys';
 	import type { ReorderAction } from '../../editor-actions/reorder-action';
 	import { eventToChord } from '../../schema/keybindings';
@@ -19,7 +23,7 @@
 		isEditorGlobalChord,
 		type CommandId
 	} from '../../schema/commands';
-	import { dispatchKeyCommand } from '../../schema/block-commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
 	import { displayLength } from '../../core/lines';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
@@ -29,6 +33,9 @@
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	let el: HTMLDivElement | undefined = $state();
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -68,7 +75,7 @@
 		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
 			const binding = resolveBinding(chord, node.kind, keybindingOverrides());
-			if (binding) getCommand(binding.command)?.({ history });
+			if (binding) getCommand(binding.command)?.({ history, pluginEditor, onCommandError });
 			return;
 		}
 
@@ -76,7 +83,13 @@
 		// which is guarded on no-modifier so a modified arrow never falls through.
 		if (
 			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor },
+				keybindingOverrides(),
+				onCommandError
+			)
 		) {
 			e.preventDefault();
 			return;

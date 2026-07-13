@@ -8,7 +8,7 @@
 	} from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { CstNode } from '../../../core/nodes';
-	import type { EditorEvents } from '../../../editor-events';
+	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -26,6 +26,7 @@
 		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
 		PASTE_COORDINATOR_KEY,
+		PLUGIN_EDITOR_KEY,
 		REORDER_ACTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
@@ -36,6 +37,7 @@
 		type DocumentGetter,
 		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
+		type PluginEditorLookup,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
@@ -68,7 +70,7 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand } from '../../../schema/block-commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import {
 		perfEnabled,
 		recordBlockRender,
@@ -118,6 +120,8 @@
 	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -172,6 +176,8 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => {
@@ -547,7 +553,13 @@
 		const chord = eventToChord(e);
 		if (
 			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor },
+				keybindingOverrides(),
+				onCommandError
+			)
 		) {
 			e.preventDefault();
 			return;
