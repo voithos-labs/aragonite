@@ -226,7 +226,6 @@ describe('emitCommandError', () => {
 	// A global command reports its owner directly and carries no kind: the direct
 	// `plugin` must win, never be clobbered by a (kind-less) owner lookup.
 	it('attributes a global command by its direct plugin, with no kind', () => {
-		recordPluginKindOwner('demoNote', 'admonitions');
 		const events = createEditorEvents();
 		const captured: EditorError[] = [];
 		events.on('error', (e) => captured.push(e));
