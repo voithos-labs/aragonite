@@ -9,11 +9,11 @@
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand } from '../../../schema/block-commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
 	import type { CstNode } from '../../../core/nodes';
-	import type { EditorEvents } from '../../../editor-events';
+	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
@@ -28,6 +28,7 @@
 		KEYBINDING_OVERRIDES_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
+		PLUGIN_EDITOR_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
@@ -36,6 +37,7 @@
 		type DocumentGetter,
 		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
+		type PluginEditorLookup,
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -116,6 +118,8 @@
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
 	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 
@@ -163,6 +167,8 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => getRawFocusOffset(),
@@ -355,8 +361,9 @@
 					dispatchKeyCommand(
 						chord,
 						{ kind: node.kind, runCommand },
-						{ history },
-						keybindingOverrides()
+						{ history, pluginEditor },
+						keybindingOverrides(),
+						onCommandError
 					)
 				) {
 					e.preventDefault();

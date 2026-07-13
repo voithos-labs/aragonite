@@ -96,8 +96,9 @@ async function handleCrossBlockActive(
 			dispatchKeyCommand(
 				chord,
 				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
-				{ history: ctx.history },
-				ctx.getKeybindingOverrides()
+				{ history: ctx.history, pluginEditor: ctx.pluginEditor },
+				ctx.getKeybindingOverrides(),
+				ctx.onCommandError
 			);
 		}
 		return true;

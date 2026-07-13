@@ -8,24 +8,28 @@
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import type { CstNode } from '../../../core/nodes';
+	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
 		DOC_KEY,
+		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
 		PASTE_COORDINATOR_KEY,
+		PLUGIN_EDITOR_KEY,
 		REORDER_ACTION_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
-		type KeybindingOverridesGetter
+		type KeybindingOverridesGetter,
+		type PluginEditorLookup
 	} from '../../../editor-keys';
 	import type { ReorderAction } from '../../../editor-actions/reorder-action';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -63,7 +67,7 @@
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand } from '../../../schema/block-commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -83,6 +87,9 @@
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -124,6 +131,8 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
@@ -277,7 +286,13 @@
 		const chord = eventToChord(e);
 		if (
 			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor },
+				keybindingOverrides(),
+				onCommandError
+			)
 		) {
 			e.preventDefault();
 			return;

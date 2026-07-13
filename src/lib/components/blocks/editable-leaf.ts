@@ -47,12 +47,14 @@ import {
 	HISTORY_KEY,
 	KEYBINDING_OVERRIDES_KEY,
 	PASTE_COORDINATOR_KEY,
+	PLUGIN_EDITOR_KEY,
 	REORDER_ACTION_KEY,
 	SELECTION_KEY,
 	STICKY_COLUMN_KEY,
 	type BlockElLookup,
 	type DocumentGetter,
-	type KeybindingOverridesGetter
+	type KeybindingOverridesGetter,
+	type PluginEditorLookup
 } from '../../editor-keys';
 import { emitCommandError, type EditorEvents } from '../../editor-events';
 import type { ReorderAction } from '../../editor-actions/reorder-action';
@@ -73,7 +75,11 @@ import { createSourceReveal } from '../../cursor/reveal-source';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
-import { dispatchKeyCommand, type BlockCommandContext } from '../../schema/block-commands';
+import {
+	dispatchKeyCommand,
+	type BlockCommandContext,
+	type CommandErrorSink
+} from '../../schema/block-commands';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -184,6 +190,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	let composing = false;
 	let preEditOffset = 0;
@@ -236,6 +244,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => {
@@ -387,9 +397,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			dispatchKeyCommand(
 				chord,
 				{ kind: deps.node.kind, runCommand, getCommandContext },
-				{ history },
+				{ history, pluginEditor },
 				keybindingOverrides(),
-				(report) => emitCommandError(editorEvents, report)
+				onCommandError
 			)
 		) {
 			e.preventDefault();

@@ -81,6 +81,8 @@ function makeHandlers(
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
+		pluginEditor: undefined,
+		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller),
 		getCursorOffset,

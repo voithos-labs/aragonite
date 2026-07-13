@@ -402,6 +402,8 @@ Bind commands to your own plugin kinds. A command bound on a built-in kind's lea
 
 A handler that throws is contained at the dispatch seam: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, command id, and owning plugin. Never an uncaught error.
 
+**Global commands** are the editor-wide sibling. `registerGlobalCommand(name, handler, { chord })` mints a process-wide command whose handler receives the dispatching instance's `EditorContext` — not a block — so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. An optional `chord` binds it in the plugin-global tier, which resolves after every built-in and consumer binding; built-in chords (undo/redo) and the search chords are unstealable. A throw is contained identically, surfacing as an `error` of origin `command` attributed to the owning plugin.
+
 Chord strings follow the consumer guide's chord model — fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords are not modeled, so bind plain digits and letters.
 
 ## Paste transforms
@@ -588,6 +590,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | Export                                                                                                     | Role                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerBlockCommand`                                                                                     | Mint a `(kind, name)` block command and get back its id                                                                                             |
+| `registerGlobalCommand`                                                                                    | Mint a process-wide command run against the dispatching editor's `EditorContext`, optionally bound to a global chord                                |
 | `CommandId`, `KeyBinding`, `BlockCommandContext`, `BlockCommandHandler`, `PluginCommandId`, `AnyCommandId` | A built-in command id, a per-kind chord binding, the context and signature of a command handler, a minted command's id, and the union spanning both |
 
 **Container authoring and chrome** _(pre-freeze / unstable)_

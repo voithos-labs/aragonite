@@ -37,6 +37,7 @@
 		WIDTH_VERSION_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
+		type PluginEditorLookup,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
@@ -63,7 +64,7 @@
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../tree-operations/sharing';
-	import { createEditorEvents } from '../editor-events';
+	import { createEditorEvents, emitCommandError } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
@@ -76,6 +77,7 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
+	import type { CommandErrorSink } from '../schema/block-commands';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import BlockList from './BlockList.svelte';
@@ -409,6 +411,12 @@
 		optionsFor: (name) => pluginEntries?.optionsByName.get(name)
 	});
 
+	// The per-instance context lookup + command-error sink every dispatch tier that
+	// can reach a plugin-global handler threads (leaf, cross-block, editor-root). One
+	// definition so the editor-root and cross-block paths route identically.
+	const pluginEditorLookup: PluginEditorLookup = (name) => pluginContexts.get(name);
+	const commandErrorSink: CommandErrorSink = (report) => emitCommandError(events, report);
+
 	// onMount, NEVER a plain $effect: attachAll synchronously runs plugin callbacks
 	// that read reactive state (e.g. editor.document.children.length), so an effect
 	// would register doc.children as a dependency — the first structural edit would
@@ -509,7 +517,7 @@
 	setContext(EDITOR_EVENTS_KEY, events);
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
-	setContext(PLUGIN_EDITOR_KEY, (pluginName: string) => pluginContexts.get(pluginName));
+	setContext(PLUGIN_EDITOR_KEY, pluginEditorLookup);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
 	setContext(LINK_REF_KEY, {
@@ -625,6 +633,8 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor: pluginEditorLookup,
+		onCommandError: commandErrorSink,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
@@ -674,7 +684,12 @@
 			if (rootChord && isEditorGlobalChord(rootChord)) {
 				e.preventDefault();
 				const binding = resolveGlobalBinding(rootChord, overridesMap);
-				if (binding) getCommand(binding.command)?.({ history });
+				if (binding)
+					getCommand(binding.command)?.({
+						history,
+						pluginEditor: pluginEditorLookup,
+						onCommandError: commandErrorSink
+					});
 				return;
 			}
 
