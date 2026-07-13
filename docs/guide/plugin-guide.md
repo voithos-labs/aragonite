@@ -23,7 +23,7 @@ Registrations get packaged into a **plugin unit** whose `setup` runs at most onc
 
 ### The plugin unit
 
-`definePlugin({ name, setup })` validates a unit at definition time and returns an `EditorPlugin`; its `setup` runs your `register*` calls. By convention a plugin is a **factory export** — `export function myPlugin(options?)` returns the unit — so per-plugin configuration rides the factory's argument:
+`definePlugin({ name, setup })` validates a unit at definition time and returns an `EditorPlugin`; its `setup` runs your `register*` calls. By convention a plugin is a **factory export** — `export function myPlugin(deps?)` returns the unit — so a **process-global dependency** the plugin needs (a render engine, say — the same for every editor) rides the factory's argument. Per-_instance_ configuration takes a different path ([Per-instance context](#per-instance-context)); the factory argument is for what never varies between editors.
 
 ```ts
 export function myPlugin(options?: { renderer?: Renderer }): EditorPlugin {
@@ -54,7 +54,7 @@ Install by passing units to the editor's **`plugins` prop** — set once at moun
 
 **A plugin installs once per process, keyed by name.** Passing the same unit again no-ops. Passing a _different_ unit under a name already installed keeps the first and dev-warns (naming the loser as `name@version` when it carries one). Units install in array order, and a `setup` that throws stays failed — a later attempt rethrows and advises a reload, because a partial setup cannot re-run against the register-once registries.
 
-Definitions being process-global means there is no per-instance plugin configuration: two editors passing the same plugin share one registration, and anything an instance varies rides the factory's options.
+Definitions are process-global — two editors passing the same plugin share one registration — but per-instance _configuration_ is not: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance's context ([Per-instance context](#per-instance-context)). Reserve the factory argument for a process-global dependency; route anything two editors would vary through the prop's options.
 
 For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from the `aragonite` barrel — same once-per-process semantics. `isPluginInstalled(name)` probes an install, for the rare setup that must branch on it; the prop and `installPlugins` are already idempotent, so most consumers never reach for it.
 
@@ -62,6 +62,71 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 
 - **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way.
 - **Pre-freeze / unstable.** The plugin unit, the container factory and chrome leaf, the inline surface, the directive surface, the fence grammar, and paste transforms. They are being built and refined against real consumers, and freeze at the public release — until then the shapes may change. Each is labelled in the [API reference](#api-reference).
+
+## Per-instance context
+
+`setup` runs once per process, but a plugin often needs to react to _each editor_ — recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that seam: it registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**.
+
+| Field      | What it gives you                                                                        |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| `editorId` | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state        |
+| `document` | A live getter for the root document (read-only; the tree is the editor's to mutate)      |
+| `events`   | The subscribe-only event view — `events.on('edit', …)` returns a disposer                |
+| `options`  | The options this editor passed, typed when you write `definePlugin<Options>` (see below) |
+
+Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
+
+### Recipe: per-instance derived state
+
+There is no plugin-state field, and none is needed: keep your own map keyed on `editorId`, seed it when the editor mounts, recompute on the `edit` event, and delete the entry in the disposer.
+
+```ts
+import { definePlugin, type EditorContext } from 'aragonite/plugin';
+
+interface WordCountOptions {
+	live: boolean; // recount on every edit, or only at mount
+}
+
+// Per-editor state lives in a plugin-owned map — not a platform field.
+const countByEditor = new Map<string, number>();
+
+function recount(editor: EditorContext<WordCountOptions>): void {
+	const words = editor.document.children.reduce(
+		(n, block) => n + block.raw.split(/\s+/).filter(Boolean).length,
+		0
+	);
+	countByEditor.set(editor.editorId, words);
+}
+
+export const wordCountPlugin = definePlugin<WordCountOptions>({
+	name: 'word-count',
+	setup(ctx) {
+		ctx.onEditor((editor) => {
+			// A bare-unit install passes no options, so default them.
+			const { live } = editor.options ?? { live: true };
+			recount(editor); // seed on mount
+			const off = live ? editor.events.on('edit', () => recount(editor)) : () => {};
+			return () => {
+				off();
+				countByEditor.delete(editor.editorId); // per-editor cleanup
+			};
+		});
+	}
+});
+```
+
+### Recipe: per-instance options (and the factory-closure anti-pattern)
+
+Two editors share one process-global registration but may still run different options — the split-pane case. A consumer varies them per editor through the `plugins` prop's entry form:
+
+```svelte
+<Editor source={left} plugins={[{ plugin: wordCountPlugin, options: { live: true } }]} />
+<Editor source={right} plugins={[{ plugin: wordCountPlugin, options: { live: false } }]} />
+```
+
+`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast.
+
+**The anti-pattern.** Do not hold per-instance config in the plugin factory's closure — `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs **once per process**, so only the first editor's factory value ever takes effect and the second is silently ignored. The discriminator: _would two editors ever want different values?_ If yes, it is per-instance — pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is correct.
 
 ## Walkthrough: a directive container end-to-end
 
@@ -352,6 +417,37 @@ Supply a focus element for **every steady state** — error, loading, and static
 
 Want a source view with a native caret instead? That is the [editable-leaf tier](#the-editable-leaf), and rebuilding a render-primary block on `createEditableLeaf` (block math's shape) is this recipe's upgrade path.
 
+## Recipe: reading the document above your block
+
+A block component gets its own node — but a table-of-contents block needs the headings above it, and a cross-reference needs an id defined elsewhere. `BlockComponentProps.document` delivers the read-only root document to every component, at any nesting depth:
+
+```svelte
+<script lang="ts">
+	import { getContentRange } from 'aragonite'; // main barrel — see the note below
+	import type { Document } from 'aragonite/plugin';
+
+	// A component receives its own node too; this block needs only the document.
+	let { document }: { document?: Document } = $props();
+
+	// A $derived over the prop subscribes to the CST proxy, so editing a heading
+	// above re-runs this and the list updates live.
+	const headings = $derived(
+		(document?.children ?? [])
+			.filter((b) => b.kind === 'heading' || b.kind === 'setextHeading')
+			.map((b) => {
+				const { start, end } = getContentRange(b); // drop the `#` / underline markers
+				return b.raw.slice(start, end);
+			})
+	);
+</script>
+
+<nav>
+	{#each headings as text}<div>{text}</div>{/each}
+</nav>
+```
+
+`document` is **read-only** — deriving a view is the whole point; mutation stays a commit-ceremony concern. Note the barrel split: `getContentRange` is imported from the **main `aragonite` barrel**, not `aragonite/plugin` — it is a CST-inspection utility a consumer uses too, so it lives on the embedding surface, and the plugin barrel deliberately does not re-export it.
+
 ## Opener priority
 
 An opener's `priority` decides dispatch order — **lower runs first**. `OPENER_PRIORITIES` is the authoritative built-in ladder (a readonly map, the same constant the built-ins register with):
@@ -402,7 +498,26 @@ Bind commands to your own plugin kinds. A command bound on a built-in kind's lea
 
 A handler that throws is contained at the dispatch seam: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, command id, and owning plugin. Never an uncaught error.
 
-**Global commands** are the editor-wide sibling. `registerGlobalCommand(name, handler, { chord })` mints a process-wide command whose handler receives the dispatching instance's `EditorContext` — not a block — so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. An optional `chord` binds it in the plugin-global tier, which resolves after every built-in and consumer binding; built-in chords (undo/redo) and the search chords are unstealable. A throw is contained identically, surfacing as an `error` of origin `command` attributed to the owning plugin.
+**Global commands** are the editor-wide sibling. `registerGlobalCommand(name, handler, { chord })` mints a process-wide command whose handler receives the dispatching instance's `EditorContext` — not a block — so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Call it from `setup`:
+
+```ts
+setup(ctx) {
+	registerGlobalCommand(
+		'wordCount.log',
+		(editor) => {
+			// The mint is not generic-bound: the handler gets EditorContext<unknown>,
+			// so narrow options here (onEditor's callback is where they read typed).
+			const opts = editor.options as WordCountOptions | undefined;
+			console.log(`[${editor.editorId}]`, countByEditor.get(editor.editorId), opts);
+			return true; // handled
+		},
+		{ chord: 'Mod+Shift+L' }
+	);
+	ctx.onEditor(/* … */);
+}
+```
+
+The chord binds in the **plugin-global tier**, which resolves _last_ — after every `keybindings` override, built-in kind chord, and built-in global chord (undo/redo). So a plugin chord never shadows a built-in, and the reverse shadow is by design: a built-in kind's own chord beats your plugin chord **on that kind, not elsewhere**. Built-in chords and the reserved search chords (`Mod+F` / `Mod+H`) are unstealable — a collision **throws before the mint**, leaving no half-registered command. A handler throw is contained identically, surfacing as an `error` of origin `command` attributed to the owning plugin.
 
 Chord strings follow the consumer guide's chord model — fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords are not modeled, so bind plain digits and letters.
 

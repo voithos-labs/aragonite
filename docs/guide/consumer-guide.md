@@ -49,7 +49,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Component**          | `Editor`, plus `EditorProps` and `EditorInstance` — the prop shape and the `bind:this` surface                                                                                      |
 | **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` — the types the behavior props reference                                                                                     |
-| **Plugins**            | `installPlugins` for an editor-less pipeline, and `EditorPlugin`, the unit type the `plugins` prop takes                                                                            |
+| **Plugins**            | `installPlugins` for an editor-less pipeline; `EditorPlugin` (the unit) and `EditorPluginEntry` (a `plugins` entry — a bare unit or `{ plugin, options }` for per-instance options) |
 | **Selection + keymap** | `EditorSelection` (what `getSelection()` returns), `KeybindingOverride` and `CommandId` (what the `keybindings` prop takes)                                                         |
 | **Search**             | `SearchState`, `SearchOptions`, `Match` — the find/replace controller, its options, and one hit                                                                                     |
 | **CST utilities**      | `parse` / `serialize` for round-tripping Markdown outside the component; `parseInline`, `getContentRange`, `isProseKind` for inspecting a block's inline content and editable range |
@@ -104,7 +104,7 @@ Plugins extend the grammar with new block and inline kinds. Writing one is the [
 
 Units install once at mount, in array order, before the first parse. Build the array at module scope rather than inline in the markup — an inline array re-mints the units on every render (a harmless dev-warn, but noise you don't need).
 
-Because definitions are process-global (the [multiple-instances](#multiple-instances) boundary), passing the same plugin to two editors registers it once. There is no per-instance plugin configuration: per-plugin options ride the plugin's own factory argument.
+Because definitions are process-global (the [multiple-instances](#multiple-instances) boundary), passing the same plugin to two editors registers it once. Per-instance configuration still works: an entry may be `{ plugin, options }` instead of a bare unit, and the two editors receive their own `options` even though the registration is shared — the split-pane case. Reach for this over the plugin's own factory argument for anything two editors would vary; a factory argument only takes effect on the first install.
 
 For a `parse()` pipeline with no `<Editor>` mounted, call `installPlugins(units)` from the barrel to make the grammar live.
 
@@ -162,6 +162,8 @@ Outside that contract sits the editor's own visual language — the syntax and c
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
 **What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck). The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, and the find chords are wired directly into the search components. Rebinding those is tracked in `docs/issues.md` and is not available today.
+
+**Plugin-global chords resolve last.** A plugin's global command (see the plugin guide) may claim a chord in the plugin-global tier, which resolves after every `keybindings` override, built-in kind chord, and built-in global chord — so a plugin chord never shadows a built-in binding, and the Find/replace chords `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord **on that kind, not elsewhere** — a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste). Shift+F10 or the Context Menu key opens it from the keyboard.
 
