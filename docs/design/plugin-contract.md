@@ -205,7 +205,7 @@ These ship today and are part of what plugins observe. They are frozen _as the c
 
 ## Editable-content tiers
 
-Every mechanism for plugin content that is _itself editable_ falls in one of four tiers, each bound to a CST guarantee (prior-art record: `docs/research/plugin-system-prior-art.md`).
+Every mechanism for plugin content that is _itself editable_ falls in one of four tiers, each bound to a CST guarantee (prior-art record: `docs/research/plugin-extension-surfaces.md`).
 
 | Tier          | Shape                                                                       | Status               |
 | ------------- | --------------------------------------------------------------------------- | -------------------- |

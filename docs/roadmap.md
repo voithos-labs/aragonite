@@ -181,7 +181,7 @@ editor owns. That is why item 1 hands a block component its document.
 
 ### Pre-freeze plugin direction decisions
 
-Three convergent capabilities the prior-art review (`docs/research/plugin-system-prior-art.md`)
+Three convergent capabilities the field survey (`docs/research/plugin-extension-surfaces.md`)
 flagged as answered-by-omission rather than by decision. All three are **additive-later** by the
 freeze criterion — none _must_ ship before freeze — so each decision is _direction + validator_,
 not _build-now_:
