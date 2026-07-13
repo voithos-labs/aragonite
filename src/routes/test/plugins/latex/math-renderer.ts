@@ -78,10 +78,9 @@ export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): Mat
 // ── Inline renderer wiring ────────────────────────────────────────────────────
 
 // MathInline mounts with frozen `{ inline, source }` props (no renderer channel), so
-// the injected engine travels by module — the moral equivalent of the closure the
-// old buildMathWidget captured. `latexPlugin({ renderer })` sets it at install; the
-// memoization spans the whole document, so a formula repeated across widgets renders
-// once.
+// the injected engine travels by module: `latexPlugin({ renderer })` sets it at
+// install. The memoization spans the whole document, so a formula repeated across
+// widgets renders once.
 let activeInlineRenderer: MathRenderer = createMemoizedRenderer(katexRenderer);
 
 export function setInlineMathRenderer(renderer: MathRenderer): void {

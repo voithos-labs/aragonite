@@ -69,7 +69,6 @@ export async function handleSharedKeydown(
 	const el = ctx.getEl();
 	if (!el) return false;
 
-	// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
 	// Alt+Arrow is the block-reorder chord, not caret nav — leave the sticky
 	// column untouched and let it fall through to dispatchKeyCommand.
 	const stickyAction = classifyStickyKey(e.key);

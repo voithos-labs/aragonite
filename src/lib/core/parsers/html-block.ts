@@ -13,10 +13,8 @@ export type HtmlBlockType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // ── Per-type opener patterns ────────────────────────────────────────────────
 // All patterns anchor to line start with 0-3 spaces of leading indent.
-// Priority: try 1 → 7. First match wins. Script/pre/style/textarea are type 1
-// (their own close condition) — they were previously folded into type 6's
-// listed-tag union, which produced blank-line termination instead of </script>
-// termination.
+// Priority: try 1 → 7. First match wins. Script/pre/style/textarea must stay out
+// of type 6's listed-tag union: they close on their end tag, not on a blank line.
 
 const TYPE_1_OPEN = /^ {0,3}<(?:script|pre|style|textarea)(?:[\s/>]|$)/i;
 const TYPE_2_OPEN = /^ {0,3}<!--/;

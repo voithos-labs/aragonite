@@ -1,12 +1,8 @@
 /**
  * Observer-pattern event surface reached via the editor component's
- * `getEvents()` accessor. Events fire synchronously; handlers must NOT
- * mutate the document.
- *
- * Emission sites:
- *   - `edit` structural op: inside `__commit`, after publish.
- *   - `edit` op='input': from the keystroke-debounce flush.
- *   - `selectionChange`: from the selection-state change path.
+ * `getEvents()` accessor. Events fire synchronously; handlers must NOT mutate
+ * the document. An `edit` event fires after its mutation is published, so its
+ * handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';

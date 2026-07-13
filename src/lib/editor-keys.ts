@@ -4,7 +4,7 @@
  * helpers — action interfaces are typed at the getContext site).
  *
  * Internal: these symbols are editor-internal wiring, not a plugin extension
- * point. The supported extension surface is the 1.2 plugin API.
+ * point. The supported extension surface is the `aragonite/plugin` barrel.
  */
 
 import type { Document } from './core/nodes';

@@ -1,7 +1,8 @@
 /**
  * Reactive state for cross-block selection. `anchor`, `focus`, `dragStart`
  * are null in single-block mode — the native browser selection handles
- * single-block editing. See editor.md Selection section for transitions.
+ * single-block editing. Transitions: `docs/design/editor.md` § Cross-block
+ * selection.
  */
 
 import type { Document } from '../core/nodes';

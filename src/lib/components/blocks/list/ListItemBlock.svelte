@@ -134,7 +134,7 @@
 
 					// Enter-empty: first child is an empty paragraph. Deliberately shallower than
 					// isItemUserEmpty (used by Backspace) — trailing structural children stay
-					// until exitListAtItem relocates them (see docs/issues.md).
+					// until exitListAtItem relocates them.
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 					if (isEmptyItem) {

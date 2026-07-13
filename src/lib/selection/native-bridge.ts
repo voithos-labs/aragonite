@@ -42,9 +42,9 @@ export function readNativeCaretInBlock(
  * Place a collapsed native caret at a raw-semantic SelectionPoint. Translates
  * through the block's ambient length (0 when no marker island is present).
  * Raw offset 0 under an ambient marker is placed at the sibling boundary AFTER
- * the marker span — createRangeFromOffsets would otherwise walk into the
+ * the marker span — the offset walk would otherwise land in the marker's
  * contenteditable="false" text node, and Chromium bounces the caret out of
- * scope. Mirrors TextEditableBlock.setCursorToAmbientBoundary.
+ * scope. Same landing as the ambient cursor IO's `setToAmbientBoundary`.
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);

@@ -20,10 +20,10 @@ export function findEnclosingListForPaste(
 		}
 	}
 	if (listDepth === -1 || !list) return null;
-	// Only direct leaves of a listItem qualify. Merge semantics for targets
-	// nested in a deeper container (e.g. a paragraph inside a blockquote inside
-	// the item) are undefined until containers declare their paste-merge
-	// behavior, so deeper targets fall through to the default structural paste.
+	// Only direct leaves of a listItem qualify: merge semantics for a target
+	// nested in a deeper container (a paragraph inside a blockquote inside the
+	// item) aren't defined, so deeper targets fall through to the default
+	// structural paste.
 	if (targetPath.length !== listDepth + 2) return null;
 
 	return {

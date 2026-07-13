@@ -181,8 +181,8 @@
 		position: relative;
 	}
 
-	/* Pure-CSS hover reveal: no per-block reactive state on a path the 0.8 work
-	   proved scales with mounted-component count. Global (not scoped) because
+	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost
+	   scales with mounted-component count. Global (not scoped) because
 	   reorder hosts nest across components (blockquote > child, list item >
 	   sub-item). `.reorder-host` marks any host that renders a handle (BlockHost
 	   when reorderable, plus ListItemBlock); `:not(:has(.reorder-host:hover))`

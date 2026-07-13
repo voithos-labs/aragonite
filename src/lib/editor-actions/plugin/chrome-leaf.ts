@@ -5,8 +5,10 @@
  * (TextEditableBlock, passed in by the plugin.ts seam so editor-actions holds
  * no upward value edge to components/): the container seam already threads
  * every editor context, so the leaf mediates none. Chrome kinds are `contextDependentKind`
- * so a content edit keeps the kind, and `supportsInline` stays off
- * (inline-bearing chrome is blocked on the off-window inline-cache issue).
+ * so a content edit keeps the kind, and `supportsInline` stays off because the tier is
+ * defined as plain text: the reserved-chrome contract is a single-line, plain-text child
+ * (see `docs/design/plugin-contract.md`). Inline chrome would be an additive widening of
+ * that contract, not a blocked one.
  * Chrome only — not a seam for standalone recognizer-backed leaf kinds.
  * Composition: the container declares its chrome via `reservedChrome` on its
  * descriptor; this seam supplies the leaf.

@@ -38,10 +38,14 @@ inline sweep that made its keystroke fail to settle. Container-first shapes
 plain paragraph as the block-0 caret target, since focusBlockEnd(0) on a giant
 container would target a windowed-out child. (Headline numbers: baseline.json.)
 
-Two axes stay non-viewport-bounded (recorded, not regression-gated at 10MB):
-single-giant-paragraph (intra-block span rebuild, Axis 5) and the flat
-high-top-level-block-count shapes (flat-prose/many-small-blocks/reference-heavy),
-whose 10MB keystroke carries an O(top-level-count) cost.
+One axis stays non-viewport-bounded, and so is recorded but not regression-gated
+at 10MB: single-giant-paragraph, whose intra-block span rebuild is O(paragraph
+length) rather than O(viewport). The flat high-top-level-block-count shapes
+(flat-prose / many-small-blocks / reference-heavy) were once excluded for the same
+reason, on the belief their keystroke carried an O(top-level-count) cost; that was
+a harness artifact — the per-keystroke settle summed doc length over the whole
+children array — and they gate at 10MB now. Which rows gate, and on what budget,
+is `perf-gate.md`.
 
 ## Artifacts
 

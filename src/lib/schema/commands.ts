@@ -135,7 +135,8 @@ function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | nul
  * Per-kind keymap ONLY — no global fallthrough. Override(kind) decides first
  * (binding shadows, 'disabled' short-circuits without consulting the built-in);
  * absent → built-in kind keymap. Container bubble handlers use this: the global
- * tier belongs to the focused leaf (see existing double-fire note).
+ * tier belongs to the focused leaf, and a bubble re-firing it would double-fire
+ * (see `dispatchKindCommand` in `./block-commands`).
  */
 export function resolveKindBinding(
 	chord: string,

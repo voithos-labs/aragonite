@@ -2,7 +2,8 @@
  * Core range mutation primitive. Mutates the doc in place: truncate start
  * block, truncate end block, delete between, re-parse merged raw, cascade-
  * clean empty ancestors, rebuild ancestor container raws. Caller must
- * pre-normalize the range. See the "start wins" rule in editor design docs.
+ * pre-normalize the range. The "start wins" rule is specified in
+ * `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { CstNode, Document } from '../core/nodes';

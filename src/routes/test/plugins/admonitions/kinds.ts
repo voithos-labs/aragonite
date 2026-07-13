@@ -9,7 +9,8 @@ import { declarePluginKind, declaredPluginKind, type PluginBlockKind } from '$li
 export const ADMONITION = 'admonition';
 export const ADMONITION_TITLE = 'admonition-title';
 
-/** The five kinds, in cycle order — index 0 is the untitled/default fallback. */
+/** The five directive names, in cycle order — index 0 is the default fallback
+ *  when a node carries no name in its metadata. */
 export const ADMONITION_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] as const;
 export type AdmonitionName = (typeof ADMONITION_KINDS)[number];
 

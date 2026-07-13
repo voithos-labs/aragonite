@@ -43,6 +43,23 @@ describe('inline-syntax registry', () => {
 	it('rejects a multi-character trigger', () => {
 		expect(() => registerInlineSyntax('$$', recognizeMath)).toThrow(/single character/);
 	});
+
+	// The scanner consults the registry only in its `default` arm, so a trigger the
+	// built-in switch already claims would register cleanly and then never fire.
+	// Registration is the only place that can see the collision; a silent no-op in a
+	// public API is the failure mode to make impossible.
+	it.each(['\\', '`', '&', '*', '_', '~', '[', ']', '!', '<', '\n'])(
+		'rejects %j — a trigger the built-in scanner already claims',
+		(trigger) => {
+			expect(() => registerInlineSyntax(trigger, recognizeMath)).toThrow(/built-in/);
+			expect(hasInlineSyntax()).toBe(false);
+		}
+	);
+
+	it('still accepts a trigger the built-in scanner ignores', () => {
+		expect(() => registerInlineSyntax('$', recognizeMath)).not.toThrow();
+		expect(() => registerInlineSyntax(':', recognizeMath)).not.toThrow();
+	});
 });
 
 // ── Scanner integration ──────────────────────────────────────────────────────

@@ -64,13 +64,12 @@ export function registerDirectiveKinds(): void {
 // ── Text tier: inline `:name[label]{attrs}` ────────────────────────────────────
 
 /**
- * Declare the `directiveText` inline kind and register its atomic widget. The
- * `:` recognizer (register.ts) stamps this kind on the span it delimits; the
+ * Declare the `directiveText` inline kind and register its atomic widget. The `:`
+ * recognizer (text-recognizer.ts) stamps this kind on the span it delimits; the
  * widget renders the source dimmed and opts into `revealSource`, so focusing it
  * swaps the rendered island for its editable source and blur/Enter commits the
- * edit — the shared inline-widget reveal primitive (widget-interaction.ts),
- * reused verbatim from the inline-math precedent. Idempotent for HMR / re-import
- * via the declared-kind probe.
+ * edit — the shared inline-widget reveal primitive (widget-interaction.ts).
+ * Idempotent for HMR / re-import via the declared-kind probe.
  */
 export function registerDirectiveTextKind(): void {
 	if (isInlineKindDeclared(DIRECTIVE_TEXT)) return;
@@ -83,10 +82,10 @@ export function registerDirectiveTextKind(): void {
 }
 
 /**
- * Atomic-widget shell mirroring the inline-math precedent: the generic
- * `[data-inline-widget]` marker plus `data-source-start`/`-end` = the node's
- * offsets, which are the shared offset walk's only handle (0 chars counted from
- * textContent). Renders the verbatim `:name[...]` source dimmed.
+ * Atomic-widget shell: the generic `[data-inline-widget]` marker plus
+ * `data-source-start`/`-end` = the node's offsets, which are the shared offset
+ * walk's only handle (the shell contributes 0 chars to textContent). Renders the
+ * verbatim `:name[...]` source dimmed.
  */
 function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
 	const shell = document.createElement('span');

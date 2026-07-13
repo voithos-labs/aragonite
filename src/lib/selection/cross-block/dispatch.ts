@@ -1,11 +1,11 @@
 /**
- * Cross-block event dispatch shared by TextEditableBlock and CodeBlock.
- * Factory returns handler functions each block component calls at the top
- * of its own event handlers; single-block handling stays in each component.
+ * Cross-block event dispatch, wired by `components/blocks/editable-surface.ts`
+ * (every editable block) and by `Editor.svelte` for editor-root routing. The
+ * factory returns handlers each caller runs at the top of its own event
+ * handlers; single-block handling stays with the caller.
  *
- * This file is the composer: keydown lives in keydown.ts,
- * pointer in pointer.ts, and paste / type-replace are tiny
- * passthroughs to their dedicated modules.
+ * This file is the composer: keydown lives in keydown.ts, pointer in pointer.ts,
+ * and paste / type-replace are passthroughs to their dedicated modules.
  */
 
 import type {

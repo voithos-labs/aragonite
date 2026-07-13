@@ -57,7 +57,7 @@ export function createBlockEditActions(
 		replaceBlock: (blockIndex, replacement, focus, options) =>
 			core.replaceBlock(blockIndex, replacement, focus, options),
 
-		// ── Content update (per-level, unification deferred) ──────────────────
+		// ── Content update (per-level) ────────────────────────────────────────
 
 		async updateBlockContent(
 			blockIndex: number,

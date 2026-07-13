@@ -40,7 +40,6 @@ export function isStrictAncestorOf(ancestor: number[], descendant: number[]): bo
 	return true;
 }
 
-/** Value equality on paths. */
 export function pathsEqual(a: number[], b: number[]): boolean {
 	if (a.length !== b.length) return false;
 	for (let i = 0; i < a.length; i++) {
