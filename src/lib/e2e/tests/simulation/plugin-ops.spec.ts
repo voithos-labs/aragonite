@@ -193,6 +193,20 @@ test.describe('plugin-container ops simulation', () => {
 		expect(await containerRaw(page, 'note')).toContain(':::warning');
 		await checkOracles('note-set-kind');
 
+		// ── Read-only global-command detour (net identity) ──────────────────────
+		// A plugin-registered global chord (doc-stats' Mod+Shift+S) fires mid-session,
+		// reads the per-instance EditorContext, and republishes `window.__docStats`. It
+		// commits nothing, so the source and the undo stack must be byte-identical
+		// across it — the plugin command spine under the corruption oracle without
+		// disturbing the equality spine.
+		await g.pause();
+		const beforeDocStats = await editor.bridge.getSource();
+		const undoBefore = await page.evaluate(() => (window as any).__test.dumpUndoStack());
+		await g.publishDocStats();
+		expect(await editor.bridge.getSource()).toBe(beforeDocStats);
+		expect(await page.evaluate(() => (window as any).__test.dumpUndoStack())).toBe(undoBefore);
+		await checkOracles('global-command-docstats');
+
 		// ── Split the callout body, then undo/redo the split's typing ───────────
 		await g.pause();
 		await editor.clickBlockAtPath([noteIdx, 1], 0);

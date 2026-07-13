@@ -76,6 +76,39 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
+/**
+ * Fire the doc-stats plugin's global `docStats.publish` chord (Mod+Shift+S) — a
+ * READ-ONLY command that reads the per-instance EditorContext and republishes
+ * `window.__docStats`, committing nothing to the document or the undo stack, so the
+ * caller nets it to identity.
+ *
+ * Poisons every published record's block count to -1 first (they are the plugin
+ * registry's own object references), then settles on this editor's count recovering
+ * to the live document. Only the command's recompute replaces a poisoned record, and
+ * the detour fires no `edit` event to republish behind our back — so a dead binding
+ * or a lost global-command dispatch leaves the count at -1 and the settle times out
+ * loudly, the fail-loud shape `setCalloutKind` uses.
+ */
+export async function publishDocStats(ctx: SimContext): Promise<void> {
+	await ctx.page.evaluate(() => {
+		const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;
+		for (const record of Object.values(stats ?? {})) record.blocks = -1;
+	});
+	await ctx.page.keyboard.press(`${primaryModifier}+Shift+S`);
+	await ctx.page.waitForFunction(
+		() => {
+			const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;
+			if (!stats) return false;
+			const live = (window as any).__test.getDocument().children.length;
+			return Object.values(stats).some((r) => r.blocks === live);
+		},
+		null,
+		{ timeout: 2000, polling: 16 }
+	);
+	await ctx.editor.waitForRenderFlush();
+	ctx.tracker.resync(await ctx.editor.bridge.getSource());
+}
+
 // Top-level index of the `note` callout — the type change keeps `kind: 'note'`,
 // so this still resolves after a setKind.
 async function topLevelNoteIndex(page: Page): Promise<number> {
