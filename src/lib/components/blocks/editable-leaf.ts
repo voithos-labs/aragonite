@@ -80,6 +80,7 @@ import {
 	type BlockCommandContext,
 	type CommandErrorSink
 } from '../../schema/block-commands';
+import { pluginKindOwner } from '../../schema/plugin-install';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -152,18 +153,22 @@ export interface EditableLeaf {
  * The node → metadata bridge (plus the component's `commandHooks`) a minted block
  * command resolves against on the leaf tier — the container factory's
  * `buildContainerKindTarget` sibling, extracted so both tiers build their command
- * context through a tested seam. `node` and `hooks` are read when this runs (once
- * per dispatch), so a node swap or a hook rebind is observed live;
- * `updateMetadata` rides the sanctioned commit ceremony, never a bypass.
+ * context through a tested seam. `node`, `hooks`, and `editor` are read when this runs
+ * (once per dispatch), so a node swap or a hook rebind is observed live;
+ * `updateMetadata` rides the sanctioned commit ceremony, never a bypass. `pluginEditor`
+ * resolves the per-plugin EditorContext by the kind's recorded owner (base per-instance
+ * context for an ownerless kind, the `?? ''` arm).
  */
 export function buildLeafCommandContext(
 	deps: Pick<EditableLeafDeps, 'node' | 'index' | 'commandHooks'>,
-	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>
+	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>,
+	pluginEditor?: PluginEditorLookup
 ): Omit<BlockCommandContext, 'arg'> {
 	return {
 		node: deps.node,
 		updateMetadata: (patch) => blockEdit.updateBlockMetadata(deps.index, patch),
-		hooks: deps.commandHooks?.()
+		hooks: deps.commandHooks?.(),
+		editor: pluginEditor?.(pluginKindOwner(deps.node.kind) ?? '')
 	};
 }
 
@@ -340,7 +345,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	}
 
-	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit);
+	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 

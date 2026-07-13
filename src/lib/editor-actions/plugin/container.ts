@@ -34,11 +34,14 @@ import {
 	EDITOR_EVENTS_KEY,
 	FOCUS_KEY,
 	KEYBINDING_OVERRIDES_KEY,
+	PLUGIN_EDITOR_KEY,
 	REORDER_ACTION_KEY,
 	STICKY_COLUMN_KEY,
-	type KeybindingOverridesGetter
+	type KeybindingOverridesGetter,
+	type PluginEditorLookup
 } from '../../editor-keys';
 import { emitCommandError, type EditorEvents } from '../../editor-events';
+import { pluginKindOwner } from '../../schema/plugin-install';
 import type { ReorderAction } from '../reorder-action';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
@@ -236,12 +239,15 @@ export function gateMoveFocusOnCollapse(
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
  * chord resolves only through a registered command, whose context routes
  * `updateMetadata` back to this container's own metadata commit and carries the
- * component's `commandHooks`. `kind`, the context `node`, and `hooks` are read live
- * off `deps`, never snapshotted — getters, never values.
+ * component's `commandHooks`. `kind`, the context `node`, `hooks`, and `editor` are
+ * read live off `deps`, never snapshotted — getters, never values. `pluginEditor`
+ * resolves the per-plugin EditorContext by the kind's recorded owner; a kind with no
+ * owner gets the base per-instance context (the `?? ''` arm).
  */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'node' | 'commandHooks'>,
-	updateOwnMetadata: ContainerBlock['updateOwnMetadata']
+	updateOwnMetadata: ContainerBlock['updateOwnMetadata'],
+	pluginEditor?: PluginEditorLookup
 ): KindCommandTarget {
 	return {
 		get kind() {
@@ -253,7 +259,8 @@ export function buildContainerKindTarget(
 			updateMetadata: (patch) => {
 				updateOwnMetadata(patch);
 			},
-			hooks: deps.commandHooks?.()
+			hooks: deps.commandHooks?.(),
+			editor: pluginEditor?.(pluginKindOwner(deps.node.kind) ?? '')
 		})
 	};
 }
@@ -267,6 +274,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
 
 	const listState = createBlockListState(() => deps.node);
 
@@ -397,7 +405,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
 		parentBlockEdit.updateBlockMetadata(deps.index, patch, { afterTick });
 
-	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata);
+	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
