@@ -23,6 +23,12 @@ import {
 	overrideDecision,
 	type KeybindingOverrideMap
 } from './keybinding-overrides';
+// Type-only: no runtime edge. GlobalCommandContext carries a per-instance
+// EditorContext lookup and the dispatch seam's error sink; both are structural
+// references, so this schema leaf keeps no value edge to plugin-install or
+// block-commands.
+import type { EditorContext } from './plugin-install';
+import type { CommandErrorSink } from './block-commands';
 
 export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
 export const BLOCK_COMMAND_IDS = [
@@ -55,12 +61,16 @@ export type CommandId = GlobalCommandId | BlockCommandId;
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */
 export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
+	/** Per-instance context lookup, threaded from the dispatching editor (Task 5). */
+	pluginEditor?: (pluginName: string) => EditorContext;
+	/** Injected by dispatchKeyCommand — routes a contained handler throw. */
+	onCommandError?: CommandErrorSink;
 }
 
 type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
 
-export function registerCommand(id: GlobalCommandId, run: GlobalCommandRun): void {
+export function registerCommand(id: AnyCommandId, run: GlobalCommandRun): void {
 	if (globalCommands.has(id)) {
 		throw new Error(`registerCommand: "${id}" is already registered. Commands are register-once.`);
 	}
@@ -82,7 +92,12 @@ export function isBuiltinCommandId(id: string): boolean {
 	return BUILTIN_COMMAND_IDS.has(id);
 }
 
-/** Test-only. Removes every command outside the closed built-in vocabulary. */
+/**
+ * Test-only. Removes every command outside the closed built-in vocabulary —
+ * minted block AND global command handlers alike, since both key into
+ * `globalCommands`/the block registry. The plugin-global chord keymap resets
+ * separately (`__resetPluginGlobalKeymapForTests`).
+ */
 export function __removePluginCommandsForTests(): void {
 	for (const id of globalCommands.keys()) {
 		if (!BUILTIN_COMMAND_IDS.has(id)) globalCommands.delete(id);
@@ -126,6 +141,48 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Shift+Z', command: 'history.redo' }
 ];
 
+// ── Plugin-global chord tier ─────────────────────────────────────────────
+// A plugin's global command may claim a chord here. It resolves LAST — after
+// every override, built-in kind, and built-in global tier — and built-in chords
+// are unstealable (register-once, throw-on-collision).
+
+const pluginGlobalKeymap: KeyBinding[] = [];
+
+// Chords the editor UI intercepts outside the command resolvers (the search bar's
+// document-level listener) — a plugin binding one would double-fire: its command
+// at the leaf AND the UI action, on one keypress.
+const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
+
+export function assertPluginGlobalChordAvailable(rawChord: string): void {
+	const chord = normalizeChord(rawChord);
+	if (RESERVED_UI_CHORDS.has(chord)) {
+		throw new Error(
+			`plugin global chord "${rawChord}" is reserved by the editor UI (search) — pick another chord`
+		);
+	}
+	const collision =
+		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
+		pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord);
+	if (collision) {
+		throw new Error(
+			`plugin global chord "${rawChord}" is already bound to "${collision.command}" — global chords are register-once`
+		);
+	}
+}
+
+export function registerPluginGlobalBinding(binding: KeyBinding): void {
+	assertPluginGlobalChordAvailable(binding.chord);
+	pluginGlobalKeymap.push(binding);
+}
+
+export function pluginGlobalBinding(chord: string): KeyBinding | null {
+	return pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord) ?? null;
+}
+
+export function __resetPluginGlobalKeymapForTests(): void {
+	pluginGlobalKeymap.length = 0;
+}
+
 function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
 	const keymap = tryGetBlockKindDescriptor(kind)?.keymap;
 	return keymap?.find((b) => normalizeChord(b.chord) === chord) ?? null;
@@ -166,7 +223,7 @@ export function resolveBinding(
 	return (
 		builtinKindBinding(chord, kind) ??
 		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
-		null
+		pluginGlobalBinding(chord)
 	);
 }
 
@@ -175,9 +232,14 @@ export function resolveBinding(
  * input-layer interception sites consult this to know which chords they own —
  * then route the command through the override-aware resolver. Precise: it never
  * matches a modified variant like `Mod+Alt+Y`, only the exact global chords.
+ * Includes plugin-global chords so an input-layer site that owns the global tier
+ * (editor-root, thematic break) intercepts a plugin chord too.
  */
 export function isEditorGlobalChord(chord: string): boolean {
-	return GLOBAL_KEYMAP.some((b) => normalizeChord(b.chord) === chord);
+	return (
+		GLOBAL_KEYMAP.some((b) => normalizeChord(b.chord) === chord) ||
+		pluginGlobalBinding(chord) !== null
+	);
 }
 
 /**
@@ -192,5 +254,5 @@ export function resolveGlobalBinding(
 ): KeyBinding | null {
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;
-	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? null;
+	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? pluginGlobalBinding(chord);
 }

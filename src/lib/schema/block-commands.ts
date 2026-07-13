@@ -97,15 +97,18 @@ export interface KindCommandTarget {
 }
 
 /**
- * A contained plugin block-command failure: the throwing handler's kind and
- * command id plus the raw error. The dispatch seam catches the throw and hands
- * this to the caller's sink, which routes it to the editor's error channel
- * (`origin: 'command'`, see `editor-events.ts`). Kept caller-injected so this
- * schema leaf keeps no edge to the editor shell that owns the event surface.
+ * A contained plugin command failure: the throwing handler's command id plus the
+ * raw error. A block command reports its `kind` (its owner resolves by kind
+ * lookup); a global command reports its `plugin` directly and carries no kind.
+ * The dispatch seam catches the throw and hands this to the caller's sink, which
+ * routes it to the editor's error channel (`origin: 'command'`, see
+ * `editor-events.ts`). Kept caller-injected so this schema leaf keeps no edge to
+ * the editor shell that owns the event surface.
  */
 export interface CommandErrorReport {
-	kind: AnyBlockKind;
+	kind?: AnyBlockKind;
 	command: AnyCommandId;
+	plugin?: string;
 	error: unknown;
 }
 export type CommandErrorSink = (report: CommandErrorReport) => void;

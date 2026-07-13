@@ -9,6 +9,7 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	registerBlockCommand,
+	registerGlobalCommand,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerPasteTransform,
@@ -20,6 +21,7 @@ import {
 	isPluginInstalled
 } from '$lib/plugin';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
+import { pluginGlobalBinding } from '$lib/schema/commands';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { getInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
@@ -36,6 +38,7 @@ function installProbePlugin(): void {
 	registerBlockKind(block, { mergeRole: 'not-mergeable', editable: false, supportsInline: false });
 	registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false });
 	registerBlockCommand(block, 'probe.cmd', () => true);
+	registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' });
 	registerPasteSurface({ kind: block });
 	registerPasteTransform({ name: 'probe-transform', transform: () => null });
 	registerInlineSyntax('⌘', () => null);
@@ -55,6 +58,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
 		expect(isPluginInstalled('probeplugin')).toBe(true);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(1);
+		expect(pluginGlobalBinding('Mod+Shift+1')?.command).toBe('probe.global');
 
 		resetPluginPlatformForTests();
 
@@ -64,6 +68,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
+		expect(pluginGlobalBinding('Mod+Shift+1')).toBeNull();
 		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
 		expect(getInlineSyntax('⌘')).toBeUndefined();
 
