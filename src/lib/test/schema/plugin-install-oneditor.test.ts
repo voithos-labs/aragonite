@@ -62,4 +62,20 @@ describe('onEditor subscription seam', () => {
 		__resetInstalledPluginsForTests();
 		expect(onEditorCallbacks('gone')).toHaveLength(0);
 	});
+
+	it('a setup that throws after onEditor leaves no orphaned subscriptions and blocks re-install', () => {
+		const plugin = definePlugin({
+			name: 'boom',
+			setup(ctx) {
+				ctx.onEditor(() => {});
+				throw new Error('setup exploded');
+			}
+		});
+		expect(() => installPlugins([plugin])).toThrow(/setup exploded/);
+		// The install never completes, so its callback must not survive to run against
+		// a later mount — the catch in installOne clears the plugin's subscriptions.
+		expect(onEditorCallbacks('boom')).toHaveLength(0);
+		// A partial setup can't be re-run: the second attempt reports the prior failure.
+		expect(() => installPlugins([plugin])).toThrow(/failed during a previous install/);
+	});
 });
