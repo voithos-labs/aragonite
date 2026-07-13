@@ -15,8 +15,8 @@ export interface TextEditResult {
 /**
  * Replace any leading `#{1,6} ` heading prefix with one for `level`.
  * `level === 0` strips an existing prefix without adding a new one.
- * Idempotent when the requested level matches the current prefix —
- * does not toggle off (matches existing TextEditableBlock behavior).
+ * Idempotent when the requested level matches the current prefix — it does not
+ * toggle off; stripping is reached only by asking for level 0.
  */
 export function cycleHeading(raw: string, level: number, preEditOffset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);

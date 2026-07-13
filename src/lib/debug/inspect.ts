@@ -1,5 +1,5 @@
 /**
- * Internal debug engine. Not exported from `src/lib/editor/index.ts`.
+ * Internal debug engine — never exported from the public barrel (`src/lib/index.ts`).
  *
  * Output format is disposable — do not assert on it. Use structured
  * accessors (getSource, kinds, paths) for test assertions.

@@ -135,7 +135,7 @@ export function createNestedBlockEdit(
 			);
 		},
 
-		// ── In-place leaf edits (per-level; unification deferred) ──────────────
+		// ── In-place leaf edits (per-level) ────────────────────────────────────
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,

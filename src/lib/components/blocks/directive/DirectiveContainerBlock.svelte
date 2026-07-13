@@ -3,7 +3,7 @@
 	// the public `createContainerBlock` seam (as CalloutBlock/DetailsBlock are). The
 	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
 	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
-	// (docs/issues.md: the dogfood callout's boxed look is the thing to avoid).
+	// (a document should feel like a document, not a pile of blocks).
 	import { BlockList, createContainerBlock, getPluginMetadata, type CstNode } from '$lib/plugin';
 	import type { DirectiveContainerMetadata } from '$lib/core/directive/kinds';
 

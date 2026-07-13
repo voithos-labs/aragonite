@@ -3,12 +3,11 @@
  *
  * A table endpoint's offset is a row-major cell index (`cellCoordinate: true`).
  * When a table is one END of a cross-block (different-block) selection, the
- * highlight, clipboard copy, and range delete must agree on the same cell set;
- * left partial, copy row-rounds while delete clears columns and a Cut loses or
- * duplicates cells. Snapping each table endpoint to its whole row
- * — start side to the row's first cell, end side to the row's last cell — makes
- * all three paths capture the same whole rows (WYSIWYG: the painted rows are the
- * copied/deleted rows).
+ * highlight, clipboard copy, and range delete must agree on the same cell set.
+ * Left partial, copy row-rounds while delete clears columns — a Cut then loses
+ * or duplicates cells. Snapping each table endpoint to its whole row (start side
+ * to the row's first cell, end side to the row's last cell) makes all three paths
+ * capture the same whole rows: the painted rows are the copied/deleted rows.
  *
  * The offset stays an INCLUSIVE cell index, the same space SelectionPoint
  * already uses, so collapse/reveal still resolve a valid in-range cell. Copy,

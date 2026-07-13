@@ -1,11 +1,10 @@
 /**
  * The editable-leaf seam a plugin block component builds on: a text-editing
  * block surface with native caret/IME/undo/cross-block-selection parity.
- * Collapses the editable-surface plumbing, its fourteen context pulls, the
- * shared-keydown + chord dispatch, reorder commands, and the reveal/commit
- * ceremony into one factory — a plugin never touches an editor context key.
- * Mirrors BlockMath's wiring; the component supplies only its view (markup,
- * render/source effects) around the returned handlers.
+ * Collapses the editable-surface plumbing, its context pulls, the shared-keydown
+ * + chord dispatch, reorder commands, and the reveal/commit ceremony into one
+ * factory — a plugin never touches an editor context key. The component supplies
+ * only its view (markup, render/source effects) around the returned handlers.
  *
  * Two modes:
  *   'plain'          — the source contenteditable is always mounted; every
@@ -79,9 +78,9 @@ import { dispatchKeyCommand, type BlockCommandContext } from '../../schema/block
 export type EditableLeafMode = 'plain' | 'render-primary';
 
 /**
- * Reactive inputs the host component feeds in as getters (Design Rule 5): each
- * is re-read live so a structural op or undo replacement is observed, never
- * snapshotted.
+ * Reactive inputs the host component feeds in as getters, never values (see
+ * `docs/contributing/culture.md`): each is re-read live so a structural op or
+ * undo replacement is observed, never snapshotted.
  */
 export interface EditableLeafDeps {
 	get node(): CstNode;
@@ -95,9 +94,9 @@ export interface EditableLeafDeps {
 	setRevealed?(revealed: boolean): void;
 	/**
 	 * The mounted component's view-state hooks, handed to a minted block command as
-	 * `ctx.hooks` (the container factory's sibling channel). Read live at dispatch
-	 * (Design Rule 5): return a getter over the component's own handlers, never a
-	 * captured value. The platform treats it as `unknown`; the plugin casts it.
+	 * `ctx.hooks` (the container factory's sibling channel). Read live at dispatch:
+	 * return a getter over the component's own handlers, never a captured value.
+	 * The platform treats it as `unknown`; the plugin casts it.
 	 */
 	commandHooks?: () => unknown;
 }
@@ -148,7 +147,7 @@ export interface EditableLeaf {
  * command resolves against on the leaf tier — the container factory's
  * `buildContainerKindTarget` sibling, extracted so both tiers build their command
  * context through a tested seam. `node` and `hooks` are read when this runs (once
- * per dispatch), so a node swap or a hook rebind is observed live (Design Rule 5);
+ * per dispatch), so a node swap or a hook rebind is observed live;
  * `updateMetadata` rides the sanctioned commit ceremony, never a bypass.
  */
 export function buildLeafCommandContext(

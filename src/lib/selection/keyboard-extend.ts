@@ -308,9 +308,6 @@ function isTransparent(doc: Document, path: number[]): boolean {
 	return node !== null && 'raw' in node && isVerticallyTransparentNode(node);
 }
 
-/**
- * Walk forward from `fromPath` to the next non-transparent leaf.
- */
 function firstNonTransparentLeafAfter(doc: Document, fromPath: number[]): number[] | null {
 	let leaf = firstLeafAfter(doc, fromPath);
 	while (leaf && isTransparent(doc, leaf)) {

@@ -60,7 +60,7 @@ export interface ListWindowing {
 	readonly window: WindowResult;
 	/** A DIRECTLY-MEASURED leaf: oracle (by id) + model slot. Passive — no scrollTop write. */
 	recordMeasuredChild(index: number, id: string, height: number): void;
-	/** A PROPAGATED child-container subtotal: model slot ONLY, by index. No oracle, no id, no anchor. */
+	/** A PROPAGATED child-container subtotal: oracle + model slot, addressed by index. No anchor correction. */
 	setChildSubtotal(index: number, total: number): void;
 	/** Enroll a child in this scope's batched measure pass; returns an unregister fn
 	 *  to call on the child's unmount. The child is measured on the next pass. */
@@ -351,8 +351,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		get window() {
 			return effectiveWindow;
 		},
-		// Directly-measured leaf. PASSIVE — no active scrollTop correction, matching
-		// Phase 2's measure path (anchor stability rides estimate quality + spacers).
+		// Directly-measured leaf. PASSIVE — no scrollTop correction here; anchor
+		// stability rides estimate quality plus the spacers.
 		recordMeasuredChild(index, id, height) {
 			deps.oracle.recordMeasured(id, height);
 			if (index < model.size && model.heightOf(index) !== height) {

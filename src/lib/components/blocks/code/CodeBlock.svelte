@@ -433,7 +433,7 @@
 		if (!el) return;
 		const text = el.textContent ?? '';
 		const result = dedentLines(text, currentRange());
-		if (result.text === text) return; // no-op: nothing to dedent
+		if (result.text === text) return;
 		applyIndentResult(result);
 	}
 

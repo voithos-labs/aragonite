@@ -1,11 +1,10 @@
 /**
- * Mutation routing for paste results — applies inline and structural results
- * produced by surface hooks to the document. Inline results route through
- * debounced updateBlockContent (or direct raw mutation for cross-block).
- * Structural results splice via replaceBlockAtParent, which resolves the
- * parent scope from the path itself rather than trusting `ctx.blockEdit` —
- * any caller passing a nested-bundle blockEdit (e.g., a row-level bundle
- * for a cell's path) would silently misroute through the wrong container.
+ * Applies the results a paste surface hook produced to the document.
+ *
+ * Structural results splice via replaceBlockAtParent, which resolves the parent
+ * scope from the path itself rather than trusting `ctx.blockEdit` — a caller
+ * passing a nested-bundle blockEdit (e.g. a row-level bundle for a cell's path)
+ * would silently misroute through the wrong container.
  */
 
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';

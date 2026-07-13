@@ -8,8 +8,7 @@
  * branch off keydown/click.
  *
  * Each keydown sub-handler returns whether it consumed the event, so the
- * component can interleave them with the shared keydown pipeline at the same
- * points it always has.
+ * component can interleave them with the shared keydown pipeline.
  */
 
 import { tick } from 'svelte';
@@ -208,9 +207,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// shifts it correctly (a length delta off the widget's old end would not).
 	function commitReveal(): void {
 		if (!activeReveal) return;
-		// Mirror BlockMath: a cross-block selection sweeping through keeps the source
-		// revealed so its rects measure real text, not a folded island — folding now
-		// would strand a selection endpoint anchored in the source text node.
+		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
+		// through keeps the source revealed so its rects measure real text, not a
+		// folded island — folding now would strand a selection endpoint anchored in
+		// the source text node.
 		if (deps.isCrossBlock()) return;
 		const el = deps.getEl();
 		const sourceNode = activeSourceNode;

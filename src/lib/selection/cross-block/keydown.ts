@@ -79,10 +79,6 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Enter, Shift+Enter, Tab, Ctrl+B, Ctrl+I, Ctrl+0..6 are transformative
-	// operations the block-level handler resolves at the collapsed caret. Run
-	// them on the merged block after the delete, not on the originating block's
-	// stale single-block raw while the cross-block selection visually persists.
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
 		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete

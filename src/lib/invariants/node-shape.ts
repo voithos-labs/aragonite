@@ -131,8 +131,10 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 	);
 }
 
+// ── G1.12: opaque container raw not stale ─────────────────────────────────────
+
 /**
- * Opaque containers escape the strip byte-check, but the same
+ * G1.12 — opaque containers escape the strip byte-check, but the same
  * children-mutated-without-rebuild staleness class must still be caught. `raw`
  * can never be byte-compared against a rebuildRaw output: a faithful parse may
  * be non-canonical (`:::x  y` stored verbatim where the rebuilder emits
@@ -201,11 +203,13 @@ function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
 	);
 }
 
+// ── G1.13: opaque rebuild determinism ─────────────────────────────────────────
+
 /**
- * The staleness check above trusts a single reparse of `raw`; that trust
- * requires the plugin-authored rebuildRaw to be deterministic over the
- * committed state. Two probe rebuilds are compared to each other — never to
- * `node.raw`, which a faithful non-canonical parse legally differs from.
+ * G1.13 — the staleness check above trusts a single reparse of `raw`; that trust
+ * requires the plugin-authored rebuildRaw to be deterministic over the committed
+ * state. Two probe rebuilds are compared to each other — never to `node.raw`,
+ * which a faithful non-canonical parse legally differs from.
  */
 export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation | null {
 	const descriptor = getBlockKindDescriptor(node.kind);

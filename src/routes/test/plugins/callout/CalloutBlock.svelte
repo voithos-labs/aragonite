@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A plugin container built entirely on the public `aragonite/plugin` seam:
 	// `createContainerBlock` hides every editor internal the built-in blockquote
-	// reaches for (block-list state, the five ancestor contexts, container-exit,
+	// reaches for (block-list state, the ancestor contexts, container-exit,
 	// windowing, the BlockComponent shim). This component supplies only its own
 	// chrome around the returned BlockList props.
 	import {
@@ -89,7 +89,7 @@
 
 	/* Reserved child-0 chrome: the `note-title` leaf, CSS-promoted to a title row
 	   above the body. It stays a real block inside the sole `.block-list`, so
-	   selection/windowing treat it as an ordinary child (Fork-A spike). */
+	   selection/windowing treat it as an ordinary child. */
 	.callout-block :global(.note-title) {
 		font-weight: 600;
 		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);

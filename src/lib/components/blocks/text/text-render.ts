@@ -58,9 +58,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	}
 
 	// The dimmed marker portion of the raw (a heading's `## `, a directive leaf's
-	// `::name`). Any kind whose descriptor narrows the content range past 0 carries
-	// one; kinds without a getContentRange (paragraphs, the raw-editable fallback)
-	// yield '' and render as plain text.
+	// `::name`) — whatever the kind's descriptor excludes from the content range.
+	// Kinds that declare none yield '' and render as plain text.
 	function getBlockMarkerPrefix(): string {
 		const node = deps.node;
 		const range = getContentRange(node);

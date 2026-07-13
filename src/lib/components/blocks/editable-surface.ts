@@ -1,10 +1,11 @@
 /**
- * Shared editable-surface plumbing for the three contenteditable blocks
- * (TextEditableBlock, CodeBlock, table/TableCellBlock). Owns the cross-block
- * handler wiring, the SharedKeydownContext, the BlockComponent surface methods,
- * and the input/composition skeleton. Each component constructs a CursorBackend
- * for its own coordinate system (ambient-aware, content-offset, or cell raw
- * walker) and supplies the per-surface input commit; the rest is identical.
+ * Shared editable-surface plumbing for the core contenteditable blocks
+ * (TextEditableBlock, CodeBlock, table/TableCellBlock) and the `editable-leaf`
+ * seam plugin leaves build on. Owns the cross-block handler wiring, the
+ * SharedKeydownContext, the BlockComponent surface methods, and the
+ * input/composition skeleton. Each consumer constructs a CursorBackend for its
+ * own coordinate system (ambient-aware, content-offset, or cell raw walker) and
+ * supplies the per-surface input commit; the rest is identical.
  *
  * The component keeps its markup, render `$effect`, the F2 focus-park `$effect`,
  * and its block-specific keydown branches. Mutable block state — `index`,

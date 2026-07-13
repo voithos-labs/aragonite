@@ -29,11 +29,10 @@ export interface InlineWidgetComponentProps {
 /**
  * Per-kind editing behavior for a live inline widget.
  *
- * `deleteGranularity` and `onEdge` were removed here as unconsumed — nothing read
- * them; only descriptor literals set them. Re-add them additively when the
- * deferred entity / atomic-inline feature lands: entity editing is *defined by*
- * delete granularity, and select/step-over edge behavior is that feature's
- * consumer, so those fields regain meaning only alongside it.
+ * `deleteGranularity` and `onEdge` are deliberately absent: nothing consumes them,
+ * and freezing an inert field is the one change that breaks an author's config
+ * later. They re-add additively with the inline-entity consumer that defines them
+ * (target shapes in `docs/design/plugin-contract.md`).
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
@@ -173,8 +172,8 @@ export function buildCoreInlineWidget(
 
 registerInlineWidgetKind('image', {
 	isWidget: () => true,
-	// Empty base editing policy: the editor layer layers `onSelectedKey` onto it
-	// via augmentInlineWidgetKind (components/built-in-blocks.ts).
+	// Base policy the editor layer augments with `onSelectedKey` — resize keys can't
+	// live in a core registration (components/built-in-blocks.ts).
 	editing: {}
 });
 
@@ -183,8 +182,8 @@ registerInlineWidgetKind('rawHtml', {
 	buildWidget: (node) => buildLiveHtmlWidget(node)
 });
 
-// Snapshot the built-in kinds after their module-load registration; the test
-// reset keeps these and drops only plugin-registered kinds.
+// Must stay below the built-in registrations above — it snapshots what the test
+// reset is not allowed to drop.
 const BUILTIN_INLINE_WIDGET_KINDS: ReadonlySet<AnyInlineKind> = new Set(registry.keys());
 
 /** Test-only. Removes every plugin-registered inline-widget kind; built-ins survive. */

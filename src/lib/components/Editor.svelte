@@ -184,11 +184,11 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// `inlineContent` is computed lazily on read (core/inline/inline-cache);
-			// the shell no longer sweeps it. It only maintains the LRD resolver:
-			// rebuild the map when a commit could change the LRD set, and hand out a
-			// fresh resolver identity only on a real signature change — a fresh
-			// identity on every edit would re-render every block that read it.
+			// The shell maintains only the LRD resolver (inline content is computed
+			// lazily on read — core/inline/inline-cache): rebuild the map when a commit
+			// could change the LRD set, and hand out a fresh resolver identity only on a
+			// real signature change — a fresh identity on every edit would re-render
+			// every block that read it.
 			if (lrdMapCouldChange(doc, e)) {
 				const newMap = buildLinkReferenceMap(doc.children);
 				if (newMap.signature !== currentSignature) {
@@ -270,9 +270,8 @@
 
 	$effect(() => {
 		const handleFocusOut = (e: FocusEvent) => {
-			// focusout bubbles; reset only if focus is leaving the editor entirely.
-			// If the relatedTarget is inside editorEl, the focus is just moving
-			// between blocks and we should not reset.
+			// focusout bubbles — reset only when focus leaves the editor entirely, not
+			// on a block-to-block move.
 			if (!editorEl) return;
 			const next = e.relatedTarget as Node | null;
 			if (next && editorEl.contains(next)) return;
@@ -882,7 +881,7 @@
 		   or width reflow, shift scrollTop by the delta after. Native scroll anchoring
 		   FIGHTS that — it independently rewrites scrollTop (~2,264px on a deep jump into
 		   an unmeasured band), double-correcting. Disable it so the manual path owns the
-		   line; do NOT restore `overflow-anchor` (VR-2/VR-2a). */
+		   line; do NOT restore `overflow-anchor` (VR-2). */
 		overflow-anchor: none;
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;

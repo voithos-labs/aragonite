@@ -21,7 +21,7 @@ export interface HeightOracleOptions {
 	codeLineHeight: number; // px per code source line
 	avgCharWidth: number; // px, for chars-per-line from width
 	blockChrome: number; // px of margin/padding per block
-	imageBlockMinHeight: number; // px floor for an image-bearing paragraph (raw chars badly undercount a rendered image)
+	imageBlockMinHeight: number; // px floor for an image-bearing paragraph
 }
 
 export interface HeightOracle {
@@ -94,9 +94,9 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			case 'listItem': {
 				// O(1), no subtree walk: a container is at least one line + chrome per
 				// child, and at least its materialized text wrapped as a blob. The blob
-				// term alone (the prior `default` fall-through) ignored every newline and
-				// per-child chrome, undercounting a stacked container several-fold; the
-				// child-count term alone ignores wrap. `children` is already on the node.
+				// term alone ignores every newline and per-child chrome, undercounting a
+				// stacked container several-fold; the child-count term alone ignores wrap.
+				// `children` is already on the node.
 				const childCount = Math.max(1, node.children?.length ?? 1);
 				const byChildren = childCount * (opts.lineHeight + opts.blockChrome);
 				const byText = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;

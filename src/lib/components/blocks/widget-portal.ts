@@ -117,10 +117,10 @@ interface PortalHandle {
 
 /**
  * The pool wired to Svelte mounting. `create` builds the atomic-island wrapper
- * carrying all four attributes the cursor/selection machinery keys on, then mounts
- * the kind's component inside it with frozen `{ inline, source }` props. A
- * synchronous mount throw is caught, reported through `reportError` (the editor's
- * `error` channel), and surfaced as null so the caller falls back to the raw span.
+ * carrying the attributes the cursor/selection machinery keys on, then mounts the
+ * kind's component inside it with frozen `{ inline, source }` props. A synchronous
+ * mount throw is caught, reported through `reportError` (the editor's `error`
+ * channel), and surfaced as null so the caller falls back to the raw span.
  */
 export function createSvelteWidgetPool(reportError?: (error: unknown) => void): WidgetPool {
 	return createWidgetPool<PortalHandle>({
