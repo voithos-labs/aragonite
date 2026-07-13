@@ -44,7 +44,7 @@ function nestedFor(node: CstNode) {
 	return { bundle, parent };
 }
 
-describe('collapsed container forward-merge exit (d12)', () => {
+describe('collapsed container forward-merge exit', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();

@@ -210,9 +210,9 @@ describe('round-trip: edge cases', () => {
 	}
 });
 
-// ── V2 Edge Case Tests ──────────────────────────────────────────────────────
+// ── Ambiguity edge cases: what a construct is NOT ───────────────────────────
 
-describe('v2 edge cases', () => {
+describe('construct-boundary edge cases', () => {
 	it('--- after blank line is thematic break, not setext', () => {
 		const doc = parse('Paragraph.\n\n---\n');
 		expect(doc.children.length).toBe(2);

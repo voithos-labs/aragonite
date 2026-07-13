@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	declarePluginKind,
@@ -21,6 +23,7 @@ import { installPlugins } from '$lib/schema/plugin-install';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { getInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { stripComments } from '../invariants/lint/scan-source';
 import type { AnyBlockKind } from '$lib/plugin';
 
 // Registers one thing through each public register-once entry the aggregate must
@@ -74,5 +77,72 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		} finally {
 			resetEditorEnv();
 		}
+	});
+});
+
+// ── What the published `aragonite/testing` surface may depend on ────────────────
+
+/** `testing.ts` plus every module behind it — the code that ships as `aragonite/testing`. */
+function testingSurfaceSources(): { relPath: string; specifiers: string[] }[] {
+	const dir = path.resolve('src/lib/testing');
+	const files = readdirSync(dir)
+		.filter((f) => f.endsWith('.ts'))
+		.map((f) => `src/lib/testing/${f}`);
+	return ['src/lib/testing.ts', ...files].map((relPath) => {
+		// Comments here name the very specifiers the scans forbid; strip them first.
+		const code = stripComments(readFileSync(path.resolve(relPath), 'utf8'));
+		const specifiers = [...code.matchAll(/(?:\bfrom|\bimport)\s+'([^']+)'/g)].map((m) => m[1]);
+		return { relPath, specifiers };
+	});
+}
+
+const offendersMatching = (
+	sources: { relPath: string; specifiers: string[] }[],
+	pattern: RegExp
+): string[] =>
+	sources.flatMap((s) =>
+		s.specifiers.filter((spec) => pattern.test(spec)).map((spec) => `${s.relPath} → ${spec}`)
+	);
+
+describe('aragonite/testing dependency rules', () => {
+	const sources = testingSurfaceSources();
+
+	it('sees the whole surface — the barrel plus the modules behind it, with their imports', () => {
+		expect(sources.map((s) => s.relPath)).toContain('src/lib/testing.ts');
+		expect(sources.length).toBeGreaterThan(1);
+		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);
+	});
+
+	// The conformance kit runs INSIDE an author's own test case. A static runner
+	// import would force that runner (an unlisted dep) on every suite that reaches
+	// for `resetPluginPlatformForTests` alone — including one on Jest or node:test.
+	// The kit throws plain `Error`s instead; keep it that way.
+	it('imports no test runner', () => {
+		const offenders = offendersMatching(sources, /^(vitest|jest|@jest\/|node:test|chai)/);
+		expect(offenders, 'runner imports on the published testing surface').toEqual([]);
+	});
+
+	// `prune-dist.mjs` deletes `dist/test` before pack, and `verify-pack.mjs` fails
+	// on any test file that ships. An import reaching into `test/` therefore resolves
+	// in the repo and 404s in the published package — a break no in-repo suite sees.
+	it('reaches into no directory that is stripped from the published package', () => {
+		const offenders = offendersMatching(sources, /(^|\/)(test|e2e)\//);
+		expect(offenders, 'imports of paths pruned from dist/').toEqual([]);
+	});
+
+	// Non-vacuity: both scans must actually fire on the shapes they forbid.
+	it('the scans flag a runner import and a pruned-path import', () => {
+		const synthetic = [
+			{
+				relPath: 'synthetic.ts',
+				specifiers: ['vitest', '$lib/test/harness/editor-actions', '../env']
+			}
+		];
+		expect(offendersMatching(synthetic, /^(vitest|jest|@jest\/|node:test|chai)/)).toEqual([
+			'synthetic.ts → vitest'
+		]);
+		expect(offendersMatching(synthetic, /(^|\/)(test|e2e)\//)).toEqual([
+			'synthetic.ts → $lib/test/harness/editor-actions'
+		]);
 	});
 });
