@@ -79,7 +79,8 @@ export async function handleSharedKeydown(
 		ctx.stickyColumn.reset();
 	}
 
-	// The editor owns undo/redo: native contenteditable history stays suppressed
+	// The editor owns every editor-global chord — undo/redo and plugin-global
+	// commands alike: native contenteditable history stays suppressed
 	// (preventDefault on keydown — Ctrl+Y doesn't fire beforeinput historyRedo in
 	// Chromium/WebView2, so keydown is the reliable layer). Precise chord matching
 	// (not a loose key check, which also caught Ctrl+Alt+Y) then defers the command
