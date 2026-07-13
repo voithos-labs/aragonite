@@ -7,6 +7,7 @@
 	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
+	import { tocPlugin } from './toc/toc-plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'
@@ -15,7 +16,8 @@
 	// `<details>` / `$…$` / ```mermaid resolve to plugin kinds; callout/admonitions
 	// setups turn on the generic `:::name` grammar the generic-directive e2e drives.
 	// docStatsPlugin is a bare entry (no options), so the doc-stats e2e also covers
-	// the options-default branch of the context spine.
+	// the options-default branch of the context spine. tocPlugin claims `[[toc]]` and
+	// reads its heading list off the `document` component prop.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
@@ -23,7 +25,8 @@
 		admonitionsPlugin(),
 		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
 		memoPlugin(),
-		docStatsPlugin
+		docStatsPlugin,
+		tocPlugin()
 	];
 </script>
 
@@ -64,6 +67,13 @@
 	// records, and a root-level Enter split + undo for the attach-survives-a-
 	// structural-edit pin.
 	const DOC_STATS_SEED = 'First\n\nSecond\n';
+	// Two ATX headings and one setext heading above a top-level `[[toc]]`, with a
+	// trailing paragraph as a blur target: the toc dogfood reads its heading list off
+	// the `document` prop, so this seed exercises both heading kinds and a live edit.
+	const TOC_SEED = '# Overview\n\n## Details\n\nAppendix\n========\n\n[[toc]]\n\nFooter\n';
+	// A `[[toc]]` nested inside a blockquote below the headings: the prop reaches a
+	// nested block only through editor context, so this pins the container render path.
+	const TOC_NESTED_SEED = '# Chapter One\n\n## Section A\n\n> [[toc]]\n\nAfter\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -141,7 +151,9 @@
 		mathtable: MATH_TABLE_SEED,
 		mermaid: MERMAID_SEED,
 		memo: MEMO_SEED,
-		docstats: DOC_STATS_SEED
+		docstats: DOC_STATS_SEED,
+		toc: TOC_SEED,
+		'toc-nested': TOC_NESTED_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
