@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// Collapse clamp (spec §4 "Adviser-verified seam"): a collapsed scope substitutes a
-// fixed [0,1) WindowResult at the returned surface — the window math is bypassed,
-// not fed — and clamps isInWindow/revealChild so reveal-into-collapsed degrades
-// instead of hanging (VR-5).
+// Collapse clamp: a collapsed scope substitutes a fixed [0,1) WindowResult at the
+// returned surface — the window math is bypassed, not fed — and clamps
+// isInWindow/revealChild so reveal-into-collapsed degrades instead of hanging (VR-5).
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';

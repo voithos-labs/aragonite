@@ -75,21 +75,20 @@ describeScanCases('urls stop where claimed constructs start', [
 		'https://x.com`c`',
 		[autolinkNode(0, 13, 'https://x.com'), codeNode(13, 16, 'c')]
 	],
-	// The old pipeline absorbed the tag into the url; the single pass claims
-	// it first, which is also GFM's stop-at-`<` rule (deliberate divergence).
+	// GFM's stop-at-`<` rule: the single left-to-right pass claims the tag first,
+	// so it can never be absorbed into the url. Same for a following spec autolink.
 	[
 		'raw html tag ends the url',
 		'https://x.y<br/>',
 		[autolinkNode(0, 11, 'https://x.y'), rawHtmlNode(11, 16)]
 	],
-	// Same divergence for a following spec autolink (old absorbed `<…>`).
 	[
 		'spec autolink ends the url',
 		'www.x.com<https://a.b>',
 		[autolinkNode(0, 9, 'www.x.com'), autolinkNode(9, 22, 'https://a.b')]
 	],
-	// The old pipeline absorbed the backslash into the url and lost the
-	// break; the in-scan hard-break claim wins (deliberate divergence).
+	// The hard-break claim wins over url continuation, so the break survives
+	// instead of the backslash being absorbed into the destination.
 	[
 		'backslash hard break ends the url',
 		'www.x.com\\\nfoo',

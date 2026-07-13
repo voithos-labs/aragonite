@@ -4,7 +4,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { parse } from '$lib/core/parser';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// Finding 7.4: the top-level insertParsedBlocks had no bounds guard, so an
+// Regression: the top-level insertParsedBlocks had no bounds guard, so an
 // out-of-range blockIndex reached foldPasteReplacement(children[i] /* undefined */)
 // and threw an uncontained TypeError — the container path already no-ops.
 

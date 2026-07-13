@@ -51,7 +51,7 @@ function makeSetup(childRaws: string[]) {
 	return { bundle, containerNode, containerState, controller, deps };
 }
 
-// ── B7: debounce batches break on focus change between sibling leaves ─────────
+// ── Debounce batches break on focus change between sibling leaves ─────────────
 
 describe('debounce batch key — sibling leaves inside one container (B7)', () => {
 	it('typing in leaf 0 then leaf 1 produces two undo entries (focus break)', async () => {

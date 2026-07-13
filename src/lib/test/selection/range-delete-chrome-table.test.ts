@@ -8,7 +8,7 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// The chrome wall × the table branch (I1): `involvesTable` dispatches before
+// The chrome wall × the table branch: `involvesTable` dispatches before
 // `involvesReservedChrome`, so these ranges ride the table branch — the wall
 // must hold there too. Table endpoints carry the already-snapped cell indices
 // the UI layer would pass (start = row start, end = inclusive row-last cell).

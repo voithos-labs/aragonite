@@ -3,9 +3,9 @@ import { defaultStructuralHook, pastedContentFocusIndex } from '$lib/tree-operat
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
-// Finding 7.6 (user-approved): a structural mid-block paste lands the caret at
-// the end of the PASTED content, not the trailing residue that buildPastedReplacement
-// appends as the last node. End-of-block pastes (no residue) are unchanged.
+// A structural mid-block paste lands the caret at the end of the PASTED content,
+// not the trailing residue that buildPastedReplacement appends as the last node.
+// End-of-block pastes (no residue) are unchanged.
 
 const para = (raw: string): CstNode => parse(raw).children[0];
 const twoBlocks = (): CstNode[] => parse('one\n\ntwo\n').children;

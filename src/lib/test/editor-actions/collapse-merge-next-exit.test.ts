@@ -17,10 +17,10 @@ import {
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 
-// d12: forward-Delete at the end of a collapsed container's summary once
+// Regression: forward-Delete at the end of a collapsed container's summary once
 // dead-ended on the unmounted body (refAt(i+1) no-op). The container-level
-// mergeWithNext now exits past the collapsed container instead — an
-// I-1-consistent focus move with no mutation (mirrors gateMoveFocusOnCollapse).
+// mergeWithNext now exits past the collapsed container instead — a focus move
+// with no mutation (mirrors gateMoveFocusOnCollapse).
 
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n';

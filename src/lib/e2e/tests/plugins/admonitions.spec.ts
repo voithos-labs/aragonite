@@ -9,7 +9,7 @@ import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers'
  * The composed harness gives `note`/`warning` to the callout dogfood, so every
  * scenario drives an admonition-owned kind (`tip`/`important`/`caution`). Gates
  * read the CST/source by path via `window.__test`; input is real keyboard/mouse.
- * The uninstalled-fallback path is unit-covered (fallback.test.ts), not repeated.
+ * The uninstalled-fallback path is unit-covered (admonitions-fallback.test.ts).
  */
 
 test.describe('plugin admonitions', () => {

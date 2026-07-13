@@ -201,7 +201,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		});
 	}
 
-	// F4 bail split: a kind WITH a registered opener whose raw no longer reparses
+	// The bail split: a kind WITH a registered opener whose raw no longer reparses
 	// to that kind is genuine drift, not the openerless can't-validate case.
 	it('fires when a registered-opener kind reparses to a divergent kind', () => {
 		const note = registerNoteKind();

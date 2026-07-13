@@ -12,7 +12,7 @@ import {
  * Fork-A spike gate: the `:::note` callout reserves child 0 as an editable
  * `note-title` chrome leaf (see src/routes/test/plugins/callout).
  *
- * Gate 6 — the chrome wall × the table branch (I1). `involvesTable` dispatches
+ * Gate 6 — the chrome wall × the table branch. `involvesTable` dispatches
  *   before `involvesReservedChrome`, so a range with a table endpoint takes the
  *   table branch — the wall must hold there too: covered chrome clears, chrome
  *   endpoints truncate in place, and a consumed container unit-deletes.
@@ -26,7 +26,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
-	// ── Gate 6 — chrome wall × table branch (I1) ─────────────────────────────
+	// ── Gate 6 — chrome wall × table branch ─────────────────────────────
 
 	// Table in the callout body: [0]=para "Above", [1]=note ([1,0]=title,
 	// [1,1]=table of header row (a,b) + body row (1,2)), [2]=para "Below".

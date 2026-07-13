@@ -90,9 +90,9 @@ describe('mermaid round-trip property — plugin installed', () => {
 		);
 	});
 
-	// Reachability evidence for the adversarial classes the brief names, read off
-	// the parsed nodes' captured metadata (which also proves the capture reaches
-	// each shape). The SAME arbitrary the properties run on must produce them.
+	// Reachability evidence for the adversarial fence classes, read off the parsed
+	// nodes' captured metadata (which also proves the capture reaches each shape).
+	// The SAME arbitrary the properties run on must produce them.
 	function sampledMermaidMetadata(): MermaidMetadata[] {
 		const out: MermaidMetadata[] = [];
 		for (const src of samples) {

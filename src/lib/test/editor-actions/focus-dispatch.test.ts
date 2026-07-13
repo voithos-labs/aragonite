@@ -87,9 +87,9 @@ describe('dispatchMoveFocus', () => {
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	// A non-focusable target must not dead-end the move (editor.md § Focus
-	// Traversal). With no focusable sibling in the travel direction, the walk runs
-	// off this scope's edge and delegates upward.
+	// A non-focusable target must not dead-end the move (`docs/design/editor.md`
+	// § Focus traversal). With no focusable sibling in the travel direction, the
+	// walk runs off this scope's edge and delegates upward.
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = mockRef({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();

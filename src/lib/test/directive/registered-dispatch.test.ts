@@ -10,10 +10,10 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
 activateDirectiveGrammar(); // opener + ':' recognizer + generic kinds, before any parse
 
-// Sibling-path parity (I1): the leaf and text tiers must dispatch a registered
-// name to the plugin's own kind exactly as the container tier does, and fall back
-// to the generic kind for an unregistered name. Container's dispatch is pinned in
-// roundtrip-property.test.ts; this file pins the two tiers the fix wired up.
+// Sibling-path parity: the leaf and text tiers must dispatch a registered name to
+// the plugin's own kind exactly as the container tier does, and fall back to the
+// generic kind for an unregistered name. Container's dispatch is pinned in
+// roundtrip-property.test.ts; this file pins the other two tiers.
 
 const CUSTOM_LEAF = declarePluginKind('directiveCustomLeafProbe');
 const FACTORY_LEAF = declarePluginKind('directiveFactoryLeafProbe');

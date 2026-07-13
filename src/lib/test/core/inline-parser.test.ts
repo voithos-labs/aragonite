@@ -59,7 +59,6 @@ describe('parseInline — backtick spans', () => {
 
 	it('backslash-escaped opening backtick does not start a code span (CommonMark §6.1)', () => {
 		const nodes = inlineOf('\\`not code\\`');
-		// No inlineCode node should be produced; the escaped backticks become escape nodes.
 		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(false);
 		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
 	});

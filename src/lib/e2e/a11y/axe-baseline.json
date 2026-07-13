@@ -3,8 +3,8 @@
 	"allow": [
 		{
 			"id": "color-contrast",
-			"reason": "Dimmed inline markers, code-block syntax tokens, and link colors are consumer-theme-owned; the editor does not own its CSS vars yet, so contrast can't be fixed here.",
-			"milestone": "0.7 Track B — CSS-ownership migration"
+			"reason": "Dimmed inline markers, code-block syntax tokens, and link colors fail AA contrast (8 elements). The editor now owns its theme tokens (editor-theme.css, guarded by G4.6), so this is no longer unfixable here — it is unfixed: the dim palette is a deliberate visual choice that has not been reconciled with AA. Fixing it means re-tuning the token values, not moving them.",
+			"milestone": "unscheduled — needs a palette pass, not a migration"
 		},
 		{
 			"id": "aria-input-field-name",

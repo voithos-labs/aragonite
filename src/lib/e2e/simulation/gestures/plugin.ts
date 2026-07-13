@@ -61,16 +61,17 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
  * Write a GitHub-alert blockquote to the clipboard and paste it at the caret. The
  * admonitions pre-parse paste transform rewrites `> [!TIP]` to `:::tip` source
  * before the parse, so a `:::tip` admonition lands — putting the transform surface
- * under the corruption oracle. Settles on the source delta (the conversion is
- * editor auto-behavior, not printable typing the tracker predicts) and resyncs;
- * an unregistered transform would leave a literal blockquote and the same delta
- * settle still holds, so the gesture never silently records a stale source.
+ * under the round-trip / nested-state / no-errors oracles.
+ *
+ * Settles on the CONVERTED source, not on a bare delta. A delta settle would pass
+ * even with the transform unregistered: the alert would paste through as a literal
+ * blockquote, which is still a delta, still round-trip-stable, and still
+ * nested-state clean — so no oracle would trip and the gesture would guard nothing.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
-	const before = await ctx.editor.bridge.getSource();
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
 	await ctx.page.keyboard.press(`${primaryModifier}+v`);
-	await ctx.editor.bridge.waitForSourceWith((source, prior) => source !== prior, before);
+	await ctx.editor.bridge.waitForSourceContains(':::tip');
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }

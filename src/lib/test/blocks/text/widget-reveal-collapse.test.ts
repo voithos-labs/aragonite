@@ -154,9 +154,10 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
-		// The very element the reveal detached returns to its slot (0.9.14 identity).
-		// Boolean form: a failing `.toBe(domNode)` diff serializes the node into
-		// `window` and trips Svelte's dev-time `$state` trap, masking the failure.
+		// Identity, not equivalence: the very element the reveal detached returns to
+		// its slot. Boolean form deliberately — a failing `.toBe(domNode)` diff
+		// serializes the node into `window` and trips Svelte's dev-time `$state`
+		// trap, masking the failure.
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 

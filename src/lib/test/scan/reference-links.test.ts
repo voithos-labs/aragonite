@@ -83,8 +83,8 @@ describeScanCases(
 			[linkNode(0, 5, [textNode(1, 4, 'foo')], '/foo', { label: 'foo' })]
 		],
 		[
-			// The old parser refused shortcut before `(`; the reference resolves it
-			// (spec: `[foo](not a link)` with a definition still links).
+			// A `(` that fails to parse as an inline tail does not suppress the shortcut:
+			// per spec, `[foo](not a link)` with a definition for `foo` still links.
 			'shortcut applies when a following ( fails to parse as an inline tail',
 			'[foo](x',
 			[linkNode(0, 5, [textNode(1, 4, 'foo')], '/foo', { label: 'foo' }), textNode(5, 7, '(x')]
@@ -164,8 +164,8 @@ describeScanCases(
 describeScanCases(
 	'bracketAfter guard: a bracket inside the text blocks collapsed/shortcut lookup',
 	[
-		// Deliberate divergence from the OLD parser (which looked the label up and
-		// emitted a collapsed unresolvedReference here) — not a scanner bug.
+		// The guard rejects the construct outright rather than looking the label up —
+		// so no collapsed unresolvedReference is emitted, and `][]` falls back to text.
 		[
 			'collapsed form is rejected, [] rescans as literal text',
 			'[a ![b](u) c][]',
@@ -192,8 +192,8 @@ describeScanCases(
 describeScanCases(
 	'label length boundary (999 content chars)',
 	[
-		// Deliberate divergence from the OLD parser (which had no label-length
-		// cap) — the reference's 999 limit, not a scanner bug.
+		// CommonMark caps a reference label at 999 content chars — the boundary the
+		// two cases straddle.
 		[
 			'a 1000-char label is not a label: shortcut takes over',
 			'[foo][' + 'a'.repeat(1000) + ']',
