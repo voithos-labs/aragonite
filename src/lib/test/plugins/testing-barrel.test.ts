@@ -19,7 +19,7 @@ import {
 	definePlugin,
 	isPluginInstalled
 } from '$lib/plugin';
-import { installPlugins } from '$lib/schema/plugin-install';
+import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { getInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
@@ -41,7 +41,7 @@ function installProbePlugin(): void {
 	registerInlineSyntax('⌘', () => null);
 	registerInlineWidgetKind(inline, { isWidget: () => false });
 	registerDirective('text', 'probe-dir', { kind: inline });
-	installPlugins([definePlugin({ name: 'probeplugin', setup: () => {} })]);
+	installPlugins([definePlugin({ name: 'probeplugin', setup: (ctx) => ctx.onEditor(() => {}) })]);
 }
 
 describe('resetPluginPlatformForTests aggregate', () => {
@@ -54,6 +54,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isInlineKindDeclared('probe-inline')).toBe(true);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
 		expect(isPluginInstalled('probeplugin')).toBe(true);
+		expect(onEditorCallbacks('probeplugin')).toHaveLength(1);
 
 		resetPluginPlatformForTests();
 
@@ -62,6 +63,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isInlineKindDeclared('probe-inline')).toBe(false);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
+		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
 		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
 		expect(getInlineSyntax('⌘')).toBeUndefined();
 
