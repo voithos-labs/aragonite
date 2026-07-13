@@ -2,6 +2,49 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.21 — The plugin context spine: per-instance editor handle
+
+`setup()` took no arguments and ran once per process, so a plugin could reach no editor: no
+derived state, no edit reaction, no per-instance config. The context spine closes that class —
+the one remaining extension-surface gap besides decorations (see `docs/roadmap.md`) — and two
+dogfoods validate it end to end.
+
+- **`setup(ctx)` + `onEditor`.** `setup` now receives a `PluginSetupContext`; `ctx.onEditor(cb)`
+  registers a per-`<Editor>` callback that receives an **`EditorContext`** — `editorId` (stable
+  per mount), a live `document` getter, a subscribe-only `events` view (`Pick<EditorEvents, 'on'>`
+  — no plugin-visible `emit` to freeze), and typed `options`. The callback may return a disposer,
+  run at unmount. Registration is synchronous-only (a leaked context throws), and `definePlugin`
+  gained an `<Options>` generic so `editor.options` reads typed with no cast. Derived state is now
+  a plugin-owned `Map` keyed on `editorId`, not a platform field — the state-API question is
+  answered by making one unnecessary.
+- **Per-instance options.** The `plugins` prop accepts a bare unit or `{ plugin, options }`
+  (`EditorPluginEntry`), so two editors sharing one process-global registration can still run
+  different options — the split-pane case. Same-name/different-identity stays first-wins with a
+  dev-warn. The factory-closure pattern (per-instance config smuggled through the plugin factory's
+  argument) is now an **anti-pattern** for anything two editors would vary; a factory argument
+  stays correct only for a process-global dependency like a render engine.
+- **`registerGlobalCommand`.** Mints a process-wide command whose handler receives the dispatching
+  instance's `EditorContext` — the _same_ object `onEditor` hands out, never a second context — so
+  an editor-scope action (open a panel, insert the date) fires regardless of focus. An optional
+  chord binds in the **plugin-global tier**, which resolves last in precedence; built-in chords and
+  the search chords (`Mod+F` / `Mod+H`) are unstealable and a collision throws before the mint. A
+  handler throw is contained as an `error` of origin `command`, attributed to the owning plugin.
+- **`BlockCommandContext.editor`.** A block command now reads the same `EditorContext` for
+  document/events/options. The field is the pinned shape: document mutation arrives later as
+  _further fields here_, never a second context object — the growth-as-fields decision the roadmap
+  flagged as the one genuine breaking risk.
+- **`BlockComponentProps.document`.** Every block component receives the read-only root document at
+  any nesting depth, so a table-of-contents block can see the headings above it. The `toc` dogfood
+  reads it at a nested depth — the validator that pins BlockHost's delivery on both branches.
+- **`estimateHeight` descriptor field.** An optional O(1) per-kind height estimate the oracle
+  consults after the collapse probe, before the prose char-wrap default — so a Mermaid diagram is
+  estimated at its skeleton height instead of ~40px and scroll is right before it mounts. The
+  measured cache still supersedes; a collapsed container still estimates at one chrome row.
+- **Two dogfoods + a simulation detour.** `doc-stats` (onEditor + a plugin-owned stats map + a
+  global command + per-instance options) is the context-spine validator; `toc` is the document-prop
+  validator; the simulation gained a global-command detour, so the corruption oracle now watches the
+  new dispatch path.
+
 ### 0.9.20 — Plugin-platform hardening: the evaluation program, pulled forward
 
 A full platform evaluation (two audits: API/contract; every reference plugin read as a

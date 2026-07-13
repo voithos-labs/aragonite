@@ -531,7 +531,14 @@ Everything above is reachable by a plugin without touching an editor internal. T
 | Inline syntax + widgets | A trigger character, a recognizer, and an atomic widget with its own editing policy (reveal-to-edit, or select-then-delete).                                                                                                                                                                                                  |
 | Directives              | The shared `:::name` grammar — one opener owns the whole fence family and dispatches by name, so N plugins never collide on opener priority. Three tiers (container, leaf, inline text); an unregistered name still round-trips byte-for-byte. Off by default: `activateDirectives()` turns it on. See `guide/directives.md`. |
 
-Two further seams don't add a kind: **paste transforms** (a content-keyed, pre-parse rewrite of clipboard text) and **block commands** (a minted `(kind, name)` command a plugin binds in its keymap).
+Further seams don't add a kind:
+
+- **Paste transforms** — a content-keyed, pre-parse rewrite of clipboard text.
+- **Block commands** — a minted `(kind, name)` command a plugin binds in its keymap; its context carries the dispatching instance's `EditorContext` (`BlockCommandContext.editor`) for document/events/options reads.
+- **Global commands** — `registerGlobalCommand` mints a process-wide command, chord-bindable in the plugin-global tier (resolves last), run against the same `EditorContext`.
+- **Per-instance context** — `setup(ctx)` → `ctx.onEditor(cb)` hands each `<Editor>` an `EditorContext`: instance identity, a live document getter, a subscribe-only events view, and typed options. The seam for derived state and edit reaction, so no plugin-state API is needed.
+- **The root document in a component** — every block component receives it read-only at any depth (`BlockComponentProps.document`), so a block can read structure above its own node.
+- **Height-oracle estimate** — a kind declares an optional O(1) `estimateHeight` the windowing model consults before its built-in default.
 
 The rule that keeps all of this honest is the one from § 1. A plugin kind that reconstructs its bytes from its parsed structure instead of slicing them out of `raw` will round-trip _almost_ correctly, and you will find out which documents it corrupts later, from a user.
 
