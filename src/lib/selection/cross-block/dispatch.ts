@@ -14,13 +14,14 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
+import type { CommandErrorSink } from '../../schema/block-commands';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
@@ -47,6 +48,11 @@ export interface CrossBlockDispatchContext {
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
+	// Threaded so a post-delete command dispatch reaches a plugin-global handler and
+	// contains its throw — required fields (undefinable value) so a new cross-block
+	// context constructor can't silently skip the thread (sibling-path parity).
+	pluginEditor: PluginEditorLookup | undefined;
+	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 
