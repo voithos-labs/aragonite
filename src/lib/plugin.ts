@@ -89,6 +89,9 @@ export type { KeyBinding } from './schema/keybindings';
 export { registerBlockCommand } from './schema/block-commands';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
+// registerGlobalCommand mints a process-wide command run against the dispatching
+// instance's EditorContext, optionally bound to a chord in the plugin-global tier.
+export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers ────────────────────────────────────────────────
 // The recognizer/serializer halves of an opener: parse a body to a Document,

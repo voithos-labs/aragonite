@@ -114,17 +114,20 @@ export function createEditorEvents(): EditorEvents {
 // ── Command-error routing ──────────────────────────────────────────────────
 
 /**
- * Route a contained block-command throw to the `error` channel as an
- * `origin: 'command'` event, attributing the block kind, command id, and — when
- * the kind's declaring plugin was recorded — its owner. The single place the
+ * Route a contained command throw to the `error` channel as an `origin: 'command'`
+ * event, attributing the command id and its owning plugin. The single place the
  * dispatch seam's `CommandErrorSink` reaches the editor's event surface; no-ops
  * when no events surface is present (a mount without the context). Kept here, not
  * in the schema dispatch layer, so the attribution + emit live with the shell that
  * owns the channel.
+ *
+ * Attribution: a global command reports its own `plugin` and carries no kind, so
+ * that owner wins; a block command reports its `kind`, and the owner is resolved
+ * by kind lookup. The direct `plugin` therefore never gets clobbered by a lookup.
  */
 export function emitCommandError(
 	events: EditorEvents | undefined,
-	report: { kind: AnyBlockKind; command: string; error: unknown }
+	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }
 ): void {
 	events?.emit('error', {
 		origin: 'command',
@@ -132,7 +135,8 @@ export function emitCommandError(
 		context: {
 			kind: report.kind,
 			command: report.command,
-			plugin: pluginKindOwner(report.kind) ?? undefined
+			plugin:
+				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
 		}
 	});
 }
