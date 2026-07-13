@@ -21,7 +21,7 @@ const OPEN_TAG_AT_POS =
 /** Close tag: `</name>` with optional trailing whitespace before `>`. */
 const CLOSE_TAG_AT_POS = /^<\/[A-Za-z][A-Za-z0-9-]*\s*>/;
 
-/** Try to match a single §6.10 HTML form at position `pos` in `raw`, bounded
+/** Try to match a single §6.6 HTML form at position `pos` in `raw`, bounded
  *  by `end`. Returns the matched form kind and length, or null if no form
  *  matches at that position. Position must point at `<`. */
 export function matchHtmlFormAt(

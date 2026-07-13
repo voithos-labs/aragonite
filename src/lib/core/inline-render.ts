@@ -270,10 +270,9 @@ export function renderInlineNodes(
 			}
 
 			default: {
-				// Registered plugin widget kinds (e.g. math) render via the registry —
-				// a component kind through the injected portal builder, a buildWidget
-				// kind synchronously; anything still unrecognized falls back to its raw
-				// source, mirroring the unknown-block fallback so every byte round-trips.
+				// Registered plugin widget kinds render through the registry; anything
+				// still unrecognized falls back to its raw source, mirroring the
+				// unknown-block fallback so every byte round-trips.
 				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
 				if (widget) {
 					frag.appendChild(widget);

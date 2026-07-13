@@ -1,5 +1,5 @@
 /**
- * CommonMark §6.2 entity and numeric character references. Three forms —
+ * CommonMark §2.5 entity and numeric character references. Three forms —
  * named (`&copy;`), decimal (`&#NNN;`), hex (`&#xNNNN;` or `&#XNNNN;`).
  *
  * Per spec, code points that are zero, exceed 0x10FFFF, or fall in the

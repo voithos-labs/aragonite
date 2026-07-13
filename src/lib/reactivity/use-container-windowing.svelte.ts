@@ -36,7 +36,7 @@ export interface ContainerWindowingOpts {
 
 /**
  * One windowing wiring unit per BlockList-bearing OR direct-each container scope.
- * Reads the four VR contexts, builds `createListWindowing` with the shared
+ * Reads the windowing contexts, builds `createListWindowing` with the shared
  * constants, and provides the subtotal sink (+ the leaf channel for hosted
  * children). Call it synchronously during component init. Returns the handle the
  * component passes to its sliced render and to `createContainerBlockComponent`.

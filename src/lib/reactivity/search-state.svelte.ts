@@ -55,7 +55,7 @@ export function createSearchState(deps: SearchDeps) {
 		}
 		error = null;
 		matches = scanDocument(deps.getDoc(), r.matcher);
-		if (activeIndex >= matches.length) activeIndex = 0; // clamp when the set shrank
+		if (activeIndex >= matches.length) activeIndex = 0;
 	}
 
 	async function revealActive(): Promise<void> {
@@ -159,9 +159,9 @@ export function createSearchState(deps: SearchDeps) {
  *  omits. Internal components type the search context with this. */
 export type InternalSearchState = ReturnType<typeof createSearchState>;
 
-/** Public controller surface — what `editor.getSearch()` exposes. Internal-only
- *  members (`rescan`, `revealActive`) are deliberately omitted: adding a public
- *  member later is non-breaking, removing one is breaking, so keep this minimal. */
+/** Public controller surface — what `editor.getSearch()` exposes. The runtime's
+ *  internal-only seams are deliberately omitted: adding a public member later is
+ *  non-breaking, removing one is breaking, so keep this minimal. */
 export interface SearchState {
 	readonly isOpen: boolean;
 	readonly query: string;

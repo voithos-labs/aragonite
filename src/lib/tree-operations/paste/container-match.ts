@@ -245,9 +245,10 @@ async function applyContainerMatchingMerge(
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	// findContainerMatchingUnwrap's hasSingleParagraphChild guard ensures this,
-	// but a future refactor that updates one guard but not the other would
-	// crash here — fail loudly instead of NPE-ing mid-commit.
+	// findContainerMatchingUnwrap's hasSingleParagraphChild guard ensures this;
+	// the bail keeps a refactor that updates one guard but not the other from
+	// NPE-ing mid-commit — it fires before commitMultiScope, so the paste is a
+	// clean no-op rather than a half-applied mutation.
 	const lastLeaf = lastItem.children?.[0];
 	if (!lastLeaf) return;
 	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';

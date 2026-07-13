@@ -1,10 +1,10 @@
 /**
  * Deletion ceremony shared by every rangeDelete branch (generic, chrome,
  * table): covered paths are spliced identity-gated in reverse doc order,
- * cascading empty-ancestor cleanup per delete. The wall branches additionally
- * reduce covered paths to subtree roots so a container dies as ONE splice
- * with children intact — a commit scope or undo entry holding the detached
- * node stays invariant-clean.
+ * cascading empty-ancestor cleanup per delete. The wall branches (chrome, table)
+ * additionally reduce covered paths to subtree roots so a container dies as ONE
+ * splice with children intact — a commit scope or undo entry holding the
+ * detached node stays invariant-clean.
  */
 
 import type { Document } from '../core/nodes';

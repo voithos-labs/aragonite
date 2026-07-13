@@ -91,7 +91,7 @@ describe('editable-leaf command context', () => {
 		expect(without.hooks).toBeUndefined();
 	});
 
-	it('reads deps.node live so a node swap is observed (Design Rule 5)', () => {
+	it('reads deps.node live so a node swap is observed (getters, never values)', () => {
 		let node = leafNode();
 		const build = () =>
 			buildLeafCommandContext(

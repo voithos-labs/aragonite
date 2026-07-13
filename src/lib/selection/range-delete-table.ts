@@ -397,10 +397,10 @@ function deleteFromTableIntoProse(
 	rebuildDeletionAncestries(doc, plan.deletionPaths, sharing);
 	rebuildChromeAncestry(plan, sharing);
 
-	// Spec § Cross-block delete Case 2: when the table is fully consumed, the
-	// caret lands at the start of the surviving tail — never the deleted table;
-	// otherwise in the table's surviving anchor cell. With the tail consumed
-	// too, fall to the nearest survivor.
+	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: when the
+	// table is fully consumed, the caret lands at the start of the surviving tail
+	// — never the deleted table; otherwise in the table's surviving anchor cell.
+	// With the tail consumed too, fall to the nearest survivor.
 	const collapsedCaret: SelectionPoint =
 		tableResult === 'tableEmpty'
 			? tailPath

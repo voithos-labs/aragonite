@@ -119,7 +119,7 @@ describe('plugin container kind-command target', () => {
 		expect(handler.mock.calls[0][0].hooks).toBeUndefined();
 	});
 
-	it('reads deps.node live so a node swap is observed, never snapshotted (Design Rule 5)', () => {
+	it('reads deps.node live so a node swap is observed, never snapshotted (getters, never values)', () => {
 		let node = noteNode();
 		const target = buildContainerKindTarget(
 			{

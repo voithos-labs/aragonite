@@ -756,7 +756,6 @@
 		width: max-content;
 		max-width: 100%;
 		overflow-x: auto;
-		/* Modern standard — Edge/Chrome 121+ and Firefox honor these. */
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
 	}
@@ -786,7 +785,7 @@
 	.table-reorder-line-vertical {
 		width: 2px;
 	}
-	/* Webkit fallback for older Chromium. */
+	/* Fallback for Chromium versions that don't honor `scrollbar-width`. */
 	.table-block::-webkit-scrollbar {
 		height: 6px;
 	}

@@ -58,11 +58,12 @@ import {
 } from '../nested/nested-actions';
 
 /**
- * Reactive inputs the host component feeds in as getters (Design Rule 5): each is
- * re-read live so a parent structural op or undo replacement is observed, never
- * snapshotted. `getBoxEl` returns the component's chrome box — the element whose
- * direct `.block-list` child the windowing lookups walk (`:scope > .block-list`,
- * so chrome siblings beside the list are fine; it need not be the sole child).
+ * Reactive inputs the host component feeds in as getters, never values (see
+ * `docs/contributing/culture.md`): each is re-read live so a parent structural op or
+ * undo replacement is observed, never snapshotted. `getBoxEl` returns the component's
+ * chrome box — the element whose direct `.block-list` child the windowing lookups
+ * walk (`:scope > .block-list`, so chrome siblings beside the list are fine; it need
+ * not be the sole child).
  */
 export interface ContainerBlockDeps {
 	get node(): CstNode;
@@ -77,7 +78,7 @@ export interface ContainerBlockDeps {
 	 * while it holds focus, and the factory keydown gains the ThematicBreak-style
 	 * whole-block affordances (focus-then-delete, Enter-below, arrow traversal,
 	 * Alt-arrow reorder). The kind must also declare `blockFocus: 'whole-block'`.
-	 * Read live (Design Rule 5). Supply a surface for EVERY steady state (error,
+	 * Read live, never snapshotted. Supply a surface for EVERY steady state (error,
 	 * loading, static fallback included) — a null degrades to focusing the box
 	 * element with a dev warning, so the block stays keyboard-reachable rather
 	 * than a caret trap; only a plugin editable holding focus keeps a null null.
@@ -95,9 +96,9 @@ export interface ContainerBlockDeps {
 	/**
 	 * The mounted component's view-state hooks, handed to a minted block command as
 	 * `ctx.hooks` — so a command opens the plugin's edit mode or focus overlay
-	 * without a node-keyed side map. Read live at dispatch (Design Rule 5): return a
-	 * getter over the component's own handlers, never a captured value. The platform
-	 * treats it as `unknown`; the plugin casts it to its own type.
+	 * without a node-keyed side map. Read live at dispatch: return a getter over the
+	 * component's own handlers, never a captured value. The platform treats it as
+	 * `unknown`; the plugin casts it to its own type.
 	 */
 	commandHooks?: () => unknown;
 }
@@ -236,7 +237,7 @@ export function gateMoveFocusOnCollapse(
  * chord resolves only through a registered command, whose context routes
  * `updateMetadata` back to this container's own metadata commit and carries the
  * component's `commandHooks`. `kind`, the context `node`, and `hooks` are read live
- * off `deps`, never snapshotted (Design Rule 5).
+ * off `deps`, never snapshotted — getters, never values.
  */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'node' | 'commandHooks'>,
@@ -288,7 +289,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	// Compose the collapse gates onto the blockquote exit override: a collapsed
-	// container's chrome Enter must not mint an invisible body (M3, §4), and its
+	// container's chrome Enter must not mint an invisible body (M3), and its
 	// chrome ArrowDown/ArrowRight must exit past the unmounted body (I-1). All
 	// override the same `defaults`, so the blockquote's `splitBlock` and the two
 	// gates coexist. For a non-collapsing container the gates are inert.

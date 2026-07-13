@@ -1,10 +1,3 @@
-/**
- * Parent-level replacement builder for Enter on an empty-first-paragraph list
- * item: splits the surrounding list, lifts the exiting item as a paragraph,
- * and re-merges matching-type nested sub-list items into the surviving halves
- * while preserving the ordered-marker sequence across the gap.
- */
-
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';

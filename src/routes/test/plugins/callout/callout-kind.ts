@@ -1,7 +1,7 @@
 /**
  * `:::note` fenced-div callout — a plugin container kind built on the public
- * registration seams, now dispatched through the `:::name` directive primitive
- * instead of a hand-rolled opener. Dev/e2e harness only.
+ * registration seams, dispatched through the shared `:::name` directive
+ * primitive rather than an opener of its own. Dev/e2e harness only.
  *
  * `registerCalloutKind` registers `note`/`warning` as directive names on the
  * shared `:::` opener; `:::note`/`:::warning` resolve here, any other name falls

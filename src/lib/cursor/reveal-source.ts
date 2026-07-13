@@ -4,12 +4,14 @@
  * offset translation has one home (`cursor/widget-offset.ts`). Two consumers
  * share this caret core over two different swaps:
  *
- *   INLINE math — a [data-inline-widget] island inside a contenteditable
- *     paragraph. Its swap is an imperative span↔text-node replace; the container
- *     is the always-editable paragraph, which stays focused across the swap.
- *   BLOCK math — a render-primary display block. Its swap is a reactive render↔
- *     source `$state` toggle; the source contenteditable is MOUNTED on reveal and
- *     UNMOUNTED on commit, so `container` is null while rendered.
+ *   INLINE — a reveal-capable [data-inline-widget] island inside a
+ *     contenteditable paragraph (inline math, directive text). Its swap is an
+ *     imperative span↔text-node replace; the container is the always-editable
+ *     paragraph, which stays focused across the swap.
+ *   BLOCK — a render-primary leaf block (block math, a rendered directive). Its
+ *     swap is a reactive render↔source `$state` toggle; the source contenteditable
+ *     is MOUNTED on reveal and UNMOUNTED on commit, so `container` is null while
+ *     rendered.
  *
  * The swap itself is injected (`showSource`/`showRendered`) and the revealed
  * state is owned by the consumer (`isRevealed`), so this primitive stays swap-
@@ -48,11 +50,11 @@
  * POST-RENDER CARET. reveal/commit flip the view, then `await tick()` so the caret
  * lands after the swap settles — the only permitted sequencing (no setTimeout/rAF).
  * The inline swap is a synchronous DOM replace; the tick is what lets a reactive
- * consumer's mount/re-render settle first (block math).
+ * consumer's mount/re-render settle first (the block case).
  *
  * PRECONDITION: `source.length === sourceEnd - sourceStart`. The source's raw
  * length equals its source-text length, so every raw offset OUTSIDE it is stable
- * across the swap and the walk stays consistent (math never mutates raw on reveal).
+ * across the swap and the walk stays consistent (revealing never mutates raw).
  */
 
 import { tick } from 'svelte';
@@ -60,7 +62,7 @@ import { createRangeAtRawOffsets } from './widget-offset';
 
 export interface SourceRevealDeps {
 	/** The block's contenteditable host — where the offset walk runs. Null while a
-	 *  reactive consumer has the source unmounted (block math when rendered). */
+	 *  reactive consumer has the source unmounted (the block case, while rendered). */
 	get container(): HTMLElement | null;
 	/** Source's raw byte range [start, end) in the block source. */
 	get sourceStart(): number;

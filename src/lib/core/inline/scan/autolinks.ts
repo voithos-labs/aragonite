@@ -230,10 +230,9 @@ function scanRunForBareAutolinks(raw: string, start: number, end: number): Inlin
 // ── GFM bare/www/email matchers ─────────────────────────────────────────────
 
 /**
- * Case-insensitive ASCII prefix check without the old slice+toLowerCase
- * allocation; `lit` is lowercase. Case folds on letters only — `| 0x20`
- * applied blindly would let control characters alias punctuation
- * (0x0E | 0x20 is `.`).
+ * Allocation-free case-insensitive ASCII prefix check; `lit` is lowercase.
+ * Case folds on letters only — a blind `| 0x20` would let control characters
+ * alias punctuation (0x0E | 0x20 is `.`).
  */
 function matchesCI(raw: string, pos: number, lit: string): boolean {
 	for (let i = 0; i < lit.length; i++) {
@@ -301,7 +300,6 @@ function matchBareEmailAutolink(
 	if (domainEnd >= regionEnd || raw[domainEnd] !== '.') return null;
 	const firstSegEnd = domainEnd;
 
-	// Walk additional `.<segment>` greedily.
 	while (domainEnd < regionEnd && raw[domainEnd] === '.') {
 		const segStart = domainEnd + 1;
 		let segEnd = segStart;

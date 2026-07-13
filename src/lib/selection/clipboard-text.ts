@@ -40,7 +40,7 @@ export function collectCrossBlockText(
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
 
-	// On a table, offsets index half-open cell ranges (spec § "Two encodings"),
+	// On a table, offsets index half-open cell ranges (see `SelectionPoint`),
 	// not character positions; the three table branches below route through
 	// emitTablePortion so the generic raw.slice paths don't return garbage.
 	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {

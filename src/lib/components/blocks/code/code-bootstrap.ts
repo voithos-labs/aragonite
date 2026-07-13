@@ -57,7 +57,8 @@ export function bootstrapCodeLanguages(): void {
 	registerPasteSurface(codePasteSurface);
 }
 
-/** Test-only: reset booted flag and undo the surface bootstrap registered, so a re-bootstrap doesn't conflict. */
+/** Test-only: reset the booted flag and unregister the paste surface, so a
+ *  re-bootstrap doesn't hit the register-once duplicate throw. */
 export function __resetBootForTests(): void {
 	booted = false;
 	__removePasteSurfaceForTests(codePasteSurface.kind);

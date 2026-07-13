@@ -223,10 +223,9 @@ function tableCellContentRange(node: CstNode): { start: number; end: number } {
 
 // ── Keymaps ───────────────────────────────────────────────────────────────
 
-// Shared by every kind TextEditableBlock renders — prose (paragraph/heading/
-// setextHeading) and the raw-editable fallback (indentedCode/htmlBlock/
-// linkReferenceDefinition/unrecognized) — so transformative chords behave
-// identically across them. The component's runCommand implements each command.
+// Shared by every kind TextEditableBlock renders — prose and the raw-editable
+// fallback alike — so transformative chords behave identically across them. The
+// component's runCommand implements each command.
 const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Shift+Enter', command: 'block.hardBreak' },

@@ -16,9 +16,24 @@ export type InlineSyntaxRecognizer = (raw: string, pos: number, end: number) => 
 
 const registry = new Map<string, InlineSyntaxRecognizer>();
 
+/**
+ * The characters `scanInline`'s switch claims before reaching its `default` arm.
+ * A recognizer registered on one of these would never be consulted — so reject it
+ * here, the only place that can see the collision. Registration is the seam; a
+ * silent no-op in a public API is the failure this exists to make impossible.
+ * Keep in step with the switch in `./index.ts`.
+ */
+const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']', '!', '<']);
+
 export function registerInlineSyntax(trigger: string, recognizer: InlineSyntaxRecognizer): void {
 	if (trigger.length !== 1) {
 		throw new Error('registerInlineSyntax: trigger must be a single character');
+	}
+	if (BUILTIN_TRIGGERS.has(trigger)) {
+		throw new Error(
+			`registerInlineSyntax: ${JSON.stringify(trigger)} is claimed by the built-in scanner, ` +
+				`which dispatches it before the plugin registry — the recognizer would never fire`
+		);
 	}
 	if (registry.has(trigger)) {
 		throw new Error(`registerInlineSyntax: "${trigger}" already registered`);

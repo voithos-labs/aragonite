@@ -80,7 +80,7 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 /**
  * Line-start offsets for every line the selection touches. A selection ending
  * at or before a line's terminating newline stays on that line; one ending at
- * the next line's start pulls that line in (tested behavior).
+ * the next line's start pulls that line in.
  */
 function collectLineStarts(text: string, selection: Selection): number[] {
 	const first = text.lastIndexOf('\n', selection.start - 1) + 1;

@@ -68,9 +68,8 @@
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			// Discard local edits so the unmount commit short-circuits via
-			// byte-equality. Esc is "cancel"; the existing behavior is to
-			// dismiss without persisting in-flight typing.
+			// Esc is "cancel": discard local edits so the unmount commit short-circuits
+			// on byte-equality rather than persisting in-flight typing.
 			url = fields.url;
 			alt = fields.alt;
 			titleInput = fields.title ?? '';

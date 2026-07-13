@@ -32,9 +32,9 @@ export interface LinkReferenceMap {
 }
 
 /**
- * Build a label→{url, title} map from all `linkReferenceDefinition` nodes in
- * the document tree. Walks recursively into container kinds (blockquote, list,
- * listItem). First-wins on duplicate normalized labels (CommonMark §4.7).
+ * Build a label→{url, title} map from every `linkReferenceDefinition` node in the
+ * document tree — nested inside any container included. First-wins on duplicate
+ * normalized labels (CommonMark §4.7).
  */
 export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 	const entries = new Map<string, ResolvedReference>();
