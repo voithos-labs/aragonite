@@ -1,39 +1,39 @@
-// Assemble the public docs pack — the exact doc set a third-party plugin author
-// receives. Inclusion criterion: ships publicly at 1.0 as authoring documentation.
-import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+// The public docs pack — the exact doc set a third-party plugin author receives.
+//
+//   node scripts/build-docs-pack.mjs             verify the pack is link-closed
+//   node scripts/build-docs-pack.mjs <dir>       verify, then write it to <dir>
+//
+// The set is docs/guide/ itself, not a manifest: a doc is authoring documentation
+// or it isn't, and the folder is where that call is already recorded. A manifest
+// would be a second place to forget.
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-// README stays out (user call): it serves repo navigation, and npm auto-includes
-// it in the tarball anyway — the guides are the pack's entry points.
-const MANIFEST = [
-	'docs/editor/consumer-guide.md',
-	'docs/editor/plugin-guide.md',
-	'docs/editor/directives.md',
-	'docs/editor/gfm-reference.md'
-];
+const SOURCE_DIR = 'docs/guide';
 
-const target = process.argv[2];
-if (!target) {
-	console.error('usage: node scripts/build-docs-pack.mjs <target-dir>');
+const packNames = readdirSync(SOURCE_DIR)
+	.filter((name) => name.endsWith('.md'))
+	.sort();
+if (packNames.length === 0) {
+	console.error(`docs-pack: no .md files in ${SOURCE_DIR}`);
 	process.exit(1);
 }
-rmSync(target, { recursive: true, force: true });
-mkdirSync(target, { recursive: true });
-for (const doc of MANIFEST) copyFileSync(doc, join(target, basename(doc)));
 
-// The pack is flat, so an .md link resolves only if it names a packed file's
-// basename — any other .md target is a dead pointer the wall-token grep cannot
-// see (its path may contain none of the wall tokens). Deliberately regex-level:
-// a fenced-code example link counts as a violation, which keeps the gate
-// conservative and dependency-free.
-const packNames = new Set(MANIFEST.map((doc) => basename(doc)));
+// The pack is flat, so an .md link resolves only if it names another packed file.
+// Any other .md target is a dead pointer once the doc leaves the repo — a reader
+// with the pack alone cannot follow it. Reference an unpacked doc by naming its
+// path as inline code instead. Deliberately regex-level: a link inside a fenced
+// example counts as a violation, which keeps the gate conservative and
+// dependency-free.
 const deadPointers = [];
 for (const name of packNames) {
-	const text = readFileSync(join(target, name), 'utf8');
+	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
 	for (const [, linkTarget] of text.matchAll(/\]\(([^)]+)\)/g)) {
-		const path = linkTarget.split(/[#\s]/)[0].replace(/^\.\//, '');
-		if (!path.endsWith('.md') || path.includes('://')) continue;
-		if (!packNames.has(path)) deadPointers.push(`${name}: ](${linkTarget})`);
+		const target = linkTarget.split(/[#\s]/)[0].replace(/^\.\//, '');
+		if (!target.endsWith('.md') || target.includes('://')) continue;
+		if (!packNames.includes(basename(target)) || target !== basename(target)) {
+			deadPointers.push(`${name}: ](${linkTarget})`);
+		}
 	}
 }
 if (deadPointers.length > 0) {
@@ -41,4 +41,14 @@ if (deadPointers.length > 0) {
 	for (const hit of deadPointers) console.error(`  ${hit}`);
 	process.exit(1);
 }
-console.log(`docs-pack: ${MANIFEST.length} docs → ${target}`);
+
+const target = process.argv[2];
+if (!target) {
+	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
+	process.exit(0);
+}
+
+rmSync(target, { recursive: true, force: true });
+mkdirSync(target, { recursive: true });
+for (const name of packNames) copyFileSync(join(SOURCE_DIR, name), join(target, name));
+console.log(`docs-pack: ${packNames.length} docs → ${target}`);

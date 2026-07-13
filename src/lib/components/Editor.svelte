@@ -211,7 +211,7 @@
 		return () => dispose();
 	});
 
-	// `source !== lastSource` guard is load-bearing — see `docs/design/editor/editor.md` § Reactive State Plumbing.
+	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive State Plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {

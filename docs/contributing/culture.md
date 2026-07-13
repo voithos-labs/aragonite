@@ -1,16 +1,23 @@
 # Engineering Culture
 
-How aragonite is built — the rules that are not derivable from reading the code, each one paid
-for by a real incident. For agents and new contributors alike: read once before your first
-edit, and again before your first structural change. Where a mechanism is specified elsewhere,
-this doc carries the rule and the scar, and points at the spec.
+## What this is
+
+The rules you can't get from reading the code. Every one of them was paid for by a real bug.
+
+aragonite holds a mutable tree that is simultaneously the undo history and the source of truth
+for the DOM. That combination goes wrong in a small number of specific ways, and this file is
+the list of them. Skim it before your first edit; read it properly before your first structural
+change.
+
+Where a mechanism is specified elsewhere, this doc carries the rule and the scar, and points at
+the spec.
 
 ## The enforcement ladder
 
 **Unrepresentable > guarded > documented.** Every load-bearing contract climbs as high as it
 can: prefer types and seams that make the violation inexpressible; where types can't reach, a
 dev-mode guard that fails at the gate (`invariants/`, catalogued in
-`docs/design/editor/invariants.md`); prose only for what neither can hold. When you touch a
+`docs/design/invariants.md`); prose only for what neither can hold. When you touch a
 convention, ask whether it can climb a rung — the 2026-07 audit's most durable fixes were
 exactly such promotions (a throwing tree-op became a nullable return; a comment-stated path
 convention became factory-minted arguments plus a guard).
@@ -51,7 +58,11 @@ Each rule names its incident. These are the ways this codebase actually gets cor
   every offset bug in the audit traced to arithmetic done outside the shared walk.
 - **Registries are code, not state.** Register-once, throw-on-duplicate, no unregister
   (`customElements` model). Test isolation goes through the reset affordances; dev HMR of a
-  registration module needs a page reload.
+  registration module needs a page reload. This reaches the public API: a plugin author's suite
+  can't re-install between cases without a sanctioned seam, so `aragonite/testing` exports
+  `resetPluginPlatformForTests()` — and every new registration reachable from the public plugin
+  surface must wire its reset into it, or the next author hits the dup-throw on their second
+  `beforeEach`.
 
 ## The bug shape to fear: sibling-path parity
 
@@ -91,7 +102,7 @@ kill it:
   oracle; its coverage must track the product surface (the plugin surface went a full minor
   version unobserved by it).
 - Requirements stay in lockstep with specs; e2e simulates real user actions — see
-  `docs/testing.md` for the mechanics.
+  `docs/contributing/testing.md` for the mechanics.
 
 ## Working the gates
 
@@ -109,6 +120,3 @@ kill it:
   or a why-deferred; **remove entries when shipped** (the file's own rule).
 - Roadmap is forward-only; changelog is past-only; a shipping milestone moves between them in
   the same commit.
-- Session/process artifacts (plans, ledgers, review scratch) live in gitignored
-  `docs/superpowers/` and `.superpowers/` — the durable record is the tracked docs plus git
-  history, never the scratch.

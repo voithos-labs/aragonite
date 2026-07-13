@@ -2,11 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Drift guard: plugin-guide.md § 2 is the hand-written catalog of the
-// `aragonite/plugin` surface. Every value and type the barrel exports must appear
-// there, so a new export can't ship undocumented. Names are matched in the guide's
-// backtick form (its table convention), so an incidental prose substring can't
-// stand in for a real catalog entry.
+// Drift guard: the plugin guide's API-reference section is the hand-written catalog
+// of the `aragonite/plugin` surface. Every value and type the barrel exports must
+// appear there, so a new export can't ship undocumented. Names are matched in the
+// guide's backtick form (its table convention), so an incidental prose substring
+// can't stand in for a real catalog entry.
+//
+// The section is keyed by its heading, not its position, so the guide's prose can be
+// reordered without the catalog escaping the guard — but the heading itself is now
+// load-bearing: rename it here and in the guide together.
+const CATALOG_HEADING = '\n## API reference';
 
 function pluginExports(): string[] {
 	const src = readFileSync(path.resolve('src/lib/plugin.ts'), 'utf8')
@@ -34,24 +39,25 @@ function pluginExports(): string[] {
 	return [...names];
 }
 
-function guideSection2(): string {
-	const guide = readFileSync(path.resolve('docs/editor/plugin-guide.md'), 'utf8');
-	return guide.split('\n## 2. ')[1]?.split('\n## ')[0] ?? '';
+function catalogSection(): string {
+	const guide = readFileSync(path.resolve('docs/guide/plugin-guide.md'), 'utf8');
+	return guide.split(CATALOG_HEADING)[1]?.split('\n## ')[0] ?? '';
 }
 
 const exportNames = pluginExports();
-const section = guideSection2();
+const section = catalogSection();
 const cataloged = (name: string, text = section) => text.includes(`\`${name}\``);
 
-describe('plugin-guide § 2 catalogs the whole aragonite/plugin surface', () => {
-	it('parses a non-trivial export set, resolving re-export aliases to the published name', () => {
+describe('plugin-guide § API reference catalogs the whole aragonite/plugin surface', () => {
+	it('finds the catalog section, and a non-trivial export set with aliases resolved', () => {
+		expect(section, `plugin-guide.md has no "${CATALOG_HEADING.trim()}" heading`).not.toBe('');
 		expect(exportNames.length).toBeGreaterThan(40);
 		expect(exportNames).toContain('serializeChildren');
 		expect(exportNames).toContain('BlockList');
 		expect(exportNames).not.toContain('concatChildren');
 	});
 
-	it('lists every export verbatim in the § 2 tables', () => {
+	it('lists every export verbatim in the catalog tables', () => {
 		expect(exportNames.filter((name) => !cataloged(name))).toEqual([]);
 	});
 
