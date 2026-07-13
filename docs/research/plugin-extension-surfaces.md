@@ -1,0 +1,108 @@
+# Plugin Extension Surfaces
+
+What a plugin system has to expose, what the field converges on, and where aragonite stands.
+
+This is **evidence**, not a plan and not a contract. The plan is `docs/roadmap.md`; the shapes that freeze at 1.0 are `docs/design/plugin-contract.md`. This doc is what those two rest on.
+
+Surveyed: ProseMirror, TipTap/Milkdown, BlockNote, Lexical, CodeMirror 6, Slate, Quill/Parchment, CKEditor 5, Editor.js, remark-directive, VS Code, Obsidian. Demand evidence from Obsidian's most-installed community plugins.
+
+## The finding
+
+**Every mature editor plugin ecosystem rests on two primitives:**
+
+1. **Decorations** — annotate content the plugin does _not_ own. CodeMirror says it outright: "Decorations are the mechanism through which extensions can influence what the document looks like."
+2. **Plugin-local state** — a slot the plugin owns, mapped forward through document changes (`StateField`, `PluginKey`, `addStorage`).
+
+ProseMirror's canonical guidance is literally these two composed: put the decoration set in your plugin's state and map it forward. TipTap's `addProseMirrorPlugins` escape hatch exists _specifically_ because decorations and plugin state cannot be expressed in its declarative surface.
+
+**aragonite exposes neither.** It exposes the third path — _own a kind and render it_ — which it does better than the field: plugin content is genuinely editable and byte-lossless, where Obsidian's codeblock plugins render read-only HTML into a preview. That is the moat, and it is real.
+
+But the inversion is total. aragonite's model is "CST is truth, a plugin owns a kind." The decoration model is "overlay view-only state onto ranges the plugin doesn't own." So everything that owns no syntax has no home: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights.
+
+## The convergent taxonomy
+
+What "add a plugin" means, across the field. Systems differ in ergonomics, not in content.
+
+| Category               | ProseMirror / TipTap       | Lexical                       | CodeMirror 6    | Obsidian         | aragonite                     |
+| ---------------------- | -------------------------- | ----------------------------- | --------------- | ---------------- | ----------------------------- |
+| **Type / schema**      | `NodeSpec`, `Node.create`  | `ElementNode`/`DecoratorNode` | —               | —                | descriptor + kind mint ✅     |
+| **Recognizer**         | `parseDOM`, input rules    | `ElementTransformer`          | Lezer grammar   | code fence       | block opener, directive ✅    |
+| **Serializer**         | `toDOM`, `toMarkdown`      | `.export()`                   | (text is truth) | (text is truth)  | `rebuildRaw` ✅ byte-lossless |
+| **View**               | `NodeView`                 | `createDOM`                   | `WidgetType`    | `toDOM`          | Svelte component ✅           |
+| **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | per-kind only ⚠️              |
+| **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | **none ❌**                   |
+| **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | per-_node_ metadata only ⚠️   |
+| **Clipboard / paste**  | `addPasteRules`            | —                             | —               | —                | content-keyed transform ✅    |
+
+Two structural lessons the field agrees on, both of which aragonite already honors:
+
+- **A cohesive per-kind unit beats fragmentation.** ProseMirror's three separate surfaces (schema + plugin array + nodeViews map) is the anti-pattern; TipTap exists to collapse it back into one unit per kind. aragonite is already on the right side — do not trade this away.
+- **Register-once, fail-loud, namespaced.** Every system that used silent last-writer-wins for its declarative layer grew a chronic collision tax. aragonite throws on duplicate registration.
+
+One structural advantage worth naming: **input rules come free.** ProseMirror and TipTap need a whole subsystem so that typing syntax produces structure. aragonite parses continuously over raw Markdown, so typing the syntax _is_ the input rule.
+
+## What authors actually build
+
+Obsidian's most-installed plugins, classified by _mechanism_ rather than feature. State the denominator first: roughly half never touch the editing surface at all.
+
+| Layer                        | Examples                                              | Whose problem   |
+| ---------------------------- | ----------------------------------------------------- | --------------- |
+| **App shell**                | sync, git, calendar, quick-capture, theme settings    | limestone's     |
+| **Alternate view of a file** | Kanban, Excalidraw                                    | limestone's     |
+| **Editing surface**          | Dataview, Tasks, Templater, Outliner, Advanced Tables | **aragonite's** |
+
+Of those that touch the editing surface, by share of that set:
+
+| Mechanism                                                           | Share                                                  | aragonite                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| **Document mutation** (insert at caret, reformat a region, rewrite) | over half                                              | **gap** — commands write metadata on their own node only |
+| **Decorations**                                                     | ~half                                                  | **gap**                                                  |
+| **A custom block kind** from custom syntax                          | ~a third                                               | **have — best in class**                                 |
+| **Document lifecycle** (on load / change / save)                    | ~a third                                               | partial — events are consumer-only                       |
+| **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **gap** — a block component cannot see its own document  |
+| **Context-sensitive keymap** (Tab means "next cell" inside a table) | smaller share, but the two most-loved editing plugins  | **have**                                                 |
+| **Trigger-character suggest** (`/`, `@`, `[[`)                      | table stakes                                           | **gap**                                                  |
+
+The custom-block-kind row is the one to sit with: it is the mechanism aragonite is _strongest_ at, and it is third. Being excellent at a third of the demand is not a platform.
+
+## Editable custom content — three archetypes
+
+Every editor answers "custom content that is itself editable" one of three ways. aragonite's answer is forced by CST-truth plus byte-lossless round-trip.
+
+| Archetype                                                                                              | Who                 | Verdict for aragonite                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **contentDOM / NodeView** — editor owns an editable hole whose children are real nodes in the one tree | ProseMirror, TipTap | **Adopted.** The nested `BlockList` inside a container factory _is_ the contentDOM. The crown jewel.                                    |
+| **Nested editor** — the editable interior is a separate editor state serialized as an opaque blob      | Lexical, CM6        | **Rejected permanently.** A parallel source of truth that cannot round-trip byte-for-byte. The single most important thing not to copy. |
+| **Decorations** — view-only overlays; "editing" reveals hidden source                                  | CM6, Obsidian       | **Presentational only.** Must never enter the CST. Not yet exposed — the gap above.                                                     |
+
+A validated result worth keeping: modelling editable container chrome (a callout title, a `<details>` summary) as a **reserved child-0 leaf inside the container's own child list** gives native cross-block selection into that chrome _for free_ — the caret, selection, and undo all reach it with no changes to the core selection layer. The alternative (chrome as metadata behind a bounded field surface) would have made click-type-blur a permanent ceiling. This is why the chrome-leaf tier is shaped the way it is.
+
+## Freeze exposure
+
+The question that decides what must be built _before_ 1.0 rather than after: would closing each gap later be **additive** (a new export, a new optional field, a new registry) or **breaking** (a change to a shape a plugin already binds to)?
+
+**Every gap above is additive but one.** New registries, new optional descriptor fields, and new fields on payloads a plugin _receives_ break no bound shape. **The 1.0 freeze is safe.** It is not complete — and those are different claims, which is the whole point of stating this.
+
+The exception is **the shape of a command's context**. Today a command may only write metadata on its own focused node. If document mutation later arrives as a _different_ context object rather than as fields on the existing one, every handler signature already bound to it breaks. The field names must be decided before the freeze even if the implementation lands after it.
+
+Two shapes therefore want deciding rather than building:
+
+- **A command's context**, per above.
+- **A plugin's setup context.** `setup()` takes no arguments and runs once per _process_, so a plugin never receives an editor handle — which is why derived state, edit reaction, and per-instance configuration are all impossible today. Every future capability hangs off that object, so its existence (not its contents) is the thing to establish early. A global command's context should be the _same_ object, or the platform ships two.
+
+## The two plugin systems
+
+There will be two, and the boundary has to be stated or the app half reads as a hole in the editor half.
+
+| Layer                 | Owns                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **aragonite plugins** | The document and the editing surface: kinds, grammar, decorations, commands over the document, presentation |
+| **limestone plugins** | The app: ribbon, sidebar, status bar, settings tabs, modals, palette UI, the vault, sync                    |
+
+Obsidian conflates the two only because it _is_ the app. An editor library that grows a ribbon API has lost the plot. Vault-wide indexing is limestone's too — the editor supplies the raw material (an event stream and a parser), not the index.
+
+The line is not "editor = view." _Single-document_ derived state — a table of contents, footnote numbering, tasks in this note — is the editor's, because it is a function of the one document the editor owns.
+
+## Sources
+
+Obsidian plugin statistics and API (`registerEditorExtension`, `registerMarkdownPostProcessor`, `EditorSuggest`) · CodeMirror 6 system guide and decoration examples · ProseMirror guide (plugin state, decorations) · TipTap extension API · BlockNote `createBlockSpec` · Slate void nodes and `normalizeNode` · Quill/Parchment blot registry · CKEditor 5 schema · Editor.js block-tool API (`pasteConfig`, `conversionConfig`) · remark-directive / mdast-util-directive.
