@@ -2,20 +2,22 @@ import { describe, it, expect } from 'vitest';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
-	CONTAINER_PROFILES,
-	checkStripLocalIndexAddressing,
-	checkGridLocalIndexAddressing,
-	checkStripInnermostFirstAncestry,
-	reversedAncestryLeavesRootStale,
-	checkOneUndoPerMultiScope,
-	checkFocusBubbleTermination,
+	assertExemptionDocumented,
 	checkDeclarationSanity,
-	assertExemptionDocumented
-} from './container-conformance-kit';
+	checkFocusBubbleTermination,
+	checkGridLocalIndexAddressing,
+	checkInnermostFirstAncestry,
+	checkOneUndoPerMultiScope,
+	checkStripLocalIndexAddressing,
+	reversedAncestryLeavesRootStale
+} from '$lib/testing/container-conformance';
+import { CONTAINER_PROFILES } from './builtin-container-profiles';
 
-// Registry-derived: every kind whose descriptor declares it a container.
-// Built-ins only — `CstNode.kind` is `BlockKind`, so plugin kinds can't appear
-// in trees and the kit's parse-based fixtures can't exercise them.
+// Registry-derived: every kind whose descriptor declares it a container. Built-ins
+// only — a plugin container is not in this process's registry unless its suite
+// installed it, so it opts into the same kit explicitly through
+// `runContainerConformance` (`aragonite/testing`); see
+// `test/plugins/container-conformance-plugin.test.ts`.
 const registeredContainerKinds = getAllRegisteredKinds()
 	.filter(isBuiltinBlockKind)
 	.filter((k) => getBlockKindDescriptor(k).isContainer);
@@ -24,7 +26,6 @@ const registeredContainerKinds = getAllRegisteredKinds()
 // A registered built-in container with no profile FAILS here, so a new built-in
 // container kind can't slip through untested; a stale profile (no matching
 // registered kind) also fails, so the map can't silently drift from the registry.
-// Plugin containers are outside this net — see the built-in filter above.
 
 describe('G4.3 container conformance — registry coverage', () => {
 	it('every registered container kind has a conformance profile', () => {
@@ -45,9 +46,8 @@ describe('G4.3 container conformance — registry coverage', () => {
 });
 
 // ── Parametrized per-kind kit ───────────────────────────────────────────────────
-// Coverage matrix (asserted / exempt / boundary) lives in CONTAINER_PROFILES.
-// Grid containers (table/tableRow) differ structurally from strip containers and
-// carry documented boundaries, surfaced here as a passing reason assertion.
+// Coverage matrix (assert / exempt / boundary) lives in CONTAINER_PROFILES. One
+// case per invariant, so a failure names the invariant that broke.
 
 describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) => {
 	const profile = CONTAINER_PROFILES[kind]!;
@@ -67,7 +67,7 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 			assertExemptionDocumented(profile.ancestry, `${kind} (b) ancestry`);
 			return;
 		}
-		checkStripInnermostFirstAncestry(kind, profile);
+		checkInnermostFirstAncestry(kind, profile);
 		// Non-vacuous: a reversed (outer-first) rebuild must leave the root stale.
 		expect(
 			reversedAncestryLeavesRootStale(profile),
@@ -88,7 +88,7 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 			assertExemptionDocumented(profile.focusBubble, `${kind} (d) focus-bubble`);
 			return;
 		}
-		await checkFocusBubbleTermination(kind);
+		await checkFocusBubbleTermination(kind, profile);
 	});
 
 	// Applies to every container kind — conditional internally on what the

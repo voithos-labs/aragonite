@@ -6,7 +6,7 @@ import type { EditEvent } from '$lib/editor-events';
 
 // ── A pending typing batch flushes as one input event before a structural commit ─
 
-describe('debounce flush on structural commit (B4)', () => {
+describe('debounce flush on structural commit', () => {
 	it('mid-batch structural commit emits one buffered op:input event before its own op event', async () => {
 		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);

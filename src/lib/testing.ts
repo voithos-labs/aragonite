@@ -1,15 +1,24 @@
 // The plugin-testing surface, published at the `aragonite/testing` subpath.
-// TEST PROCESSES ONLY — never import from production code. Its one export wipes
-// the process-global plugin registries so a plugin's test suite can re-install a
-// fresh copy per case; run in a real app it is corruption, so it throws unless a
-// test environment is detected (see the guard below).
+// TEST PROCESSES ONLY — never import from production code. Two seams:
 //
-// Why this exists: the platform is register-once / throw-on-duplicate / no
+//   1. `resetPluginPlatformForTests` — wipes the process-global plugin registries
+//      so a plugin's test suite can re-install a fresh copy per case; run in a
+//      real app it is corruption, so it throws unless a test environment is
+//      detected (see the guard below).
+//   2. The G4.3 container conformance kit — the harness a container author points
+//      at their own kind, re-exported from `testing/container-conformance.ts`.
+//
+// Why (1) exists: the platform is register-once / throw-on-duplicate / no
 // unregister ("Registries are code, not state" — docs/contributing/culture.md). In-repo suites
 // reach past `$lib` for a scatter of internal reset helpers; a third-party author
 // writing a normal Vitest suite has no sanctioned seam and hits the dup throw on
 // the second `beforeEach`. This barrel is that seam — the ONLY place the resets
 // are public, and deliberately off the `aragonite/plugin` authoring barrel.
+//
+// Nothing here may import a test runner: the kit runs INSIDE an author's own test
+// case and must not force a runner (or an unlisted dep) on a suite that reaches
+// for the reset alone. Failures surface as plain `Error`s, which every runner
+// reports.
 //
 // MAINTENANCE INVARIANT: every register-once registration reachable from the
 // public `aragonite/plugin` surface must have its reset wired into the aggregate
@@ -64,3 +73,18 @@ export function resetPluginPlatformForTests(): void {
 	__clearDeclaredPluginInlineKindsForTests();
 	__resetDirectiveRegistryForTests();
 }
+
+// ── Container conformance kit (G4.3) ─────────────────────────────────────────
+
+export {
+	runContainerConformance,
+	reversedAncestryLeavesRootStale
+} from './testing/container-conformance';
+export type {
+	ConformanceCell,
+	ConformanceCellReport,
+	ConformanceCoverage,
+	ContainerConformanceProfile,
+	ContainerConformanceReport,
+	LocalIndexFixture
+} from './testing/container-conformance';

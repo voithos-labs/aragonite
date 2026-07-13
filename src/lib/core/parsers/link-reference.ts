@@ -7,6 +7,7 @@
 
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
+import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
 
 export function parseLinkReferenceDefinition(
@@ -78,8 +79,6 @@ export function parseLinkReferenceDefinition(
 	};
 }
 
-const ESCAPABLE = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~');
-
 // CommonMark §4.7: brackets inside a label may be backslash-escaped. Walks one
 // line for `[label]:` honoring escapes. Multi-line labels and unescaped-`[`
 // rejection are out of scope (status quo of the line-oriented parser).
@@ -91,7 +90,7 @@ function matchLabelOpener(line: string): { label: string; afterColon: string } |
 	let j = labelStart;
 	while (j < line.length) {
 		const ch = line[j];
-		if (ch === '\\' && j + 1 < line.length && ESCAPABLE.has(line[j + 1])) {
+		if (ch === '\\' && j + 1 < line.length && ESCAPABLE_PUNCTUATION.has(line[j + 1])) {
 			j += 2;
 			continue;
 		}

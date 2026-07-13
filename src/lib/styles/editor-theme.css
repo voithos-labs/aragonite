@@ -98,7 +98,7 @@
 	   the reorder accent (not neutral grey) so the hue + lightness shift stays
 	   perceptible for low-contrast vision, while remaining a soft transient wash. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
-	--syntax-marker-dim: 0.4;
+	--syntax-marker-dim: 0.65;
 
 	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
 	   the window recompute and paint a bare spacer for one frame; the tint reads as

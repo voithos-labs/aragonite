@@ -473,6 +473,44 @@ Reset **then** re-install — the reset only empties the registries. It clears e
 
 Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. The function is test-only and throws if called outside a detected test environment; detection is Vitest-specific.
 
+### Conformance-testing a container
+
+If your plugin registers a **container** kind, `aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:
+
+| Cell           | What it holds you to                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `localIndex`   | Children are addressed by their **local** index at each nesting level, not a global offset         |
+| `ancestry`     | An edit deep inside rebuilds raw inner→outer, so the root's `raw` reflects the leaf change         |
+| `multiScope`   | One logical multi-scope op pushes exactly **one** undo entry                                       |
+| `focusBubble`  | A boundary focus event bubbles to the root and terminates — no loop, no double-escape              |
+| `declarations` | Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` runs |
+
+You supply the fixtures, because the kit parses its way to your kind — so register the plugin first, then hand it Markdown that produces your container:
+
+```
+import { runContainerConformance } from 'aragonite/testing';
+
+it('my container conforms', async () => {
+	await runContainerConformance(declaredPluginKind(MY_KIND), {
+		// A nesting where your kind is an ancestor of a deep editable leaf.
+		deepNesting: { source: OUTER_WRAPPING_INNER, leafPath: [0, 1, 1] },
+		// The chain of container indices down to your kind, and which child to edit.
+		localIndexFixture: { source: OUTER_WRAPPING_INNER, containerChain: [0, 1], targetChild: 2 },
+		focusSource: ONE_OF_MY_CONTAINERS,
+		localIndex: { mode: 'assert' },
+		ancestry: { mode: 'assert' },
+		multiScope: { mode: 'exempt', reason: 'my container owns no ≥2-scope op — its inner ops are single-scope' },
+		focusBubble: { mode: 'assert' }
+	});
+});
+```
+
+Pick a **non-first** child at a **non-zero** chain position for `localIndexFixture`. At chain `[0, 0]` / child 0 a local path and a flat global offset are the same number, and the check proves nothing.
+
+Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason` — a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
+
+One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outer-first on purpose and checks the root went **stale** — that is what proves your `ancestry` cell is testing something rather than passing by construction.
+
 ## API reference
 
 Every `aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying types describe their inputs and outputs.
