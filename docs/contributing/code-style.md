@@ -1,6 +1,12 @@
-# Code Style Guide
+# Code Style
 
-Language-agnostic conventions for this codebase. The cardinal rule: **when you touch messy code, improve what you touch** — don't conform to bad patterns already in the file. Renaming a local, adding a section divider, and pruning a stale comment are part of the edit, not a separate chore.
+## What this is
+
+The general conventions — naming, structure, comments. They're not exotic; they're the ones most good codebases converge on, written down so nobody has to guess.
+
+The rules specific to _this_ codebase — the ones that will actually corrupt a document if you get them wrong — are in `docs/contributing/culture.md`. Read that one before your first edit. This one you can absorb as you go.
+
+**The cardinal rule: when you touch messy code, improve what you touch.** Don't conform to bad patterns already in the file. Renaming a local, adding a section divider, pruning a stale comment — that's part of the edit, not a separate chore.
 
 ## Naming
 
@@ -42,4 +48,9 @@ A directory reflects a decision, not an accident. Name the concept that lives th
 
 ## Formatting
 
-Prettier handles all formatting. Run `npm run format` before committing. Indentation is tabs (rendered four spaces wide). See `.prettierrc` for the full config.
+Prettier owns every formatting decision, so there is nothing to argue about. Tabs, single quotes, 100 columns — see `.prettierrc`.
+
+```bash
+npm run format   # write
+npm run lint     # check (this one is in the commit gate)
+```

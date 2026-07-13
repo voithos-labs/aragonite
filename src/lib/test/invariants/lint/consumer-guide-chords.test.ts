@@ -51,7 +51,7 @@ function normalizeDocChord(raw: string): string {
 // field)`) is stripped first so its incidental backtick tokens (`#`, `######`)
 // aren't mistaken for chords.
 function parseDocumentedChords(): Map<string, string[]> {
-	const guide = readFileSync(path.resolve('docs/editor/consumer-guide.md'), 'utf8');
+	const guide = readFileSync(path.resolve('docs/guide/consumer-guide.md'), 'utf8');
 	const section = guide.split('## Keyboard shortcuts')[1]?.split('\n## ')[0] ?? '';
 
 	const byFamily = new Map<string, string[]>();

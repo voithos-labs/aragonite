@@ -29,7 +29,7 @@ To save the source, just do something like:
 
 (obviously define the save function)
 
-For more info go read [consumer-guide](docs/editor/consumer-guide.md). ok bye.
+For more info go read [consumer-guide](docs/guide/consumer-guide.md). ok bye.
 
 Now, for those who don't have better things to do.
 

@@ -1,6 +1,6 @@
 /**
  * Merge eligibility and target resolution for Backspace-at-start.
- * See docs/design/editor/editor.md — Structural Operations.
+ * See docs/design/editor.md — Merge eligibility: roles, not pairs.
  *
  * Per-kind `MergeRole` assignment lives on `BlockKindDescriptor`; this file
  * owns the role-pair eligibility rules and the target-finding walker.

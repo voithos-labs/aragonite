@@ -1,6 +1,6 @@
 # Contributing to aragonite
 
-aragonite is a CST-based block editor for GFM Markdown, shipped as an embeddable Svelte + TypeScript library. Orient on the system from [`docs/design/editor/editor.md`](docs/design/editor/editor.md); for embedding it see [`docs/editor/consumer-guide.md`](docs/editor/consumer-guide.md), for extending it with plugins see [`docs/editor/plugin-guide.md`](docs/editor/plugin-guide.md). [`docs/README.md`](docs/README.md) maps the rest.
+aragonite is a CST-based block editor for GFM Markdown, shipped as an embeddable Svelte + TypeScript library. Orient on the system from [`docs/design/editor.md`](docs/design/editor.md); for embedding it see [`docs/guide/consumer-guide.md`](docs/guide/consumer-guide.md), for extending it with plugins see [`docs/guide/plugin-guide.md`](docs/guide/plugin-guide.md). [`docs/README.md`](docs/README.md) maps the rest.
 
 ## Setup
 
@@ -19,15 +19,15 @@ Which gate you run scales with what you're doing. Gate scope follows the **files
 - **Commit gate** — `npm test` (full unit + every E2E project) plus `npm run check` (svelte-check, 0 errors) and `npm run lint` (Prettier). Green before every commit.
 - **Ship gate** — the commit gate plus `npm run test:editor:perf` (the performance ceilings) before a merge or release.
 
-Two rules from [`docs/culture.md`](docs/culture.md), both paid for by incidents: **never pipe a gate command** (`npm test | tail` reports the pipe's exit code, not the gate's — capture to a file and check the exit explicitly), and **long batteries run alone**, never concurrently with other work on the same tree.
+Two rules from [`docs/contributing/culture.md`](docs/contributing/culture.md), both paid for by incidents: **never pipe a gate command** (`npm test | tail` reports the pipe's exit code, not the gate's — capture to a file and check the exit explicitly), and **long batteries run alone**, never concurrently with other work on the same tree.
 
 ## Commit messages
 
-Symbol-prefixed, lowercase, one logical change per commit. Full convention: [`docs/commit-conventions.md`](docs/commit-conventions.md).
+Symbol-prefixed, lowercase, one logical change per commit. Full convention: [`docs/contributing/commit-conventions.md`](docs/contributing/commit-conventions.md).
 
 ## The rules the code can't tell you
 
-[`docs/culture.md`](docs/culture.md) is the incident-backed rule set — the conventions that aren't derivable from reading the source, each one paid for by a real bug. Read it before your first edit.
+[`docs/contributing/culture.md`](docs/contributing/culture.md) is the incident-backed rule set — the conventions that aren't derivable from reading the source, each one paid for by a real bug. Read it before your first edit.
 
 ## Fixing bugs
 
