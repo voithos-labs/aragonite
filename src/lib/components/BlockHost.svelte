@@ -11,9 +11,11 @@
 	import { getBlockComponent } from '../schema/block-component-registry';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
+		DOC_KEY,
 		EDITOR_EVENTS_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
-		type BlockMeasureChannel
+		type BlockMeasureChannel,
+		type DocumentGetter
 	} from '../editor-keys';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
@@ -40,6 +42,7 @@
 	} = $props();
 
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
+	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
 	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
@@ -143,6 +146,7 @@
 				{index}
 				{myPath}
 				{ambientPrefix}
+				document={getDoc?.()}
 				bind:this={ref}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
@@ -152,6 +156,7 @@
 				{index}
 				{myPath}
 				{ambientPrefix}
+				document={getDoc?.()}
 				bind:this={ref}
 				blockClass="raw-block"
 			/>
