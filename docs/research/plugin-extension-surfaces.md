@@ -20,7 +20,7 @@ ProseMirror's canonical guidance is literally these two composed: put the decora
 - **Plugin-local state is not a gap.** aragonite genuinely does not need it, for a structural reason — see the section below. Do not copy `StateField`.
 - **Decorations are.** aragonite's model is "CST is truth, a plugin owns a kind"; the decoration model is "overlay view-only state onto ranges the plugin doesn't own." So everything that owns no syntax has no home: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights.
 
-**The one real hole, then, is decorations** — plus the ordinary capabilities a plugin needs to reach the document at all (§ What authors actually build).
+**The one real hole, then, is decorations.** The ordinary capabilities a plugin needs to reach the document at all — the context spine of § What authors actually build — shipped in 0.9.21.
 
 ## The convergent taxonomy
 
@@ -32,7 +32,7 @@ What "add a plugin" means, across the field. Systems differ in ergonomics, not i
 | **Recognizer**         | `parseDOM`, input rules    | `ElementTransformer`          | Lezer grammar   | code fence       | block opener, directive ✅    |
 | **Serializer**         | `toDOM`, `toMarkdown`      | `.export()`                   | (text is truth) | (text is truth)  | `rebuildRaw` ✅ byte-lossless |
 | **View**               | `NodeView`                 | `createDOM`                   | `WidgetType`    | `toDOM`          | Svelte component ✅           |
-| **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | per-kind only ⚠️              |
+| **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | per-kind + global ✅          |
 | **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | **none ❌**                   |
 | **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | per-node metadata — see below |
 | **Clipboard / paste**  | `addPasteRules`            | —                             | —               | —                | content-keyed transform ✅    |
@@ -54,15 +54,15 @@ The taxonomy's state row is the one place a naive reading misleads. aragonite sh
 
 aragonite has no such problem. A position is a `(path, offset)` into a CST re-derived from raw on each edit — there is nothing to map forward. A decoration source is therefore a **pure function `doc → Range[]`**, recomputed or memoized on change, not a mapped-forward field. The proof already ships: the search scan _is_ that pure function, and search is the one decoration client the editor has.
 
-**So the shape to build is three primitives, and no state API at all:**
+**So the shape is three primitives, and no state API at all — shipped in 0.9.21 as the per-instance `EditorContext` an `onEditor` callback receives:**
 
-| Give a plugin                            | And it can                                                 |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| the **document**                         | compute anything derived from it                           |
-| an **editor identity** (`setup(ctx)`)    | key its own `WeakMap` — per-instance state, config, caches |
-| a **change signal** (the events surface) | invalidate that cache                                      |
+| Give a plugin                                        | And it can                                             |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| the **document** (a live getter)                     | compute anything derived from it                       |
+| an **editor identity** (`editorId`)                  | key its own `Map` — per-instance state, config, caches |
+| a **change signal** (the subscribe-only events view) | invalidate that cache                                  |
 
-With those, a plugin builds whatever state it wants and **the platform stores nothing and owns no lifecycle** — nothing to leak, reset, or get wrong on undo. It is the same instinct as the rest of the editor: dependencies explicit, derive rather than cache, no runtime patching.
+With those, a plugin builds whatever state it wants and **the platform stores nothing and owns no lifecycle** — nothing to leak, reset, or get wrong on undo. It is the same instinct as the rest of the editor: dependencies explicit, derive rather than cache, no runtime patching. The doc-stats dogfood is the working proof.
 
 Copying `StateField` would be importing a solution to a problem this architecture does not have.
 
@@ -83,8 +83,8 @@ Of those that touch the editing surface, by share of that set:
 | **Document mutation** (insert at caret, reformat a region, rewrite) | over half                                              | **gap** — commands write metadata on their own node only |
 | **Decorations**                                                     | ~half                                                  | **gap**                                                  |
 | **A custom block kind** from custom syntax                          | ~a third                                               | **have — best in class**                                 |
-| **Document lifecycle** (on load / change / save)                    | ~a third                                               | partial — events are consumer-only                       |
-| **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **gap** — a block component cannot see its own document  |
+| **Document lifecycle** (on load / change / save)                    | ~a third                                               | **have** — `onEditor` + the per-instance events view     |
+| **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **have** — `BlockComponentProps.document` (toc dogfood)  |
 | **Context-sensitive keymap** (Tab means "next cell" inside a table) | smaller share, but the two most-loved editing plugins  | **have**                                                 |
 | **Trigger-character suggest** (`/`, `@`, `[[`)                      | table stakes                                           | **gap**                                                  |
 
@@ -108,12 +108,12 @@ The question that decides what must be built _before_ 1.0 rather than after: wou
 
 **Every gap above is additive but one.** New registries, new optional descriptor fields, and new fields on payloads a plugin _receives_ break no bound shape. **The 1.0 freeze is safe.** It is not complete — and those are different claims, which is the whole point of stating this.
 
-The exception is **the shape of a command's context**. Today a command may only write metadata on its own focused node. If document mutation later arrives as a _different_ context object rather than as fields on the existing one, every handler signature already bound to it breaks. The field names must be decided before the freeze even if the implementation lands after it.
+The exception was **the shape of a command's context**. A command may only write metadata on its own focused node; if document mutation later arrived as a _different_ context object rather than as fields on the existing one, every handler signature already bound to it would break.
 
-Two shapes therefore want deciding rather than building:
+Both shapes that wanted deciding were decided — and built — in 0.9.21:
 
-- **A command's context**, per above.
-- **A plugin's setup context.** `setup()` takes no arguments and runs once per _process_, so a plugin never receives an editor handle — which is why derived state, edit reaction, and per-instance configuration are all impossible today. Every future capability hangs off that object, so its existence (not its contents) is the thing to establish early. A global command's context should be the _same_ object, or the platform ships two.
+- **A command's context** grows by fields: `BlockCommandContext.editor` landed as the proof, and the contract pins that mutation arrives as further fields on the same object. (Field _names_ for mutation stay deliberately unpinned — naming unbuilt semantics would guess at a bound shape; the growth path is what's frozen.)
+- **A plugin's setup context.** `setup(ctx)` + `ctx.onEditor` deliver the per-instance `EditorContext` (document, identity, subscribe-only events, options), and a global command's handler receives the _same_ object — one context, verified by construction, not by discipline.
 
 ## The two plugin systems
 
