@@ -55,19 +55,6 @@ run to tell us what an author actually needs from it.
 
 ## Code structure
 
-### Image resize handles carry a manual-listener workaround for a DOM that no longer exists
-
-**Severity:** minor (probable dead code; no misbehavior observed)
-**Files:** `src/lib/components/image/ImageResizeHandles.svelte`, `src/lib/components/image/ImageOverlayHost.svelte`, `src/lib/components/image/widget-dom.ts`
-
-The handles attach `pointerdown`/`pointermove`/`pointerup`/`pointercancel` by hand rather than through Svelte's event syntax. The stated reason is that the handle DOM is portaled **into** the widget element, whose own `pointerdown` listener calls `stopPropagation` and so defeats Svelte 5's delegated listener.
-
-That premise is stale. The handles now render inside `.md-image-overlay` — a div in `ImageOverlayHost`, a direct child of `.editor`, positioned over the widget. The widget span is no longer an ancestor of the handles, so its `stopPropagation` cannot intercept their pointer events and delegation would reach them normally. The comment was written when the handles genuinely lived in a portal inside the widget; the commit that moved them to the overlay host did not update it.
-
-**Fix direction:** verify by removal — drop the manual `addEventListener` block in favor of Svelte's `onpointerdown`/etc., then run the image e2e (`npm run test:e2e:blocks:image`, which covers resize, selection, and popover anchoring). Code and comment land in one commit.
-
-**Why deferred:** the premise is provably stale, but that only proves the _reason_ wrong, not the _workaround_ dead — something else may depend on the listeners firing at capture-adjacent timing. It needs the empirical check above, not a comment edit, and a comment-only pass is the wrong place to make a behavior change.
-
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
 **Severity:** minor (a11y; table blocks only)
