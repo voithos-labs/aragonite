@@ -25,9 +25,6 @@
 		currentWidth: number;
 	} | null = $state(null);
 
-	let rightHandle: HTMLDivElement | undefined = $state();
-	let cornerHandle: HTMLDivElement | undefined = $state();
-
 	// `md-image-broken` is toggled imperatively on the widget when the underlying
 	// `<img>` fires `error` / `load`; Svelte 5 doesn't track external class
 	// mutations, so a MutationObserver mirrors them into reactive state. Each
@@ -153,41 +150,24 @@
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 	}
-
-	// The handle DOM is portaled into the (non-Svelte) widget element. The widget's
-	// own pointerdown listener calls stopPropagation, which prevents Svelte 5's
-	// delegated event listener (rooted at document) from receiving pointer events.
-	// Attaching listeners directly to each handle element fires them before bubbling
-	// reaches the widget, sidestepping delegation.
-	$effect(() => {
-		const targets = [rightHandle, cornerHandle].filter((h): h is HTMLDivElement => !!h);
-		for (const t of targets) {
-			t.addEventListener('pointerdown', startDrag);
-			t.addEventListener('pointermove', moveDrag);
-			t.addEventListener('pointerup', endDrag);
-			t.addEventListener('pointercancel', cancelDrag);
-		}
-		return () => {
-			for (const t of targets) {
-				t.removeEventListener('pointerdown', startDrag);
-				t.removeEventListener('pointermove', moveDrag);
-				t.removeEventListener('pointerup', endDrag);
-				t.removeEventListener('pointercancel', cancelDrag);
-			}
-		};
-	});
 </script>
 
 {#if !isBroken}
 	<div
-		bind:this={rightHandle}
 		class="md-resize-handle md-resize-handle-right"
 		role="presentation"
+		onpointerdown={startDrag}
+		onpointermove={moveDrag}
+		onpointerup={endDrag}
+		onpointercancel={cancelDrag}
 	></div>
 	<div
-		bind:this={cornerHandle}
 		class="md-resize-handle md-resize-handle-corner"
 		role="presentation"
+		onpointerdown={startDrag}
+		onpointermove={moveDrag}
+		onpointerup={endDrag}
+		onpointercancel={cancelDrag}
 	></div>
 {/if}
 
