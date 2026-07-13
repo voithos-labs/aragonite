@@ -4,7 +4,7 @@
  * block components produce and consume.
  */
 
-import type { CstNode } from './core/nodes';
+import type { CstNode, Document } from './core/nodes';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -77,6 +77,9 @@ export interface BlockComponentProps {
 	index: number;
 	myPath: number[];
 	ambientPrefix: AmbientPrefix;
+	/** The root document (read-only by contract) — single-document derived state
+	 *  is the editor's own boundary; mutation stays a commit-ceremony concern. */
+	document?: Document;
 }
 
 // ── BlockComponent ─────────────────────────────────────────────────────────
