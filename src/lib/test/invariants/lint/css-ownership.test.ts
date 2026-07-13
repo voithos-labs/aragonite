@@ -4,7 +4,7 @@
  * editor-theme.css, every host-token read carries a fallback so an extracted
  * editor renders with no host theme, and no read falls outside the two families
  * (an off-family typo like `--text-muted` can never be declared, so it would
- * silently render its fallback forever). See docs/design/editor/invariants.md.
+ * silently render its fallback forever). See docs/design/invariants.md.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

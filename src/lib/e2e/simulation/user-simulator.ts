@@ -149,7 +149,7 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
  * Move the title block down a position, then undo — net identity. This drives a
  * reorder BETWEEN edits and undo/redo, the interleaving that surfaces the
  * aliasing/unshare/stamp corruption a reorder can introduce (the simulation is
- * the only oracle that catches that class — `docs/culture.md` § Testing shape).
+ * the only oracle that catches that class — `docs/contributing/culture.md` § Testing shape).
  * Block 0 is a heading or
  * paragraph in every note and every note has a sibling below it, so the move is
  * never a no-op; the closing assertion proves the single undo restores byte-exact.

@@ -4,7 +4,7 @@
  * container-bubble path (`dispatchKindCommand`). A plugin mints a command id here
  * and binds it to a block kind; both dispatchers resolve a minted handler through
  * one seam (`runMintedCommand`) — no forked registry read, no sibling-path copies.
- * Register-once, throw-on-duplicate — the `customElements` model (docs/culture.md
+ * Register-once, throw-on-duplicate — the `customElements` model (docs/contributing/culture.md
  * "Registries are code, not state"). Leaf layer: id minting delegates to
  * `./command-id`. The dispatchers live here, not `./commands`, so `commands.ts`
  * carries no runtime edge to `command-id`/`block-commands` (else `commands →

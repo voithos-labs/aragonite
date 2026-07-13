@@ -486,7 +486,7 @@ export class EditorPage {
 	 * changes, so no bridge predicate can observe it. Call before
 	 * `navigator.clipboard.readText()` or before a subsequent Ctrl+V that
 	 * must see the fresh payload. This is the copy-only carve-out documented
-	 * in docs/testing.md § Key Patterns and Gotchas.
+	 * in docs/contributing/testing.md § Patterns and gotchas.
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);

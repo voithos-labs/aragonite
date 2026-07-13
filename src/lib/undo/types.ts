@@ -9,7 +9,7 @@ import type { EditorSelection } from '../selection/primitives';
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
-	/** Effective selection at push. See docs/design/editor/editor.md — Undo/Redo. */
+	/** Effective selection at push. See docs/design/editor.md — Undo/Redo. */
 	selection: EditorSelection;
 	/** DEV-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
 	integrity?: number;

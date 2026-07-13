@@ -5,7 +5,7 @@
 // test environment is detected (see the guard below).
 //
 // Why this exists: the platform is register-once / throw-on-duplicate / no
-// unregister ("Registries are code, not state" — docs/culture.md). In-repo suites
+// unregister ("Registries are code, not state" — docs/contributing/culture.md). In-repo suites
 // reach past `$lib` for a scatter of internal reset helpers; a third-party author
 // writing a normal Vitest suite has no sanctioned seam and hits the dup throw on
 // the second `beforeEach`. This barrel is that seam — the ONLY place the resets

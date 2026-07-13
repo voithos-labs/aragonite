@@ -13,7 +13,7 @@ import {
 
 /**
  * A block's merge role classifies its behavior for Backspace-merge purposes.
- * See `docs/design/editor/editor.md` — Structural Operations — for the full role spec.
+ * See `docs/design/editor.md` — Merge eligibility: roles, not pairs — for the full role spec.
  *
  * Declared here rather than in `merge-rules.ts` so the descriptor registry
  * can reference it without creating an import cycle.

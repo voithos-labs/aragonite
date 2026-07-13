@@ -1,52 +1,67 @@
 # aragonite docs
 
-The documentation map. New to the repo? Start with the root [`README.md`](../README.md) to run it and [`CONTRIBUTING.md`](../CONTRIBUTING.md) to work in it. Orient on the system from [`design/editor/editor.md`](design/editor/editor.md); read a subsystem's spec only when your task touches it.
+aragonite is a block editor for GFM Markdown. The raw Markdown is the source of truth: it's parsed into a lossless syntax tree, rendered as styled blocks with the markers left visible but dimmed, and written back byte-for-byte. It ships as an embeddable Svelte library.
 
-## Design specs
+New to the repo? Run it with the root [`README.md`](../README.md), work in it with [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-The system's shape and its load-bearing contracts.
+## Start here
 
-| Doc                                                                        | Scope                                                             |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [`design/editor/editor.md`](design/editor/editor.md)                       | Editor design spec — the orientation point                        |
-| [`design/editor/syntax-tree.md`](design/editor/syntax-tree.md)             | CST node model, parser design, GFM block coverage                 |
-| [`design/editor/inline-parsing.md`](design/editor/inline-parsing.md)       | Inline parser pipeline, ambient prefix, rendering                 |
-| [`design/editor/invariants.md`](design/editor/invariants.md)               | Load-bearing invariants catalog + enforcement                     |
-| [`design/editor/virtual-rendering.md`](design/editor/virtual-rendering.md) | Windowing for large documents                                     |
-| [`design/editor/plugin-contract.md`](design/editor/plugin-contract.md)     | Plugin-API contract — the foundation the plugin surface builds on |
+| If you want to…                     | Read                                                 |
+| ----------------------------------- | ---------------------------------------------------- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md)               |
+| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md) |
+| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)     |
+| **Contribute to the editor itself** | [`contributing/culture.md`](contributing/culture.md) |
 
-## Editor guides
+Everything else hangs off those four. The folders are split by **audience**, not by topic.
 
-How to use and extend the editor as a consumer.
+## `design/` — how it works
 
-| Doc                                                    | Scope                                                    |
-| ------------------------------------------------------ | -------------------------------------------------------- |
-| [`editor/consumer-guide.md`](editor/consumer-guide.md) | Embedding the editor: public API, theming, props, events |
-| [`editor/plugin-guide.md`](editor/plugin-guide.md)     | Plugin authoring: the unit, kinds, factories, recipes    |
-| [`editor/directives.md`](editor/directives.md)         | The `:::name` directive grammar for plugin authors       |
-| [`editor/adding-a-block.md`](editor/adding-a-block.md) | Adding a new block type                                  |
-| [`editor/gfm-reference.md`](editor/gfm-reference.md)   | GFM syntax reference                                     |
+The system's shape and its load-bearing contracts. `editor.md` is the orientation point; read the rest only when your task touches that subsystem.
 
-## Process
+| Doc                                                          | Scope                                             |
+| ------------------------------------------------------------ | ------------------------------------------------- |
+| [`design/editor.md`](design/editor.md)                       | The editor design spec — **start here**           |
+| [`design/syntax-tree.md`](design/syntax-tree.md)             | CST node model, parser design, GFM block coverage |
+| [`design/inline-parsing.md`](design/inline-parsing.md)       | Inline parser pipeline, ambient prefix, rendering |
+| [`design/virtual-rendering.md`](design/virtual-rendering.md) | Windowing for large documents                     |
+| [`design/invariants.md`](design/invariants.md)               | The invariant catalog and how each is enforced    |
+| [`design/plugin-contract.md`](design/plugin-contract.md)     | The plugin API and what freezes at 1.0            |
+| [`design/performance.md`](design/performance.md)             | Performance claims, the gate, key decisions       |
 
-How the project is built and kept honest.
+## `guide/` — using aragonite
 
-| Doc                                              | Scope                                               |
-| ------------------------------------------------ | --------------------------------------------------- |
-| [`culture.md`](culture.md)                       | Incident-backed rules — read before your first edit |
-| [`code-style.md`](code-style.md)                 | Code style conventions                              |
-| [`commit-conventions.md`](commit-conventions.md) | Commit message format                               |
-| [`testing.md`](testing.md)                       | Test infrastructure and patterns                    |
-| [`perf/performance.md`](perf/performance.md)     | Performance claims, the gate, and key decisions     |
+The published docs pack: this folder, and only this folder, is what a third-party plugin author receives.
 
-## Records
+| Doc                                                  | Scope                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md) | Embedding the editor: public API, props, theming, events |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md)     | Plugin authoring: the unit, the tiers, recipes           |
+| [`guide/directives.md`](guide/directives.md)         | The `:::name` directive grammar                          |
 
-The moving state — forward plan, shipped history, and research inputs.
+Because the pack ships flat, a markdown link inside `guide/` may only point at another file in `guide/`. Name any other doc as inline code instead — `npm run lint` fails on a link that would dangle once the pack leaves the repo.
 
-| Doc                                                                          | Scope                                        |
-| ---------------------------------------------------------------------------- | -------------------------------------------- |
-| [`roadmap.md`](roadmap.md)                                                   | Forward-looking plan                         |
-| [`changelog.md`](changelog.md)                                               | Shipped version history                      |
-| [`issues.md`](issues.md)                                                     | Known-issues ledger                          |
-| [`research/plugin-system-prior-art.md`](research/plugin-system-prior-art.md) | Prior-art review feeding the plugin contract |
-| [`research/code-smells.md`](research/code-smells.md)                         | Code-smell reference                         |
+## `contributing/` — how we work
+
+| Doc                                                                        | Scope                                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------------------- |
+| [`contributing/culture.md`](contributing/culture.md)                       | Incident-backed rules — **read before your first edit** |
+| [`contributing/testing.md`](contributing/testing.md)                       | Test infrastructure and patterns                        |
+| [`contributing/adding-a-block.md`](contributing/adding-a-block.md)         | Adding a built-in block kind                            |
+| [`contributing/code-style.md`](contributing/code-style.md)                 | Code style conventions                                  |
+| [`contributing/commit-conventions.md`](contributing/commit-conventions.md) | Commit message format                                   |
+
+`culture.md` is the one to read first, and the one people skip. Every rule in it was paid for by a real bug.
+
+## Records + reference
+
+The moving state, and the background material behind it.
+
+| Doc                                                                          | Scope                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------------- |
+| [`roadmap.md`](roadmap.md)                                                   | Forward plan — nothing shipped                    |
+| [`changelog.md`](changelog.md)                                               | Shipped history — nothing speculative             |
+| [`issues.md`](issues.md)                                                     | Known-defect ledger; entries leave when they ship |
+| [`research/gfm-reference.md`](research/gfm-reference.md)                     | The GFM syntax the editor parses                  |
+| [`research/plugin-system-prior-art.md`](research/plugin-system-prior-art.md) | Prior-art review feeding the plugin contract      |
+| [`research/code-smells.md`](research/code-smells.md)                         | Code-smell vocabulary used in reviews             |

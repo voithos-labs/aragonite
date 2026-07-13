@@ -61,7 +61,7 @@ async function waitForDocLength(page: Page, min: number, timeout: number): Promi
 // at the identical point but in O(1), never summing the whole $state-proxy
 // children array. The O(children) sum added a per-poll cost that scaled with
 // block count and inflated flat high-block-count rows — a harness artifact, not
-// editor cost (see docs/perf/performance.md).
+// editor cost (see docs/design/performance.md).
 async function waitForBlock0Len(page: Page, min: number, timeout: number): Promise<void> {
 	await page.waitForFunction(
 		(min) => {

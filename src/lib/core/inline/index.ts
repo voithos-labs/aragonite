@@ -1,5 +1,5 @@
 /**
- * Inline parser entry. See docs/design/editor/inline-parsing.md.
+ * Inline parser entry. See docs/design/inline-parsing.md.
  */
 
 import type { CstNode, InlineNode } from '../nodes';
