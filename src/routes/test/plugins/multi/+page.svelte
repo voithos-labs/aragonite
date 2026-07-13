@@ -1,0 +1,45 @@
+<script module lang="ts">
+	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
+
+	// Module scope so the entry arrays stay identity-stable across (SSR) renders:
+	// installPlugins skips a same-object re-install silently, and per-instance
+	// options ride the entries — one plugin object, two labels. This page is the
+	// doc-stats e2e's multi-instance driver: distinct editorIds/options/block
+	// counts, per-instance chord resolution, and the unmount-runs-the-disposer
+	// scenario via the toggle below.
+	const leftPlugins = [{ plugin: docStatsPlugin, options: { label: 'left' } }];
+	const rightPlugins = [{ plugin: docStatsPlugin, options: { label: 'right' } }];
+</script>
+
+<script lang="ts">
+	import { Editor } from '$lib';
+
+	let showRight = $state(true);
+</script>
+
+<div class="plugins-harness aragonite-editor-theme">
+	<div class="harness-controls">
+		<button onclick={() => (showRight = !showRight)} data-testid="toggle-right">
+			Toggle right editor
+		</button>
+	</div>
+	<Editor source={'# One\n'} plugins={leftPlugins} />
+	{#if showRight}
+		<Editor source={'# Two\n\nPara\n'} plugins={rightPlugins} />
+	{/if}
+</div>
+
+<style>
+	.plugins-harness {
+		width: 100vw;
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.harness-controls {
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.4rem;
+	}
+</style>

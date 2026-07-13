@@ -6,6 +6,7 @@
 	import { mermaidPlugin } from './mermaid/register';
 	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
 	import { memoPlugin } from './memo/register';
+	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'
@@ -13,13 +14,16 @@
 	// The prop installs before the child <Editor> parses `source`, so `:::note` /
 	// `<details>` / `$…$` / ```mermaid resolve to plugin kinds; callout/admonitions
 	// setups turn on the generic `:::name` grammar the generic-directive e2e drives.
+	// docStatsPlugin is a bare entry (no options), so the doc-stats e2e also covers
+	// the options-default branch of the context spine.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
 		latexPlugin(),
 		admonitionsPlugin(),
 		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
-		memoPlugin()
+		memoPlugin(),
+		docStatsPlugin
 	];
 </script>
 
@@ -56,6 +60,10 @@
 	// A plain-mode `%%` memo leaf between two paragraphs, so the editable-leaf e2e
 	// can drive real typing, arrow traversal, undo batching, and selection sweeps.
 	const MEMO_SEED = 'Before\n\n%% memo text\n\nAfter\n';
+	// Two plain top-level paragraphs: a deterministic block count for the doc-stats
+	// records, and a root-level Enter split + undo for the attach-survives-a-
+	// structural-edit pin.
+	const DOC_STATS_SEED = 'First\n\nSecond\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -132,7 +140,8 @@
 		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,
 		mathtable: MATH_TABLE_SEED,
 		mermaid: MERMAID_SEED,
-		memo: MEMO_SEED
+		memo: MEMO_SEED,
+		docstats: DOC_STATS_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
