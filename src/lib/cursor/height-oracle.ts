@@ -7,6 +7,7 @@
  */
 import type { CstNode } from '../core/nodes';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // Any image: inline `![alt](url)`, reference `![alt][ref]`, or shortcut
 // `![ref]`. Captures the alt segment so a `|WxH` size hint can be read. The
@@ -72,6 +73,10 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		// the summary/title row actually paints. Reads the declared collapse probe,
 		// so no per-kind arm is needed (cursor/ reading schema/ is layer-legal).
 		if (isCollapsedContainer(node)) return opts.lineHeight + opts.blockChrome;
+		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered
+		// artifact is far taller than its source text); the oracle still adds chrome.
+		const custom = tryGetBlockKindDescriptor(node.kind)?.estimateHeight;
+		if (custom) return custom(node, { width }) + opts.blockChrome;
 		const kind = node.kind;
 		const raw = node.raw;
 		switch (kind) {
