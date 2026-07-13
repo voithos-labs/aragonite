@@ -19,6 +19,9 @@ the scripted per-feature plugin specs.
   summary descends into the body without minting a block or moving the root
 - collapsing a `<details>` rewrites `<details open>` to `<details>` and unmounts
   the body; expanding restores both; every toggle leaves the tree consistent
+- a read-only plugin global command — doc-stats' `Mod+Shift+S` chord — reads the
+  per-instance EditorContext and republishes `window.__docStats` mid-session while
+  leaving the document and the undo stack byte-identical
 
 ## Edge cases
 
@@ -37,6 +40,9 @@ the scripted per-feature plugin specs.
   per-character keyboard typing
 - the collapse toggle is a real click on the summary's toggle control; the session
   settles on `aria-expanded` flipping before continuing
+- the global command is a real `Mod+Shift+S` keyboard chord; the session poisons the
+  published record, presses the chord, and settles on this editor's block count
+  recovering before asserting the source and undo stack are unchanged
 - a cross-container selection is a real click-drag from the callout body, across
   the list and both container boundaries, to the details summary; it is copied,
   the caret repositioned to the trailing paragraph, and pasted
