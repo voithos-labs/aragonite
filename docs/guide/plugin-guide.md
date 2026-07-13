@@ -517,12 +517,15 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Plugin unit** _(pre-freeze / unstable)_
 
-| Export              | Role                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `definePlugin`      | Validate a `{ name, setup }` unit at definition time and return it for the `plugins` prop      |
-| `definePluginBlock` | The single-block plugin unit: one kind, one component, one register step — the common case     |
-| `isPluginInstalled` | Idempotence probe for a named plugin's install                                                 |
-| `EditorPlugin`      | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these |
+| Export               | Role                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it for the `plugins` prop                         |
+| `definePluginBlock`  | The single-block plugin unit: one kind, one component, one register step — the common case                        |
+| `isPluginInstalled`  | Idempotence probe for a named plugin's install                                                                    |
+| `EditorPlugin`       | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these                    |
+| `PluginSetupContext` | The `setup(ctx)` argument; its `onEditor(cb)` registers a per-instance callback (synchronous-only)                |
+| `OnEditorCallback`   | An `onEditor` callback: receives the instance's `EditorContext`, may return a disposer run at unmount             |
+| `EditorContext`      | The per-instance view a callback receives — `editorId`, live `document`, subscribe-only `events`, typed `options` |
 
 **Kind declaration**
 
