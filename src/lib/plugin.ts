@@ -14,7 +14,7 @@ import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 // `plugins` prop installs each once per process, so a consumer rarely calls
 // installPlugins directly. isPluginInstalled is the idempotence probe.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
-export type { EditorPlugin } from './schema/plugin-install';
+export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // The setup-context spine: `setup(ctx)` registers `onEditor` callbacks that
 // receive a per-instance EditorContext (editorId, live document, subscribe-only
 // events, typed options).

@@ -523,6 +523,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `definePluginBlock`  | The single-block plugin unit: one kind, one component, one register step — the common case                        |
 | `isPluginInstalled`  | Idempotence probe for a named plugin's install                                                                    |
 | `EditorPlugin`       | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these                    |
+| `EditorPluginEntry`  | A `plugins` prop entry: a bare unit, or `{ plugin, options }` for per-instance options                            |
 | `PluginSetupContext` | The `setup(ctx)` argument; its `onEditor(cb)` registers a per-instance callback (synchronous-only)                |
 | `OnEditorCallback`   | An `onEditor` callback: receives the instance's `EditorContext`, may return a disposer run at unmount             |
 | `EditorContext`      | The per-instance view a callback receives — `editorId`, live `document`, subscribe-only `events`, typed `options` |

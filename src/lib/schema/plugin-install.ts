@@ -88,6 +88,39 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 	}
 }
 
+/** A `plugins` prop entry: a bare unit, or a unit with per-instance options. */
+export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
+
+/**
+ * Split a `plugins` prop into the install list and a name→options map. Options
+ * are per-instance (a unit installs once process-global, but two editors may pass
+ * it different options); a plugin listed twice keeps the first entry and its
+ * options, dev-warning the loser — the same first-wins rule installPlugins applies
+ * across mounts, enforced here so the options map can't disagree with the install.
+ */
+export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
+	plugins: EditorPlugin[];
+	optionsByName: Map<string, unknown>;
+} {
+	const plugins: EditorPlugin[] = [];
+	const optionsByName = new Map<string, unknown>();
+	const seen = new Set<string>();
+	for (const entry of entries) {
+		const plugin = 'plugin' in entry ? entry.plugin : entry;
+		if (seen.has(plugin.name)) {
+			devWarn(
+				'plugin-install',
+				`plugin '${plugin.name}' listed twice in one plugins prop; the first entry (and its options) wins`
+			);
+			continue;
+		}
+		seen.add(plugin.name);
+		plugins.push(plugin);
+		if ('plugin' in entry && 'options' in entry) optionsByName.set(plugin.name, entry.options);
+	}
+	return { plugins, optionsByName };
+}
+
 export function isPluginInstalled(name: string): boolean {
 	return installed.has(name);
 }
