@@ -112,6 +112,10 @@ export function registerMermaidKind(): void {
 			contract: 'opaque',
 			rebuildRaw: rebuildMermaidRaw
 		},
+		// A rendered diagram is far taller than its fence source, which the char-based
+		// default arm would seed at ~one line. Seed VR with a diagram-sized skeleton;
+		// the measured height supersedes on mount.
+		estimateHeight: () => 320,
 		keymap: [{ chord: 'Mod+M', command: focusCommand }]
 	});
 

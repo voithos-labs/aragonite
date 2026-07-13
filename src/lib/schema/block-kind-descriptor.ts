@@ -139,6 +139,9 @@ export interface BlockKindDescriptor {
 	 * layer keeps no downstream component import.
 	 */
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
+	/** O(1) content-height estimate in px for virtual rendering — no subtree walk.
+	 *  The oracle adds block chrome; the measured cache still supersedes. */
+	estimateHeight?: (node: CstNode, env: { width: number }) => number;
 }
 
 /**

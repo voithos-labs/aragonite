@@ -217,6 +217,44 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(open, 800)).toBe(20 * 24 + 16); // unchanged full-raw wrapped estimate
 	});
 
+	// A descriptor's own O(1) estimate supersedes the char-based default arm (a
+	// rendered artifact — diagram, embed — is far taller than its source text). The
+	// oracle still adds block chrome and a measured height still supersedes.
+	it('a descriptor estimateHeight wins over the default arm, plus block chrome', () => {
+		const o = createHeightOracle(opts);
+		const estimated = declarePluginKind('oracle-estimate-height');
+		registerBlockKind(estimated, {
+			mergeRole: 'not-mergeable',
+			editable: false,
+			supportsInline: false,
+			estimateHeight: () => 320
+		});
+		const node: CstNode = { kind: estimated, leadingTrivia: '', raw: 'x\n' };
+		expect(o.estimate(node, 600)).toBe(320 + opts.blockChrome);
+	});
+
+	// Ordering guard: the collapse arm precedes the estimateHeight arm, so a
+	// collapsed container mounts one chrome row and its estimateHeight is ignored.
+	// Swapping the arms would return 320 + chrome here.
+	it('a collapsed container ignores estimateHeight (one chrome row wins)', () => {
+		const o = createHeightOracle(opts);
+		const summary = declarePluginKind('oracle-estimate-chrome');
+		const collapsible = declarePluginKind('oracle-estimate-collapsed');
+		registerBlockKind(collapsible, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			estimateHeight: () => 320,
+			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
+				reservedChrome: { kind: summary, isCollapsed: () => true }
+			}
+		});
+		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
+		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
+	});
+
 	it('clear() empties the measured cache', () => {
 		const o = createHeightOracle(opts);
 		o.recordMeasured('id-1', 99);
