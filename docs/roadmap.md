@@ -14,9 +14,10 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20). Two risks remain:
-**validation depth** — one clean-room run deep, every consumer since in-repo and same-day — and the
-**extension-surface gap**, a whole class of plugin the platform cannot express. The items below
+The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), and the **context
+spine** closed most of the extension-surface gap (0.9.21). Two risks remain: **validation
+depth** — one clean-room run deep, every consumer since in-repo and same-day — and the
+**decoration gap**, the one plugin class the platform still cannot express. The items below
 answer both, ordered by **risk first, validation before freeze**.
 
 1. **Extension-surface completion — the missing half of the platform.**
