@@ -242,6 +242,13 @@ answer both, ordered by **risk first, validation before freeze**.
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
      by their single-home modules with the public doors keeping `number`. Verified by the
      re-audit's enforcement pass, not assumed.
+   - **Freeze litmus (history seam)**: no frozen surface binds the snapshot shape of undo — no
+     public type exposes the undo stack or its entries, and the `edit` event's `undo`/`redo`
+     variants stay representation-agnostic — so the overridable history seam (§ Downstream
+     boundary) remains additive. Its interface is designed at the limestone integration against
+     the consumer's actual history representation, together with the `EditEvent` real-delta
+     discriminant (`plugin-contract.md` § Deferred) — the two are one design, and neither is
+     shaped without the consumer at the table.
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
 
@@ -307,6 +314,22 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   taken at the freeze against the clean-room build's discoverability findings (shipped 0.9.12 — the
   build needed no directive reach-ins; its findings were doc gaps, all fixed in-flight). The per-kind
   opener stays the general escape hatch.
+- **Built-in override / replacement** (Obsidian's codeblock processors; ProseMirror schema
+  swaps) — two shapes that must not be conflated, decided separately. **Single-slot subsystem
+  overrides are consumer seams, not plugin registries**: one implementation per concern, chosen
+  by the embedding app, behind an interface the editor owns and the ceremony still polices — the
+  history module is the first (§ Downstream boundary), and each such seam is designed bespoke
+  against its first real alternative implementation, never as a generic module-swap framework.
+  **Registry-level replacement of a built-in kind's component or descriptor stays excluded at
+  1.0** (Plugin System II, `plugin-contract.md` § Explicitly excluded): registries are
+  process-global, so an override is global and last-writer-wins — the collision tax every
+  surveyed ecosystem paid. The supported replacement path is **grammar-level**: a plugin kind
+  claims the syntax ahead of the built-in on the opener priority ladder (the mermaid precedent —
+  uninstall-safe by decline), owns its own closure-matrix row, and — once item 2's conformance
+  battery lands — proves it by enrollment. An executable code block is this pattern verbatim:
+  claim the fence, render the run surface, keep the bytes. If post-1.0 demand shows genuine need
+  for in-place replacement, Plugin System II is its home — after the battery exists to make "you
+  own what you replace" checkable.
 
 **Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
