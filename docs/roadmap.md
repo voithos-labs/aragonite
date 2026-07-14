@@ -86,7 +86,42 @@ answer both, ordered by **risk first, validation before freeze**.
       deliberately _not_ consolidated here: it hands to presentation modes rung 3 as that batch's
       opening move, one churn of one layer.
 
-3. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
+3. **Inline-layer observability — the flight recorder before the field reports.**
+
+   The inline layer is where the editor's hardest bugs live and where a field report is least
+   reconstructible: per-keystroke span rebuilds make every inline state transient (cursor
+   capture/restore, reveal open/fold, widget-pool adopt/sweep, IME composition, island
+   application), so by the time a report is read, the state that produced it is gone. The debug
+   engine dumps document-level state — CST, selection, undo, ops — and nothing inline. Three
+   deliverables, built before the two events that multiply the exposure: rung 3 (which multiplies
+   the inline state machines) and the limestone integration (the first external field-report
+   source).
+
+   1. **The interaction trace** — a ring buffer of inline-layer transitions (rebuild + which
+      render-key segment changed, cursor capture/restore offsets, reveal open/fold + reason,
+      pool adopt/sweep counts, composition start/end, island applications, sticky capture/reset),
+      joining the ops log in the debug panel's Copy-all. The panel stays dev-only; the recorder
+      ships in production **default-off behind one boolean per site** — the perf-instruments
+      discipline without the DEV strip — surfaced through a consumer diagnostics door so a real
+      app can attach the trace to a bug report. A field report becomes: reproduce, copy, paste.
+   2. **Transition assertions on the named state machines.** Reveal, pending-cursor,
+      pool-bracket, and composition-window transitions become explicit and dev-asserted — an
+      illegal interleaving fires loudly and locally on the invariant channel the e2e watcher and
+      simulation already police, instead of surfacing three layers away as a caret mystery. The
+      ledgered battery-order-sensitive reveal flake is the standing exhibit of the class this
+      makes diagnosable.
+   3. **The IME composition harness** — the ledgered test gap closed (synthetic composition
+      events at the handler level, or CDP IME), so the composition contract is pinned directly
+      rather than by analogy to sibling guards. Composition is the least-tested inline state
+      machine and a prime field-report generator.
+
+   Honestly placed: nothing here is breaking-if-deferred — this item is pre-1.0 for operational
+   value (rung 3 gets built _with_ these instruments; limestone exercises the field-report
+   workflow end to end), not freeze necessity. If the schedule tightens, this is the item that
+   shrinks: the recorder ships, the assertions ride rung 3's opening move, the harness stays
+   ledgered.
+
+4. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
    defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
    styled source is a power-user aesthetic; a consumer evaluating aragonite against Obsidian sees
    markers everywhere and bounces before reaching the good part. Styled source stays the editing
@@ -94,7 +129,7 @@ answer both, ordered by **risk first, validation before freeze**.
    built in order:
 
    1. **Reading mode** — markers hidden, widgets rendered, read-only. Built through public surfaces
-      only, as a consumer would; shipped as a showcase toggle by item 6.
+      only, as a consumer would; shipped as a showcase toggle by item 7.
    2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
       editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
       builds the marker-island rendering and the presentation-mode seam rung 3 refines.
@@ -113,9 +148,11 @@ answer both, ordered by **risk first, validation before freeze**.
    policy, edge entry). Building it after the freeze is the dangerous order; a paper litmus cannot
    validate it, because a shape with no consumer cannot be validated.
 
-4. **Limestone internal integration** — the last unchecked box in the validation list above and
+5. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
-   resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
+   resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
+   also exercises item 3's field-report workflow (trace + copy-all → attached diagnostics) end
+   to end, as the first consumer that will actually file one. The
    integration code lives in limestone; what belongs here is running it before the freeze and
    landing its findings while they are still cheap. Additive API needs it surfaces ship as
    pre-freeze refinements. The integration also forces the first-party plugin distribution
@@ -124,7 +161,7 @@ answer both, ordered by **risk first, validation before freeze**.
    chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
    package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
    tarball, exports-map encapsulation already proven.
-5. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+6. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story item 1
    ships, not just authoring discoverability. The first
@@ -135,7 +172,7 @@ answer both, ordered by **risk first, validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-6. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
+7. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
    the real showcase route (every block kind + every reference plugin — the fixture dogfoods
    stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
    panel). This is the "surpass Obsidian" argument made visible. It also owns **route
@@ -145,11 +182,11 @@ answer both, ordered by **risk first, validation before freeze**.
    human page in a machine tree. The reference-plugin aesthetic decision is made and shipped
    (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
    plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
-   whatever it adds. The showcase **surfaces item 3's presentation modes as toggles** — reading
+   whatever it adds. The showcase **surfaces item 4's presentation modes as toggles** — reading
    mode and block-granular live preview beside styled source — so the first impression is not
    markers-everywhere, and the freeze litmus "the contract must not preclude a rendered reading
    mode" becomes a working proof instead of a paper check.
-7. **Freeze cut at release** — in order:
+8. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -197,7 +234,7 @@ answer both, ordered by **risk first, validation before freeze**.
      childless opaque container — otherwise the decoration API ships with a hole the
      ecosystem inherits.
    - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
-     each be able to learn the current presentation mode and render for it. Item 3 builds all three
+     each be able to learn the current presentation mode and render for it. Item 4 builds all three
      rungs, so this is verified by a real consumer rather than on paper — which is the point: rung 3
      is what proves the inline and caret contracts survive marker islands and caret affinity.
    - **Freeze litmus (enforcement hardening)**: item 2 shipped whole — registration's closure
@@ -297,7 +334,7 @@ Settles what only an integrated surface can settle:
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
 
-_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 3.)_
+_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 4.)_
 
 ### 1.2 — Plugin DX + deferred generalizations
 
