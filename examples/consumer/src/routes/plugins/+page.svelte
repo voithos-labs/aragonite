@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../../plugins/callout/register';
-	import { detailsPlugin } from '../../plugins/details/register';
-	import { admonitionsPlugin } from '../../plugins/admonitions/index';
+	import { detailsPlugin } from 'aragonite/plugins/details';
+	import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
 	import { latexPlugin } from '../../plugins/latex/register';
 
 	// Module scope so the factories run once per process, not once per (SSR) render —

@@ -3,11 +3,7 @@ import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import {
-	registerTocBlock,
-	tocPlugin,
-	TOC_BLOCK
-} from '../../../routes/test/plugins/toc/toc-plugin';
+import { registerTocBlock, tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
 // The opener registers through the schema registry alone (no inline path), so the
 // schema reset is the whole teardown — a leaked registration would let the

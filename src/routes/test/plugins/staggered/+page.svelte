@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../callout/register';
-	import { detailsPlugin } from '../details/register';
+	import { detailsPlugin } from '$lib/plugins/details';
 
 	// Module scope so each factory runs once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'

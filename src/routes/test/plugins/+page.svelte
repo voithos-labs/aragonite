@@ -1,14 +1,14 @@
 <script module lang="ts">
 	import { calloutPlugin } from './callout/register';
-	import { detailsPlugin } from './details/register';
+	import { detailsPlugin } from '$lib/plugins/details';
 	import { latexPlugin } from './latex/register';
-	import { admonitionsPlugin } from './admonitions/index';
+	import { admonitionsPlugin } from '$lib/plugins/admonitions';
 	import { mermaidPlugin } from './mermaid/register';
 	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
-	import { tocPlugin } from './toc/toc-plugin';
-	import { highlightOccurrencesPlugin } from './highlight-occurrences/highlight-occurrences-plugin';
+	import { tocPlugin } from '$lib/plugins/toc';
+	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
@@ -56,7 +56,7 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
-	import { convertGithubAlertsInDocument, hasGithubAlert } from './admonitions/index';
+	import { convertGithubAlertsInDocument, hasGithubAlert } from '$lib/plugins/admonitions';
 
 	let { data }: { data: PageData } = $props();
 
