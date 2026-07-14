@@ -20,6 +20,10 @@ its only job is to keep the engine live under the corruption net.
 
 ## Happy paths
 
+- the standing decoration source is live: once the engine's first per-edit pass runs
+  (the first edit of the session), at least one overlay carrying its mark class
+  paints, so a source that silently stopped emitting fails the battery instead of
+  leaving it green with zero coverage
 - typing `:name[label]` in a prose block promotes the span to an atomic text widget
   at render time; the caret stays in the host paragraph so editing continues
 - clicking the widget reveals its source, an interior edit typed into the label, and

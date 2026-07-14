@@ -111,6 +111,15 @@ test.describe('directive-ops simulation', () => {
 		await expect(page.locator('.directive-text-widget')).toHaveCount(1);
 		await checkOracles('text-inserted');
 
+		// Liveness pin for the standing decoration source: the first edit ran the
+		// engine's per-edit pass, so the source's overlays must now paint. Otherwise a
+		// source that silently stopped emitting would leave the battery green with zero
+		// decoration coverage. (loadContent alone fires no edit event, so the source
+		// cannot paint before this first commit — hence the pin sits here, not at load.)
+		await expect
+			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
+			.toBeGreaterThan(0);
+
 		// Step past `:abbr[` (6 chars) into the label, insert an 'X', blur to commit.
 		await g.revealEditTextDirective(6, 'X', 2);
 		expect(await editor.bridge.getSource()).toContain(':abbr[XHTML]');
