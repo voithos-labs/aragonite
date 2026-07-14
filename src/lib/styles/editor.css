@@ -98,6 +98,21 @@
 	caret-color: transparent;
 }
 
+/* Decoration mark base — the MatchOverlay base generalized. Global (not
+   component-scoped) so a consumer's own `.decoration-overlay.<their-class>`
+   rules resolve; a source supplies the per-mark class, the consumer styles it.
+   Interactive marks opt back into hit-testing. */
+:where(.editor) .decoration-overlay {
+	position: absolute;
+	pointer-events: none;
+	z-index: 1;
+	border-radius: 2px;
+}
+:where(.editor) .decoration-overlay-interactive {
+	pointer-events: auto;
+	cursor: pointer;
+}
+
 :where(.editor) .md-image-widget {
 	display: block;
 	/* Shrink-wrap so the widget matches the image, not its line-box. */

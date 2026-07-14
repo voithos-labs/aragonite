@@ -40,6 +40,7 @@ export default defineConfig({
 				'perf/**',
 				'a11y/**',
 				'search/**',
+				'decorations/**',
 				'plugins/**'
 			]
 		},
@@ -80,6 +81,7 @@ export default defineConfig({
 			use: { viewport: { width: 1280, height: 900 } }
 		},
 		{ name: 'e2e-blocks', testMatch: 'blocks/**/*.spec.ts' },
+		{ name: 'e2e-decorations', testMatch: 'decorations/**/*.spec.ts' },
 		{ name: 'e2e-plugins', testMatch: 'plugins/**/*.spec.ts' },
 		{
 			name: 'e2e-clipboard',
