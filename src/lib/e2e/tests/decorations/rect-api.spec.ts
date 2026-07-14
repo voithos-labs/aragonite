@@ -146,6 +146,12 @@ test.describe('public rect api', () => {
 		expect(await caretRect(page)).toBeNull();
 	});
 
+	test('reveal on an out-of-range path resolves false', async ({ page }) => {
+		await editor.loadContent('only block\n');
+		const revealed = await page.evaluate(() => (window as any).__test.rects.reveal([99]));
+		expect(revealed).toBe(false);
+	});
+
 	test('reveal mounts a windowed-out block and resolves true', async ({ page }) => {
 		await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
 		const last = (await cstBlockCount(page)) - 1;

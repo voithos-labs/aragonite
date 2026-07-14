@@ -34,6 +34,7 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
 
 	let { data }: { data: PageData } = $props();
@@ -49,6 +50,7 @@
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
+	let editorSlot = $state<HTMLElement>();
 
 	// `?dragHandles=false` starts with the hover drag handle disabled (the
 	// reorder-handle e2e covers the off path). The header checkbox flips it live;
@@ -135,7 +137,7 @@
 		</label>
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot">
+		<div class="editor-slot" bind:this={editorSlot}>
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
@@ -146,6 +148,7 @@
 					plugins={pluginsOn ? referencePlugins : undefined}
 				/>
 			{/key}
+			<SelectionToolbar {editor} container={editorSlot} />
 		</div>
 		<DebugPanel
 			rawSource={liveSource}

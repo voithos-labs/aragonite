@@ -26,6 +26,10 @@ e2e-tested.
 
 ## Edge cases
 
+- `reveal` on an unrevealable path (out of range, no block to mount) resolves `false`
+- grid-surface `SELECTION_END` semantics are inherited from `measurePartialRects` and are tested
+  at the text-surface clamp only: passing the sentinel as `end` on a table addresses "through the
+  last cell", but no spec pins that clamp on a grid — recorded, not covered
 - `caretRect` returns `null` while a cross-block selection is active: the parked native selection
   must not leak out as a caret
 - `caretRect` called from inside a `selectionChange` handler during cross-block entry returns
