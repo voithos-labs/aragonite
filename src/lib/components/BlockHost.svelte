@@ -2,7 +2,10 @@
 	import { getContext } from 'svelte';
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
 	import type { CstNode } from '../core/nodes';
+	import type { BlockDecoration } from '../decorations/types';
+	import { mountDecorationWidget } from '../decorations/widget-dom';
 	import type { EditorEvents } from '../editor-events';
+	import type { DecorationEngine } from '../reactivity/decoration-state.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import MatchOverlay from './MatchOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
@@ -12,6 +15,7 @@
 	import { getBlockComponent } from '../schema/block-component-registry';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
+		DECORATIONS_KEY,
 		DOC_KEY,
 		EDITOR_EVENTS_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
@@ -44,12 +48,19 @@
 
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
+	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
+	const engine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
 	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
 
 	let myPath = $derived([...parentPath, index]);
+
+	const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
+	const blockDecs = $derived(
+		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
+	);
 
 	let isContainer = $derived(getBlockKindDescriptor(node.kind).isContainer);
 	// A childless container (render-primary plugin block) mounts no child hosts,
@@ -127,11 +138,65 @@
 		observer.observe(hostEl);
 		return () => observer.disconnect();
 	});
+
+	// Decoration attrs are set imperatively (not spread) so a source change or
+	// dispose removes exactly the keys it applied, leaving the host's own
+	// attributes untouched.
+	$effect(() => {
+		const decs = blockDecs;
+		const el = hostEl;
+		if (!el || decs.length === 0) return;
+		const appliedKeys: string[] = [];
+		for (const dec of decs) {
+			for (const [key, value] of Object.entries(dec.attrs ?? {})) {
+				el.setAttribute(key, value);
+				appliedKeys.push(key);
+			}
+		}
+		return () => {
+			for (const key of appliedKeys) el.removeAttribute(key);
+		};
+	});
+
+	// Badges prepend BEFORE the block component; every first-non-overlay-child
+	// lookup excludes `.decoration-badge` (Editor.getBlockElByPath and the e2e
+	// helpers) — keep them in step if this wrapper class ever changes.
+	$effect(() => {
+		const decs = blockDecs;
+		const el = hostEl;
+		if (!el) return;
+		const destroys: Array<() => void> = [];
+		const badges = document.createDocumentFragment();
+		for (const dec of decs) {
+			if (!dec.badge) continue;
+			const handle = mountDecorationWidget(dec.badge, dec, (error) =>
+				editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			);
+			if (!handle) continue;
+			const wrapper = document.createElement('div');
+			wrapper.className = 'decoration-badge';
+			wrapper.setAttribute('contenteditable', 'false');
+			wrapper.appendChild(handle.el);
+			badges.appendChild(wrapper);
+			destroys.push(() => {
+				handle.destroy();
+				wrapper.remove();
+			});
+		}
+		if (destroys.length === 0) return;
+		el.insertBefore(badges, el.firstChild);
+		return () => {
+			for (const destroy of destroys) destroy();
+		};
+	});
 </script>
 
 <div
-	class="block-host"
-	class:reorder-host={reorderable && dragHandles}
+	class={[
+		'block-host',
+		{ 'reorder-host': reorderable && dragHandles },
+		...blockDecs.flatMap((d) => d.class ?? [])
+	]}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
 	bind:this={hostEl}
@@ -176,8 +241,8 @@
 	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
 	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
 	<DecorationOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
-	<!-- Rendered LAST so `:scope > :not(.selection-overlay)` (block-el lookup,
-		 caret placement) still resolves the block content as its first match. -->
+	<!-- Rendered LAST so the block-el lookup (`:scope >` excluding overlays and
+		 decoration badges) still resolves the block content as its first match. -->
 	{#if reorderable && dragHandles}
 		<BlockDragHandle />
 	{/if}

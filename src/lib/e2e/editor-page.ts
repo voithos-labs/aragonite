@@ -87,14 +87,14 @@ export class EditorPage {
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)')
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)')
 			.first();
 	}
 
 	getBlocks(): Locator {
 		return this.page
 			.locator('[data-block-path]:not([data-block-path*=","])')
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)');
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)');
 	}
 
 	async getDomBlockCount(): Promise<number> {
@@ -137,7 +137,7 @@ export class EditorPage {
 			({ pathAttr, position }) => {
 				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
 				const block = wrapper?.querySelector(
-					':scope > :not(.selection-overlay)'
+					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
 				if (!block) return;
 				block.focus();
@@ -185,7 +185,7 @@ export class EditorPage {
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
 				if (!wrapper) return;
 				const block = wrapper.querySelector(
-					':scope > :not(.selection-overlay)'
+					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
 				if (!block) return;
 				block.focus();
