@@ -6,19 +6,25 @@
 	 * case. Scroll is v1 non-glue: the bar re-anchors on the next selection
 	 * change, not on scroll.
 	 */
-	// EditorSelection's endpoint type is not separately exported — the indexed
-	// access is the consumer-available spelling.
-	import type { EditorInstance, EditorSelection } from '$lib';
+	import {
+		SELECTION_END,
+		type EditorInstance,
+		type EditorSelection,
+		type SelectionPoint
+	} from '$lib';
 
-	type SelectionPoint = EditorSelection['anchor'];
+	interface Placement {
+		x: number;
+		y: number;
+		label: string;
+	}
 
 	let {
 		editor,
 		container
 	}: { editor: EditorInstance | undefined; container: HTMLElement | undefined } = $props();
 
-	let anchor = $state<{ x: number; y: number } | null>(null);
-	let label = $state('');
+	let placement = $state<Placement | null>(null);
 
 	$effect(() => {
 		if (!editor) return;
@@ -26,19 +32,15 @@
 	});
 
 	function update(selection: EditorSelection | null): void {
-		anchor = selection ? place(selection) : null;
+		placement = selection ? place(selection) : null;
 	}
 
-	function place(selection: EditorSelection): { x: number; y: number } | null {
+	function place(selection: EditorSelection): Placement | null {
 		if (selection.anchor.path.join('.') !== selection.focus.path.join('.')) {
 			const start = startPoint(selection);
-			// MAX_SAFE_INTEGER is the documented SELECTION_END sentinel: rects from
-			// the start offset through the start block's last measurable position.
-			const rects = editor!
-				.getRects()
-				.rangeRects(start.path, start.offset, Number.MAX_SAFE_INTEGER);
-			label = 'cross-block';
-			return rects.length ? above(rects[0]) : null;
+			// Rects from the start offset through the start block's last measurable position.
+			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
+			return rects.length ? above(rects[0], 'cross-block') : null;
 		}
 		// The selection snapshot collapses a single-block range to the focus caret
 		// (docs/issues.md, "Selection snapshot collapses single-block ranges"), so
@@ -50,12 +52,11 @@
 		if (container && !container.contains(range.commonAncestorContainer)) return null;
 		const rect = range.getClientRects()[0];
 		if (!rect) return null;
-		label = `${native.toString().length} chars`;
-		return above(rect);
+		return above(rect, `${native.toString().length} chars`);
 	}
 
-	function above(rect: DOMRect): { x: number; y: number } {
-		return { x: rect.left, y: Math.max(4, rect.top - 34) };
+	function above(rect: DOMRect, label: string): Placement {
+		return { x: rect.left, y: Math.max(4, rect.top - 34), label };
 	}
 
 	/** The endpoint earlier in document order — path-lexicographic, then offset. */
@@ -70,14 +71,14 @@
 	}
 </script>
 
-{#if anchor}
+{#if placement}
 	<div
 		class="selection-toolbar"
 		data-testid="selection-toolbar"
-		style:left="{anchor.x}px"
-		style:top="{anchor.y}px"
+		style:left="{placement.x}px"
+		style:top="{placement.y}px"
 	>
-		{label}
+		{placement.label}
 	</div>
 {/if}
 

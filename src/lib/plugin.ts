@@ -226,3 +226,11 @@ export type {
 // `editor.rects` (its onEditor context): a block's box, an inline range's rects,
 // the native caret, and a reveal that mounts a windowed-out block.
 export type { EditorRects } from './editor-rects';
+
+// ── Selection geometry (pre-freeze / unstable) ───────────────────────────────
+// The selection shapes a decoration source or rect consumer reads: the
+// `selectionChange` payload, its endpoint type, and the importable "through the
+// block's last measurable position" sentinel `rangeRects` accepts as `end`.
+export type { EditorSelection, SelectionPoint } from './selection/primitives';
+export { SELECTION_END } from './block-component';
+export type { SelectionEnd } from './block-component';

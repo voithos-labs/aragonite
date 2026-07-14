@@ -75,6 +75,35 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (their shapes + additive-re-add rationale live in `docs/design/plugin-contract.md` § Target shapes (designed ahead)) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
 
+## Core editing
+
+### Enter-at-end can produce a live block pair that reparses as one paragraph
+
+**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
+**Files:** `src/lib/tree-operations/node-ops.ts` (`splitNode` — the second half is minted
+with empty `leadingTrivia` and no blank-line separator), `src/lib/core/serializer.ts`
+(composition: `prefix + Σ(leadingTrivia + raw) + suffix` faithfully emits the missing gap)
+
+Enter at the end of a paragraph splits `Hello world\n` into a first block ending in a single
+newline and an empty second block (`raw: '\n'`, `leadingTrivia: ''`) — while the second block
+is empty its bare newline reads as the blank-line separator, but typing `x` into it rewrites
+that raw to `x\n`, and the document now serializes to `Hello world\nx\n`. That is a
+single-newline join: GFM lazy continuation reparses it as ONE two-line paragraph, so
+split-then-save-then-reload merges what the live session showed as two blocks. Byte
+round-trip (`serialize(parse(s)) === s`) holds throughout — the divergence is
+`parse(serialize(liveTree))` disagreeing with the live tree's structure, which the round-trip
+oracles cannot see. `splitNode`'s own comment already names the empty-half state "tolerated";
+the typed-into variant is the part that persists. Surfaced by 0.9.22's e2e baseline pins
+(reviewer-proven).
+
+**Fix direction:** a design look at split's trailing-newline emission — the blank-line
+separator needs an owner (the first half's raw gaining the blank line, or the second half's
+`leadingTrivia` carrying `'\n'`), decided against the merge/undo paths that read those bytes.
+
+**Why deferred:** byte round-trip holds and the live session is self-consistent; the
+divergence needs a save→reload boundary to observe. The separator-ownership call touches
+split, merge, and trivia semantics together — a deliberate design change, not a spot patch.
+
 ## Code structure
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable

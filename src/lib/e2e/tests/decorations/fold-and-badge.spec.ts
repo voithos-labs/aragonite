@@ -61,11 +61,12 @@ test.describe('fold fixture: islands in table cells', () => {
 		await editor.waitForRenderFlush();
 		await expect(page.locator(ISLAND)).toHaveCount(0);
 		expect(await editor.bridge.getSource()).toBe(FOLD_TABLE_SEED);
-		await expect
-			.poll(() =>
-				warnings.some((w) => w.includes("source 'fold' places a replace island on a tableCell"))
-			)
-			.toBe(true);
+		const islandWarn = (w: string) =>
+			w.includes("source 'fold' places a replace island on a tableCell");
+		await expect.poll(() => warnings.some(islandWarn)).toBe(true);
+		// Exactly once per source+kind (the requirement's own wording): the seed holds
+		// multiple provide runs, and the dedup must hold across all of them.
+		expect(warnings.filter(islandWarn)).toHaveLength(1);
 	});
 });
 

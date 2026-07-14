@@ -857,3 +857,12 @@ Viewport-space geometry over the rendered document, reached through `editor.rect
 | Export        | Role                                                                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, and a reveal that mounts a windowed-out block |
+
+**Selection geometry** _(pre-freeze / unstable)_
+
+The selection shapes a decoration source or rect consumer reads.
+
+| Export                              | Role                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `EditorSelection`, `SelectionPoint` | The `selectionChange` payload — an anchor/focus pair — and its `(path, offset)` endpoint type          |
+| `SELECTION_END`, `SelectionEnd`     | The importable sentinel `rangeRects` accepts as `end` ("through the block's last measurable position") |

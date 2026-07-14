@@ -121,8 +121,10 @@ test.describe('ghost-text dogfood', () => {
 		await editor.clickBlock(0);
 		await expect(page.locator(GHOST)).toHaveCount(1);
 
-		// No text node follows the island at block end, so without the island
-		// keydown branch Chromium drops the printable key silently.
+		// No text node follows the island at block end. The island keydown branch
+		// is retained as cross-browser defence for engines that drop printable keys
+		// at an element-level caret; Chromium types natively here, masking the
+		// branch's absence — the unit suite pins the branch itself.
 		await placeCaretAfterIsland(page);
 		await editor.typeSlowly('z');
 		await editor.bridge.waitForSourceContains('Hello worldz');
