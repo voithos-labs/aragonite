@@ -32,6 +32,11 @@
 	// A grid container (table) supplies cellRect, so its descendant cell marks —
 	// which never get their own BlockHost overlay — paint as whole cells here.
 	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
+	// A childless container has no child hosts to delegate to; when its shim can
+	// measure a range (opaque single-unit) it paints the mark on itself.
+	const containerPaintsSelf = $derived(
+		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
+	);
 
 	interface Painted {
 		left: number;
@@ -60,7 +65,7 @@
 			rects = [];
 			return;
 		}
-		if (isContainer && !containerPaintsCells) {
+		if (isContainer && !containerPaintsCells && !containerPaintsSelf) {
 			rects = [];
 			return;
 		}

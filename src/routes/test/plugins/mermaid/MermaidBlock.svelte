@@ -62,6 +62,9 @@
 	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
+	// Childless opaque box: the overlays measure the whole block off this for a
+	// search/decoration rect, since there are no child hosts to paint through.
+	export const measurePartialRects = containerApi.measurePartialRects;
 	// Completeness guard: `bind:this` reads each instance export individually, so the
 	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
 	// new ContainerBlockComponent member is added and left un-forwarded above.
@@ -76,7 +79,8 @@
 		isVerticallyTransparent,
 		enterEdgeWidget,
 		getBlockComponentByPath,
-		revealByPath
+		revealByPath,
+		measurePartialRects
 	} satisfies ContainerBlockComponent);
 
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');

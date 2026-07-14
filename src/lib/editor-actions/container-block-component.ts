@@ -94,6 +94,11 @@ export interface ContainerBlockComponentDeps {
 	 *  `composeWholeBlockFocusSurface`, so a null only remains when there is
 	 *  genuinely nothing to focus (pre-mount, or a plugin editable holds focus). */
 	readonly getFocusEl?: () => HTMLElement | null | undefined;
+	/** The container's chrome box, for the opaque single-unit `measurePartialRects`
+	 *  below. A childless opaque container (a plugin diagram) has no child hosts to
+	 *  paint search/decoration rects, so the overlay measures the block itself off
+	 *  this element. Read live, never snapshotted. */
+	readonly getBoxEl?: () => HTMLElement | null | undefined;
 }
 
 /**
@@ -215,6 +220,16 @@ export function createContainerBlockComponent(
 			if (deps.nodeChildrenLength === 0) return false;
 			const edge = side === 'start' ? 0 : deps.nodeChildrenLength - 1;
 			return deps.innerBlockRefs[edge]?.enterEdgeWidget?.(side) ?? false;
+		},
+		measurePartialRects(start: number, end: number): DOMRect[] {
+			// Opaque single-unit: a childless container has no children to delegate
+			// to, so any non-empty range paints the whole box; a child-bearing
+			// container returns nothing — its children self-paint through their own
+			// hosts, and the overlay routes to them on `hasChildHosts`.
+			if (deps.nodeChildrenLength > 0) return [];
+			const box = deps.getBoxEl?.();
+			if (!box || end <= start) return [];
+			return [box.getBoundingClientRect()];
 		}
 	};
 }
