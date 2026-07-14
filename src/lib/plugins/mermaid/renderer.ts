@@ -1,9 +1,10 @@
 /**
- * Harness-side renderer backed by the `mermaid` package — the consumer half of
- * the injection seam, deliberately OUTSIDE the plugin's sync manifest (a real
- * consumer supplies its own). The dynamic import keeps the engine off module
- * eval, so nothing touches `document` until a diagram actually renders
- * (client-only by construction — the component renders through effects).
+ * The `mermaid`-backed renderer — the engine adapter reached through the
+ * `aragonite/plugins/mermaid/renderer` subpath. It is the consumer half of the
+ * injection seam: the plugin core stays engine-free, and passing this export as
+ * `mermaidPlugin({ renderer: mermaidRenderer })` opts into the (optional-peer)
+ * dependency. The dynamic import keeps the engine off module eval, so nothing
+ * touches `document` until a diagram actually renders.
  */
 
 import type { MermaidRenderer } from './mermaid-renderer';
@@ -26,7 +27,7 @@ function loadMermaid(): Promise<typeof import('mermaid').default> {
 	return engine;
 }
 
-export const mermaidHarnessRenderer: MermaidRenderer = async (code, id) => {
+export const mermaidRenderer: MermaidRenderer = async (code, id) => {
 	const mermaid = await loadMermaid();
 	const { svg } = await mermaid.render(id, code);
 	return svg;

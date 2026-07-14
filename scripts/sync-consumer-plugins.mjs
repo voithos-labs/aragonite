@@ -11,23 +11,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 
-// admonitions + details ship in-package (aragonite/plugins/*), so the consumer
-// route imports those subpaths directly — only the not-yet-packaged plugins sync.
+// Every bundled-tier plugin now ships in-package (aragonite/plugins/*), so the
+// consumer imports those subpaths directly. Only callout stays a synced source: it
+// is the external *authoring* validator — proof that a plugin written against the
+// public barrels compiles and runs from outside the repo — not a distribution
+// channel for shipped plugins.
 const MANIFEST = {
-	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte'],
-	// The whole plugin crosses: MathInline on the component-widget path,
-	// BlockMath on the editable-leaf tier (createEditableLeaf). katex is a
-	// consumer devDependency.
-	latex: [
-		'latex-kind.ts',
-		'math-renderer.ts',
-		'MathInline.svelte',
-		'BlockMath.svelte',
-		'register.ts'
-	],
-	// harness-renderer.ts stays repo-side: the renderer is injected, so the
-	// consumer supplies its own engine wiring.
-	mermaid: ['mermaid-kind.ts', 'mermaid-renderer.ts', 'register.ts', 'MermaidBlock.svelte']
+	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
 };
 
 rmSync(OUT, { recursive: true, force: true });

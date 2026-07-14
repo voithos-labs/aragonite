@@ -1,10 +1,11 @@
 <script module lang="ts">
 	import { calloutPlugin } from './callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
-	import { latexPlugin } from './latex/register';
+	import { latexPlugin } from '$lib/plugins/latex';
+	import { katexRenderer } from '$lib/plugins/latex/renderer';
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { mermaidPlugin } from './mermaid/register';
-	import { mermaidHarnessRenderer } from './mermaid/harness-renderer';
+	import { mermaidPlugin } from '$lib/plugins/mermaid';
+	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { tocPlugin } from '$lib/plugins/toc';
@@ -27,9 +28,9 @@
 	const basePlugins = [
 		calloutPlugin(),
 		detailsPlugin(),
-		latexPlugin(),
+		latexPlugin({ renderer: katexRenderer }),
 		admonitionsPlugin(),
-		mermaidPlugin({ renderer: mermaidHarnessRenderer }),
+		mermaidPlugin({ renderer: mermaidRenderer }),
 		memoPlugin(),
 		docStatsPlugin,
 		tocPlugin()

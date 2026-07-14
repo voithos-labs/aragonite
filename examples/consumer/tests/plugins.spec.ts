@@ -35,15 +35,30 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 	expect(await getSource(page)).toContain('$x^2$');
 });
 
-test('math paints once — katex.min.css rides the synced renderer module', async ({ page }) => {
-	// Without the stylesheet KaTeX's `.katex-mathml` a11y half lays out at glyph
-	// size beside the render, echoing the TeX source as plain text.
+test('math paints once — katex.min.css rides the packaged renderer adapter', async ({ page }) => {
+	// The stylesheet's bare side-effect import rides `aragonite/plugins/latex/renderer`
+	// (sideEffects-listed so a bundler keeps it). Without it KaTeX's `.katex-mathml`
+	// a11y half lays out at glyph size beside the render, echoing the TeX as plain text.
 	const widget = page.locator('.math-inline-widget').first();
 	await expect(widget.locator('.katex-html')).toHaveCount(1);
 	const mathmlBox = await widget.locator('.katex-mathml').boundingBox();
 	expect(mathmlBox).not.toBeNull();
 	expect(mathmlBox!.width).toBeLessThanOrEqual(2);
 	expect(mathmlBox!.height).toBeLessThanOrEqual(2);
+});
+
+test('mermaid installs from the package and renders statically without an engine', async ({
+	page
+}) => {
+	// The consumer has no mermaid devDependency and wires no renderer, so the packaged
+	// block takes its no-engine branch: the fence code shown verbatim plus a note. This
+	// is the whole point of the core/renderer split — the plugin resolves and installs
+	// without pulling the engine.
+	const block = page.locator('.mermaid-block');
+	await expect(block).toBeVisible();
+	await expect(block.locator('.mermaid-note')).toContainText('Mermaid renderer not configured');
+	await expect(block.locator('.mermaid-static')).toContainText('graph TD');
+	expect(await getSource(page)).toContain('```mermaid');
 });
 
 test('block math renders KaTeX and reveals its source on click (editable-leaf tier)', async ({

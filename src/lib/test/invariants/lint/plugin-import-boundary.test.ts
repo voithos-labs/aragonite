@@ -6,10 +6,10 @@
  * a bundled plugin reaching into `$lib` deep paths or a sibling plugin means the
  * public surface is missing something — fix the barrel, not the import.
  *
- * One exception, minted ahead of the plugins that need it: a file named
- * `renderer.ts` may import its declared rendering engine (`katex` for
- * `plugins/latex`, `mermaid` for `plugins/mermaid`) — the engine-adapter split
- * keeps the heavy dependency off the plugin's core. No current file exercises it.
+ * One exception: a file named `renderer.ts` may import its declared rendering
+ * engine (`katex` for `plugins/latex`, `mermaid` for `plugins/mermaid`) — the
+ * engine-adapter split keeps the heavy dependency off the plugin's core. The latex
+ * and mermaid adapters exercise it; every other file in each plugin stays engine-free.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';

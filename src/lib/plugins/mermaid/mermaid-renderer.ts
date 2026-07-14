@@ -26,7 +26,7 @@ const newMemo = () =>
 
 let activeRenderer: MermaidRenderer | null = null;
 // A fresh memo per renderer swap clears the cache — the primitive owns no reset,
-// so re-instantiation is the clear (mirrors the math renderer's setInlineMathRenderer).
+// so re-instantiation is the clear (mirrors the math renderer's setMathRenderer).
 let memo = newMemo();
 let renderSeq = 0;
 

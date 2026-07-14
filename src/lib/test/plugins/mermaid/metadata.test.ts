@@ -6,7 +6,7 @@ import {
 	registerMermaidKind,
 	rebuildMermaidRaw,
 	type MermaidMetadata
-} from '../../../routes/test/plugins/mermaid/mermaid-kind';
+} from '$lib/plugins/mermaid/mermaid-kind';
 
 // The rebuild-inverse guard: the byte round-trip alone passes even if the opener
 // mis-captured metadata (the opaque contract serializes `raw` verbatim), so these

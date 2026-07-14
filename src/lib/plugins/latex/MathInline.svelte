@@ -19,8 +19,8 @@
 
 	let el: HTMLSpanElement;
 
-	// KaTeX builds inside a client $effect — SSR renders no widget DOM. The interior
-	// is frozen, so this runs once and the mount id stays put for the instance's life.
+	// The renderer builds inside a client $effect — SSR renders no widget DOM. The
+	// interior is frozen, so this runs once and the mount id stays put for the instance's life.
 	$effect(() => {
 		el.replaceChildren(renderInlineMath(inner).dom);
 	});

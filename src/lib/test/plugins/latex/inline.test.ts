@@ -12,11 +12,12 @@ import {
 	__resetInlineWidgetsForTests
 } from '$lib/core/inline/inline-widgets';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
-import { registerMathInline, MATH_INLINE } from '../../../routes/test/plugins/latex/latex-kind';
+import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import {
 	renderInlineMath,
+	setMathRenderer,
 	type MathRenderer
-} from '../../../routes/test/plugins/latex/math-renderer';
+} from '$lib/plugins/latex/math-renderer';
 
 function resetInlineState(): void {
 	__resetInlineSyntaxForTests();
@@ -111,10 +112,10 @@ describe('math widget dispatch', () => {
 	});
 });
 
-// The injectable renderer is the extension's consumer seam (latexPlugin({ renderer }));
-// registerMathInline's param must flow into the module-wired inline renderer MathInline
-// reads, not a hardcoded engine — a regression to a fixed katexRenderer drops it.
-describe('custom renderer threading', () => {
+// The injected renderer is the plugin's consumer seam (latexPlugin({ renderer }) →
+// setMathRenderer). The wired renderer must flow into the inline render MathInline
+// reads, not a hardcoded engine — a regression to a fixed engine drops it.
+describe('injected renderer threading', () => {
 	const displayModes: boolean[] = [];
 	const tagRenderer: MathRenderer = (source, { display }) => {
 		displayModes.push(display);
@@ -124,10 +125,11 @@ describe('custom renderer threading', () => {
 		return { dom };
 	};
 
-	it('routes a registered custom renderer into the inline math render, in text mode', () => {
-		registerMathInline(tagRenderer);
+	it('routes the injected renderer into the inline math render, in text mode', () => {
+		setMathRenderer(tagRenderer);
+		registerMathInline();
 		// MathInline renders through renderInlineMath over the `$`-stripped interior;
-		// the renderer's node is returned directly (the pool wrapper is the island).
+		// the document-wide memo returns a clone of the renderer's node.
 		const { dom } = renderInlineMath('x');
 		expect(dom.className).toBe('tagged-math');
 		expect(dom.textContent).toBe('tagged:x');

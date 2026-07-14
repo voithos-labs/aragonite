@@ -27,6 +27,26 @@
 			"svelte": "./dist/plugins/details/index.js",
 			"default": "./dist/plugins/details/index.js"
 		},
+		"./plugins/latex": {
+			"types": "./dist/plugins/latex/index.d.ts",
+			"svelte": "./dist/plugins/latex/index.js",
+			"default": "./dist/plugins/latex/index.js"
+		},
+		"./plugins/latex/renderer": {
+			"types": "./dist/plugins/latex/renderer.d.ts",
+			"svelte": "./dist/plugins/latex/renderer.js",
+			"default": "./dist/plugins/latex/renderer.js"
+		},
+		"./plugins/mermaid": {
+			"types": "./dist/plugins/mermaid/index.d.ts",
+			"svelte": "./dist/plugins/mermaid/index.js",
+			"default": "./dist/plugins/mermaid/index.js"
+		},
+		"./plugins/mermaid/renderer": {
+			"types": "./dist/plugins/mermaid/renderer.d.ts",
+			"svelte": "./dist/plugins/mermaid/renderer.js",
+			"default": "./dist/plugins/mermaid/renderer.js"
+		},
 		"./plugins/toc": {
 			"types": "./dist/plugins/toc/index.d.ts",
 			"svelte": "./dist/plugins/toc/index.js",
@@ -50,7 +70,8 @@
 	"sideEffects": [
 		"**/*.css",
 		"./dist/components/built-in-blocks.js",
-		"./dist/core/parsers/built-in-openers.js"
+		"./dist/core/parsers/built-in-openers.js",
+		"./dist/plugins/latex/renderer.js"
 	],
 	"scripts": {
 		"dev": "vite dev",
@@ -112,7 +133,17 @@
 		"highlight.js": "^11.11.1"
 	},
 	"peerDependencies": {
-		"svelte": "^5.0.0"
+		"svelte": "^5.0.0",
+		"katex": "^0.17.0",
+		"mermaid": "^11.16.0"
+	},
+	"peerDependenciesMeta": {
+		"katex": {
+			"optional": true
+		},
+		"mermaid": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.3",
