@@ -2,8 +2,9 @@
 
 A `mark` decoration paints a positioned overlay div over its inline range, carrying the
 source-supplied class (and optional attributes) so a consumer styles it. The overlay reads
-the decoration engine per block host, mirroring the search MatchOverlay: leaves measure their
-own range, grid cells paint whole-cell rects, and nothing paints when no source is registered.
+the decoration engine per block host — the same surface search's own highlights ride: leaves
+measure their own range, grid cells paint whole-cell rects, and nothing paints when no source
+is registered.
 Sources register through the public registry — here via the e2e bridge, no plugin needed.
 
 ## Happy paths

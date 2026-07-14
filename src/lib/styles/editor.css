@@ -98,10 +98,10 @@
 	caret-color: transparent;
 }
 
-/* Decoration mark base — the MatchOverlay base generalized. Global (not
-   component-scoped) so a consumer's own `.decoration-overlay.<their-class>`
-   rules resolve; a source supplies the per-mark class, the consumer styles it.
-   Interactive marks opt back into hit-testing. */
+/* Decoration mark base. Global (not component-scoped) so a consumer's own
+   `.decoration-overlay.<their-class>` rules resolve; a source supplies the
+   per-mark class, the consumer styles it. Interactive marks opt back into
+   hit-testing. */
 :where(.editor) .decoration-overlay {
 	position: absolute;
 	pointer-events: none;
@@ -111,6 +111,15 @@
 :where(.editor) .decoration-overlay-interactive {
 	pointer-events: auto;
 	cursor: pointer;
+}
+
+/* Search's marks (source 'editor:search') ride the base above; the class names
+   are pinned by the search e2e suite. */
+:where(.editor) .match-overlay {
+	background: var(--search-match-bg);
+}
+:where(.editor) .match-overlay-active {
+	background: var(--search-match-active-bg);
 }
 
 /* Block-decoration badge wrapper — non-editable chrome prepended to the host;
