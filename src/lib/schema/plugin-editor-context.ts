@@ -5,6 +5,7 @@
  * `document` is a getter so every read is live (culture: getters, not values).
  */
 import type { Document } from '../core/nodes';
+import type { DecorationRegistry } from '../decorations/types';
 import {
 	installedPluginNames,
 	onEditorCallbacks,
@@ -28,6 +29,7 @@ export function createEditorPluginContexts(deps: {
 	getDoc: () => Document;
 	events: EditorEventSubscriptions;
 	optionsFor: (pluginName: string) => unknown;
+	decorations: DecorationRegistry;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -42,7 +44,8 @@ export function createEditorPluginContexts(deps: {
 					return deps.getDoc();
 				},
 				events: deps.events,
-				options: deps.optionsFor(pluginName)
+				options: deps.optionsFor(pluginName),
+				decorations: deps.decorations
 			};
 			contexts.set(pluginName, ctx);
 		}

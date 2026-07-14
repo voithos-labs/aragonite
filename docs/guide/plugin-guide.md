@@ -771,3 +771,17 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | `registerPasteTransform` | Register a content-keyed pre-parse clipboard rewrite (paste-scoped, install-order) |
 | `PasteTransform`         | The transform's shape — a unique name and a `transform(text) → string \| null`     |
+
+**Decorations** _(pre-freeze / unstable)_
+
+View-only annotations layered over the rendered document — never part of the CST. Register a pure per-instance source through `editor.decorations` (your `onEditor` context).
+
+| Export                                                                       | Role                                                                                                        |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `DecorationRegistry`                                                         | The `editor.decorations` surface — `addSource` registers a source and returns a handle                      |
+| `DecorationSource`                                                           | A named, pure source: `provide(document, ctx)` returns the decorations to render                            |
+| `DecorationSourceHandle`                                                     | The registration handle — `invalidate()` re-runs one source, `dispose()` removes it                         |
+| `ProvideContext`                                                             | The second `provide` argument — carries the monotonic `editEpoch` a cached source keys its rescan on        |
+| `Decoration`                                                                 | The union of the four decoration kinds a source may return                                                  |
+| `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four kinds — an inline mark span, a positioned widget, a range replacement, and a whole-block treatment |
+| `DecorationWidgetSpec`                                                       | A widget's render spec — a Svelte `component` or a hand-built `buildDom`                                    |

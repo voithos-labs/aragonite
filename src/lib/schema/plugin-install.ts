@@ -5,6 +5,7 @@ import { isValidPluginName } from './plugin-name';
 // EditorContext view of the event surface stays a compile-time reference only.
 import type { Document } from '../core/nodes';
 import type { EditorEvents } from '../editor-events';
+import type { DecorationRegistry } from '../decorations/types';
 
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
@@ -35,6 +36,7 @@ export interface EditorContext<Options = unknown> {
 	readonly document: Document; // getter-backed, live
 	readonly events: EditorEventSubscriptions;
 	readonly options: Options;
+	readonly decorations: DecorationRegistry;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────

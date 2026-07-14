@@ -14,6 +14,7 @@ import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import { pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
+import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { nodeAt } from '../../tree-operations/node-ops';
 import {
 	attachedChainPrefix,
@@ -235,7 +236,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				discardIfNoop?: boolean;
 		  };
 
-	async function __commit(args: CommitArgs): Promise<void> {
+	function runCommitCeremony(args: CommitArgs): boolean {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
 
@@ -333,13 +334,28 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// doesn't kill the editor (the tree stays intact: the document branch
 			// publishes only on success, the container branch is rolled back above).
 			if (import.meta.env.DEV) throw err;
-			return;
+			return false;
 		}
 
 		if (!discarded && args.op) {
 			deps.events.emit('edit', toEditEvent(args.op, args.op.eventPath, Date.now()));
 		}
 
+		return true;
+	}
+
+	// Bracket the synchronous ceremony (DEV-only) so the decoration engine can assert
+	// no source runs inside a half-applied commit. Cleared before the first await, so a
+	// deferred notifyEdit — always ≥1 tick behind the edit event — never false-fires.
+	async function __commit(args: CommitArgs): Promise<void> {
+		beginCommit();
+		let committed: boolean;
+		try {
+			committed = runCommitCeremony(args);
+		} finally {
+			endCommit();
+		}
+		if (!committed) return;
 		await tick();
 		args.afterTick?.();
 	}

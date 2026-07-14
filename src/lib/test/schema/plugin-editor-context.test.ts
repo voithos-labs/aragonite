@@ -5,13 +5,20 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '$lib/schema/plugin-install';
+import { createEditorEvents, type EditorError } from '$lib/editor-events';
+import { createDecorationEngine } from '$lib/reactivity/decoration-state.svelte';
+import type { DecorationRegistry } from '$lib/decorations/types';
 
 const fakeEvents = { on: () => () => {} } as never;
+const noopDecorations: DecorationRegistry = {
+	addSource: () => ({ invalidate() {}, dispose() {} })
+};
 const deps = (doc: { children: unknown[] }) => ({
 	editorId: 'ed-1',
 	getDoc: () => doc as never,
 	events: fakeEvents,
-	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined)
+	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
+	decorations: noopDecorations
 });
 
 beforeEach(() => __resetInstalledPluginsForTests());
@@ -83,5 +90,61 @@ describe('createEditorPluginContexts', () => {
 		ctxs.attachAll((r) => errors.push(r.plugin));
 		expect(errors).toEqual(['bad']);
 		expect(fired).toEqual(['good']);
+	});
+
+	it('threads editor.decorations: addSource fills the engine, the disposer runs, and a throwing source surfaces as origin decoration', () => {
+		const doc = { children: [] as unknown[] };
+		const events = createEditorEvents();
+		const errorEvents: EditorError[] = [];
+		events.on('error', (e) => errorEvents.push(e));
+		// Mirror Editor.svelte's wiring: the engine's onSourceError routes to the events
+		// surface as an origin: 'decoration' error naming the offending source.
+		const engine = createDecorationEngine({
+			getDoc: () => doc as never,
+			onSourceError: (source, error) =>
+				events.emit('error', { origin: 'decoration', error, context: { source } })
+		});
+		const registry: DecorationRegistry = { addSource: engine.addSource };
+
+		let received: DecorationRegistry | undefined;
+		let disposed = 0;
+		installPlugins([
+			definePlugin({
+				name: 'deco',
+				setup(ctx) {
+					ctx.onEditor((editor) => {
+						received = editor.decorations;
+						editor.decorations.addSource({
+							name: 'good',
+							provide: () => [{ type: 'mark', path: [0], start: 0, end: 1, class: 'x' }]
+						});
+						editor.decorations.addSource({
+							name: 'bad',
+							provide: () => {
+								throw new Error('boom');
+							}
+						});
+						return () => disposed++;
+					});
+				}
+			})
+		]);
+		const ctxs = createEditorPluginContexts({
+			editorId: 'ed-1',
+			getDoc: () => doc as never,
+			events,
+			optionsFor: () => undefined,
+			decorations: registry
+		});
+		ctxs.attachAll(() => {});
+
+		expect(received).toBe(registry);
+		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(errorEvents).toHaveLength(1);
+		expect(errorEvents[0].origin).toBe('decoration');
+		expect(errorEvents[0].context?.source).toBe('bad');
+
+		ctxs.dispose();
+		expect(disposed).toBe(1);
 	});
 });

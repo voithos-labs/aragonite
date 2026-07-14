@@ -45,6 +45,8 @@ export const SELECTION_KEY = Symbol('selection');
 
 export const SEARCH_KEY = Symbol('search');
 
+export const DECORATIONS_KEY = Symbol('decorations');
+
 export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
 
 export const RESOLVE_IMAGE_URL_KEY = Symbol('resolve-image-url');
