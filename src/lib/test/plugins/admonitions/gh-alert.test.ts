@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	convertGithubAlerts,
-	hasGithubAlert
-} from '../../../routes/test/plugins/admonitions/gh-alert';
+import { convertGithubAlerts, hasGithubAlert } from '$lib/plugins/admonitions/gh-alert';
 
 describe('convertGithubAlerts', () => {
 	it('converts a single-line-body alert', () => {

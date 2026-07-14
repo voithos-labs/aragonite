@@ -8,9 +8,9 @@
 	// The heading list is the whole point of the dogfood: it exercises the
 	// `BlockComponentProps.document` delivery, deep-reactive so a heading edit above
 	// updates the list, and reaching a nested block through editor context.
-	import { getContentRange } from '$lib';
 	import {
 		createEditableLeaf,
+		getContentRange,
 		type BlockComponent,
 		type CstNode,
 		type Document

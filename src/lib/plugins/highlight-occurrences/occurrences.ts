@@ -5,8 +5,7 @@
  * included) — the coordinate space mark decorations consume.
  */
 
-import type { CstNode, Document, MarkDecoration } from '$lib/plugin';
-import type { EditorSelection } from '$lib';
+import type { CstNode, Document, MarkDecoration, EditorSelection } from '$lib/plugin';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
 

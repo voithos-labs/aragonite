@@ -9,8 +9,7 @@
  * alone — rewriting one would require rebuilding its ancestors' raw, and
  * GitHub alerts are a top-level construct in practice.
  */
-import { parse } from '$lib';
-import type { PasteTransform } from '$lib/plugin';
+import { parse, type PasteTransform } from '$lib/plugin';
 import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
 
 export function convertGithubAlertsInDocument(source: string): AlertConversion {

@@ -17,6 +17,26 @@
 			"svelte": "./dist/plugin.js",
 			"default": "./dist/plugin.js"
 		},
+		"./plugins/admonitions": {
+			"types": "./dist/plugins/admonitions/index.d.ts",
+			"svelte": "./dist/plugins/admonitions/index.js",
+			"default": "./dist/plugins/admonitions/index.js"
+		},
+		"./plugins/details": {
+			"types": "./dist/plugins/details/index.d.ts",
+			"svelte": "./dist/plugins/details/index.js",
+			"default": "./dist/plugins/details/index.js"
+		},
+		"./plugins/toc": {
+			"types": "./dist/plugins/toc/index.d.ts",
+			"svelte": "./dist/plugins/toc/index.js",
+			"default": "./dist/plugins/toc/index.js"
+		},
+		"./plugins/highlight-occurrences": {
+			"types": "./dist/plugins/highlight-occurrences/index.d.ts",
+			"svelte": "./dist/plugins/highlight-occurrences/index.js",
+			"default": "./dist/plugins/highlight-occurrences/index.js"
+		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
 			"svelte": "./dist/testing.js",

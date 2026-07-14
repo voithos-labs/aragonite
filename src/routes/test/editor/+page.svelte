@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { detailsPlugin } from '../plugins/details/register';
+	import { detailsPlugin } from '$lib/plugins/details';
 	import { latexPlugin } from '../plugins/latex/register';
-	import { admonitionsPlugin } from '../plugins/admonitions/index';
+	import { admonitionsPlugin } from '$lib/plugins/admonitions';
 	import { mermaidPlugin } from '../plugins/mermaid/register';
 	import { mermaidHarnessRenderer } from '../plugins/mermaid/harness-renderer';
 

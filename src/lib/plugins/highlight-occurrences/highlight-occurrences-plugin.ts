@@ -1,8 +1,7 @@
 // Dogfood for a selection-driven mark source on public doors only: onEditor →
 // addSource whose provide scans for the word under the caret, re-run by
 // invalidate() on every selectionChange. The scan itself is pure (occurrences.ts).
-import { definePlugin } from '$lib/plugin';
-import type { EditorSelection } from '$lib';
+import { definePlugin, type EditorSelection } from '$lib/plugin';
 import { occurrenceMarks } from './occurrences';
 
 export const highlightOccurrencesPlugin = definePlugin({

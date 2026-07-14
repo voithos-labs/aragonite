@@ -1,18 +1,20 @@
 /**
- * Dogfood-plugin CSS token ownership. The editor's own CSS is guarded by
- * css-ownership.test.ts (G4.6), which scans `src/lib` only — so a dead
- * `--color-text-secondary` reference survived in a dogfood plugin, reading its
- * inline fallback forever, unreachable by any theme override. This sibling scan
- * closes that gap for the reference/dogfood plugin components: every `var(--…)`
- * they read must resolve either to a token declared in editor-theme.css (either
- * theme block) or to a custom property the plugin declares itself (admonitions
- * owns its `--adm-*` palette). A read in neither set is a dead token.
+ * Plugin CSS token ownership. Plugins own their own token palettes, so G4.6
+ * (css-ownership.test.ts) excludes `src/lib/plugins` and this guard owns that
+ * domain instead — for both the in-package bundled plugins (`src/lib/plugins`)
+ * and the dev fixtures (`src/routes/test/plugins`). It exists because a dead
+ * `--color-text-secondary` reference once survived in a dogfood plugin, reading
+ * its inline fallback forever, unreachable by any theme override. Every `var(--…)`
+ * a plugin component reads must resolve either to a token declared in
+ * editor-theme.css (either theme block) or to a custom property the plugin
+ * declares itself (admonitions owns its `--adm-*` palette). A read in neither
+ * set is a dead token.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { collectEditorSources, readEditorFile } from './scan-source';
 
-const PLUGIN_SRC = path.resolve('src/routes/test/plugins');
+const PLUGIN_ROOTS = [path.resolve('src/lib/plugins'), path.resolve('src/routes/test/plugins')];
 
 /** Tokens a `var(--x)` read references, ignoring any inline fallback. */
 function readsIn(code: string): string[] {
@@ -25,7 +27,7 @@ function declsIn(code: string): string[] {
 }
 
 function pluginComponentSources(): Array<{ rel: string; code: string }> {
-	return collectEditorSources(PLUGIN_SRC)
+	return PLUGIN_ROOTS.flatMap((root) => collectEditorSources(root))
 		.filter((f) => f.relPath.endsWith('.svelte'))
 		.map((f) => ({ rel: f.relPath, code: f.code }));
 }

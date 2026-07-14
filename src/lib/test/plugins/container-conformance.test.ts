@@ -7,7 +7,7 @@ import {
 	type ContainerConformanceProfile
 } from '$lib/testing';
 import { registerCalloutKind, NOTE } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
 // The G4.3 kit pointed at real PLUGIN containers — the audience it is billed for.
 // The built-in sweep (`test/invariants/container-conformance.test.ts`) derives its

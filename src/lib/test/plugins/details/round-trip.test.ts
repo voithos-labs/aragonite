@@ -4,10 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { getPluginMetadata } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import {
-	registerDetailsKind,
-	rebuildDetailsRaw
-} from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind, rebuildDetailsRaw } from '$lib/plugins/details/details-kind';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
 const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>\n';
