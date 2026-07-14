@@ -63,7 +63,7 @@ Well, funny things is, this implementation actually stuck around.
 
 # Footnote
 
-[^1]: read the [changelog](./docs/changelog.md) to experience my suffering.
+[^1]: read docs/changelog.md to experience my suffering.
 
 [^2]: this is not even the first iteration of this editor; this is like my fourth try to write this piece of lovely shit.
 
