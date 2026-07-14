@@ -1,4 +1,4 @@
-import type { Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import {
 	groupDecorationsByAncestor,
 	groupDecorationsByPath,
@@ -54,9 +54,9 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	// mid-list never staleness-shifts a surviving handle.
 	const slots: SourceSlot[] = [];
 	const names = new Set<string>();
-	// DEV: source+kind combinations already flagged for targeting a non-prose block
-	// with an island — warn once each, never per run.
-	const warnedNonProseIslands = new Set<string>();
+	// DEV: source+kind combinations already flagged for targeting an island at a
+	// block that never renders islands — warn once each, never per run.
+	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
 	// Plain counter — bumped only by notifyEdit, never a $derived dependency, so an
 	// invalidate() that reads it can't schedule a reactive recompute of the buckets.
@@ -76,7 +76,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			deps.onSourceError?.(slot.source.name, error);
 			return; // keep the slot's prior decorations — a throw never blanks the view
 		}
-		warnNonProseIslands(slot.source.name, next);
+		warnUnrenderableIslands(slot.source.name, next);
 		// Idle-source guard: an empty→empty re-run must not reassign `results`, or every
 		// keystroke would republish the derived buckets for sources that never emit.
 		if (results[i].length === 0 && next.length === 0) return;
@@ -85,22 +85,34 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	// Only the prose render branch applies islands, so a widget/replace targeting a
-	// non-prose block (code, thematic break) silently no-ops. Flag it at the source
-	// seam rather than leaving the author to wonder why nothing rendered.
-	function warnNonProseIslands(sourceName: string, decs: Decoration[]): void {
+	// Only the prose text render branch applies islands, so a widget/replace
+	// silently no-ops on two block classes: non-prose kinds (code, thematic
+	// break — no inline pass at all) and table cells, whose surface runs its own
+	// inline pass but applies no island decorations (docs/issues.md). Flag both
+	// at the source seam rather than leaving the author to wonder why nothing
+	// rendered.
+	function islandSkipReason(kind: CstNode['kind']): string | null {
+		if (kind === 'tableCell') return 'the table-cell surface does not apply islands';
+		if (!isProseKind(kind)) return 'islands render only in prose blocks';
+		return null;
+	}
+
+	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
 		if (!import.meta.env.DEV) return;
 		const doc = deps.getDoc();
 		for (const dec of decs) {
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;
 			const node = nodeAt(doc, dec.path);
-			if (!node || !isBlockNode(node) || isProseKind(node.kind)) continue;
+			if (!node || !isBlockNode(node)) continue;
+			const reason = islandSkipReason(node.kind);
+			if (!reason) continue;
 			const key = `${sourceName}\0${node.kind}`;
-			if (warnedNonProseIslands.has(key)) continue;
-			warnedNonProseIslands.add(key);
+			if (warnedUnrenderableIslands.has(key)) continue;
+			warnedUnrenderableIslands.add(key);
+			const kindLabel = node.kind === 'tableCell' ? node.kind : `non-prose ${node.kind}`;
 			devWarn(
 				'decorations',
-				`source '${sourceName}' places a ${dec.type} island on a non-prose ${node.kind} block; islands render only in prose blocks`,
+				`source '${sourceName}' places a ${dec.type} island on a ${kindLabel} block; ${reason}`,
 				{ path: dec.path }
 			);
 		}

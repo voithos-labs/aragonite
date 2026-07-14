@@ -6,6 +6,28 @@ or a **Why deferred** rationale (if not). Remove entries when shipped.
 
 ## Decoration & rendering
 
+### Islands (widget/replace decorations) do not render in table cells
+
+**Severity:** minor (parity gap; mark and block decorations serve cells today)
+**Files:** `src/lib/components/blocks/table/cell-render.ts` (applies no islands) vs
+`src/lib/components/blocks/text/text-render.ts` (the prose island seam)
+
+Only the prose text render path consumes `islandsForPath`; the cell surface runs its own
+inline pass and applies no island decorations, so a widget/replace decoration targeting a
+`tableCell` path renders nothing. `tableCell` is a prose kind, so the non-prose island
+dev-warn also stayed silent — the source seam now warns for cell paths, and the gap is
+e2e-pinned (`fold-and-badge.spec.ts`, islands-in-cells). Byte safety holds throughout:
+the targeted bytes never leave `getSource()`.
+
+**Fix direction:** apply `applyIslandDecorations` in the cell render path the way
+`text-render.ts` does (cell raw, ambient length 0 — the offset walk is shared); island
+editing semantics in cells then ride the same wire-up as the cell reveal gap below
+("Inline-widget source editing (reveal) is unwired in table cells").
+
+**Why deferred:** surfaced as the 0.9.22 islands-in-cells verification outcome. Cells
+already lag the prose surface on widget interaction, so island rendering folds into that
+same cell-surface parity pass rather than shipping render support without editing rules.
+
 ### Same-cell multi-match paints stacked rects instead of one collapsed rect
 
 **Severity:** minor (visual; table cells only)
