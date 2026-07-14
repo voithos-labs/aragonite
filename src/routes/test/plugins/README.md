@@ -15,6 +15,13 @@ installs, and the shapes plugin authors should copy.
   render-primary validator).
 - `mermaid/` — fence-claiming opaque container; the render-primary recipe for
   blocks that render as a picture.
+- `highlight-occurrences/` — selection-driven decoration source: marks every
+  whole-word occurrence of the word under the caret. The reference shape for
+  `editor.decorations` + `selectionChange` wiring. Seed-gated on `/test/plugins`
+  (its marks would annotate every sibling seed), not showcased.
+- `ghost-text/` — one component-widget island at the focused paragraph's end;
+  the reference shape for in-flow widget decorations and their byte-safety.
+  Seed-gated, not showcased.
 
 ## Fixture plugins
 
