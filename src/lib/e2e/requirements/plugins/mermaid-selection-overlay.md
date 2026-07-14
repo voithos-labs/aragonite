@@ -10,6 +10,9 @@ delegating: their children paint, the container never double-paints.
 
 - A Shift+ArrowDown sweep from the paragraph above a rendered diagram to the paragraph
   below paints the full-block `.selection-overlay-middle` on the mermaid block
+- An upward sweep from the paragraph below that ENDS on the diagram paints the mermaid's
+  own box as an endpoint rect — the container surfaces `measurePartialRects`, so as the
+  range-start block it measures itself instead of painting nothing
 - The same sweep across a BROKEN diagram (error card, no viewport) paints the same
   full-block overlay — the selection visual is state-independent
 

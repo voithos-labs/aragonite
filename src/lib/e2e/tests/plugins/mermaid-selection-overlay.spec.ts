@@ -40,6 +40,24 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(1);
 	});
 
+	test('an upward sweep ending ON the diagram paints its endpoint box', async ({ page }) => {
+		await editor.loadContent(RENDERED_DOC);
+		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
+
+		await editor.focusBlockEnd(2);
+		await page.keyboard.press('Shift+ArrowUp');
+		await page.keyboard.press('Shift+ArrowUp');
+		await editor.waitForCrossBlock(true);
+
+		// The container surfaces measurePartialRects, so as the range-start endpoint
+		// it paints its own full box (endpoint rects, not the middle overlay).
+		const endpoint = page.locator("[data-block-path='[1]'] > .selection-overlay-endpoint");
+		await expect.poll(() => endpoint.count()).toBeGreaterThan(0);
+		const box = await endpoint.first().boundingBox();
+		expect(box!.width).toBeGreaterThan(0);
+		expect(box!.height).toBeGreaterThan(0);
+	});
+
 	test('the sweep paints the overlay on a BROKEN diagram too (error state)', async ({ page }) => {
 		await editor.loadContent(BROKEN_DOC);
 		await expect(page.locator('.mermaid-error')).toBeVisible({ timeout: 30_000 });
