@@ -105,6 +105,8 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 
 // ── window.__test probe surface (backs the e2e suite) ──────────────────────
 
+type ProbeRect = { top: number; left: number; width: number; height: number } | null;
+
 let capturedErrorOrigins: string[] = [];
 let disposeErrorCapture: (() => void) | undefined;
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
@@ -251,6 +253,31 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				editor.getRects().rangeRects(path, start, end),
 			caretRect: (): DOMRect | null => editor.getRects().caretRect(),
 			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path)
+		},
+		// ── Cross-block caretRect timing probe ─────────────────────────────
+		// Captures editor.getRects().caretRect() the first time a selectionChange
+		// snapshot turns cross-block — from INSIDE the synchronous handler, the
+		// window before the deferred data-cross-block $effect runs. Pins that
+		// caretRect reads SelectionState, not the lagging DOM mirror: reading the
+		// stale attribute mid-emit would leak the parked cross-block range.
+		startCrossBlockCaretProbe: (): void => {
+			const w = window as any;
+			w.__test._cbCaret = { captured: false, rect: null };
+			w.__test._cbCaretDispose?.();
+			w.__test._cbCaretDispose = editor.getEvents().on('selectionChange', (sel) => {
+				if (w.__test._cbCaret.captured || !sel || !isCrossBlockSnapshot(sel)) return;
+				const r = editor.getRects().caretRect();
+				w.__test._cbCaret = {
+					captured: true,
+					rect: r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null
+				};
+			});
+		},
+		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => {
+			const w = window as any;
+			w.__test._cbCaretDispose?.();
+			w.__test._cbCaretDispose = null;
+			return w.__test._cbCaret ?? { captured: false, rect: null };
 		},
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
