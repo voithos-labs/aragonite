@@ -10,6 +10,7 @@ import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
 import type { SearchState } from './reactivity/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
+import type { EditorRects } from './editor-rects';
 import type { EditorPluginEntry } from './schema/plugin-install';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
@@ -41,4 +42,5 @@ export interface EditorInstance {
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
+	getRects(): EditorRects;
 }

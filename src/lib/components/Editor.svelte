@@ -72,6 +72,7 @@
 	import { createSearchState, type SearchState } from '../reactivity/search-state.svelte';
 	import { createDecorationEngine } from '../reactivity/decoration-state.svelte';
 	import type { DecorationRegistry } from '../decorations/types';
+	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
@@ -346,6 +347,18 @@
 		return (cells[colIdx] as HTMLElement | undefined) ?? null;
 	};
 
+	// Synchronous path-descent to the mounted BlockComponent (empty path → null).
+	// The non-scrolling sibling of revealPath, and the single descent both the rect
+	// API and the test surface consume — a second closure would drift from it.
+	function getBlockComponent(path: number[]): BlockComponent | null {
+		if (path.length === 0) return null;
+		const [first, ...rest] = path;
+		const ref = blockRefs[first];
+		if (!ref) return null;
+		if (rest.length === 0) return ref;
+		return ref.getBlockComponentByPath?.(rest) ?? null;
+	}
+
 	// ── Action Bundles ──────────────────────────────────────────────────
 
 	// Hoisted so the deps literal below can reference it before the VR state it
@@ -427,6 +440,16 @@
 	});
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
 
+	// Per-instance rect facet over the measurement primitives. Shares revealPath/
+	// getBlockElByPath with the search deps and reuses getBlockComponent (the one
+	// path-descent) so nothing measures through a second closure.
+	const rects = createEditorRects({
+		getBlockElByPath,
+		getBlockComponentByPath: getBlockComponent,
+		revealPath,
+		getEditorRoot: () => editorEl ?? null
+	});
+
 	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it
 	// reuses the one live-doc closure — a second getDoc would be a TDZ reference here,
 	// and the culture rule is one getter, never a captured value.
@@ -436,7 +459,8 @@
 		getDoc,
 		events,
 		optionsFor: (name) => pluginEntries?.optionsByName.get(name),
-		decorations
+		decorations,
+		rects
 	});
 
 	// The per-instance context lookup + command-error sink every dispatch tier that
@@ -844,13 +868,18 @@
 		return decorations;
 	}
 
+	export function getRects(): EditorRects {
+		return rects;
+	}
+
 	// Compile-time conformance: the published handle can't drift from the exports.
 	void ({
 		getSource,
 		getSelection,
 		getEvents,
 		getSearch,
-		getDecorations
+		getDecorations,
+		getRects
 	} satisfies EditorInstance);
 
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
@@ -876,15 +905,6 @@
 	 */
 	function getDocument() {
 		return doc;
-	}
-
-	function getBlockComponent(path: number[]): BlockComponent | null {
-		if (path.length === 0) return null;
-		const [first, ...rest] = path;
-		const ref = blockRefs[first];
-		if (!ref) return null;
-		if (rest.length === 0) return ref;
-		return ref.getBlockComponentByPath?.(rest) ?? null;
 	}
 
 	export const __test = {

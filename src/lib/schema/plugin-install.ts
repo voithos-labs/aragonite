@@ -6,6 +6,7 @@ import { isValidPluginName } from './plugin-name';
 import type { Document } from '../core/nodes';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
+import type { EditorRects } from '../editor-rects';
 
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
@@ -37,6 +38,7 @@ export interface EditorContext<Options = unknown> {
 	readonly events: EditorEventSubscriptions;
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
+	readonly rects: EditorRects;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────
