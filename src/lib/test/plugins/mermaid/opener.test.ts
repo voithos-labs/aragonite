@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { registerMermaidKind } from '../../../routes/test/plugins/mermaid/mermaid-kind';
+import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 
 describe('mermaid opener claims and declines', () => {
 	beforeEach(() => {

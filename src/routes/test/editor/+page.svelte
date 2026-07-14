@@ -1,9 +1,10 @@
 <script module lang="ts">
 	import { detailsPlugin } from '$lib/plugins/details';
-	import { latexPlugin } from '../plugins/latex/register';
+	import { latexPlugin } from '$lib/plugins/latex';
+	import { katexRenderer } from '$lib/plugins/latex/renderer';
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { mermaidPlugin } from '../plugins/mermaid/register';
-	import { mermaidHarnessRenderer } from '../plugins/mermaid/harness-renderer';
+	import { mermaidPlugin } from '$lib/plugins/mermaid';
+	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
 	// The `?plugins=1` showcase installs the reference plugins — the set a real
 	// consumer would install — through the canonical `<Editor plugins>` prop. The
@@ -16,9 +17,9 @@
 	// `/test/editor` stays plugin-free for the batteries that share this route.
 	const referencePlugins = [
 		detailsPlugin(),
-		latexPlugin(),
+		latexPlugin({ renderer: katexRenderer }),
 		admonitionsPlugin(),
-		mermaidPlugin({ renderer: mermaidHarnessRenderer })
+		mermaidPlugin({ renderer: mermaidRenderer })
 	];
 </script>
 

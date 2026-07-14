@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
@@ -6,8 +7,13 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { getInlineSyntax, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
-import { registerMathBlock, MATH_BLOCK } from '../../../routes/test/plugins/latex/latex-kind';
-import { latexPlugin } from '../../../routes/test/plugins/latex/register';
+import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
+import { latexPlugin } from '$lib/plugins/latex';
+import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+
+// latexPlugin requires an injected renderer; block parsing never renders, so a
+// no-op stub satisfies the required option without pulling a math engine in.
+const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
 // The block opener and the inline `$` trigger register through independent
 // registries, so both are reset — else a `latexPlugin()` install would leave
@@ -99,8 +105,24 @@ describe('block math round-trip', () => {
 
 describe('latexPlugin wires the block opener', () => {
 	it('makes a $$…$$ fence parse as a mathBlock through the installed plugin', () => {
-		installPlugins([latexPlugin()]);
+		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
+	});
+});
+
+// latexPlugin's renderer is a REQUIRED option — no baked-in default engine, unlike
+// mermaid's optional renderer. The contract lives at the type level; the two
+// compile-time assertions below turn a regression to an optional/defaulted renderer
+// into an `npm run check` failure (an unused-directive error). Never invoked — the
+// compile error is the guard, not any runtime behavior.
+describe('latexPlugin requires an injected renderer', () => {
+	it('rejects a missing or empty renderer option at compile time', () => {
+		// @ts-expect-error - renderer is required; a bare call omits it
+		const noArg = () => latexPlugin();
+		// @ts-expect-error - renderer is required; empty options omit it
+		const noRenderer = () => latexPlugin({});
+		expect(noArg).toBeTypeOf('function');
+		expect(noRenderer).toBeTypeOf('function');
 	});
 });
 
@@ -111,12 +133,12 @@ describe('latexPlugin wires the block opener', () => {
 // declarePluginInlineKind / registerInlineSyntax('$') and throw on the survivor.
 describe('latexPlugin reinstall after a schema reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
-		installPlugins([latexPlugin()]);
+		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineSyntax('$')).toBeDefined();
 
 		__resetSchemaRegistriesForTests();
-		installPlugins([latexPlugin()]);
+		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineSyntax('$')).toBeDefined();

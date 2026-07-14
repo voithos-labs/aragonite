@@ -22,7 +22,7 @@ import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '../../../../routes/test/plugins/latex/latex-kind';
+import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
 
 interface Commit {

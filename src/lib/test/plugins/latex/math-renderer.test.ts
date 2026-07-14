@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
+ *
+ * The engine-free render seam. `createMemoizedRenderer`'s memoization contract is
+ * the core half of the core/adapter split; the katex adapter it wraps is proven in
+ * `renderer.test.ts`.
  */
 import { describe, it, expect, vi } from 'vitest';
-import {
-	katexRenderer,
-	createMemoizedRenderer
-} from '../../../routes/test/plugins/latex/math-renderer';
+import { createMemoizedRenderer } from '$lib/plugins/latex/math-renderer';
 
 describe('createMemoizedRenderer', () => {
 	it('runs inner once per (source, display) and hands back a fresh node each call', () => {
@@ -68,30 +69,4 @@ describe('createMemoizedRenderer', () => {
 	// The bounded-LRU mechanics (eviction, recency, clone identity) are pinned once
 	// on the shared primitive in bounded-memo.test.ts; these cases pin the wrapper's
 	// own contract — cloneOnRead wiring and the (source, display) composite key.
-});
-
-describe('katexRenderer', () => {
-	it('renders valid math with MathML in the DOM (A9)', () => {
-		const { dom, error } = katexRenderer('x^2', { display: false });
-
-		expect(error).toBeUndefined();
-		// KaTeX wraps its MathML in a `.katex-mathml` span; jsdom parses that class
-		// reliably even where it drops the foreign-content <math> element itself.
-		expect(dom.querySelector('.katex-mathml')).not.toBeNull();
-	});
-
-	// A5 — invalid math surfaces a legible inline message, never KaTeX's raw
-	// `.katex-error` source strip. This adapter-level proof is A5's primary guard;
-	// latex-acceptance.spec.ts ties it to the live widget-build path in a browser.
-	it('renders invalid math as a legible error node, never the raw source (A5)', () => {
-		const source = '\\frac{';
-		const { dom, error } = katexRenderer(source, { display: false });
-
-		expect(error).toBeTruthy();
-		const text = dom.textContent ?? '';
-		// KaTeX's throwOnError:false emits a strip whose text IS the raw source;
-		// the adapter must replace it with a human message.
-		expect(text).not.toBe(source);
-		expect(text.toLowerCase()).toContain('error');
-	});
 });
