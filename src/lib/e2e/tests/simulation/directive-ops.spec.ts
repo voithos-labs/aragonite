@@ -43,8 +43,11 @@ const DIRECTIVE_DOC =
 	'Tail paragraph.\n';
 
 class DirectiveSimPage extends EditorPage {
+	// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
+	// the base plugins, so the oracle stack watches the decoration engine run on every
+	// edit. loadContent overrides the seed's (absent) document with DIRECTIVE_DOC.
 	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins');
+		await this.page.goto('/test/plugins?seed=sim');
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: 10_000

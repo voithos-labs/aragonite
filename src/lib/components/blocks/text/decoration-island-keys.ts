@@ -23,6 +23,7 @@
 import type { BlockEditActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import { recordIslandKeyScan } from '../../../perf/instruments';
 
 interface IslandSpan {
 	start: number;
@@ -48,6 +49,7 @@ export interface DecorationIslandKeys {
 
 export function createDecorationIslandKeys(deps: DecorationIslandKeysDeps): DecorationIslandKeys {
 	function islandsInDom(el: HTMLElement): IslandSpan[] {
+		recordIslandKeyScan();
 		const out: IslandSpan[] = [];
 		for (const node of el.querySelectorAll<HTMLElement>('[data-decoration-island]')) {
 			const start = Number(node.dataset.sourceStart);

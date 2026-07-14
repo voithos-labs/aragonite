@@ -12,6 +12,7 @@
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
+	import { simMarkPlugin } from './sim-mark/sim-mark-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
@@ -42,7 +43,11 @@
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
-		badge: [blockBadgePlugin]
+		badge: [blockBadgePlugin],
+		// The loaded-ops simulations navigate with `?seed=sim` to put a standing
+		// decoration source under the corruption oracle; they loadContent their own
+		// document over the (absent) seed document.
+		sim: [simMarkPlugin]
 	};
 </script>
 
@@ -262,5 +267,9 @@
 
 	.plugins-harness :global(.decoration-overlay.hl-occurrence) {
 		background: rgba(250, 204, 21, 0.35);
+	}
+
+	.plugins-harness :global(.decoration-overlay.sim-standing-mark) {
+		background: rgba(96, 165, 250, 0.3);
 	}
 </style>

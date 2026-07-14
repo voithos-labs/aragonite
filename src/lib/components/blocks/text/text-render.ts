@@ -21,6 +21,7 @@ import { applyIslandDecorations } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
+import { recordIslandRebuild } from '../../../perf/instruments';
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -207,6 +208,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
 			});
+			if (islands.length > 0) recordIslandRebuild();
 			widgetPool.sweep();
 			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
 			lastRenderedKey = renderKey;

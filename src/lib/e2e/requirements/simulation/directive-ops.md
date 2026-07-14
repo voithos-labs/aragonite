@@ -13,6 +13,11 @@ The loaded document opens both dispatch paths at once: `:::note` (claimed by the
 harness callout plugin) and `:::mystery` (claimed by nothing, so it must land on the
 generic container).
 
+The session runs with a standing decoration source installed (`?seed=sim`), so the
+oracle stack also watches the decoration engine re-run on every edit. The source is
+view-only — a mark on a fixture word — so it changes no source, CST, or undo state;
+its only job is to keep the engine live under the corruption net.
+
 ## Happy paths
 
 - typing `:name[label]` in a prose block promotes the span to an atomic text widget
