@@ -63,6 +63,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:top": "playwright test --project=e2e-top",
 		"test:e2e:blocks": "playwright test --project=e2e-blocks",
+		"test:e2e:decorations": "playwright test --project=e2e-decorations",
 		"test:e2e:plugins": "playwright test --project=e2e-plugins",
 		"test:e2e:blocks:list": "playwright test --project=e2e-blocks blocks/list",
 		"test:e2e:blocks:code": "playwright test --project=e2e-blocks blocks/code",
