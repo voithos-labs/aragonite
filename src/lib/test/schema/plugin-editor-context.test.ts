@@ -8,17 +8,25 @@ import {
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import { createDecorationEngine } from '$lib/reactivity/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
+import type { EditorRects } from '$lib/editor-rects';
 
 const fakeEvents = { on: () => () => {} } as never;
 const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
+};
+const noopRects: EditorRects = {
+	blockRect: () => null,
+	rangeRects: () => [],
+	caretRect: () => null,
+	reveal: async () => false
 };
 const deps = (doc: { children: unknown[] }) => ({
 	editorId: 'ed-1',
 	getDoc: () => doc as never,
 	events: fakeEvents,
 	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
-	decorations: noopDecorations
+	decorations: noopDecorations,
+	rects: noopRects
 });
 
 beforeEach(() => __resetInstalledPluginsForTests());
@@ -134,7 +142,8 @@ describe('createEditorPluginContexts', () => {
 			getDoc: () => doc as never,
 			events,
 			optionsFor: () => undefined,
-			decorations: registry
+			decorations: registry,
+			rects: noopRects
 		});
 		ctxs.attachAll(() => {});
 
@@ -146,5 +155,31 @@ describe('createEditorPluginContexts', () => {
 
 		ctxs.dispose();
 		expect(disposed).toBe(1);
+	});
+
+	it('threads editor.rects: the same registry instance reaches every context', () => {
+		const rects: EditorRects = {
+			blockRect: () => null,
+			rangeRects: () => [],
+			caretRect: () => null,
+			reveal: async () => true
+		};
+		let received: EditorRects | undefined;
+		installPlugins([
+			definePlugin({
+				name: 'measurer',
+				setup(ctx) {
+					ctx.onEditor((editor) => {
+						received = editor.rects;
+					});
+				}
+			})
+		]);
+		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), rects });
+		ctxs.attachAll(() => {});
+
+		// Identity, not shape: a per-context copy would break the "one door" contract.
+		expect(received).toBe(rects);
+		expect(ctxs.get('measurer').rects).toBe(rects);
 	});
 });

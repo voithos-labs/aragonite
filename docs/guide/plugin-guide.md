@@ -785,3 +785,11 @@ View-only annotations layered over the rendered document — never part of the C
 | `Decoration`                                                                 | The union of the four decoration kinds a source may return                                                  |
 | `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four kinds — an inline mark span, a positioned widget, a range replacement, and a whole-block treatment |
 | `DecorationWidgetSpec`                                                       | A widget's render spec — a Svelte `component` or a hand-built `buildDom`                                    |
+
+**Rects** _(pre-freeze / unstable)_
+
+Viewport-space geometry over the rendered document, reached through `editor.rects` (your `onEditor` context).
+
+| Export        | Role                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, and a reveal that mounts a windowed-out block |

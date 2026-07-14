@@ -81,3 +81,8 @@ export type {
 	DecorationSourceHandle,
 	DecorationRegistry
 } from './decorations/types';
+
+// ── Rects ──────────────────────────────────────────────────────────────────────
+
+// Viewport-space geometry over the rendered document, via `editor.getRects()`.
+export type { EditorRects } from './editor-rects';

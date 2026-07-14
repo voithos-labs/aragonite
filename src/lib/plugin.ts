@@ -220,3 +220,9 @@ export type {
 	DecorationSourceHandle,
 	DecorationRegistry
 } from './decorations/types';
+
+// ── Rects (pre-freeze / unstable) ────────────────────────────────────────────
+// Viewport-space geometry over the rendered document, reached through
+// `editor.rects` (its onEditor context): a block's box, an inline range's rects,
+// the native caret, and a reveal that mounts a windowed-out block.
+export type { EditorRects } from './editor-rects';
