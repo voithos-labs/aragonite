@@ -41,16 +41,15 @@ export interface BlockDecoration {
 export type Decoration = MarkDecoration | WidgetDecoration | ReplaceDecoration | BlockDecoration;
 
 /** Widget identity is untracked by render keys: two specs at the same position
- *  with the same class are treated as equal — vary `class` to force a re-render.
- *  (Documented contract; the plugin-guide recipe states it — Task 15.) */
+ *  with the same class are treated as equal — vary `class` to force a re-render. */
 export type DecorationWidgetSpec =
 	| { component: import('svelte').Component<{ decoration: Decoration }> }
 	| { buildDom: (dec: Decoration) => HTMLElement };
 
 export interface ProvideContext {
 	/** Monotonic counter bumped once per document edit (never by invalidate()) —
-	 *  the memo key for sources that cache their scan (see Task 10). `doc.children`
-	 *  identity is NOT a valid change signal: routine typing mutates in place. */
+	 *  the memo key for sources that cache their scan. `doc.children` identity is
+	 *  NOT a valid change signal: routine typing mutates in place. */
 	editEpoch: number;
 }
 export interface DecorationSource {
