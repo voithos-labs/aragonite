@@ -1,12 +1,14 @@
 import type { Document } from '../core/nodes';
 import { compileMatcher } from '../search/matcher';
 import { scanDocument, type Match } from '../search/document-scan';
-import {
-	groupMatchesByAncestor,
-	groupMatchesByPath,
-	pathKey,
-	type IndexedMatch
-} from '../search/match-index';
+import { pathKey } from '../decorations/buckets';
+import type {
+	DecorationRegistry,
+	DecorationSourceHandle,
+	MarkDecoration,
+	ProvideContext
+} from '../decorations/types';
+import { createBoundedMemo } from '../bounded-memo';
 
 const EMPTY_MATCHES: IndexedMatch[] = [];
 
@@ -15,8 +17,19 @@ export interface SearchOptions {
 	wholeWord: boolean;
 	regex: boolean;
 }
+
+/** A match paired with its position in the flat `matches` list — the index the
+ *  active-highlight compares against `activeIndex`. */
+export interface IndexedMatch {
+	match: Match;
+	index: number;
+}
+
 interface SearchDeps {
 	getDoc: () => Document;
+	/** Highlights ship as mark decorations under source 'editor:search' —
+	 *  registered on open, disposed on close, so a closed bar costs nothing. */
+	decorations: DecorationRegistry;
 	// Both resolve to the count actually replaced — the replace path may skip
 	// matches (childless opaque containers), so the caller must not infer it.
 	replace: {
@@ -30,22 +43,49 @@ interface SearchDeps {
 	onClose: () => void;
 }
 
-export function createSearchState(deps: SearchDeps) {
+export function createSearchState(deps: SearchDeps): SearchState {
 	let isOpen = $state(false);
 	let query = $state('');
 	let replacement = $state('');
 	let options = $state<SearchOptions>({ caseSensitive: false, wholeWord: false, regex: false });
 	let matches = $state<Match[]>([]);
-	// One grouping per rescan, shared by every overlay — see match-index. The
-	// ancestor index is lazy ($derived): docs without grid surfaces never build it.
-	const matchesByPath = $derived(groupMatchesByPath(matches));
-	const matchesByAncestor = $derived(groupMatchesByAncestor(matches));
+	// One grouping per rescan, shared by every matchesForPath read.
+	const matchesByPath = $derived(groupByPath(matches));
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
 	// Count of the last replace/replaceAll, surfaced as "N replaced" feedback.
-	// Cleared on the next search ACTION (not in rescan — see Editor.svelte's
-	// post-commit rescan, which would otherwise wipe it instantly).
+	// Cleared on the next search ACTION, not in rescan — the engine's post-commit
+	// re-run would otherwise wipe it instantly.
 	let replacedCount = $state<number | null>(null);
+
+	let handle: DecorationSourceHandle | null = null;
+
+	// The scan runs for its side effects (matches/error/activeIndex), so only the
+	// CURRENT key may ever hit — a deeper cache could hit an older key (an option
+	// toggled back, say) whose side effects no longer hold. Hence cap 1.
+	const scanMemo = createBoundedMemo<string, null>({ cap: 1 });
+
+	// Keyed on editEpoch + query + options — NEVER doc.children identity: routine
+	// typing mutates children in place, so identity only changes on structural
+	// commits and would serve stale matches while typing. notifyEdit bumps the
+	// epoch (edit → miss → rescan); invalidate leaves it (navigation → hit →
+	// active-class remap only).
+	function provide(_doc: Document, ctx: ProvideContext): MarkDecoration[] {
+		const { caseSensitive, wholeWord, regex } = options;
+		scanMemo(`${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`, () => {
+			rescan();
+			return null;
+		});
+		return matches.map(
+			(m, i): MarkDecoration => ({
+				type: 'mark',
+				path: m.path,
+				start: m.start,
+				end: m.end,
+				class: i === activeIndex ? 'match-overlay match-overlay-active' : 'match-overlay'
+			})
+		);
+	}
 
 	function rescan(): void {
 		const r = compileMatcher(query, options);
@@ -58,6 +98,15 @@ export function createSearchState(deps: SearchDeps) {
 		error = null;
 		matches = scanDocument(deps.getDoc(), r.matcher);
 		if (activeIndex >= matches.length) activeIndex = 0;
+	}
+
+	// Every state change routes through the engine so the published marks follow.
+	// invalidate is synchronous by contract, so setQuery's callers still observe
+	// fresh matches on return; the no-handle fallback keeps the headless
+	// setQuery-before-open path scanning as it always has.
+	function refresh(): void {
+		if (handle) handle.invalidate();
+		else rescan();
 	}
 
 	async function revealActive(): Promise<void> {
@@ -84,11 +133,6 @@ export function createSearchState(deps: SearchDeps) {
 		matchesForPath(path: number[]): IndexedMatch[] {
 			return matchesByPath.get(pathKey(path)) ?? EMPTY_MATCHES;
 		},
-		// Grid-overlay seam (cells have no BlockHost overlay of their own).
-		// Deliberately off the public SearchState interface — see its note.
-		matchesForDescendants(path: number[]): IndexedMatch[] {
-			return matchesByAncestor.get(pathKey(path)) ?? EMPTY_MATCHES;
-		},
 		get activeIndex() {
 			return activeIndex;
 		},
@@ -99,10 +143,14 @@ export function createSearchState(deps: SearchDeps) {
 			return replacedCount;
 		},
 		open() {
+			if (isOpen) return; // Ctrl+H over an open find bar reuses the live source
 			isOpen = true;
+			handle = deps.decorations.addSource({ name: 'editor:search', provide });
 		},
 		close() {
 			isOpen = false;
+			handle?.dispose();
+			handle = null;
 			matches = [];
 			replacedCount = null;
 			deps.onClose();
@@ -113,7 +161,7 @@ export function createSearchState(deps: SearchDeps) {
 			if (q !== query) activeIndex = 0;
 			query = q;
 			replacedCount = null;
-			rescan();
+			refresh();
 			void revealActive();
 		},
 		setReplacement(s: string) {
@@ -122,13 +170,14 @@ export function createSearchState(deps: SearchDeps) {
 		setOptions(partial: Partial<SearchOptions>) {
 			options = { ...options, ...partial };
 			replacedCount = null;
-			rescan();
+			refresh();
 			void revealActive();
 		},
 		next() {
 			replacedCount = null;
 			if (matches.length) {
 				activeIndex = (activeIndex + 1) % matches.length;
+				refresh();
 				void revealActive();
 			}
 		},
@@ -136,33 +185,40 @@ export function createSearchState(deps: SearchDeps) {
 			replacedCount = null;
 			if (matches.length) {
 				activeIndex = (activeIndex - 1 + matches.length) % matches.length;
+				refresh();
 				void revealActive();
 			}
 		},
-		revealActive,
 		async replaceCurrent() {
 			const m = matches[activeIndex];
 			if (!m) return;
 			const n = await deps.replace.replaceOne(m, replacement);
-			rescan();
+			refresh();
 			replacedCount = n;
 		},
 		async replaceAll() {
 			if (!matches.length) return;
 			const n = await deps.replace.replaceAll(matches, replacement);
-			rescan();
+			refresh();
 			replacedCount = n;
-		},
-		rescan
+		}
 	};
 }
-/** Full runtime surface, including internal-only seams the public SearchState
- *  omits. Internal components type the search context with this. */
-export type InternalSearchState = ReturnType<typeof createSearchState>;
 
-/** Public controller surface — what `editor.getSearch()` exposes. The runtime's
- *  internal-only seams are deliberately omitted: adding a public member later is
- *  non-breaking, removing one is breaking, so keep this minimal. */
+function groupByPath(list: readonly Match[]): Map<string, IndexedMatch[]> {
+	const byPath = new Map<string, IndexedMatch[]>();
+	list.forEach((match, index) => {
+		const key = pathKey(match.path);
+		const bucket = byPath.get(key);
+		if (bucket) bucket.push({ match, index });
+		else byPath.set(key, [{ match, index }]);
+	});
+	return byPath;
+}
+
+/** Public controller surface — what `editor.getSearch()` exposes. Deliberately
+ *  minimal: adding a public member later is non-breaking, removing one is
+ *  breaking. createSearchState's declared return type pins the runtime to it. */
 export interface SearchState {
 	readonly isOpen: boolean;
 	readonly query: string;
@@ -170,7 +226,7 @@ export interface SearchState {
 	readonly options: SearchOptions;
 	readonly matches: Match[];
 	/** Matches owned by `path`'s leaf, with their flat index — grouped once per
-	 *  rescan so overlays skip the full-document scan. */
+	 *  rescan so readers skip the full-document scan. */
 	matchesForPath(path: number[]): IndexedMatch[];
 	readonly activeIndex: number;
 	readonly error: string | null;

@@ -19,6 +19,6 @@ plugin kinds produce childless opaque containers.
 
 - The overlay + shim route for a childless opaque container is driven end to end through
   decorations (a source targets the block path directly), independent of search. The
-  search-fed MatchOverlay twin has its own coverage in
+  search-fed twin has its own coverage in
   `requirements/search/childless-container-match.md` now that `scanDocument` scans a
   childless opaque container's raw.

@@ -3,7 +3,7 @@
 A childless opaque container (a render-primary plugin block like mermaid) carries its text
 in its own raw — there are no leaf children for the scanner to reach. Search scans that raw
 like a leaf: matches are found, painted through the container shim's `measurePartialRects`
-(MatchOverlay's childless route), and navigable. Replace skips those matches — the opaque
+(the decoration overlay's childless route), and navigable. Replace skips those matches — the opaque
 raw is metadata-derived, so a generic substitution would drift from metadata (ledgered in
 docs/issues.md) — and `replacedCount` reports only real replacements. Lives in the search
 area but drives the plugins harness, since only plugin kinds produce childless opaque

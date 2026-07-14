@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
+import { createDecorationEngine } from '../../reactivity/decoration-state.svelte';
 import { createSearchState } from '../../reactivity/search-state.svelte';
 
 const stubReplace = { replaceOne: async () => 0, replaceAll: async () => 0 };
@@ -12,6 +13,7 @@ function makeState(
 	const doc = parse(source);
 	return createSearchState({
 		getDoc: () => doc,
+		decorations: createDecorationEngine({ getDoc: () => doc }),
 		replace,
 		reveal: async () => null,
 		onClose
@@ -79,6 +81,13 @@ describe('SearchState', () => {
 		expect(s.replacedCount).toBe(1);
 		await s.replaceCurrent();
 		expect(s.replacedCount).toBe(0);
+	});
+	it('matchesForPath returns the leaf’s matches with their flat indexes', () => {
+		const s = makeState('cat\n\ncat cat\n');
+		s.open();
+		s.setQuery('cat');
+		expect(s.matchesForPath([1]).map((m) => m.index)).toEqual([1, 2]);
+		expect(s.matchesForPath([9])).toEqual([]);
 	});
 	it('close clears matches and notifies onClose', () => {
 		let closed = 0;
