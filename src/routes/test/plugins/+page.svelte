@@ -10,6 +10,8 @@
 	import { tocPlugin } from './toc/toc-plugin';
 	import { highlightOccurrencesPlugin } from './highlight-occurrences/highlight-occurrences-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
+	import { foldPlugin } from './fold/fold-plugin';
+	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
@@ -37,7 +39,10 @@
 	// into sibling seeds their decorations would perturb those batteries.
 	const seedPlugins: Record<string, EditorPlugin[]> = {
 		hloccur: [highlightOccurrencesPlugin],
-		ghost: [ghostTextPlugin]
+		ghost: [ghostTextPlugin],
+		fold: [foldPlugin],
+		'fold-table': [foldPlugin],
+		badge: [blockBadgePlugin]
 	};
 </script>
 
@@ -91,6 +96,12 @@
 	// Two plain paragraphs: the ghost island follows focus between them, and an
 	// Enter split provides the empty-paragraph caret-anchor case.
 	const GHOST_SEED = 'Hello world\n\nSecond paragraph\n';
+	// One `[>…<]` fold range mid-paragraph; the trailing paragraph is a blur target.
+	const FOLD_SEED = 'abc [>HIDDEN SECRET<] def\n\nplain text\n';
+	// A fold range inside a table cell — the islands-in-cells gap pin.
+	const FOLD_TABLE_SEED = '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n';
+	// Two headings among paragraphs for the badge predicate's positive and negative.
+	const BADGE_SEED = '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -172,7 +183,10 @@
 		toc: TOC_SEED,
 		'toc-nested': TOC_NESTED_SEED,
 		hloccur: HLOCCUR_SEED,
-		ghost: GHOST_SEED
+		ghost: GHOST_SEED,
+		fold: FOLD_SEED,
+		'fold-table': FOLD_TABLE_SEED,
+		badge: BADGE_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
