@@ -22,6 +22,7 @@
 		HISTORY_KEY,
 		IMAGE_LOAD_POLICY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
+		DECORATIONS_KEY,
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
@@ -69,6 +70,8 @@
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
 	import { createSearchState, type SearchState } from '../reactivity/search-state.svelte';
+	import { createDecorationEngine } from '../reactivity/decoration-state.svelte';
+	import type { DecorationRegistry } from '../decorations/types';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
@@ -214,6 +217,16 @@
 	$effect(() => {
 		const dispose = events.on('edit', () => {
 			if (searchState.isOpen) void tick().then(() => searchState.rescan());
+		});
+		return () => dispose();
+	});
+
+	// Re-run decoration sources after a commit, deferred a tick past the edit event so
+	// no source ever reads a half-applied tree (the DEV commit-scope assert guards it).
+	// Skipped entirely when no source is registered — zero keystroke work by default.
+	$effect(() => {
+		const dispose = events.on('edit', () => {
+			if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 		});
 		return () => dispose();
 	});
@@ -400,6 +413,16 @@
 	// the latest doc, not the snapshot captured when they mounted.
 	const getDoc: DocumentGetter = () => doc;
 
+	// Per-instance decoration engine. Ahead of the plugin contexts (not beside
+	// searchState) because the plugin door hands its registry into
+	// createEditorPluginContexts below.
+	const decorationEngine = createDecorationEngine({
+		getDoc,
+		onSourceError: (source, error) =>
+			events.emit('error', { origin: 'decoration', error, context: { source } })
+	});
+	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
+
 	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it
 	// reuses the one live-doc closure — a second getDoc would be a TDZ reference here,
 	// and the culture rule is one getter, never a captured value.
@@ -408,7 +431,8 @@
 		editorId,
 		getDoc,
 		events,
-		optionsFor: (name) => pluginEntries?.optionsByName.get(name)
+		optionsFor: (name) => pluginEntries?.optionsByName.get(name),
+		decorations
 	});
 
 	// The per-instance context lookup + command-error sink every dispatch tier that
@@ -507,6 +531,7 @@
 	setContext(REVEAL_ANCHOR_KEY, revealAnchor);
 	setContext(SELECTION_KEY, selectionState);
 	setContext(SEARCH_KEY, searchState);
+	setContext(DECORATIONS_KEY, decorationEngine);
 	setContext(WIDGET_SELECTION_KEY, widgetSelection);
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
@@ -811,8 +836,18 @@
 		return searchState;
 	}
 
+	export function getDecorations(): DecorationRegistry {
+		return decorations;
+	}
+
 	// Compile-time conformance: the published handle can't drift from the exports.
-	void ({ getSource, getSelection, getEvents, getSearch } satisfies EditorInstance);
+	void ({
+		getSource,
+		getSelection,
+		getEvents,
+		getSearch,
+		getDecorations
+	} satisfies EditorInstance);
 
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
 		blockRefs[i] = r;

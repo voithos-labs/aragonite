@@ -202,3 +202,21 @@ export type { BoundedMemoOptions } from './bounded-memo';
 // are untouched.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
 export type { PasteTransform } from './tree-operations/paste/paste-transforms';
+
+// ── Decorations (pre-freeze / unstable) ──────────────────────────────────────
+// View-only annotations layered over the rendered document — never part of the
+// CST. A plugin registers a pure per-instance DecorationSource through
+// `editor.decorations` (its onEditor context) and gets a handle back to
+// invalidate or dispose it.
+export type {
+	Decoration,
+	MarkDecoration,
+	WidgetDecoration,
+	ReplaceDecoration,
+	BlockDecoration,
+	DecorationWidgetSpec,
+	ProvideContext,
+	DecorationSource,
+	DecorationSourceHandle,
+	DecorationRegistry
+} from './decorations/types';

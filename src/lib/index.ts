@@ -65,3 +65,19 @@ export type {
 	EditorError,
 	SelectionChangeEvent
 } from './editor-events';
+
+// ── Decorations ──────────────────────────────────────────────────────────────
+
+// View-only annotations a consumer registers through `editor.getDecorations()`.
+export type {
+	Decoration,
+	MarkDecoration,
+	WidgetDecoration,
+	ReplaceDecoration,
+	BlockDecoration,
+	DecorationWidgetSpec,
+	ProvideContext,
+	DecorationSource,
+	DecorationSourceHandle,
+	DecorationRegistry
+} from './decorations/types';
