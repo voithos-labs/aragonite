@@ -241,6 +241,17 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				decorationHandles.get(name)?.invalidate();
 			}
 		},
+		// ── Rect API probe (drives editor.getRects() from e2e) ─────────────
+		// Thin faithful mirror of the instance door. DOMRects don't survive
+		// page.evaluate as class instances, so each spec extracts the numeric
+		// fields it needs inside its own evaluate.
+		rects: {
+			blockRect: (path: number[]): DOMRect | null => editor.getRects().blockRect(path),
+			rangeRects: (path: number[], start: number, end: number): DOMRect[] =>
+				editor.getRects().rangeRects(path, start, end),
+			caretRect: (): DOMRect | null => editor.getRects().caretRect(),
+			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path)
+		},
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,

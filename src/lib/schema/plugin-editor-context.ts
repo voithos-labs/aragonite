@@ -6,6 +6,7 @@
  */
 import type { Document } from '../core/nodes';
 import type { DecorationRegistry } from '../decorations/types';
+import type { EditorRects } from '../editor-rects';
 import {
 	installedPluginNames,
 	onEditorCallbacks,
@@ -30,6 +31,7 @@ export function createEditorPluginContexts(deps: {
 	events: EditorEventSubscriptions;
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;
+	rects: EditorRects;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -45,7 +47,8 @@ export function createEditorPluginContexts(deps: {
 				},
 				events: deps.events,
 				options: deps.optionsFor(pluginName),
-				decorations: deps.decorations
+				decorations: deps.decorations,
+				rects: deps.rects
 			};
 			contexts.set(pluginName, ctx);
 		}
