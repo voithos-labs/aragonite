@@ -23,7 +23,7 @@ export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 
 // ── Selection + keybinding public types ────────────────────────────────────────
 
-export type { EditorSelection } from './selection/primitives';
+export type { EditorSelection, SelectionPoint } from './selection/primitives';
 export type { KeybindingOverride } from './schema/keybinding-overrides';
 export type { CommandId } from './schema/commands';
 
@@ -85,4 +85,8 @@ export type {
 // ── Rects ──────────────────────────────────────────────────────────────────────
 
 // Viewport-space geometry over the rendered document, via `editor.getRects()`.
+// SELECTION_END is the importable "through the block's last measurable position"
+// sentinel `rangeRects` accepts as `end`.
 export type { EditorRects } from './editor-rects';
+export { SELECTION_END } from './block-component';
+export type { SelectionEnd } from './block-component';

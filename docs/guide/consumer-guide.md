@@ -236,14 +236,14 @@ Two read/annotate surfaces for building chrome _around_ the document — toolbar
 | `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)           |
 | `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists         |
 
-Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the end-of-block sentinel value `Number.MAX_SAFE_INTEGER` as `end`, meaning "through the block's last measurable position".
+Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the exported `SELECTION_END` sentinel as `end`, meaning "through the block's last measurable position".
 
 ### Recipe: a selection toolbar
 
 Float a formatting bar above the user's selection — the standard use of the two surfaces together:
 
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
-2. **Cross-block selections** (anchor and focus in different blocks): normalize the endpoints yourself (compare paths, then offsets), then anchor to `rangeRects(startPath, startOffset, MAX_SAFE_INTEGER)` — the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
+2. **Cross-block selections** (anchor and focus in different blocks): normalize the endpoints yourself (compare paths, then offsets), then anchor to `rangeRects(startPath, startOffset, SELECTION_END)` — the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
 3. **Single-block selections** — the honest caveat: the selection snapshot currently collapses a single-block range to the focus caret (anchor === focus), so the editor's own payload cannot give you the range's geometry. Read the native selection instead: `window.getSelection()!.getRangeAt(0).getBoundingClientRect()` is correct whenever the selection lives inside one block, because there the editor delegates selection to the browser. An additive payload extension is planned; until it lands, the native read is the supported pattern.
 4. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
 
