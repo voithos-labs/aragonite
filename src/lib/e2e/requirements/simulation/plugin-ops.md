@@ -16,6 +16,10 @@ its only job is to keep the engine live under the corruption net.
 
 ## Happy paths
 
+- the standing decoration source is live: once the engine's first per-edit pass runs
+  (the first edit of the session), at least one overlay carrying its mark class
+  paints, so a source that silently stopped emitting fails the battery instead of
+  leaving it green with zero coverage
 - editing the callout title (its reserved chrome) rewrites the container's own
   opener bytes — the container raw is rebuilt from children, never left stale
 - typing in a callout body paragraph and in a details body paragraph round-trips
