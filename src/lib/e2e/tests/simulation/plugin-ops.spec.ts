@@ -186,6 +186,15 @@ test.describe('plugin-container ops simulation', () => {
 		expect(await containerRaw(page, 'note')).toContain(':::note Title!');
 		await checkOracles('note-title-edit');
 
+		// Liveness pin for the standing decoration source: the first edit ran the
+		// engine's per-edit pass, so the source's overlays must now paint. Otherwise a
+		// source that silently stopped emitting would leave the battery green with zero
+		// decoration coverage. (loadContent alone fires no edit event, so the source
+		// cannot paint before this first commit — hence the pin sits here, not at load.)
+		await expect
+			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
+			.toBeGreaterThan(0);
+
 		await typeAtPath(ctx, [noteIdx, 1], ' more');
 		await checkOracles('note-body-edit');
 
