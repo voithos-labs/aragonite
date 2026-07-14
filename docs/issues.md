@@ -77,6 +77,8 @@ find the state carrier, then pin the keyboard-extend geometry read it perturbs.
 
 The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
 
+**Target:** pre-1.0 roadmap item 3 (inline-layer observability) — the harness is its third deliverable.
+
 ## Plugin containers
 
 ### Search replace skips matches inside childless opaque containers
