@@ -2,13 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { createSearchState } from '../../reactivity/search-state.svelte';
 
-const stubReplace = { replaceOne: async () => {}, replaceAll: async () => {} };
+const stubReplace = { replaceOne: async () => 0, replaceAll: async () => 0 };
 
-function makeState(source: string, onClose: () => void = () => {}) {
+function makeState(
+	source: string,
+	onClose: () => void = () => {},
+	replace: typeof stubReplace = stubReplace
+) {
 	const doc = parse(source);
 	return createSearchState({
 		getDoc: () => doc,
-		replace: stubReplace,
+		replace,
 		reveal: async () => null,
 		onClose
 	});
@@ -60,6 +64,21 @@ describe('SearchState', () => {
 		s.setQuery('(');
 		expect(s.error).not.toBeNull();
 		expect(s.matches.length).toBe(0);
+	});
+	it('replacedCount reports the replace path’s real count, not the match count', async () => {
+		// The replace path may skip matches (childless opaque containers), so the
+		// count comes from its return value — 2 matches here, only 1 replaced.
+		const s = makeState('cat cat\n', () => {}, {
+			replaceOne: async () => 0,
+			replaceAll: async () => 1
+		});
+		s.open();
+		s.setQuery('cat');
+		expect(s.matches.length).toBe(2);
+		await s.replaceAll();
+		expect(s.replacedCount).toBe(1);
+		await s.replaceCurrent();
+		expect(s.replacedCount).toBe(0);
 	});
 	it('close clears matches and notifies onClose', () => {
 		let closed = 0;

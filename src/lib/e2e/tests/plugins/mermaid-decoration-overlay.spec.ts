@@ -6,9 +6,8 @@ import { PluginsPage } from './helpers';
  * (requirements/plugins/mermaid-decoration-overlay.md). A mermaid block has no
  * child block-hosts, so a mark on its own path paints on the block itself,
  * measured through the container shim's `measurePartialRects`. This is the
- * SelectionOverlay `hasChildHosts` route applied to decorations — and the
- * reachable end-to-end proof of that route, since `scanDocument` never scans a
- * childless container's raw (so the MatchOverlay twin can't be search-driven yet).
+ * SelectionOverlay `hasChildHosts` route applied to decorations; the search-fed
+ * MatchOverlay twin is driven by tests/search/childless-container-match.spec.ts.
  */
 
 const MERMAID_DOC = 'before\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\nafter\n';
