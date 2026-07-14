@@ -1,0 +1,145 @@
+<script lang="ts">
+	import { getContext } from 'svelte';
+	import type { BlockComponent } from '../block-component';
+	import { DECORATIONS_KEY, EDITOR_ROOT_KEY } from '../editor-keys';
+	import type { DecorationEngine } from '../reactivity/decoration-state.svelte';
+	import type { MarkDecoration } from '../decorations/types';
+	import type { IndexedDecoration } from '../decorations/buckets';
+	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
+
+	let {
+		path,
+		blockRef,
+		blockEl,
+		isContainer = false,
+		hasChildHosts = false
+	}: {
+		path: number[];
+		blockRef: BlockComponent | undefined;
+		blockEl: HTMLElement | null | undefined;
+		/** Containers paint nothing — children self-paint — EXCEPT grid surfaces
+		 *  (table) whose cells aren't BlockHosted; those paint whole-cell marks. */
+		isContainer?: boolean;
+		/** False for a childless container (render-primary plugin block): no child
+		 *  block-hosts exist to paint, so the block takes the mark overlay itself.
+		 *  Consumed by the childless-container route (see MatchOverlay's twin). */
+		hasChildHosts?: boolean;
+	} = $props();
+
+	const engine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
+	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+
+	// A grid container (table) supplies cellRect, so its descendant cell marks —
+	// which never get their own BlockHost overlay — paint as whole cells here.
+	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
+
+	interface Painted {
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+		cls: string;
+		attrs?: Record<string, string>;
+		onClick?: (ev: MouseEvent) => void;
+	}
+	let rects = $state<Painted[]>([]);
+
+	$effect(() => {
+		const eng = engine,
+			ref = blockRef,
+			el = blockEl;
+		// Read the owning bucket up front so this effect registers the reactive
+		// decoration set as a dependency: `sourceCount` is a plain counter, so a
+		// source added after mount would otherwise never re-run this effect.
+		const marks = eng
+			? containerPaintsCells
+				? eng.marksForDescendants(path)
+				: eng.marksForPath(path)
+			: [];
+		if (!eng || eng.sourceCount === 0 || !el) {
+			rects = [];
+			return;
+		}
+		if (isContainer && !containerPaintsCells) {
+			rects = [];
+			return;
+		}
+
+		function measure(): void {
+			if (!el) return;
+			const blockRect = el.getBoundingClientRect();
+			rects = containerPaintsCells
+				? measureCells(marks, blockRect)
+				: measureLeaf(marks, ref, blockRect);
+		}
+
+		function measureLeaf(
+			leafMarks: IndexedDecoration<MarkDecoration>[],
+			leaf: BlockComponent | undefined,
+			blockRect: DOMRect
+		): Painted[] {
+			if (!leaf?.measurePartialRects) return [];
+			const out: Painted[] = [];
+			for (const { dec } of leafMarks) {
+				for (const r of leaf.measurePartialRects(dec.start, dec.end)) {
+					// A collapsed range can still emit a degenerate zero-width client
+					// rect (a line-boundary fragment); it would paint an invisible sliver.
+					if (r.width <= 0) continue;
+					out.push(toLocal(r, blockRect, dec));
+				}
+			}
+			return out;
+		}
+
+		// A grid's descendant cell marks paint as whole cells; marks sharing a class
+		// in one cell collapse to one rect — the class (not an active flag) is the
+		// dedupe key, since a source expresses emphasis through its class.
+		function measureCells(
+			descMarks: IndexedDecoration<MarkDecoration>[],
+			blockRect: DOMRect
+		): Painted[] {
+			if (!ref?.cellRect) return [];
+			const byCell = new Map<string, { rowIdx: number; colIdx: number; dec: MarkDecoration }>();
+			for (const { dec } of descMarks) {
+				const rowIdx = dec.path[path.length];
+				const colIdx = dec.path[path.length + 1];
+				if (rowIdx == null || colIdx == null) continue;
+				const key = `${rowIdx},${colIdx},${dec.class}`;
+				if (!byCell.has(key)) byCell.set(key, { rowIdx, colIdx, dec });
+			}
+			const out: Painted[] = [];
+			for (const { rowIdx, colIdx, dec } of byCell.values()) {
+				const r = ref.cellRect(rowIdx, colIdx);
+				if (r) out.push(toLocal(r, blockRect, dec));
+			}
+			return out;
+		}
+
+		function toLocal(r: DOMRect, blockRect: DOMRect, dec: MarkDecoration): Painted {
+			const interactive = dec.interactive;
+			return {
+				left: r.left - blockRect.left,
+				top: r.top - blockRect.top,
+				width: r.width,
+				height: r.height,
+				cls: dec.class,
+				attrs: dec.attrs,
+				onClick: interactive ? (ev) => interactive.onClick(dec, ev) : undefined
+			};
+		}
+
+		const editorRoot = getEditorRoot?.();
+		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
+	});
+</script>
+
+{#each rects as r}
+	<div
+		{...r.attrs}
+		class="decoration-overlay {r.cls}"
+		class:decoration-overlay-interactive={!!r.onClick}
+		contenteditable="false"
+		style="left:{r.left}px;top:{r.top}px;width:{r.width}px;height:{r.height}px;"
+		onclick={r.onClick}
+	></div>
+{/each}

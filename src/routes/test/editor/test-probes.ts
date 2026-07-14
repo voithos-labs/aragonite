@@ -7,6 +7,7 @@ import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode } from '$lib/core/nodes';
+import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import { registerBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
@@ -107,6 +108,9 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 let capturedErrorOrigins: string[] = [];
 let disposeErrorCapture: (() => void) | undefined;
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
+// Handles kept by source name so a spec can dispose/invalidate a source it
+// registered — the returned handle carries functions and can't cross page.evaluate.
+const decorationHandles = new Map<string, DecorationSourceHandle>();
 
 // Installs the e2e probe surface on `window.__test`. Behavior must stay
 // byte-for-byte stable — the e2e suite drives the editor through these.
@@ -214,6 +218,24 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
+		},
+		// ── Decoration source probe (register sources without a plugin) ────
+		/**
+		 * Register a decoration source through the public registry so e2e can
+		 * drive overlay painting. Handle kept by source name for later
+		 * dispose/invalidate — the live handle can't cross the page boundary.
+		 */
+		decorations: {
+			addSource: (source: DecorationSource): void => {
+				decorationHandles.set(source.name, editor.getDecorations().addSource(source));
+			},
+			disposeSource: (name: string): void => {
+				decorationHandles.get(name)?.dispose();
+				decorationHandles.delete(name);
+			},
+			invalidateSource: (name: string): void => {
+				decorationHandles.get(name)?.invalidate();
+			}
 		},
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
