@@ -1,24 +1,9 @@
 # Dogfood plugins
 
-Dev-harness plugins. The bundled tier now ships in the package — see
-`src/lib/plugins/README.md`; what remains here is the dev fixtures plus the
-reference plugins not yet packaged. Two roles, kept distinct:
-
-## Reference plugins
-
-Consumer-realistic extensions: the shapes plugin authors should copy. The bundled
-reference plugins (admonitions, details, latex, mermaid, toc, highlight-occurrences)
-now live in `src/lib/plugins/` and are demonstrated together on the `/` showcase
-route; what still stages here is seed-gated only:
-
-- `ghost-text/` — one component-widget island at the focused paragraph's end;
-  the reference shape for in-flow widget decorations and their byte-safety.
-  Seed-gated, not showcased.
-
-## Fixture plugins
-
-Exist to pin public surfaces under test; installed on `/test/plugins` only, never
-showcased.
+Dev-harness fixtures. The bundled tier — admonitions, details, latex, mermaid, toc,
+highlight-occurrences — ships in the package (`src/lib/plugins/README.md`) and is
+demonstrated on the `/` showcase route. Everything here stays harness-side: installed
+on `/test/plugins` (seed-gated where noted), never packaged, never showcased.
 
 - `callout/` — the minimal titled directive container. The canonical reserved-chrome
   fixture: the four reserved-chrome e2e batteries, the chrome unit suites
@@ -30,10 +15,19 @@ showcased.
   resolved by classification, not deletion.
 - `memo/` — a `%%` plain editable leaf; the only plain-mode `createEditableLeaf`
   consumer, driven by the editable-leaf e2e.
+- `doc-stats/` — the options-default and multi-instance dogfood
+  (`registerGlobalCommand` + per-instance context); promotable to the bundled tier
+  later if evidence demands. `multi/` is its two-editor route fixture.
+- `ghost-text/` — one component-widget island at the focused paragraph's end: the
+  pattern demo for in-flow widget decorations and their byte-safety, without a
+  completion backend. Seed-gated.
 - `fold/` — `[>…<]` ranges fold to a clickable `…` replace island; pins
   `ReplaceDecoration.widget`, native interactivity inside an island, and the
-  islands-in-cells gap (docs/issues.md). Seed-gated.
+  islands-in-cells gap (docs/issues.md). Seed-gated. Stays a fixture until the
+  section-folding promotion call is made against evidence.
 - `block-badge/` — class + badge widget on every heading host; pins
   `BlockDecoration.badge` incl. survival across windowing. Seed-gated.
+- `sim-mark/` — the standing decoration source the simulation corruption oracle
+  runs under `?seed=sim`.
 
 `staggered/` is the route fixture for the staggered plugin-mount spec.

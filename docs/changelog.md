@@ -2,6 +2,43 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.23 — Demo groundwork: bundled plugins ship as package subpaths; `/` is the showcase
+
+The structural half of demo polish, pulled forward so everything after it lands into final
+structure: the limestone integration's developer meets the repo through the demo and the
+plugin folders, and both now read as product, not dev artifacts.
+
+- **First-party plugin packaging.** The bundled tier — admonitions, details, latex, mermaid,
+  toc, highlight-occurrences — moves into the package at `src/lib/plugins/<name>/`, shipped as
+  `aragonite/plugins/<name>` subpath exports (one version, one tarball, exports-map
+  encapsulation). Dev fixtures (callout, memo, block-badge, fold, doc-stats, ghost-text,
+  sim-mark) stay harness-side; the tier split is recorded in the packaging README.
+- **Engines stay out of consumer bundles.** latex and mermaid split into engine-free cores and
+  `/renderer` adapter subpaths: `aragonite/plugins/latex/renderer` is katex-backed and carries
+  the one sanctioned CSS side effect (listed in `sideEffects`); `aragonite/plugins/mermaid/renderer`
+  dynamic-imports mermaid. `latexPlugin({ renderer })` requires its renderer (math has no honest
+  engine-free fallback); `mermaidPlugin()` stays legal and renders the fenced source statically.
+  katex and mermaid become optional peerDependencies. Verified in built `dist`: engine
+  references exist only in the adapters.
+- **Bundled plugins are external-shaped, by guard.** Everything under `src/lib/plugins/`
+  imports only the public authoring barrel — enforced by a new import-boundary source-scan
+  lint with a per-adapter engine allowance. `getContentRange` joins the plugin barrel (toc is
+  its consumer); the css-ownership lint covers both plugin roots.
+- **The showcase route.** `/` mounts the editor with all six bundled plugins over a document
+  covering every built-in block kind — the basic shell; the pitch content stays a later
+  milestone. `/test/*` is uniformly machine-facing: the `?plugins=1` toggle and its badge
+  retire, and `/test/editor` always renders the plugin-free default the batteries depend on. A
+  showcase smoke spec (DOM-only, no test bridge) pins that every bundled plugin renders.
+- **The copy-source sync retires.** `examples/consumer` installs bundled plugins from the
+  tarball subpaths; the sync manifest shrinks to callout, which stays as the external
+  _authoring_ validator. The consumer smoke now exercises the exact import shape limestone
+  will use.
+- **Tests move with their plugins** — bundled-plugin unit suites mirror the new source tree at
+  `test/plugins/<name>/`; fixture suites stay flat; e2e specs route-repointed with zero
+  behavioral edits. One new seam guard: the math injection seam pins that inline and display
+  rendering thread their own `display` flag (the memo keys on it — cross-serving would swap
+  block and inline HTML silently).
+
 ### 0.9.22 — Decorations + the public rect API: the extension surface completes
 
 Decorations — view-only annotations over content a plugin does not own — were the one plugin
