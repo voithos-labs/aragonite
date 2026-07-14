@@ -119,6 +119,12 @@
 	user-select: none;
 }
 
+/* In-flow decoration island (inline widget/replace) — atomic non-editable
+   inline chrome; the source's class layers styling on top. */
+:where(.editor) .decoration-island {
+	user-select: none;
+}
+
 :where(.editor) .md-image-widget {
 	display: block;
 	/* Shrink-wrap so the widget matches the image, not its line-box. */

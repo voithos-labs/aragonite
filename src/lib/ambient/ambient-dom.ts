@@ -45,7 +45,7 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	return outer;
 }
 
-export function ambientSpanOf(blockEl: HTMLElement): HTMLElement | null {
+export function ambientSpanOf(blockEl: ParentNode): HTMLElement | null {
 	const first = blockEl.firstChild;
 	if (!first || first.nodeType !== Node.ELEMENT_NODE) return null;
 	const span = first as HTMLElement;
