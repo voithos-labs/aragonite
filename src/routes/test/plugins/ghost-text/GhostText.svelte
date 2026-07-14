@@ -10,7 +10,7 @@
 
 <style>
 	.ghost-text {
-		color: var(--color-text-secondary, #888);
+		color: var(--color-text-muted, #888);
 		opacity: 0.6;
 		font-style: italic;
 		user-select: none;
