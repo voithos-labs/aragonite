@@ -219,6 +219,10 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
 		},
+		// The bar shows a match count instead of "N replaced" whenever matches
+		// survive a replace (e.g. skipped container matches), so specs read the
+		// replaced count here.
+		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,
 		// ── Decoration source probe (register sources without a plugin) ────
 		/**
 		 * Register a decoration source through the public registry so e2e can

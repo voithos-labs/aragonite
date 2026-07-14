@@ -243,12 +243,12 @@ _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partia
 | Container                | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ◐¹        | ✓          |
 | Chrome leaf              | ✓          | ✓     | ✓                 | ✓               | ✓            | n/a²    | ✓    | ◐¹        | ✓          |
 | Editable leaf            | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ✓         | ✓          |
-| Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | gap³         | ✓       | ✓    | ✓         | ✓          |
+| Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | ◐³           | ✓       | ✓    | ✓         | ✓          |
 | Inline widget            | ✓          | ✓     | ✓⁴                | ✓               | ✓            | n/a⁵    | ✓    | ✓         | ✓          |
 
 1. **◐ Clipboard.** A cross-block copy whose end lands mid-chrome round-trips the container; one whose _start_ is mid-chrome and extends into the body drops the container wrapper (ledgered, `docs/issues.md`; folded into the post-1.0 clipboard generalization).
 2. **n/a Reorder.** A chrome leaf is the container's reserved child 0 — no independent block identity to move.
-3. **gap Search paint.** A match inside a childless opaque container paints no highlight: MatchOverlay's childless-container gate zeroes the rects and the container shim supplies no `measurePartialRects` (ledgered, `docs/issues.md`; design call pending). The twin SelectionOverlay gate is already closed — search paint lags it.
+3. **◐ Search.** A match inside a childless opaque container is found (the block's raw scans as a leaf), painted through the container shim's `measurePartialRects`, and navigable. Replace skips it — the opaque raw is metadata-derived, and a generic substitution would drift from metadata (ledgered, `docs/issues.md`; folded into the post-1.0 opaque-write work).
 4. **✓ Merge / backspace.** A caret-edge Backspace/Delete reveals the widget's source or atomically deletes it; block-level merge stays the host prose block's concern.
 5. **n/a Reorder.** An inline widget is not a block; reorder is a block-level gesture.
 
