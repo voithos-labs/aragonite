@@ -9,6 +9,11 @@ first time the continuous corruption net exercises the plugin surface; before it
 the opaque-container and reserved-chrome invariants were observable only through
 the scripted per-feature plugin specs.
 
+The session runs with a standing decoration source installed (`?seed=sim`), so the
+oracle stack also watches the decoration engine re-run on every edit. The source is
+view-only — a mark on a fixture word — so it changes no source, CST, or undo state;
+its only job is to keep the engine live under the corruption net.
+
 ## Happy paths
 
 - editing the callout title (its reserved chrome) rewrites the container's own

@@ -19,6 +19,7 @@ import { isCommitInProgress } from '../invariants/commit-scope';
 import { isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { devWarn } from '../dev-warn';
+import { recordDecorationRun } from '../perf/instruments';
 
 const EMPTY_MARKS: IndexedDecoration<MarkDecoration>[] = [];
 const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -69,6 +70,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	function runSlot(slot: SourceSlot): void {
 		const i = slots.indexOf(slot);
 		if (i < 0) return; // disposed between schedule and run
+		recordDecorationRun();
 		let next: Decoration[];
 		try {
 			next = slot.source.provide(deps.getDoc(), { editEpoch });

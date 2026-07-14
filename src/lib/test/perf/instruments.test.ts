@@ -12,7 +12,10 @@ import {
 	perfEnabled,
 	perfSnapshot,
 	recordBlockRender,
+	recordDecorationRun,
 	recordInlineCompute,
+	recordIslandKeyScan,
+	recordIslandRebuild,
 	recordParse,
 	recordRebuildDepth,
 	recordSnapshotClone,
@@ -34,7 +37,10 @@ const EMPTY: PerfSnapshot = {
 	blockRenderMsTotal: 0,
 	keystrokeInPageMs: [],
 	blockRenderPaths: [],
-	mountedBlockCount: 0
+	mountedBlockCount: 0,
+	decorationRuns: 0,
+	islandRebuilds: 0,
+	islandKeyScans: 0
 };
 
 function recordOneOfEach(): void {
@@ -44,6 +50,9 @@ function recordOneOfEach(): void {
 	recordInlineCompute();
 	setUndoGauge(1000, 2);
 	recordBlockRender(2);
+	recordDecorationRun();
+	recordIslandRebuild();
+	recordIslandKeyScan();
 	markKeystrokeStart();
 	markKeystrokeSettle();
 }
@@ -118,6 +127,20 @@ describe('perf instruments', () => {
 		const s = perfSnapshot();
 		expect(s.blockRenderCount).toBe(2);
 		expect(s.blockRenderMsTotal).toBeCloseTo(4);
+	});
+
+	it('accumulates decoration and island counters while enabled', () => {
+		enablePerfInstruments();
+		recordDecorationRun();
+		recordDecorationRun();
+		recordIslandRebuild();
+		recordIslandKeyScan();
+		recordIslandKeyScan();
+		recordIslandKeyScan();
+		const s = perfSnapshot();
+		expect(s.decorationRuns).toBe(2);
+		expect(s.islandRebuilds).toBe(1);
+		expect(s.islandKeyScans).toBe(3);
 	});
 
 	it('records the block path when one is supplied', () => {
