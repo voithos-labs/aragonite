@@ -55,8 +55,10 @@ export interface DomPosition {
  * DOM-layer lookup: maps a raw offset to a live `(node, offset)` DOM position.
  * The model-layer counterpart is `core/inline-render.ts` `findNodeAtOffset`,
  * which maps the same offset to a CST inline node without touching the DOM.
+ * Accepts a detached fragment (island application walks builds in progress)
+ * with the same arithmetic as a live block element.
  */
-export function findRawOffsetTarget(container: HTMLElement, target: number): DomPosition | null {
+export function findRawOffsetTarget(container: ParentNode, target: number): DomPosition | null {
 	let count = 0;
 	let last: DomPosition | null = null;
 
@@ -104,8 +106,12 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 		return null;
 	}
 
-	const found = visit(container);
-	if (found) return found;
+	// Iterate children rather than visiting `container` itself: a fragment root
+	// matches neither node-type branch, and the container is never a widget.
+	for (const child of container.childNodes) {
+		const found = visit(child);
+		if (found) return found;
+	}
 	return last;
 }
 
@@ -151,7 +157,7 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
-export function containerRawLength(container: HTMLElement): number {
+export function containerRawLength(container: ParentNode): number {
 	let count = 0;
 	function visit(node: Node): void {
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -167,8 +173,43 @@ export function containerRawLength(container: HTMLElement): number {
 			for (const child of node.childNodes) visit(child);
 		}
 	}
-	visit(container);
+	for (const child of container.childNodes) visit(child);
 	return count;
+}
+
+/**
+ * Walk-space span of the atomic widget strictly containing `offset`, or null
+ * when the offset sits in text or exactly on a widget boundary. Island
+ * application snaps replace boundaries outward with this — a text-position
+ * range cannot split an atomic widget.
+ */
+export function widgetSpanContainingOffset(
+	container: ParentNode,
+	offset: number
+): { start: number; end: number } | null {
+	let count = 0;
+	let found: { start: number; end: number } | null = null;
+	function visit(node: Node): void {
+		if (found || count > offset) return;
+		if (node.nodeType === Node.TEXT_NODE) {
+			count += node.textContent?.length ?? 0;
+			return;
+		}
+		if (node.nodeType === Node.ELEMENT_NODE) {
+			const el = node as Element;
+			if (el.matches?.(WIDGET_SELECTOR)) {
+				const len = widgetRawLength(el);
+				if (len > 0 && count < offset && offset < count + len) {
+					found = { start: count, end: count + len };
+				}
+				count += len;
+				return;
+			}
+			for (const child of node.childNodes) visit(child);
+		}
+	}
+	for (const child of container.childNodes) visit(child);
+	return found;
 }
 
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
@@ -184,15 +225,25 @@ export function rawTextOfNode(domNode: Node, raw: string): string {
 		for (const child of Array.from(el.childNodes)) out += rawTextOfNode(child, raw);
 		return out;
 	}
+	if (domNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+		let out = '';
+		for (const child of Array.from(domNode.childNodes)) out += rawTextOfNode(child, raw);
+		return out;
+	}
 	return '';
 }
 
 export function createRangeAtRawOffsets(
-	container: HTMLElement,
+	container: ParentNode,
 	start: number,
 	end: number
 ): Range | null {
 	const range = document.createRange();
+	// A detached fragment has no parent for setEndAfter; end inside it instead.
+	const setEndAtContainerEnd = () => {
+		if (container instanceof Element) range.setEndAfter(container);
+		else range.setEnd(container, container.childNodes.length);
+	};
 	const startPos = findRawOffsetTarget(container, start);
 	if (!startPos) {
 		range.selectNodeContents(container);
@@ -213,10 +264,10 @@ export function createRangeAtRawOffsets(
 		try {
 			range.setEnd(endPos.node, endPos.offset);
 		} catch {
-			range.setEndAfter(container);
+			setEndAtContainerEnd();
 		}
 	} else {
-		range.setEndAfter(container);
+		setEndAtContainerEnd();
 	}
 	return range;
 }

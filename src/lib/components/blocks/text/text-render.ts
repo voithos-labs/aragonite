@@ -3,7 +3,9 @@
  * owns the effect (Svelte reactivity entry point); this factory owns the
  * imperative inline-DOM construction it dispatches to.
  *
- * Cursor save/restore stays in the SFC — those writes touch $state.
+ * The `pendingCursorOffset` restore stays in the SFC — those writes touch
+ * $state. This factory only carries a live caret across its own rebuilds
+ * (a decoration-driven rebuild has no edit-path pending offset).
  */
 
 import type { AmbientPrefix } from '../../../block-component';
@@ -13,6 +15,12 @@ import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
+import { createRangeAtRawOffsets, rawOffsetAtNode } from '../../../cursor/widget-offset';
+import type { IndexedDecoration } from '../../../decorations/buckets';
+import { applyIslandDecorations } from '../../../decorations/island-dom';
+import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+import { mountDecorationWidget } from '../../../decorations/widget-dom';
+import { devWarn } from '../../../dev-warn';
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -29,6 +37,10 @@ export interface TextRenderDeps {
 	get imageLoadPolicy(): ImageLoadPolicy;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
+	/** Position-sorted islands for this block. A getter, and read inside the
+	 *  render pass on purpose: that read is the reactive dependency that
+	 *  re-renders the block when its island set changes. */
+	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	brokenUrlCache: Set<string>;
 	/** A widget component's synchronous mount throw is routed here — the editor's
 	 *  `error` channel, matching BlockHost's render-boundary origin. Absent → errors
@@ -39,19 +51,41 @@ export interface TextRenderDeps {
 export interface TextRender {
 	/**
 	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw, ref-signature, image-policy) nor
-	 * `forceRebuild` demands it. Pass `forceRebuild` when a pending cursor
-	 * restoration needs the DOM positions re-anchored even though the rendered
-	 * key is unchanged.
+	 * neither (ambientPrefixText, raw, ref-signature, image-policy,
+	 * island-signature) nor `forceRebuild` demands it. Pass `forceRebuild` when
+	 * a pending cursor restoration needs the DOM positions re-anchored even
+	 * though the rendered key is unchanged.
 	 */
 	render(opts?: { forceRebuild?: boolean }): void;
 	/** Destroy every pooled widget instance — called when the block unmounts. */
 	dispose(): void;
 }
 
+/** Gated island signature for the render key. No islands ⇒ '' — an undecorated
+ *  block's key stays byte-identical to the island-free format (the zero-cost
+ *  path; pinned by a parity test). Widget identity is deliberately untracked:
+ *  same position + class ⇒ equal signature (see DecorationWidgetSpec). */
+export function islandRenderKeyPart(
+	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
+): string {
+	if (islands.length === 0) return '';
+	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
+}
+
+const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
+	d.type === 'widget'
+		? `w:${d.offset}:${d.side ?? 'after'}`
+		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
+
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool(deps.reportRenderError);
+	let islandDestroys: Array<() => void> = [];
+
+	function destroyIslands(): void {
+		for (const destroy of islandDestroys) destroy();
+		islandDestroys = [];
+	}
 
 	function buildPortalWidget(node: InlineNode, raw: string): HTMLElement | null {
 		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
@@ -109,10 +143,32 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return frag;
 	}
 
+	// A `<br>` inside an island belongs to the widget, not the block — it must
+	// not satisfy the empty block's caret anchor.
 	function ensureBr(el: HTMLElement): void {
-		if (deps.getDisplayText() === '' && !el.querySelector('br')) {
-			el.appendChild(document.createElement('br'));
-		}
+		if (deps.getDisplayText() !== '') return;
+		const hasAnchorBr = [...el.querySelectorAll('br')].some(
+			(br) => !br.closest('[data-decoration-island]')
+		);
+		if (!hasAnchorBr) el.appendChild(document.createElement('br'));
+	}
+
+	// An island-signature change rebuilds the focused block's DOM with no
+	// edit-path pendingCursorOffset set; carry the caret across in walk space.
+	// The SFC's pending restore (when an edit set one) runs after and wins.
+	function captureCaretIfFocused(el: HTMLElement): number | null {
+		if (!document.activeElement || !el.contains(document.activeElement)) return null;
+		const sel = window.getSelection();
+		if (!sel?.focusNode || !el.contains(sel.focusNode)) return null;
+		return rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+	}
+
+	function restoreCaret(el: HTMLElement, walkOffset: number): void {
+		const range = createRangeAtRawOffsets(el, walkOffset, walkOffset);
+		if (!range) return;
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
 	}
 
 	function render(opts?: { forceRebuild?: boolean }): void {
@@ -131,24 +187,36 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// neither subscribe to policy changes nor rebuild when the policy flips.
 		const hasImg = node.raw.includes('![');
 		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}`;
+		const islands = deps.islands;
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
+			const caretWalkOffset = captureCaretIfFocused(el);
 			// Bracket the rebuild: portal widgets acquired during the build are adopted
 			// for this pass; the sweep destroys any that the previous DOM held but this
 			// build did not re-acquire (a widget whose source changed or was deleted).
+			// Island widgets are unpooled — destroy last pass's, mount this pass's.
 			widgetPool.beginPass();
+			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
+			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
+				ambientLength: deps.ambientPrefixText.length,
+				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
+				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
+			});
 			widgetPool.sweep();
+			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
 			lastRenderedKey = renderKey;
 		} else {
-			// A non-prose kind builds no inline widgets, so an empty pass here sweeps any
-			// pooled widget stranded by an in-place prose→non-prose kind change (the same
-			// TextEditableBlock instance is reused across the transition).
+			// A non-prose kind builds no inline widgets or islands, so an empty pass
+			// here sweeps any pooled widget — and the destroy run any island — stranded
+			// by an in-place prose→non-prose kind change (the same TextEditableBlock
+			// instance is reused across the transition).
 			widgetPool.beginPass();
+			destroyIslands();
 			widgetPool.sweep();
 			const display = deps.getDisplayText();
 			const markerPrefix = getBlockMarkerPrefix();
@@ -172,5 +240,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		ensureBr(el);
 	}
 
-	return { render, dispose: () => widgetPool.dispose() };
+	return {
+		render,
+		dispose: () => {
+			destroyIslands();
+			widgetPool.dispose();
+		}
+	};
 }

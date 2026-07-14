@@ -38,6 +38,9 @@ function makeDeps(node: CstNode, el: HTMLElement, initialPolicy: ImageLoadPolicy
 		get linkSignature() {
 			return '';
 		},
+		get islands() {
+			return [];
+		},
 		brokenUrlCache: new Set<string>()
 	};
 	return {
