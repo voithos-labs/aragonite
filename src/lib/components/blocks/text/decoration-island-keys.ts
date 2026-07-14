@@ -13,7 +13,9 @@
  *     entry (the image-widget select-then-delete precedent).
  *   - widget island (zero bytes): Backspace/Delete act on the adjacent real byte
  *     as if the island weren't there; typing at an element-level boundary inserts
- *     at its offset (Chromium drops printable keys there natively).
+ *     at its offset — retained as cross-browser defence against engines that drop
+ *     printable keys there (Chromium types natively, masking the branch's absence,
+ *     so the branch is unit-pinned).
  *
  * Islands and the caret offset share the block's raw-content coordinate space
  * (ambient marker excluded, block-own marker included), so the DOM `data-source-*`
@@ -151,8 +153,10 @@ export function createDecorationIslandKeys(deps: DecorationIslandKeysDeps): Deco
 			editDisplay(caretOffset, caretOffset + 1, '');
 			return true;
 		}
-		// Chromium drops printable keys at an element-level position adjacent to a
-		// contenteditable=false island; a text-node caret types natively.
+		// Cross-browser defence: some engines drop printable keys at an element-level
+		// caret adjacent to a contenteditable=false island. Chromium types natively
+		// (masking this branch's absence in e2e), so the branch is unit-pinned. A
+		// text-node caret always types natively.
 		if (isTyping && !caretIsInTextNode()) {
 			e.preventDefault();
 			editDisplay(caretOffset, caretOffset, e.key);
