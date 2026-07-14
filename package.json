@@ -42,6 +42,7 @@
 		"test:editor": "vitest run --passWithNoTests",
 		"test:editor:conformance": "vitest run src/lib/test/conformance --passWithNoTests",
 		"test:editor:core": "vitest run src/lib/test/core --passWithNoTests",
+		"test:editor:decorations": "vitest run src/lib/test/decorations --passWithNoTests",
 		"test:editor:directive": "vitest run src/lib/test/directive --passWithNoTests",
 		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations --passWithNoTests",
 		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions --passWithNoTests",
