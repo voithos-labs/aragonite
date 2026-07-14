@@ -447,7 +447,8 @@
 		getBlockElByPath,
 		getBlockComponentByPath: getBlockComponent,
 		revealPath,
-		getEditorRoot: () => editorEl ?? null
+		getEditorRoot: () => editorEl ?? null,
+		isCrossBlock: () => selectionState.isCrossBlock
 	});
 
 	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it

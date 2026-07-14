@@ -28,4 +28,7 @@ e2e-tested.
 
 - `caretRect` returns `null` while a cross-block selection is active: the parked native selection
   must not leak out as a caret
+- `caretRect` called from inside a `selectionChange` handler during cross-block entry returns
+  `null`: it reads live `SelectionState`, not the `data-cross-block` DOM mirror the deferred effect
+  writes one flush later, so the parked range never leaks during the synchronous emit window
 - `caretRect` returns `null` when nothing in the editor is focused
