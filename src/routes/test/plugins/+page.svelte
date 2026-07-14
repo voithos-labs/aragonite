@@ -8,6 +8,9 @@
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { tocPlugin } from './toc/toc-plugin';
+	import { highlightOccurrencesPlugin } from './highlight-occurrences/highlight-occurrences-plugin';
+	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
+	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
 	// re-minting fresh same-name plugin objects each render would trip installPlugins'
@@ -18,7 +21,7 @@
 	// docStatsPlugin is a bare entry (no options), so the doc-stats e2e also covers
 	// the options-default branch of the context spine. tocPlugin claims `[[toc]]` and
 	// reads its heading list off the `document` component prop.
-	const plugins = [
+	const basePlugins = [
 		calloutPlugin(),
 		detailsPlugin(),
 		latexPlugin(),
@@ -28,6 +31,14 @@
 		docStatsPlugin,
 		tocPlugin()
 	];
+
+	// Decoration dogfoods annotate ambient content (the focused paragraph, every
+	// occurrence of a word), so each installs only under its own seed — leaked
+	// into sibling seeds their decorations would perturb those batteries.
+	const seedPlugins: Record<string, EditorPlugin[]> = {
+		hloccur: [highlightOccurrencesPlugin],
+		ghost: [ghostTextPlugin]
+	};
 </script>
 
 <script lang="ts">
@@ -74,6 +85,12 @@
 	// A `[[toc]]` nested inside a blockquote below the headings: the prop reaches a
 	// nested block only through editor context, so this pins the container render path.
 	const TOC_NESTED_SEED = '# Chapter One\n\n## Section A\n\n> [[toc]]\n\nAfter\n';
+	// 'cat' twice in block 0 and once in block 1; 'catalog' pins the whole-word scan.
+	const HLOCCUR_SEED =
+		'the cat sat on a mat and a cat ran\n\na cat sleeps\n\nthe catalog is here.\n';
+	// Two plain paragraphs: the ghost island follows focus between them, and an
+	// Enter split provides the empty-paragraph caret-anchor case.
+	const GHOST_SEED = 'Hello world\n\nSecond paragraph\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -153,8 +170,12 @@
 		memo: MEMO_SEED,
 		docstats: DOC_STATS_SEED,
 		toc: TOC_SEED,
-		'toc-nested': TOC_NESTED_SEED
+		'toc-nested': TOC_NESTED_SEED,
+		hloccur: HLOCCUR_SEED,
+		ghost: GHOST_SEED
 	};
+	// svelte-ignore state_referenced_locally
+	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
 	// svelte-ignore state_referenced_locally
 	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
@@ -223,5 +244,9 @@
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.4rem;
+	}
+
+	.plugins-harness :global(.decoration-overlay.hl-occurrence) {
+		background: rgba(250, 204, 21, 0.35);
 	}
 </style>
