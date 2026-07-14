@@ -221,3 +221,56 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 		expect(wholeBlock(null).getCursorOffset()).toBeNull();
 	});
 });
+
+// Opaque single-unit measurement: the shim ALWAYS exposes measurePartialRects,
+// the seam the search/decoration overlays' childless-container route measures
+// through. A childless container paints its whole box for any non-empty range;
+// a child-bearing container returns nothing (its children self-paint), and the
+// overlay never even asks — it gates on hasChildHosts, not on this return.
+describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
+	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
+	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
+
+	function shim(over: {
+		childCount?: number;
+		getBoxEl?: () => HTMLElement | null | undefined;
+	}): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return [];
+			},
+			get nodeChildrenLength() {
+				return over.childCount ?? 0;
+			},
+			get node() {
+				return {
+					kind: 'mermaid' as AnyBlockKind,
+					leadingTrivia: '',
+					raw: '',
+					children: []
+				} as CstNode;
+			},
+			getBoxEl: over.getBoxEl
+		});
+	}
+
+	it('is always present on the shim', () => {
+		expect(shim({}).measurePartialRects).toBeTypeOf('function');
+	});
+
+	it('a child-bearing container returns [] — children self-paint', () => {
+		expect(shim({ childCount: 2, getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([]);
+	});
+
+	it('childless with a box returns one box rect for any non-empty range', () => {
+		expect(shim({ getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([RECT]);
+	});
+
+	it('childless with an empty range returns []', () => {
+		expect(shim({ getBoxEl: boxEl }).measurePartialRects!(3, 3)).toEqual([]);
+	});
+
+	it('childless with no box element returns []', () => {
+		expect(shim({ getBoxEl: () => null }).measurePartialRects!(0, 5)).toEqual([]);
+	});
+});

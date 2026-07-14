@@ -9,7 +9,8 @@
 		path,
 		blockRef,
 		blockEl,
-		isContainer = false
+		isContainer = false,
+		hasChildHosts = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
@@ -17,6 +18,10 @@
 		/** Containers paint nothing — children self-paint — EXCEPT grid surfaces
 		 *  (table) whose cells aren't BlockHosted; those paint whole-cell matches. */
 		isContainer?: boolean;
+		/** False for a childless container (render-primary plugin block): no child
+		 *  block-hosts exist to paint, so this block takes the overlay itself off its
+		 *  shim's `measurePartialRects`, like a non-text leaf (SelectionOverlay's twin). */
+		hasChildHosts?: boolean;
 	} = $props();
 
 	const search = getContext<InternalSearchState | undefined>(SEARCH_KEY);
@@ -25,6 +30,11 @@
 	// A grid container (table) supplies cellRect, so its descendant cell matches
 	// — which never get their own BlockHost overlay — paint as whole cells here.
 	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
+	// A childless container has no child hosts to delegate to; when its shim can
+	// measure a range (opaque single-unit) it paints the match on itself.
+	const containerPaintsSelf = $derived(
+		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
+	);
 
 	interface Painted {
 		left: number;
@@ -43,7 +53,7 @@
 			rects = [];
 			return;
 		}
-		if (isContainer && !containerPaintsCells) {
+		if (isContainer && !containerPaintsCells && !containerPaintsSelf) {
 			rects = [];
 			return;
 		}
