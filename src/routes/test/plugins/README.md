@@ -6,10 +6,10 @@ reference plugins not yet packaged. Two roles, kept distinct:
 
 ## Reference plugins
 
-Consumer-realistic extensions: what the `?plugins=1` showcase on `/test/editor`
-installs, and the shapes plugin authors should copy. The bundled reference plugins
-(admonitions, details, latex, mermaid, toc, highlight-occurrences) now live in
-`src/lib/plugins/`; what still stages here is seed-gated only:
+Consumer-realistic extensions: the shapes plugin authors should copy. The bundled
+reference plugins (admonitions, details, latex, mermaid, toc, highlight-occurrences)
+now live in `src/lib/plugins/` and are demonstrated together on the `/` showcase
+route; what still stages here is seed-gated only:
 
 - `ghost-text/` — one component-widget island at the focused paragraph's end;
   the reference shape for in-flow widget decorations and their byte-safety.

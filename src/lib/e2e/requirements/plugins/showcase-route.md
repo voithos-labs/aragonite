@@ -1,0 +1,39 @@
+# Feature: `/` showcase route (bundled-plugin smoke)
+
+The root route `/` is the developer-facing showcase: it mounts `<Editor>` with all
+six bundled plugins installed the way a consumer installs them (each imported from
+its `$lib/plugins/<name>` subpath, latex/mermaid engines injected), seeded with a
+document that exercises every built-in block kind alongside each plugin's syntax.
+Unlike the machine-facing `/test/*` routes it exposes no `window.__test` bridge and
+no debug panel — a real consumer's page has neither — so this smoke asserts through
+the rendered DOM only.
+
+The bar is deliberately just "the whole surface renders clean": the shared e2e
+`test` fixture fails on any `[invariant:…]` console fire, so a passing run also
+proves the showcase document loads without tripping an invariant under all six
+plugins. Editing behavior is owned by the machine-facing batteries and is not
+re-tested here.
+
+## Happy paths
+
+- the editor mounts and renders a floor of blocks (`.block-host` count above a
+  small threshold), proving the document parsed and the block list rendered
+- an admonition renders its chrome (`.admonition` with a kind), and a `<details>`
+  container renders its chrome (`.details-block`)
+- a math widget island renders KaTeX output (a `.katex` element is present)
+- the mermaid block renders its container (`.mermaid-block` visible) — presence of
+  the async-rendered engine output is not asserted, only the settled container
+- the table of contents lists the document's headings (`.toc-block-item` entries
+  present)
+- a sampling of built-in kinds is visible: a table and a fenced code block
+
+## Edge cases
+
+- mermaid renders asynchronously (the adapter dynamic-imports the engine); the spec
+  settles on the always-present `.mermaid-block` wrapper with an auto-retrying
+  visibility wait, never a fixed timeout or an engine-internal SVG locator
+
+## User interactions
+
+- navigation only: `page.goto('/')`. No `window.__test`, no debug panel, no
+  editing — the machine-facing routes own interaction coverage
