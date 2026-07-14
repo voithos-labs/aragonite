@@ -18,8 +18,7 @@ plugin kinds produce childless opaque containers.
 ## Miss-analysis
 
 - The overlay + shim route for a childless opaque container is driven end to end through
-  decorations (a source targets the block path directly), not search: `scanDocument` skips a
-  childless container's raw, so a search query inside a mermaid block finds nothing and a
-  search-based test would prove nothing about the paint. The decoration seed is what actually
-  reaches the route. (The MatchOverlay twin is wired identically and lights up once search
-  scans childless opaque containers — tracked in docs/issues.md.)
+  decorations (a source targets the block path directly), independent of search. The
+  search-fed MatchOverlay twin has its own coverage in
+  `requirements/search/childless-container-match.md` now that `scanDocument` scans a
+  childless opaque container's raw.

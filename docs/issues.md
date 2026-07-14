@@ -17,17 +17,6 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (their shapes + additive-re-add rationale live in `docs/design/plugin-contract.md` § Target shapes (designed ahead)) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
 
-### MatchOverlay paints no highlight for a match inside a childless opaque container
-
-**Severity:** minor (search-highlight parity)
-**Files:** `src/lib/components/MatchOverlay.svelte`
-
-Same class as the just-fixed SelectionOverlay container gate: `MatchOverlay`'s `isContainer && !containerPaintsCells` path zeroes the rects for a childless opaque container, and its leaf path needs a `measurePartialRects` the container shim never supplies — so a search match inside a mermaid (or other childless opaque) block paints no highlight even though the match is found and navigable.
-
-**Fix direction:** decide between a full-block paint (highlight the whole opaque block for any interior match) and a measure fallback that routes the leaf `measurePartialRects` through the container shim — mirroring the SelectionOverlay `hasChildHosts` precedent.
-
-**Why deferred:** needs a design call (full-block paint vs measure fallback), shared with the SelectionOverlay container-gate work; the match is still found and navigable, only its highlight is missing.
-
 ## Code structure
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
@@ -89,6 +78,23 @@ find the state carrier, then pin the keyboard-extend geometry read it perturbs.
 The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
 
 ## Plugin containers
+
+### Search replace skips matches inside childless opaque containers
+
+**Severity:** minor (replace parity; find/highlight/navigate work today)
+**Files:** `src/lib/editor-actions/search-replace.ts`
+
+A childless opaque container (e.g. a mermaid block) is scanned as a leaf, so search finds,
+highlights, and navigates to matches inside its raw. Replace skips those matches: the
+container's raw is metadata-derived (`rebuildRaw`), and a generic raw substitution would
+drift from metadata and trip the G1.12/G1.13 staleness probes. `replaceOne` no-ops,
+`replaceAll` excludes them, and `replacedCount` reports only real replacements.
+
+**Fix direction:** a kind-aware write path — the kind translates a raw-range edit into a
+metadata update (for mermaid, a `code` rewrite) and the ceremony rebuilds `raw` from it.
+
+**Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
+"Container shim hardcodes the component `editable` flag").
 
 ### Cross-block copy STARTING mid-chrome loses the container wrapper
 

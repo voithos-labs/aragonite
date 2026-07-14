@@ -153,8 +153,8 @@ answer both, ordered by **risk first, validation before freeze**.
      one context object, not two.
    - **Freeze litmus (decoration tier)**: a decoration is only as good as its worst-painting
      tier. Every tier in the closure matrix must supply `measurePartialRects`, including the
-     childless opaque container whose search-paint gap is ledgered today — otherwise the
-     decoration API ships with a hole the ecosystem inherits.
+     childless opaque container — otherwise the decoration API ships with a hole the
+     ecosystem inherits.
    - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
      each be able to learn the current presentation mode and render for it. Item 2 builds all three
      rungs, so this is verified by a real consumer rather than on paper — which is the point: rung 3

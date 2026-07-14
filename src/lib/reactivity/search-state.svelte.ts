@@ -17,9 +17,11 @@ export interface SearchOptions {
 }
 interface SearchDeps {
 	getDoc: () => Document;
+	// Both resolve to the count actually replaced — the replace path may skip
+	// matches (childless opaque containers), so the caller must not infer it.
 	replace: {
-		replaceOne(m: Match, t: string): Promise<void>;
-		replaceAll(m: Match[], t: string): Promise<void>;
+		replaceOne(m: Match, t: string): Promise<number>;
+		replaceAll(m: Match[], t: string): Promise<number>;
 	};
 	reveal: (path: number[]) => Promise<unknown>;
 	// Closing unmounts the bar; without this the focused find input is removed and
@@ -141,14 +143,13 @@ export function createSearchState(deps: SearchDeps) {
 		async replaceCurrent() {
 			const m = matches[activeIndex];
 			if (!m) return;
-			await deps.replace.replaceOne(m, replacement);
+			const n = await deps.replace.replaceOne(m, replacement);
 			rescan();
-			replacedCount = 1;
+			replacedCount = n;
 		},
 		async replaceAll() {
 			if (!matches.length) return;
-			const n = matches.length;
-			await deps.replace.replaceAll(matches, replacement);
+			const n = await deps.replace.replaceAll(matches, replacement);
 			rescan();
 			replacedCount = n;
 		},
