@@ -21,8 +21,8 @@
 		 *  (table) whose cells aren't BlockHosted; those paint whole-cell marks. */
 		isContainer?: boolean;
 		/** False for a childless container (render-primary plugin block): no child
-		 *  block-hosts exist to paint, so the block takes the mark overlay itself.
-		 *  Consumed by the childless-container route (see MatchOverlay's twin). */
+		 *  block-hosts exist to paint, so the block takes the mark overlay itself
+		 *  (SelectionOverlay carries the same route). */
 		hasChildHosts?: boolean;
 	} = $props();
 

@@ -7,7 +7,6 @@
 	import type { EditorEvents } from '../editor-events';
 	import type { DecorationEngine } from '../reactivity/decoration-state.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
-	import MatchOverlay from './MatchOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
@@ -239,7 +238,6 @@
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
 	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
-	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
 	<DecorationOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
 	<!-- Rendered LAST so the block-el lookup (`:scope >` excluding overlays and
 		 decoration badges) still resolves the block content as its first match. -->

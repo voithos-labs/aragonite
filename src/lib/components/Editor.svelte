@@ -211,20 +211,11 @@
 		return () => dispose();
 	});
 
-	// Re-scan after a commit, but only while the bar is open and off the typing
-	// hot path: deferred via tick() off the commit path, never a per-keystroke
-	// synchronous scan. When the bar is closed this adds zero keystroke work
-	// (perf contract, checked by perf:check).
-	$effect(() => {
-		const dispose = events.on('edit', () => {
-			if (searchState.isOpen) void tick().then(() => searchState.rescan());
-		});
-		return () => dispose();
-	});
-
 	// Re-run decoration sources after a commit, deferred a tick past the edit event so
 	// no source ever reads a half-applied tree (the DEV commit-scope assert guards it).
-	// Skipped entirely when no source is registered — zero keystroke work by default.
+	// Skipped entirely when no source is registered — zero keystroke work by default
+	// (perf contract, checked by perf:check). Search rides this too: its source lives
+	// only while the bar is open, and this bump is what re-scans it after an edit.
 	$effect(() => {
 		const dispose = events.on('edit', () => {
 			if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
@@ -502,6 +493,7 @@
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	const searchState = createSearchState({
 		getDoc,
+		decorations,
 		replace: searchReplace,
 		// Reveal mounts the target block (windowed-out case), then scroll the
 		// active match's element into view — a no-op when already on screen, so it
