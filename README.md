@@ -1,6 +1,6 @@
-This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extendable, lean, fast, have a graceful ui/ux, and have hella good plugin interface. So you know, just some simplistic and easy to achieve goals[^1][^2].
+This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extendable, lean, fast, have a graceful ui/ux, and have hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
-Note that aragonite is a work in progress[^3]. Its written in typescript and svelte[^4][^5][^6][^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.
+Note that aragonite is a work in progress [^3]. Its written in typescript and svelte [^4] [^5] [^6] [^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.
 
 For those of you who don't want to sit through a monologue, here's how to use the editor:
 
@@ -25,7 +25,7 @@ To save the source, just do something like:
 
 (obviously define the save function)
 
-For more info go read [consumer-guide](docs/guide/consumer-guide.md).
+For more info go read [consumer-guide](./docs/guide/consumer-guide.md).
 
 Now, for those who don't have better things to do.
 
@@ -63,7 +63,7 @@ Well, funny things is, this implementation actually stuck around.
 
 # Footnote
 
-[^1]: read the [changelog](docs/changelog.md) to experience my suffering.
+[^1]: read the [changelog](./docs/changelog.md) to experience my suffering.
 
 [^2]: this is not even the first iteration of this editor; this is like my fourth try to write this piece of lovely shit.
 
@@ -79,4 +79,4 @@ Well, funny things is, this implementation actually stuck around.
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: If you are suggesting a flat model right now, first of all, fuck off, second of all, why do you want to hurt yourself?
+[^9]: If you are suggesting a flat model right now, first of all, fuck off, second of all, why do people like hurting themselves?
