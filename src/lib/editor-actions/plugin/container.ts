@@ -378,7 +378,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
 		isCollapsed: collapsed,
-		getFocusEl: wholeBlockSurface
+		getFocusEl: wholeBlockSurface,
+		getBoxEl: () => deps.getBoxEl()
 	});
 
 	const blockListProps: ContainerBlockListProps = {
