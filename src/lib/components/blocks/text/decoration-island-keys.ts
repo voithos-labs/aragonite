@@ -85,8 +85,11 @@ export function createDecorationIslandKeys(deps: DecorationIslandKeysDeps): Deco
 	}
 
 	function handleKeydown(e: KeyboardEvent, caretOffset: number | null): boolean {
-		const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
-		const isTyping = !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1;
+		// Modifier chords (Ctrl/Alt/Cmd word-delete and shortcuts) stay native —
+		// the island rules own only the plain edge presses.
+		const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
+		const isDestructive = !hasModifier && (e.key === 'Backspace' || e.key === 'Delete');
+		const isTyping = !hasModifier && e.key.length === 1;
 		if (!isDestructive && !isTyping) return false;
 
 		const el = deps.getEl();
