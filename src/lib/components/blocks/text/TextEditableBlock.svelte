@@ -61,6 +61,7 @@
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
+	import { createDecorationIslandKeys } from './decoration-island-keys';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
@@ -269,6 +270,21 @@
 		isCrossBlock: () => selection.isCrossBlock,
 		get linkRef() {
 			return linkRef;
+		}
+	});
+
+	const decorationIslandKeys = createDecorationIslandKeys({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		getEl: () => el ?? null,
+		getRawSelection: () => cursor.getRawSelection(),
+		blockEdit,
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
 		}
 	});
 
@@ -525,6 +541,11 @@
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		if (widgetInteraction.handleWidgetAtCursorKeydown(e, cursor.getRaw())) return;
+
+		// Decoration islands are view-only ([data-decoration-island]) and invisible to
+		// the CST-widget path above; this keeps an edge Backspace/Delete from letting
+		// native contenteditable silently eat a replace island's hidden bytes.
+		if (decorationIslandKeys.handleKeydown(e, cursor.getRaw())) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
