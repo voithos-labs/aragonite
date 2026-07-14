@@ -7,7 +7,7 @@ import { PluginsPage } from '../plugins/helpers';
  * Search inside a childless opaque container
  * (requirements/search/childless-container-match.md). A mermaid block's text
  * lives in its own raw — no leaf children — so the scanner matches the raw like
- * a leaf and MatchOverlay paints through the container shim's
+ * a leaf and `DecorationOverlay` paints those marks through the container shim's
  * `measurePartialRects`. Replace skips those matches (metadata-derived raw;
  * ledgered in docs/issues.md), so `replacedCount` counts only real rewrites.
  */

@@ -5,7 +5,8 @@ import { EditorPage } from '../../editor-page';
  * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources
  * register through the public registry via the e2e bridge — no plugin needed —
  * and `DecorationOverlay` paints a positioned div per mark, carrying the
- * source's class. Mirrors the search MatchOverlay it generalizes.
+ * source's class. The find bar now rides this same overlay (source
+ * `editor:search`).
  */
 
 test.describe('decoration mark overlay', () => {
