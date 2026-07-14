@@ -22,7 +22,7 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 ## The five things to know
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It is not two-way bound.
-2. **`bind:this` is the read surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`.
+2. **`bind:this` is the read surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`.
 3. **Theming is CSS custom properties** on the editor's own root. Nothing lands on `:root`.
 4. **Plugins are process-global**, installed once at mount. Two editors share one grammar, never any state.
 5. **`editor.__test.*` is not part of the contract.** It is internal and will move.
@@ -52,6 +52,8 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 | **Plugins**            | `installPlugins` for an editor-less pipeline; `EditorPlugin` (the unit) and `EditorPluginEntry` (a `plugins` entry — a bare unit or `{ plugin, options }` for per-instance options) |
 | **Selection + keymap** | `EditorSelection` (what `getSelection()` returns), `KeybindingOverride` and `CommandId` (what the `keybindings` prop takes)                                                         |
 | **Search**             | `SearchState`, `SearchOptions`, `Match` — the find/replace controller, its options, and one hit                                                                                     |
+| **Decorations**        | `DecorationRegistry` and the decoration types — what `getDecorations()` returns (see [Decorations and rects](#decorations-and-rects))                                               |
+| **Rects**              | `EditorRects` — what `getRects()` returns: viewport-space geometry over the rendered document                                                                                       |
 | **CST utilities**      | `parse` / `serialize` for round-tripping Markdown outside the component; `parseInline`, `getContentRange`, `isProseKind` for inspecting a block's inline content and editable range |
 | **Node types**         | `CstNode`, `Document`, the block-kind and inline-node unions, and the per-kind metadata shapes — the vocabulary for reading a parsed document                                       |
 | **Events**             | `EditorEvents` and the three payload types the observer surface emits                                                                                                               |
@@ -61,11 +63,13 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes four methods:
+- **`bind:this`** exposes six methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
+  - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
+  - **`getDecorations()`** — register a view-only annotation source, no plugin needed (same section).
 
 ## Behavior / policy props
 
@@ -216,6 +220,34 @@ The payload envelopes — read the source types for the per-op arms, which chang
 ## Search
 
 `getSearch()` returns the imperative find/replace controller (`SearchState`) — the same engine the built-in bar drives. Use it to set the query and options (case sensitivity, whole-word, regex), step through matches, and replace one or all. The `searchBar` prop renders the built-in UI over that controller; set it `false` to drive search from your own chrome.
+
+## Decorations and rects
+
+Two read/annotate surfaces for building chrome _around_ the document — toolbars, popups, highlights — without touching its bytes.
+
+**`getDecorations()`** registers a view-only annotation source directly, no plugin needed: highlights, badges, folds that live and die with your app's state. It is the same registry a plugin reaches through its editor context, with the same contract — a named source whose `provide(document)` is pure, re-run after every edit, `invalidate()` for your own state changes, `dispose()` to remove. Authoring semantics, the four decoration types, and the memoization recipe are in the [plugin guide](plugin-guide.md#decorations); everything there applies verbatim to a consumer-registered source.
+
+**`getRects()`** answers "where is that, on screen?" in viewport coordinates:
+
+| Method                         | Returns                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                         |
+| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table |
+| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)           |
+| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists         |
+
+Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the end-of-block sentinel value `Number.MAX_SAFE_INTEGER` as `end`, meaning "through the block's last measurable position".
+
+### Recipe: a selection toolbar
+
+Float a formatting bar above the user's selection — the standard use of the two surfaces together:
+
+1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
+2. **Cross-block selections** (anchor and focus in different blocks): normalize the endpoints yourself (compare paths, then offsets), then anchor to `rangeRects(startPath, startOffset, MAX_SAFE_INTEGER)` — the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
+3. **Single-block selections** — the honest caveat: the selection snapshot currently collapses a single-block range to the focus caret (anchor === focus), so the editor's own payload cannot give you the range's geometry. Read the native selection instead: `window.getSelection()!.getRangeAt(0).getBoundingClientRect()` is correct whenever the selection lives inside one block, because there the editor delegates selection to the browser. An additive payload extension is planned; until it lands, the native read is the supported pattern.
+4. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
+
+The demo route's `SelectionToolbar` component is this recipe verbatim, including the native-Range fallback.
 
 ## Rewriting a document
 

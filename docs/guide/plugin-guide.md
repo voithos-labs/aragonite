@@ -67,12 +67,14 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 
 `setup` runs once per process, but a plugin often needs to react to _each editor_ — recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that seam: it registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**.
 
-| Field      | What it gives you                                                                        |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| `editorId` | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state        |
-| `document` | A live getter for the root document (read-only; the tree is the editor's to mutate)      |
-| `events`   | The subscribe-only event view — `events.on('edit', …)` returns a disposer                |
-| `options`  | The options this editor passed, typed when you write `definePlugin<Options>` (see below) |
+| Field         | What it gives you                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `editorId`    | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state        |
+| `document`    | A live getter for the root document (read-only; the tree is the editor's to mutate)      |
+| `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                |
+| `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below) |
+| `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))      |
+| `rects`       | This editor's viewport-space geometry reads — block box, range rects, caret, reveal      |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
 
@@ -483,6 +485,68 @@ An inline kind is minted with `declarePluginInlineKind`, recognized by hooking t
 
 **The inline tier is not the block surface in miniature.** An inline kind gets recognition, rendering, atomic caret addressing at its edges, a reveal-source editing policy (`revealSource`), and a selected-widget key handler (`onSelectedKey`). It gets **no keymap, no minted commands, and no per-node metadata** — `InlineNode` has no metadata field, so unlike a block kind it stores nothing on the node. The two editing-policy fields an atomic-inline consumer will need (`deleteGranularity` / `onEdge`) are trimmed today; they re-add additively with that consumer, their shapes recorded in the target-shapes section of `docs/design/plugin-contract.md`.
 
+## Decorations
+
+Everything so far teaches the editor content you **own** — a kind, its grammar, its component. A decoration annotates content you **don't own**: highlight every occurrence of a word, ghost-complete a sentence, fold a range, badge a heading. Decorations are view-only — they never enter the document tree, never change `getSource()`, and never touch undo.
+
+You register a **source** on each editor instance, from `onEditor`:
+
+```ts
+setup(ctx) {
+	ctx.onEditor((editor) => {
+		const handle = editor.decorations.addSource({
+			name: 'my-highlights', // unique per instance; a duplicate throws
+			provide: (doc) => scanForMarks(doc) // pure: document in, decorations out
+		});
+		return () => handle.dispose();
+	});
+}
+```
+
+`provide` returns an array of decorations and is **pure over the document plus your own state** — the editor re-runs it after every document edit, and the render layer applies whatever it returns. There is no decoration set to map forward through changes: positions are `(path, offset)` addresses into the current tree, recomputed each run. When your _own_ state changes instead (an option toggled, the selection moved, an async result arrived), call `handle.invalidate()` to re-run just your source.
+
+**Two contracts to build against:**
+
+- **`invalidate()` is synchronous.** Your new decorations are applied before the call returns — so an event handler can invalidate and immediately trust the view.
+- **Widget identity is untracked.** The renderer compares decorations by position and class, not by widget object — swapping in a new `component` or `buildDom` at the same position with the same class re-renders nothing. Vary `class` when the widget's content changes.
+
+### The four decoration types
+
+| Type      | Shape                                   | Renders as                                                                     |
+| --------- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| `mark`    | `{ path, start, end, class }`           | A positioned overlay span over the inline range — style it via the class       |
+| `widget`  | `{ path, offset, widget }`              | A zero-width atomic island at the offset (ghost text's shape)                  |
+| `replace` | `{ path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document     |
+| `block`   | `{ path, class?, attrs?, badge? }`      | A class/attrs treatment on the whole block host, plus an optional badge widget |
+
+Offsets are **raw offsets** into the target block — dimmed markers included, the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes an `onClick`; interactive DOM inside an island is native — wire your own listeners in `buildDom`.
+
+Islands (`widget` / `replace`) render in prose blocks. They do not render inside table cells today — a dev warning names the source and kind if you target one; `mark` and `block` decorations serve cells fine. Island caret behavior is defined and pinned: arrows step over, destructive keys treat a widget island as transparent and select-then-delete a replace island whole, so the hidden bytes are never silently corrupted.
+
+### Recipe: memoize the scan on `editEpoch`
+
+`provide` runs on every edit, so an expensive scan wants a memo. Do **not** key it on `doc.children` identity — routine typing mutates the tree in place. The second `provide` argument carries `editEpoch`, a counter that bumps once per document edit and **never** on `invalidate()`, which is exactly the split a memo needs: epoch miss → the document changed, rescan; epoch hit → only your own state changed, remap the cached scan.
+
+```ts
+let lastEpoch = -1;
+let cached: MarkDecoration[] = [];
+
+const handle = editor.decorations.addSource({
+	name: 'occurrences',
+	provide: (doc, { editEpoch }) => {
+		if (editEpoch !== lastEpoch) {
+			lastEpoch = editEpoch;
+			cached = expensiveScan(doc); // once per edit
+		}
+		return filterByCurrentWord(cached); // cheap remap on every invalidate()
+	}
+});
+
+editor.events.on('selectionChange', () => handle.invalidate());
+```
+
+A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen — a throw never blanks the view. Pair a source with `editor.rects` when you need geometry (anchor a popup to a decorated range, say): `rects.rangeRects(path, start, end)` returns viewport-space rects for any measurable range, one per visual line.
+
 ## Block commands
 
 `registerBlockCommand` mints a `(kind, name)` command and returns its id, which a keymap binding then targets.
@@ -772,7 +836,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `registerPasteTransform` | Register a content-keyed pre-parse clipboard rewrite (paste-scoped, install-order) |
 | `PasteTransform`         | The transform's shape — a unique name and a `transform(text) → string \| null`     |
 
-**Decorations** _(pre-freeze / unstable)_
+**Decorations** _(pre-freeze / unstable)_ — the recipe and the two authoring contracts are in [Decorations](#decorations)
 
 View-only annotations layered over the rendered document — never part of the CST. Register a pure per-instance source through `editor.decorations` (your `onEditor` context).
 

@@ -38,7 +38,7 @@ same cell-surface parity pass rather than shipping render support without editin
 collapsed point: `readCurrentSelection` reads only the focus block's cursor offset, so
 anchor === focus whenever both endpoints share a block. A consumer therefore cannot obtain
 `(start, end)` raw offsets to feed `rangeRects` for the most common selection shape — the
-roadmap's "selection-toolbar kit" claim is incomplete for single-block. The demo toolbar
+consumer guide's selection-toolbar recipe documents a native-Range fallback for it. The demo toolbar
 (`src/routes/test/editor/SelectionToolbar.svelte`) works around it with the native
 `window.getSelection()` Range, which is honest consumer-side but bypasses the editor's own
 offset semantics.
@@ -109,6 +109,28 @@ command reaches the mounted component through `ctx.hooks`, threaded by the conta
 reader, so the fix is cosmetic until a consumer needs a non-editable container surface.
 
 ## Test coverage
+
+### Decoration tiers lack dedicated simulation gestures
+
+**Severity:** minor (test coverage; the scripted decoration e2e covers the behavior)
+**Files:** `src/lib/e2e/simulation/gestures/` (no decoration gestures),
+`src/routes/test/plugins/sim-mark/sim-mark-plugin.ts` (the standing source)
+
+The standing mark source installed under `?seed=sim` puts the decoration engine's per-edit
+run — provide, bucketing, overlay paint — under the loaded-ops corruption oracles on every
+keystroke. What it does not drive is the interaction surface: island caret/delete semantics
+(edge Backspace/Delete, the two-press replace delete) and block-decoration chrome have no
+simulation gesture and are covered by the scripted decoration e2e only. Per the culture rule
+"new feature class → new simulation gesture", this is the ledgered remainder — the closure
+matrix's Sim-oracle ◐ for both decoration rows (`docs/design/plugin-contract.md`) cites it.
+
+**Fix direction:** an island gesture needs a deterministic island source in the sim document
+(the fold fixture's `[>…<]` shape is the natural seed) plus edge-press vocabulary in the
+gesture set; the block-decoration case rides the same source.
+
+**Why deferred:** the engine spine — the part that runs on every edit and can corrupt state —
+is now under the oracle; the island editing rules are scripted-e2e-pinned and unit-pinned.
+Gesture design is its own bounded task, kept out of 0.9.22 to keep the milestone shippable.
 
 ### Cross-block-through-revealed-source blur spec is battery-order-sensitive
 
