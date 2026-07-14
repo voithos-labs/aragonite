@@ -37,6 +37,7 @@ export function createEditorRects(deps: {
 	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
+	isCrossBlock: () => boolean;
 }): EditorRects {
 	return {
 		blockRect(path) {
@@ -46,11 +47,14 @@ export function createEditorRects(deps: {
 			return deps.getBlockComponentByPath(path)?.measurePartialRects?.(start, end) ?? [];
 		},
 		caretRect() {
+			// Read SelectionState, not the `data-cross-block` DOM mirror: that attribute
+			// is written by a deferred $effect and lags the synchronous selectionChange
+			// emit, so a subscriber calling caretRect() mid-emit would read a stale
+			// attribute and leak the parked cross-block range as a caret. In cross-block
+			// mode the native selection is a parked range, not a caret — suppress it.
+			if (deps.isCrossBlock()) return null;
 			const root = deps.getEditorRoot();
-			// `data-cross-block` is the sanctioned mirror of SelectionState.isCrossBlock,
-			// read fresh each call. When set, the native selection is a parked range, not
-			// a caret — suppress it rather than returning its box.
-			if (!root || root.hasAttribute('data-cross-block')) return null;
+			if (!root) return null;
 			const selection = window.getSelection();
 			if (!selection || selection.rangeCount === 0) return null;
 			const range = selection.getRangeAt(0);

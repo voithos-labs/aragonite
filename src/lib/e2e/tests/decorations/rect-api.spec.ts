@@ -45,6 +45,8 @@ async function caretRect(page: EditorPage['page']): Promise<PlainRect> {
 	});
 }
 
+type CrossBlockCaretProbe = { captured: boolean; rect: PlainRect };
+
 test.describe('public rect api', () => {
 	let editor: EditorPage;
 
@@ -111,6 +113,28 @@ test.describe('public rect api', () => {
 		await editor.waitForCrossBlock(true);
 
 		expect(await caretRect(page)).toBeNull();
+	});
+
+	test('caretRect is null inside a selectionChange handler during cross-block entry', async ({
+		page
+	}) => {
+		await editor.loadContent('first block\n\nsecond block\n');
+		await editor.focusBlockEnd(0);
+
+		// Subscribe before the gesture: the probe records caretRect() from inside
+		// the SYNCHRONOUS selectionChange emit, the window before the deferred
+		// data-cross-block $effect writes the attribute. If caretRect gated on the
+		// attribute it would still read unset here and leak the parked range's box.
+		await page.evaluate(() => (window as any).__test.startCrossBlockCaretProbe());
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+
+		const probe = await page.evaluate(
+			() => (window as any).__test.readCrossBlockCaretProbe() as CrossBlockCaretProbe
+		);
+		// captured guards against a false green where the handler never fired.
+		expect(probe.captured).toBe(true);
+		expect(probe.rect).toBeNull();
 	});
 
 	test('caretRect is null when nothing is focused', async ({ page }) => {
