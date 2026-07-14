@@ -114,7 +114,32 @@ For a `parse()` pipeline with no `<Editor>` mounted, call `installPlugins(units)
 
 A later editor may mount carrying a plugin an earlier one never had. The late install is legal and serves the new editor's own parse; an already-parsed editor does not re-parse against the newer grammar, and a dev-warn names the late registration.
 
-## Theming
+### Bundled plugins
+
+Six first-party plugins ship in the package as subpath exports — install them like any other unit:
+
+```ts
+import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
+import { detailsPlugin } from 'aragonite/plugins/details';
+import { tocPlugin } from 'aragonite/plugins/toc';
+import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
+import { latexPlugin } from 'aragonite/plugins/latex';
+import { mermaidPlugin } from 'aragonite/plugins/mermaid';
+```
+
+latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
+
+```ts
+import { katexRenderer } from 'aragonite/plugins/latex/renderer'; // imports katex + its CSS
+import { mermaidRenderer } from 'aragonite/plugins/mermaid/renderer'; // dynamic-imports mermaid
+
+latexPlugin({ renderer: katexRenderer });
+mermaidPlugin({ renderer: mermaidRenderer });
+```
+
+The two differ on whether the renderer is required, and the asymmetry is deliberate. Math without a renderer has no honest fallback — a formula would render as nothing — so `latexPlugin` requires one at the type level. A mermaid block without an engine still has a useful static form (the fenced source, styled), so `mermaidPlugin()` is legal and renders statically; supply the renderer when you want live diagrams.
+
+The latex adapter imports `katex/dist/katex.min.css` on your behalf (it is the one bundled-plugin module with a side effect); no other setup is needed.
 
 The module owns its CSS. Two stylesheets ship under `styles/`:
 

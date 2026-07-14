@@ -6,7 +6,12 @@
  * `renderer.test.ts`.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createMemoizedRenderer } from '$lib/plugins/latex/math-renderer';
+import {
+	createMemoizedRenderer,
+	setMathRenderer,
+	renderInlineMath,
+	renderDisplayMath
+} from '$lib/plugins/latex/math-renderer';
 
 describe('createMemoizedRenderer', () => {
 	it('runs inner once per (source, display) and hands back a fresh node each call', () => {
@@ -69,4 +74,26 @@ describe('createMemoizedRenderer', () => {
 	// The bounded-LRU mechanics (eviction, recency, clone identity) are pinned once
 	// on the shared primitive in bounded-memo.test.ts; these cases pin the wrapper's
 	// own contract — cloneOnRead wiring and the (source, display) composite key.
+});
+
+describe('the injection seam', () => {
+	// The memo keys on display above; this pins the seam functions THREADING the
+	// flag — a renderDisplayMath that passed display:false would serve inline HTML
+	// for every block formula and no other test would notice.
+	it('renderInlineMath and renderDisplayMath each thread their own display flag', () => {
+		const inner = vi.fn((source: string, opts: { display: boolean }) => {
+			const dom = document.createElement('span');
+			dom.textContent = `${source}:${opts.display}`;
+			return { dom };
+		});
+		setMathRenderer(inner);
+
+		const inline = renderInlineMath('x^2');
+		const display = renderDisplayMath('x^2');
+
+		expect(inner).toHaveBeenNthCalledWith(1, 'x^2', { display: false });
+		expect(inner).toHaveBeenNthCalledWith(2, 'x^2', { display: true });
+		expect(inline.dom.textContent).toBe('x^2:false');
+		expect(display.dom.textContent).toBe('x^2:true');
+	});
 });
